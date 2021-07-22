@@ -26,6 +26,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/memory-protection-key.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-sourcemap.h"
@@ -94,7 +95,8 @@ struct WasmModule;
   V(WasmAllocateArrayWithRtt)            \
   V(WasmAllocateRtt)                     \
   V(WasmAllocateStructWithRtt)           \
-  V(WasmSubtypeCheck)
+  V(WasmSubtypeCheck)                    \
+  V(WasmOnStackReplace)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -160,11 +162,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return {reloc_info().end(), static_cast<size_t>(source_positions_size_)};
   }
 
-  // TODO(clemensb): Make this return int.
-  uint32_t index() const {
-    DCHECK_LE(0, index_);
-    return index_;
-  }
+  int index() const { return index_; }
   // Anonymous functions are functions that don't carry an index.
   bool IsAnonymous() const { return index_ == kAnonymousFuncIndex; }
   Kind kind() const { return KindField::decode(flags_); }
@@ -397,31 +395,11 @@ class WasmCodeAllocator {
   static constexpr size_t kMaxCodeSpaceSize = 1024 * MB;
 #endif
 
-  // {OptionalLock} is passed between {WasmCodeAllocator} and {NativeModule} to
-  // indicate that the lock on the {WasmCodeAllocator} is already taken. It's
-  // optional to allow to also call methods without holding the lock.
-  class OptionalLock {
-   public:
-    // External users can only instantiate a non-locked {OptionalLock}.
-    OptionalLock() = default;
-    ~OptionalLock();
-    bool is_locked() const { return allocator_ != nullptr; }
-
-   private:
-    friend class WasmCodeAllocator;
-    // {Lock} is called from the {WasmCodeAllocator} if no locked {OptionalLock}
-    // is passed.
-    void Lock(WasmCodeAllocator*);
-
-    WasmCodeAllocator* allocator_ = nullptr;
-  };
-
-  WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
-                    std::shared_ptr<Counters> async_counters);
+  WasmCodeAllocator(WasmCodeManager*, std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
   // Call before use, after the {NativeModule} is set up completely.
-  void Init(NativeModule*);
+  void Init(VirtualMemory code_space);
 
   size_t committed_code_space() const {
     return committed_code_space_.load(std::memory_order_acquire);
@@ -434,22 +412,32 @@ class WasmCodeAllocator {
   }
 
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
+  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   Vector<byte> AllocateForCode(NativeModule*, size_t size);
 
   // Allocate code space within a specific region. Returns a valid buffer or
   // fails with OOM (crash).
+  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
-                                       base::AddressRegion,
-                                       const WasmCodeAllocator::OptionalLock&);
+                                       base::AddressRegion);
 
-  // Sets permissions of all owned code space to executable, or read-write (if
-  // {executable} is false). Returns true on success.
-  V8_EXPORT_PRIVATE bool SetExecutable(bool executable);
+  // Sets permissions of all owned code space to read-write or read-only (if
+  // {writable} is false). Returns true on success.
+  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
+  V8_EXPORT_PRIVATE bool SetWritable(bool writable);
+
+  // Set this thread's permission of all owned code space to read-write or
+  // read-only (if {writable} is false). Uses memory protection keys.
+  // Returns true on success. Since the permission is thread-local, there is no
+  // requirement to hold any lock when calling this method.
+  bool SetThreadWritable(bool writable);
 
   // Free memory pages of all given code objects. Used for wasm code GC.
+  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   void FreeCode(Vector<WasmCode* const>);
 
   // Retrieve the number of separately reserved code spaces.
+  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
  private:
@@ -461,10 +449,8 @@ class WasmCodeAllocator {
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
 
-  mutable base::Mutex mutex_;
-
   //////////////////////////////////////////////////////////////////////////////
-  // Protected by {mutex_}:
+  // These fields are protected by the mutex in {NativeModule}.
 
   // Code space that was reserved and is available for allocations (subset of
   // {owned_code_space_}).
@@ -476,14 +462,14 @@ class WasmCodeAllocator {
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
+  int writers_count_{0};
+
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
-
-  bool is_executable_ = false;
 
   std::shared_ptr<Counters> async_counters_;
 };
@@ -523,7 +509,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // table and jump table via another {PublishCode}.
   void ReinstallDebugCode(WasmCode*);
 
-  Vector<uint8_t> AllocateForDeserializedCode(size_t total_code_size);
+  struct JumpTablesRef {
+    Address jump_table_start = kNullAddress;
+    Address far_jump_table_start = kNullAddress;
+
+    bool is_valid() const { return far_jump_table_start != kNullAddress; }
+  };
+
+  std::pair<Vector<uint8_t>, JumpTablesRef> AllocateForDeserializedCode(
+      size_t total_code_size);
 
   std::unique_ptr<WasmCode> AddDeserializedCode(
       int index, Vector<byte> instructions, int stack_slots,
@@ -564,26 +558,19 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // the first jump table).
   Address GetCallTargetForFunction(uint32_t func_index) const;
 
-  struct JumpTablesRef {
-    Address jump_table_start = kNullAddress;
-    Address far_jump_table_start = kNullAddress;
-
-    bool is_valid() const { return far_jump_table_start != kNullAddress; }
-  };
-
   // Finds the jump tables that should be used for given code region. This
   // information is then passed to {GetNearCallTargetForFunction} and
   // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
   // up there. Return an empty struct if no suitable jump tables exist.
-  JumpTablesRef FindJumpTablesForRegion(base::AddressRegion) const;
+  JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
   // Similarly to {GetCallTargetForFunction}, but uses the jump table previously
-  // looked up via {FindJumpTablesForRegion}.
+  // looked up via {FindJumpTablesForRegionLocked}.
   Address GetNearCallTargetForFunction(uint32_t func_index,
                                        const JumpTablesRef&) const;
 
   // Get a runtime stub entry (which is a far jump table slot) in the jump table
-  // previously looked up via {FindJumpTablesForRegion}.
+  // previously looked up via {FindJumpTablesForRegionLocked}.
   Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
                                   const JumpTablesRef&) const;
 
@@ -591,8 +578,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  bool SetExecutable(bool executable) {
-    return code_allocator_.SetExecutable(executable);
+  bool SetWritable(bool writable) {
+    base::RecursiveMutexGuard guard{&allocation_mutex_};
+    return code_allocator_.SetWritable(writable);
+  }
+
+  bool SetThreadWritable(bool writable) {
+    return code_allocator_.SetThreadWritable(writable);
   }
 
   // For cctests, where we build both WasmModule and the runtime objects
@@ -726,9 +718,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier, ForDebugging for_debugging,
       Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
 
-  WasmCode* CreateEmptyJumpTableInRegion(
-      int jump_table_size, base::AddressRegion,
-      const WasmCodeAllocator::OptionalLock&);
+  WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
+                                               base::AddressRegion);
 
   void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
 
@@ -740,8 +731,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                             Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
-  void AddCodeSpace(base::AddressRegion,
-                    const WasmCodeAllocator::OptionalLock&);
+  void AddCodeSpaceLocked(base::AddressRegion);
 
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
   WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
@@ -806,7 +796,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
-  mutable base::Mutex allocation_mutex_;
+  // TODO(dlehmann): Revert this to a regular {Mutex} again.
+  // This needs to be a {RecursiveMutex} only because of
+  // {NativeModuleModificationScope} usages, which are (1) either at places
+  // that already hold the {allocation_mutex_} or (2) because of multiple open
+  // {NativeModuleModificationScope}s in the call hierarchy. Both are fixable.
+  mutable base::RecursiveMutex allocation_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {allocation_mutex_}:
@@ -847,7 +842,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  int modification_scope_depth_ = 0;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
@@ -861,12 +855,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCodeManager(const WasmCodeManager&) = delete;
   WasmCodeManager& operator=(const WasmCodeManager&) = delete;
 
-#ifdef DEBUG
-  ~WasmCodeManager() {
-    // No more committed code space.
-    DCHECK_EQ(0, total_committed_code_space_.load());
-  }
-#endif
+  ~WasmCodeManager();
 
 #if defined(V8_OS_WIN64)
   bool CanRegisterUnwindInfoForNonABICompliantCodeRange() const;
@@ -921,6 +910,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // currently committed space plus 50% of the available code space on creation
   // and updated after each GC.
   std::atomic<size_t> critical_committed_code_space_;
+
+  const int memory_protection_key_;
 
   mutable base::Mutex native_modules_mutex_;
 

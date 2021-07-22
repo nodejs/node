@@ -139,8 +139,14 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
   // TODO(v8:11189) Consider JSON modules support in the InspectorClient
   IsolateData* data = IsolateData::FromContext(context);
   std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
-  return data->modules_[ToVector(data->isolate(), specifier)].Get(
-      data->isolate());
+  v8::MaybeLocal<v8::Module> maybe_module =
+      data->modules_[ToVector(data->isolate(), specifier)].Get(data->isolate());
+  if (maybe_module.IsEmpty()) {
+    data->isolate()->ThrowError(v8::String::Concat(
+        data->isolate(),
+        ToV8String(data->isolate(), "Failed to resolve module: "), specifier));
+  }
+  return maybe_module;
 }
 
 int IsolateData::ConnectSession(int context_group_id,

@@ -27,7 +27,16 @@ import sys
 import subprocess
 import tempfile
 import traceback
-import urllib2
+
+# for py2/py3 compatibility
+try:
+  from urllib.parse import quote
+except ImportError:
+  from urllib2 import quote
+try:
+  from urllib.request import urlopen
+except ImportError:
+  from urllib2 import urlopen
 
 from collections import OrderedDict
 
@@ -869,7 +878,7 @@ class MetaBuildWrapper(object):
     return err, labels
 
   def GNCmd(self, subcommand, path, *args):
-    if self.platform == 'linux2':
+    if self.platform.startswith('linux'):
       subdir, exe = 'linux64', 'gn'
     elif self.platform == 'darwin':
       subdir, exe = 'mac', 'gn'
@@ -1109,7 +1118,7 @@ class MetaBuildWrapper(object):
 
   def CheckCompile(self, builder_group, builder):
     url_template = self.args.url_template + '/{builder}/builds/_all?as_text=1'
-    url = urllib2.quote(
+    url = quote(
             url_template.format(builder_group=builder_group, builder=builder),
             safe=':/()?=')
     try:
@@ -1201,7 +1210,7 @@ class MetaBuildWrapper(object):
 
   def Fetch(self, url):
     # This function largely exists so it can be overridden for testing.
-    f = urllib2.urlopen(url)
+    f = urlopen(url)
     contents = f.read()
     f.close()
     return contents

@@ -5,11 +5,11 @@ import {groupBy} from '../helper.mjs';
 import {App} from '../index.mjs'
 
 import {SelectRelatedEvent, ToolTipEvent} from './events.mjs';
-import {CSSColor, delay, DOM, formatBytes, gradientStopsFromGroups, V8CustomElement} from './helper.mjs';
+import {CollapsableElement, CSSColor, delay, DOM, formatBytes, gradientStopsFromGroups} from './helper.mjs';
 
 DOM.defineCustomElement('view/script-panel',
                         (templateText) =>
-                            class SourcePanel extends V8CustomElement {
+                            class SourcePanel extends CollapsableElement {
   _selectedSourcePositions = [];
   _sourcePositionsToMarkNodes = [];
   _scripts = [];
@@ -110,7 +110,7 @@ DOM.defineCustomElement('view/script-panel',
     if (!sourcePosition) return;
     const markNode = this._sourcePositionsToMarkNodes.get(sourcePosition);
     markNode.scrollIntoView(
-        {behavior: 'smooth', block: 'nearest', inline: 'center'});
+        {behavior: 'auto', block: 'center', inline: 'center'});
   }
 
   _handleSelectScript(e) {

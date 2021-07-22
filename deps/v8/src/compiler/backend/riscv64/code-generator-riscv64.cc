@@ -157,18 +157,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    if (mode_ > RecordWriteMode::kValueIsPointer) {
-      __ JumpIfSmi(value_, exit());
-    }
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     __ Add64(scratch1_, object_, index_);
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
-                                             : OMIT_REMEMBERED_SET;
-    SaveFPRegsMode const save_fp_mode =
-        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
+                                             : RememberedSetAction::kOmit;
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
     if (must_save_lr_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
@@ -488,6 +486,11 @@ void CodeGenerator::AssemblePrepareTailCall() {
   frame_access_state()->SetFrameAccessToSP();
 }
 
+void CodeGenerator::AssembleArchSelect(Instruction* instr,
+                                       FlagsCondition condition) {
+  UNIMPLEMENTED();
+}
+
 namespace {
 
 void AdjustStackPointerForTailCall(TurboAssembler* tasm,
@@ -606,8 +609,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
       } else {
-        __ Add64(kScratchReg, i.InputRegister(0), 0);
-        __ Call(kScratchReg);
+        __ Add64(t6, i.InputRegister(0), 0);
+        __ Call(t6);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -676,7 +679,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchSaveCallerRegisters: {
       fp_mode_ =
           static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
@@ -689,7 +693,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRestoreCallerRegisters: {
       DCHECK(fp_mode_ ==
              static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode())));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
@@ -816,6 +821,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                    DetermineStubCallMode());
       __ Add64(kScratchReg, object, index);
       __ Sd(value, MemOperand(kScratchReg));
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
@@ -1121,6 +1129,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvCmp:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
+      break;
+    case kRiscvCmpZero:
+      // Pseudo-instruction used for cmpzero/branch. No opcode emitted here.
       break;
     case kRiscvMov:
       // TODO(plind): Should we combine mov/li like this, or use separate instr?
@@ -1841,7 +1852,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNIMPLEMENTED();
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 #define UNSUPPORTED_COND(opcode, condition)                                    \
   StdoutStream{} << "Unsupported " << #opcode << " condition: \"" << condition \
@@ -1902,6 +1913,9 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kRiscvCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
+  } else if (instr->arch_opcode() == kRiscvCmpZero) {
+    cc = FlagsConditionToConditionCmp(condition);
+    __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
@@ -1953,6 +1967,12 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   switch (instr->arch_opcode()) {
     case kRiscvCmp: {
       __ CompareI(kScratchReg, i.InputRegister(0), i.InputOperand(1),
+                  FlagsConditionToConditionCmp(condition));
+      __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, kScratchReg);
+    }
+      return;
+    case kRiscvCmpZero: {
+      __ CompareI(kScratchReg, i.InputRegister(0), Operand(zero_reg),
                   FlagsConditionToConditionCmp(condition));
       __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, kScratchReg);
     }
@@ -2224,6 +2244,68 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         UNREACHABLE();
     }
     return;
+  } else if (instr->arch_opcode() == kRiscvCmpZero) {
+    cc = FlagsConditionToConditionCmp(condition);
+    switch (cc) {
+      case eq: {
+        Register left = i.InputRegister(0);
+        __ Sltu(result, left, 1);
+        break;
+      }
+      case ne: {
+        Register left = i.InputRegister(0);
+        __ Sltu(result, zero_reg, left);
+        break;
+      }
+      case lt:
+      case ge: {
+        Register left = i.InputRegister(0);
+        Operand right = Operand(zero_reg);
+        __ Slt(result, left, right);
+        if (cc == ge) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case gt:
+      case le: {
+        Operand left = i.InputOperand(0);
+        __ Slt(result, zero_reg, left);
+        if (cc == le) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Uless:
+      case Ugreater_equal: {
+        Register left = i.InputRegister(0);
+        Operand right = Operand(zero_reg);
+        __ Sltu(result, left, right);
+        if (cc == Ugreater_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Ugreater:
+      case Uless_equal: {
+        Register left = zero_reg;
+        Operand right = i.InputOperand(0);
+        __ Sltu(result, left, right);
+        if (cc == Uless_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      default:
+        UNREACHABLE();
+    }
+    return;
+  } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
+    cc = FlagsConditionToConditionCmp(condition);
+    Register lhs_register = sp;
+    uint32_t offset;
+    if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
+      lhs_register = i.TempRegister(0);
+      __ Sub64(lhs_register, sp, offset);
+    }
+    __ Sgtu(result, lhs_register, Operand(i.InputRegister(0)));
+    return;
   } else if (instr->arch_opcode() == kRiscvCmpD ||
              instr->arch_opcode() == kRiscvCmpS) {
     FPURegister left = i.InputOrZeroDoubleRegister(0);
@@ -2346,7 +2428,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // frame is still on the stack. Optimized code uses OSR values directly from
     // the unoptimized frame. Thus, all that needs to be done is to allocate the
     // remaining stack slots.
-    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
     ResetSpeculationPoison();
@@ -2448,7 +2530,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (__ emit_debug_code()) {
+    } else if (FLAG_debug_code) {
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue,
                 g.ToRegister(additional_pop_count),
                 Operand(static_cast<int64_t>(0)));
@@ -2510,7 +2592,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() {}
+void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}

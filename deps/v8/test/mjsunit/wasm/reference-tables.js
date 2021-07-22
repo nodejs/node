@@ -115,7 +115,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
           .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
           .exportFunc();
 
-  var table = builder.addTable(wasmRefType(binary_type), 3, 3, addition.index);
+  var table = builder.addTable(wasmRefType(binary_type), 3, 3,
+                               WasmInitExpr.RefFunc(addition.index));
 
   builder.addFunction('init', kSig_v_v)
       .addBody([

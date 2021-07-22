@@ -25,6 +25,9 @@ if (v8_enable_google_benchmark) {
 
     sources = [ "empty.cc" ]
 
-    deps = [ "//third_party/google_benchmark:benchmark_main" ]
+    deps = [
+      "//:v8_libbase",
+      "//third_party/google_benchmark:benchmark_main",
+    ]
   }
 }

@@ -13,7 +13,7 @@ class Context extends HeapObject {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }
   const length: Smi;
-  @relaxedRead @relaxedWrite elements[length]: Object;
+  elements[length]: Object;
 }
 
 extern class AwaitContext extends Context generates 'TNode<Context>';
@@ -118,6 +118,31 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FAST_ALIASED_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FUNCTION_CONTEXT_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_PROTOTYPE_APPLY_INDEX: Slot<NativeContext, JSFunction>,
+
+  UINT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT8_CLAMPED_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGUINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+
+  RAB_GSAB_UINT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
 
   PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,

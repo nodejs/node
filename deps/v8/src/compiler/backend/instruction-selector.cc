@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -802,11 +803,6 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
-    InstructionCode opcode, FlagsContinuation* cont) {
-  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
-}
-
-Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
@@ -880,8 +876,16 @@ Instruction* InstructionSelector::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
                               FrameState{cont->frame_state()});
-  } else if (cont->IsSet() || cont->IsSelect()) {
+  } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
+  } else if (cont->IsSelect()) {
+    // The {Select} should put one of two values into the output register,
+    // depending on the result of the condition. The two result values are in
+    // the last two input slots, the {false_value} in {input_count - 2}, and the
+    // true_value in {input_count - 1}. The other inputs are used for the
+    // condition.
+    AddOutputToSelectContinuation(&g, static_cast<int>(input_count) - 2,
+                                  cont->result());
   } else if (cont->IsTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
@@ -1554,6 +1558,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32Popcnt(node);
     case IrOpcode::kWord64Popcnt:
       return MarkAsWord32(node), VisitWord64Popcnt(node);
+    case IrOpcode::kWord32Select:
+      return MarkAsWord32(node), VisitSelect(node);
     case IrOpcode::kWord64And:
       return MarkAsWord64(node), VisitWord64And(node);
     case IrOpcode::kWord64Or:
@@ -1584,6 +1590,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitInt64AbsWithOverflow(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
+    case IrOpcode::kWord64Select:
+      return MarkAsWord64(node), VisitSelect(node);
     case IrOpcode::kInt32Add:
       return MarkAsWord32(node), VisitInt32Add(node);
     case IrOpcode::kInt32AddWithOverflow:
@@ -2842,7 +2850,7 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
   // Note: Not all bits of `flags` are preserved.
   STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
                 MiscField::kSize);
-  CONSTEXPR_DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
+  DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
   return opcode | MiscField::encode(flags & MiscField::kMax);
 }
 
@@ -2927,8 +2935,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   if (call_descriptor->NeedsCallerSavedRegisters()) {
     SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
-                              ? kSaveFPRegs
-                              : kDontSaveFPRegs;
+                              ? SaveFPRegsMode::kSave
+                              : SaveFPRegsMode::kIgnore;
     Emit(kArchSaveCallerRegisters | MiscField::encode(static_cast<int>(mode)),
          g.NoOutput());
   }
@@ -3007,8 +3015,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   if (call_descriptor->NeedsCallerSavedRegisters()) {
     SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
-                              ? kSaveFPRegs
-                              : kDontSaveFPRegs;
+                              ? SaveFPRegsMode::kSave
+                              : SaveFPRegsMode::kIgnore;
     Emit(
         kArchRestoreCallerRegisters | MiscField::encode(static_cast<int>(mode)),
         g.NoOutput());

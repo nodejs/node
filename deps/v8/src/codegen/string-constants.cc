@@ -5,7 +5,6 @@
 #include "src/codegen/string-constants.h"
 
 #include "src/base/functional.h"
-#include "src/numbers/dtoa.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
 
@@ -176,7 +175,7 @@ size_t StringConstantBase::GetMaxStringConstantLength() const {
 size_t StringLiteral::GetMaxStringConstantLength() const { return length_; }
 
 size_t NumberToStringConstant::GetMaxStringConstantLength() const {
-  return kBase10MaximalLength + 1;
+  return kMaxDoubleStringLength;
 }
 
 size_t StringCons::GetMaxStringConstantLength() const {

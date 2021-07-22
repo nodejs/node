@@ -234,9 +234,9 @@ ParseInfo::~ParseInfo() = default;
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Script> ParseInfo::CreateScript(
-    LocalIsolate* isolate, Handle<String> source,
+    IsolateT* isolate, Handle<String> source,
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
   // Create a script object describing the script to be compiled.

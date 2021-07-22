@@ -150,6 +150,7 @@
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
+  'tools/tickprocessor-test-large': [PASS, SLOW, NO_VARIANTS, ['mode != release or arch != x64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],
@@ -351,8 +352,12 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
-  # This test relies on TurboFan being enabled.
+  # These tests rely on TurboFan being enabled.
   'compiler/fast-api-calls': [SKIP],
+  'compiler/fast-api-interface-types': [SKIP],
+  'compiler/regress-crbug-1201011': [SKIP],
+  'compiler/regress-crbug-1201057': [SKIP],
+  'compiler/regress-crbug-1201082': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -593,10 +598,13 @@
 
   # Slow tests.
   'compiler/regress-1125145': [SKIP],
+  'compiler/regress-crbug-11564': [PASS, SLOW],
+  'd8/d8-worker-shutdown*': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
   'regress/regress-500980': [PASS, SLOW],
+  'regress/regress-crbug-941743': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW],
 
   # BUG(v8:9506): times out.
@@ -604,6 +612,12 @@
 
   # https://crbug.com/v8/9337 - OOMs on TSAN
   'compiler/regress-9017': [SKIP],
+
+  # BUG(v8:11702): Times out on TSAN.
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+
+  # BUG(v8:11752): Flakes on TSAN.
+  'd8/d8-worker-shutdown-spawn': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -800,28 +814,12 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # Some atomic functions are not yet implemented
-  'wasm/compare-exchange64-stress': [SKIP],
-  'wasm/compare-exchange-stress': [SKIP],
-  'regress/wasm/regress-1045225': [SKIP],
-  'regress/wasm/regress-1045737': [SKIP],
-  'regress/wasm/regress-1048241': [SKIP],
-  'regress/wasm/regress-1074586-b': [SKIP],
-  'regress/wasm/regress-1075953': [SKIP],
-  'regress/wasm/regress-1074586': [SKIP],
-  'regress/wasm/regress-1079449': [SKIP],
-  'regress/wasm/regress-1080902': [SKIP],
-  'regress/wasm/regress-1140549': [SKIP],
-  'regress/wasm/regress-1153442': [SKIP],
-  'regress/wasm/regress-1168116': [SKIP],
-  'wasm/atomics': [SKIP],
-  'wasm/atomics-non-shared': [SKIP],
-  'wasm/grow-shared-memory': [SKIP],
-  'wasm/shared-memory': [SKIP],
-
   # https://github.com/v8-riscv/v8/issues/418
   'regress/regress-1138075': [SKIP],
   'regress/regress-1138611': [SKIP],
+
+  # Some atomic functions are not yet implemented
+  'regress/wasm/regress-1196837': [SKIP],
 
   # SIMD not be implemented
   'regress/wasm/regress-1054466': [SKIP],
@@ -839,21 +837,16 @@
   'regress/wasm/regress-1161555': [SKIP],
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
+  'regress/wasm/regress-1199662': [SKIP],
   'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
-  'wasm/simd-errors': [SKIP],
-  'wasm/simd-globals': [SKIP],
   'wasm/multi-value-simd': [SKIP],
-  'wasm/simd-call': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/exceptions-simd': [SKIP],
+  'wasm/simd-*': [SKIP],
 
 }],  # 'arch == riscv64'
 
-['arch == riscv64 and variant == stress_incremental_marking', {
-  # https://github.com/v8-riscv/v8/issues/414
-  'wasm/externref-globals-liftoff': [SKIP],
-}], #'arch == riscv64 and variant == stress-incremental-marking'
 
 ##############################################################################
 ['system == macos', {
@@ -955,7 +948,6 @@
   'deopt-recursive-lazy-once': [SKIP],
   'deopt-recursive-soft-once': [SKIP],
   'code-coverage-block-opt': [SKIP],
-  'compiler/fast-api-calls': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
   'compiler/serializer-dead-after-jump': [SKIP],
@@ -1322,9 +1314,13 @@
 
 ##############################################################################
 ['variant == stress_snapshot', {
-  # This test initializes an embedder object that never needs to be serialized
+  # These tests initialize an embedder object that never needs to be serialized
   # to the snapshot, so we don't have a SerializeInternalFieldsCallback for it.
   'compiler/fast-api-calls': [SKIP],
+  'compiler/fast-api-interface-types': [SKIP],
+  'compiler/regress-crbug-1201011': [SKIP],
+  'compiler/regress-crbug-1201057': [SKIP],
+  'compiler/regress-crbug-1201082': [SKIP],
 }],  # variant == stress_snapshot
 
 ##############################################################################
@@ -1427,7 +1423,15 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-['no_simd_sse == True', {
+['variant == stress_concurrent_allocation', {
+  # This test manually forces pretenuring of allocation sites.
+  # stress-concurrent-allocation reverts the pretenuring decision due to low
+  # survival rate in old generation.
+  'compiler/deopt-pretenure': [SKIP],
+}],  # variant == stress_concurrent_allocation
+
+##############################################################################
+['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
@@ -1447,13 +1451,20 @@
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1165966': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
-}],  # no_simd_sse == True
+  'regress/wasm/regress-1199662': [SKIP],
+}],  # no_simd_hardware == True
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
 ['arch not in (x64, arm64, ia32, arm)', {
   'baseline/*': [SKIP],
 }],
+
+##############################################################################
+# Skip baseline for no-lazy-feedback-allocation
+['variant == no_lfa', {
+  'baseline/*': [SKIP],
+}],  # variant == no_lfa
 
 ##############################################################################
 ['variant == experimental_regexp', {
@@ -1464,5 +1475,146 @@
 ['variant == concurrent_inlining', {
   'concurrent-initial-prototype-change-1': [SKIP],
 }],  # variant == concurrent_inlining
+
+################################################################################
+['single_generation', {
+  # These tests rely on allocation site tracking which only works in the young generation.
+  'array-constructor-feedback': [SKIP],
+  'wasm/generic-wrapper': [SKIP],
+  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-crbug-1151890': [SKIP],
+  'regress/regress-crbug-1163184': [SKIP],
+  'regress/regress-11519': [SKIP],
+  'regress/regress-4121': [SKIP],
+  'packed-elements': [SKIP],
+  'const-dict-tracking': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/test-literal-map-migration': [SKIP],
+}], # single_generation
+
+################################################################################
+['third_party_heap', {
+  # Requires --concurrent_inlining / --finalize_streaming_on_background:
+  'regress-1146106': [SKIP],
+  'compiler/bound-functions-serialize': [SKIP],
+  'regress/regress-1003730': [SKIP],
+  'regress/regress-1168435': [SKIP],
+  # Asserts %InLargeObjectSpace
+  'regress/regress-542823': [SKIP],
+  # Requires --allocation_site_pretenuring
+  'compiler/deopt-pretenure': [SKIP],
+  # Requires --concurrent_recompilation
+  'compiler/concurrent-invalidate-transition-map': [SKIP],
+  'compiler/concurrent-proto-change': [SKIP],
+  'compiler/manual-concurrent-recompile': [SKIP],
+  'compiler/regress-905555': [SKIP],
+  'compiler/regress-905555-2': [SKIP],
+  'compiler/regress-9945-1': [SKIP],
+  'concurrent-initial-prototype-change-1': [SKIP],
+  'concurrent-initial-prototype-change-2': [SKIP],
+  'regress/regress-356053': [SKIP],
+  'regress/regress-embedded-cons-string': [SKIP],
+  # Requires a second isolate
+  'resizablearraybuffer-growablesharedarraybuffer': [SKIP],
+  'regress/regress-1205290': [SKIP],
+  'compiler/regress-725743': [SKIP],
+  'd8/d8-fuzzable-worker': [SKIP],
+  'd8/d8-worker': [SKIP],
+  'd8/d8-worker-script': [SKIP],
+  'd8/d8-worker-sharedarraybuffer': [SKIP],
+  'd8/d8-worker-shutdown': [SKIP],
+  'd8/d8-worker-shutdown-empty': [SKIP],
+  'd8/d8-worker-shutdown-gc': [SKIP],
+  'd8/d8-worker-shutdown-spawn': [SKIP],
+  'd8/d8-worker-spawn-worker': [SKIP],
+  'deserialize-optimize-inner': [SKIP],
+  'deserialize-reference': [SKIP],
+  'harmony/atomics-value-check': [SKIP],
+  'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
+  'harmony/atomics-waitasync-1thread-buffer-out-of-scope-timeout': [SKIP],
+  'harmony/atomics-waitasync-1thread-timeout': [SKIP],
+  'harmony/atomics-waitasync-1thread-timeouts-and-no-timeouts': [SKIP],
+  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-2-waits': [SKIP],
+  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-2-workers': [SKIP],
+  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-no-timeout': [SKIP],
+  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-timeout': [SKIP],
+  'harmony/error-cause': [SKIP],
+  'harmony/futex': [SKIP],
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+  'regress/regress-1006629': [SKIP],
+  'regress/regress-4271': [SKIP],
+  'regress/regress-821368': [SKIP],
+  'regress/regress-9383': [SKIP],
+  'regress/regress-chromium-1194026': [SKIP],
+  'regress/regress-crbug-1162473': [SKIP],
+  'regress/regress-crbug-465564': [SKIP],
+  'regress/regress-crbug-503578': [SKIP],
+  'regress/regress-crbug-503698': [SKIP],
+  'regress/regress-crbug-503968': [SKIP],
+  'regress/regress-crbug-503991': [SKIP],
+  'regress/regress-crbug-504136': [SKIP],
+  'regress/regress-crbug-504727': [SKIP],
+  'regress/regress-crbug-505778': [SKIP],
+  'regress/regress-crbug-506549': [SKIP],
+  'regress/regress-crbug-511880': [SKIP],
+  'regress/regress-crbug-514081': [SKIP],
+  'regress/regress-crbug-518747': [SKIP],
+  'regress/regress-crbug-522496': [SKIP],
+  'regress/regress-crbug-523919': [SKIP],
+  'regress/regress-crbug-722871': [SKIP],
+  'regress/wasm/regress-1010272': [SKIP],
+  'regress/wasm/regress-1067621': [SKIP],
+  'regress/wasm/regress-643595': [SKIP],
+  'regress/wasm/regress-674447': [SKIP],
+  'regress/wasm/regress-801850': [SKIP],
+  'regress/wasm/regress-803427': [SKIP],
+  'regress/wasm/regress-8059': [SKIP],
+  'regress/wasm/regress-808012': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
+  'regress/wasm/regress-8533': [SKIP],
+  'serialize-after-execute': [SKIP],
+  'serialize-ic': [SKIP],
+  'wasm/compare-exchange-stress': [SKIP],
+  'wasm/compare-exchange64-stress': [SKIP],
+  'wasm/futex': [SKIP],
+  'wasm/grow-shared-memory': [SKIP],
+  'wasm/shared-arraybuffer-worker-simple-gc': [SKIP],
+  'wasm/shared-memory-worker-simple-gc': [SKIP],
+  'wasm/shared-memory-worker-stress': [SKIP],
+  'wasm/worker-memory': [SKIP],
+  'wasm/worker-module': [SKIP],
+  # Performs GC
+  'code-coverage-precise': [SKIP],
+  'compiler/monomorphic-named-load-with-no-map': [SKIP],
+  'harmony/weakrefs/cleanup': [SKIP],
+  'harmony/weakrefs/cleanup-from-different-realm': [SKIP],
+  'harmony/weakrefs/cleanup-is-not-a-microtask': [SKIP],
+  'harmony/weakrefs/cleanup-on-detached-realm': [SKIP],
+  'harmony/weakrefs/cleanup-proxy-from-different-realm': [SKIP],
+  'harmony/weakrefs/cleanupsome': [SKIP],
+  'harmony/weakrefs/cleanupsome-2': [SKIP],
+  'harmony/weakrefs/finalizationregistry-and-weakref': [SKIP],
+  'harmony/weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
+  'harmony/weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
+  'harmony/weakrefs/multiple-dirty-finalization-groups': [SKIP],
+  'harmony/weakrefs/reentrant-gc-from-cleanup': [SKIP],
+  'harmony/weakrefs/two-weakrefs': [SKIP],
+  'harmony/weakrefs/undefined-holdings': [SKIP],
+  'harmony/weakrefs/unregister-after-cleanup': [SKIP],
+  'harmony/weakrefs/unregister-inside-cleanup': [SKIP],
+  'harmony/weakrefs/unregister-inside-cleanup2': [SKIP],
+  'harmony/weakrefs/unregister-inside-cleanup3': [SKIP],
+  'harmony/weakrefs/unregister-many': [SKIP],
+  'harmony/weakrefs/weak-cell-basics': [SKIP],
+  'harmony/weakrefs/weak-unregistertoken': [SKIP],
+  'harmony/weakrefs/weakref-creation-keeps-alive': [SKIP],
+  'harmony/weakrefs/weakref-deref-keeps-alive': [SKIP],
+  'measure-memory': [SKIP],
+  'measure-memory-multiple-realms': [SKIP],
+  'regress/regress-936077': [SKIP],
+  'regress/wasm/regress-827806': [SKIP],
+  'wasm/compiled-module-management': [SKIP],
+  'wasm/shared-memory-gc-stress': [SKIP],
+}], # third_party_heap
 
 ]

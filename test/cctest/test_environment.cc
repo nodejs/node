@@ -647,7 +647,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(isolate_);
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
+      isolate_, v8::MicrotasksPolicy::kExplicit);
   v8::Local<v8::Context> context = v8::Context::New(
       isolate_, nullptr, {}, {}, {}, queue.get());
   node::InitializeContext(context);

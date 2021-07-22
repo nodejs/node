@@ -98,6 +98,15 @@ struct make_void {
 template <class... Ts>
 using void_t = typename make_void<Ts...>::type;
 
+// Corresponds to C++17's std::conjunction
+template <class...>
+struct conjunction : std::true_type {};
+template <class B>
+struct conjunction<B> : B {};
+template <class B, class... Bn>
+struct conjunction<B, Bn...>
+    : std::conditional_t<bool(B::value), conjunction<Bn...>, B> {};
+
 }  // namespace base
 }  // namespace v8
 

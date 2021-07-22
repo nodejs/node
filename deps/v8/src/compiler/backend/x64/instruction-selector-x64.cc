@@ -66,7 +66,8 @@ class X64OperandGenerator final : public OperandGenerator {
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
                           int effect_level) {
-    if (input->opcode() != IrOpcode::kLoad ||
+    if ((input->opcode() != IrOpcode::kLoad &&
+         input->opcode() != IrOpcode::kLoadImmutable) ||
         !selector()->CanCover(node, input)) {
       return false;
     }
@@ -298,6 +299,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       opcode = kX64Movdqu;
       break;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
   return opcode;
@@ -332,6 +334,7 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
     case MachineRepresentation::kSimd128:  // Fall through.
       return kX64Movdqu;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -465,6 +468,7 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
 
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  DCHECK(!load_rep.IsMapWord());
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
@@ -479,6 +483,7 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
+  DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
 
   if (FLAG_enable_unconditional_write_barriers &&
@@ -704,7 +709,8 @@ void InstructionSelector::VisitStackPointerGreaterThan(
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
   if (g.CanBeMemoryOperand(kX64Cmp, node, value, effect_level)) {
-    DCHECK_EQ(IrOpcode::kLoad, value->opcode());
+    DCHECK(IrOpcode::kLoad == value->opcode() ||
+           IrOpcode::kLoadImmutable == value->opcode());
 
     // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
     static constexpr int kMaxInputCount = 3;
@@ -726,7 +732,9 @@ namespace {
 
 bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
                                           Node* node, Node* load) {
-  if (load->opcode() == IrOpcode::kLoad && selector->CanCover(node, load)) {
+  if ((load->opcode() == IrOpcode::kLoad ||
+       load->opcode() == IrOpcode::kLoadImmutable) &&
+      selector->CanCover(node, load)) {
     LoadRepresentation load_rep = LoadRepresentationOf(load->op());
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode;
@@ -1363,7 +1371,9 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode;
@@ -1870,14 +1880,25 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
+  DCHECK(IrOpcode::kLoad == left->opcode() ||
+         IrOpcode::kLoadImmutable == left->opcode());
   X64OperandGenerator g(selector);
   size_t input_count = 0;
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[6];
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(left, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
   inputs[input_count++] = right;
+  if (cont->IsSelect()) {
+    if (opcode == kUnorderedEqual) {
+      cont->Negate();
+      inputs[input_count++] = g.UseRegister(cont->true_value());
+      inputs[input_count++] = g.Use(cont->false_value());
+    } else {
+      inputs[input_count++] = g.UseRegister(cont->false_value());
+      inputs[input_count++] = g.Use(cont->true_value());
+    }
+  }
 
   selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
 }
@@ -1886,6 +1907,20 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
+  if (cont->IsSelect()) {
+    X64OperandGenerator g(selector);
+    InstructionOperand inputs[4] = {left, right};
+    if (cont->condition() == kUnorderedEqual) {
+      cont->Negate();
+      inputs[2] = g.UseRegister(cont->true_value());
+      inputs[3] = g.Use(cont->false_value());
+    } else {
+      inputs[2] = g.UseRegister(cont->false_value());
+      inputs[3] = g.Use(cont->true_value());
+    }
+    selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
+    return;
+  }
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
@@ -1901,7 +1936,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
-  if (hint_node->opcode() == IrOpcode::kLoad) {
+  if (hint_node->opcode() == IrOpcode::kLoad ||
+      hint_node->opcode() == IrOpcode::kLoadImmutable) {
     MachineType hint = LoadRepresentationOf(hint_node->op());
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
@@ -1935,8 +1971,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
       }
     }
   }
-  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
-                                           : MachineType::None();
+  return node->opcode() == IrOpcode::kLoad ||
+                 node->opcode() == IrOpcode::kLoadImmutable
+             ? LoadRepresentationOf(node->op())
+             : MachineType::None();
 }
 
 // Tries to match the size of the given opcode to that of the operands, if
@@ -2151,7 +2189,8 @@ void VisitCompareZero(InstructionSelector* selector, Node* user, Node* node,
     }
   }
   int effect_level = selector->GetEffectLevel(node, cont);
-  if (node->opcode() == IrOpcode::kLoad) {
+  if (node->opcode() == IrOpcode::kLoad ||
+      node->opcode() == IrOpcode::kLoadImmutable) {
     switch (LoadRepresentationOf(node->op()).representation()) {
       case MachineRepresentation::kWord8:
         if (opcode == kX64Cmp32) {
@@ -2920,7 +2959,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4RecipApprox)       \
   V(F32x4RecipSqrtApprox)   \
   V(F32x4DemoteF64x2Zero)   \
-  V(I64x2Neg)               \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
@@ -3045,6 +3083,16 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
        g.Use(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  // When no-AVX, define dst == src to save a move.
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64F64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
+}
+
 #define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                               \
   void InstructionSelector::Visit##TYPE##ReplaceLane(Node* node) {          \
     X64OperandGenerator g(this);                                            \
@@ -3054,7 +3102,6 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
   }
 
 #define SIMD_TYPES_FOR_REPLACE_LANE(V) \
-  V(F64x2, kX64Pinsrq)                 \
   V(I64x2, kX64Pinsrq)                 \
   V(I32x4, kX64Pinsrd)                 \
   V(I16x8, kX64Pinsrw)                 \
@@ -3185,6 +3232,15 @@ VISIT_SIMD_QFMOP(F64x2Qfms)
 VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
+
+void InstructionSelector::VisitI64x2Neg(Node* node) {
+  X64OperandGenerator g(this);
+  // If AVX unsupported, make sure dst != src to avoid a move.
+  InstructionOperand operand0 = IsSupported(AVX)
+                                    ? g.UseRegister(node->InputAt(0))
+                                    : g.UseUnique(node->InputAt(0));
+  Emit(kX64I64x2Neg, g.DefineAsRegister(node), operand0);
+}
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   X64OperandGenerator g(this);
@@ -3707,13 +3763,22 @@ void InstructionSelector::VisitI64x2Abs(Node* node) {
   }
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  continuation_outputs_.push_back(
+      g->DefineSameAsInput(node, first_input_index));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
       MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz |
-      MachineOperatorBuilder::kWord32Rol | MachineOperatorBuilder::kWord64Rol;
+      MachineOperatorBuilder::kWord32Rol | MachineOperatorBuilder::kWord64Rol |
+      MachineOperatorBuilder::kWord32Select |
+      MachineOperatorBuilder::kWord64Select;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt |
              MachineOperatorBuilder::kWord64Popcnt;

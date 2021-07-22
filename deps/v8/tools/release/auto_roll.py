@@ -126,7 +126,7 @@ class UpdateChromiumCheckout(Step):
   def RunStep(self):
     self['json_output']['monitoring_state'] = 'update_chromium'
     cwd = self._options.chromium
-    self.GitCheckout("master", cwd=cwd)
+    self.GitCheckout("main", cwd=cwd)
     self.DeleteBranch("work-branch", cwd=cwd)
     self.GitPull(cwd=cwd)
 
@@ -168,7 +168,7 @@ class UploadCL(Step):
     else:
       print("Dry run - don't upload.")
 
-    self.GitCheckout("master", cwd=cwd)
+    self.GitCheckout("main", cwd=cwd)
     self.GitDeleteBranch("work-branch", cwd=cwd)
 
 class CleanUp(Step):

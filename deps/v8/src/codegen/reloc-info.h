@@ -328,8 +328,8 @@ class RelocInfo {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);
-  void Print(Isolate* isolate, std::ostream& os);  // NOLINT
-#endif                                             // ENABLE_DISASSEMBLER
+  void Print(Isolate* isolate, std::ostream& os);
+#endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate);
 #endif

@@ -81,17 +81,19 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorGetter(sym->Description().As<String>(), info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorGetter(sym->Description(isolate).As<String>(), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorSetter(sym->Description().As<String>(), value, info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorSetter(sym->Description(isolate).As<String>(), value, info);
 }
 
 void InterceptorGetter(Local<Name> generic_name,
@@ -139,9 +141,10 @@ void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
 void GenericInterceptorGetter(Local<Name> generic_name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = generic_name.As<Symbol>()->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
     if (name->IsUndefined()) return;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
@@ -159,9 +162,10 @@ void GenericInterceptorGetter(Local<Name> generic_name,
 
 void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = generic_name.As<Symbol>()->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
     if (name->IsUndefined()) return;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {

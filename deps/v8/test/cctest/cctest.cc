@@ -46,7 +46,7 @@
 #endif  // V8_USE_PERFETTO
 
 #if V8_OS_WIN
-#include <windows.h>  // NOLINT
+#include <windows.h>
 #if V8_CC_MSVC
 #include <crtdbg.h>
 #endif
@@ -245,8 +245,8 @@ class V8_NODISCARD InitializedHandleScopeImpl {
   i::HandleScope handle_scope_;
 };
 
-InitializedHandleScope::InitializedHandleScope()
-    : main_isolate_(CcTest::InitIsolateOnce()),
+InitializedHandleScope::InitializedHandleScope(i::Isolate* isolate)
+    : main_isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 

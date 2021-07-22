@@ -51,21 +51,20 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static void Canonicalize(MutableBigInt result);
 
   // Allocation helpers.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   static MaybeHandle<MutableBigInt> New(
-      LocalIsolate* isolate, int length,
+      IsolateT* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
   static Handle<BigInt> NewFromInt(Isolate* isolate, int value);
   static Handle<BigInt> NewFromDouble(Isolate* isolate, double value);
   void InitializeDigits(int length, byte value = 0);
   static Handle<MutableBigInt> Copy(Isolate* isolate,
                                     Handle<BigIntBase> source);
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   static Handle<BigInt> Zero(
-      LocalIsolate* isolate,
-      AllocationType allocation = AllocationType::kYoung) {
+      IsolateT* isolate, AllocationType allocation = AllocationType::kYoung) {
     // TODO(jkummerow): Consider caching a canonical zero-BigInt.
-    return MakeImmutable<LocalIsolate>(
+    return MakeImmutable<IsolateT>(
         New(isolate, 0, allocation).ToHandleChecked());
   }
 
@@ -136,10 +135,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
       MutableBigInt result_storage = MutableBigInt());
 
-  static void MultiplyAccumulate(Handle<BigIntBase> multiplicand,
-                                 digit_t multiplier,
-                                 Handle<MutableBigInt> accumulator,
-                                 int accumulator_index);
   static void InternalMultiplyAdd(BigIntBase source, digit_t factor,
                                   digit_t summand, int n, MutableBigInt result);
   void InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand);
@@ -211,7 +206,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     bitfield = SignBits::update(bitfield, new_sign);
     RELAXED_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
   }
-  inline void synchronized_set_length(int new_length) {
+  inline void set_length(int new_length, ReleaseStoreTag) {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     bitfield = LengthBits::update(bitfield, new_length);
     RELEASE_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
@@ -243,14 +238,25 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 #include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
-struct GetDigits : bigint::Digits {
-  explicit GetDigits(Handle<BigIntBase> bigint) : GetDigits(*bigint) {}
-  explicit GetDigits(BigIntBase bigint)
-      : bigint::Digits(
-            reinterpret_cast<bigint::digit_t*>(
-                bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
-            bigint.length()) {}
-};
+bigint::Digits GetDigits(BigIntBase bigint) {
+  return bigint::Digits(
+      reinterpret_cast<bigint::digit_t*>(
+          bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
+      bigint.length());
+}
+bigint::Digits GetDigits(Handle<BigIntBase> bigint) {
+  return GetDigits(*bigint);
+}
+
+bigint::RWDigits GetRWDigits(MutableBigInt bigint) {
+  return bigint::RWDigits(
+      reinterpret_cast<bigint::digit_t*>(
+          bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
+      bigint.length());
+}
+bigint::RWDigits GetRWDigits(Handle<MutableBigInt> bigint) {
+  return GetRWDigits(*bigint);
+}
 
 template <typename T, typename Isolate>
 MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
@@ -266,8 +272,8 @@ MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig), T);
 }
 
-template <typename LocalIsolate>
-MaybeHandle<MutableBigInt> MutableBigInt::New(LocalIsolate* isolate, int length,
+template <typename IsolateT>
+MaybeHandle<MutableBigInt> MutableBigInt::New(IsolateT* isolate, int length,
                                               AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
     return ThrowBigIntTooBig<MutableBigInt>(isolate);
@@ -390,7 +396,7 @@ MaybeHandle<BigInt> MutableBigInt::MakeImmutable(
   return MakeImmutable(result);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   MutableBigInt::Canonicalize(*result);
   return Handle<BigInt>::cast(result);
@@ -412,7 +418,7 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // of the object changed significantly.
       heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
     }
-    result.synchronized_set_length(new_length);
+    result.set_length(new_length, kReleaseStore);
 
     // Canonicalize -0n.
     if (new_length == 0) {
@@ -424,8 +430,8 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
                  result.digit(result.length() - 1) != 0);  // MSD is non-zero.
 }
 
-template <typename LocalIsolate>
-Handle<BigInt> BigInt::Zero(LocalIsolate* isolate, AllocationType allocation) {
+template <typename IsolateT>
+Handle<BigInt> BigInt::Zero(IsolateT* isolate, AllocationType allocation) {
   return MutableBigInt::Zero(isolate, allocation);
 }
 template Handle<BigInt> BigInt::Zero(Isolate* isolate,
@@ -531,29 +537,18 @@ MaybeHandle<BigInt> BigInt::Multiply(Isolate* isolate, Handle<BigInt> x,
                                      Handle<BigInt> y) {
   if (x->is_zero()) return x;
   if (y->is_zero()) return y;
-  int result_length = x->length() + y->length();
+  int result_length = bigint::MultiplyResultLength(GetDigits(x), GetDigits(y));
   Handle<MutableBigInt> result;
   if (!MutableBigInt::New(isolate, result_length).ToHandle(&result)) {
     return MaybeHandle<BigInt>();
   }
-  result->InitializeDigits(result_length);
-  uintptr_t work_estimate = 0;
-  for (int i = 0; i < x->length(); i++) {
-    MutableBigInt::MultiplyAccumulate(y, x->digit(i), result, i);
-
-    // Multiplication can take a long time. Check for interrupt requests
-    // every now and then (roughly every 10-20 of milliseconds -- rarely
-    // enough not to create noticeable overhead, frequently enough not to
-    // appear frozen).
-    work_estimate += y->length();
-    if (work_estimate > 5000000) {
-      work_estimate = 0;
-      StackLimitCheck interrupt_check(isolate);
-      if (interrupt_check.InterruptRequested() &&
-          isolate->stack_guard()->HandleInterrupts().IsException(isolate)) {
-        return MaybeHandle<BigInt>();
-      }
-    }
+  DisallowGarbageCollection no_gc;
+  bigint::Status status = isolate->bigint_processor()->Multiply(
+      GetRWDigits(result), GetDigits(x), GetDigits(y));
+  if (status == bigint::Status::kInterrupted) {
+    AllowGarbageCollection terminating_anyway;
+    isolate->TerminateExecution();
+    return {};
   }
   result->set_sign(x->sign() != y->sign());
   return MutableBigInt::MakeImmutable(result);
@@ -1449,46 +1444,6 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteXor(Isolate* isolate,
                            [](digit_t a, digit_t b) { return a ^ b; });
 }
 
-// Multiplies {multiplicand} with {multiplier} and adds the result to
-// {accumulator}, starting at {accumulator_index} for the least-significant
-// digit.
-// Callers must ensure that {accumulator} is big enough to hold the result.
-void MutableBigInt::MultiplyAccumulate(Handle<BigIntBase> multiplicand,
-                                       digit_t multiplier,
-                                       Handle<MutableBigInt> accumulator,
-                                       int accumulator_index) {
-  // This is a minimum requirement; the DCHECK in the second loop below
-  // will enforce more as needed.
-  DCHECK(accumulator->length() > multiplicand->length() + accumulator_index);
-  if (multiplier == 0L) return;
-  digit_t carry = 0;
-  digit_t high = 0;
-  for (int i = 0; i < multiplicand->length(); i++, accumulator_index++) {
-    digit_t acc = accumulator->digit(accumulator_index);
-    digit_t new_carry = 0;
-    // Add last round's carryovers.
-    acc = digit_add(acc, high, &new_carry);
-    acc = digit_add(acc, carry, &new_carry);
-    // Compute this round's multiplication.
-    digit_t m_digit = multiplicand->digit(i);
-    digit_t low = digit_mul(multiplier, m_digit, &high);
-    acc = digit_add(acc, low, &new_carry);
-    // Store result and prepare for next round.
-    accumulator->set_digit(accumulator_index, acc);
-    carry = new_carry;
-  }
-  for (; carry != 0 || high != 0; accumulator_index++) {
-    DCHECK(accumulator_index < accumulator->length());
-    digit_t acc = accumulator->digit(accumulator_index);
-    digit_t new_carry = 0;
-    acc = digit_add(acc, high, &new_carry);
-    high = 0;
-    acc = digit_add(acc, carry, &new_carry);
-    accumulator->set_digit(accumulator_index, acc);
-    carry = new_carry;
-  }
-}
-
 // Multiplies {source} with {factor} and adds {summand} to the result.
 // {result} and {source} may be the same BigInt for inplace modification.
 void MutableBigInt::InternalMultiplyAdd(BigIntBase source, digit_t factor,
@@ -1928,9 +1883,9 @@ constexpr uint8_t kMaxBitsPerChar[] = {
 static const int kBitsPerCharTableShift = 5;
 static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+    IsolateT* isolate, int radix, int charcount, ShouldThrow should_throw,
     AllocationType allocation) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
@@ -1966,7 +1921,7 @@ template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
     AllocationType allocation);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
   Handle<MutableBigInt> bigint = Handle<MutableBigInt>::cast(x);
   bigint->set_sign(sign);
@@ -2249,7 +2204,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
   if (sign) chars[pos++] = '-';
   // Trim any over-allocation (which can happen due to conservative estimates).
   if (pos < static_cast<int>(chars_required)) {
-    result->synchronized_set_length(pos);
+    result->set_length(pos, kReleaseStore);
     int string_size =
         SeqOneByteString::SizeFor(static_cast<int>(chars_required));
     int needed_size = SeqOneByteString::SizeFor(pos);

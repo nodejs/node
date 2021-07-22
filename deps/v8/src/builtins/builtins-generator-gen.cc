@@ -205,7 +205,7 @@ TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
 // TODO(cbruni): Merge with corresponding bytecode handler.
 TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto generator = Parameter<JSGeneratorObject>(Descriptor::kGeneratorObject);
-  auto context = Parameter<Context>(Descriptor::kContext);
+  auto context = LoadContextFromBaseline();
   StoreJSGeneratorObjectContext(generator, context);
   auto suspend_id = SmiTag(UncheckedParameter<IntPtrT>(Descriptor::kSuspendId));
   StoreJSGeneratorObjectContinuation(generator, suspend_id);

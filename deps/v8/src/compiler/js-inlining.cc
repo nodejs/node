@@ -335,7 +335,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     FeedbackCellRef cell = n.GetFeedbackCellRefChecked(broker());
     return cell.shared_function_info();
   } else if (match.IsCheckClosure()) {
-    FeedbackCellRef cell(broker(), FeedbackCellOf(match.op()));
+    FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(match.op()));
     return cell.shared_function_info();
   }
 
@@ -373,7 +373,7 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
     *context_out = NodeProperties::GetContextInput(match.node());
     return cell;
   } else if (match.IsCheckClosure()) {
-    FeedbackCellRef cell(broker(), FeedbackCellOf(match.op()));
+    FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(match.op()));
 
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
@@ -475,7 +475,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (!shared_info.has_value()) return NoChange();
   DCHECK(shared_info->IsInlineable());
 
-  SharedFunctionInfoRef outer_shared_info(broker(), info_->shared_info());
+  SharedFunctionInfoRef outer_shared_info =
+      MakeRef(broker(), info_->shared_info());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&

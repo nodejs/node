@@ -24,7 +24,7 @@ static const int kMaxAsyncTaskStacks = 128 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
-void cleanupExpiredWeakPointers(Map& map) {  // NOLINT(runtime/references)
+void cleanupExpiredWeakPointers(Map& map) {
   for (auto it = map.begin(); it != map.end();) {
     if (it->second.expired()) {
       it = map.erase(it);

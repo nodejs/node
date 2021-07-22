@@ -65,6 +65,7 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
     case MachineRepresentation::kSimd128:
       return kSimd128Size;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       break;
   }
   UNREACHABLE();

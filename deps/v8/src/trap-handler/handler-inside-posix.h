@@ -6,6 +6,7 @@
 #define V8_TRAP_HANDLER_HANDLER_INSIDE_POSIX_H_
 
 #include <signal.h>
+
 #include "include/v8config.h"
 
 namespace v8 {

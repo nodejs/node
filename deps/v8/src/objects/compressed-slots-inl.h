@@ -28,6 +28,13 @@ bool CompressedObjectSlot::contains_value(Address raw_value) const {
          static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
 }
 
+bool CompressedObjectSlot::contains_map_value(Address raw_value) const {
+  // Simply forward to contains_value because map packing is not supported with
+  // pointer compression.
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  return contains_value(raw_value);
+}
+
 Object CompressedObjectSlot::operator*() const {
   Tagged_t value = *location();
   return Object(DecompressTaggedAny(address(), value));
@@ -40,6 +47,20 @@ Object CompressedObjectSlot::load(PtrComprCageBase cage_base) const {
 
 void CompressedObjectSlot::store(Object value) const {
   *location() = CompressTagged(value.ptr());
+}
+
+void CompressedObjectSlot::store_map(Map map) const {
+  // Simply forward to store because map packing is not supported with pointer
+  // compression.
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  store(map);
+}
+
+Map CompressedObjectSlot::load_map() const {
+  // Simply forward to Relaxed_Load because map packing is not supported with
+  // pointer compression.
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  return Map::unchecked_cast(Relaxed_Load());
 }
 
 Object CompressedObjectSlot::Acquire_Load() const {

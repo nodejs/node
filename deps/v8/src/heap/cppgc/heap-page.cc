@@ -69,6 +69,11 @@ ConstAddress BasePage::PayloadEnd() const {
   return const_cast<BasePage*>(this)->PayloadEnd();
 }
 
+size_t BasePage::AllocatedBytesAtLastGC() const {
+  return is_large() ? LargePage::From(this)->AllocatedBytesAtLastGC()
+                    : NormalPage::From(this)->AllocatedBytesAtLastGC();
+}
+
 HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
     void* address) const {
   return const_cast<HeapObjectHeader*>(

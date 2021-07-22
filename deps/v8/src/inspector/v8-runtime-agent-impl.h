@@ -148,7 +148,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   bool m_enabled;
   std::unordered_map<String16, std::unique_ptr<v8::Global<v8::Script>>>
       m_compiledScripts;
-  std::set<String16> m_activeBindings;
+  // Binding name -> executionContextIds mapping.
+  std::unordered_map<String16, std::unordered_set<int>> m_activeBindings;
 };
 
 }  // namespace v8_inspector

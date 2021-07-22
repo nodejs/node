@@ -36,7 +36,7 @@ function listener(event, exec_state, event_data, data) {
         event_data.sourceLineText().indexOf(`Line ${js_break_line}.`) > 0);
       js_break_line++;
     } else {
-      assertTrue(event_data.functionName() == 'sub');
+      assertTrue(event_data.functionName() == '$sub');
       wasm_break_count++;
     }
     exec_state.prepareStep(Debug.StepAction.StepIn);

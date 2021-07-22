@@ -385,7 +385,6 @@
   V(NumberSilenceNaN)
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
-  V(BigIntAsUintN)                     \
   V(BigIntNegate)                      \
   V(CheckBigInt)
 
@@ -491,13 +490,16 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
   V(TypeOf)                             \
-  V(UpdateInterruptBudget)
+  V(UpdateInterruptBudget)              \
+  V(VerifyType)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \
   V(SpeculativeBigIntSubtract)
 
-#define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) V(SpeculativeBigIntNegate)
+#define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
+  V(SpeculativeBigIntAsUintN)                      \
+  V(SpeculativeBigIntNegate)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \
@@ -570,6 +572,8 @@
   V(Word64Sar)                   \
   V(Word64Rol)                   \
   V(Word64Ror)                   \
+  V(Word64RolLowerable)          \
+  V(Word64RorLowerable)          \
   V(Int64Add)                    \
   V(Int64AddWithOverflow)        \
   V(Int64Sub)                    \
@@ -688,6 +692,8 @@
   V(Word64Popcnt)                        \
   V(Word64Clz)                           \
   V(Word64Ctz)                           \
+  V(Word64ClzLowerable)                  \
+  V(Word64CtzLowerable)                  \
   V(Word64ReverseBits)                   \
   V(Word64ReverseBytes)                  \
   V(Simd128ReverseBytes)                 \
@@ -734,6 +740,8 @@
   V(Float64ExtractHighWord32)            \
   V(Float64InsertLowWord32)              \
   V(Float64InsertHighWord32)             \
+  V(Word32Select)                        \
+  V(Word64Select)                        \
   V(Float32Select)                       \
   V(Float64Select)                       \
   V(TaggedPoisonOnSpeculation)           \

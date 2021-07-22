@@ -519,6 +519,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, rtt) \
   rtt, WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth)
+#define WASM_BR_ON_CAST_FAIL(depth, rtt) \
+  rtt, WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth)
 
 #define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
 #define WASM_REF_AS_DATA(ref) ref, WASM_GC_OP(kExprRefAsData)
@@ -563,6 +565,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)
+
+#define WASM_BR_ON_NON_NULL(depth, ref_object) \
+  ref_object, kExprBrOnNonNull, static_cast<byte>(depth)
 
 // Pass: sig_index, ...args, func_index
 #define WASM_CALL_INDIRECT(sig_index, ...) \

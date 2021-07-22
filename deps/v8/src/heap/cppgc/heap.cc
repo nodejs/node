@@ -176,6 +176,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   if (override_stack_state_) {
     config_.stack_state = *override_stack_state_;
   }
+  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
   in_atomic_pause_ = true;
   {
     // This guards atomic pause marking, meaning that no internal method or
@@ -188,7 +189,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);
-  verifier.Run(config_.stack_state);
+  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
+               stats_collector()->marked_bytes());
 #endif
 
   subtle::NoGarbageCollectionScope no_gc(*this);

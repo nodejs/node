@@ -31,14 +31,14 @@ struct InstanceRangeChecker {
 template <InstanceType upper_limit>
 struct InstanceRangeChecker<FIRST_TYPE, upper_limit> {
   static constexpr bool Check(InstanceType value) {
-    CONSTEXPR_DCHECK(FIRST_TYPE <= value);
+    DCHECK_LE(FIRST_TYPE, value);
     return value <= upper_limit;
   }
 };
 template <InstanceType lower_limit>
 struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
   static constexpr bool Check(InstanceType value) {
-    CONSTEXPR_DCHECK(LAST_TYPE >= value);
+    DCHECK_GE(LAST_TYPE, value);
     return value >= lower_limit;
   }
 };

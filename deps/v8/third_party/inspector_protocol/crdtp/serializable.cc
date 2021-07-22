@@ -4,6 +4,8 @@
 
 #include "serializable.h"
 
+#include <utility>
+
 namespace v8_crdtp {
 // =============================================================================
 // Serializable - An object to be emitted as a sequence of bytes.
@@ -18,7 +20,8 @@ std::vector<uint8_t> Serializable::Serialize() const {
 namespace {
 class PreSerialized : public Serializable {
  public:
-  explicit PreSerialized(std::vector<uint8_t> bytes) : bytes_(bytes) {}
+  explicit PreSerialized(std::vector<uint8_t> bytes)
+      : bytes_(std::move(bytes)) {}
 
   void AppendSerialized(std::vector<uint8_t>* out) const override {
     out->insert(out->end(), bytes_.begin(), bytes_.end());

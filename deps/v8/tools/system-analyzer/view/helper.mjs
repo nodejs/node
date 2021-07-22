@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-class CSSColor {
+export class CSSColor {
   static _cache = new Map();
 
   static get(name) {
@@ -121,7 +121,7 @@ class CSSColor {
   }
 }
 
-class DOM {
+export class DOM {
   static element(type, classes) {
     const node = document.createElement(type);
     if (classes === undefined) return node;
@@ -185,19 +185,18 @@ class DOM {
   }
 }
 
-function $(id) {
+export function $(id) {
   return document.querySelector(id)
 }
 
-class V8CustomElement extends HTMLElement {
+export class V8CustomElement extends HTMLElement {
   _updateTimeoutId;
-  _updateCallback = this._update.bind(this);
+  _updateCallback = this.forceUpdate.bind(this);
 
   constructor(templateText) {
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
-    this._updateCallback = this._update.bind(this);
   }
 
   $(id) {
@@ -208,7 +207,7 @@ class V8CustomElement extends HTMLElement {
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  update(useAnimation = false) {
+  requestUpdate(useAnimation = false) {
     if (useAnimation) {
       window.cancelAnimationFrame(this._updateTimeoutId);
       this._updateTimeoutId =
@@ -221,12 +220,54 @@ class V8CustomElement extends HTMLElement {
     }
   }
 
+  forceUpdate() {
+    this._update();
+  }
+
   _update() {
     throw Error('Subclass responsibility');
   }
 }
 
-class Chunked {
+export class CollapsableElement extends V8CustomElement {
+  constructor(templateText) {
+    super(templateText);
+    this._hasPendingUpdate = false;
+    this._closer.onclick = _ => this.tryUpdateOnVisibilityChange();
+  }
+
+  get _closer() {
+    return this.$('#closer');
+  }
+
+  _contentIsVisible() {
+    return !this._closer.checked;
+  }
+
+  requestUpdate(useAnimation = false) {
+    // A pending update will be resolved later, no need to try again.
+    if (this._hasPendingUpdate) return;
+    this._hasPendingUpdate = true;
+    this.requestUpdateIfVisible(useAnimation);
+  }
+
+  tryUpdateOnVisibilityChange() {
+    if (!this._hasPendingUpdate) return;
+    this.requestUpdateIfVisible(true);
+  }
+
+  requestUpdateIfVisible(useAnimation) {
+    if (!this._contentIsVisible()) return;
+    return super.requestUpdate(useAnimation);
+  }
+
+  forceUpdate() {
+    this._hasPendingUpdate = false;
+    super.forceUpdate();
+  }
+}
+
+export class Chunked {
   constructor(iterable, limit) {
     this._iterator = iterable[Symbol.iterator]();
     this._limit = limit;
@@ -248,7 +289,7 @@ class Chunked {
   }
 }
 
-class LazyTable {
+export class LazyTable {
   constructor(table, rowData, rowElementCreator, limit = 100) {
     this._table = table;
     this._chunkedRowData = new Chunked(rowData, limit);
@@ -258,20 +299,23 @@ class LazyTable {
     } else {
       table.replaceChild(DOM.tbody(), table.tBodies[0]);
     }
-    if (!table.tFoot) {
-      const td = table.appendChild(DOM.element('tfoot'))
-                     .appendChild(DOM.tr())
-                     .appendChild(DOM.td());
-      for (let count of [10, 100]) {
-        const button = DOM.element('button');
-        button.innerText = `+${count}`;
-        button.onclick = (e) => this._addMoreRows(count);
-        td.appendChild(button);
-      }
-      td.setAttribute('colspan', 100);
-    }
+    if (!table.tFoot) this._addFooter();
     table.tFoot.addEventListener('click', this._clickHandler);
     this._addMoreRows();
+  }
+
+  _addFooter() {
+    const td = DOM.td();
+    td.setAttribute('colspan', 100);
+    for (let addCount of [10, 100, 250, 500]) {
+      const button = DOM.element('button');
+      button.innerText = `+${addCount}`;
+      button.onclick = (e) => this._addMoreRows(addCount);
+      td.appendChild(button);
+    }
+    this._table.appendChild(DOM.element('tfoot'))
+        .appendChild(DOM.tr())
+        .appendChild(td);
   }
 
   _addMoreRows(count = undefined) {
@@ -305,10 +349,3 @@ export function gradientStopsFromGroups(
 }
 
 export * from '../helper.mjs';
-export {
-  DOM,
-  $,
-  V8CustomElement,
-  CSSColor,
-  LazyTable,
-};

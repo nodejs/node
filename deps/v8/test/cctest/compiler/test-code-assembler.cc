@@ -467,6 +467,7 @@ TEST(ExceptionHandler) {
 }
 
 TEST(TestCodeAssemblerCodeComment) {
+#ifdef V8_CODE_COMMENTS
   i::FLAG_code_comments = true;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 0;
@@ -486,6 +487,7 @@ TEST(TestCodeAssemblerCodeComment) {
     it.Next();
   }
   CHECK(found_comment);
+#endif  // V8_CODE_COMMENTS
 }
 
 TEST(StaticAssert) {

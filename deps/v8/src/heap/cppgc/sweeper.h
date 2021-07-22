@@ -9,6 +9,7 @@
 
 #include "include/cppgc/heap.h"
 #include "src/base/macros.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc {
 
@@ -48,6 +49,9 @@ class V8_EXPORT_PRIVATE Sweeper final {
 
   bool IsSweepingOnMutatorThread() const;
   bool IsSweepingInProgress() const;
+
+  // Assist with sweeping. Returns true if sweeping is done.
+  bool PerformSweepOnMutatorThread(double deadline_in_seconds);
 
  private:
   void WaitForConcurrentSweepingForTesting();

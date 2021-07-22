@@ -668,6 +668,49 @@ BUILTIN(LocalePrototypeMinimize) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Minimize(isolate, locale));
 }
 
+BUILTIN(LocalePrototypeCalendars) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.calendars");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Calendars(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeCollations) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.collations");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Collations(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeHourCycles) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.hourCycles");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::HourCycles(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeNumberingSystems) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.numberingSystems");
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSLocale::NumberingSystems(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeTextInfo) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.textInfo");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::TextInfo(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeTimeZones) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.timeZones");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::TimeZones(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeWeekInfo) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.weekInfo");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::WeekInfo(isolate, locale));
+}
+
 BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   Handle<Object> locales = args.atOrUndefined(isolate, 1);

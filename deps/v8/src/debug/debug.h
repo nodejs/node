@@ -311,9 +311,6 @@ class V8_EXPORT_PRIVATE Debug {
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
-  // Support for LiveEdit
-  void ScheduleFrameRestart(StackFrame* frame);
-
   bool AllFramesOnStackAreBlackboxed();
 
   // Set new script source, throw an exception if error occurred. When preview
@@ -378,13 +375,6 @@ class V8_EXPORT_PRIVATE Debug {
 
   Address suspended_generator_address() {
     return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
-  }
-
-  Address restart_fp_address() {
-    return reinterpret_cast<Address>(&thread_local_.restart_fp_);
-  }
-  bool will_restart() const {
-    return thread_local_.restart_fp_ != kNullAddress;
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
@@ -548,9 +538,6 @@ class V8_EXPORT_PRIVATE Debug {
     // The suspended generator object to track when stepping.
     Object suspended_generator_;
 
-    // The new frame pointer to drop to when restarting a frame.
-    Address restart_fp_;
-
     // Last used inspector breakpoint id.
     int last_breakpoint_id_;
 
@@ -667,25 +654,6 @@ class SuppressDebug {
  private:
   Debug* debug_;
   bool old_state_;
-};
-
-// Code generator routines.
-class DebugCodegen : public AllStatic {
- public:
-  enum DebugBreakCallHelperMode {
-    SAVE_RESULT_REGISTER,
-    IGNORE_RESULT_REGISTER
-  };
-
-  // Builtin to drop frames to restart function.
-  static void GenerateFrameDropperTrampoline(MacroAssembler* masm);
-
-  // Builtin to atomically (wrt deopts) handle debugger statement and
-  // drop frames to restart function if necessary.
-  static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
-
-  // Builtin to trigger a debug break before entering the function.
-  static void GenerateDebugBreakTrampoline(MacroAssembler* masm);
 };
 
 }  // namespace internal

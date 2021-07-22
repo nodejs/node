@@ -184,6 +184,49 @@ TEST(VectorCallICStates) {
   CHECK_EQ(GENERIC, nexus.ic_state());
 }
 
+// Test the Call IC states transfer with Function.prototype.apply
+TEST(VectorCallICStateApply) {
+  if (!i::FLAG_use_ic) return;
+  if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "var F;"
+      "%EnsureFeedbackVectorForFunction(foo);"
+      "function foo() { return F.apply(null, arguments); }"
+      "F = Math.min;"
+      "foo();");
+  Handle<JSFunction> foo = GetFunction("foo");
+  Handle<JSFunction> F = GetFunction("F");
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(foo->feedback_vector(), isolate);
+  FeedbackSlot slot(4);
+  FeedbackNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+  HeapObject heap_object;
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK_EQ(*F, heap_object);
+
+  CompileRun(
+      "F = Math.max;"
+      "foo();");
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(CallFeedbackContent::kTarget, nexus.GetCallFeedbackContent());
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK_EQ(*isolate->function_prototype_apply(), heap_object);
+
+  CompileRun(
+      "F.apply = (function () { return; });"
+      "foo();");
+  CHECK_EQ(GENERIC, nexus.ic_state());
+}
+
 TEST(VectorCallFeedback) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;

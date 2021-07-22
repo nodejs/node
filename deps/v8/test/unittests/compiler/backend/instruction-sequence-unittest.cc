@@ -394,8 +394,8 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
   CHECK_EQ(op.vreg_.value_, kNoValue);
   op.vreg_ = vreg;
   switch (op.type_) {
-    case kSameAsFirst:
-      return Unallocated(op, UnallocatedOperand::SAME_AS_FIRST_INPUT);
+    case kSameAsInput:
+      return Unallocated(op, UnallocatedOperand::SAME_AS_INPUT);
     case kRegister:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_REGISTER);
     case kFixedSlot:

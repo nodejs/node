@@ -28,7 +28,7 @@ class Vector {
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
-    CONSTEXPR_DCHECK(length == 0 || data != nullptr);
+    DCHECK(length == 0 || data != nullptr);
   }
 
   static Vector<T> New(size_t length) {

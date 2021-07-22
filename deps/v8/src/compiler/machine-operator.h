@@ -104,7 +104,8 @@ V8_EXPORT_PRIVATE LoadLaneParameters const& LoadLaneParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
-// correct write barrier.
+// correct write barrier, and needs to state whether it is storing into the
+// header word, so that the value can be packed, if necessary.
 class StoreRepresentation final {
  public:
   StoreRepresentation(MachineRepresentation representation,
@@ -248,25 +249,30 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord32ShiftIsSafe = 1u << 11,
     kWord32Ctz = 1u << 12,
     kWord64Ctz = 1u << 13,
-    kWord32Popcnt = 1u << 14,
-    kWord64Popcnt = 1u << 15,
-    kWord32ReverseBits = 1u << 16,
-    kWord64ReverseBits = 1u << 17,
-    kFloat32Select = 1u << 18,
-    kFloat64Select = 1u << 19,
-    kInt32AbsWithOverflow = 1u << 20,
-    kInt64AbsWithOverflow = 1u << 21,
-    kWord32Rol = 1u << 22,
-    kWord64Rol = 1u << 23,
-    kSatConversionIsSafe = 1u << 24,
+    kWord64CtzLowerable = 1u << 14,
+    kWord32Popcnt = 1u << 15,
+    kWord64Popcnt = 1u << 16,
+    kWord32ReverseBits = 1u << 17,
+    kWord64ReverseBits = 1u << 18,
+    kFloat32Select = 1u << 19,
+    kFloat64Select = 1u << 20,
+    kInt32AbsWithOverflow = 1u << 21,
+    kInt64AbsWithOverflow = 1u << 22,
+    kWord32Rol = 1u << 23,
+    kWord64Rol = 1u << 24,
+    kWord64RolLowerable = 1u << 25,
+    kSatConversionIsSafe = 1u << 26,
+    kWord32Select = 1u << 27,
+    kWord64Select = 1u << 28,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
         kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
-        kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
-        kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
-        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol | kSatConversionIsSafe |
-        kFloat32Select | kFloat64Select
+        kWord32Ctz | kWord64Ctz | kWord64CtzLowerable | kWord32Popcnt |
+        kWord64Popcnt | kWord32ReverseBits | kWord64ReverseBits |
+        kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
+        kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
+        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -386,10 +392,21 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64SarShiftOutZeros() {
     return Word64Sar(ShiftKind::kShiftOutZeros);
   }
+
+  // 64-bit rol, ror, clz and ctz operators have two versions: the non-suffixed
+  // ones are meant to be used in 64-bit systems and have no control input. The
+  // "Lowerable"-suffixed ones are meant to be temporary operators in 32-bit
+  // systems and will be lowered to 32-bit operators. They have a control input
+  // to enable the lowering.
   const OptionalOperator Word64Rol();
   const Operator* Word64Ror();
   const Operator* Word64Clz();
   const OptionalOperator Word64Ctz();
+  const OptionalOperator Word64RolLowerable();
+  const Operator* Word64RorLowerable();
+  const Operator* Word64ClzLowerable();
+  const OptionalOperator Word64CtzLowerable();
+
   const Operator* Word64Equal();
 
   const Operator* Int32PairAdd();
@@ -562,7 +579,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Float32RoundTiesEven();
   const OptionalOperator Float64RoundTiesEven();
 
-  // Floating point conditional selects.
+  // Conditional selects. Input 1 is the condition, Input 2 is the result value
+  // if the condition is {true}, Input 3 is the result value if the condition is
+  // false.
+  const OptionalOperator Word32Select();
+  const OptionalOperator Word64Select();
   const OptionalOperator Float32Select();
   const OptionalOperator Float64Select();
 

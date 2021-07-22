@@ -1728,12 +1728,14 @@ bool Logger::EnsureLogScriptSource(Script script) {
 }
 
 void Logger::RuntimeCallTimerEvent() {
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
   RuntimeCallCounter* counter = stats->current_counter();
   if (counter == nullptr) return;
   MSG_BUILDER();
   msg << "active-runtime-timer" << kNext << counter->name();
   msg.WriteToLogFile();
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {
@@ -2127,7 +2129,6 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
     case CodeKind::BASELINE:
-    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
     case CodeKind::TURBOPROP:
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
@@ -2273,9 +2274,10 @@ void ExistingCodeLogger::LogExistingFunction(
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.
-      Address c_function = v8::ToCData<Address>(fun_data->GetCFunction());
-      if (c_function != kNullAddress) {
-        CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, c_function))
+      int c_functions_count = fun_data->GetCFunctionsCount();
+      for (int i = 0; i < c_functions_count; i++) {
+        CALL_CODE_EVENT_HANDLER(
+            CallbackEvent(fun_name, fun_data->GetCFunction(i)))
       }
     }
   }

@@ -574,6 +574,64 @@ WASM_EXEC_TEST(TryCatchTrapRemByZero) {
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
+namespace {
+// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+class IsolateScope {
+ public:
+  IsolateScope() {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    isolate_ = v8::Isolate::New(create_params);
+    isolate_->Enter();
+  }
+
+  ~IsolateScope() {
+    isolate_->Exit();
+    isolate_->Dispose();
+  }
+
+  v8::Isolate* isolate() { return isolate_; }
+  Isolate* i_isolate() { return reinterpret_cast<Isolate*>(isolate_); }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // namespace
+
+UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  // FLAG_stack_size must be set before isolate initialization.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  IsolateScope isolate_scope;
+  LocalContext context(isolate_scope.isolate());
+
+  WasmRunner<uint32_t> r(execution_tier, nullptr, "main",
+                         kRuntimeExceptionSupport, isolate_scope.i_isolate());
+
+  // Build a function that calls itself until stack overflow.
+  WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());
+  byte stack_overflow_code[] = {kExprCallFunction,
+                                stack_overflow.function_index()};
+  stack_overflow.Build(stack_overflow_code,
+                       stack_overflow_code + arraysize(stack_overflow_code));
+
+  // Build the main test function.
+  BUILD(r, WASM_TRY_CATCH_ALL_T(kWasmI32,
+                                WASM_STMTS(WASM_I32V(1), kExprCallFunction,
+                                           stack_overflow.function_index()),
+                                WASM_STMTS(WASM_I32V(1))));
+
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJSTraps();
+  } else {
+    constexpr int stopped = 0;
+    CHECK_EQ(stopped, r.CallInterpreter());
+  }
+}
+
 TEST(Regress1180457) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
@@ -627,6 +685,18 @@ TEST(Regress1186795) {
                    WASM_DROP, WASM_DROP),
                WASM_NOP, except));
   CHECK_EQ(0, r.CallInterpreter());
+}
+
+TEST(Regress1197408) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kInterpreter);
+  int sig_id = r.builder().AddSignature(sigs.i_iii());
+  BUILD(r, WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
+                      sig_id, kExprTry, sig_id, kExprCallFunction, 0,
+                      kExprDelegate, 0, kExprDelegate, 0));
+  CHECK_EQ(0, r.CallInterpreter(0, 0, 0));
 }
 
 }  // namespace test_run_wasm_exceptions

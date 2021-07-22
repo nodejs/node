@@ -47,8 +47,7 @@ static AsyncHooksWrap* UnwrapHook(
   AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
 
   if (!hooks->async_hook_ctor.Get(isolate)->HasInstance(hook)) {
-    isolate->ThrowException(String::NewFromUtf8Literal(
-        isolate, "Invalid 'this' passed instead of AsyncHooks instance"));
+    isolate->ThrowError("Invalid 'this' passed instead of AsyncHooks instance");
     return nullptr;
   }
 
@@ -87,8 +86,7 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Context> currentContext = isolate->GetCurrentContext();
 
   if (args.Length() != 1 || !args[0]->IsObject()) {
-    isolate->ThrowException(String::NewFromUtf8Literal(
-        isolate, "Invalid arguments passed to createHook"));
+    isolate->ThrowError("Invalid arguments passed to createHook");
     return Local<Object>();
   }
 

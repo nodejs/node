@@ -16,20 +16,18 @@ namespace wasm {
 namespace test_run_wasm_relaxed_simd {
 
 // Use this for experimental relaxed-simd opcodes.
-#define WASM_RELAXED_SIMD_TEST(name)                                      \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier);           \
-  TEST(RunWasm_##name##_turbofan) {                                       \
-    if (!CpuFeatures::SupportsWasmSimd128()) return;                      \
-    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kTurbofan);    \
-  }                                                                       \
-  TEST(RunWasm_##name##_interpreter) {                                    \
-    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kInterpreter); \
-  }                                                                       \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier)
+#define WASM_RELAXED_SIMD_TEST(name)                            \
+  void RunWasm_##name##_Impl(TestExecutionTier execution_tier); \
+  TEST(RunWasm_##name##_turbofan) {                             \
+    if (!CpuFeatures::SupportsWasmSimd128()) return;            \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
+    RunWasm_##name##_Impl(TestExecutionTier::kTurbofan);        \
+  }                                                             \
+  TEST(RunWasm_##name##_interpreter) {                          \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
+    RunWasm_##name##_Impl(TestExecutionTier::kInterpreter);     \
+  }                                                             \
+  void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC64
@@ -125,7 +123,7 @@ bool ExpectFused(TestExecutionTier tier) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC64
 WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
-  WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
@@ -149,7 +147,7 @@ WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
 }
 
 WASM_RELAXED_SIMD_TEST(F32x4Qfms) {
-  WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
@@ -173,7 +171,7 @@ WASM_RELAXED_SIMD_TEST(F32x4Qfms) {
 }
 
 WASM_RELAXED_SIMD_TEST(F64x2Qfma) {
-  WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, double, double, double> r(execution_tier);
   // Set up global to hold mask output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
@@ -197,7 +195,7 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfma) {
 }
 
 WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
-  WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, double, double, double> r(execution_tier);
   // Set up global to hold mask output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   // Build fn to splat test values, perform compare op, and write the result.
@@ -223,13 +221,13 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
         // V8_TARGET_ARCH_PPC64
 
 WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,
-                   base::Recip, false /* !exact */);
+  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipApprox, base::Recip,
+                   false /* !exact */);
 }
 
 WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipSqrtApprox,
-                   base::RecipSqrt, false /* !exact */);
+  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipSqrtApprox, base::RecipSqrt,
+                   false /* !exact */);
 }
 
 #undef WASM_RELAXED_SIMD_TEST

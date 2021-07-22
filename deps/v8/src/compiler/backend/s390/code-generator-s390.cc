@@ -206,9 +206,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    if (mode_ > RecordWriteMode::kValueIsPointer) {
-      __ JumpIfSmi(value_, exit());
-    }
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTaggedPointer(value_, value_);
     }
@@ -222,10 +219,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ AddS64(scratch1_, object_, offset_);
     }
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
-                                             : OMIT_REMEMBERED_SET;
-    SaveFPRegsMode const save_fp_mode =
-        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
+                                             : RememberedSetAction::kOmit;
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
       __ Push(r14);
@@ -1207,7 +1205,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchSaveCallerRegisters: {
       fp_mode_ =
           static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
@@ -1220,7 +1219,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRestoreCallerRegisters: {
       DCHECK(fp_mode_ ==
              static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode())));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
@@ -1373,6 +1373,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreTaggedField(value, MemOperand(object, offset));
+      }
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
@@ -1692,16 +1695,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(sqdbr), nullInstr, nullInstr);
       break;
     case kS390_FloorFloat:
-      __ fiebra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ FloorF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilFloat:
-      __ fiebra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ CeilF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateFloat:
-      __ fiebra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ TruncF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     //  Double operations
     case kS390_ModDouble:
@@ -1797,16 +1797,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lpdbr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_FloorDouble:
-      __ fidbra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ FloorF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilDouble:
-      __ fidbra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ CeilF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateDouble:
-      __ fidbra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ TruncF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_RoundDouble:
       __ fidbra(ROUND_TO_NEAREST_AWAY_FROM_0, i.OutputDoubleRegister(),
@@ -2992,12 +2989,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I32x4GeS: {
-      __ vceq(kScratchDoubleReg, i.InputSimd128Register(0),
-              i.InputSimd128Register(1), Condition(0), Condition(2));
-      __ vch(i.OutputSimd128Register(), i.InputSimd128Register(0),
-             i.InputSimd128Register(1), Condition(0), Condition(2));
-      __ vo(i.OutputSimd128Register(), i.OutputSimd128Register(),
-            kScratchDoubleReg, Condition(0), Condition(0), Condition(2));
+      __ vch(kScratchDoubleReg, i.InputSimd128Register(1),
+             i.InputSimd128Register(0), Condition(0), Condition(2));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(2));
       break;
     }
     case kS390_I32x4GtU: {
@@ -3020,12 +3015,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I16x8GeS: {
-      __ vceq(kScratchDoubleReg, i.InputSimd128Register(0),
-              i.InputSimd128Register(1), Condition(0), Condition(1));
-      __ vch(i.OutputSimd128Register(), i.InputSimd128Register(0),
-             i.InputSimd128Register(1), Condition(0), Condition(1));
-      __ vo(i.OutputSimd128Register(), i.OutputSimd128Register(),
-            kScratchDoubleReg, Condition(0), Condition(0), Condition(1));
+      __ vch(kScratchDoubleReg, i.InputSimd128Register(1),
+             i.InputSimd128Register(0), Condition(0), Condition(1));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(1));
       break;
     }
     case kS390_I16x8GtU: {
@@ -3048,12 +3041,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I8x16GeS: {
-      __ vceq(kScratchDoubleReg, i.InputSimd128Register(0),
-              i.InputSimd128Register(1), Condition(0), Condition(0));
-      __ vch(i.OutputSimd128Register(), i.InputSimd128Register(0),
-             i.InputSimd128Register(1), Condition(0), Condition(0));
-      __ vo(i.OutputSimd128Register(), i.OutputSimd128Register(),
-            kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
+      __ vch(kScratchDoubleReg, i.InputSimd128Register(1),
+             i.InputSimd128Register(0), Condition(0), Condition(0));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(0));
       break;
     }
     case kS390_I8x16GtU: {
@@ -3289,11 +3280,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_S128Const: {
-      for (int index = 0, j = 0; index < 2; index++, j = +2) {
-        __ mov(index < 1 ? ip : r0, Operand(i.InputInt32(j)));
-        __ iihf(index < 1 ? ip : r0, Operand(i.InputInt32(j + 1)));
-      }
-      __ vlvgp(i.OutputSimd128Register(), r0, ip);
+      uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ vlvgp(i.OutputSimd128Register(), ip, r0);
       break;
     }
     case kS390_S128Zero: {
@@ -3561,15 +3552,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
-      int32_t k8x16_indices[] = {i.InputInt32(2), i.InputInt32(3),
-                                 i.InputInt32(4), i.InputInt32(5)};
-      // create 2 * 8 byte inputs indicating new indices
-      for (int i = 0, j = 0; i < 2; i++, j = +2) {
-        __ mov(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
-        __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
-      }
-      __ vlvgp(kScratchDoubleReg, r0, ip);
-      __ vperm(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
+      uint64_t low = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      uint64_t high = make_uint64(i.InputUint32(5), i.InputUint32(4));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ vlvgp(dst, ip, r0);
+      __ vperm(dst, src0, src1, dst, Condition(0), Condition(0));
       break;
     }
     case kS390_I8x16Swizzle: {
@@ -3712,80 +3700,65 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0), Condition(0), Condition(2));
       break;
     }
-#define ASSEMBLE_SIMD_I64X2_EXT_MUL(UNPACK_INSTR)                              \
-  __ UNPACK_INSTR(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),  \
-                  Condition(0), Condition(2));                                 \
-  __ UNPACK_INSTR(i.OutputSimd128Register(), i.InputSimd128Register(1),        \
-                  Condition(0), Condition(0), Condition(2));                   \
-  Register scratch_0 = r0;                                                     \
-  Register scratch_1 = r1;                                                     \
-  for (int lane = 0; lane < 2; lane++) {                                       \
-    __ vlgv(scratch_0, kScratchDoubleReg, MemOperand(r0, lane), Condition(3)); \
-    __ vlgv(scratch_1, i.OutputSimd128Register(), MemOperand(r0, lane),        \
-            Condition(3));                                                     \
-    __ MulS64(scratch_0, scratch_1);                                           \
-    scratch_0 = r1;                                                            \
-    scratch_1 = ip;                                                            \
-  }                                                                            \
-  __ vlvgp(i.OutputSimd128Register(), r0, r1);
+#define EXT_MUL(mul_even, mul_odd, merge, mode)                              \
+  Simd128Register dst = i.OutputSimd128Register(),                           \
+                  src0 = i.InputSimd128Register(0),                          \
+                  src1 = i.InputSimd128Register(1);                          \
+  __ mul_even(dst, src0, src1, Condition(0), Condition(0), Condition(mode)); \
+  __ mul_odd(kScratchDoubleReg, src0, src1, Condition(0), Condition(0),      \
+             Condition(mode));                                               \
+  __ merge(dst, dst, kScratchDoubleReg, Condition(0), Condition(0),          \
+           Condition(mode + 1));
     case kS390_I64x2ExtMulLowI32x4S: {
-      ASSEMBLE_SIMD_I64X2_EXT_MUL(vupl)
+      EXT_MUL(vme, vmo, vmrl, 2)
       break;
     }
     case kS390_I64x2ExtMulHighI32x4S: {
-      ASSEMBLE_SIMD_I64X2_EXT_MUL(vuph)
+      EXT_MUL(vme, vmo, vmrh, 2)
       break;
     }
     case kS390_I64x2ExtMulLowI32x4U: {
-      ASSEMBLE_SIMD_I64X2_EXT_MUL(vupll)
+      EXT_MUL(vmle, vmlo, vmrl, 2)
       break;
     }
     case kS390_I64x2ExtMulHighI32x4U: {
-      ASSEMBLE_SIMD_I64X2_EXT_MUL(vuplh)
+      EXT_MUL(vmle, vmlo, vmrh, 2)
       break;
     }
-#undef ASSEMBLE_SIMD_I64X2_EXT_MUL
-#define ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(UNPACK_INSTR, MODE)                 \
-  __ UNPACK_INSTR(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0), \
-                  Condition(0), Condition(MODE));                             \
-  __ UNPACK_INSTR(i.OutputSimd128Register(), i.InputSimd128Register(1),       \
-                  Condition(0), Condition(0), Condition(MODE));               \
-  __ vml(i.OutputSimd128Register(), kScratchDoubleReg,                        \
-         i.OutputSimd128Register(), Condition(0), Condition(0),               \
-         Condition(MODE + 1));
     case kS390_I32x4ExtMulLowI16x8S: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupl, 1)
+      EXT_MUL(vme, vmo, vmrl, 1)
       break;
     }
     case kS390_I32x4ExtMulHighI16x8S: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuph, 1)
+      EXT_MUL(vme, vmo, vmrh, 1)
       break;
     }
     case kS390_I32x4ExtMulLowI16x8U: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupll, 1)
+      EXT_MUL(vmle, vmlo, vmrl, 1)
       break;
     }
     case kS390_I32x4ExtMulHighI16x8U: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuplh, 1)
+      EXT_MUL(vmle, vmlo, vmrh, 1)
       break;
     }
+
     case kS390_I16x8ExtMulLowI8x16S: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupl, 0)
+      EXT_MUL(vme, vmo, vmrl, 0)
       break;
     }
     case kS390_I16x8ExtMulHighI8x16S: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuph, 0)
+      EXT_MUL(vme, vmo, vmrh, 0)
       break;
     }
     case kS390_I16x8ExtMulLowI8x16U: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupll, 0)
+      EXT_MUL(vmle, vmlo, vmrl, 0)
       break;
     }
     case kS390_I16x8ExtMulHighI8x16U: {
-      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuplh, 0)
+      EXT_MUL(vmle, vmlo, vmrh, 0)
       break;
     }
-#undef ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL
+#undef EXT_MUL
 #define EXT_ADD_PAIRWISE(lane_size, mul_even, mul_odd)                        \
   Simd128Register src = i.InputSimd128Register(0);                            \
   Simd128Register dst = i.OutputSimd128Register();                            \
@@ -3942,7 +3915,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNREACHABLE();
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 // Assembles branches after an instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
@@ -4204,7 +4177,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // frame is still on the stack. Optimized code uses OSR values directly from
     // the unoptimized frame. Thus, all that needs to be done is to allocate the
     // remaining stack slots.
-    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
     ResetSpeculationPoison();
@@ -4309,7 +4282,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (__ emit_debug_code()) {
+    } else if (FLAG_debug_code) {
       __ CmpS64(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }

@@ -194,9 +194,10 @@ class String : public TorqueGeneratedString<String, Name> {
   const byte* AddressOfCharacterAt(int start_index,
                                    const DisallowGarbageCollection& no_gc);
 
-  // Get and set the length of the string using acquire loads and release
-  // stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedString::length;
+  using TorqueGeneratedString::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
   // Returns whether this string has only one-byte chars, i.e. all of them can
   // be one-byte encoded.  This might be the case even if the string is
@@ -409,7 +410,7 @@ class String : public TorqueGeneratedString<String, Name> {
   const char* PrefixForDebugPrint() const;
   const char* SuffixForDebugPrint() const;
   void StringShortPrint(StringStream* accumulator);
-  void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
+  void PrintUC16(std::ostream& os, int start = 0, int end = -1);
   void PrintUC16(StringStream* accumulator, int start, int end);
 
   // Dispatched behavior.
@@ -530,8 +531,8 @@ class String : public TorqueGeneratedString<String, Name> {
       Visitor* visitor, String string, int offset,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
-  template <typename LocalIsolate>
-  static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
+  template <typename IsolateT>
+  static Handle<FixedArray> CalculateLineEnds(IsolateT* isolate,
                                               Handle<String> string,
                                               bool include_ending_line);
 

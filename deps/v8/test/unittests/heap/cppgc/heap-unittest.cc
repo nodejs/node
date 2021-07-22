@@ -48,7 +48,7 @@ class Foo : public GarbageCollected<Foo> {
 size_t Foo::destructor_callcount;
 
 template <size_t Size>
-class GCed : public GarbageCollected<Foo> {
+class GCed : public GarbageCollected<GCed<Size>> {
  public:
   void Trace(cppgc::Visitor*) const {}
   char buf[Size];
@@ -89,37 +89,81 @@ TEST_F(GCHeapTest, ConservativeGCRetainsObjectOnStack) {
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
 
+namespace {
+
+class GCedWithFinalizer final : public GarbageCollected<GCedWithFinalizer> {
+ public:
+  static size_t destructor_counter;
+
+  GCedWithFinalizer() { destructor_counter = 0; }
+  ~GCedWithFinalizer() { destructor_counter++; }
+  void Trace(Visitor* visitor) const {}
+};
+// static
+size_t GCedWithFinalizer::destructor_counter = 0;
+
+class LargeObjectGCDuringCtor final
+    : public GarbageCollected<LargeObjectGCDuringCtor> {
+ public:
+  static constexpr size_t kDataSize = kLargeObjectSizeThreshold + 1;
+
+  explicit LargeObjectGCDuringCtor(cppgc::Heap* heap)
+      : child_(MakeGarbageCollected<GCedWithFinalizer>(
+            heap->GetAllocationHandle())) {
+    internal::Heap::From(heap)->CollectGarbage(
+        Heap::Config::ConservativeAtomicConfig());
+  }
+
+  void Trace(Visitor* visitor) const { visitor->Trace(child_); }
+
+  char data[kDataSize];
+  Member<GCedWithFinalizer> child_;
+};
+
+}  // namespace
+
+TEST_F(GCHeapTest, ConservativeGCFromLargeObjectCtorFindsObject) {
+  GCedWithFinalizer::destructor_counter = 0;
+  MakeGarbageCollected<LargeObjectGCDuringCtor>(GetAllocationHandle(),
+                                                GetHeap());
+  EXPECT_EQ(0u, GCedWithFinalizer::destructor_counter);
+}
+
 TEST_F(GCHeapTest, ObjectPayloadSize) {
   static constexpr size_t kNumberOfObjectsPerArena = 16;
   static constexpr size_t kObjectSizes[] = {1, 32, 64, 128,
                                             2 * kLargeObjectSizeThreshold};
 
-  Heap::From(GetHeap())->CollectGarbage(
-      GarbageCollector::Config::ConservativeAtomicConfig());
+  EXPECT_EQ(0u, Heap::From(GetHeap())->ObjectPayloadSize());
 
-  subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
+  {
+    subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
 
-  for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
-    MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetAllocationHandle());
+    for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
+      MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetAllocationHandle());
+    }
+
+    size_t aligned_object_sizes[arraysize(kObjectSizes)];
+    std::transform(std::cbegin(kObjectSizes), std::cend(kObjectSizes),
+                   std::begin(aligned_object_sizes), [](size_t size) {
+                     return RoundUp(size, kAllocationGranularity);
+                   });
+    const size_t expected_size = std::accumulate(
+        std::cbegin(aligned_object_sizes), std::cend(aligned_object_sizes), 0u,
+        [](size_t acc, size_t size) {
+          return acc + kNumberOfObjectsPerArena * size;
+        });
+    // TODO(chromium:1056170): Change to EXPECT_EQ when proper sweeping is
+    // implemented.
+    EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
   }
 
-  size_t aligned_object_sizes[arraysize(kObjectSizes)];
-  std::transform(std::cbegin(kObjectSizes), std::cend(kObjectSizes),
-                 std::begin(aligned_object_sizes), [](size_t size) {
-                   return RoundUp(size, kAllocationGranularity);
-                 });
-  const size_t expected_size = std::accumulate(
-      std::cbegin(aligned_object_sizes), std::cend(aligned_object_sizes), 0u,
-      [](size_t acc, size_t size) {
-        return acc + kNumberOfObjectsPerArena * size;
-      });
-  // TODO(chromium:1056170): Change to EXPECT_EQ when proper sweeping is
-  // implemented.
-  EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
+  PreciseGC();
+  EXPECT_EQ(0u, Heap::From(GetHeap())->ObjectPayloadSize());
 }
 
 TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
@@ -127,20 +171,20 @@ TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
   static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
   {
     Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
-    EXPECT_LE(kBaseSize, HeapObjectHeader::FromPayload(object).GetSize());
+    EXPECT_LE(kBaseSize, HeapObjectHeader::FromObject(object).AllocatedSize());
   }
   {
     Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle(),
                                             AdditionalBytes(kAdditionalBytes));
     EXPECT_LE(kBaseSize + kAdditionalBytes,
-              HeapObjectHeader::FromPayload(object).GetSize());
+              HeapObjectHeader::FromObject(object).AllocatedSize());
   }
   {
     Foo* object = MakeGarbageCollected<Foo>(
         GetAllocationHandle(),
         AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
     EXPECT_LE(kBaseSize + kAdditionalBytes * kAdditionalBytes,
-              HeapObjectHeader::FromPayload(object).GetSize());
+              HeapObjectHeader::FromObject(object).AllocatedSize());
   }
 }
 
@@ -152,10 +196,11 @@ TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
   Foo* object_with_more_bytes = MakeGarbageCollected<Foo>(
       GetAllocationHandle(),
       AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
-  EXPECT_LT(HeapObjectHeader::FromPayload(object).GetSize(),
-            HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
-  EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
-            HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+  EXPECT_LT(HeapObjectHeader::FromObject(object).AllocatedSize(),
+            HeapObjectHeader::FromObject(object_with_bytes).AllocatedSize());
+  EXPECT_LT(
+      HeapObjectHeader::FromObject(object_with_bytes).AllocatedSize(),
+      HeapObjectHeader::FromObject(object_with_more_bytes).AllocatedSize());
 }
 
 TEST_F(GCHeapTest, Epoch) {
@@ -320,6 +365,17 @@ TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
   // Terminate() requires destructors to stop creating new state within a few
   // garbage collections.
   EXPECT_DEATH_IF_SUPPORTED(Heap::From(GetHeap())->Terminate(), "");
+}
+
+TEST_F(GCHeapTest, IsHeapObjectAliveForConstPointer) {
+  // Regression test: http://crbug.com/661363.
+  GCed<64>* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
+  HeapObjectHeader& header = HeapObjectHeader::FromObject(object);
+  LivenessBroker broker = internal::LivenessBrokerFactory::Create();
+  EXPECT_TRUE(header.TryMarkAtomic());
+  EXPECT_TRUE(broker.IsHeapObjectAlive(object));
+  const GCed<64>* const_object = const_cast<const GCed<64>*>(object);
+  EXPECT_TRUE(broker.IsHeapObjectAlive(const_object));
 }
 
 }  // namespace internal

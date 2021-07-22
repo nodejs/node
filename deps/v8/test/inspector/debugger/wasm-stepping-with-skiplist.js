@@ -46,6 +46,7 @@ const func_a_end_offset = func_a_start_offset + 2;
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable');
     WasmInspectorTest.instantiate(module_bytes);

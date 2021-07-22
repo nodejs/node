@@ -6,6 +6,7 @@
 
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
+#include "src/wasm/branch-hint-map.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -67,6 +68,11 @@ namespace module_decoder_unittest {
           ADD_COUNT('c', 'o', 'm', 'p', 'i', 'l', 'a', 't', 'i', 'o', 'n', \
                     'H', 'i', 'n', 't', 's'),                              \
           ADD_COUNT(__VA_ARGS__))
+
+#define SECTION_BRANCH_HINTS(...)                                           \
+  SECTION(Unknown,                                                          \
+          ADD_COUNT('b', 'r', 'a', 'n', 'c', 'h', 'H', 'i', 'n', 't', 's'), \
+          __VA_ARGS__)
 
 #define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
   do {                                                                   \
@@ -897,6 +903,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
 
+#if !V8_OS_FUCHSIA
 TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -910,6 +917,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
+#endif  // !V8_OS_FUCHSIA
 
 TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
   WASM_FEATURE_SCOPE(reftypes);
@@ -1846,8 +1854,10 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       ONE_EMPTY_BODY,
   };
 
-  EXPECT_FAILURE_WITH_MSG(
-      data, "Invalid element segment. Table 0 is not a super-type of funcref");
+  EXPECT_FAILURE_WITH_MSG(data,
+                          "An active element segment with function indices as "
+                          "elements must reference a table of type funcref. "
+                          "Instead, table 0 of type externref is referenced.");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
@@ -1893,6 +1903,17 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
   };
 
   EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionGlobalGetOutOfBounds) {
+  WASM_FEATURE_SCOPE(reftypes);
+  static const byte data[] = {
+      SECTION(Element, ENTRY_COUNT(1),
+              0x05,            // Mode: Passive with expressions-as-elements
+              kFuncRefCode,    // type
+              ENTRY_COUNT(1),  // element count
+              kExprGlobalGet, 0x00, kExprEnd)};  // init. expression
+  EXPECT_FAILURE_WITH_MSG(data, "Out-of-bounds global index 0");
 }
 
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
@@ -2094,6 +2115,30 @@ TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
             result.value()->compilation_hints[2].top_tier);
 }
 
+TEST_F(WasmModuleVerifyTest, BranchHinting) {
+  WASM_FEATURE_SCOPE(branch_hinting);
+  static const byte data[] = {
+      TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+      SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, 0 /*reserved*/,
+                           ENTRY_COUNT(1), 1 /*likely*/, 2 /* if offset*/,
+                           1 /*func_index*/, 0 /*reserved*/, ENTRY_COUNT(1),
+                           0 /*unlikely*/, 4 /* br_if offset*/),
+      SECTION(Code, ENTRY_COUNT(2),
+              ADD_COUNT(0, /*no locals*/
+                        WASM_IF(WASM_I32V_1(1), WASM_NOP), WASM_END),
+              ADD_COUNT(0, /*no locals*/
+                        WASM_BLOCK(WASM_BR_IF(0, WASM_I32V_1(1))), WASM_END))};
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+
+  EXPECT_EQ(2u, result.value()->branch_hints.size());
+  EXPECT_EQ(WasmBranchHint::kLikely,
+            result.value()->branch_hints[0].GetHintFor(2));
+  EXPECT_EQ(WasmBranchHint::kUnlikely,
+            result.value()->branch_hints[1].GetHintFor(4));
+}
+
 class WasmSignatureDecodeTest : public TestWithZone {
  public:
   WasmFeatures enabled_features_ = WasmFeatures::None();
@@ -2162,7 +2207,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   WASM_FEATURE_SCOPE(reftypes);
-  WASM_FEATURE_SCOPE(mv);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2182,7 +2226,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
   WASM_FEATURE_SCOPE(reftypes);
-  WASM_FEATURE_SCOPE(mv);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2212,12 +2255,8 @@ TEST_F(WasmSignatureDecodeTest, TooManyParams) {
 
 TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
   for (int i = 0; i < 2; i++) {
-    bool enable_mv = i != 0;
-    WASM_FEATURE_SCOPE_VAL(mv, enable_mv);
-    const int max_return_count = static_cast<int>(
-        enable_mv ? kV8MaxWasmFunctionMultiReturns : kV8MaxWasmFunctionReturns);
-    byte data[] = {kWasmFunctionTypeCode, 0, WASM_I32V_3(max_return_count + 1),
-                   kI32Code};
+    byte data[] = {kWasmFunctionTypeCode, 0,
+                   WASM_I32V_3(kV8MaxWasmFunctionReturns + 1), kI32Code};
     const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
   }

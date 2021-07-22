@@ -73,6 +73,7 @@ const tickProcessor = new TickProcessor(
   params.separateBytecodes,
   params.separateBuiltins,
   params.separateStubs,
+  params.separateBaselineHandlers,
   params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,
@@ -85,4 +86,9 @@ const tickProcessor = new TickProcessor(
   params.runtimeTimerFilter,
   params.preprocessJson);
 tickProcessor.processLogFile(params.logFileName);
-tickProcessor.printStatistics();
+
+if (params.serializeVMSymbols) {
+  tickProcessor.printVMSymbols();
+} else {
+  tickProcessor.printStatistics();
+}

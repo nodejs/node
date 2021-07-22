@@ -21,7 +21,7 @@ template <typename T>
 class Handle;
 class HeapObject;
 class Type;
-enum TypeofMode : int;
+enum class TypeofMode;
 
 namespace compiler {
 

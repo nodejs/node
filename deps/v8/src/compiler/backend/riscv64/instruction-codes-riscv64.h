@@ -59,6 +59,7 @@ namespace compiler {
   V(RiscvMov)                               \
   V(RiscvTst)                               \
   V(RiscvCmp)                               \
+  V(RiscvCmpZero)                           \
   V(RiscvCmpS)                              \
   V(RiscvAddS)                              \
   V(RiscvSubS)                              \

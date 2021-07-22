@@ -738,21 +738,35 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
                                 cache_state_.stack_state[stack_base + i]);
   }
 
+  // Check whether the cached instance needs to be moved to another register.
+  // Register moves are executed as part of the {StackTransferRecipe}. Remember
+  // whether the register content has to be reloaded after executing the stack
+  // transfers.
+  bool reload_instance = false;
+  // If the registers match, or the destination has no cache register, nothing
+  // needs to be done.
   if (cache_state_.cached_instance != target.cached_instance &&
       target.cached_instance != no_reg) {
+    // On forward jumps, just reset the cached register in the target state.
     if (jump_direction == kForwardJump) {
-      // On forward jumps, just reset the cached instance in the target state.
       target.ClearCachedInstanceRegister();
+    } else if (cache_state_.cached_instance != no_reg) {
+      // If the source has the content but in the wrong register, execute a
+      // register move as part of the stack transfer.
+      transfers.MoveRegister(LiftoffRegister{target.cached_instance},
+                             LiftoffRegister{cache_state_.cached_instance},
+                             kPointerKind);
     } else {
-      // On backward jumps, we already generated code assuming that the instance
-      // is available in that register. Thus move it there.
-      if (cache_state_.cached_instance == no_reg) {
-        LoadInstanceFromFrame(target.cached_instance);
-      } else {
-        Move(target.cached_instance, cache_state_.cached_instance,
-             kPointerKind);
-      }
+      // Otherwise (the source state has no cached content), we reload later.
+      reload_instance = true;
     }
+  }
+
+  // Now execute stack transfers and register moves/loads.
+  transfers.Execute();
+
+  if (reload_instance) {
+    LoadInstanceFromFrame(target.cached_instance);
   }
 }
 

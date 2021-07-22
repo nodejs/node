@@ -150,10 +150,11 @@ std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
     V8InspectorImpl* inspector) {
   std::unique_ptr<V8StackTraceImpl> callStack =
       inspector->debugger()->captureStackTrace(false /* fullStack */);
-  auto location = protocol::Debugger::Location::create()
-                      .setScriptId(toString16(callStack->topScriptId()))
-                      .setLineNumber(callStack->topLineNumber())
-                      .build();
+  auto location =
+      protocol::Debugger::Location::create()
+          .setScriptId(String16::fromInteger(callStack->topScriptId()))
+          .setLineNumber(callStack->topLineNumber())
+          .build();
   location->setColumnNumber(callStack->topColumnNumber());
   return location;
 }

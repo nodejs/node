@@ -122,7 +122,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
     CHECK((allocation == AllocationType::kYoung &&
            heap->new_space()->Contains(*handles.back())) ||
           (allocation == AllocationType::kOld &&
-           heap->InOldSpace(*handles.back())));
+           heap->InOldSpace(*handles.back())) ||
+          FLAG_single_generation);
     free_memory -= handles.back()->Size();
   }
   return handles;

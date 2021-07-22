@@ -596,7 +596,7 @@ template <class T> class PersistentBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
+  PersistentBase(const PersistentBase& other) = delete;
   void operator=(const PersistentBase&) = delete;
 
  private:
@@ -708,7 +708,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
     return *this;
   }
   template <class S, class M2>
-  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) { // NOLINT
+  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) {
     Copy(that);
     return *this;
   }
@@ -723,7 +723,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 
   // TODO(dcarney): this is pretty useless, fix or remove
   template <class S>
-  V8_INLINE static Persistent<T>& Cast(const Persistent<S>& that) {  // NOLINT
+  V8_INLINE static Persistent<T>& Cast(const Persistent<S>& that) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
     // that the handle isn't empty before doing the checked cast.
@@ -734,7 +734,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 
   // TODO(dcarney): this is pretty useless, fix or remove
   template <class S>
-  V8_INLINE Persistent<S>& As() const {  // NOLINT
+  V8_INLINE Persistent<S>& As() const {
     return Persistent<S>::Cast(*this);
   }
 
@@ -803,7 +803,7 @@ class Global : public PersistentBase<T> {
   /**
    * Pass allows returning uniques from functions, etc.
    */
-  Global Pass() { return static_cast<Global&&>(*this); }  // NOLINT
+  Global Pass() { return static_cast<Global&&>(*this); }
 
   /*
    * For compatibility with Chromium's base::Bind (base::Passed).
@@ -905,8 +905,8 @@ class TracedReferenceBase {
  * The exact semantics are:
  * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
  * - Non-tracing garbage collections refer to
- *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
- *   be treated as root or not.
+ *   |v8::EmbedderRootsHandler::IsRoot()| whether the handle should
+ * be treated as root or not.
  *
  * Note that the base class cannot be instantiated itself. Choose from
  * - TracedGlobal
@@ -1678,10 +1678,12 @@ class V8_EXPORT Module : public Data {
   /**
    * Evaluates the module and its dependencies.
    *
-   * If status is kInstantiated, run the module's code. On success, set status
-   * to kEvaluated and return the completion value; on failure, set status to
-   * kErrored and propagate the thrown exception (which is then also available
-   * via |GetException|).
+   * If status is kInstantiated, run the module's code and return a Promise
+   * object. On success, set status to kEvaluated and resolve the Promise with
+   * the completion value; on failure, set status to kErrored and reject the
+   * Promise with the error.
+   *
+   * If IsGraphAsync() is false, the returned Promise is settled.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
@@ -3282,7 +3284,7 @@ class V8_EXPORT String : public Name {
    */
   bool IsExternalOneByte() const;
 
-  class V8_EXPORT ExternalStringResourceBase {  // NOLINT
+  class V8_EXPORT ExternalStringResourceBase {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
@@ -3633,6 +3635,7 @@ class V8_EXPORT Symbol : public Name {
    * Returns the description string of the symbol, or undefined if none.
    */
   Local<Value> Description() const;
+  Local<Value> Description(Isolate* isolate) const;
 
   V8_DEPRECATED("Use Symbol::Description()")
   Local<Value> Name() const { return Description(); }
@@ -3986,8 +3989,7 @@ class V8_EXPORT Object : public Value {
   //
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
-      Local<Context> context, Local<Name> key,
-      PropertyDescriptor& descriptor);  // NOLINT(runtime/references)
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
@@ -5364,7 +5366,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    * Note that it is unsafe to call back into V8 from any of the allocator
    * functions.
    */
-  class V8_EXPORT Allocator { // NOLINT
+  class V8_EXPORT Allocator {
    public:
     virtual ~Allocator() = default;
 
@@ -6756,6 +6758,15 @@ class V8_EXPORT FunctionTemplate : public Template {
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
       const CFunction* c_function = nullptr);
 
+  /** Creates a function template for multiple overloaded fast API calls.*/
+  static Local<FunctionTemplate> NewWithCFunctionOverloads(
+      Isolate* isolate, FunctionCallback callback = nullptr,
+      Local<Value> data = Local<Value>(),
+      Local<Signature> signature = Local<Signature>(), int length = 0,
+      ConstructorBehavior behavior = ConstructorBehavior::kAllow,
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
+      const MemorySpan<const CFunction>& c_function_overloads = {});
+
   /**
    * Creates a function template backed/cached by a private property.
    */
@@ -6787,7 +6798,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   void SetCallHandler(
       FunctionCallback callback, Local<Value> data = Local<Value>(),
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr);
+      const MemorySpan<const CFunction>& c_function_overloads = {});
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);
@@ -6847,6 +6858,15 @@ class V8_EXPORT FunctionTemplate : public Template {
    * template.
    */
   bool HasInstance(Local<Value> object);
+
+  /**
+   * Returns true if the given value is an API object that was constructed by an
+   * instance of this function template (without checking for inheriting
+   * function templates).
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  bool IsLeafTemplateForApiObject(v8::Local<v8::Value> value) const;
 
   V8_INLINE static FunctionTemplate* Cast(Data* data);
 
@@ -7281,7 +7301,7 @@ class V8_EXPORT AccessorSignature : public Data {
 /**
  * Ignore
  */
-class V8_EXPORT Extension {  // NOLINT
+class V8_EXPORT Extension {
  public:
   // Note that the strings passed into this constructor must live as long
   // as the Extension itself.
@@ -7383,6 +7403,11 @@ class V8_EXPORT ResourceConstraints {
   /**
    * The amount of virtual memory reserved for generated code. This is relevant
    * for 64-bit architectures that rely on code range for calls in code.
+   *
+   * When V8_COMPRESS_POINTERS_IN_SHARED_CAGE is defined, there is a shared
+   * process-wide code range that is lazily initialized. This value is used to
+   * configure that shared code range when the first Isolate is
+   * created. Subsequent Isolates ignore this value.
    */
   size_t code_range_size_in_bytes() const { return code_range_size_; }
   void set_code_range_size_in_bytes(size_t limit) { code_range_size_ = limit; }
@@ -7832,6 +7857,10 @@ using WasmSimdEnabledCallback = bool (*)(Local<Context> context);
 // --- Callback for checking if WebAssembly exceptions are enabled ---
 using WasmExceptionsEnabledCallback = bool (*)(Local<Context> context);
 
+// --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
+using SharedArrayBufferConstructorEnabledCallback =
+    bool (*)(Local<Context> context);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -8153,17 +8182,16 @@ using UnhandledExceptionCallback =
 /**
  * Interface for iterating through all external resources in the heap.
  */
-class V8_EXPORT ExternalResourceVisitor {  // NOLINT
+class V8_EXPORT ExternalResourceVisitor {
  public:
   virtual ~ExternalResourceVisitor() = default;
   virtual void VisitExternalString(Local<String> string) {}
 };
 
-
 /**
  * Interface for iterating through all the persistent handles in the heap.
  */
-class V8_EXPORT PersistentHandleVisitor {  // NOLINT
+class V8_EXPORT PersistentHandleVisitor {
  public:
   virtual ~PersistentHandleVisitor() = default;
   virtual void VisitPersistentHandle(Persistent<Value>* value,
@@ -8179,6 +8207,45 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
  * pauses at this level will be large.
  */
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
+
+/**
+ * Handler for embedder roots on non-unified heap garbage collections.
+ */
+class V8_EXPORT EmbedderRootsHandler {
+ public:
+  virtual ~EmbedderRootsHandler() = default;
+
+  /**
+   * Returns true if the TracedGlobal handle should be considered as root for
+   * the currently running non-tracing garbage collection and false otherwise.
+   * The default implementation will keep all TracedGlobal references as roots.
+   *
+   * If this returns false, then V8 may decide that the object referred to by
+   * such a handle is reclaimed. In that case:
+   * - No action is required if handles are used with destructors, i.e., by just
+   *   using |TracedGlobal|.
+   * - When run without destructors, i.e., by using |TracedReference|, V8 calls
+   *  |ResetRoot|.
+   *
+   * Note that the |handle| is different from the handle that the embedder holds
+   * for retaining the object. The embedder may use |WrapperClassId()| to
+   * distinguish cases where it wants handles to be treated as roots from not
+   * being treated as roots.
+   */
+  virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+  virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) = 0;
+
+  /**
+   * Used in combination with |IsRoot|. Called by V8 when an
+   * object that is backed by a handle is reclaimed by a non-tracing garbage
+   * collection. It is up to the embedder to reset the original handle.
+   *
+   * Note that the |handle| is different from the handle that the embedder holds
+   * for retaining the object. It is up to the embedder to find the original
+   * handle via the object or class id.
+   */
+  virtual void ResetRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+};
 
 /**
  * Interface for tracing through the embedder heap. During a V8 garbage
@@ -8242,6 +8309,9 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called by the embedder to notify V8 of an empty execution stack.
    */
+  V8_DEPRECATE_SOON(
+      "This call only optimized internal caches which V8 is able to figure out "
+      "on its own now.")
   void NotifyEmptyEmbedderStack();
 
   /**
@@ -8305,34 +8375,14 @@ class V8_EXPORT EmbedderHeapTracer {
   void FinalizeTracing();
 
   /**
-   * Returns true if the TracedGlobal handle should be considered as root for
-   * the currently running non-tracing garbage collection and false otherwise.
-   * The default implementation will keep all TracedGlobal references as roots.
-   *
-   * If this returns false, then V8 may decide that the object referred to by
-   * such a handle is reclaimed. In that case:
-   * - No action is required if handles are used with destructors, i.e., by just
-   * using |TracedGlobal|.
-   * - When run without destructors, i.e., by using
-   * |TracedReference|, V8 calls |ResetHandleInNonTracingGC|.
-   *
-   * Note that the |handle| is different from the handle that the embedder holds
-   * for retaining the object. The embedder may use |WrapperClassId()| to
-   * distinguish cases where it wants handles to be treated as roots from not
-   * being treated as roots.
+   * See documentation on EmbedderRootsHandler.
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
   virtual bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle);
 
   /**
-   * Used in combination with |IsRootForNonTracingGC|. Called by V8 when an
-   * object that is backed by a handle is reclaimed by a non-tracing garbage
-   * collection. It is up to the embedder to reset the original handle.
-   *
-   * Note that the |handle| is different from the handle that the embedder holds
-   * for retaining the object. It is up to the embedder to find the original
-   * handle via the object or class id.
+   * See documentation on EmbedderRootsHandler.
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
@@ -8791,6 +8841,7 @@ class V8_EXPORT Isolate {
     kWasmBulkMemory = 109,  // Unused.
     kWasmMultiValue = 110,
     kWasmExceptionHandling = 111,
+    kInvalidatedMegaDOMProtector = 112,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -9127,6 +9178,17 @@ class V8_EXPORT Isolate {
   Local<Context> GetIncumbentContext();
 
   /**
+   * Schedules a v8::Exception::Error with the given message.
+   * See ThrowException for more details. Templatized to provide compile-time
+   * errors in case of too long strings (see v8::String::NewFromUtf8Literal).
+   */
+  template <int N>
+  Local<Value> ThrowError(const char (&message)[N]) {
+    return ThrowError(String::NewFromUtf8Literal(this, message));
+  }
+  Local<Value> ThrowError(Local<String> message);
+
+  /**
    * Schedules an exception to be thrown when returning to JavaScript.  When an
    * exception has been scheduled it is illegal to invoke any JavaScript
    * operation; the caller must return immediately and only after the exception
@@ -9169,6 +9231,18 @@ class V8_EXPORT Isolate {
    * Gets the currently active heap tracer for the isolate.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
+
+  /**
+   * Sets an embedder roots handle that V8 should consider when performing
+   * non-unified heap garbage collections.
+   *
+   * Using only EmbedderHeapTracer automatically sets up a default handler.
+   * The intended use case is for setting a custom handler after invoking
+   * `AttachCppHeap()`.
+   *
+   * V8 does not take ownership of the handler.
+   */
+  void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
 
   /**
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
@@ -9739,6 +9813,9 @@ class V8_EXPORT Isolate {
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
+  void SetSharedArrayBufferConstructorEnabledCallback(
+      SharedArrayBufferConstructorEnabledCallback callback);
+
   /**
    * This function can be called by the embedder to signal V8 that the dynamic
    * enabling of features has finished. V8 can now set up dynamically added
@@ -10113,6 +10190,9 @@ class V8_EXPORT V8 {
    * Notifies V8 that the process is cross-origin-isolated, which enables
    * defining the SharedArrayBuffer function on the global object of Contexts.
    */
+  V8_DEPRECATED(
+      "Use the command line argument --enable-sharedarraybuffer-per-context "
+      "together with SetSharedArrayBufferConstructorEnabledCallback")
   static void SetIsCrossOriginIsolated();
 
  private:

@@ -26,7 +26,7 @@ extern class FixedDoubleArray extends FixedArrayBase {
 @generateCppClass
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  @relaxedRead objects[length]: MaybeObject;
+  @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
 @generateCppClass
@@ -51,7 +51,7 @@ extern class TemplateList extends FixedArray {
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
-  @relaxedRead objects[capacity]: MaybeObject;
+  @cppRelaxedLoad objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(

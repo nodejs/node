@@ -117,7 +117,7 @@ class JSCallReducerTest : public TypedGraphTest {
     return javascript()->Call(JSCallNode::ArityForArgc(arity), CallFrequency(),
                               feedback, ConvertReceiverMode::kAny,
                               SpeculationMode::kAllowSpeculation,
-                              CallFeedbackRelation::kRelated);
+                              CallFeedbackRelation::kTarget);
   }
 
  private:

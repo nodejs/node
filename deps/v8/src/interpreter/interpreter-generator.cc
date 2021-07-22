@@ -209,7 +209,7 @@ IGNITION_HANDLER(LdaGlobal, InterpreterLoadGlobalAssembler) {
   static const int kNameOperandIndex = 0;
   static const int kSlotOperandIndex = 1;
 
-  LdaGlobal(kSlotOperandIndex, kNameOperandIndex, NOT_INSIDE_TYPEOF);
+  LdaGlobal(kSlotOperandIndex, kNameOperandIndex, TypeofMode::kNotInside);
 }
 
 // LdaGlobalInsideTypeof <name_index> <slot>
@@ -220,7 +220,7 @@ IGNITION_HANDLER(LdaGlobalInsideTypeof, InterpreterLoadGlobalAssembler) {
   static const int kNameOperandIndex = 0;
   static const int kSlotOperandIndex = 1;
 
-  LdaGlobal(kSlotOperandIndex, kNameOperandIndex, INSIDE_TYPEOF);
+  LdaGlobal(kSlotOperandIndex, kNameOperandIndex, TypeofMode::kInside);
 }
 
 // StaGlobal <name_index> <slot>
@@ -418,8 +418,8 @@ class InterpreterLookupGlobalAssembler : public InterpreterLoadGlobalAssembler {
 
       TypeofMode typeof_mode =
           function_id == Runtime::kLoadLookupSlotInsideTypeof
-              ? INSIDE_TYPEOF
-              : NOT_INSIDE_TYPEOF;
+              ? TypeofMode::kInside
+              : TypeofMode::kNotInside;
 
       LdaGlobal(kSlotOperandIndex, kNameOperandIndex, typeof_mode);
     }
@@ -1365,13 +1365,19 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
   // Generates code to perform a JS call that collects type feedback.
   void JSCall(ConvertReceiverMode receiver_mode) {
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    LazyNode<Object> receiver = [=] {
+      return receiver_mode == ConvertReceiverMode::kNullOrUndefined
+                 ? UndefinedConstant()
+                 : LoadRegisterAtOperandIndex(1);
+    };
     RegListNodePair args = GetRegisterListAtOperandIndex(1);
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+    CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                        slot_id);
 
     // Call the function and dispatch to the next handler.
     CallJSAndDispatch(function, context, args, receiver_mode);
@@ -1399,12 +1405,18 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
         kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
 
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    LazyNode<Object> receiver = [=] {
+      return receiver_mode == ConvertReceiverMode::kNullOrUndefined
+                 ? UndefinedConstant()
+                 : LoadRegisterAtOperandIndex(1);
+    };
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(kSlotOperandIndex);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+    CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                        slot_id);
 
     switch (kReceiverAndArgOperandCount) {
       case 0:
@@ -2776,7 +2788,7 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
 // Call runtime to handle debugger statement.
 IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  CallStub(CodeFactory::HandleDebuggerStatement(isolate()), context);
+  CallRuntime(Runtime::kHandleDebuggerStatement, context);
   Dispatch();
 }
 
@@ -2791,7 +2803,6 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
         Runtime::kDebugBreakOnBytecode, context, accumulator);               \
     TNode<Object> return_value = Projection<0>(result_pair);                 \
     TNode<IntPtrT> original_bytecode = SmiUntag(Projection<1>(result_pair)); \
-    MaybeDropFrames(context);                                                \
     SetAccumulator(return_value);                                            \
     DispatchToBytecodeWithOptionalStarLookahead(original_bytecode);          \
   }

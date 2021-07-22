@@ -28,6 +28,51 @@ assertOptimized(TestFunctionPrototypeApply);
 TestFunctionPrototypeApply("abc");
 assertUnoptimized(TestFunctionPrototypeApply);
 
+// Testing: FunctionPrototypeApply with non-HeapConstant Receiver
+var MathMin = (function() { return Math.min.apply(null, arguments); })
+
+function TestFunctionPrototypeApplyReceiver(func, x, y) {
+  return func(x, y);
+}
+
+%PrepareFunctionForOptimization(MathMin);
+%PrepareFunctionForOptimization(TestFunctionPrototypeApplyReceiver);
+assertEquals(-13, TestFunctionPrototypeApplyReceiver(MathMin, -13, 42));
+assertEquals(-4, TestFunctionPrototypeApplyReceiver(MathMin, 3, -4));
+%OptimizeFunctionOnNextCall(TestFunctionPrototypeApplyReceiver);
+assertEquals(7, TestFunctionPrototypeApplyReceiver(MathMin, 7, 9));
+assertOptimized(TestFunctionPrototypeApplyReceiver);
+TestFunctionPrototypeApplyReceiver(MathMin, "abc");
+assertUnoptimized(TestFunctionPrototypeApplyReceiver);
+
+// Testing: FunctionPrototypeApply with non-HeapConstant Receiver won't cause
+// deopt loop
+(function() {
+
+  var F;
+  function foo() {
+    return F.apply(null, arguments);
+  }
+  function test(x, y) {
+    return foo(x, y);
+  }
+  F = Math.min;
+  %PrepareFunctionForOptimization(foo);
+  %PrepareFunctionForOptimization(test);
+  assertEquals(-13, test(-13, 42));
+  %OptimizeFunctionOnNextCall(test);
+  assertEquals(-13, test(-13, 42));
+  assertOptimized(test);
+  %PrepareFunctionForOptimization(test);
+  F = Math.max;
+  assertEquals(42, test(-13, 42));
+  assertUnoptimized(test);
+  %OptimizeFunctionOnNextCall(test);
+  assertEquals(42, test(-13, 42));
+  F = Math.min;
+  assertEquals(-13, test(-13, 42));
+  assertOptimized(test);
+})();
 
 // Testing: FunctionPrototypeCall
 function TestFunctionPrototypeCall(x) {

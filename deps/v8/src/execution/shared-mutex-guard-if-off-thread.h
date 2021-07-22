@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-template <typename LocalIsolate, base::MutexSharedType kIsShared>
+template <typename IsolateT, base::MutexSharedType kIsShared>
 class SharedMutexGuardIfOffThread;
 
 }  // namespace internal

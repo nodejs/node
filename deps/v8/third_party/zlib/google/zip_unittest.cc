@@ -21,6 +21,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -78,13 +79,10 @@ class VirtualFileSystem : public zip::FileAccessor {
     DCHECK(success);
     files_[bar2_txt_path] = std::move(file);
 
-    file_tree_[test_dir] = std::vector<DirectoryContentEntry>{
-        DirectoryContentEntry(foo_txt_path, /*is_dir=*/false),
-        DirectoryContentEntry(bar_dir, /*is_dir=*/true)};
-    file_tree_[bar_dir] = std::vector<DirectoryContentEntry>{
-        DirectoryContentEntry(bar1_txt_path, /*is_dir=*/false),
-        DirectoryContentEntry(bar2_txt_path, /*is_dir=*/false)};
+    file_tree_[test_dir] = {{foo_txt_path, false}, {bar_dir, true}};
+    file_tree_[bar_dir] = {{bar1_txt_path, false}, {bar2_txt_path, false}};
   }
+
   ~VirtualFileSystem() override = default;
 
  private:
@@ -108,7 +106,7 @@ class VirtualFileSystem : public zip::FileAccessor {
     auto iter = file_tree_.find(dir);
     if (iter == file_tree_.end()) {
       NOTREACHED();
-      return std::vector<DirectoryContentEntry>();
+      return {};
     }
     return iter->second;
   }
@@ -131,10 +129,7 @@ constexpr char VirtualFileSystem::kBar2Content[];
 // Make the test a PlatformTest to setup autorelease pools properly on Mac.
 class ZipTest : public PlatformTest {
  protected:
-  enum ValidYearType {
-    VALID_YEAR,
-    INVALID_YEAR
-  };
+  enum ValidYearType { VALID_YEAR, INVALID_YEAR };
 
   virtual void SetUp() {
     PlatformTest::SetUp();
@@ -161,20 +156,17 @@ class ZipTest : public PlatformTest {
         base::FilePath(FILE_PATH_LITERAL("foo/bar/.hidden")));
   }
 
-  virtual void TearDown() {
-    PlatformTest::TearDown();
-  }
+  virtual void TearDown() { PlatformTest::TearDown(); }
 
   bool GetTestDataDirectory(base::FilePath* path) {
     bool success = base::PathService::Get(base::DIR_SOURCE_ROOT, path);
     EXPECT_TRUE(success);
     if (!success)
       return false;
-    *path = path->AppendASCII("third_party");
-    *path = path->AppendASCII("zlib");
-    *path = path->AppendASCII("google");
-    *path = path->AppendASCII("test");
-    *path = path->AppendASCII("data");
+    for (const base::StringPiece s :
+         {"third_party", "zlib", "google", "test", "data"}) {
+      *path = path->AppendASCII(s);
+    }
     return true;
   }
 
@@ -193,7 +185,8 @@ class ZipTest : public PlatformTest {
     ASSERT_TRUE(GetTestDataDirectory(&original_dir));
     original_dir = original_dir.AppendASCII("test");
 
-    base::FileEnumerator files(test_dir_, true,
+    base::FileEnumerator files(
+        test_dir_, true,
         base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
     base::FilePath unzipped_entry_path = files.Next();
     size_t count = 0;
@@ -211,15 +204,19 @@ class ZipTest : public PlatformTest {
         bool append_relative_path_success =
             test_dir_.AppendRelativePath(unzipped_entry_path, &relative_path);
         if (!append_relative_path_success) {
-          LOG(ERROR) << "Append relative path failed, params: "
-                     << test_dir_.value() << " and "
-                     << unzipped_entry_path.value();
+          LOG(ERROR) << "Append relative path failed, params: " << test_dir_
+                     << " and " << unzipped_entry_path;
         }
         base::FilePath original_path = original_dir.Append(relative_path);
-        LOG(ERROR) << "Comparing original " << original_path.value()
-                   << " and unzipped file " << unzipped_entry_path.value()
-                   << " result: "
-                   << base::ContentsEqual(original_path, unzipped_entry_path);
+        const bool equal =
+            base::ContentsEqual(original_path, unzipped_entry_path);
+        if (equal) {
+          LOG(INFO) << "Original and unzipped file '" << relative_path
+                    << "' are equal";
+        } else {
+          LOG(ERROR) << "Original and unzipped file '" << relative_path
+                     << "' are different";
+        }
         // EXPECT_TRUE(base::ContentsEqual(original_path, unzipped_entry_path))
         //    << "Contents differ between original " << original_path.value()
         //    << " and unzipped file " << unzipped_entry_path.value();
@@ -487,8 +484,8 @@ TEST_F(ZipTest, ZipFiles) {
   base::File zip_file(zip_name,
                       base::File::FLAG_CREATE | base::File::FLAG_WRITE);
   ASSERT_TRUE(zip_file.IsValid());
-  EXPECT_TRUE(zip::ZipFiles(src_dir, zip_file_list_,
-                            zip_file.GetPlatformFile()));
+  EXPECT_TRUE(
+      zip::ZipFiles(src_dir, zip_file_list_, zip_file.GetPlatformFile()));
   zip_file.Close();
 
   zip::ZipReader reader;
@@ -524,8 +521,8 @@ TEST_F(ZipTest, UnzipFilesWithIncorrectSize) {
 
   for (int i = 0; i < 8; i++) {
     SCOPED_TRACE(base::StringPrintf("Processing %d.txt", i));
-    base::FilePath file_path = temp_dir.AppendASCII(
-        base::StringPrintf("%d.txt", i));
+    base::FilePath file_path =
+        temp_dir.AppendASCII(base::StringPrintf("%d.txt", i));
     int64_t file_size = -1;
     EXPECT_TRUE(base::GetFileSize(file_path, &file_size));
     EXPECT_EQ(static_cast<int64_t>(i), file_size);
@@ -535,8 +532,11 @@ TEST_F(ZipTest, UnzipFilesWithIncorrectSize) {
 TEST_F(ZipTest, ZipWithFileAccessor) {
   base::FilePath zip_file;
   ASSERT_TRUE(base::CreateTemporaryFile(&zip_file));
-  zip::ZipParams params(base::FilePath(FILE_PATH_LITERAL("/test")), zip_file);
-  params.set_file_accessor(std::make_unique<VirtualFileSystem>());
+  VirtualFileSystem file_accessor;
+  const zip::ZipParams params{
+      .src_dir = base::FilePath(FILE_PATH_LITERAL("/test")),
+      .dest_file = zip_file,
+      .file_accessor = &file_accessor};
   ASSERT_TRUE(zip::Zip(params));
 
   base::ScopedTempDir scoped_temp_dir;
@@ -555,6 +555,127 @@ TEST_F(ZipTest, ZipWithFileAccessor) {
   EXPECT_TRUE(base::ReadFileToString(
       bar_dir.Append(FILE_PATH_LITERAL("bar2.txt")), &file_content));
   EXPECT_EQ(VirtualFileSystem::kBar2Content, file_content);
+}
+
+// Tests progress reporting while zipping files.
+TEST_F(ZipTest, ZipProgress) {
+  base::FilePath src_dir;
+  ASSERT_TRUE(GetTestDataDirectory(&src_dir));
+  src_dir = src_dir.AppendASCII("test");
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
+
+  int progress_count = 0;
+  zip::Progress last_progress;
+
+  zip::ProgressCallback progress_callback =
+      base::BindLambdaForTesting([&](const zip::Progress& progress) {
+        progress_count++;
+        LOG(INFO) << "Progress #" << progress_count << ": " << progress;
+
+        // Progress should only go forwards.
+        EXPECT_GE(progress.bytes, last_progress.bytes);
+        EXPECT_GE(progress.files, last_progress.files);
+        EXPECT_GE(progress.directories, last_progress.directories);
+
+        last_progress = progress;
+        return true;
+      });
+
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir,
+                        .dest_file = zip_file,
+                        .progress_callback = std::move(progress_callback)}));
+
+  EXPECT_EQ(progress_count, 14);
+  EXPECT_EQ(last_progress.bytes, 13546);
+  EXPECT_EQ(last_progress.files, 5);
+  EXPECT_EQ(last_progress.directories, 2);
+
+  TestUnzipFile(zip_file, true);
+}
+
+// Tests throttling of progress reporting while zipping files.
+TEST_F(ZipTest, ZipProgressPeriod) {
+  base::FilePath src_dir;
+  ASSERT_TRUE(GetTestDataDirectory(&src_dir));
+  src_dir = src_dir.AppendASCII("test");
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
+
+  int progress_count = 0;
+  zip::Progress last_progress;
+
+  zip::ProgressCallback progress_callback =
+      base::BindLambdaForTesting([&](const zip::Progress& progress) {
+        progress_count++;
+        LOG(INFO) << "Progress #" << progress_count << ": " << progress;
+
+        // Progress should only go forwards.
+        EXPECT_GE(progress.bytes, last_progress.bytes);
+        EXPECT_GE(progress.files, last_progress.files);
+        EXPECT_GE(progress.directories, last_progress.directories);
+
+        last_progress = progress;
+        return true;
+      });
+
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir,
+                        .dest_file = zip_file,
+                        .progress_callback = std::move(progress_callback),
+                        .progress_period = base::TimeDelta::FromHours(1)}));
+
+  // We expect only 2 progress reports: the first one, and the last one.
+  EXPECT_EQ(progress_count, 2);
+  EXPECT_EQ(last_progress.bytes, 13546);
+  EXPECT_EQ(last_progress.files, 5);
+  EXPECT_EQ(last_progress.directories, 2);
+
+  TestUnzipFile(zip_file, true);
+}
+
+// Tests cancellation while zipping files.
+TEST_F(ZipTest, ZipCancel) {
+  base::FilePath src_dir;
+  ASSERT_TRUE(GetTestDataDirectory(&src_dir));
+  src_dir = src_dir.AppendASCII("test");
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
+
+  // First: establish the number of possible interruption points.
+  int progress_count = 0;
+
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir,
+                        .dest_file = zip_file,
+                        .progress_callback = base::BindLambdaForTesting(
+                            [&progress_count](const zip::Progress&) {
+                              progress_count++;
+                              return true;
+                            })}));
+
+  EXPECT_EQ(progress_count, 14);
+
+  // Second: exercise each and every interruption point.
+  for (int i = progress_count; i > 0; i--) {
+    int j = 0;
+    EXPECT_FALSE(zip::Zip({.src_dir = src_dir,
+                           .dest_file = zip_file,
+                           .progress_callback = base::BindLambdaForTesting(
+                               [i, &j](const zip::Progress&) {
+                                 j++;
+                                 // Callback shouldn't be called again after
+                                 // having returned false once.
+                                 EXPECT_LE(j, i);
+                                 return j < i;
+                               })}));
+
+    EXPECT_EQ(j, i);
+  }
 }
 
 }  // namespace

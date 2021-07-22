@@ -19,7 +19,6 @@
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
-#include "src/sanitizer/tsan.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -45,13 +44,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
-
-Object FixedArrayBase::unchecked_synchronized_length() const {
+Object FixedArrayBase::unchecked_length(AcquireLoadTag) const {
   return ACQUIRE_READ_FIELD(*this, kLengthOffset);
 }
 
@@ -245,15 +242,11 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
-}
+inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
 inline int WeakFixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
-inline int WeakArrayList::AllocatedSize() {
-  return SizeFor(synchronized_capacity());
-}
+inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -447,7 +440,7 @@ MaybeObject WeakFixedArray::Get(int index) const {
 
 MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return objects(cage_base, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
@@ -482,7 +475,7 @@ MaybeObject WeakArrayList::Get(int index) const {
 
 MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
-  return objects(cage_base, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {

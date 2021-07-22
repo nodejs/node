@@ -102,7 +102,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   static constexpr CPURegister Create(int code, int size, RegisterType type) {
-    CONSTEXPR_DCHECK(IsValid(code, size, type));
+    DCHECK(IsValid(code, size, type));
     return CPURegister{code, size, type};
   }
 
@@ -320,7 +320,7 @@ class VRegister : public CPURegister {
   }
 
   static constexpr VRegister Create(int code, int size, int lane_count = 1) {
-    CONSTEXPR_DCHECK(IsValidLaneCount(lane_count));
+    DCHECK(IsValidLaneCount(lane_count));
     return VRegister(CPURegister::Create(code, size, CPURegister::kVRegister),
                      lane_count);
   }
@@ -413,7 +413,7 @@ class VRegister : public CPURegister {
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
   STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
 
-  static VRegister from_code(int code) {
+  static constexpr VRegister from_code(int code) {
     // Always return a D register.
     return VRegister::Create(code, kDRegSizeInBits);
   }
@@ -477,9 +477,9 @@ ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Pointer cage base register.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-ALIAS_REGISTER(Register, kPointerCageBaseRegister, x28);
+ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, x28);
 #else
-ALIAS_REGISTER(Register, kPointerCageBaseRegister, kRootRegister);
+ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, kRootRegister);
 #endif
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);

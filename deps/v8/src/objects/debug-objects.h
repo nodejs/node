@@ -37,16 +37,16 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // --- Debug execution ---
   // -----------------------
 
-  enum ExecutionMode { kBreakpoints = 0, kSideEffects = kDebugExecutionMode };
+  enum ExecutionMode : uint8_t {
+    kBreakpoints = 0,
+    kSideEffects = kDebugExecutionMode
+  };
 
   // Returns current debug execution mode. Debug execution mode defines by
   // applied to bytecode patching. False for breakpoints, true for side effect
   // checks.
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
-
-  DECL_RELEASE_ACQUIRE_ACCESSORS(debug_bytecode_array, HeapObject)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(original_bytecode_array, HeapObject)
 
   // Specifies whether the associated function has an instrumented bytecode
   // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,

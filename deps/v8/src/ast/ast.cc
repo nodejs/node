@@ -443,8 +443,8 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename LocalIsolate>
-void ObjectLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
+template <typename IsolateT>
+void ObjectLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int index_keys = 0;
@@ -597,8 +597,8 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename LocalIsolate>
-void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
+template <typename IsolateT>
+void ArrayLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int constants_length =
@@ -642,7 +642,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
       }
 
       // New handle scope here, needs to be after BuildContants().
-      typename LocalIsolate::HandleScopeType scope(isolate);
+      typename IsolateT::HandleScopeType scope(isolate);
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
@@ -697,9 +697,9 @@ bool MaterializedLiteral::IsSimple() const {
   return false;
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
-                                                        LocalIsolate* isolate) {
+                                                        IsolateT* isolate) {
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
@@ -742,8 +742,8 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
   return false;
 }
 
-template <typename LocalIsolate>
-void MaterializedLiteral::BuildConstants(LocalIsolate* isolate) {
+template <typename IsolateT>
+void MaterializedLiteral::BuildConstants(IsolateT* isolate) {
   if (IsArrayLiteral()) {
     AsArrayLiteral()->BuildBoilerplateDescription(isolate);
     return;
@@ -760,9 +760,9 @@ template EXPORT_TEMPLATE_DEFINE(
     V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(LocalIsolate*
                                                                  isolate);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
       this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
@@ -978,8 +978,8 @@ bool Literal::AsArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
 }
 
-template <typename LocalIsolate>
-Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<Object> Literal::BuildValue(IsolateT* isolate) const {
   switch (type()) {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);

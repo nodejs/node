@@ -22,9 +22,7 @@ static_library("v8_vtune") {
     "vtune-jit.h",
   ]
   configs += [ ":vtune_ittapi" ]
-  deps = [
-    "../../..:v8",
-  ]
+  deps = [ "../../..:v8" ]
 }
 
 static_library("v8_vtune_trace_mark") {
@@ -33,16 +31,13 @@ static_library("v8_vtune_trace_mark") {
     "vtuneapi.cc",
     "vtuneapi.h",
   ]
-  deps = [
-    ":ittnotify",
-  ]
+  deps = [ ":ittnotify" ]
 }
 
 static_library("ittnotify") {
   sources = [
     "//third_party/ittapi/include/ittnotify.h",
     "//third_party/ittapi/include/legacy/ittnotify.h",
-    "//third_party/ittapi/src/ittnotify/disable-warnings.h",
     "//third_party/ittapi/src/ittnotify/ittnotify_config.h",
     "//third_party/ittapi/src/ittnotify/ittnotify_static.c",
     "//third_party/ittapi/src/ittnotify/ittnotify_static.h",

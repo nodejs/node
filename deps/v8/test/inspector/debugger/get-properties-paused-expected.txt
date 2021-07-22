@@ -1,10 +1,10 @@
 Checks Runtime.getProperties method while debugger is paused.
 
 Running test: testObject5
-  __proto__ own object undefined
   foo own string cat
 Internal properties
   [[PrimitiveValue]] number 5
+  [[Prototype]] object undefined
 
 Running test: testNotOwn
   __defineGetter__ inherited function undefined
@@ -23,6 +23,8 @@ Running test: testNotOwn
   toLocaleString inherited function undefined
   toString inherited function undefined
   valueOf inherited function undefined
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testAccessorsOnly
   b own no value, getter, setter
@@ -32,31 +34,34 @@ Running test: testArray
   0 own string red
   1 own string green
   2 own string blue
-  __proto__ own object undefined
   length own number 3
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testBound
-  __proto__ own function undefined
   length own number 0
   name own string bound Number
 Internal properties
   [[BoundArgs]] object undefined
   [[BoundThis]] object undefined
+  [[Prototype]] function undefined
   [[TargetFunction]] function undefined
 
 Running test: testObjectThrowsLength
-  __proto__ own object undefined
   length own no value, getter
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testTypedArrayWithoutLength
-  __proto__ own object undefined
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testArrayBuffer
 
 Running test: testArrayBufferWithBrokenUintCtor
-  __proto__ own object undefined
 Internal properties
   [[ArrayBufferByteLength]] number 7
   [[ArrayBufferData]] string 0x...
   [[Int8Array]] object undefined
+  [[Prototype]] object undefined
   [[Uint8Array]] object undefined

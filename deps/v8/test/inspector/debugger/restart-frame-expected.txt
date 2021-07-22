@@ -1,10 +1,12 @@
-Checks that Debugger.restartFrame works
+Checks that Debugger.restartFrame returns an error
 Paused at debugger:
 function foo() { #debugger; }; foo();
 
-Call restart and dump location of restart:
-function foo() { debugger; }; #foo();
-
-Location after restart:
-function foo() { #debugger; }; foo();
-
+restartFrame result:
+{
+    error : {
+        code : -32000
+        message : Frame restarting not supported
+    }
+    id : <messageId>
+}

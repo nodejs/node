@@ -66,8 +66,8 @@ class LiteralBuffer final {
     is_one_byte_ = true;
   }
 
-  template <typename LocalIsolate>
-  Handle<String> Internalize(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  Handle<String> Internalize(IsolateT* isolate) const;
 
  private:
   static const int kInitialCapacity = 16;

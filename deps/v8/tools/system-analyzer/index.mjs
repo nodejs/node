@@ -110,7 +110,7 @@ class App {
         entries = entry.entries.concat(entry.sourcePositions);
         break;
       default:
-        throw new Error('Unknown selection type!');
+        throw new Error(`Unknown selection type: ${entry.constructor?.name}`);
     }
     if (entry.sourcePosition) {
       entries.push(entry.sourcePosition);
@@ -134,7 +134,11 @@ class App {
   }
 
   selectEntriesOfSingleType(entries, type) {
-    switch (entries[0]?.constructor ?? type) {
+    const entryType = entries[0]?.constructor ?? type;
+    switch (entryType) {
+      case Script:
+        entries = entries.flatMap(script => script.sourcePositions);
+        return this.showSourcePositions(entries);
       case SourcePosition:
         return this.showSourcePositions(entries);
       case MapLogEntry:
@@ -148,7 +152,7 @@ class App {
       case DeoptLogEntry:
         return this.showDeoptEntries(entries);
       default:
-        throw new Error('Unknown selection type!');
+        throw new Error(`Unknown selection type: ${entryType?.name}`);
     }
   }
 
@@ -205,6 +209,8 @@ class App {
 
   focusLogEntry(entry) {
     switch (entry.constructor) {
+      case Script:
+        return this.focusSourcePosition(entry.sourcePositions[0]);
       case SourcePosition:
         return this.focusSourcePosition(entry);
       case MapLogEntry:
@@ -218,7 +224,7 @@ class App {
       case DeoptLogEntry:
         return this.focusDeoptLogEntry(entry);
       default:
-        throw new Error('Unknown selection type!');
+        throw new Error(`Unknown selection type: ${entry.constructor?.name}`);
     }
   }
 

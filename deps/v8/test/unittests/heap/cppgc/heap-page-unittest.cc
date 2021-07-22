@@ -161,8 +161,8 @@ TEST_F(PageTest, HeapObjectHeaderOnBasePageIndexing) {
   size_t num = 0;
   for (const HeapObjectHeader& header : *page) {
     EXPECT_EQ(reinterpret_cast<Address>(persistents[num].Get()),
-              header.Payload());
-    size += header.GetSize();
+              header.ObjectStart());
+    size += header.AllocatedSize();
     ++num;
   }
   EXPECT_EQ(num, persistents.size());
@@ -180,7 +180,7 @@ TEST_F(PageTest, HeapObjectHeaderOnLargePageIndexing) {
   EXPECT_EQ(expected_payload_size, page->PayloadSize());
 
   const HeapObjectHeader* header = page->ObjectHeader();
-  EXPECT_EQ(reinterpret_cast<Address>(gced), header->Payload());
+  EXPECT_EQ(reinterpret_cast<Address>(gced), header->ObjectStart());
 }
 
 TEST_F(PageTest, NormalPageCreationDestruction) {
@@ -253,7 +253,7 @@ TEST_F(PageTest, UnsweptPageDestruction) {
 TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   {
     auto* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
+    const HeapObjectHeader& expected = HeapObjectHeader::FromObject(object);
 
     for (auto* inner_ptr = reinterpret_cast<ConstAddress>(object);
          inner_ptr < reinterpret_cast<ConstAddress>(object + 1); ++inner_ptr) {
@@ -266,7 +266,7 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   {
     auto* object = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
         GetAllocationHandle());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
+    const HeapObjectHeader& expected = HeapObjectHeader::FromObject(object);
 
     const HeapObjectHeader& hoh =
         BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(

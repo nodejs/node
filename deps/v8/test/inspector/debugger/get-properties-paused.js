@@ -42,8 +42,6 @@ let { Protocol } = InspectorTest.start('Checks Runtime.getProperties method whil
       let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
       let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
       for (let prop of props.result.result) {
-        if (prop.name === '__proto__')
-          continue;
         InspectorTest.log(prop.name);
         await logGetPropertiesResult(prop.value.objectId);
       }

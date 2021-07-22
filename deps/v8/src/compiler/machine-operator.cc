@@ -252,6 +252,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Word64Shl, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                         \
+  V(Word64RorLowerable, Operator::kNoProperties, 2, 1, 1)                \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                        \
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                          \
@@ -272,6 +273,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   PURE_BINARY_OP_LIST_64(V)                                                \
   V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                           \
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Word64ClzLowerable, Operator::kNoProperties, 1, 1, 1)                  \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
   V(Simd128ReverseBytes, Operator::kNoProperties, 1, 0, 1)                 \
@@ -566,8 +568,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word64CtzLowerable, Operator::kNoProperties, 1, 1, 1)   \
   V(Word32Rol, Operator::kNoProperties, 2, 0, 1)            \
   V(Word64Rol, Operator::kNoProperties, 2, 0, 1)            \
+  V(Word64RolLowerable, Operator::kNoProperties, 2, 1, 1)   \
   V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 2) \
@@ -583,6 +587,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1) \
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
+  V(Word32Select, Operator::kNoProperties, 3, 0, 1)         \
+  V(Word64Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Float32Select, Operator::kNoProperties, 3, 0, 1)        \
   V(Float64Select, Operator::kNoProperties, 3, 0, 1)
 
@@ -610,6 +616,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Pointer)                 \
   V(TaggedSigned)            \
   V(TaggedPointer)           \
+  V(MapInHeader)             \
   V(AnyTagged)               \
   V(CompressedPointer)       \
   V(AnyCompressed)
@@ -622,6 +629,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
+  V(kMapWord)                          \
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
   V(kTagged)                           \
@@ -1332,6 +1340,7 @@ OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
+  DCHECK(!rep.IsMapWord());
 #define LOAD(Type)                  \
   if (rep == MachineType::Type()) { \
     return &cache_.kLoad##Type;     \
@@ -1491,6 +1500,7 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 }
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
+  DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   switch (store_rep.representation()) {
 #define STORE(kRep)                                              \
   case MachineRepresentation::kRep:                              \

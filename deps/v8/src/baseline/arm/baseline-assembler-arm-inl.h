@@ -124,7 +124,7 @@ void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
   Register temp = temps.AcquireScratch();
   __ LoadEntryFromBuiltinIndex(builtin, temp);
   __ Call(temp);
-  if (FLAG_code_comments) __ RecordComment("]");
+  __ RecordComment("]");
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
@@ -133,7 +133,7 @@ void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
   Register temp = temps.AcquireScratch();
   __ LoadEntryFromBuiltinIndex(builtin, temp);
   __ Jump(temp);
-  if (FLAG_code_comments) __ RecordComment("]");
+  __ RecordComment("]");
 }
 
 void BaselineAssembler::Test(Register value, int mask) {
@@ -151,7 +151,7 @@ void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ AssertNotSmi(map);
     __ CompareObjectType(map, type, type, MAP_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
@@ -198,10 +198,10 @@ void BaselineAssembler::Move(MemOperand output, Register source) {
   __ str(source, output);
 }
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
-  __ mov(output, Operand(reference));
+  __ Move32BitImmediate(output, Operand(reference));
 }
 void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
-  __ mov(output, Operand(value));
+  __ Move32BitImmediate(output, Operand(value));
 }
 void BaselineAssembler::Move(Register output, int32_t value) {
   __ mov(output, Operand(value));
@@ -351,7 +351,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          Register value) {
   __ str(value, FieldMemOperand(target, offset));
   __ RecordWriteField(target, offset, value, kLRHasNotBeenSaved,
-                      kDontSaveFPRegs);
+                      SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,

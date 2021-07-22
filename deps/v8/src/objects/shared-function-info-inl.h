@@ -166,8 +166,8 @@ bool SharedFunctionInfo::needs_script_context() const {
   return is_script() && scope_info().ContextLocalCount() > 0;
 }
 
-template <typename LocalIsolate>
-AbstractCode SharedFunctionInfo::abstract_code(LocalIsolate* isolate) {
+template <typename IsolateT>
+AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
   if (HasBytecodeArray()) {
@@ -186,9 +186,8 @@ int SharedFunctionInfo::function_token_position() const {
   }
 }
 
-template <typename LocalIsolate>
-bool SharedFunctionInfo::AreSourcePositionsAvailable(
-    LocalIsolate* isolate) const {
+template <typename IsolateT>
+bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
   if (FLAG_enable_lazy_source_positions) {
     return !HasBytecodeArray() ||
            GetBytecodeArray(isolate).HasSourcePositionTable();
@@ -196,9 +195,9 @@ bool SharedFunctionInfo::AreSourcePositionsAvailable(
   return true;
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
-    LocalIsolate* isolate) const {
+    IsolateT* isolate) const {
   if (!script().IsScript()) return kHasNoScript;
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
@@ -234,9 +233,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, may_have_cached_code,
-                    SharedFunctionInfo::MayHaveCachedCodeBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
@@ -453,9 +449,8 @@ bool SharedFunctionInfo::is_compiled() const {
          !data.IsUncompiledData();
 }
 
-template <typename LocalIsolate>
-IsCompiledScope SharedFunctionInfo::is_compiled_scope(
-    LocalIsolate* isolate) const {
+template <typename IsolateT>
+IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
   return IsCompiledScope(*this, isolate);
 }
 
@@ -497,10 +492,9 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
          data.IsBaselineData();
 }
 
-template <typename LocalIsolate>
-BytecodeArray SharedFunctionInfo::GetBytecodeArray(
-    LocalIsolate* isolate) const {
-  SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
+template <typename IsolateT>
+BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
+  SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
       GetIsolate()->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
@@ -739,8 +733,8 @@ void SharedFunctionInfo::ClearPreparseData() {
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kHeaderSize);
-  data.synchronized_set_map(
-      GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
+  data.set_map(GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
+               kReleaseStore);
 
   // Fill the remaining space with filler.
   heap->CreateFillerObjectAt(

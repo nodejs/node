@@ -740,11 +740,11 @@ class V8_NODISCARD BytecodeGenerator::TestResultScope final
 // Used to build a list of toplevel declaration data.
 class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
  public:
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
                                           BytecodeGenerator* generator,
                                           Handle<Script> script,
-                                          LocalIsolate* isolate) {
+                                          IsolateT* isolate) {
     DCHECK(has_constant_pool_entry_);
 
     Handle<FixedArray> data =
@@ -1187,14 +1187,14 @@ using NullContextScopeFor = typename NullContextScopeHelper<Isolate>::Type;
 
 }  // namespace
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    LocalIsolate* isolate, Handle<Script> script) {
+    IsolateT* isolate, Handle<Script> script) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScopeFor<LocalIsolate> null_context_scope(isolate);
+  NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
   AllocateDeferredConstants(isolate, script);
@@ -1225,14 +1225,14 @@ template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     LocalIsolate* isolate, Handle<Script> script);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScopeFor<LocalIsolate> null_context_scope(isolate);
+  NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
   Handle<ByteArray> source_position_table =
@@ -1257,8 +1257,8 @@ int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
 }
 #endif
 
-template <typename LocalIsolate>
-void BytecodeGenerator::AllocateDeferredConstants(LocalIsolate* isolate,
+template <typename IsolateT>
+void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
                                                   Handle<Script> script) {
   if (top_level_builder()->has_top_level_declaration()) {
     // Build global declaration pair array.
@@ -3289,7 +3289,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::REPL_GLOBAL: {
-      DCHECK(variable->IsReplGlobalLet());
+      DCHECK(variable->IsReplGlobal());
       FeedbackSlot slot = GetCachedLoadGlobalICSlot(typeof_mode, variable);
       builder()->LoadGlobal(variable->raw_name(), feedback_index(slot),
                             typeof_mode);
@@ -3478,7 +3478,8 @@ void BytecodeGenerator::BuildVariableAssignment(
       break;
     }
     case VariableLocation::REPL_GLOBAL: {
-      // A let declaration like 'let x = 7' is effectively translated to:
+      // A let or const declaration like 'let x = 7' is effectively translated
+      // to:
       //   <top of the script>:
       //     ScriptContext.x = TheHole;
       //   ...
@@ -3488,19 +3489,23 @@ void BytecodeGenerator::BuildVariableAssignment(
       // The ScriptContext slot for 'x' that we store to here is not
       // necessarily the ScriptContext of this script, but rather the
       // first ScriptContext that has a slot for name 'x'.
-      DCHECK(variable->IsReplGlobalLet());
+      DCHECK(variable->IsReplGlobal());
       if (op == Token::INIT) {
         RegisterList store_args = register_allocator()->NewRegisterList(2);
         builder()
             ->StoreAccumulatorInRegister(store_args[1])
             .LoadLiteral(variable->raw_name())
             .StoreAccumulatorInRegister(store_args[0]);
-        builder()->CallRuntime(Runtime::kStoreGlobalNoHoleCheckForReplLet,
-                               store_args);
+        builder()->CallRuntime(
+            Runtime::kStoreGlobalNoHoleCheckForReplLetOrConst, store_args);
       } else {
-        FeedbackSlot slot =
-            GetCachedStoreGlobalICSlot(language_mode(), variable);
-        builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
+        if (mode == VariableMode::kConst) {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        } else {
+          FeedbackSlot slot =
+              GetCachedStoreGlobalICSlot(language_mode(), variable);
+          builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
+        }
       }
       break;
     }
@@ -5420,7 +5425,7 @@ void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
     // perform a non-contextual load in case the operand is a variable proxy.
     VariableProxy* proxy = expr->AsVariableProxy();
     BuildVariableLoadForAccumulatorValue(proxy->var(), proxy->hole_check_mode(),
-                                         INSIDE_TYPEOF);
+                                         TypeofMode::kInside);
   } else {
     VisitForAccumulatorValue(expr);
   }
@@ -6850,7 +6855,7 @@ int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
 FeedbackSlot BytecodeGenerator::GetCachedLoadGlobalICSlot(
     TypeofMode typeof_mode, Variable* variable) {
   FeedbackSlotCache::SlotKind slot_kind =
-      typeof_mode == INSIDE_TYPEOF
+      typeof_mode == TypeofMode::kInside
           ? FeedbackSlotCache::SlotKind::kLoadGlobalInsideTypeof
           : FeedbackSlotCache::SlotKind::kLoadGlobalNotInsideTypeof;
   FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, variable));

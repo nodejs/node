@@ -27,7 +27,7 @@
 
 #include <math.h>
 
-#include <iostream>  // NOLINT(readability/streams)
+#include <iostream>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -74,6 +74,16 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };     \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);          \
     CHECK_EQ(expected_res, res);                                       \
+  }
+
+#define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
+                                 expected_res)                           \
+  TEST(RISCV_UTEST_##instr_name) {                                       \
+    i::FLAG_riscv_c_extension = true;                                    \
+    CcTest::InitializeVM();                                              \
+    auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };       \
+    auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);            \
+    CHECK_EQ(expected_res, res);                                         \
   }
 
 #define UTEST_I_FORM_WITH_RES(instr_name, type, rs1_val, imm12, expected_res) \
@@ -554,8 +564,8 @@ UTEST_CONV_F_FROM_I(fcvt_d_lu, uint64_t, double,
                     (double)(std::numeric_limits<uint64_t>::max()))
 
 // -- RV64C Standard Extension --
-UTEST_R1_FORM_WITH_RES(c_mv, int64_t, int64_t, 0x0f5600ab123400,
-                       0x0f5600ab123400)
+UTEST_R1_FORM_WITH_RES_C(c_mv, int64_t, int64_t, 0x0f5600ab123400,
+                         0x0f5600ab123400)
 
 // -- Assembler Pseudo Instructions --
 UTEST_R1_FORM_WITH_RES(mv, int64_t, int64_t, 0x0f5600ab123400, 0x0f5600ab123400)
@@ -1201,6 +1211,7 @@ TEST(NAN_BOX) {
 
 TEST(RVC_CI) {
   // Test RV64C extension CI type instructions.
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi
@@ -1253,6 +1264,7 @@ TEST(RVC_CI) {
 }
 
 TEST(RVC_CIW) {
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi4spn
@@ -1270,6 +1282,7 @@ TEST(RVC_CIW) {
 
 TEST(RVC_CR) {
   // Test RV64C extension CR type instructions.
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.add
@@ -1285,6 +1298,7 @@ TEST(RVC_CR) {
 
 TEST(RVC_CA) {
   // Test RV64C extension CA type instructions.
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.sub
@@ -1350,6 +1364,7 @@ TEST(RVC_CA) {
 
 TEST(RVC_LOAD_STORE_SP) {
   // Test RV64C extension fldsp/fsdsp, lwsp/swsp, ldsp/sdsp.
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   {
@@ -1382,6 +1397,8 @@ TEST(RVC_LOAD_STORE_SP) {
 
 TEST(RVC_LOAD_STORE_COMPRESSED) {
   // Test RV64C extension fld,  lw, ld.
+  i::FLAG_riscv_c_extension = true;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1462,6 +1479,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
 }
 
 TEST(RVC_JUMP) {
+  i::FLAG_riscv_c_extension = true;
   CcTest::InitializeVM();
 
   Label L, C;

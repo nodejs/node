@@ -221,9 +221,11 @@ class Page : public MemoryChunk {
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
   static Page* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
@@ -232,6 +234,7 @@ class Page : public MemoryChunk {
   // we subtract a hole word. The valid address ranges from
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
   static Page* FromAllocationAreaAddress(Address address) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return Page::FromAddress(address - kTaggedSize);
   }
 

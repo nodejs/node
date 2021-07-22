@@ -109,6 +109,9 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
+  static void SetSupported(CpuFeature f) { supported_ |= 1u << f; }
+  static void SetUnsupported(CpuFeature f) { supported_ &= ~(1u << f); }
+
   static bool SupportsWasmSimd128();
 
   static inline bool SupportsOptimizer();

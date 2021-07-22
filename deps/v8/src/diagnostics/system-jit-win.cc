@@ -9,6 +9,10 @@
 #include "src/diagnostics/system-jit-metadata-win.h"
 #include "src/libplatform/tracing/recorder.h"
 
+#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#error "This file is only compiled if v8_enable_system_instrumentation"
+#endif
+
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wc++98-compat-extra-semi"
 #endif

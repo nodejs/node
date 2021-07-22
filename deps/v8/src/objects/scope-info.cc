@@ -57,9 +57,8 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
 #endif
 
 // static
-template <typename LocalIsolate>
-Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
-                                    Scope* scope,
+template <typename IsolateT>
+Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
@@ -1078,8 +1077,8 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
   return os;
 }
 
-template <typename LocalIsolate>
-Handle<ModuleRequest> ModuleRequest::New(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
                                          Handle<String> specifier,
                                          Handle<FixedArray> import_assertions,
                                          int position) {
@@ -1098,9 +1097,9 @@ template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, Handle<String> specifier,
     Handle<FixedArray> import_assertions, int position);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    IsolateT* isolate, Handle<PrimitiveHeapObject> export_name,
     Handle<PrimitiveHeapObject> local_name,
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos) {
@@ -1128,9 +1127,9 @@ template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
+    IsolateT* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);

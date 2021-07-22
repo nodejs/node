@@ -371,6 +371,7 @@ void ProfilerCodeObserver::CodeEventHandlerInternal(
 }
 
 void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
@@ -379,6 +380,7 @@ void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
                                "native V8Runtime");
     code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 void ProfilerCodeObserver::LogBuiltins() {

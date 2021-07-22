@@ -1060,13 +1060,13 @@ class ParserBase {
   bool is_resumable() const {
     return IsResumableFunction(function_state_->kind());
   }
-  bool is_class_static_block() const {
-    return function_state_->kind() ==
-           FunctionKind::kClassStaticInitializerFunction;
-  }
   bool is_await_allowed() const {
     return is_async_function() || (flags().allow_harmony_top_level_await() &&
                                    IsModule(function_state_->kind()));
+  }
+  bool is_await_as_identifier_disallowed() {
+    return flags().is_module() ||
+           IsAwaitAsIdentifierDisallowed(function_state_->kind());
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
@@ -1652,8 +1652,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   }
 
   if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
-                                flags().is_module() || is_async_function() ||
-                                    is_class_static_block())) {
+                                is_await_as_identifier_disallowed())) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -1677,7 +1676,8 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
 
   if (!Token::IsValidIdentifier(
           next, language_mode(), IsGeneratorFunction(function_kind),
-          flags().is_module() || IsAsyncFunction(function_kind))) {
+          flags().is_module() ||
+              IsAwaitAsIdentifierDisallowed(function_kind))) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -2570,9 +2570,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       //    IdentifierReference Initializer?
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!Token::IsValidIdentifier(
-              name_token, language_mode(), is_generator(),
-              flags().is_module() || is_async_function())) {
+      if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
+                                    is_await_as_identifier_disallowed())) {
         ReportUnexpectedToken(Next());
         return impl()->NullLiteralProperty();
       }
@@ -4427,6 +4426,12 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     case Token::ASYNC:
       return true;
     case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      // The early error rule for future reserved keywords
+      // (ES#sec-identifiers-static-semantics-early-errors) uses the static
+      // semantics StringValue of IdentifierName, which normalizes escape
+      // sequences. So, both escaped and unescaped future reserved keywords are
+      // allowed as identifiers in sloppy mode.
       return is_sloppy(language_mode());
     default:
       return false;
@@ -4437,12 +4442,11 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
     const FormalParametersT& formal_parameters) {
-  const RuntimeCallCounterId counters[2] = {
-      RuntimeCallCounterId::kParseArrowFunctionLiteral,
-      RuntimeCallCounterId::kPreParseArrowFunctionLiteral};
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      counters[Impl::IsPreParser()],
-                                      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            Impl::IsPreParser()
+                ? RuntimeCallCounterId::kPreParseArrowFunctionLiteral
+                : RuntimeCallCounterId::kParseArrowFunctionLiteral,
+            RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
@@ -4631,7 +4635,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
 
-  scope()->set_start_position(end_position());
+  scope()->set_start_position(class_token_pos);
   if (Check(Token::EXTENDS)) {
     ClassScope::HeritageParsingScope heritage(class_scope);
     FuncNameInferrerState fni_state(&fni_);
@@ -5553,6 +5557,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
     case MODULE_SCOPE:
       impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
       return impl()->NullStatement();
+    case BLOCK_SCOPE:
+      // Class static blocks disallow return. They are their own var scopes and
+      // have a varblock scope.
+      if (function_state_->kind() == kClassStaticInitializerFunction) {
+        impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
+        return impl()->NullStatement();
+      }
+      break;
     default:
       break;
   }
@@ -5987,7 +5999,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       expression = ParseExpressionCoverGrammar();
       // `for (async of` is disallowed but `for (async.x of` is allowed, so
       // check if the token is ASYNC after parsing the expression.
-      bool expression_is_async = scanner()->current_token() == Token::ASYNC;
+      bool expression_is_async = scanner()->current_token() == Token::ASYNC &&
+                                 !scanner()->literal_contains_escapes();
       // Initializer is reference followed by in/of.
       lhs_end_pos = end_position();
       is_for_each = CheckInOrOf(&for_info.mode);

@@ -16,12 +16,14 @@ namespace compiler {
 
 DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
                                          CommonOperatorBuilder* common,
-                                         Zone* temp_zone)
+                                         Zone* temp_zone,
+                                         bool is_concurrent_inlining)
     : AdvancedReducer(editor),
       graph_(graph),
       common_(common),
       dead_(graph->NewNode(common->Dead())),
-      zone_(temp_zone) {
+      zone_(temp_zone),
+      is_concurrent_inlining_(is_concurrent_inlining) {
   NodeProperties::SetType(dead_, Type::None());
 }
 
@@ -46,7 +48,7 @@ Node* FindDeadInput(Node* node) {
 }  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(!is_concurrent_inlining_);
   switch (node->opcode()) {
     case IrOpcode::kEnd:
       return ReduceEnd(node);

@@ -16,8 +16,7 @@ bitfield struct MapBitFields1 extends uint8 {
 bitfield struct MapBitFields2 extends uint8 {
   new_target_is_base: bool: 1 bit;
   is_immutable_prototype: bool: 1 bit;
-  unused: bool: 1 bit;
-  elements_kind: ElementsKind: 5 bit;
+  elements_kind: ElementsKind: 6 bit;
 }
 
 bitfield struct MapBitFields3 extends uint32 {

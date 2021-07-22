@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-bulk-memory
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestPassiveDataSegment() {
   const builder = new WasmModuleBuilder();
@@ -29,7 +27,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function getMemoryInit(mem, segment_data) {
   const builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "mem", 0);
+  builder.addImportedMemory('', 'mem', 0);
   builder.addPassiveDataSegment(segment_data);
   builder.addFunction('init', kSig_v_iii)
       .addBody([
@@ -160,7 +158,7 @@ function getMemoryFill(mem) {
 (function TestElemDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
-  builder.addElementSegment(0, 0, false, [0, 0, 0]);
+  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
         kNumericPrefix, kExprElemDrop,
@@ -185,7 +183,8 @@ function getMemoryFill(mem) {
   assertEquals(0, view[kPageSize - 1]);
 
   // Instantiation fails, memory remains unmodified.
-  assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
+  assertThrows(
+      () => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
 
   assertEquals(0, view[kPageSize - 1]);
   // The second segment is not initialized.
@@ -203,14 +202,17 @@ function getMemoryFill(mem) {
   const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
 
   const tableIndex = 0;
-  const isGlobal = false;
-  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
+  builder.addActiveElementSegment(
+      tableIndex,
+      WasmInitExpr.I32Const(0),
+      [f.index, f.index]);
   builder.addDataSegment(0, [42]);
 
   // Instantiation fails, but still modifies the table. The memory is not
   // modified, since data segments are initialized after element segments.
   assertThrows(
-      () => builder.instantiate({m: {memory, table}}), WebAssembly.RuntimeError);
+      () => builder.instantiate({m: {memory, table}}),
+      WebAssembly.RuntimeError);
 
   assertEquals(0, view[0]);
 })();

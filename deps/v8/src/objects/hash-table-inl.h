@@ -130,9 +130,8 @@ Handle<Map> EphemeronHashTable::GetMap(ReadOnlyRoots roots) {
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-InternalIndex HashTable<Derived, Shape>::FindEntry(LocalIsolate* isolate,
-                                                   Key key) {
+template <typename IsolateT>
+InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateT* isolate, Key key) {
   ReadOnlyRoots roots(isolate);
   return FindEntry(isolate, roots, key, Shape::Hash(roots, key));
 }

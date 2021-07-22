@@ -141,6 +141,7 @@ intrinsic %MakeLazy<T: type, A1: type, A2: type, A3: type>(
 // template, but Torque doesn't understand how to use templates for extern
 // macros, so just add whatever overload definitions you need here.
 extern macro RunLazy(Lazy<Smi>): Smi;
+extern macro RunLazy(Lazy<JSAny>): JSAny;
 
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
@@ -261,6 +262,8 @@ type WriteBarrierMode
 extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
 extern operator '==' macro UpdateFeedbackModeEqual(
     constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
+
+extern enum CallFeedbackContent extends int32 { kTarget, kReceiver }
 
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
@@ -961,6 +964,8 @@ extern operator '|' macro ConstexprWord32Or(
     constexpr int32, constexpr int32): constexpr int32;
 extern operator '^' macro Word32Xor(int32, int32): int32;
 extern operator '^' macro Word32Xor(uint32, uint32): uint32;
+extern operator '<<' macro ConstexprWord32Shl(
+    constexpr uint32, constexpr int32): uint32;
 
 extern operator '==' macro Word64Equal(int64, int64): bool;
 extern operator '==' macro Word64Equal(uint64, uint64): bool;
@@ -1295,6 +1300,9 @@ macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
 }
 macro GetWeakCellMap(implicit context: Context)(): Map {
   return %GetClassMapConstant<WeakCell>();
+}
+macro GetPrototypeApplyFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::FUNCTION_PROTOTYPE_APPLY_INDEX);
 }
 
 // Call(Context, Target, Receiver, ...Args)
@@ -1689,7 +1697,7 @@ extern transitioning runtime SetOwnPropertyIgnoreAttributes(
 
 namespace runtime {
 extern runtime
-GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
 extern macro IsDeprecatedMap(Map): bool;
 

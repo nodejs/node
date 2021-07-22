@@ -64,6 +64,7 @@ contextGroup.addScript(call_div.toString());
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
     InspectorTest.log('Instantiating.');

@@ -116,17 +116,17 @@ void SourceTextModuleDescriptor::AddStarExport(
 }
 
 namespace {
-template <typename LocalIsolate>
-Handle<PrimitiveHeapObject> ToStringOrUndefined(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<PrimitiveHeapObject> ToStringOrUndefined(IsolateT* isolate,
                                                 const AstRawString* s) {
   if (s == nullptr) return isolate->factory()->undefined_value();
   return s->string();
 }
 }  // namespace
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ModuleRequest> SourceTextModuleDescriptor::AstModuleRequest::Serialize(
-    LocalIsolate* isolate) const {
+    IsolateT* isolate) const {
   // The import assertions will be stored in this array in the form:
   // [key1, value1, location1, key2, value2, location2, ...]
   Handle<FixedArray> import_assertions_array =
@@ -151,9 +151,9 @@ template Handle<ModuleRequest>
 SourceTextModuleDescriptor::AstModuleRequest::Serialize(
     LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
-    LocalIsolate* isolate) const {
+    IsolateT* isolate) const {
   CHECK(Smi::IsValid(module_request));  // TODO(neis): Check earlier?
   return SourceTextModuleInfoEntry::New(
       isolate, ToStringOrUndefined(isolate, export_name),
@@ -166,9 +166,9 @@ SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const;
 template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
-    LocalIsolate* isolate, Zone* zone) const {
+    IsolateT* isolate, Zone* zone) const {
   // We serialize regular exports in a way that lets us later iterate over their
   // local names and for each local name immediately access all its export
   // names.  (Regular exports have neither import name nor module request.)

@@ -213,19 +213,18 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
 
-  // REPL mode scopes allow re-declaraction of let variables. They come from
-  // debug evaluate but are different to IsDebugEvaluateScope().
+  // REPL mode scopes allow re-declaraction of let and const variables. They
+  // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
 
-  template <typename LocalIsolate>
-  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
-                                  Scope* scope,
+  template <typename IsolateT>
+  static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                   MaybeHandle<ScopeInfo> outer_scope);
-  static Handle<ScopeInfo> CreateForWithScope(
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
@@ -314,7 +313,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   }
   static constexpr int ConvertOffsetToIndex(int offset) {
     int index = (offset - HeapObject::kHeaderSize) / kTaggedSize;
-    CONSTEXPR_DCHECK(OffsetOfElementAt(index) == offset);
+    DCHECK_EQ(OffsetOfElementAt(index), offset);
     return index;
   }
 

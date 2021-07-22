@@ -115,13 +115,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
-  template <typename LocalIsolate>
-  Handle<Object> GetConstantAtIndex(int offset, LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  Handle<Object> GetConstantAtIndex(int offset, IsolateT* isolate) const;
   bool IsConstantAtIndexSmi(int offset) const;
   Smi GetConstantAtIndexAsSmi(int offset) const;
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Handle<Object> GetConstantForIndexOperand(int operand_index,
-                                            LocalIsolate* isolate) const;
+                                            IsolateT* isolate) const;
 
   // Returns the relative offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or

@@ -257,7 +257,6 @@ TEST(BlockWasmCodeGenAtDeserialization) {
 }
 
 UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
-  i::wasm::WasmEngine::InitializeOncePerProcess();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 

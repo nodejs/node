@@ -11,22 +11,31 @@ type ManagedWasmNativeModule extends Foreign
 
 extern class WasmInstanceObject extends JSObject;
 
-extern class WasmExportedFunctionData extends Struct {
+@generateCppClass
+extern class WasmFunctionData extends Foreign {
+  // This is the "reference" value that must be passed along in the "instance"
+  // register when calling the given function. It is either the target instance,
+  // or a pair holding the target instance and the callable; currently the
+  // latter is the case when the function being called is defined in JavaScript
+  // or via the C-API.
+  // For imported functions, this value equals the respective entry in
+  // the module's imported_function_refs array.
+  ref: WasmInstanceObject|Tuple2;
+}
+
+extern class WasmExportedFunctionData extends WasmFunctionData {
   wrapper_code: Code;
   instance: WasmInstanceObject;
-  jump_table_offset: Smi;
   function_index: Smi;
   signature: Foreign;
   wrapper_budget: Smi;
   // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
   c_wrapper_code: Object;
-  wasm_call_target: Smi|Foreign;
   packed_args_size: Smi;
 }
 
-extern class WasmJSFunctionData extends Struct {
-  callable: JSReceiver;
+extern class WasmJSFunctionData extends WasmFunctionData {
   wrapper_code: Code;
   wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
@@ -34,6 +43,7 @@ extern class WasmJSFunctionData extends Struct {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
+// TODO(jkummerow): Derive from WasmFunctionData.
 @export
 class WasmCapiFunctionData extends HeapObject {
   call_target: RawPtr;
@@ -107,6 +117,8 @@ extern class AsmWasmData extends Struct {
 extern class WasmTypeInfo extends Foreign {
   supertypes: FixedArray;
   subtypes: ArrayList;
+  // In bytes, used for struct allocation.
+  instance_size: Smi;
 }
 
 @generateCppClass

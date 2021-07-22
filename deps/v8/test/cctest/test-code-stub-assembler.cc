@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-string-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -101,7 +102,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
     TNode<IntPtrT> const result =
         m.UncheckedCast<IntPtrT>(m.CallCFunctionWithCallerSavedRegisters(
-            fun_constant, type_intptr, kSaveFPRegs,
+            fun_constant, type_intptr, SaveFPRegsMode::kSave,
             std::make_pair(type_intptr, m.IntPtrConstant(0)),
             std::make_pair(type_intptr, m.IntPtrConstant(1)),
             std::make_pair(type_intptr, m.IntPtrConstant(2))));
@@ -2024,7 +2025,7 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
   // least one argument passed on stack.
   using Descriptor = FlatMapIntoArrayDescriptor;
   Descriptor descriptor;
-  CHECK_LT(0, descriptor.GetStackParameterCount());
+  CHECK_LT(0, Descriptor::GetStackParameterCount());
 
   CodeAssemblerTester asm_tester(isolate, Descriptor());
   {
@@ -3069,7 +3070,8 @@ TEST(NewPromiseCapability) {
 
     CHECK(result->promise().IsJSObject());
     Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
-    CHECK_EQ(constructor_fn->prototype_or_initial_map(), promise->map());
+    CHECK_EQ(constructor_fn->prototype_or_initial_map(kAcquireLoad),
+             promise->map());
     CHECK(result->resolve().IsJSFunction());
     CHECK(result->reject().IsJSFunction());
 
@@ -3956,7 +3958,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
     m.CallCFunctionWithCallerSavedRegisters(
         m.ExternalConstant(
             ExternalReference::smi_lexicographic_compare_function()),
-        MachineType::Int32(), kSaveFPRegs,
+        MachineType::Int32(), SaveFPRegsMode::kSave,
         std::make_pair(MachineType::Pointer(), isolate_ptr),
         std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)),
         std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)));

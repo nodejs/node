@@ -1087,7 +1087,7 @@ TEST(ExternalShortStringAdd) {
       "  var non_one_byte_chars = "
       "'\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1"
       "234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\"
-      "u1234';"  // NOLINT
+      "u1234';"
       "  if (one_byte_chars.length != max_length) return 1;"
       "  if (non_one_byte_chars.length != max_length) return 2;"
       "  var one_byte = Array(max_length + 1);"

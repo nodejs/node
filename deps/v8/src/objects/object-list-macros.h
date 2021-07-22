@@ -166,6 +166,7 @@ class ZoneForwardList;
   V(LoadHandler)                               \
   V(Map)                                       \
   V(MapCache)                                  \
+  V(MegaDomHandler)                            \
   V(Module)                                    \
   V(Microtask)                                 \
   V(Name)                                      \
@@ -217,8 +218,11 @@ class ZoneForwardList;
   IF_WASM(V, WasmArray)                        \
   IF_WASM(V, WasmExceptionObject)              \
   IF_WASM(V, WasmExceptionPackage)             \
+  IF_WASM(V, WasmExportedFunctionData)         \
+  IF_WASM(V, WasmFunctionData)                 \
   IF_WASM(V, WasmGlobalObject)                 \
   IF_WASM(V, WasmInstanceObject)               \
+  IF_WASM(V, WasmJSFunctionData)               \
   IF_WASM(V, WasmMemoryObject)                 \
   IF_WASM(V, WasmModuleObject)                 \
   IF_WASM(V, WasmStruct)                       \

@@ -605,6 +605,8 @@ void LiftoffAssembler::SpillInstance(Register instance) {
   str(instance, liftoff::GetInstanceOperand());
 }
 
+void LiftoffAssembler::ResetOSRTarget() {}
+
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   ldr(dst, liftoff::GetInstanceOperand());
 }
@@ -743,7 +745,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                           : MemOperand(dst_addr, actual_offset_reg);
   str(src.gp(), dst_op);
 
-  if (skip_write_barrier) return;
+  if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
   // The write barrier.
   Label write_barrier;
@@ -758,7 +760,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CallRecordWriteStub(dst_addr,
                       actual_offset_reg == no_reg ? Operand(offset_imm)
                                                   : Operand(actual_offset_reg),
-                      EMIT_REMEMBERED_SET, kSaveFPRegs,
+                      RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
                       wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
@@ -4227,6 +4229,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(sp, sp, Operand(size));
 }
+
+void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

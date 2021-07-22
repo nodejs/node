@@ -34,7 +34,7 @@
 #include <string>
 
 #if V8_OS_POSIX
-#include <unistd.h>  // NOLINT
+#include <unistd.h>
 #endif
 
 #include "include/v8-fast-api-calls.h"
@@ -1453,6 +1453,9 @@ static void TestExternalPointerWrapping() {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
+  int* ptr = new int;
+  expected_ptr = ptr;
+
   v8::Local<v8::Value> data = v8::External::New(isolate, expected_ptr);
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -1468,6 +1471,8 @@ static void TestExternalPointerWrapping() {
                    "}\n"
                    "foo(), true")
             ->BooleanValue(isolate));
+
+  delete ptr;
 }
 
 
@@ -2672,24 +2677,28 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorGetter(Local<String>::Cast(sym->Description(isolate)), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorSetter(Local<String>::Cast(sym->Description(isolate)), value,
+                       info);
 }
 
 void SymbolAccessorGetterReturnsDefault(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
+  if (sym->Description(isolate)->IsUndefined()) return;
   info.GetReturnValue().Set(info.Data());
 }
 
@@ -3045,7 +3054,9 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   int stack_allocated[100];
   CheckAlignedPointerInInternalField(obj, stack_allocated);
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the heap sandbox is enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInInternalField(obj, huge);
 
   v8::Global<v8::Object> persistent(isolate, obj);
@@ -3121,7 +3132,9 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the heap sandbox is enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
 
@@ -3319,8 +3332,9 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!sym1->StrictEquals(sym2));
   CHECK(!sym2->StrictEquals(sym1));
 
-  CHECK(
-      sym2->Description()->Equals(env.local(), v8_str("my-symbol")).FromJust());
+  CHECK(sym2->Description(isolate)
+            ->Equals(env.local(), v8_str("my-symbol"))
+            .FromJust());
 
   v8::Local<v8::Value> sym_val = sym2;
   CHECK(sym_val->IsSymbol());
@@ -8529,12 +8543,8 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, str->Write(isolate, nullptr, 0, 0, String::NO_NULL_TERMINATION));
 }
 
-
-static void Utf16Helper(
-    LocalContext& context,  // NOLINT
-    const char* name,
-    const char* lengths_name,
-    int len) {
+static void Utf16Helper(LocalContext& context, const char* name,
+                        const char* lengths_name, int len) {
   Local<v8::Array> a = Local<v8::Array>::Cast(
       context->Global()->Get(context.local(), v8_str(name)).ToLocalChecked());
   Local<v8::Array> alens =
@@ -14191,8 +14201,8 @@ void CheckIsSymbolAt(v8::Isolate* isolate, v8::Local<v8::Array> properties,
       properties->Get(context, v8::Integer::New(isolate, index))
           .ToLocalChecked();
   CHECK(value->IsSymbol());
-  v8::String::Utf8Value symbol_name(isolate,
-                                    Local<Symbol>::Cast(value)->Description());
+  v8::String::Utf8Value symbol_name(
+      isolate, Local<Symbol>::Cast(value)->Description(isolate));
   if (strcmp(name, *symbol_name) != 0) {
     FATAL("properties[%u] was Symbol('%s') instead of Symbol('%s').", index,
           name, *symbol_name);
@@ -16753,7 +16763,10 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_EQ(0u, heap_statistics.used_heap_size());
   c1->GetIsolate()->GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
-  CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
+  if (!v8::internal::FLAG_enable_third_party_heap) {
+    // TODO(wenyuzhao): Get used size from third_party_heap interface
+    CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
+  }
 }
 
 TEST(GetHeapSpaceStatistics) {
@@ -20784,6 +20797,50 @@ THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
   CheckInstanceCheckedAccessors(true);
 }
 
+THREADED_TEST(CheckIsLeafTemplateForApiObject) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"),
+                  templ->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->IsLeafTemplateForApiObject(
+      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
+
+  printf("Testing negative ...\n");
+  CompileRun(
+      "var obj = {};"
+      "obj.__proto__ = new f();");
+  CHECK(!templ->IsLeafTemplateForApiObject(
+      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
+
+  printf("Testing positive with modified prototype chain ...\n");
+  CompileRun(
+      "var obj = new f();"
+      "var pro = {};"
+      "pro.__proto__ = obj.__proto__;"
+      "obj.__proto__ = pro;");
+  CHECK(templ->IsLeafTemplateForApiObject(
+      context->Global()->Get(context.local(), v8_str("obj")).ToLocalChecked()));
+
+  Local<FunctionTemplate> child_templ =
+      FunctionTemplate::New(context->GetIsolate());
+  child_templ->Inherit(templ);
+  Local<Object> instance = child_templ->GetFunction(context.local())
+                               .ToLocalChecked()
+                               ->NewInstance(context.local())
+                               .ToLocalChecked();
+
+  printf("Testing positive for child ...\n");
+  CHECK(child_templ->IsLeafTemplateForApiObject(instance));
+  printf("Testing negative for parent ...\n");
+  CHECK(!templ->IsLeafTemplateForApiObject(instance));
+}
 
 TEST(TryFinallyMessage) {
   LocalContext context;
@@ -21974,7 +22031,7 @@ THREADED_TEST(FunctionNew) {
           ->shared()
           .get_api_func_data()
           .serial_number();
-  CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
+  CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
 
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
@@ -26169,8 +26226,9 @@ TEST(DynamicImport) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -26255,8 +26313,9 @@ TEST(DynamicImportWithAssertions) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);
@@ -27621,14 +27680,16 @@ namespace {
 
 template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
-  static Ret FastCallback(v8::ApiObject receiver, Value argument,
+  static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
-    const v8::Value* data = reinterpret_cast<const v8::Value*>(&options.data);
+    // TODO(mslekova): Refactor the data checking.
+    v8::Value* data = &(options.data);
     CHECK(data->IsNumber());
-    CHECK_EQ(reinterpret_cast<const v8::Number*>(data)->Value(), 42.0);
+    CHECK_EQ(v8::Number::Cast(data)->Value(), 42.0);
     return Impl::FastCallback(receiver, argument, options);
   }
-  static Ret FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
+  static Ret FastCallbackNoFallback(v8::Local<v8::Object> receiver,
+                                    Value argument) {
     v8::FastApiCallbackOptions options = {false, {0}};
     return Impl::FastCallback(receiver, argument, options);
   }
@@ -27639,6 +27700,12 @@ struct BasicApiChecker {
   bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
   bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
 
+  void SetCallFast() { result_ |= ApiCheckerResult::kFastCalled; }
+  void SetCallSlow() { result_ |= ApiCheckerResult::kSlowCalled; }
+
+  void Reset() { result_ = ApiCheckerResult::kNotCalled; }
+
+ private:
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
 
@@ -27663,17 +27730,16 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
         write_to_fallback_(write_to_fallback),
         args_count_(args_count) {}
 
-  static void FastCallback(v8::ApiObject receiver, T argument,
+  static void FastCallback(v8::Local<v8::Object> receiver, T argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = *receiver;
     if (!IsValidUnwrapObject(receiver_obj)) {
       options.fallback = 1;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ApiNumberChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallFast();
     receiver_ptr->fast_value_ = argument;
     if (receiver_ptr->write_to_fallback_ == FallbackPolicy::kRequestFallback) {
       // Anything != 0 has the same effect here, but we're writing 1 to match
@@ -27692,10 +27758,10 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       return;
     }
     ApiNumberChecker<T>* checker =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(receiver);
+        GetInternalField<ApiNumberChecker<T>>(receiver);
     CHECK_EQ(info.Length(), checker->args_count_);
 
-    checker->result_ |= ApiCheckerResult::kSlowCalled;
+    checker->SetCallSlow();
 
     LocalContext env;
     checker->slow_value_ = ConvertJSValue<T>::Get(info[0], env.local());
@@ -27714,17 +27780,15 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
 };
 
 struct UnexpectedObjectChecker
-    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker, void> {
-  static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
+    : BasicApiChecker<v8::Local<v8::Value>, UnexpectedObjectChecker, void> {
+  static void FastCallback(v8::Local<v8::Object> receiver,
+                           v8::Local<v8::Value> argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
-    v8::Value* argument_value = reinterpret_cast<v8::Value*>(&argument);
-    if (argument_value->IsObject()) {
-      v8::Object* argument_obj = reinterpret_cast<v8::Object*>(&argument);
+        GetInternalField<UnexpectedObjectChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+    if (argument->IsObject()) {
+      v8::Object* argument_obj = v8::Object::Cast(*argument);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
@@ -27732,14 +27796,51 @@ struct UnexpectedObjectChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<UnexpectedObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     if (info[0]->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*info[0]);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
+};
+
+struct EmbedderType {
+  int data;
+};
+
+struct ApiObjectChecker
+    : BasicApiChecker<v8::Local<v8::Value>, ApiObjectChecker, void> {
+  ApiObjectChecker(v8::FunctionTemplate* ctor, int data)
+      : ctor_(ctor), initial_data_(data) {}
+
+  static void FastCallback(v8::Local<v8::Object> receiver,
+                           v8::Local<v8::Value> argument,
+                           v8::FastApiCallbackOptions& options) {
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+
+    v8::Object* argument_obj = v8::Object::Cast(*argument);
+    EmbedderType* argument_ptr = GetInternalField<EmbedderType>(argument_obj);
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument));
+
+    argument_ptr->data = receiver_ptr->initial_data_;
+  }
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+
+    CHECK(info[0]->IsObject());
+    v8::Local<v8::Object> argument_obj = info[0].As<v8::Object>();
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument_obj));
+  }
+
+  v8::FunctionTemplate* ctor_;
+  int fast_value_ = 0;
+  int initial_data_;
 };
 
 template <typename Value, typename Impl, typename Ret>
@@ -27833,7 +27934,7 @@ void CallAndCheck(
       "function func(arg) { return receiver.api_func(arg); }"
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -27862,24 +27963,57 @@ void CallAndCheck(
   }
 }
 
+void CheckApiObjectArg() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  Local<v8::FunctionTemplate> api_obj_ctor = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> api_obj_template =
+      api_obj_ctor->InstanceTemplate();
+  api_obj_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+
+  EmbedderType embedder_obj;
+  v8::Local<v8::Object> api_obj =
+      api_obj_template->NewInstance(env.local()).ToLocalChecked();
+  api_obj->SetAlignedPointerInInternalField(
+      kV8WrapperObjectIndex, reinterpret_cast<void*>(&embedder_obj));
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("api_object"), api_obj)
+            .FromJust());
+
+  const int data = 42;
+  ApiObjectChecker checker(*api_obj_ctor, data);
+  bool has_caught =
+      SetupTest(v8_num(data), &env, &checker,
+                "function func() { return receiver.api_func(api_object); }"
+                "%PrepareFunctionForOptimization(func);"
+                "func();");
+  checker.Reset();
+  CHECK(!has_caught);
+
+  CompileRun(
+      "%OptimizeFunctionOnNextCall(func);"
+      "func();");
+
+  CHECK(checker.DidCallFast());
+  CHECK_EQ(embedder_obj.data, data);
+  CHECK(!checker.DidCallSlow());
+}
+
 template <typename T>
 struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
-  static T FastCallback(v8::ApiObject receiver, T arg,
+  static T FastCallback(v8::Local<v8::Object> receiver, T arg,
                         v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ReturnValueChecker<T>>(*receiver);
+    receiver_ptr->SetCallFast();
     return arg;
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<ReturnValueChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
 };
@@ -27896,7 +28030,7 @@ void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
   CHECK(!has_caught);
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -28064,12 +28198,12 @@ TEST(FastApiStackSlot) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -28095,7 +28229,7 @@ TEST(FastApiStackSlot) {
       " };"
       " return foo;"
       "};");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Value> foo =
@@ -28115,12 +28249,12 @@ TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -28571,8 +28705,8 @@ TEST(FastApiCalls) {
   CallWithUnexpectedObjectType(v8_str("str"));
   CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
 
-  // TODO(mslekova): Add corner cases for 64-bit values.
-  // TODO(mslekova): Add main cases for float and double.
+  CheckApiObjectArg();
+
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.
@@ -28942,4 +29076,53 @@ THREADED_TEST(MicrotaskQueueOfContext) {
       v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
       microtask_queue.get());
   CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+}
+
+namespace {
+
+bool sab_constructor_enabled_value = false;
+
+bool MockSabConstructorEnabledCallback(v8::Local<v8::Context>) {
+  return sab_constructor_enabled_value;
+}
+
+}  // namespace
+
+TEST(TestSetSabConstructorEnabledCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
+
+  // {Isolate::IsSharedArrayBufferConstructorEnabled} calls the callback set by
+  // the embedder if such a callback exists. Otherwise it returns
+  // {FLAG_harmony_sharedarraybuffer}. First we test that the flag is returned
+  // correctly if no callback is set. Then we test that the flag is ignored if
+  // the callback is set.
+
+  i::FLAG_harmony_sharedarraybuffer = false;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = false;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_enable_sharedarraybuffer_per_context = true;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  isolate->SetSharedArrayBufferConstructorEnabledCallback(
+      MockSabConstructorEnabledCallback);
+  sab_constructor_enabled_value = false;
+  CHECK(!i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+
+  sab_constructor_enabled_value = true;
+  CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 }

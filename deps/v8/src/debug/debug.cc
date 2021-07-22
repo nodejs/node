@@ -352,7 +352,6 @@ void Debug::ThreadInit() {
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
-  thread_local_.restart_fp_ = kNullAddress;
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
@@ -439,9 +438,6 @@ void Debug::Unload() {
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
-  // Initialize LiveEdit.
-  LiveEdit::InitializeThreadLocal(this);
-
   // Just continue if breaks are disabled or debugger cannot be loaded.
   if (break_disabled()) return;
 
@@ -1245,7 +1241,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         BaselineFrame* frame = BaselineFrame::cast(it.frame());
         int bytecode_offset = frame->GetBytecodeOffset();
         Address* pc_addr = frame->pc_address();
-        Address advance = BUILTIN_CODE(isolate, InterpreterEnterBytecodeAdvance)
+        Address advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
                               ->InstructionStart();
         PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
         InterpretedFrame::cast(it.Reframe())
@@ -1264,8 +1260,8 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
           Address* pc_addr = frame->pc_address();
           Builtins::Name advance =
               builtin_index == Builtins::kBaselineEnterAtBytecode
-                  ? Builtins::kInterpreterEnterBytecodeDispatch
-                  : Builtins::kInterpreterEnterBytecodeAdvance;
+                  ? Builtins::kInterpreterEnterAtBytecode
+                  : Builtins::kInterpreterEnterAtNextBytecode;
           Address advance_pc =
               isolate->builtins()->builtin(advance).InstructionStart();
           PointerAuthentication::ReplacePC(pc_addr, advance_pc,
@@ -1353,7 +1349,8 @@ void Debug::PrepareFunctionForDebugExecution(
   DCHECK(shared->is_compiled());
   DCHECK(shared->HasDebugInfo());
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
-  if (debug_info->flags() & DebugInfo::kPreparedForDebugExecution) return;
+  if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution)
+    return;
 
   if (shared->HasBytecodeArray()) {
     SharedFunctionInfo::InstallDebugBytecode(shared, isolate_);
@@ -1372,8 +1369,9 @@ void Debug::PrepareFunctionForDebugExecution(
     redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
     isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
   }
-  debug_info->set_flags(debug_info->flags() |
-                        DebugInfo::kPreparedForDebugExecution);
+  debug_info->set_flags(
+      debug_info->flags(kRelaxedLoad) | DebugInfo::kPreparedForDebugExecution,
+      kRelaxedStore);
 }
 
 void Debug::InstallDebugBreakTrampoline() {
@@ -1630,7 +1628,9 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     }
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->shared_function_infos().length() > 0) {
+        script->shared_function_info_count() > 0) {
+      DCHECK_LE(script->shared_function_info_count(),
+                script->shared_function_infos().length());
       MaybeObject maybeToplevel = script->shared_function_infos().Get(0);
       HeapObject heap_object;
       const bool topLevelInfoExists =
@@ -1751,10 +1751,10 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
   Handle<FixedArray> break_points(
       factory->NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
 
-  int flags = debug_info->flags();
+  int flags = debug_info->flags(kRelaxedLoad);
   flags |= DebugInfo::kHasBreakInfo;
   if (CanBreakAtEntry(shared)) flags |= DebugInfo::kCanBreakAtEntry;
-  debug_info->set_flags(flags);
+  debug_info->set_flags(flags, kRelaxedStore);
   debug_info->set_break_points(*break_points);
 
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
@@ -1781,7 +1781,9 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 
   DCHECK(!debug_info->HasCoverageInfo());
 
-  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasCoverageInfo);
+  debug_info->set_flags(
+      debug_info->flags(kRelaxedLoad) | DebugInfo::kHasCoverageInfo,
+      kRelaxedStore);
   debug_info->set_coverage_info(*coverage_info);
 }
 
@@ -1869,27 +1871,6 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
   return location.IsReturn();
-}
-
-void Debug::ScheduleFrameRestart(StackFrame* frame) {
-  // Set a target FP for the FrameDropperTrampoline builtin to drop to once
-  // we return from the debugger.
-  DCHECK(frame->is_java_script());
-  // Only reschedule to a frame further below a frame we already scheduled for.
-  if (frame->fp() <= thread_local_.restart_fp_) return;
-  // If the frame is optimized, trigger a deopt and jump into the
-  // FrameDropperTrampoline in the deoptimizer.
-  thread_local_.restart_fp_ = frame->fp();
-
-  // Reset break frame ID to the frame below the restarted frame.
-  StackTraceFrameIterator it(isolate_);
-  thread_local_.break_frame_id_ = StackFrameId::NO_ID;
-  for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
-    if (it.frame()->fp() > thread_local_.restart_fp_) {
-      thread_local_.break_frame_id_ = it.frame()->id();
-      return;
-    }
-  }
 }
 
 Handle<FixedArray> Debug::GetLoadedScripts() {
@@ -2243,8 +2224,6 @@ void Debug::UpdateHookOnFunctionCall() {
 }
 
 void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
-  // Initialize LiveEdit.
-  LiveEdit::InitializeThreadLocal(this);
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
   // Just continue if breaks are disabled.
@@ -2291,12 +2270,14 @@ void Debug::PrintBreakLocation() {
   StackTraceFrameIterator iterator(isolate_);
   if (iterator.done()) return;
   CommonFrame* frame = iterator.frame();
-  FrameSummary summary = FrameSummary::GetTop(frame);
-  summary.EnsureSourcePositionsAvailable();
-  int source_position = summary.SourcePosition();
-  Handle<Object> script_obj = summary.script();
+  std::vector<FrameSummary> frames;
+  frame->Summarize(&frames);
+  int inlined_frame_index = static_cast<int>(frames.size() - 1);
+  FrameInspector inspector(frame, inlined_frame_index, isolate_);
+  int source_position = inspector.GetSourcePosition();
+  Handle<Object> script_obj = inspector.GetScript();
   PrintF("[debug] break in function '");
-  summary.FunctionName()->PrintOn(stdout);
+  inspector.GetFunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);

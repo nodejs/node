@@ -17,6 +17,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/heap/code-range.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
@@ -29,27 +30,6 @@ namespace internal {
 class Heap;
 class Isolate;
 class ReadOnlyPage;
-
-// The process-wide singleton that keeps track of code range regions with the
-// intention to reuse free code range regions as a workaround for CFG memory
-// leaks (see crbug.com/870054).
-class CodeRangeAddressHint {
- public:
-  // Returns the most recently freed code range start address for the given
-  // size. If there is no such entry, then a random address is returned.
-  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size);
-
-  V8_EXPORT_PRIVATE void NotifyFreedCodeRange(Address code_range_start,
-                                              size_t code_range_size);
-
- private:
-  base::Mutex mutex_;
-  // A map from code range size to an array of recently freed code range
-  // addresses. There should be O(1) different code range sizes.
-  // The length of each array is limited by the peak number of code ranges,
-  // which should be also O(1).
-  std::unordered_map<size_t, std::vector<Address>> recently_freed_;
-};
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
@@ -172,8 +152,9 @@ class MemoryAllocator {
   V8_EXPORT_PRIVATE static base::AddressRegion ComputeDiscardMemoryArea(
       Address addr, size_t size);
 
-  V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate, size_t max_capacity,
-                                    size_t code_range_size);
+  V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
+                                    v8::PageAllocator* code_page_allocator,
+                                    size_t max_capacity);
 
   V8_EXPORT_PRIVATE void TearDown();
 
@@ -283,17 +264,6 @@ class MemoryAllocator {
                                     : data_page_allocator_;
   }
 
-  // A region of memory that may contain executable code including reserved
-  // OS page with read-write access in the beginning.
-  const base::AddressRegion& code_range() const {
-    // |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|
-    DCHECK_IMPLIES(!code_range_.is_empty(), code_page_allocator_instance_);
-    DCHECK_IMPLIES(!code_range_.is_empty(),
-                   code_range_.contains(code_page_allocator_instance_->begin(),
-                                        code_page_allocator_instance_->size()));
-    return code_range_;
-  }
-
   Unmapper* unmapper() { return &unmapper_; }
 
   // Performs all necessary bookkeeping to free the memory, but does not free
@@ -306,9 +276,6 @@ class MemoryAllocator {
   void RegisterReadOnlyMemory(ReadOnlyPage* page);
 
  private:
-  void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,
-                                   size_t requested);
-
   // PreFreeMemory logically frees the object, i.e., it unregisters the
   // memory, logs a delete event and adds the chunk to remembered unmapped
   // pages.
@@ -360,10 +327,6 @@ class MemoryAllocator {
 
   Isolate* isolate_;
 
-  // This object controls virtual space reserved for code on the V8 heap. This
-  // is only valid for 64-bit architectures where kRequiresCodeRange.
-  VirtualMemory code_reservation_;
-
   // Page allocator used for allocating data pages. Depending on the
   // configuration it may be a page allocator instance provided by
   // v8::Platform or a BoundedPageAllocator (when pointer compression is
@@ -371,28 +334,11 @@ class MemoryAllocator {
   v8::PageAllocator* data_page_allocator_;
 
   // Page allocator used for allocating code pages. Depending on the
-  // configuration it may be a page allocator instance provided by
-  // v8::Platform or a BoundedPageAllocator (when pointer compression is
-  // enabled or on those 64-bit architectures where pc-relative 32-bit
+  // configuration it may be a page allocator instance provided by v8::Platform
+  // or a BoundedPageAllocator from Heap::code_range_ (when pointer compression
+  // is enabled or on those 64-bit architectures where pc-relative 32-bit
   // displacement can be used for call and jump instructions).
   v8::PageAllocator* code_page_allocator_;
-
-  // A part of the |code_reservation_| that may contain executable code
-  // including reserved page with read-write access in the beginning.
-  // See details below.
-  base::AddressRegion code_range_;
-
-  // This unique pointer owns the instance of bounded code allocator
-  // that controls executable pages allocation. It does not control the
-  // optionally existing page in the beginning of the |code_range_|.
-  // So, summarizing all above, the following conditions hold:
-  // 1) |code_reservation_| >= |code_range_|
-  // 2) |code_range_| >= |optional RW pages| +
-  // |code_page_allocator_instance_|. 3) |code_reservation_| is
-  // AllocatePageSize()-aligned 4) |code_page_allocator_instance_| is
-  // MemoryChunk::kAlignment-aligned 5) |code_range_| is
-  // CommitPageSize()-aligned
-  std::unique_ptr<base::BoundedPageAllocator> code_page_allocator_instance_;
 
   // Maximum space size in bytes.
   size_t capacity_;

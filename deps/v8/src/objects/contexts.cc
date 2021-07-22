@@ -55,6 +55,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
   for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
+    result->is_repl_mode = context.scope_info().IsReplModeScope();
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag, &is_static_flag);
@@ -415,11 +416,11 @@ void NativeContext::AddOptimizedCode(Code code) {
   DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(get(OPTIMIZED_CODE_LIST));
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::OptimizedCodeListHead() {
@@ -427,7 +428,7 @@ Object NativeContext::OptimizedCodeListHead() {
 }
 
 void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::DeoptimizedCodeListHead() {

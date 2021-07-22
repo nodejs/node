@@ -132,7 +132,7 @@ let id = (() => {  // identity exported function
 
   builder.addImportedTable("q", "table", 5, 32);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addElementSegment(0, g, true,
+  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -179,7 +179,7 @@ let id = (() => {  // identity exported function
   let t = builder.addImport("q", "exp_ten", sig_i_v);
 
   builder.setTableBounds(7, 35);
-  builder.addElementSegment(0, g1, true, [a, i, t]);
+  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g1), [a, i, t]);
 
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -212,7 +212,8 @@ let id = (() => {  // identity exported function
   let funcs = addFunctions(builder1);
 
   builder1.addImportedTable("q", "table", 6, 36);
-  builder1.addElementSegment(0, g, true,
+  builder1.addActiveElementSegment(
+      0, WasmInitExpr.GlobalGet(g),
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
 
@@ -228,7 +229,7 @@ let id = (() => {  // identity exported function
   }
 
   for (let i = 3; i < 10; i++) {
-    let instance1 = new WebAssembly.Instance(module1, {q: {base: i, table: table}});
+    new WebAssembly.Instance(module1, {q: {base: i, table: table}});
     verifyTableFuncs(i);
     var prev = table.length;
     assertEquals(prev,     table.grow(3));
@@ -264,7 +265,7 @@ let id = (() => {  // identity exported function
         kExprLocalGet, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
-    builder.addElementSegment(0, 0, false, [0]);
+    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0]);
     return new WebAssembly.Module(builder.toBuffer());
   }
 

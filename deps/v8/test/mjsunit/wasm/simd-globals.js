@@ -11,8 +11,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 // initialization expression into the globals area of the module.
 (function TestS128GlobalInitialization() {
   var builder = new WasmModuleBuilder();
-  var g = builder.addGlobal(kWasmS128);
-  g.init = [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0];
+  var g = builder.addGlobal(
+    kWasmS128, false, WasmInitExpr.S128Const(
+      [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]));
 
   // Check that all lanes have the right values by creating 4 functions that
   // extract each lane.

@@ -34,6 +34,7 @@ namespace {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
+constexpr char kBranchHintsString[] = "branchHints";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 
@@ -95,6 +96,8 @@ const char* SectionName(SectionCode code) {
       return kExternalDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
+    case kBranchHintsSectionCode:
+      return kBranchHintsString;
     default:
       return "<unknown>";
   }
@@ -144,6 +147,7 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
       {StaticCharVector(kNameString), kNameSectionCode},
       {StaticCharVector(kSourceMappingURLString), kSourceMappingURLSectionCode},
       {StaticCharVector(kCompilationHintsString), kCompilationHintsSectionCode},
+      {StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
       {StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode}};
@@ -432,6 +436,13 @@ class ModuleDecoderImpl : public Decoder {
         // first occurrence after function section and before code section are
         // ignored.
         break;
+      case kBranchHintsSectionCode:
+        // TODO(yuri): report out of place branch hints section as a
+        // warning.
+        // Be lenient with placement of compilation hints section. All except
+        // first occurrence after function section and before code section are
+        // ignored.
+        break;
       default:
         next_ordered_section_ = section_code + 1;
         break;
@@ -492,6 +503,15 @@ class ModuleDecoderImpl : public Decoder {
       case kCompilationHintsSectionCode:
         if (enabled_features_.has_compilation_hints()) {
           DecodeCompilationHintsSection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
+        break;
+      case kBranchHintsSectionCode:
+        if (enabled_features_.has_branch_hinting()) {
+          DecodeBranchHintsSection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -884,50 +904,25 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t element_count =
         consume_count("element count", FLAG_wasm_max_table_size);
 
-    for (uint32_t i = 0; ok() && i < element_count; ++i) {
-      const byte* pos = pc();
-
-      WasmElemSegment::Status status;
-      bool functions_as_elements;
-      uint32_t table_index;
-      WasmInitExpr offset;
-      ValueType type = kWasmBottom;
-      consume_element_segment_header(&status, &functions_as_elements, &type,
-                                     &table_index, &offset);
+    for (uint32_t i = 0; i < element_count; ++i) {
+      bool expressions_as_elements;
+      WasmElemSegment segment =
+          consume_element_segment_header(&expressions_as_elements);
       if (failed()) return;
-      DCHECK_NE(type, kWasmBottom);
-
-      if (status == WasmElemSegment::kStatusActive) {
-        if (table_index >= module_->tables.size()) {
-          errorf(pos, "out of bounds table index %u", table_index);
-          break;
-        }
-        if (!IsSubtypeOf(type, module_->tables[table_index].type,
-                         this->module_.get())) {
-          errorf(pos,
-                 "Invalid element segment. Table %u is not a super-type of %s",
-                 table_index, type.name().c_str());
-          break;
-        }
-      }
+      DCHECK_NE(segment.type, kWasmBottom);
 
       uint32_t num_elem =
           consume_count("number of elements", max_table_init_entries());
-      if (status == WasmElemSegment::kStatusActive) {
-        module_->elem_segments.emplace_back(table_index, std::move(offset));
-      } else {
-        module_->elem_segments.emplace_back(
-            status == WasmElemSegment::kStatusDeclarative);
-      }
 
-      WasmElemSegment* init = &module_->elem_segments.back();
-      init->type = type;
       for (uint32_t j = 0; j < num_elem; j++) {
-        uint32_t index = functions_as_elements ? consume_element_expr()
-                                               : consume_element_func_index();
-        if (failed()) break;
-        init->entries.push_back(index);
+        WasmInitExpr init =
+            expressions_as_elements
+                ? consume_element_expr()
+                : WasmInitExpr::RefFuncConst(consume_element_func_index());
+        if (failed()) return;
+        segment.entries.push_back(std::move(init));
       }
+      module_->elem_segments.push_back(std::move(segment));
     }
   }
 
@@ -1172,6 +1167,82 @@ class ModuleDecoderImpl : public Decoder {
     // @TODO(frgossen) Skip the whole compilation hints section in the outer
     // decoder if inner decoder was used.
     // consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeBranchHintsSection() {
+    TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
+    if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
+      set_seen_unordered_section(kBranchHintsSectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+      BranchHintInfo branch_hints;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+      // Keep track of the previous function index to validate the ordering
+      int64_t last_func_idx = -1;
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_idx = inner.consume_u32v("function index");
+        if (int64_t(func_idx) <= last_func_idx) {
+          inner.errorf("Invalid function index: %d", func_idx);
+          break;
+        }
+        last_func_idx = func_idx;
+        uint8_t reserved = inner.consume_u8("reserved byte");
+        if (reserved != 0x0) {
+          inner.errorf("Invalid reserved byte: %#x", reserved);
+          break;
+        }
+        uint32_t num_hints = inner.consume_u32v("number of hints");
+        BranchHintMap func_branch_hints;
+        TRACE("DecodeBranchHints[%d] module+%d\n", func_idx,
+              static_cast<int>(inner.pc() - inner.start()));
+        // Keep track of the previous branch offset to validate the ordering
+        int64_t last_br_off = -1;
+        for (uint32_t j = 0; j < num_hints; ++j) {
+          uint32_t br_dir = inner.consume_u32v("branch direction");
+          uint32_t br_off = inner.consume_u32v("branch instruction offset");
+          if (int64_t(br_off) <= last_br_off) {
+            inner.errorf("Invalid branch offset: %d", br_off);
+            break;
+          }
+          last_br_off = br_off;
+          TRACE("DecodeBranchHints[%d][%d] module+%d\n", func_idx, br_off,
+                static_cast<int>(inner.pc() - inner.start()));
+          WasmBranchHint hint;
+          switch (br_dir) {
+            case 0:
+              hint = WasmBranchHint::kUnlikely;
+              break;
+            case 1:
+              hint = WasmBranchHint::kLikely;
+              break;
+            default:
+              hint = WasmBranchHint::kNoHint;
+              inner.errorf(inner.pc(), "Invalid branch hint %#x", br_dir);
+              break;
+          }
+          if (!inner.ok()) {
+            break;
+          }
+          func_branch_hints.insert(br_off, hint);
+        }
+        if (!inner.ok()) {
+          break;
+        }
+        branch_hints.emplace(func_idx, std::move(func_branch_hints));
+      }
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the hints for the module.
+      if (inner.ok()) {
+        module_->branch_hints = std::move(branch_hints);
+      }
+    }
+    // Skip the whole branch hints section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
   void DecodeDataCountSection() {
@@ -1911,10 +1982,8 @@ class ModuleDecoderImpl : public Decoder {
     std::vector<ValueType> returns;
 
     // Parse return types.
-    const size_t max_return_count = enabled_features_.has_mv()
-                                        ? kV8MaxWasmFunctionMultiReturns
-                                        : kV8MaxWasmFunctionReturns;
-    uint32_t return_count = consume_count("return count", max_return_count);
+    uint32_t return_count =
+        consume_count("return count", kV8MaxWasmFunctionReturns);
     if (failed()) return nullptr;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
       returns.push_back(consume_value_type());
@@ -1967,86 +2036,114 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  void consume_element_segment_header(WasmElemSegment::Status* status,
-                                      bool* functions_as_elements,
-                                      ValueType* type, uint32_t* table_index,
-                                      WasmInitExpr* offset) {
+  WasmElemSegment consume_element_segment_header(
+      bool* expressions_as_elements) {
     const byte* pos = pc();
-    uint32_t flag = consume_u32v("flag");
 
     // The mask for the bit in the flag which indicates if the segment is
-    // active or not.
-    constexpr uint8_t kIsPassiveMask = 0x01;
-    // The mask for the bit in the flag which indicates if the segment has an
-    // explicit table index field.
-    constexpr uint8_t kHasTableIndexMask = 0x02;
+    // active or not (0 is active).
+    constexpr uint8_t kNonActiveMask = 1 << 0;
+    // The mask for the bit in the flag which indicates:
+    // - for active tables, if the segment has an explicit table index field.
+    // - for non-active tables, whether the table is declarative (vs. passive).
+    constexpr uint8_t kHasTableIndexOrIsDeclarativeMask = 1 << 1;
     // The mask for the bit in the flag which indicates if the functions of this
-    // segment are defined as function indices (=0) or elements(=1).
-    constexpr uint8_t kFunctionsAsElementsMask = 0x04;
-    constexpr uint8_t kFullMask =
-        kIsPassiveMask | kHasTableIndexMask | kFunctionsAsElementsMask;
+    // segment are defined as function indices (0) or init. expressions (1).
+    constexpr uint8_t kExpressionsAsElementsMask = 1 << 2;
+    constexpr uint8_t kFullMask = kNonActiveMask |
+                                  kHasTableIndexOrIsDeclarativeMask |
+                                  kExpressionsAsElementsMask;
 
-    bool is_passive = flag & kIsPassiveMask;
-    if (!is_passive) {
-      *status = WasmElemSegment::kStatusActive;
-      if (module_->tables.size() == 0) {
-        error(pc_, "Active element sections require a table");
-      }
-    } else if ((flag & kHasTableIndexMask)) {  // Special bit combination for
-                                               // declarative segments.
-      *status = WasmElemSegment::kStatusDeclarative;
-    } else {
-      *status = WasmElemSegment::kStatusPassive;
+    uint32_t flag = consume_u32v("flag");
+    if ((flag & kFullMask) != flag) {
+      errorf(pos, "illegal flag value %u. Must be between 0 and 7", flag);
+      return {};
     }
-    *functions_as_elements = flag & kFunctionsAsElementsMask;
-    bool has_table_index = (flag & kHasTableIndexMask) &&
-                           *status == WasmElemSegment::kStatusActive;
 
-    if (*status == WasmElemSegment::kStatusDeclarative &&
+    const WasmElemSegment::Status status =
+        (flag & kNonActiveMask) ? (flag & kHasTableIndexOrIsDeclarativeMask)
+                                      ? WasmElemSegment::kStatusDeclarative
+                                      : WasmElemSegment::kStatusPassive
+                                : WasmElemSegment::kStatusActive;
+    if (status == WasmElemSegment::kStatusDeclarative &&
         !enabled_features_.has_reftypes()) {
       error(
           "Declarative element segments require --experimental-wasm-reftypes");
-      return;
+      return {};
     }
-    if ((flag & kFullMask) != flag) {
-      errorf(pos, "illegal flag value %u. Must be between 0 and 7", flag);
+    const bool is_active = status == WasmElemSegment::kStatusActive;
+
+    *expressions_as_elements = flag & kExpressionsAsElementsMask;
+
+    const bool has_table_index =
+        is_active && (flag & kHasTableIndexOrIsDeclarativeMask);
+    uint32_t table_index = has_table_index ? consume_u32v("table index") : 0;
+    if (is_active && table_index >= module_->tables.size()) {
+      errorf(pos, "out of bounds%s table index %u",
+             has_table_index ? " implicit" : "", table_index);
+      return {};
+    }
+    ValueType table_type =
+        is_active ? module_->tables[table_index].type : kWasmBottom;
+
+    WasmInitExpr offset;
+    if (is_active) {
+      offset = consume_init_expr(module_.get(), kWasmI32,
+                                 module_.get()->globals.size());
+      // Failed to parse offset initializer, return early.
+      if (failed()) return {};
     }
 
-    if (has_table_index) {
-      *table_index = consume_u32v("table index");
+    // Denotes an active segment without table index, type, or element kind.
+    const bool backwards_compatible_mode =
+        is_active && !(flag & kHasTableIndexOrIsDeclarativeMask);
+    ValueType type;
+    if (*expressions_as_elements) {
+      type =
+          backwards_compatible_mode ? kWasmFuncRef : consume_reference_type();
+      if (is_active && !IsSubtypeOf(type, table_type, this->module_.get())) {
+        errorf(pos,
+               "Element segment of type %s is not a subtype of referenced "
+               "table %u (of type %s)",
+               type.name().c_str(), table_index, table_type.name().c_str());
+        return {};
+      }
     } else {
-      *table_index = 0;
-    }
-
-    if (*status == WasmElemSegment::kStatusActive) {
-      *offset = consume_init_expr(module_.get(), kWasmI32,
-                                  module_.get()->globals.size());
-      if (offset->kind() == WasmInitExpr::kNone) {
-        // Failed to parse offset initializer, return early.
-        return;
+      if (!backwards_compatible_mode) {
+        // We have to check that there is an element kind of type Function. All
+        // other element kinds are not valid yet.
+        uint8_t val = consume_u8("element kind");
+        if (static_cast<ImportExportKindCode>(val) != kExternalFunction) {
+          errorf(pos, "illegal element kind 0x%x. Must be 0x%x", val,
+                 kExternalFunction);
+          return {};
+        }
+      }
+      if (!is_active) {
+        // Declarative and passive segments without explicit type are funcref.
+        type = kWasmFuncRef;
+      } else {
+        type = table_type;
+        // Active segments with function indices must reference a function
+        // table. TODO(7748): Add support for anyref tables when we have them.
+        if (!IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get())) {
+          errorf(pos,
+                 "An active element segment with function indices as elements "
+                 "must reference a table of %s. Instead, table %u of type %s "
+                 "is referenced.",
+                 enabled_features_.has_typed_funcref()
+                     ? "a subtype of type funcref"
+                     : "type funcref",
+                 table_index, table_type.name().c_str());
+          return {};
+        }
       }
     }
 
-    if (*status == WasmElemSegment::kStatusActive && !has_table_index) {
-      // Active segments without table indices are a special case for backwards
-      // compatibility. These cases have an implicit element kind or element
-      // type, so we are done already with the segment header.
-      *type = kWasmFuncRef;
-      return;
-    }
-
-    if (*functions_as_elements) {
-      *type = consume_reference_type();
+    if (is_active) {
+      return {type, table_index, std::move(offset)};
     } else {
-      // We have to check that there is an element kind of type Function. All
-      // other element kinds are not valid yet.
-      uint8_t val = consume_u8("element kind");
-      ImportExportKindCode kind = static_cast<ImportExportKindCode>(val);
-      if (kind != kExternalFunction) {
-        errorf(pos, "illegal element kind %x. Must be 0x00", val);
-        return;
-      }
-      *type = kWasmFuncRef;
+      return {type, status == WasmElemSegment::kStatusDeclarative};
     }
   }
 
@@ -2091,32 +2188,49 @@ class ModuleDecoderImpl : public Decoder {
     func->declared = true;
     DCHECK_NE(func, nullptr);
     DCHECK_EQ(index, func->func_index);
-    DCHECK_NE(index, WasmElemSegment::kNullIndex);
     return index;
   }
 
-  uint32_t consume_element_expr() {
-    uint32_t index = WasmElemSegment::kNullIndex;
+  // TODO(manoskouk): When reftypes lands, remove this and use
+  // consume_init_expr() instead.
+  WasmInitExpr consume_element_expr() {
     uint8_t opcode = consume_u8("element opcode");
-    if (failed()) return index;
+    if (failed()) return {};
     switch (opcode) {
       case kExprRefNull: {
         HeapTypeImmediate<kFullValidation> imm(WasmFeatures::All(), this,
                                                this->pc(), module_.get());
         consume_bytes(imm.length, "ref.null immediate");
-        index = WasmElemSegment::kNullIndex;
-        break;
+        expect_u8("end opcode", kExprEnd);
+        return WasmInitExpr::RefNullConst(imm.type.representation());
       }
-      case kExprRefFunc:
-        index = consume_element_func_index();
-        if (failed()) return index;
-        break;
+      case kExprRefFunc: {
+        uint32_t index = consume_element_func_index();
+        if (failed()) return {};
+        expect_u8("end opcode", kExprEnd);
+        return WasmInitExpr::RefFuncConst(index);
+      }
+      case kExprGlobalGet: {
+        if (!enabled_features_.has_reftypes()) {
+          errorf(
+              "Unexpected opcode 0x%x in element. Enable with "
+              "--experimental-wasm-reftypes",
+              kExprGlobalGet);
+          return {};
+        }
+        uint32_t index = this->consume_u32v("global index");
+        if (failed()) return {};
+        if (index >= module_->globals.size()) {
+          errorf("Out-of-bounds global index %d", index);
+          return {};
+        }
+        expect_u8("end opcode", kExprEnd);
+        return WasmInitExpr::GlobalGet(index);
+      }
       default:
         error("invalid opcode in element");
-        break;
+        return {};
     }
-    expect_u8("end opcode", kExprEnd);
-    return index;
   }
 };
 
@@ -2374,8 +2488,7 @@ bool FindNameSection(Decoder* decoder) {
 }  // namespace
 
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names,
-                         const Vector<const WasmExport> export_table) {
+                         std::unordered_map<uint32_t, WireBytesRef>* names) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
 
@@ -2405,13 +2518,6 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
           names->insert(std::make_pair(function_index, name));
         }
       }
-    }
-  }
-
-  // Extract from export table.
-  for (const WasmExport& exp : export_table) {
-    if (exp.kind == kExternalFunction && names->count(exp.index) == 0) {
-      names->insert(std::make_pair(exp.index, exp.name));
     }
   }
 }

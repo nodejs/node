@@ -680,6 +680,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   bool CanProduceSignalingNaN(Node* node);
 
+  void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
+                                     Node* node);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================

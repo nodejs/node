@@ -172,6 +172,7 @@ class BuildConfig(object):
     self.cfi_vptr = build_config['is_cfi']
     self.control_flow_integrity = build_config['v8_control_flow_integrity']
     self.concurrent_marking = build_config['v8_enable_concurrent_marking']
+    self.single_generation = build_config['v8_enable_single_generation']
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
@@ -189,6 +190,8 @@ class BuildConfig(object):
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
+    self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.webassembly = build_config['v8_enable_webassembly']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
@@ -229,6 +232,10 @@ class BuildConfig(object):
       detected_options.append('lite_mode')
     if self.pointer_compression:
       detected_options.append('pointer_compression')
+    if self.pointer_compression_shared_cage:
+      detected_options.append('pointer_compression_shared_cage')
+    if self.third_party_heap:
+      detected_options.append('third_party_heap')
     if self.webassembly:
       detected_options.append('webassembly')
 
@@ -351,7 +358,7 @@ class BaseTestRunner(object):
 
     # Progress
     parser.add_option("-p", "--progress",
-                      choices=PROGRESS_INDICATORS.keys(), default="mono",
+                      choices=list(PROGRESS_INDICATORS), default="mono",
                       help="The style of progress indicator (verbose, dots, "
                            "color, mono)")
     parser.add_option("--json-test-results",
@@ -641,7 +648,7 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
-    no_simd_sse = any(
+    no_simd_hardware = any(
         i in options.extra_flags for i in ['--noenable-sse3',
                                            '--no-enable-sse3'
                                            '--noenable-ssse3',
@@ -649,14 +656,16 @@ class BaseTestRunner(object):
                                            '--noenable-sse4-1',
                                            '--no-enable-sse4_1'])
 
-    # Set no_simd_sse on architectures without Simd enabled.
+    # Set no_simd_hardware on architectures without Simd enabled.
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
-       no_simd_sse = not simd_mips
+       no_simd_hardware = not simd_mips
 
-    # Set no_simd_sse on architectures without Simd enabled.
-    if self.build_config.arch == 'ppc64':
-       no_simd_sse = True
+    # Ppc64 processors earlier than POWER9 do not support Simd instructions
+    if self.build_config.arch == 'ppc64' and \
+       not self.build_config.simulator_run and \
+       utils.GuessPowerProcessorVersion() < 9:
+       no_simd_hardware = True
 
     return {
       "arch": self.build_config.arch,
@@ -665,6 +674,7 @@ class BaseTestRunner(object):
       "cfi_vptr": self.build_config.cfi_vptr,
       "control_flow_integrity": self.build_config.control_flow_integrity,
       "concurrent_marking": self.build_config.concurrent_marking,
+      "single_generation": self.build_config.single_generation,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,
@@ -680,7 +690,7 @@ class BaseTestRunner(object):
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,
-      "no_simd_sse": no_simd_sse,
+      "no_simd_hardware": no_simd_hardware,
       "novfp3": False,
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
@@ -688,11 +698,13 @@ class BaseTestRunner(object):
       "simulator_run": self.build_config.simulator_run and
                        not options.dont_skip_simulator_slow_tests,
       "system": self.target_os,
+      "third_party_heap": self.build_config.third_party_heap,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
       "verify_csa": self.build_config.verify_csa,
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
+      "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
     }
 
   def _runner_flags(self):
@@ -725,6 +737,8 @@ class BaseTestRunner(object):
       factor *= 2
     if self.build_config.predictable:
       factor *= 4
+    if self.build_config.tsan:
+      factor *= 1.5
     if self.build_config.use_sanitizer:
       factor *= 1.5
     if self.build_config.is_full_debug:

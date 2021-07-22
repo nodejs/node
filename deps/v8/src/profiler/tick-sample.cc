@@ -7,14 +7,14 @@
 #include <cinttypes>
 
 #include "include/v8-profiler.h"
+#include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
 #include "src/profiler/profiler-stats.h"
-#include "src/sanitizer/asan.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -232,7 +232,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // TODO(petermarshall): Code range is always null on ia32 so this check for
   // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range().contains(
+      isolate->heap()->code_region().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
@@ -287,15 +287,18 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
     i++;
   }
-
+#ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
+#endif  // V8_RUNTIME_CALL_STATS
   for (; !it.done() && i < frames_limit; it.Advance()) {
+#ifdef V8_RUNTIME_CALL_STATS
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
+#endif  // V8_RUNTIME_CALL_STATS
     if (i == frames_limit) break;
 
     if (it.frame()->is_interpreted()) {

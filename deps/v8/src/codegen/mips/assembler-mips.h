@@ -1907,7 +1907,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 class EnsureSpace {
  public:
-  explicit inline EnsureSpace(Assembler* assembler);
+  explicit V8_INLINE EnsureSpace(Assembler* assembler);
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {

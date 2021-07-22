@@ -151,6 +151,14 @@ export class Profile {
   scripts_ = [];
   urlToScript_ = new Map();
 
+  serializeVMSymbols() {
+    let result = this.codeMap_.getAllStaticEntriesWithAddresses();
+    result.concat(this.codeMap_.getAllLibraryEntriesWithAddresses())
+    return result.map(([startAddress, codeEntry]) => {
+      return [codeEntry.getName(), startAddress, startAddress + codeEntry.size]
+    });
+  }
+
   /**
    * Returns whether a function with the specified name must be skipped.
    * Should be overriden by subclasses.
@@ -182,7 +190,6 @@ export class Profile {
     COMPILED: 0,
     IGNITION: 1,
     BASELINE: 2,
-    NATIVE_CONTEXT_INDEPENDENT: 3,
     TURBOPROP: 4,
     TURBOFAN: 5,
   }
@@ -198,8 +205,6 @@ export class Profile {
         return this.CodeState.IGNITION;
       case '^':
         return this.CodeState.BASELINE;
-      case '-':
-        return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
       case '+':
         return this.CodeState.TURBOPROP;
       case '*':
@@ -215,8 +220,6 @@ export class Profile {
       return "Unopt";
     } else if (state === this.CodeState.BASELINE) {
       return "Baseline";
-    } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
-      return "NCI";
     } else if (state === this.CodeState.TURBOPROP) {
       return "Turboprop";
     } else if (state === this.CodeState.TURBOFAN) {

@@ -747,7 +747,8 @@ Node* CallCFunctionImpl(
   }
   for (const auto& arg : args) builder.AddParam(arg.first);
 
-  bool caller_saved_fp_regs = caller_saved_regs && (mode == kSaveFPRegs);
+  bool caller_saved_fp_regs =
+      caller_saved_regs && (mode == SaveFPRegsMode::kSave);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (caller_saved_regs) flags |= CallDescriptor::kCallerSavedRegisters;
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
@@ -772,14 +773,14 @@ Node* RawMachineAssembler::CallCFunction(
     Node* function, base::Optional<MachineType> return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kHasFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kHasFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithoutFunctionDescriptor(
     Node* function, MachineType return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kNoFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kNoFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithCallerSavedRegisters(

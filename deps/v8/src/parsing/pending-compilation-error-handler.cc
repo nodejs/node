@@ -31,9 +31,9 @@ void PendingCompilationErrorHandler::MessageDetails::SetString(
   arg_handle_ = isolate->heap()->NewPersistentHandle(string);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void PendingCompilationErrorHandler::MessageDetails::Prepare(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   switch (type_) {
     case kAstRawString:
       return SetString(arg_->string(), isolate);
@@ -101,8 +101,8 @@ void PendingCompilationErrorHandler::ReportWarningAt(int start_position,
       MessageDetails(start_position, end_position, message, arg));
 }
 
-template <typename LocalIsolate>
-void PendingCompilationErrorHandler::PrepareWarnings(LocalIsolate* isolate) {
+template <typename IsolateT>
+void PendingCompilationErrorHandler::PrepareWarnings(IsolateT* isolate) {
   DCHECK(!has_pending_error());
 
   for (MessageDetails& warning : warning_messages_) {
@@ -128,9 +128,9 @@ void PendingCompilationErrorHandler::ReportWarnings(
   }
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void PendingCompilationErrorHandler::PrepareErrors(
-    LocalIsolate* isolate, AstValueFactory* ast_value_factory) {
+    IsolateT* isolate, AstValueFactory* ast_value_factory) {
   if (stack_overflow()) return;
 
   DCHECK(has_pending_error());

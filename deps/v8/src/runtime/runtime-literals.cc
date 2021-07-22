@@ -218,6 +218,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       // Typed elements cannot be created using an object literal.
       UNREACHABLE();
@@ -291,7 +292,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   }
   void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
     if (object.is_null()) return;
-    scope_site->set_boilerplate(*object);
+    scope_site->set_boilerplate(*object, kReleaseStore);
     if (FLAG_trace_creation_allocation_sites) {
       bool top_level =
           !scope_site.is_null() && top().is_identical_to(scope_site);

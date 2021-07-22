@@ -619,7 +619,7 @@ class InitializedHandleScopeImpl;
 
 class V8_NODISCARD InitializedHandleScope {
  public:
-  InitializedHandleScope();
+  explicit InitializedHandleScope(i::Isolate* isolate = nullptr);
   ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -842,11 +842,11 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 
 bool IsValidUnwrapObject(v8::Object* object);
 
-template <typename T, int offset>
+template <typename T>
 T* GetInternalField(v8::Object* wrapper) {
-  assert(offset < wrapper->InternalFieldCount());
+  assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
   return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
 }
 
 #endif  // ifndef CCTEST_H_

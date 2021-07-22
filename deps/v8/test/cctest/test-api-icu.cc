@@ -47,7 +47,7 @@ TEST(LocaleConfigurationChangeNotification) {
 
   SetIcuLocale("zh_CN");
   isolate->LocaleConfigurationChangeNotification();
-  CheckLocaleSpecificValues("zh-CN", "2020/2/14下午1:45:00", "10,000.3");
+  CheckLocaleSpecificValues("zh-CN", "2020/2/14 下午1:45:00", "10,000.3");
 
   UErrorCode error_code = U_ZERO_ERROR;
   icu::Locale::setDefault(default_locale, error_code);

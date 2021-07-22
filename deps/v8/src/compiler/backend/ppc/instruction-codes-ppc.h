@@ -255,15 +255,9 @@ namespace compiler {
   V(PPC_I64x2Add)                    \
   V(PPC_I64x2Sub)                    \
   V(PPC_I64x2Mul)                    \
-  V(PPC_I64x2MinS)                   \
-  V(PPC_I64x2MinU)                   \
-  V(PPC_I64x2MaxS)                   \
-  V(PPC_I64x2MaxU)                   \
   V(PPC_I64x2Eq)                     \
   V(PPC_I64x2Ne)                     \
   V(PPC_I64x2GtS)                    \
-  V(PPC_I64x2GtU)                    \
-  V(PPC_I64x2GeU)                    \
   V(PPC_I64x2GeS)                    \
   V(PPC_I64x2Shl)                    \
   V(PPC_I64x2ShrS)                   \

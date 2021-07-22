@@ -464,6 +464,9 @@ void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.push_back(descriptors);
+  } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
+    Handle<NativeContext> context = Handle<NativeContext>::cast(obj);
+    context->AllocateExternalPointerEntries(isolate());
   }
 
   // Check alignment.

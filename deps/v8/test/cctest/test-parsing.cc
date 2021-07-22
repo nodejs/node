@@ -7157,6 +7157,16 @@ TEST(ForOfExpressionError) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ForOfAsync) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {nullptr, nullptr}};
+
+  const char* data[] = {"for(\\u0061sync of []) {}", nullptr};
+
+  RunParserSyncTest(context_data, data, kSuccess);
+}
 
 TEST(InvalidUnicodeEscapes) {
   const char* context_data[][2] = {

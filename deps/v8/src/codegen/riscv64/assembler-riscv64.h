@@ -53,7 +53,7 @@ namespace v8 {
 namespace internal {
 
 #define DEBUG_PRINTF(...) \
-  if (FLAG_debug_riscv) { \
+  if (FLAG_riscv_debug) { \
     printf(__VA_ARGS__);  \
   }
 
@@ -160,6 +160,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler() { CHECK(constpool_.IsEmpty()); }
 
+  void AbortedCodeGeneration() { constpool_.Clear(); }
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
@@ -208,11 +209,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Get offset from instr.
   int BranchOffset(Instr instr);
-  int BrachlongOffset(Instr auipc, Instr jalr);
+  static int BrachlongOffset(Instr auipc, Instr jalr);
+  static int PatchBranchlongOffset(Address pc, Instr auipc, Instr instr_I,
+                                   int32_t offset);
   int JumpOffset(Instr instr);
   int CJumpOffset(Instr instr);
   static int LdOffset(Instr instr);
   static int AuipcOffset(Instr instr);
+  static int JalrOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -800,6 +804,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
+  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -862,7 +868,39 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsLd(Instr instr);
   void CheckTrampolinePool();
 
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
+
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
+  using BlockPoolsScope = BlockTrampolinePoolScope;
+
+  void RecordConstPool(int size);
+
+  void ForceConstantPoolEmissionWithoutJump() {
+    constpool_.Check(Emission::kForced, Jump::kOmitted);
+  }
+  void ForceConstantPoolEmissionWithJump() {
+    constpool_.Check(Emission::kForced, Jump::kRequired);
+  }
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted.
+  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
+  }
+
+  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
+  }
+
+  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
+
+  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
 
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
@@ -947,34 +985,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
       CheckTrampolinePool();
     }
-  }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
-
-  void RecordConstPool(int size);
-
-  void ForceConstantPoolEmissionWithoutJump() {
-    constpool_.Check(Emission::kForced, Jump::kOmitted);
-  }
-  void ForceConstantPoolEmissionWithJump() {
-    constpool_.Check(Emission::kForced, Jump::kRequired);
-  }
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted.
-  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-
-  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
-  }
-
-  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
-  }
-
-  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
   }
 
  private:
@@ -1231,6 +1241,16 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
 
   Register Acquire();
   bool hasAvailable() const;
+  void Include(const RegList& list) { *available_ |= list; }
+  void Exclude(const RegList& list) { *available_ &= ~list; }
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Exclude(list);
+  }
 
  private:
   RegList* available_;

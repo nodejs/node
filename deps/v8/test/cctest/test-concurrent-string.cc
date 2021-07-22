@@ -82,7 +82,7 @@ class ConcurrentStringThread final : public v8::base::Thread {
     sema_started_->Signal();
     // Check the three operations we do from the StringRef concurrently: get the
     // string, the nth character, and convert into a double.
-    CHECK_EQ(str_->synchronized_length(), length_);
+    CHECK_EQ(str_->length(kAcquireLoad), length_);
     for (unsigned int i = 0; i < length_; ++i) {
       CHECK_EQ(str_->Get(i, &local_isolate), chars_[i]);
     }

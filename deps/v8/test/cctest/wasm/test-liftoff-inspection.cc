@@ -22,7 +22,7 @@ class LiftoffCompileEnvironment {
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
         wasm_runner_(nullptr, TestExecutionTier::kLiftoff, 0,
-                     kRuntimeExceptionSupport, kNoLowerSimd) {
+                     kRuntimeExceptionSupport) {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.
@@ -449,6 +449,29 @@ TEST(Liftoff_debug_side_table_catch_all) {
            {Stack(0, kWasmI32), Register(1, exception_type),
             Constant(2, kWasmI32, 1)}},
           {1, {}},
+      },
+      debug_side_table.get());
+}
+
+TEST(Regress1199526) {
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  LiftoffCompileEnvironment env;
+  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {}, {},
+      {kExprTry, kVoidCode, kExprCallFunction, 0, kExprCatchAll, kExprLoop,
+       kVoidCode, kExprEnd, kExprEnd},
+      {});
+  CheckDebugSideTable(
+      {
+          // function entry.
+          {0, {}},
+          // break on entry.
+          {0, {}},
+          // function call.
+          {0, {}},
+          // loop stack check.
+          {1, {Stack(0, exception_type)}},
       },
       debug_side_table.get());
 }

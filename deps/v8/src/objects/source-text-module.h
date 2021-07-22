@@ -219,8 +219,8 @@ class SourceTextModuleInfo : public FixedArray {
  public:
   DECL_CAST(SourceTextModuleInfo)
 
-  template <typename LocalIsolate>
-  static Handle<SourceTextModuleInfo> New(LocalIsolate* isolate, Zone* zone,
+  template <typename IsolateT>
+  static Handle<SourceTextModuleInfo> New(IsolateT* isolate, Zone* zone,
                                           SourceTextModuleDescriptor* descr);
 
   inline FixedArray module_requests() const;
@@ -267,9 +267,8 @@ class ModuleRequest
   NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(ModuleRequest)
 
-  template <typename LocalIsolate>
-  static Handle<ModuleRequest> New(LocalIsolate* isolate,
-                                   Handle<String> specifier,
+  template <typename IsolateT>
+  static Handle<ModuleRequest> New(IsolateT* isolate, Handle<String> specifier,
                                    Handle<FixedArray> import_assertions,
                                    int position);
 
@@ -287,9 +286,9 @@ class SourceTextModuleInfoEntry
   DECL_PRINTER(SourceTextModuleInfoEntry)
   DECL_VERIFIER(SourceTextModuleInfoEntry)
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   static Handle<SourceTextModuleInfoEntry> New(
-      LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      IsolateT* isolate, Handle<PrimitiveHeapObject> export_name,
       Handle<PrimitiveHeapObject> local_name,
       Handle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);

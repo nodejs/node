@@ -28,19 +28,19 @@ class BasicCrossThreadPersistent final : public PersistentBase,
 
   ~BasicCrossThreadPersistent() { Clear(); }
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       const SourceLocation& loc = SourceLocation::Current())
       : LocationPolicy(loc) {}
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       std::nullptr_t, const SourceLocation& loc = SourceLocation::Current())
       : LocationPolicy(loc) {}
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       SentinelPointer s, const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(s), LocationPolicy(loc) {}
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       T* raw, const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
@@ -58,7 +58,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     friend class BasicCrossThreadPersistent;
   };
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       UnsafeCtorTag, T* raw,
       const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
@@ -68,14 +68,14 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     this->CheckPointer(raw);
   }
 
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       T& raw, const SourceLocation& loc = SourceLocation::Current())
       : BasicCrossThreadPersistent(&raw, loc) {}
 
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
                             MemberCheckingPolicy>
           member,
@@ -94,7 +94,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicCrossThreadPersistent(  // NOLINT
+  BasicCrossThreadPersistent(
       const BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
                                        OtherLocationPolicy,
                                        OtherCheckingPolicy>& other,
@@ -139,7 +139,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     GetNode()->UpdateOwner(this);
     other.SetValue(nullptr);
     other.SetNode(nullptr);
-    this->CheckPointer(GetValue());
+    this->CheckPointer(Get());
     return *this;
   }
 
@@ -236,7 +236,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
    *
    * \returns the object.
    */
-  operator T*() const { return Get(); }  // NOLINT
+  operator T*() const { return Get(); }
 
   /**
    * Dereferences the stored object.

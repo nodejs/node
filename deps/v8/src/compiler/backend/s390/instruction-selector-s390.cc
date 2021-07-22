@@ -141,7 +141,8 @@ class S390OperandGenerator final : public OperandGenerator {
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* user, Node* input,
                           int effect_level) {
-    if (input->opcode() != IrOpcode::kLoad ||
+    if ((input->opcode() != IrOpcode::kLoad &&
+         input->opcode() != IrOpcode::kLoadImmutable) ||
         !selector()->CanCover(user, input)) {
       return false;
     }
@@ -320,6 +321,7 @@ ArchOpcode SelectLoadOpcode(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kS390_LoadSimd128;
       break;
+    case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -798,6 +800,7 @@ static void VisitGeneralStore(
           value = value->InputAt(0);
         }
         break;
+      case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -2847,6 +2850,12 @@ void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
   }
 
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
 }
 
 // static

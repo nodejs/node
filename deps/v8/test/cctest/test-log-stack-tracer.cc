@@ -245,7 +245,7 @@ static void CFuncDoTrace(byte dummy_param) {
 #elif V8_CC_MSVC
   // Approximate a frame pointer address. We compile without base pointers,
   // so we can't trust ebp/rbp.
-  fp = reinterpret_cast<Address>(&dummy_param) - 2 * sizeof(void*);  // NOLINT
+  fp = reinterpret_cast<Address>(&dummy_param) - 2 * sizeof(void*);
 #else
 #error Unexpected platform.
 #endif

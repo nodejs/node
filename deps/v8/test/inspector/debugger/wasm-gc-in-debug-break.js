@@ -36,11 +36,11 @@ contextGroup.addScript(`
 function test() {
   debug(instance.exports.main);
   instance.exports.main({val: "Hello World"});
-}
-//# sourceURL=test.js`);
+}`, 0, 0, 'test.js');
 
 InspectorTest.runAsyncTestSuite([async function test() {
   utils.setLogConsoleApiMessageCalls(true);
+  await Protocol.Runtime.enable();
   await Protocol.Debugger.enable();
   await WasmInspectorTest.instantiate(
       module_bytes, 'instance', '{foo: {bar: (x) => console.log(x.val)}}');

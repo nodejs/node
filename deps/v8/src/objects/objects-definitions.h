@@ -152,12 +152,8 @@ namespace internal {
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
   IF_WASM(V, _, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag) \
-  IF_WASM(V, _, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,    \
-          wasm_exported_function_data)                                         \
   IF_WASM(V, _, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,  \
-          wasm_indirect_function_table)                                        \
-  IF_WASM(V, _, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData,                \
-          wasm_js_function_data)
+          wasm_indirect_function_table)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)

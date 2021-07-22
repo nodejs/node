@@ -465,6 +465,7 @@ TEST(PSEUDO) {
 }
 
 TEST(RV64C) {
+  i::FLAG_riscv_c_extension = true;
   SET_UP();
 
   COMPARE(c_nop(), "00000001       nop");

@@ -39,9 +39,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
   Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
-  RuntimeCallTimerScope runtime_timer(
-      heap->isolate(),
-      RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
+  RCS_SCOPE(heap->isolate(),
+            RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_->AdvanceOnAllocation();
   // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
   incremental_marking_->EnsureBlackAllocated(addr, size);
@@ -108,20 +107,28 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
+    DCHECK(!MapWord::IsPacked((*p).ptr()));
     MarkObjectByPointer(p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
-    for (FullObjectSlot p = start; p < end; ++p) MarkObjectByPointer(p);
+    for (FullObjectSlot p = start; p < end; ++p) {
+      DCHECK(!MapWord::IsPacked((*p).ptr()));
+      MarkObjectByPointer(p);
+    }
   }
 
  private:
   void MarkObjectByPointer(FullObjectSlot p) {
-    Object obj = *p;
-    if (!obj.IsHeapObject()) return;
-
-    heap_->incremental_marking()->WhiteToGreyAndPush(HeapObject::cast(obj));
+    Object object = *p;
+    if (!object.IsHeapObject()) return;
+    DCHECK(!MapWord::IsPacked(object.ptr()));
+    HeapObject heap_object = HeapObject::cast(object);
+    BasicMemoryChunk* target_page =
+        BasicMemoryChunk::FromHeapObject(heap_object);
+    if (target_page->InSharedHeap()) return;
+    heap_->incremental_marking()->WhiteToGreyAndPush(heap_object);
   }
 
   Heap* heap_;
@@ -132,12 +139,14 @@ bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 
 bool IncrementalMarking::CanBeActivated() {
-  // Only start incremental marking in a safe state: 1) when incremental
-  // marking is turned on, 2) when we are currently not in a GC, and
-  // 3) when we are currently not serializing or deserializing the heap.
+  // Only start incremental marking in a safe state:
+  //   1) when incremental marking is turned on
+  //   2) when we are currently not in a GC, and
+  //   3) when we are currently not serializing or deserializing the heap, and
+  //   4) not a shared heap.
   return FLAG_incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
          heap_->deserialization_complete() &&
-         !heap_->isolate()->serializer_enabled();
+         !heap_->isolate()->serializer_enabled() && !heap_->IsShared();
 }
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
@@ -147,6 +156,7 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   DCHECK(!collector_->sweeping_in_progress());
+  DCHECK(!heap_->IsShared());
 
   if (FLAG_trace_incremental_marking) {
     const size_t old_generation_size_mb =
@@ -314,7 +324,9 @@ void IncrementalMarking::MarkRoots() {
 
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateRoots(
-      &visitor, base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kWeak});
+      &visitor,
+      base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
+                              SkipRoot::kWeak});
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
@@ -356,6 +368,9 @@ void IncrementalMarking::RetainMaps() {
       if (!map_retaining_is_disabled && marking_state()->IsWhite(map)) {
         if (ShouldRetainMap(map, age)) {
           WhiteToGreyAndPush(map);
+          if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+            heap_->AddRetainingRoot(Root::kRetainMaps, map);
+          }
         }
         Object prototype = map.prototype();
         if (age > 0 && prototype.IsHeapObject() &&
@@ -432,7 +447,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         DCHECK(obj.IsHeapObject());
         // Only pointers to from space have to be updated.
         if (Heap::InFromPage(obj)) {
-          MapWord map_word = obj.map_word();
+          MapWord map_word = obj.map_word(kRelaxedLoad);
           if (!map_word.IsForwardingAddress()) {
             // There may be objects on the marking deque that do not exist
             // anymore, e.g. left trimmed objects or objects from the root set

@@ -310,7 +310,6 @@ class CodeAssemblerParameterizedLabel;
   V(Word64And, Word64T, Word64T, Word64T)                               \
   V(Word64Or, Word64T, Word64T, Word64T)                                \
   V(Word64Xor, Word64T, Word64T, Word64T)                               \
-  V(Word64Ror, Word64T, Word64T, Word64T)                               \
   V(Word64Shl, Word64T, Word64T, Word64T)                               \
   V(Word64Shr, Word64T, Word64T, Word64T)                               \
   V(Word64Sar, Word64T, Word64T, Word64T)
@@ -585,6 +584,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
+  bool IsMapOffsetConstant(Node* node);
+
   bool TryToInt32Constant(TNode<IntegralT> node, int32_t* out_value);
   bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
   bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
@@ -789,8 +790,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
 
+#ifdef V8_MAP_PACKING
+  Node* PackMapWord(Node* value);
+#endif
+
   // Load a value from the root array.
+  // If map packing is enabled, LoadRoot for a root map returns the unpacked map
+  // word (i.e., the map). Use LoadRootMapWord to obtain the packed map word
+  // instead.
   TNode<Object> LoadRoot(RootIndex root_index);
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index);
 
   template <typename Type>
   TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset) {
@@ -978,6 +987,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                               static_cast<TNode<Word32T>>(right)));
   }
 
+  TNode<IntPtrT> WordOr(TNode<IntPtrT> left, TNode<IntPtrT> right) {
+    return Signed(WordOr(static_cast<TNode<WordT>>(left),
+                         static_cast<TNode<WordT>>(right)));
+  }
+
   TNode<Int32T> Word32Or(TNode<Int32T> left, TNode<Int32T> right) {
     return Signed(Word32Or(static_cast<TNode<Word32T>>(left),
                            static_cast<TNode<Word32T>>(right)));
@@ -995,6 +1009,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<BoolT> Word64Equal(TNode<Word64T> left, TNode<Word64T> right);
   TNode<BoolT> Word64NotEqual(TNode<Word64T> left, TNode<Word64T> right);
 
+  TNode<IntPtrT> WordNot(TNode<IntPtrT> a) {
+    return Signed(WordNot(static_cast<TNode<WordT>>(a)));
+  }
   TNode<BoolT> Word32Or(TNode<BoolT> left, TNode<BoolT> right) {
     return UncheckedCast<BoolT>(Word32Or(static_cast<TNode<Word32T>>(left),
                                          static_cast<TNode<Word32T>>(right)));

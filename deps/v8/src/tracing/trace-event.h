@@ -279,6 +279,7 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
   INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
 
+#ifdef V8_RUNTIME_CALL_STATS
 #define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)  \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                      \
   v8::internal::tracing::CallStatsScopedTracer INTERNAL_TRACE_EVENT_UID(       \
@@ -288,6 +289,9 @@ enum CategoryGroupEnabledFlags {
         .Initialize(isolate, INTERNAL_TRACE_EVENT_UID(category_group_enabled), \
                     name);                                                     \
   }
+#else  // V8_RUNTIME_CALL_STATS
+#define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
+#endif  // V8_RUNTIME_CALL_STATS
 
 namespace v8 {
 namespace internal {
@@ -588,6 +592,7 @@ class ScopedTracer {
   Data data_;
 };
 
+#ifdef V8_RUNTIME_CALL_STATS
 // Do not use directly.
 class CallStatsScopedTracer {
  public:
@@ -612,12 +617,15 @@ class CallStatsScopedTracer {
   Data* p_data_;
   Data data_;
 };
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 
 }  // namespace tracing
 }  // namespace internal
 }  // namespace v8
 
 #else  // defined(V8_USE_PERFETTO)
+
+#ifdef V8_RUNTIME_CALL_STATS
 
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category, name)             \
   struct PERFETTO_UID(ScopedEvent) {                                       \
@@ -650,6 +658,7 @@ class CallStatsScopedTracer {
     { isolate, 0 }                                                         \
   }
 
+#endif  // defined(V8_RUNTIME_CALL_STATS)
 #endif  // defined(V8_USE_PERFETTO)
 
 #endif  // V8_TRACING_TRACE_EVENT_H_

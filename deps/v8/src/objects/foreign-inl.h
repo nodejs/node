@@ -29,7 +29,8 @@ bool Foreign::IsNormalized(Object value) {
 }
 
 DEF_GETTER(Foreign, foreign_address, Address) {
-  return ReadExternalPointerField(kForeignAddressOffset, cage_base,
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  return ReadExternalPointerField(kForeignAddressOffset, isolate,
                                   kForeignForeignAddressTag);
 }
 

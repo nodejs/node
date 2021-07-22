@@ -121,7 +121,7 @@ class GenerateGnArgs(object):
     add_common_options(list_cmd)
 
     # Default to "gen" unless global help is requested.
-    if not args or args[0] not in subps.choices.keys() + ['-h', '--help']:
+    if not args or args[0] not in list(subps.choices) + ['-h', '--help']:
       args = ['gen'] + args
 
     return self.parser.parse_args(args)
@@ -193,14 +193,16 @@ class GenerateGnArgs(object):
     return 0
 
   def verbose_print_1(self, text):
-    if self._options.verbosity >= 1:
+    if self._options.verbosity and self._options.verbosity >= 1:
       print('#' * 80)
       print(text)
 
   def verbose_print_2(self, text):
-    if self._options.verbosity >= 2:
+    if self._options.verbosity and self._options.verbosity >= 2:
       indent = ' ' * 2
       for l in text.splitlines():
+        if type(l) == bytes:
+          l = l.decode()
         print(indent + l)
 
   def _call_cmd(self, args):
@@ -306,7 +308,7 @@ if __name__ == "__main__":
   try:
     sys.exit(gen.main())
   except Exception:
-    if gen._options.verbosity < 2:
+    if not gen._options.verbosity or gen._options.verbosity < 2:
       print ('\nHint: You can raise verbosity (-vv) to see the output of '
              'failed commands.\n')
     raise

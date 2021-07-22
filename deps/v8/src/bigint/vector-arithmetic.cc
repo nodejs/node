@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bigint/bigint.h"
+#include "src/bigint/vector-arithmetic.h"
 
 namespace v8 {
 namespace bigint {

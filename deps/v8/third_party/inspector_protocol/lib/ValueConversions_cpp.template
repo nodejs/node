@@ -96,6 +96,10 @@ bool ProtocolTypeTraits<std::unique_ptr<DictionaryValue>>::Deserialize(
   std::unique_ptr<Value> res;
   if (!ProtocolTypeTraits<std::unique_ptr<Value>>::Deserialize(state, &res))
     return false;
+  if (res->type() != Value::TypeObject) {
+    state->RegisterError(Error::BINDINGS_DICTIONARY_VALUE_EXPECTED);
+    return false;
+  }
   *value = DictionaryValue::cast(std::move(res));
   return true;
 }

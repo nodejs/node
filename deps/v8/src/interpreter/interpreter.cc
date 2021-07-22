@@ -18,7 +18,6 @@
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/logging/counters-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
@@ -50,14 +49,13 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
-  template <typename LocalIsolate>
-  void CheckAndPrintBytecodeMismatch(LocalIsolate* isolate,
-                                     Handle<Script> script,
+  template <typename IsolateT>
+  void CheckAndPrintBytecodeMismatch(IsolateT* isolate, Handle<Script> script,
                                      Handle<BytecodeArray> bytecode);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                           LocalIsolate* isolate);
+                           IsolateT* isolate);
 
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
@@ -177,10 +175,9 @@ InterpreterCompilationJob::InterpreterCompilationJob(
                  eager_inner_literals) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileIgnition,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(parse_info()->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileIgnition,
+            RuntimeCallStats::kThreadSpecific);
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
@@ -203,10 +200,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 #ifdef DEBUG
-template <typename LocalIsolate>
+template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    LocalIsolate* isolate, Handle<Script> script,
-    Handle<BytecodeArray> bytecode) {
+    IsolateT* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
@@ -243,9 +239,8 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileIgnitionFinalization);
+  RCS_SCOPE(parse_info()->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
@@ -253,17 +248,16 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileBackgroundIgnitionFinalization);
+  RCS_SCOPE(parse_info()->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileBackgroundIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    Handle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(

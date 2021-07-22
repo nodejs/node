@@ -20,7 +20,8 @@ namespace compiler {
 
 Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
                                   ArgvMode argv_mode, bool builtin_exit_frame) {
-  if (save_doubles == kDontSaveFPRegs && argv_mode == kArgvOnStack) {
+  if (save_doubles == SaveFPRegsMode::kIgnore &&
+      argv_mode == ArgvMode::kStack) {
     DCHECK(result_size >= 1 && result_size <= 3);
     if (!builtin_exit_frame) {
       Node** ptr = nullptr;

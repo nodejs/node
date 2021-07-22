@@ -12,7 +12,7 @@
 #include "src/base/memory.h"
 #include "src/handles/handles.h"
 #include "src/utils/boxed-float.h"
-#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/value-type.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -67,11 +67,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs('return_call_invalid_sig');
 
   // We want to crash if we call through the table with index 0.
-  builder.addElementSegment(placeholder, 0, false,
+  builder.addActiveElementSegment(placeholder, WasmInitExpr.I32Const(0),
     [f_unreachable, f_unreachable, f_unreachable]);
-  builder.addElementSegment(table1, 0, false, [f1, f2, f3]);
+  builder.addActiveElementSegment(table1, WasmInitExpr.I32Const(0),
+                                  [f1, f2, f3]);
   // Keep one slot in table2 uninitialized. We should trap if we call it.
-  builder.addElementSegment(table2, 1, false,
+  builder.addActiveElementSegment(table2, WasmInitExpr.I32Const(1),
     [f_unreachable, f_unreachable, f4, f5]);
 
   const instance = builder.instantiate();
@@ -126,7 +127,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       kExprCallIndirect, sig_index, t1])
     .exportAs('call');
 
-  builder.addElementSegment(t1, g, true, [f1.index]);
+  builder.addActiveElementSegment(t1, WasmInitExpr.GlobalGet(g), [f1.index]);
   const base1 = 3;
   const base2 = 5;
 
@@ -162,14 +163,16 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let div = builder.addImport("q", "js_div", kSig_i_ii);
   builder.addImportedTable("q", "placeholder", kTableSize, kTableSize);
-  let table_index = builder.addImportedTable("q", "table", kTableSize, kTableSize);
+  let table_index = builder.addImportedTable("q", "table", kTableSize,
+                                             kTableSize);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
 
   let sig_index = builder.addType(kSig_i_ii);
   builder.addFunction("placeholder", sig_index)
     .addBody([kExprLocalGet, 0]);
 
-  builder.addElementSegment(table_index, g, true, [div]);
+  builder.addActiveElementSegment(table_index, WasmInitExpr.GlobalGet(g),
+                                  [div]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 55,  // --

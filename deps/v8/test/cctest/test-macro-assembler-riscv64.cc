@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 
-#include <iostream>  // NOLINT(readability/streams)
+#include <iostream>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -1548,6 +1548,21 @@ TEST(DeoptExitSizeIsFixed) {
                    : Deoptimizer::kNonLazyDeoptExitSize);
     }
   }
+}
+
+TEST(AddWithImm) {
+  CcTest::InitializeVM();
+#define Test(Op, Input, Expected)                                       \
+  {                                                                     \
+    auto fn = [](MacroAssembler& masm) { __ Op(a0, zero_reg, Input); }; \
+    CHECK_EQ(static_cast<int64_t>(Expected), GenAndRunTest(fn));        \
+  }
+
+  Test(Add64, 4095, 4095);
+  Test(Add32, 4095, 4095);
+  Test(Sub64, 4095, -4095);
+  Test(Sub32, 4095, -4095);
+#undef Test
 }
 
 #undef __

@@ -7,7 +7,9 @@
 
 #include "include/v8.h"
 #include "src/api/api-inl.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
@@ -251,6 +253,7 @@ TEST(FinalizeTracingIsNoopWhenNotMarking) {
 }
 
 TEST(FinalizeTracingWhenMarking) {
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -709,6 +712,7 @@ TEST(TracedGlobalSetFinalizationCallbackMarkSweep) {
 
 TEST(TracePrologueCallingIntoV8WriteBarrier) {
   // Regression test: https://crbug.com/940003
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -959,7 +963,10 @@ V8_NOINLINE void TracedReferenceNotifyEmptyStackTest(
   v8::Global<v8::Object> observer;
   CreateTracedReferenceInDeepStack(isolate, &observer);
   CHECK(!observer.IsEmpty());
-  tracer->NotifyEmptyEmbedderStack();
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->heap()
+      ->local_embedder_heap_tracer()
+      ->NotifyEmptyEmbedderStack();
   heap::InvokeMarkSweep();
   CHECK(observer.IsEmpty());
 }

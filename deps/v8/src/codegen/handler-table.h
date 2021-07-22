@@ -97,8 +97,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
   int NumberOfReturnEntries() const;
 
 #ifdef ENABLE_DISASSEMBLER
-  void HandlerTableRangePrint(std::ostream& os);   // NOLINT
-  void HandlerTableReturnPrint(std::ostream& os);  // NOLINT
+  void HandlerTableRangePrint(std::ostream& os);
+  void HandlerTableReturnPrint(std::ostream& os);
 #endif
 
  private:

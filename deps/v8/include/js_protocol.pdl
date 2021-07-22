@@ -267,7 +267,7 @@ domain Debugger
       BreakpointId breakpointId
 
   # Restarts particular call frame from the beginning.
-  command restartFrame
+  deprecated command restartFrame
     parameters
       # Call frame identifier to evaluate on.
       CallFrameId callFrameId
@@ -707,6 +707,8 @@ experimental domain HeapProfiler
       # when the tracking is stopped.
       optional boolean reportProgress
       optional boolean treatGlobalObjectsAsRoots
+      # If true, numerical values are included in the snapshot
+      optional boolean captureNumericValue
 
   command takeHeapSnapshot
     parameters
@@ -714,6 +716,8 @@ experimental domain HeapProfiler
       optional boolean reportProgress
       # If true, a raw snapshot without artifical roots will be generated
       optional boolean treatGlobalObjectsAsRoots
+      # If true, numerical values are included in the snapshot
+      optional boolean captureNumericValue
 
   event addHeapSnapshotChunk
     parameters
@@ -1563,7 +1567,10 @@ domain Runtime
       # execution context. If omitted and `executionContextName` is not set,
       # the binding is exposed to all execution contexts of the target.
       # This parameter is mutually exclusive with `executionContextName`.
-      optional ExecutionContextId executionContextId
+      # Deprecated in favor of `executionContextName` due to an unclear use case
+      # and bugs in implementation (crbug.com/1169639). `executionContextId` will be
+      # removed in the future.
+      deprecated optional ExecutionContextId executionContextId
       # If specified, the binding is exposed to the executionContext with
       # matching name, even for contexts created after the binding is added.
       # See also `ExecutionContext.name` and `worldName` parameter to

@@ -295,16 +295,6 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
-MaybeHandle<Code> CompilationCacheTable::LookupCode(
-    Handle<SharedFunctionInfo> key) {
-  Isolate* isolate = GetIsolate();
-  DisallowGarbageCollection no_gc;
-  CodeKey k(key);
-  InternalIndex entry = FindEntry(isolate, &k);
-  if (entry.is_not_found()) return {};
-  return Handle<Code>(Code::cast(get(EntryToIndex(entry) + 1)), isolate);
-}
-
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     LanguageMode language_mode, Handle<SharedFunctionInfo> value,
@@ -368,30 +358,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custom IsMatch function during lookups.
   cache->set(EntryToIndex(entry), *value);
-  cache->set(EntryToIndex(entry) + 1, *value);
-  cache->ElementAdded();
-  return cache;
-}
-
-Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
-    Isolate* isolate, Handle<CompilationCacheTable> cache,
-    Handle<SharedFunctionInfo> key, Handle<Code> value) {
-  CodeKey k(key);
-
-  {
-    InternalIndex entry = cache->FindEntry(isolate, &k);
-    if (entry.is_found()) {
-      // Update.
-      cache->set(EntryToIndex(entry), *key);
-      cache->set(EntryToIndex(entry) + 1, *value);
-      return cache;
-    }
-  }
-
-  // Insert.
-  cache = EnsureCapacity(isolate, cache);
-  InternalIndex entry = cache->FindInsertionEntry(isolate, k.Hash());
-  cache->set(EntryToIndex(entry), *key);
   cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;

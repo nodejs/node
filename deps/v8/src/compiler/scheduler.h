@@ -103,9 +103,10 @@ class V8_EXPORT_PRIVATE Scheduler {
   void UpdatePlacement(Node* node, Placement placement);
   bool IsLive(Node* node);
 
-  inline bool IsCoupledControlEdge(Node* node, int index);
-  void IncrementUnscheduledUseCount(Node* node, int index, Node* from);
-  void DecrementUnscheduledUseCount(Node* node, int index, Node* from);
+  // If the node is coupled, returns the coupled control edge index.
+  inline base::Optional<int> GetCoupledControlEdge(Node* node);
+  void IncrementUnscheduledUseCount(Node* node, Node* from);
+  void DecrementUnscheduledUseCount(Node* node, Node* from);
 
   static void PropagateImmediateDominators(BasicBlock* block);
 

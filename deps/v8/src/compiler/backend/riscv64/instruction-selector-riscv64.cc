@@ -459,6 +459,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -533,6 +534,7 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -1214,7 +1216,9 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
     // Generate sign-extending load.
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     InstructionCode opcode = kArchNop;
@@ -1242,7 +1246,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
-  if (node->opcode() == IrOpcode::kLoad) {
+  if (node->opcode() == IrOpcode::kLoad ||
+      node->opcode() == IrOpcode::kLoadImmutable) {
     LoadRepresentation load_rep = LoadRepresentationOf(node->op());
     if (load_rep.IsUnsigned()) {
       switch (load_rep.representation()) {
@@ -1598,6 +1603,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1651,6 +1657,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1878,8 +1885,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
 void EmitWordCompareZero(InstructionSelector* selector, Node* value,
                          FlagsContinuation* cont) {
   RiscvOperandGenerator g(selector);
-  selector->EmitWithContinuation(kRiscvCmp, g.UseRegister(value),
-                                 g.TempImmediate(0), cont);
+  selector->EmitWithContinuation(kRiscvCmpZero, g.UseRegister(value), cont);
 }
 
 void VisitAtomicLoad(InstructionSelector* selector, Node* node,
@@ -2654,7 +2660,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4AllTrue, kRiscvI32x4AllTrue)                       \
   V(I16x8AllTrue, kRiscvI16x8AllTrue)                       \
   V(I8x16AllTrue, kRiscvI8x16AllTrue)                       \
-  V(I64x2AllTrue, kRiscvI64x2AllTrue)                       \
+  V(I64x2AllTrue, kRiscvI64x2AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -3014,6 +3020,12 @@ VISIT_EXT_MUL(I32x4, I16x8U)
 VISIT_EXT_MUL(I16x8, I8x16S)
 VISIT_EXT_MUL(I16x8, I8x16U)
 #undef VISIT_EXT_MUL
+
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
 
 // static
 MachineOperatorBuilder::Flags

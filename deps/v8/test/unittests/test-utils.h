@@ -239,7 +239,7 @@ class V8_NODISCARD SaveFlags {
 
  private:
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
-#include "src/flags/flag-definitions.h"  // NOLINT
+#include "src/flags/flag-definitions.h"
 #undef FLAG_MODE_APPLY
 };
 

@@ -45,9 +45,28 @@ builtin NumberToString(implicit context: Context)(input: Number): String {
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )
-builtin ToBoolean(implicit context: Context)(input: JSAny): Boolean {
+builtin ToBoolean(input: JSAny): Boolean {
   BranchIfToBooleanIsTrue(input) otherwise return TrueConstant(),
       return FalseConstant();
+}
+
+struct ToBooleanForBaselineJumpResult {
+  value: JSAny;
+  is_to_boolean: Smi;
+}
+// ToBoolean for baseline code jumps, which
+//   a) returns the original value as the first return value, to avoid needing
+//      to save it in the caller, and
+//   b) returns the true/false value as a Smi, to make the baseline-side
+//      comparison cheaper.
+builtin ToBooleanForBaselineJump(input: JSAny): ToBooleanForBaselineJumpResult {
+  try {
+    BranchIfToBooleanIsTrue(input) otherwise IsTrue, IsFalse;
+  } label IsTrue {
+    return ToBooleanForBaselineJumpResult{value: input, is_to_boolean: 1};
+  } label IsFalse {
+    return ToBooleanForBaselineJumpResult{value: input, is_to_boolean: 0};
+  }
 }
 
 transitioning builtin ToLength(implicit context: Context)(input: JSAny):

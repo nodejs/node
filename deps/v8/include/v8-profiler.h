@@ -492,7 +492,7 @@ class V8_EXPORT HeapGraphNode {
 /**
  * An interface for exporting data from V8, using "push" model.
  */
-class V8_EXPORT OutputStream {  // NOLINT
+class V8_EXPORT OutputStream {
  public:
   enum WriteResult {
     kContinue = 0,
@@ -518,7 +518,6 @@ class V8_EXPORT OutputStream {  // NOLINT
     return kAbort;
   }
 };
-
 
 /**
  * HeapSnapshots record the state of the JS heap at some moment.
@@ -586,7 +585,7 @@ class V8_EXPORT HeapSnapshot {
  * An interface for reporting progress and controlling long-running
  * activities.
  */
-class V8_EXPORT ActivityControl {  // NOLINT
+class V8_EXPORT ActivityControl {
  public:
   enum ControlOption {
     kContinue = 0,
@@ -599,7 +598,6 @@ class V8_EXPORT ActivityControl {  // NOLINT
    */
   virtual ControlOption ReportProgressValue(int done, int total) = 0;
 };
-
 
 /**
  * AllocationProfile is a sampled profile of allocations done by the program.
@@ -901,6 +899,15 @@ class V8_EXPORT HeapProfiler {
       ActivityControl* control = nullptr,
       ObjectNameResolver* global_object_name_resolver = nullptr,
       bool treat_global_objects_as_roots = true);
+
+  /**
+   * Takes a heap snapshot and returns it.
+   */
+  const HeapSnapshot* TakeHeapSnapshotV8_92(
+      ActivityControl* control = nullptr,
+      ObjectNameResolver* global_object_name_resolver = nullptr,
+      bool treat_global_objects_as_roots = true,
+      bool capture_numeric_value = false);
 
   /**
    * Starts tracking of heap objects population statistics. After calling

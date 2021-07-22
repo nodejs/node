@@ -21,6 +21,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -1071,8 +1072,9 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
           CompilationSubject(closure, broker_->isolate(), zone()))),
       arguments_(zone()) {
   closure_hints_.AddConstant(closure, zone(), broker_);
-  JSFunctionRef(broker, closure).Serialize();
-  JSFunctionRef(broker, closure).SerializeCodeAndFeedback();
+  JSFunctionRef closure_ref = MakeRef(broker, closure);
+  closure_ref.Serialize();
+  closure_ref.SerializeCodeAndFeedback();
 
   TRACE_BROKER(broker_, "Hints for <closure>: " << closure_hints_);
   TRACE_BROKER(broker_, "Initial environment:\n" << *environment_);
@@ -1099,8 +1101,9 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
     closure_hints_.AddConstant(closure, zone(), broker);
-    JSFunctionRef(broker, closure).Serialize();
-    JSFunctionRef(broker, closure).SerializeCodeAndFeedback();
+    JSFunctionRef closure_ref = MakeRef(broker, closure);
+    closure_ref.Serialize();
+    closure_ref.SerializeCodeAndFeedback();
   } else {
     closure_hints_.AddVirtualClosure(function.virtual_closure(), zone(),
                                      broker);
@@ -1145,8 +1148,8 @@ Hints SerializerForBackgroundCompilation::Run() {
 
   TRACE_BROKER_MEMORY(broker(), "[serializer start] Broker zone usage: "
                                     << broker()->zone()->allocation_size());
-  SharedFunctionInfoRef shared(broker(), function().shared());
-  FeedbackVectorRef feedback_vector_ref(broker(), feedback_vector());
+  SharedFunctionInfoRef shared = MakeRef(broker(), function().shared());
+  FeedbackVectorRef feedback_vector_ref = MakeRef(broker(), feedback_vector());
   if (!broker()->ShouldBeSerializedForCompilation(shared, feedback_vector_ref,
                                                   arguments_)) {
     TRACE_BROKER(broker(),
@@ -1342,7 +1345,7 @@ void SerializerForBackgroundCompilation::VisitGetIterator(
   FeedbackSlot call_slot = iterator->GetSlotOperand(2);
 
   Handle<Name> name = broker()->isolate()->factory()->iterator_symbol();
-  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), load_slot,
+  ProcessNamedPropertyAccess(receiver, MakeRef(broker(), name), load_slot,
                              AccessMode::kLoad);
   if (environment()->IsDead()) return;
 
@@ -1360,10 +1363,10 @@ void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
   for (auto constant : environment()->accumulator_hints().constants()) {
     // For JSNativeContextSpecialization::ReduceJSGetSuperConstructor.
     if (!constant->IsJSFunction()) continue;
-    MapRef map(broker(),
-               handle(HeapObject::cast(*constant).map(), broker()->isolate()));
+    MapRef map = MakeRef(broker(), handle(HeapObject::cast(*constant).map(),
+                                          broker()->isolate()));
     map.SerializePrototype();
-    ObjectRef proto = map.prototype();
+    ObjectRef proto = map.prototype().value();
     if (proto.IsHeapObject() && proto.AsHeapObject().map().is_constructor()) {
       result_hints.AddConstant(proto.object(), zone(), broker());
     }
@@ -1373,8 +1376,9 @@ void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
 
 void SerializerForBackgroundCompilation::VisitGetTemplateObject(
     BytecodeArrayIterator* iterator) {
-  TemplateObjectDescriptionRef description(
-      broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  MakeRef(broker(),
+          Handle<TemplateObjectDescription>::cast(
+              iterator->GetConstantForIndexOperand(0, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
 
@@ -1511,12 +1515,12 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     case Runtime::kInlineGetImportMetaObject: {
       Hints const& context_hints = environment()->current_context_hints();
       for (auto x : context_hints.constants()) {
-        ContextRef(broker(), x)
+        MakeRef(broker(), Handle<Context>::cast(x))
             .GetModule(SerializationPolicy::kSerializeIfNeeded)
             .Serialize();
       }
       for (auto x : context_hints.virtual_contexts()) {
-        ContextRef(broker(), x.context)
+        MakeRef(broker(), Handle<Context>::cast(x.context))
             .GetModule(SerializationPolicy::kSerializeIfNeeded)
             .Serialize();
       }
@@ -1535,7 +1539,7 @@ void SerializerForBackgroundCompilation::VisitLdaConstant(
       iterator->GetConstantForIndexOperand(0, broker()->isolate());
   // TODO(v8:7790): FixedArrays still need to be serialized until they are
   // moved to kNeverSerialized.
-  if (!FLAG_turbo_direct_heap_access || constant->IsFixedArray()) {
+  if (!broker()->is_concurrent_inlining() || constant->IsFixedArray()) {
     ObjectRef(broker(), constant);
   }
   environment()->accumulator_hints() = Hints::SingleConstant(constant, zone());
@@ -1579,7 +1583,7 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
   for (auto x : context_hints.constants()) {
     if (x->IsContext()) {
       // Walk this context to the given depth and serialize the slot found.
-      ContextRef context_ref(broker(), x);
+      ContextRef context_ref = MakeRef(broker(), Handle<Context>::cast(x));
       size_t remaining_depth = depth;
       context_ref = context_ref.previous(
           &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
@@ -1590,7 +1594,8 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
   }
   for (auto x : context_hints.virtual_contexts()) {
     if (x.distance <= static_cast<unsigned int>(depth)) {
-      ContextRef context_ref(broker(), x.context);
+      ContextRef context_ref =
+          MakeRef(broker(), Handle<Context>::cast(x.context));
       size_t remaining_depth = depth - x.distance;
       context_ref = context_ref.previous(
           &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
@@ -1722,7 +1727,7 @@ void SerializerForBackgroundCompilation::VisitCreateRegExpLiteral(
     BytecodeArrayIterator* iterator) {
   Handle<String> constant_pattern = Handle<String>::cast(
       iterator->GetConstantForIndexOperand(0, broker()->isolate()));
-  StringRef description(broker(), constant_pattern);
+  MakeRef(broker(), constant_pattern);
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
   broker()->ProcessFeedbackForRegExpLiteral(source);
@@ -1734,8 +1739,7 @@ void SerializerForBackgroundCompilation::VisitCreateArrayLiteral(
   Handle<ArrayBoilerplateDescription> array_boilerplate_description =
       Handle<ArrayBoilerplateDescription>::cast(
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
-  ArrayBoilerplateDescriptionRef description(broker(),
-                                             array_boilerplate_description);
+  MakeRef(broker(), array_boilerplate_description);
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
   broker()->ProcessFeedbackForArrayOrObjectLiteral(source);
@@ -1755,7 +1759,7 @@ void SerializerForBackgroundCompilation::VisitCreateObjectLiteral(
   Handle<ObjectBoilerplateDescription> constant_properties =
       Handle<ObjectBoilerplateDescription>::cast(
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
-  ObjectBoilerplateDescriptionRef description(broker(), constant_properties);
+  MakeRef(broker(), constant_properties);
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
   broker()->ProcessFeedbackForArrayOrObjectLiteral(source);
@@ -1804,7 +1808,7 @@ void SerializerForBackgroundCompilation::ProcessCreateContext(
   Handle<ScopeInfo> scope_info =
       Handle<ScopeInfo>::cast(iterator->GetConstantForIndexOperand(
           scopeinfo_operand_index, broker()->isolate()));
-  ScopeInfoRef scope_info_ref(broker(), scope_info);
+  ScopeInfoRef scope_info_ref = MakeRef(broker(), scope_info);
   scope_info_ref.SerializeScopeInfoChain();
 
   Hints const& current_context_hints = environment()->current_context_hints();
@@ -1836,9 +1840,9 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
       iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   Handle<FeedbackCell> feedback_cell =
       feedback_vector()->GetClosureFeedbackCell(iterator->GetIndexOperand(1));
-  FeedbackCellRef feedback_cell_ref(broker(), feedback_cell);
+  MakeRef(broker(), feedback_cell);
   Handle<Object> cell_value(feedback_cell->value(), broker()->isolate());
-  ObjectRef cell_value_ref(broker(), cell_value);
+  MakeRef(broker(), cell_value);
 
   Hints result_hints;
   if (cell_value->IsFeedbackVector()) {
@@ -2109,8 +2113,8 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   const HintsVector* actual_arguments = &arguments;
   HintsVector expanded_arguments(zone());
   if (callee->IsJSBoundFunction()) {
-    JSBoundFunctionRef bound_function(broker(),
-                                      Handle<JSBoundFunction>::cast(callee));
+    JSBoundFunctionRef bound_function =
+        MakeRef(broker(), Handle<JSBoundFunction>::cast(callee));
     if (!bound_function.Serialize()) return;
     callee = UnrollBoundFunction(bound_function, broker(), arguments,
                                  &expanded_arguments, zone())
@@ -2119,7 +2123,7 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   }
   if (!callee->IsJSFunction()) return;
 
-  JSFunctionRef function(broker(), Handle<JSFunction>::cast(callee));
+  JSFunctionRef function = MakeRef(broker(), Handle<JSFunction>::cast(callee));
   function.Serialize();
   Callee new_callee(function.object());
   ProcessCalleeForCallOrConstruct(new_callee, new_target, *actual_arguments,
@@ -2266,13 +2270,13 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
         Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
     ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
   }
-  FunctionTemplateInfoRef target_template_info(
-      broker(),
-      broker()->CanonicalPersistentHandle(target->function_data(kAcquireLoad)));
+  FunctionTemplateInfoRef target_template_info =
+      MakeRef(broker(),
+              FunctionTemplateInfo::cast(target->function_data(kAcquireLoad)));
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
 
-  SharedFunctionInfoRef target_ref(broker(), target);
+  SharedFunctionInfoRef target_ref = MakeRef(broker(), target);
   target_ref.SerializeFunctionTemplateInfo();
 
   if (target_template_info.accept_any_receiver() &&
@@ -2308,7 +2312,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
 void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
     FunctionTemplateInfoRef target, Handle<Map> receiver) {
   if (!receiver->is_access_check_needed()) {
-    MapRef receiver_map(broker(), receiver);
+    MapRef receiver_map = MakeRef(broker(), receiver);
     TRACE_BROKER(broker(), "Serializing holder for target: " << target);
     target.LookupHolderOfExpectedType(receiver_map,
                                       SerializationPolicy::kSerializeIfNeeded);
@@ -2356,10 +2360,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         if (arguments.size() >= 1) {
           ProcessMapHintsForPromises(arguments[0]);
         }
-        SharedFunctionInfoRef(
+        MakeRef(
             broker(),
             broker()->isolate()->factory()->promise_catch_finally_shared_fun());
-        SharedFunctionInfoRef(
+        MakeRef(
             broker(),
             broker()->isolate()->factory()->promise_then_finally_shared_fun());
       }
@@ -2496,16 +2500,14 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               kMissingArgumentsAreUnknown, result_hints);
         }
       }
-      SharedFunctionInfoRef(
-          broker(), broker()
-                        ->isolate()
-                        ->factory()
-                        ->promise_capability_default_reject_shared_fun());
-      SharedFunctionInfoRef(
-          broker(), broker()
-                        ->isolate()
-                        ->factory()
-                        ->promise_capability_default_resolve_shared_fun());
+      MakeRef(broker(), broker()
+                            ->isolate()
+                            ->factory()
+                            ->promise_capability_default_reject_shared_fun());
+      MakeRef(broker(), broker()
+                            ->isolate()
+                            ->factory()
+                            ->promise_capability_default_resolve_shared_fun());
 
       break;
     case Builtins::kFunctionPrototypeCall:
@@ -2529,7 +2531,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       if (arguments.size() >= 2) {
         for (auto constant : arguments[1].constants()) {
           if (constant->IsJSFunction()) {
-            JSFunctionRef(broker(), constant).Serialize();
+            MakeRef(broker(), Handle<JSFunction>::cast(constant)).Serialize();
           }
         }
       }
@@ -2596,7 +2598,8 @@ void SerializerForBackgroundCompilation::ProcessHintsForOrdinaryHasInstance(
     // For JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance.
     if (constructor->IsHeapObject()) {
       ProcessConstantForOrdinaryHasInstance(
-          HeapObjectRef(broker(), constructor), &walk_prototypes);
+          MakeRef(broker(), Handle<HeapObject>::cast(constructor)),
+          &walk_prototypes);
     }
   }
   // For JSNativeContextSpecialization::ReduceJSHasInPrototypeChain.
@@ -2606,10 +2609,10 @@ void SerializerForBackgroundCompilation::ProcessHintsForOrdinaryHasInstance(
 void SerializerForBackgroundCompilation::ProcessHintsForHasInPrototypeChain(
     Hints const& instance_hints) {
   auto processMap = [&](Handle<Map> map_handle) {
-    MapRef map(broker(), map_handle);
+    MapRef map = MakeRef(broker(), map_handle);
     while (map.IsJSObjectMap()) {
       map.SerializePrototype();
-      map = map.prototype().map();
+      map = map.prototype().value().map();
     }
   };
 
@@ -2627,8 +2630,8 @@ void SerializerForBackgroundCompilation::ProcessHintsForPromiseResolve(
     Hints const& resolution_hints) {
   auto processMap = [&](Handle<Map> map) {
     broker()->GetPropertyAccessInfo(
-        MapRef(broker(), map),
-        NameRef(broker(), broker()->isolate()->factory()->then_string()),
+        MakeRef(broker(), map),
+        MakeRef(broker(), broker()->isolate()->factory()->then_string()),
         AccessMode::kLoad, dependencies(),
         SerializationPolicy::kSerializeIfNeeded);
   };
@@ -2650,25 +2653,25 @@ void SerializerForBackgroundCompilation::ProcessMapHintsForPromises(
     if (!constant->IsJSPromise()) continue;
     Handle<Map> map(Handle<HeapObject>::cast(constant)->map(),
                     broker()->isolate());
-    MapRef(broker(), map).SerializePrototype();
+    MakeRef(broker(), map).SerializePrototype();
   }
   for (auto map : receiver_hints.maps()) {
     if (!map->IsJSPromiseMap()) continue;
-    MapRef(broker(), map).SerializePrototype();
+    MakeRef(broker(), map).SerializePrototype();
   }
 }
 
 PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
     MapRef map) {
   PropertyAccessInfo ai_exec = broker()->GetPropertyAccessInfo(
-      map, NameRef(broker(), broker()->isolate()->factory()->exec_string()),
+      map, MakeRef(broker(), broker()->isolate()->factory()->exec_string()),
       AccessMode::kLoad, dependencies(),
       SerializationPolicy::kSerializeIfNeeded);
 
   Handle<JSObject> holder;
   if (ai_exec.IsFastDataConstant() && ai_exec.holder().ToHandle(&holder)) {
     // The property is on the prototype chain.
-    JSObjectRef holder_ref(broker(), holder);
+    JSObjectRef holder_ref = MakeRef(broker(), holder);
     holder_ref.GetOwnFastDataProperty(ai_exec.field_representation(),
                                       ai_exec.field_index(),
                                       SerializationPolicy::kSerializeIfNeeded);
@@ -2680,14 +2683,14 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
     Hints const& regexp_hints) {
   for (auto hint : regexp_hints.constants()) {
     if (!hint->IsJSRegExp()) continue;
-    Handle<JSRegExp> regexp(Handle<JSRegExp>::cast(hint));
+    Handle<JSObject> regexp(Handle<JSObject>::cast(hint));
     Handle<Map> regexp_map(regexp->map(), broker()->isolate());
     PropertyAccessInfo ai_exec =
-        ProcessMapForRegExpTest(MapRef(broker(), regexp_map));
+        ProcessMapForRegExpTest(MakeRef(broker(), regexp_map));
     Handle<JSObject> holder;
     if (ai_exec.IsFastDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
       // The property is on the object itself.
-      JSObjectRef holder_ref(broker(), regexp);
+      JSObjectRef holder_ref = MakeRef(broker(), regexp);
       holder_ref.GetOwnFastDataProperty(
           ai_exec.field_representation(), ai_exec.field_index(),
           SerializationPolicy::kSerializeIfNeeded);
@@ -2696,7 +2699,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
 
   for (auto map : regexp_hints.maps()) {
     if (!map->IsJSRegExpMap()) continue;
-    ProcessMapForRegExpTest(MapRef(broker(), map));
+    ProcessMapForRegExpTest(MakeRef(broker(), map));
   }
 }
 
@@ -2718,14 +2721,15 @@ void SerializerForBackgroundCompilation::ProcessHintsForFunctionBind(
     Hints const& receiver_hints) {
   for (auto constant : receiver_hints.constants()) {
     if (!constant->IsJSFunction()) continue;
-    JSFunctionRef function(broker(), constant);
+    JSFunctionRef function =
+        MakeRef(broker(), Handle<JSFunction>::cast(constant));
     function.Serialize();
     ProcessMapForFunctionBind(function.map());
   }
 
   for (auto map : receiver_hints.maps()) {
     if (!map->IsJSFunctionMap()) continue;
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     ProcessMapForFunctionBind(map_ref);
   }
 }
@@ -2734,13 +2738,13 @@ void SerializerForBackgroundCompilation::ProcessHintsForObjectGetPrototype(
     Hints const& object_hints) {
   for (auto constant : object_hints.constants()) {
     if (!constant->IsHeapObject()) continue;
-    HeapObjectRef object(broker(), constant);
+    HeapObjectRef object =
+        MakeRef(broker(), Handle<HeapObject>::cast(constant));
     object.map().SerializePrototype();
   }
 
   for (auto map : object_hints.maps()) {
-    MapRef map_ref(broker(), map);
-    map_ref.SerializePrototype();
+    MakeRef(broker(), map).SerializePrototype();
   }
 }
 
@@ -2850,7 +2854,7 @@ void SerializerForBackgroundCompilation::ProcessGlobalAccess(FeedbackSlot slot,
 
 void SerializerForBackgroundCompilation::VisitLdaGlobal(
     BytecodeArrayIterator* iterator) {
-  NameRef(broker(),
+  MakeRef(broker(),
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   ProcessGlobalAccess(slot, true);
@@ -2863,15 +2867,15 @@ void SerializerForBackgroundCompilation::VisitLdaGlobalInsideTypeof(
 
 void SerializerForBackgroundCompilation::VisitLdaLookupSlot(
     BytecodeArrayIterator* iterator) {
-  ObjectRef(broker(),
-            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  MakeRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   environment()->accumulator_hints() = Hints();
 }
 
 void SerializerForBackgroundCompilation::VisitLdaLookupSlotInsideTypeof(
     BytecodeArrayIterator* iterator) {
-  ObjectRef(broker(),
-            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  MakeRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   environment()->accumulator_hints() = Hints();
 }
 
@@ -2883,7 +2887,7 @@ void SerializerForBackgroundCompilation::ProcessCheckContextExtensions(
     ProcessContextAccess(context_hints, Context::EXTENSION_INDEX, i,
                          kSerializeSlot);
   }
-  SharedFunctionInfoRef shared(broker(), function().shared());
+  SharedFunctionInfoRef shared = MakeRef(broker(), function().shared());
   shared.SerializeScopeInfoChain();
 }
 
@@ -2906,7 +2910,7 @@ void SerializerForBackgroundCompilation::VisitLdaLookupGlobalSlotInsideTypeof(
 
 void SerializerForBackgroundCompilation::VisitStaGlobal(
     BytecodeArrayIterator* iterator) {
-  NameRef(broker(),
+  MakeRef(broker(),
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   ProcessGlobalAccess(slot, false);
@@ -2916,7 +2920,7 @@ void SerializerForBackgroundCompilation::ProcessLdaLookupContextSlot(
     BytecodeArrayIterator* iterator) {
   const int slot_index = iterator->GetIndexOperand(1);
   const int depth = iterator->GetUnsignedImmediateOperand(2);
-  NameRef(broker(),
+  MakeRef(broker(),
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   ProcessCheckContextExtensions(depth);
   environment()->accumulator_hints() = Hints();
@@ -3016,7 +3020,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
        access_info.IsDictionaryProtoAccessorConstant()) &&
       !access_info.constant().is_null()) {
     if (access_info.constant()->IsJSFunction()) {
-      JSFunctionRef function(broker(), access_info.constant());
+      JSFunctionRef function =
+          MakeRef(broker(), Handle<JSFunction>::cast(access_info.constant()));
 
       if (receiver_map.has_value()) {
         // For JSCallReducer and JSInlining(Heuristic).
@@ -3033,9 +3038,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         // For JSCallReducer::ReduceCallApiFunction.
         Handle<SharedFunctionInfo> sfi = function.shared().object();
         if (sfi->IsApiFunction()) {
-          FunctionTemplateInfoRef fti_ref(
-              broker(),
-              broker()->CanonicalPersistentHandle(sfi->get_api_func_data()));
+          FunctionTemplateInfoRef fti_ref =
+              MakeRef(broker(), sfi->get_api_func_data());
           if (fti_ref.has_call_code()) {
             fti_ref.SerializeCallCode();
             ProcessReceiverMapForApiCall(fti_ref, receiver_map->object());
@@ -3043,19 +3047,19 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         }
       }
     } else if (access_info.constant()->IsJSBoundFunction()) {
-      JSBoundFunctionRef function(broker(), access_info.constant());
-
       // For JSCallReducer::ReduceJSCall.
+      JSBoundFunctionRef function = MakeRef(
+          broker(), Handle<JSBoundFunction>::cast(access_info.constant()));
       function.Serialize();
     } else {
-      FunctionTemplateInfoRef fti(broker(), broker()->CanonicalPersistentHandle(
-                                                access_info.constant()));
+      FunctionTemplateInfoRef fti = MakeRef(
+          broker(), FunctionTemplateInfo::cast(*access_info.constant()));
       if (fti.has_call_code()) fti.SerializeCallCode();
     }
   } else if (access_info.IsModuleExport()) {
     // For JSNativeContextSpecialization::BuildPropertyLoad
     DCHECK(!access_info.constant().is_null());
-    CellRef(broker(), access_info.constant());
+    MakeRef(broker(), Handle<Cell>::cast(access_info.constant()));
   }
 
   switch (access_mode) {
@@ -3067,7 +3071,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         base::Optional<JSObjectRef> holder;
         Handle<JSObject> prototype;
         if (access_info.holder().ToHandle(&prototype)) {
-          holder = JSObjectRef(broker(), prototype);
+          holder = MakeRef(broker(), prototype);
         } else {
           CHECK_IMPLIES(concrete_receiver.has_value(),
                         concrete_receiver->map().equals(*receiver_map));
@@ -3095,7 +3099,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
         Handle<Map> transition_map;
         if (access_info.transition_map().ToHandle(&transition_map)) {
-          MapRef map_ref(broker(), transition_map);
+          MapRef map_ref = MakeRef(broker(), transition_map);
           TRACE_BROKER(broker(), "Propagating transition map "
                                      << map_ref << " to receiver hints.");
           receiver->AddMap(transition_map, zone(), broker_, false);
@@ -3225,7 +3229,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
     Hints* receiver, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Hints* result_hints) {
   for (Handle<Map> map : feedback.maps()) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     TRACE_BROKER(broker(), "Propagating feedback map "
                                << map_ref << " to receiver hints.");
     receiver->AddMap(map, zone(), broker_, false);
@@ -3233,7 +3237,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
 
   for (Handle<Map> map :
        GetRelevantReceiverMaps(broker()->isolate(), receiver->maps())) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     ProcessMapForNamedPropertyAccess(receiver, map_ref, map_ref,
                                      feedback.name(), access_mode,
                                      base::nullopt, result_hints);
@@ -3249,7 +3253,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
     }
     // For JSNativeContextSpecialization::ReduceJSLoadNamed.
     if (access_mode == AccessMode::kLoad && object.IsJSFunction() &&
-        feedback.name().equals(ObjectRef(
+        feedback.name().equals(MakeRef(
             broker(), broker()->isolate()->factory()->prototype_string()))) {
       JSFunctionRef function = object.AsJSFunction();
       function.Serialize();
@@ -3269,9 +3273,9 @@ void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
   MapHandles receiver_maps =
       GetRelevantReceiverMaps(broker()->isolate(), receiver->maps());
   for (Handle<Map> receiver_map : receiver_maps) {
-    MapRef receiver_map_ref(broker(), receiver_map);
+    MapRef receiver_map_ref = MakeRef(broker(), receiver_map);
     for (Handle<Map> feedback_map : feedback.maps()) {
-      MapRef feedback_map_ref(broker(), feedback_map);
+      MapRef feedback_map_ref = MakeRef(broker(), feedback_map);
       ProcessMapForNamedPropertyAccess(
           receiver, receiver_map_ref, feedback_map_ref, feedback.name(),
           access_mode, base::nullopt, result_hints);
@@ -3279,7 +3283,7 @@ void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
   }
   if (receiver_maps.empty()) {
     for (Handle<Map> feedback_map : feedback.maps()) {
-      MapRef feedback_map_ref(broker(), feedback_map);
+      MapRef feedback_map_ref = MakeRef(broker(), feedback_map);
       ProcessMapForNamedPropertyAccess(
           receiver, base::nullopt, feedback_map_ref, feedback.name(),
           access_mode, base::nullopt, result_hints);
@@ -3292,7 +3296,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
     ElementAccessFeedback const& feedback, AccessMode access_mode) {
   for (auto const& group : feedback.transition_groups()) {
     for (Handle<Map> map_handle : group) {
-      MapRef map(broker(), map_handle);
+      MapRef map = MakeRef(broker(), map_handle);
       switch (access_mode) {
         case AccessMode::kHas:
         case AccessMode::kLoad:
@@ -3352,7 +3356,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
 
   // For JSNativeContextSpecialization::InferRootMap
   for (Handle<Map> map : receiver.maps()) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     map_ref.SerializeRootMap();
   }
 }
@@ -3360,8 +3364,9 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
 void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
     BytecodeArrayIterator* iterator) {
   Hints* receiver = &register_hints(iterator->GetRegisterOperand(0));
-  NameRef name(broker(),
-               iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  NameRef name =
+      MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
+                            1, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedPropertyAccess(receiver, name, slot, AccessMode::kLoad);
 }
@@ -3369,8 +3374,9 @@ void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
 void SerializerForBackgroundCompilation::VisitLdaNamedPropertyFromSuper(
     BytecodeArrayIterator* iterator) {
   Hints* receiver = &register_hints(iterator->GetRegisterOperand(0));
-  NameRef name(broker(),
-               iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  NameRef name =
+      MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
+                            1, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedSuperPropertyAccess(receiver, name, slot, AccessMode::kLoad);
 }
@@ -3379,30 +3385,32 @@ void SerializerForBackgroundCompilation::VisitLdaNamedPropertyFromSuper(
 // bytecodes.
 void SerializerForBackgroundCompilation::VisitLdaNamedPropertyNoFeedback(
     BytecodeArrayIterator* iterator) {
-  NameRef(broker(),
-          iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
+                        1, broker()->isolate())));
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedProperty(
     BytecodeArrayIterator* iterator) {
   Hints* receiver = &register_hints(iterator->GetRegisterOperand(0));
-  NameRef name(broker(),
-               iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  NameRef name =
+      MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
+                            1, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedPropertyAccess(receiver, name, slot, AccessMode::kStore);
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedPropertyNoFeedback(
     BytecodeArrayIterator* iterator) {
-  NameRef(broker(),
+  MakeRef(broker(),
           iterator->GetConstantForIndexOperand(1, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedOwnProperty(
     BytecodeArrayIterator* iterator) {
   Hints* receiver = &register_hints(iterator->GetRegisterOperand(0));
-  NameRef name(broker(),
-               iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  NameRef name =
+      MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
+                            1, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedPropertyAccess(receiver, name, slot, AccessMode::kStoreInLiteral);
 }
@@ -3440,7 +3448,7 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
 
   PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
       constructor_heap_object.map(),
-      NameRef(broker(), broker()->isolate()->factory()->has_instance_symbol()),
+      MakeRef(broker(), broker()->isolate()->factory()->has_instance_symbol()),
       AccessMode::kLoad, dependencies(),
       SerializationPolicy::kSerializeIfNeeded);
 
@@ -3450,8 +3458,8 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
   } else if (access_info.IsFastDataConstant()) {
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
-    JSObjectRef holder_ref = found_on_proto ? JSObjectRef(broker(), holder)
-                                            : constructor.AsJSObject();
+    JSObjectRef holder_ref =
+        found_on_proto ? MakeRef(broker(), holder) : constructor.AsJSObject();
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
         access_info.field_representation(), access_info.field_index(),
         SerializationPolicy::kSerializeIfNeeded);

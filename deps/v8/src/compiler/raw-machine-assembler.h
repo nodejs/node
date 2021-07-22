@@ -15,6 +15,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
@@ -147,10 +148,38 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     Node* load = AddNode(op, base, index);
     return load;
   }
+  Node* LoadImmutable(MachineType type, Node* base) {
+    return LoadImmutable(type, base, IntPtrConstant(0));
+  }
+  Node* LoadImmutable(MachineType type, Node* base, Node* index) {
+    const Operator* op = machine()->LoadImmutable(type);
+    return AddNode(op, base, index);
+  }
+  bool IsMapOffsetConstant(Node* node) {
+    Int64Matcher m(node);
+    if (m.Is(HeapObject::kMapOffset)) return true;
+    // Test if `node` is a `Phi(Int64Constant(0))`
+    if (node->opcode() == IrOpcode::kPhi) {
+      for (Node* input : node->inputs()) {
+        if (!Int64Matcher(input).Is(HeapObject::kMapOffset)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+  bool IsMapOffsetConstantMinusTag(Node* node) {
+    Int64Matcher m(node);
+    return m.Is(HeapObject::kMapOffset - kHeapObjectTag);
+  }
+  bool IsMapOffsetConstantMinusTag(int offset) {
+    return offset == HeapObject::kMapOffset - kHeapObjectTag;
+  }
   Node* LoadFromObject(
       MachineType type, Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
+    DCHECK_IMPLIES(V8_MAP_PACKING_BOOL && IsMapOffsetConstantMinusTag(offset),
+                   type == MachineType::MapInHeader());
     ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
     Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
     return load;
@@ -169,18 +198,22 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                      Node* value, WriteBarrierKind write_barrier) {
     ObjectAccess access = {MachineType::TypeForRepresentation(rep),
                            write_barrier};
+    DCHECK(!IsMapOffsetConstantMinusTag(offset));
     AddNode(simplified()->StoreToObject(access), object, offset, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
+    DCHECK(!IsMapOffsetConstantMinusTag(offset));
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
                 MachineType::TypeForRepresentation(rep), write_barrier)),
             object, value);
   }
-  void OptimizedStoreMap(Node* object, Node* value) {
-    AddNode(simplified()->StoreField(AccessBuilder::ForMap()), object, value);
+  void OptimizedStoreMap(Node* object, Node* value,
+                         WriteBarrierKind write_barrier = kMapWriteBarrier) {
+    AddNode(simplified()->StoreField(AccessBuilder::ForMap(write_barrier)),
+            object, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
@@ -245,6 +278,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
+    DCHECK(!IsMapOffsetConstantMinusTag(index));
     DCHECK_NE(rep, MachineRepresentation::kWord64);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
@@ -547,6 +581,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Word32Ctz(Node* a) { return AddNode(machine()->Word32Ctz().op(), a); }
   Node* Word64Ctz(Node* a) { return AddNode(machine()->Word64Ctz().op(), a); }
+
+  Node* Word32Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word32Select().op(), condition, b, c);
+  }
+
+  Node* Word64Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word64Select().op(), condition, b, c);
+  }
+
   Node* StackPointerGreaterThan(Node* value) {
     return AddNode(
         machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),

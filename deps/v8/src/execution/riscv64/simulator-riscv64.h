@@ -706,6 +706,7 @@ class Simulator : public SimulatorBase {
   char* last_debugger_input_;
 
   v8::internal::Isolate* isolate_;
+  v8::internal::Builtins builtins_;
 
   // Stop is disabled if bit 31 is set.
   static const uint32_t kStopDisabledBit = 1 << 31;

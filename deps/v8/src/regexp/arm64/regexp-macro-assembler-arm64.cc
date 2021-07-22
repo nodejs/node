@@ -395,7 +395,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
       __ Sub(current_input_offset().X(), current_input_offset().X(),
              Operand(capture_length, SXTW));
     }
-    if (masm_->emit_debug_code()) {
+    if (FLAG_debug_code) {
       __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
       __ Ccmp(current_input_offset(), 0, NoFlag, eq);
       // The current input offset should be <= 0, and fit in a W register.
@@ -528,7 +528,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(int start_reg,
            Operand(capture_length, SXTW));
   }
 
-  if (masm_->emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
     __ Ccmp(current_input_offset(), 0, NoFlag, eq);
     // The current input offset should be <= 0, and fit in a W register.
@@ -817,7 +817,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
   // Find negative length (offset of start relative to end).
   __ Sub(x10, input_start(), input_end());
-  if (masm_->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Check that the size of the input string chars is in range.
     __ Neg(x11, x10);
     __ Cmp(x11, SeqTwoByteString::kMaxCharsSize);
@@ -882,7 +882,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
       // Get string length.
       __ Sub(x10, input_end(), input_start());
-      if (masm_->emit_debug_code()) {
+      if (FLAG_debug_code) {
         // Check that the size of the input string chars is in range.
         __ Cmp(x10, SeqTwoByteString::kMaxCharsSize);
         __ Check(ls, AbortReason::kInputStringTooLong);
@@ -1167,7 +1167,7 @@ void RegExpMacroAssemblerARM64::PushBacktrack(Label* label) {
   } else {
     __ Adr(x10, label, MacroAssembler::kAdrFar);
     __ Sub(x10, x10, code_pointer());
-    if (masm_->emit_debug_code()) {
+    if (FLAG_debug_code) {
       __ Cmp(x10, kWRegMask);
       // The code offset has to fit in a W register.
       __ Check(ls, AbortReason::kOffsetOutOfRange);
@@ -1322,7 +1322,7 @@ void RegExpMacroAssemblerARM64::ClearRegisters(int reg_from, int reg_to) {
 void RegExpMacroAssemblerARM64::WriteStackPointerToRegister(int reg) {
   __ Ldr(x10, MemOperand(frame_pointer(), kStackBase));
   __ Sub(x10, backtrack_stackpointer(), x10);
-  if (masm_->emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Cmp(x10, Operand(w10, SXTW));
     // The stack offset needs to fit in a W register.
     __ Check(eq, AbortReason::kOffsetOutOfRange);
@@ -1629,7 +1629,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 
   if (cp_offset != 0) {
-    if (masm_->emit_debug_code()) {
+    if (FLAG_debug_code) {
       __ Mov(x10, cp_offset * char_size());
       __ Add(x10, x10, Operand(current_input_offset(), SXTW));
       __ Cmp(x10, Operand(w10, SXTW));

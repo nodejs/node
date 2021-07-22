@@ -71,14 +71,15 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=10958
+  'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=8771
   'language/computed-property-names/class/static/method-number': [FAIL],
   'language/computed-property-names/class/static/method-string': [FAIL],
   'language/computed-property-names/class/static/method-symbol': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
@@ -573,11 +574,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/chromium/issues/detail?id=1159764
-  'built-ins/Array/prototype/at/*': [FAIL],
-  'built-ins/String/prototype/at/*': [FAIL],
-  'built-ins/TypedArray/prototype/at/*': [FAIL],
-
   # http://crbug/v8/11530
   'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
 
@@ -589,6 +585,12 @@
 
   # http://crbug/v8/11533
   'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11689
+  'built-ins/BigInt/wrapper-object-ordinary-toprimitive': [FAIL],
+
+   # https://bugs.chromium.org/p/v8/issues/detail?id=11690
+  'language/module-code/export-expname-binding-index': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

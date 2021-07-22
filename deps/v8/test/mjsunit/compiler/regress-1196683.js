@@ -14,7 +14,7 @@
   assertEquals(-(2**31) + 1, foo());
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(-(2**31) + 1, foo());
-});
+})();
 
 
 // The remaining tests already passed without the bugfix.

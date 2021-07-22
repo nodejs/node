@@ -147,20 +147,17 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // the argument into a JavaScript string.
 void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
-    args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8Literal(args.GetIsolate(), "Bad parameters"));
+    args.GetIsolate()->ThrowError("Bad parameters");
     return;
   }
   v8::String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == NULL) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   v8::Local<v8::String> source;
   if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
 
@@ -175,19 +172,16 @@ void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::HandleScope handle_scope(args.GetIsolate());
     v8::String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == NULL) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     v8::Local<v8::String> source;
     if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     if (!ExecuteString(args.GetIsolate(), source, args[i], false, false)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error executing file"));
+      args.GetIsolate()->ThrowError("Error executing file");
       return;
     }
   }

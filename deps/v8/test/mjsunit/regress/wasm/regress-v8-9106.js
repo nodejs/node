@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-bulk-memory
-
 // Make sure DCHECK doesn't fire when passive data segment is at the end of the
 // module.
 let bytes = new Uint8Array([

@@ -42,7 +42,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 // The ArmDebugger class is used by the simulator while debugging simulated ARM
 // code.
@@ -50,6 +50,7 @@ class ArmDebugger {
  public:
   explicit ArmDebugger(Simulator* sim) : sim_(sim) {}
   void Debug();
+  bool ExecDebugCommand(ArrayUniquePtr<char> line_ptr);
 
  private:
   static const Instr kBreakpointInstr =
@@ -191,6 +192,31 @@ void ArmDebugger::Debug() {
   intptr_t last_pc = -1;
   bool done = false;
 
+  // Unset breakpoint while running in the debugger shell, making it invisible
+  // to all commands.
+  UndoBreakpoint();
+
+  while (!done && !sim_->has_bad_pc()) {
+    if (last_pc != sim_->get_pc()) {
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      // use a reasonably large buffer
+      v8::internal::EmbeddedVector<char, 256> buffer;
+      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
+      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.begin());
+      last_pc = sim_->get_pc();
+    }
+    ArrayUniquePtr<char> line(ReadLine("sim> "));
+
+    done = ExecDebugCommand(std::move(line));
+  }
+
+  // Reinstall breakpoint to stop execution and enter the debugger shell when
+  // hit.
+  RedoBreakpoint();
+}
+
+bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
 #define COMMAND_SIZE 63
 #define ARG_SIZE 255
 
@@ -207,352 +233,357 @@ void ArmDebugger::Debug() {
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
 
-  // Unset breakpoint while running in the debugger shell, making it invisible
-  // to all commands.
-  UndoBreakpoint();
+  if (line_ptr == nullptr) return true;
 
-  while (!done && !sim_->has_bad_pc()) {
-    if (last_pc != sim_->get_pc()) {
-      disasm::NameConverter converter;
-      disasm::Disassembler dasm(converter);
-      // use a reasonably large buffer
-      v8::internal::EmbeddedVector<char, 256> buffer;
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.begin());
-      last_pc = sim_->get_pc();
-    }
-    char* line = ReadLine("sim> ");
-    if (line == nullptr) {
-      break;
-    } else {
-      char* last_input = sim_->last_debugger_input();
-      if (strcmp(line, "\n") == 0 && last_input != nullptr) {
-        line = last_input;
-      } else {
-        // Ownership is transferred to sim_;
-        sim_->set_last_debugger_input(line);
-      }
-      // Use sscanf to parse the individual parts of the command line. At the
-      // moment no command expects more than two parameters.
-      int argc = SScanF(line,
-                        "%" XSTR(COMMAND_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s",
-                        cmd, arg1, arg2);
-      if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
-        sim_->InstructionDecode(reinterpret_cast<Instruction*>(sim_->get_pc()));
-      } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
-        // Execute the one instruction we broke at with breakpoints disabled.
-        sim_->InstructionDecode(reinterpret_cast<Instruction*>(sim_->get_pc()));
-        // Leave the debugger shell.
-        done = true;
-      } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
-        if (argc == 2 || (argc == 3 && strcmp(arg2, "fp") == 0)) {
-          int32_t value;
-          float svalue;
-          double dvalue;
-          if (strcmp(arg1, "all") == 0) {
-            for (int i = 0; i < kNumRegisters; i++) {
-              value = GetRegisterValue(i);
-              PrintF("%3s: 0x%08x %10d", RegisterName(Register::from_code(i)),
-                     value, value);
-              if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
-                  (i % 2) == 0) {
-                dvalue = GetRegisterPairDoubleValue(i);
-                PrintF(" (%f)\n", dvalue);
-              } else {
-                PrintF("\n");
-              }
-            }
-            for (int i = 0; i < DwVfpRegister::SupportedRegisterCount(); i++) {
-              dvalue = GetVFPDoubleRegisterValue(i);
-              uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n", VFPRegisters::Name(i, true),
-                     dvalue, static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
-            }
-          } else {
-            if (GetValue(arg1, &value)) {
-              PrintF("%s: 0x%08x %d \n", arg1, value, value);
-            } else if (GetVFPSingleValue(arg1, &svalue)) {
-              uint32_t as_word = bit_cast<uint32_t>(svalue);
-              PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
-            } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-              uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
-                     static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
-            } else {
-              PrintF("%s unrecognized\n", arg1);
-            }
-          }
-        } else {
-          PrintF("print <register>\n");
-        }
-      } else if ((strcmp(cmd, "po") == 0) ||
-                 (strcmp(cmd, "printobject") == 0)) {
-        if (argc == 2) {
-          int32_t value;
-          StdoutStream os;
-          if (GetValue(arg1, &value)) {
-            Object obj(value);
-            os << arg1 << ": \n";
-#ifdef DEBUG
-            obj.Print(os);
-            os << "\n";
-#else
-            os << Brief(obj) << "\n";
-#endif
-          } else {
-            os << arg1 << " unrecognized\n";
-          }
-        } else {
-          PrintF("printobject <value>\n");
-        }
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
-                 strcmp(cmd, "dump") == 0) {
-        int32_t* cur = nullptr;
-        int32_t* end = nullptr;
-        int next_arg = 1;
-
-        if (strcmp(cmd, "stack") == 0) {
-          cur = reinterpret_cast<int32_t*>(sim_->get_register(Simulator::sp));
-        } else {  // "mem"
-          int32_t value;
-          if (!GetValue(arg1, &value)) {
-            PrintF("%s unrecognized\n", arg1);
-            continue;
-          }
-          cur = reinterpret_cast<int32_t*>(value);
-          next_arg++;
-        }
-
-        int32_t words;
-        if (argc == next_arg) {
-          words = 10;
-        } else {
-          if (!GetValue(argv[next_arg], &words)) {
-            words = 10;
-          }
-        }
-        end = cur + words;
-
-        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
-        while (cur < end) {
-          PrintF("  0x%08" V8PRIxPTR ":  0x%08x %10d",
-                 reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          Object obj(*cur);
-          Heap* current_heap = sim_->isolate_->heap();
-          if (!skip_obj_print) {
-            if (obj.IsSmi() ||
-                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-              PrintF(" (");
-              if (obj.IsSmi()) {
-                PrintF("smi %d", Smi::ToInt(obj));
-              } else {
-                obj.ShortPrint();
-              }
-              PrintF(")");
-            }
-          }
-          PrintF("\n");
-          cur++;
-        }
-      } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
-        disasm::NameConverter converter;
-        disasm::Disassembler dasm(converter);
-        // use a reasonably large buffer
-        v8::internal::EmbeddedVector<char, 256> buffer;
-
-        byte* prev = nullptr;
-        byte* cur = nullptr;
-        byte* end = nullptr;
-
-        if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * kInstrSize);
-        } else if (argc == 2) {
-          int regnum = Registers::Number(arg1);
-          if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
-            // The argument is an address or a register name.
-            int32_t value;
-            if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(value);
-              // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * kInstrSize);
-            }
-          } else {
-            // The argument is the number of instructions.
-            int32_t value;
-            if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(sim_->get_pc());
-              // Disassemble <arg1> instructions.
-              end = cur + (value * kInstrSize);
-            }
-          }
-        } else {
-          int32_t value1;
-          int32_t value2;
-          if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * kInstrSize);
-          }
-        }
-
-        while (cur < end) {
-          prev = cur;
-          cur += dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.begin());
-        }
-      } else if (strcmp(cmd, "gdb") == 0) {
-        PrintF("relinquishing control to gdb\n");
-        v8::base::OS::DebugBreak();
-        PrintF("regaining control from gdb\n");
-      } else if (strcmp(cmd, "break") == 0) {
-        if (argc == 2) {
-          int32_t value;
-          if (GetValue(arg1, &value)) {
-            if (!SetBreakpoint(reinterpret_cast<Instruction*>(value))) {
-              PrintF("setting breakpoint failed\n");
-            }
-          } else {
-            PrintF("%s unrecognized\n", arg1);
-          }
-        } else {
-          PrintF("break <address>\n");
-        }
-      } else if (strcmp(cmd, "del") == 0) {
-        DeleteBreakpoint();
-      } else if (strcmp(cmd, "flags") == 0) {
-        PrintF("N flag: %d; ", sim_->n_flag_);
-        PrintF("Z flag: %d; ", sim_->z_flag_);
-        PrintF("C flag: %d; ", sim_->c_flag_);
-        PrintF("V flag: %d\n", sim_->v_flag_);
-        PrintF("INVALID OP flag: %d; ", sim_->inv_op_vfp_flag_);
-        PrintF("DIV BY ZERO flag: %d; ", sim_->div_zero_vfp_flag_);
-        PrintF("OVERFLOW flag: %d; ", sim_->overflow_vfp_flag_);
-        PrintF("UNDERFLOW flag: %d; ", sim_->underflow_vfp_flag_);
-        PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
-      } else if (strcmp(cmd, "stop") == 0) {
-        int32_t value;
-        intptr_t stop_pc = sim_->get_pc() - kInstrSize;
-        Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
-        if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
-          // Remove the current stop.
-          if (stop_instr->IsStop()) {
-            SetInstructionBitsInCodeSpace(stop_instr, kNopInstr,
-                                          sim_->isolate_->heap());
-          } else {
-            PrintF("Not at debugger stop.\n");
-          }
-        } else if (argc == 3) {
-          // Print information about all/the specified breakpoint(s).
-          if (strcmp(arg1, "info") == 0) {
-            if (strcmp(arg2, "all") == 0) {
-              PrintF("Stop information:\n");
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
-                sim_->PrintStopInfo(i);
-              }
-            } else if (GetValue(arg2, &value)) {
-              sim_->PrintStopInfo(value);
-            } else {
-              PrintF("Unrecognized argument.\n");
-            }
-          } else if (strcmp(arg1, "enable") == 0) {
-            // Enable all/the specified breakpoint(s).
-            if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
-                sim_->EnableStop(i);
-              }
-            } else if (GetValue(arg2, &value)) {
-              sim_->EnableStop(value);
-            } else {
-              PrintF("Unrecognized argument.\n");
-            }
-          } else if (strcmp(arg1, "disable") == 0) {
-            // Disable all/the specified breakpoint(s).
-            if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
-                sim_->DisableStop(i);
-              }
-            } else if (GetValue(arg2, &value)) {
-              sim_->DisableStop(value);
-            } else {
-              PrintF("Unrecognized argument.\n");
-            }
-          }
-        } else {
-          PrintF("Wrong usage. Use help command for more information.\n");
-        }
-      } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
-        ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
-        PrintF("Trace of executed instructions is %s\n",
-               ::v8::internal::FLAG_trace_sim ? "on" : "off");
-      } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
-        PrintF("cont\n");
-        PrintF("  continue execution (alias 'c')\n");
-        PrintF("stepi\n");
-        PrintF("  step one instruction (alias 'si')\n");
-        PrintF("print <register>\n");
-        PrintF("  print register content (alias 'p')\n");
-        PrintF("  use register name 'all' to print all registers\n");
-        PrintF("  add argument 'fp' to print register pair double values\n");
-        PrintF("printobject <register>\n");
-        PrintF("  print an object from a register (alias 'po')\n");
-        PrintF("flags\n");
-        PrintF("  print flags\n");
-        PrintF("stack [<words>]\n");
-        PrintF("  dump stack content, default dump 10 words)\n");
-        PrintF("mem <address> [<words>]\n");
-        PrintF("  dump memory content, default dump 10 words)\n");
-        PrintF("dump [<words>]\n");
-        PrintF(
-            "  dump memory content without pretty printing JS objects, default "
-            "dump 10 words)\n");
-        PrintF("disasm [<instructions>]\n");
-        PrintF("disasm [<address/register>]\n");
-        PrintF("disasm [[<address/register>] <instructions>]\n");
-        PrintF("  disassemble code, default is 10 instructions\n");
-        PrintF("  from pc (alias 'di')\n");
-        PrintF("gdb\n");
-        PrintF("  enter gdb\n");
-        PrintF("break <address>\n");
-        PrintF("  set a break point on the address\n");
-        PrintF("del\n");
-        PrintF("  delete the breakpoint\n");
-        PrintF("trace (alias 't')\n");
-        PrintF("  toogle the tracing of all executed statements\n");
-        PrintF("stop feature:\n");
-        PrintF("  Description:\n");
-        PrintF("    Stops are debug instructions inserted by\n");
-        PrintF("    the Assembler::stop() function.\n");
-        PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and give control to the ArmDebugger.\n");
-        PrintF("    The first %d stop codes are watched:\n",
-               Simulator::kNumOfWatchedStops);
-        PrintF("    - They can be enabled / disabled: the Simulator\n");
-        PrintF("      will / won't stop when hitting them.\n");
-        PrintF("    - The Simulator keeps track of how many times they \n");
-        PrintF("      are met. (See the info command.) Going over a\n");
-        PrintF("      disabled stop still increases its counter. \n");
-        PrintF("  Commands:\n");
-        PrintF("    stop info all/<code> : print infos about number <code>\n");
-        PrintF("      or all stop(s).\n");
-        PrintF("    stop enable/disable all/<code> : enables / disables\n");
-        PrintF("      all or number <code> stop(s)\n");
-        PrintF("    stop unstop\n");
-        PrintF("      ignore the stop instruction at the current location\n");
-        PrintF("      from now on\n");
-      } else {
-        PrintF("Unknown command: %s\n", cmd);
-      }
-    }
+  // Repeat last command by default.
+  const char* line = line_ptr.get();
+  const char* last_input = sim_->last_debugger_input();
+  if (strcmp(line, "\n") == 0 && (last_input != nullptr)) {
+    line_ptr.reset();
+    line = last_input;
+  } else {
+    // Update the latest command ran
+    sim_->set_last_debugger_input(std::move(line_ptr));
   }
 
-  // Reinstall breakpoint to stop execution and enter the debugger shell when
-  // hit.
-  RedoBreakpoint();
+  // Use sscanf to parse the individual parts of the command line. At the
+  // moment no command expects more than two parameters.
+  int argc = SScanF(line,
+                      "%" XSTR(COMMAND_SIZE) "s "
+                      "%" XSTR(ARG_SIZE) "s "
+                      "%" XSTR(ARG_SIZE) "s",
+                      cmd, arg1, arg2);
+  if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
+    sim_->InstructionDecode(reinterpret_cast<Instruction*>(sim_->get_pc()));
+  } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
+    // Execute the one instruction we broke at with breakpoints disabled.
+    sim_->InstructionDecode(reinterpret_cast<Instruction*>(sim_->get_pc()));
+    // Leave the debugger shell.
+    return true;
+  } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
+    if (argc == 2 || (argc == 3 && strcmp(arg2, "fp") == 0)) {
+      int32_t value;
+      float svalue;
+      double dvalue;
+      if (strcmp(arg1, "all") == 0) {
+        for (int i = 0; i < kNumRegisters; i++) {
+          value = GetRegisterValue(i);
+          PrintF("%3s: 0x%08x %10d", RegisterName(Register::from_code(i)),
+                 value, value);
+          if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 && (i % 2) == 0) {
+            dvalue = GetRegisterPairDoubleValue(i);
+            PrintF(" (%f)\n", dvalue);
+          } else {
+            PrintF("\n");
+          }
+        }
+        for (int i = 0; i < DwVfpRegister::SupportedRegisterCount(); i++) {
+          dvalue = GetVFPDoubleRegisterValue(i);
+          uint64_t as_words = bit_cast<uint64_t>(dvalue);
+          PrintF("%3s: %f 0x%08x %08x\n", VFPRegisters::Name(i, true), dvalue,
+                 static_cast<uint32_t>(as_words >> 32),
+                 static_cast<uint32_t>(as_words & 0xFFFFFFFF));
+        }
+      } else {
+        if (GetValue(arg1, &value)) {
+          PrintF("%s: 0x%08x %d \n", arg1, value, value);
+        } else if (GetVFPSingleValue(arg1, &svalue)) {
+          uint32_t as_word = bit_cast<uint32_t>(svalue);
+          PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
+        } else if (GetVFPDoubleValue(arg1, &dvalue)) {
+          uint64_t as_words = bit_cast<uint64_t>(dvalue);
+          PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
+                 static_cast<uint32_t>(as_words >> 32),
+                 static_cast<uint32_t>(as_words & 0xFFFFFFFF));
+        } else {
+          PrintF("%s unrecognized\n", arg1);
+        }
+      }
+    } else {
+      PrintF("print <register>\n");
+    }
+  } else if ((strcmp(cmd, "po") == 0) || (strcmp(cmd, "printobject") == 0)) {
+    if (argc == 2) {
+      int32_t value;
+      StdoutStream os;
+      if (GetValue(arg1, &value)) {
+        Object obj(value);
+        os << arg1 << ": \n";
+#ifdef DEBUG
+        obj.Print(os);
+        os << "\n";
+#else
+        os << Brief(obj) << "\n";
+#endif
+      } else {
+        os << arg1 << " unrecognized\n";
+      }
+    } else {
+      PrintF("printobject <value>\n");
+    }
+  } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+             strcmp(cmd, "dump") == 0) {
+    int32_t* cur = nullptr;
+    int32_t* end = nullptr;
+    int next_arg = 1;
+
+    if (strcmp(cmd, "stack") == 0) {
+      cur = reinterpret_cast<int32_t*>(sim_->get_register(Simulator::sp));
+    } else {  // "mem"
+      int32_t value;
+      if (!GetValue(arg1, &value)) {
+        PrintF("%s unrecognized\n", arg1);
+        return false;
+      }
+      cur = reinterpret_cast<int32_t*>(value);
+      next_arg++;
+    }
+
+    int32_t words;
+    if (argc == next_arg) {
+      words = 10;
+    } else {
+      if (!GetValue(argv[next_arg], &words)) {
+        words = 10;
+      }
+    }
+    end = cur + words;
+
+    bool skip_obj_print = (strcmp(cmd, "dump") == 0);
+    while (cur < end) {
+      PrintF("  0x%08" V8PRIxPTR ":  0x%08x %10d",
+             reinterpret_cast<intptr_t>(cur), *cur, *cur);
+      Object obj(*cur);
+      Heap* current_heap = sim_->isolate_->heap();
+      if (!skip_obj_print) {
+        if (obj.IsSmi() ||
+            IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+          PrintF(" (");
+          if (obj.IsSmi()) {
+            PrintF("smi %d", Smi::ToInt(obj));
+          } else {
+            obj.ShortPrint();
+          }
+          PrintF(")");
+        }
+      }
+      PrintF("\n");
+      cur++;
+    }
+  } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
+
+    byte* prev = nullptr;
+    byte* cur = nullptr;
+    byte* end = nullptr;
+
+    if (argc == 1) {
+      cur = reinterpret_cast<byte*>(sim_->get_pc());
+      end = cur + (10 * kInstrSize);
+    } else if (argc == 2) {
+      int regnum = Registers::Number(arg1);
+      if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
+        // The argument is an address or a register name.
+        int32_t value;
+        if (GetValue(arg1, &value)) {
+          cur = reinterpret_cast<byte*>(value);
+          // Disassemble 10 instructions at <arg1>.
+          end = cur + (10 * kInstrSize);
+        }
+      } else {
+        // The argument is the number of instructions.
+        int32_t value;
+        if (GetValue(arg1, &value)) {
+          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          // Disassemble <arg1> instructions.
+          end = cur + (value * kInstrSize);
+        }
+      }
+    } else {
+      int32_t value1;
+      int32_t value2;
+      if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
+        cur = reinterpret_cast<byte*>(value1);
+        end = cur + (value2 * kInstrSize);
+      }
+    }
+
+    while (cur < end) {
+      prev = cur;
+      cur += dasm.InstructionDecode(buffer, cur);
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
+             buffer.begin());
+    }
+  } else if (strcmp(cmd, "gdb") == 0) {
+    PrintF("relinquishing control to gdb\n");
+    v8::base::OS::DebugBreak();
+    PrintF("regaining control from gdb\n");
+  } else if (strcmp(cmd, "break") == 0) {
+    if (argc == 2) {
+      int32_t value;
+      if (GetValue(arg1, &value)) {
+        if (!SetBreakpoint(reinterpret_cast<Instruction*>(value))) {
+          PrintF("setting breakpoint failed\n");
+        }
+      } else {
+        PrintF("%s unrecognized\n", arg1);
+      }
+    } else {
+      PrintF("break <address>\n");
+    }
+  } else if (strcmp(cmd, "backtrace") == 0 || strcmp(cmd, "bt") == 0) {
+    int32_t pc = sim_->get_pc();
+    int32_t lr = sim_->get_register(Simulator::lr);
+    int32_t sp = sim_->get_register(Simulator::sp);
+    int32_t fp = sim_->get_register(Simulator::fp);
+
+    int i = 0;
+    while (true) {
+      PrintF("#%d: 0x%08x (sp=0x%08x, fp=0x%08x)\n", i, pc, sp, fp);
+      pc = lr;
+      sp = fp;
+      if (pc == Simulator::end_sim_pc) {
+        break;
+      }
+      lr = *(reinterpret_cast<int32_t*>(fp) + 1);
+      fp = *reinterpret_cast<int32_t*>(fp);
+      i++;
+      if (i > 100) {
+        PrintF("Too many frames\n");
+        break;
+      }
+    }
+  } else if (strcmp(cmd, "del") == 0) {
+    DeleteBreakpoint();
+  } else if (strcmp(cmd, "flags") == 0) {
+    PrintF("N flag: %d; ", sim_->n_flag_);
+    PrintF("Z flag: %d; ", sim_->z_flag_);
+    PrintF("C flag: %d; ", sim_->c_flag_);
+    PrintF("V flag: %d\n", sim_->v_flag_);
+    PrintF("INVALID OP flag: %d; ", sim_->inv_op_vfp_flag_);
+    PrintF("DIV BY ZERO flag: %d; ", sim_->div_zero_vfp_flag_);
+    PrintF("OVERFLOW flag: %d; ", sim_->overflow_vfp_flag_);
+    PrintF("UNDERFLOW flag: %d; ", sim_->underflow_vfp_flag_);
+    PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
+  } else if (strcmp(cmd, "stop") == 0) {
+    int32_t value;
+    intptr_t stop_pc = sim_->get_pc() - kInstrSize;
+    Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
+    if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
+      // Remove the current stop.
+      if (stop_instr->IsStop()) {
+        SetInstructionBitsInCodeSpace(stop_instr, kNopInstr,
+                                      sim_->isolate_->heap());
+      } else {
+        PrintF("Not at debugger stop.\n");
+      }
+    } else if (argc == 3) {
+      // Print information about all/the specified breakpoint(s).
+      if (strcmp(arg1, "info") == 0) {
+        if (strcmp(arg2, "all") == 0) {
+          PrintF("Stop information:\n");
+          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+            sim_->PrintStopInfo(i);
+          }
+        } else if (GetValue(arg2, &value)) {
+          sim_->PrintStopInfo(value);
+        } else {
+          PrintF("Unrecognized argument.\n");
+        }
+      } else if (strcmp(arg1, "enable") == 0) {
+        // Enable all/the specified breakpoint(s).
+        if (strcmp(arg2, "all") == 0) {
+          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+            sim_->EnableStop(i);
+          }
+        } else if (GetValue(arg2, &value)) {
+          sim_->EnableStop(value);
+        } else {
+          PrintF("Unrecognized argument.\n");
+        }
+      } else if (strcmp(arg1, "disable") == 0) {
+        // Disable all/the specified breakpoint(s).
+        if (strcmp(arg2, "all") == 0) {
+          for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+            sim_->DisableStop(i);
+          }
+        } else if (GetValue(arg2, &value)) {
+          sim_->DisableStop(value);
+        } else {
+          PrintF("Unrecognized argument.\n");
+        }
+      }
+    } else {
+      PrintF("Wrong usage. Use help command for more information.\n");
+    }
+  } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
+    ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
+    PrintF("Trace of executed instructions is %s\n",
+           ::v8::internal::FLAG_trace_sim ? "on" : "off");
+  } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
+    PrintF("cont\n");
+    PrintF("  continue execution (alias 'c')\n");
+    PrintF("stepi\n");
+    PrintF("  step one instruction (alias 'si')\n");
+    PrintF("print <register>\n");
+    PrintF("  print register content (alias 'p')\n");
+    PrintF("  use register name 'all' to print all registers\n");
+    PrintF("  add argument 'fp' to print register pair double values\n");
+    PrintF("printobject <register>\n");
+    PrintF("  print an object from a register (alias 'po')\n");
+    PrintF("flags\n");
+    PrintF("  print flags\n");
+    PrintF("stack [<words>]\n");
+    PrintF("  dump stack content, default dump 10 words)\n");
+    PrintF("mem <address> [<words>]\n");
+    PrintF("  dump memory content, default dump 10 words)\n");
+    PrintF("dump [<words>]\n");
+    PrintF(
+        "  dump memory content without pretty printing JS objects, default "
+        "dump 10 words)\n");
+    PrintF("disasm [<instructions>]\n");
+    PrintF("disasm [<address/register>]\n");
+    PrintF("disasm [[<address/register>] <instructions>]\n");
+    PrintF("  disassemble code, default is 10 instructions\n");
+    PrintF("  from pc (alias 'di')\n");
+    PrintF("gdb\n");
+    PrintF("  enter gdb\n");
+    PrintF("break <address>\n");
+    PrintF("  set a break point on the address\n");
+    PrintF("backtrace / bt\n");
+    PrintF("  Walk the frame pointers, dumping the pc/sp/fp for each frame.\n");
+    PrintF("del\n");
+    PrintF("  delete the breakpoint\n");
+    PrintF("trace (alias 't')\n");
+    PrintF("  toogle the tracing of all executed statements\n");
+    PrintF("stop feature:\n");
+    PrintF("  Description:\n");
+    PrintF("    Stops are debug instructions inserted by\n");
+    PrintF("    the Assembler::stop() function.\n");
+    PrintF("    When hitting a stop, the Simulator will\n");
+    PrintF("    stop and give control to the ArmDebugger.\n");
+    PrintF("    The first %d stop codes are watched:\n",
+           Simulator::kNumOfWatchedStops);
+    PrintF("    - They can be enabled / disabled: the Simulator\n");
+    PrintF("      will / won't stop when hitting them.\n");
+    PrintF("    - The Simulator keeps track of how many times they \n");
+    PrintF("      are met. (See the info command.) Going over a\n");
+    PrintF("      disabled stop still increases its counter. \n");
+    PrintF("  Commands:\n");
+    PrintF("    stop info all/<code> : print infos about number <code>\n");
+    PrintF("      or all stop(s).\n");
+    PrintF("    stop enable/disable all/<code> : enables / disables\n");
+    PrintF("      all or number <code> stop(s)\n");
+    PrintF("    stop unstop\n");
+    PrintF("      ignore the stop instruction at the current location\n");
+    PrintF("      from now on\n");
+  } else {
+    PrintF("Unknown command: %s\n", cmd);
+  }
+  return false;
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -575,11 +606,6 @@ static bool AllOnOnePage(uintptr_t start, int size) {
   intptr_t start_page = (start & ~CachePage::kPageMask);
   intptr_t end_page = ((start + size) & ~CachePage::kPageMask);
   return start_page == end_page;
-}
-
-void Simulator::set_last_debugger_input(char* input) {
-  DeleteArray(last_debugger_input_);
-  last_debugger_input_ = input;
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
@@ -6498,5 +6524,27 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 
 }  // namespace internal
 }  // namespace v8
+
+//
+// The following functions are used by our gdb macros.
+//
+V8_EXPORT_PRIVATE extern bool _v8_internal_Simulator_ExecDebugCommand(
+    const char* command) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate) {
+    fprintf(stderr, "No V8 Isolate found\n");
+    return false;
+  }
+  i::Simulator* simulator = i::Simulator::current(isolate);
+  if (!simulator) {
+    fprintf(stderr, "No Arm simulator found\n");
+    return false;
+  }
+  // Copy the command so that the simulator can take ownership of it.
+  size_t len = strlen(command);
+  i::ArrayUniquePtr<char> command_copy(i::NewArray<char>(len + 1));
+  i::MemCopy(command_copy.get(), command, len + 1);
+  return i::ArmDebugger(simulator).ExecDebugCommand(std::move(command_copy));
+}
 
 #endif  // USE_SIMULATOR

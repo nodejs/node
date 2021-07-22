@@ -24,6 +24,7 @@ InspectorTest.runAsyncTestSuite([
     const start_fn = builder.addFunction('start', kSig_v_v).addBody([kExprNop]);
     builder.addStart(start_fn.index);
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting instrumentation breakpoint');
     InspectorTest.logMessage(
@@ -40,6 +41,7 @@ InspectorTest.runAsyncTestSuite([
         'new WebAssembly.Instance(module)', 'instantiate2');
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   },
 
   // If we compile twice, we get two instrumentation breakpoints (which might or
@@ -49,6 +51,7 @@ InspectorTest.runAsyncTestSuite([
     const start_fn = builder.addFunction('start', kSig_v_v).addBody([kExprNop]);
     builder.addStart(start_fn.index);
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting instrumentation breakpoint');
     InspectorTest.logMessage(
@@ -61,6 +64,7 @@ InspectorTest.runAsyncTestSuite([
     await WasmInspectorTest.instantiate(builder.toArray());
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   },
 
   async function testBreakInExportedFunction() {
@@ -68,6 +72,7 @@ InspectorTest.runAsyncTestSuite([
     const func =
         builder.addFunction('func', kSig_v_v).addBody([kExprNop]).exportFunc();
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting instrumentation breakpoint');
     InspectorTest.logMessage(
@@ -84,6 +89,7 @@ InspectorTest.runAsyncTestSuite([
     await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   },
 
   async function testBreakOnlyWithSourceMap() {
@@ -94,6 +100,7 @@ InspectorTest.runAsyncTestSuite([
     builder.addCustomSection('sourceMappingURL', [3, 97, 98, 99]);
     const bytes_with_source_map = builder.toArray();
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log(
         'Setting instrumentation breakpoint for source maps only');
@@ -114,6 +121,7 @@ InspectorTest.runAsyncTestSuite([
     await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   },
 
 ]);

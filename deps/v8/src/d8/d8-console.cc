@@ -19,7 +19,7 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
     Local<Value> arg = args[i];
     Local<String> str_obj;
 
-    if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Description();
+    if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Description(isolate);
     if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) return;
 
     v8::String::Utf8Value str(isolate, str_obj);
@@ -43,8 +43,7 @@ void D8Console::Assert(const debug::ConsoleCallArguments& args,
   // false-ish.
   if (args.Length() > 0 && args[0]->BooleanValue(isolate_)) return;
   WriteToFile("console.assert", stdout, isolate_, args);
-  isolate_->ThrowException(v8::Exception::Error(
-      v8::String::NewFromUtf8Literal(isolate_, "console.assert failed")));
+  isolate_->ThrowError("console.assert failed");
 }
 
 void D8Console::Log(const debug::ConsoleCallArguments& args,

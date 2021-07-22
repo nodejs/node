@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_SAFEPOINT_TABLE_H_
 #define V8_CODEGEN_SAFEPOINT_TABLE_H_
 
+#include "src/base/iterator.h"
 #include "src/base/memory.h"
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
@@ -21,11 +22,14 @@ class WasmCode;
 
 class SafepointEntry {
  public:
-  SafepointEntry()
-      : deopt_index_(0), bits_(nullptr), trampoline_pc_(kNoTrampolinePC) {}
+  SafepointEntry() = default;
 
-  SafepointEntry(unsigned deopt_index, uint8_t* bits, int trampoline_pc)
-      : deopt_index_(deopt_index), bits_(bits), trampoline_pc_(trampoline_pc) {
+  SafepointEntry(unsigned deopt_index, uint8_t* bits, uint8_t* bits_end,
+                 int trampoline_pc)
+      : deopt_index_(deopt_index),
+        bits_(bits),
+        bits_end_(bits_end),
+        trampoline_pc_(trampoline_pc) {
     DCHECK(is_valid());
   }
 
@@ -38,6 +42,7 @@ class SafepointEntry {
   void Reset() {
     deopt_index_ = 0;
     bits_ = nullptr;
+    bits_end_ = nullptr;
   }
 
   int trampoline_pc() { return trampoline_pc_; }
@@ -67,16 +72,23 @@ class SafepointEntry {
     return deopt_index_ != kNoDeoptIndex;
   }
 
-  uint8_t* bits() {
+  uint8_t* bits() const {
     DCHECK(is_valid());
     return bits_;
   }
 
+  base::iterator_range<uint8_t*> iterate_bits() const {
+    return base::make_iterator_range(bits_, bits_end_);
+  }
+
+  size_t entry_size() const { return bits_end_ - bits_; }
+
  private:
-  uint32_t deopt_index_;
-  uint8_t* bits_;
+  uint32_t deopt_index_ = 0;
+  uint8_t* bits_ = nullptr;
+  uint8_t* bits_end_ = nullptr;
   // It needs to be an integer as it is -1 for eager deoptimizations.
-  int trampoline_pc_;
+  int trampoline_pc_ = kNoTrampolinePC;
 };
 
 class SafepointTable {
@@ -117,17 +129,17 @@ class SafepointTable {
     int trampoline_pc = has_deopt_
                             ? base::Memory<int>(GetTrampolineLocation(index))
                             : SafepointEntry::kNoTrampolinePC;
-    return SafepointEntry(deopt_index, bits, trampoline_pc);
+    return SafepointEntry(deopt_index, bits, bits + entry_size_, trampoline_pc);
   }
 
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(unsigned index, std::ostream& os) const;  // NOLINT
+  void PrintEntry(unsigned index, std::ostream& os) const;
 
  private:
   SafepointTable(Address instruction_start, Address safepoint_table_address,
-                 uint32_t stack_slots, bool has_deopt);
+                 bool has_deopt);
 
   static const uint8_t kNoRegisters = 0xFF;
 
@@ -165,12 +177,9 @@ class SafepointTable {
     return GetPcOffsetLocation(index) + kTrampolinePcOffset;
   }
 
-  static void PrintBits(std::ostream& os, uint8_t byte, int digits);
-
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   const Address instruction_start_;
-  const uint32_t stack_slots_;
   const bool has_deopt_;
 
   // Safepoint table layout.
@@ -253,6 +262,10 @@ class SafepointTableBuilder {
 
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
+
+  // Try to trim entries by removing trailing zeros (and shrinking
+  // {bits_per_entry}).
+  void TrimEntries(int* bits_per_entry);
 
   ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
 

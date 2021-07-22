@@ -41,6 +41,7 @@ InspectorTest.runAsyncTestSuite([
     for (const action of ['stepInto', 'stepOver', 'stepOut', 'resume'])
       InspectorTest.logProtocolCommandCalls('Debugger.' + action);
 
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     WasmInspectorTest.instantiate(module_bytes);
     const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);

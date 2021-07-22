@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Inputs are always arranged in order as follows:
   //     0 [ values, context, frame state, effects, control ] node->InputCount()
 
-  static int FirstValueIndex(Node* node) { return 0; }
+  static int FirstValueIndex(const Node* node) { return 0; }
   static int FirstContextIndex(Node* node) { return PastValueIndex(node); }
   static int FirstFrameStateIndex(Node* node) { return PastContextIndex(node); }
   static int FirstEffectIndex(Node* node) { return PastFrameStateIndex(node); }
@@ -60,6 +60,12 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Input accessors.
 
   static Node* GetValueInput(Node* node, int index) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->ValueInputCount());
+    return node->InputAt(FirstValueIndex(node) + index);
+  }
+
+  static const Node* GetValueInput(const Node* node, int index) {
     CHECK_LE(0, index);
     CHECK_LT(index, node->op()->ValueInputCount());
     return node->InputAt(FirstValueIndex(node) + index);
@@ -249,7 +255,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Type.
 
   static bool IsTyped(const Node* node) { return !node->type().IsInvalid(); }
-  static Type GetType(Node* node) {
+  static Type GetType(const Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }

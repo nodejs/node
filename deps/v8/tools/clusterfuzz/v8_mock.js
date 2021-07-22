@@ -99,7 +99,11 @@ Object.defineProperty(
 
 // Mock buffer access in float typed arrays because of varying NaN patterns.
 (function() {
+  const origArrayFrom = Array.from;
+  const origArrayIsArray = Array.isArray;
+  const origFunctionPrototype = Function.prototype;
   const origIsNaN = isNaN;
+  const origIterator = Symbol.iterator;
   const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
   const mock = function(type) {
 
@@ -117,17 +121,17 @@ Object.defineProperty(
       construct: function(target, args) {
         for (let i = 0; i < args.length; i++) {
           if (args[i] != null &&
-              typeof args[i][Symbol.iterator] === 'function') {
+              typeof args[i][origIterator] === 'function') {
             // Consume iterators.
-            args[i] = Array.from(args[i]);
+            args[i] = origArrayFrom(args[i]);
           }
-          if (Array.isArray(args[i])) {
+          if (origArrayIsArray(args[i])) {
             args[i] = args[i].map(deNaNify);
           }
         }
 
         const obj = new (
-            Function.prototype.bind.call(type, null, ...args));
+            origFunctionPrototype.bind.call(type, null, ...args));
         return new Proxy(obj, {
           get: function(x, prop) {
             if (typeof x[prop] == "function")

@@ -67,6 +67,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
+  V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                    \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
   V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
     PromiseAllResolveElementSharedFun)                                         \
@@ -157,6 +158,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)               \
+  V(mega_dom_symbol, mega_dom_symbol, MegaDOMSymbol)                         \
   V(message_string, message_string, MessageString)                           \
   V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)       \
   V(MinusZeroValue, minus_zero_value, MinusZero)                             \
@@ -1088,7 +1090,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             std::is_base_of<T, Map>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
+    const MachineType machine_type = offset == HeapObject::kMapOffset
+                                         ? MachineType::MapInHeader()
+                                         : MachineTypeOf<T>::value;
+    return CAST(LoadFromObject(machine_type, object,
+                               IntPtrConstant(offset - kHeapObjectTag)));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             !std::is_base_of<T, Map>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
     return CAST(LoadFromObject(MachineTypeOf<T>::value, object,
@@ -1163,6 +1177,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      TNode<Map> map = LoadMap(CAST(reference.object));
+      DCHECK((std::is_base_of<T, Map>::value));
+      return ReinterpretCast<T>(map);
+    }
+
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
@@ -1175,6 +1195,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     std::is_same<T, MaybeObject>::value,
                 int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     return UncheckedCast<T>(
@@ -1185,6 +1206,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              std::is_same<T, MaybeObject>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      DCHECK((std::is_base_of<T, Map>::value));
+      return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
+    }
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
     StoreToObjectWriteBarrier write_barrier = StoreToObjectWriteBarrier::kFull;
     if (std::is_same<T, Smi>::value) {
@@ -1201,6 +1226,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
@@ -2346,6 +2372,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSProxy or an object with interceptors.
   TNode<BoolT> InstanceTypeEqual(TNode<Int32T> instance_type, int type);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
+  TNode<BoolT> IsMegaDOMProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(TNode<HeapObject> object);
@@ -2395,6 +2422,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSObjectInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(TNode<Map> map);
   TNode<BoolT> IsJSObject(TNode<HeapObject> object);
+  TNode<BoolT> IsJSApiObjectInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSApiObjectMap(TNode<Map> map);
+  TNode<BoolT> IsJSApiObject(TNode<HeapObject> object);
   TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
   TNode<BoolT> IsJSFinalizationRegistry(TNode<HeapObject> object);
   TNode<BoolT> IsJSPromiseMap(TNode<Map> map);
@@ -3451,6 +3481,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Debug helpers
   TNode<BoolT> IsDebugActive();
+  TNode<BoolT> IsSideEffectFreeDebuggingActive();
 
   // JSArrayBuffer helpers
   TNode<RawPtrT> LoadJSArrayBufferBackingStorePtr(
@@ -3464,6 +3495,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSArrayBufferView> array_buffer_view);
   TNode<UintPtrT> LoadJSArrayBufferViewByteLength(
       TNode<JSArrayBufferView> array_buffer_view);
+
   TNode<UintPtrT> LoadJSArrayBufferViewByteOffset(
       TNode<JSArrayBufferView> array_buffer_view);
   void ThrowIfArrayBufferViewBufferIsDetached(
@@ -3472,6 +3504,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
+  // ResizableArrayBuffer.
+  TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
+      TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer, Label* miss);
+  // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
+  // ResizableArrayBuffer.
+  TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
+      TNode<Context> context, TNode<JSTypedArray> array,
+      TNode<JSArrayBuffer> buffer);
+  TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
+      TNode<Int32T> elementsKind);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
   TNode<JSArrayBuffer> GetTypedArrayBuffer(TNode<Context> context,
                                            TNode<JSTypedArray> array);
@@ -3526,13 +3569,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT>
   IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
     return IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-        PromiseHookFlags());
-  }
-  TNode<BoolT> IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-      TNode<Uint32T> flags);
-  TNode<BoolT>
-  IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
-    return IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
         PromiseHookFlags());
   }
 
@@ -3600,6 +3636,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   int32_t ConstexprWord32Or(int32_t a, int32_t b) { return a | b; }
+  uint32_t ConstexprWord32Shl(uint32_t a, int32_t b) { return a << b; }
 
   bool ConstexprUintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
 
@@ -3712,12 +3749,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     const ForEachKeyValueFunction& body,
                                     Label* bailout);
 
-  TNode<Object> CallGetterIfAccessor(TNode<Object> value,
-                                     TNode<HeapObject> holder,
-                                     TNode<Uint32T> details,
-                                     TNode<Context> context,
-                                     TNode<Object> receiver, Label* if_bailout,
-                                     GetOwnPropertyMode mode = kCallJSGetter);
+  TNode<Object> CallGetterIfAccessor(
+      TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
+      TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
+      Label* if_bailout, GetOwnPropertyMode mode = kCallJSGetter);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
@@ -3916,6 +3951,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CodeAssembler::LoadRoot(root_index);
   }
 
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index) {
+    return CodeAssembler::LoadRootMapWord(root_index);
+  }
+
   template <typename TIndex>
   void StoreFixedArrayOrPropertyArrayElement(
       TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
@@ -3954,6 +3993,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
+
+  void AssertHasValidMap(TNode<HeapObject> object);
 
   template <typename TValue>
   void EmitElementStoreTypedArray(TNode<JSTypedArray> typed_array,

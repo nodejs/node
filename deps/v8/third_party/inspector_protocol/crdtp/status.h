@@ -77,6 +77,7 @@ enum class Error {
   BINDINGS_STRING_VALUE_EXPECTED = 0x34,
   BINDINGS_STRING8_VALUE_EXPECTED = 0x35,
   BINDINGS_BINARY_VALUE_EXPECTED = 0x36,
+  BINDINGS_DICTIONARY_VALUE_EXPECTED = 0x37,
 };
 
 // A status value with position that can be copied. The default status

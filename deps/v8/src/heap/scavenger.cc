@@ -130,13 +130,13 @@ namespace {
 
 V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Object object) {
   return Heap::InFromPage(object) &&
-         !HeapObject::cast(object).map_word().IsForwardingAddress();
+         !HeapObject::cast(object).map_word(kRelaxedLoad).IsForwardingAddress();
 }
 
 // Same as IsUnscavengedHeapObject() above but specialized for HeapObjects.
 V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, HeapObject heap_object) {
   return Heap::InFromPage(heap_object) &&
-         !heap_object.map_word().IsForwardingAddress();
+         !heap_object.map_word(kRelaxedLoad).IsForwardingAddress();
 }
 
 bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
@@ -152,7 +152,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
       return object;
     }
 
-    MapWord map_word = HeapObject::cast(object).map_word();
+    MapWord map_word = HeapObject::cast(object).map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       return map_word.ToForwardingAddress();
     }
@@ -384,6 +384,10 @@ void ScavengerCollector::CollectGarbage() {
         &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
     heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->UpdateRetainersAfterScavenge();
+    }
   }
 
   if (FLAG_concurrent_marking) {
@@ -481,7 +485,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
-    object.set_map_word(MapWord::FromMap(map));
+    object.set_map_word(MapWord::FromMap(map), kRelaxedStore);
     LargePage* page = LargePage::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
@@ -734,6 +738,7 @@ void Scavenger::AddEphemeronHashTable(EphemeronHashTable table) {
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
                                            FullObjectSlot p) {
   DCHECK(!HasWeakHeapObjectTag(*p));
+  DCHECK(!MapWord::IsPacked((*p).ptr()));
   ScavengePointer(p);
 }
 
@@ -741,12 +746,15 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
                                             FullObjectSlot start,
                                             FullObjectSlot end) {
   // Copy all HeapObject pointers in [start, end)
-  for (FullObjectSlot p = start; p < end; ++p) ScavengePointer(p);
+  for (FullObjectSlot p = start; p < end; ++p) {
+    ScavengePointer(p);
+  }
 }
 
 void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   Object object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
+  DCHECK(!MapWord::IsPacked(object.ptr()));
   if (Heap::InYoungGeneration(object)) {
     scavenger_->ScavengeObject(FullHeapObjectSlot(p), HeapObject::cast(object));
   }

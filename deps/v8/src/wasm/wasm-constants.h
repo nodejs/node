@@ -101,10 +101,11 @@ enum SectionCode : int8_t {
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
   kCompilationHintsSectionCode,   // Compilation hints section
+  kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kCompilationHintsSectionCode,
+  kLastKnownModuleSection = kBranchHintsSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
@@ -155,6 +156,10 @@ constexpr int kAnonymousFuncIndex = -1;
 // wrappers early on for those functions that have the potential to be called
 // often enough.
 constexpr uint32_t kGenericWrapperBudget = 1000;
+
+#if V8_TARGET_ARCH_X64
+constexpr int32_t kOSRTargetOffset = 3 * kSystemPointerSize;
+#endif
 
 }  // namespace wasm
 }  // namespace internal

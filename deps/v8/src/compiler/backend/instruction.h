@@ -185,7 +185,7 @@ class UnallocatedOperand final : public InstructionOperand {
     FIXED_FP_REGISTER,
     MUST_HAVE_REGISTER,
     MUST_HAVE_SLOT,
-    SAME_AS_FIRST_INPUT
+    SAME_AS_INPUT
   };
 
   // Lifetime of operand inside the instruction.
@@ -206,6 +206,14 @@ class UnallocatedOperand final : public InstructionOperand {
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
+  }
+
+  UnallocatedOperand(int virtual_register, int input_index)
+      : UnallocatedOperand(virtual_register) {
+    value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
+    value_ |= ExtendedPolicyField::encode(SAME_AS_INPUT);
+    value_ |= LifetimeField::encode(USED_AT_END);
+    value_ |= InputIndexField::encode(input_index);
   }
 
   UnallocatedOperand(BasicPolicy policy, int index, int virtual_register)
@@ -270,7 +278,7 @@ class UnallocatedOperand final : public InstructionOperand {
   }
   bool HasSameAsInputPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&
-           extended_policy() == SAME_AS_FIRST_INPUT;
+           extended_policy() == SAME_AS_INPUT;
   }
   bool HasFixedSlotPolicy() const { return basic_policy() == FIXED_SLOT; }
   bool HasFixedRegisterPolicy() const {
@@ -298,6 +306,11 @@ class UnallocatedOperand final : public InstructionOperand {
   ExtendedPolicy extended_policy() const {
     DCHECK(basic_policy() == EXTENDED_POLICY);
     return ExtendedPolicyField::decode(value_);
+  }
+
+  int input_index() const {
+    DCHECK(HasSameAsInputPolicy());
+    return InputIndexField::decode(value_);
   }
 
   // [fixed_slot_index]: Only for FIXED_SLOT.
@@ -362,6 +375,7 @@ class UnallocatedOperand final : public InstructionOperand {
   using HasSecondaryStorageField = base::BitField64<bool, 40, 1>;
   using FixedRegisterField = base::BitField64<int, 41, 6>;
   using SecondaryStorageField = base::BitField64<int, 47, 3>;
+  using InputIndexField = base::BitField64<int, 50, 3>;
 
  private:
   explicit UnallocatedOperand(int virtual_register)
@@ -545,6 +559,8 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kNone:
         return false;
+      case MachineRepresentation::kMapWord:
+        break;
     }
     UNREACHABLE();
   }

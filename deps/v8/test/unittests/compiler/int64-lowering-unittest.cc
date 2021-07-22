@@ -4,7 +4,7 @@
 
 #include "src/compiler/int64-lowering.h"
 
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/signature.h"
 #include "src/compiler/common-operator.h"
@@ -429,9 +429,10 @@ TEST_F(Int64LoweringTest, ParameterWithJSClosureParam) {
               IsReturn(js_closure, start(), start()));
 }
 
-// The following tests assume that pointers are 32 bit and therefore pointers do
-// not get lowered. This assumption does not hold on 64 bit platforms, which
-// invalidates these tests.
+// The following tests are only valid in 32-bit platforms, due to one of these
+// two assumptions:
+// - Pointers are 32 bit and therefore pointers do not get lowered.
+// - 64-bit rol/ror/clz/ctz instructions have a control input.
 // TODO(wasm): We can find an alternative to re-activate these tests.
 #if V8_TARGET_ARCH_32_BIT
 TEST_F(Int64LoweringTest, CallI64Return) {
@@ -513,6 +514,154 @@ TEST_F(Int64LoweringTest, Int64Add) {
               IsReturn2(IsProjection(0, AllOf(CaptureEq(&add), add_matcher)),
                         IsProjection(1, AllOf(CaptureEq(&add), add_matcher)),
                         start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Clz) {
+  LowerGraph(graph()->NewNode(machine()->Word64ClzLowerable(),
+                              Int64Constant(value(0)), graph()->start()),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> branch_capture;
+  Matcher<Node*> branch_matcher = IsBranch(
+      IsWord32Equal(IsInt32Constant(high_word_value(0)), IsInt32Constant(0)),
+      start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsPhi(MachineRepresentation::kWord32,
+                IsInt32Add(IsWord32Clz(IsInt32Constant(low_word_value(0))),
+                           IsInt32Constant(32)),
+                IsWord32Clz(IsInt32Constant(high_word_value(0))),
+                IsMerge(
+                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
+                    IsIfFalse(
+                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
+          IsInt32Constant(0), start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ctz) {
+  LowerGraph(graph()->NewNode(machine()->Word64CtzLowerable().placeholder(),
+                              Int64Constant(value(0)), graph()->start()),
+             MachineRepresentation::kWord64);
+  Capture<Node*> branch_capture;
+  Matcher<Node*> branch_matcher = IsBranch(
+      IsWord32Equal(IsInt32Constant(low_word_value(0)), IsInt32Constant(0)),
+      start());
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsPhi(MachineRepresentation::kWord32,
+                IsInt32Add(IsWord32Ctz(IsInt32Constant(high_word_value(0))),
+                           IsInt32Constant(32)),
+                IsWord32Ctz(IsInt32Constant(low_word_value(0))),
+                IsMerge(
+                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
+                    IsIfFalse(
+                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
+          IsInt32Constant(0), start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ror) {
+  LowerGraph(
+      graph()->NewNode(machine()->Word64RorLowerable(), Int64Constant(value(0)),
+                       Parameter(0), graph()->start()),
+      MachineRepresentation::kWord64, MachineRepresentation::kWord64, 1);
+
+  Matcher<Node*> branch_lt32_matcher =
+      IsBranch(IsInt32LessThan(IsParameter(0), IsInt32Constant(32)), start());
+
+  Matcher<Node*> low_input_matcher = IsPhi(
+      MachineRepresentation::kWord32, IsInt32Constant(low_word_value(0)),
+      IsInt32Constant(high_word_value(0)),
+      IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
+
+  Matcher<Node*> high_input_matcher = IsPhi(
+      MachineRepresentation::kWord32, IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(0)),
+      IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
+
+  Matcher<Node*> shift_matcher =
+      IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
+
+  Matcher<Node*> bit_mask_matcher = IsWord32Xor(
+      IsWord32Shr(IsInt32Constant(-1), shift_matcher), IsInt32Constant(-1));
+
+  Matcher<Node*> inv_mask_matcher =
+      IsWord32Xor(bit_mask_matcher, IsInt32Constant(-1));
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsWord32Or(IsWord32And(IsWord32Ror(low_input_matcher, shift_matcher),
+                                 inv_mask_matcher),
+                     IsWord32And(IsWord32Ror(high_input_matcher, shift_matcher),
+                                 bit_mask_matcher)),
+          IsWord32Or(IsWord32And(IsWord32Ror(high_input_matcher, shift_matcher),
+                                 inv_mask_matcher),
+                     IsWord32And(IsWord32Ror(low_input_matcher, shift_matcher),
+                                 bit_mask_matcher)),
+          start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ror_0) {
+  LowerGraph(
+      graph()->NewNode(machine()->Word64RorLowerable(), Int64Constant(value(0)),
+                       Int32Constant(0), graph()->start()),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(low_word_value(0)),
+                        IsInt32Constant(high_word_value(0)), start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ror_32) {
+  LowerGraph(
+      graph()->NewNode(machine()->Word64RorLowerable(), Int64Constant(value(0)),
+                       Int32Constant(32), graph()->start()),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(high_word_value(0)),
+                        IsInt32Constant(low_word_value(0)), start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ror_11) {
+  LowerGraph(
+      graph()->NewNode(machine()->Word64RorLowerable(), Int64Constant(value(0)),
+                       Int32Constant(11), graph()->start()),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsWord32Or(IsWord32Shr(IsInt32Constant(low_word_value(0)),
+                                       IsInt32Constant(11)),
+                           IsWord32Shl(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(21))),
+                IsWord32Or(IsWord32Shr(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(11)),
+                           IsWord32Shl(IsInt32Constant(low_word_value(0)),
+                                       IsInt32Constant(21))),
+                start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Ror_43) {
+  LowerGraph(
+      graph()->NewNode(machine()->Word64RorLowerable(), Int64Constant(value(0)),
+                       Int32Constant(43), graph()->start()),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsWord32Or(IsWord32Shr(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(11)),
+                           IsWord32Shl(IsInt32Constant(low_word_value(0)),
+                                       IsInt32Constant(21))),
+                IsWord32Or(IsWord32Shr(IsInt32Constant(low_word_value(0)),
+                                       IsInt32Constant(11)),
+                           IsWord32Shl(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(21))),
+                start(), start()));
 }
 #endif
 
@@ -772,51 +921,6 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
                 start(), start()));
 }
 
-TEST_F(Int64LoweringTest, I64Clz) {
-  LowerGraph(graph()->NewNode(machine()->Word64Clz(), Int64Constant(value(0))),
-             MachineRepresentation::kWord64);
-
-  Capture<Node*> branch_capture;
-  Matcher<Node*> branch_matcher = IsBranch(
-      IsWord32Equal(IsInt32Constant(high_word_value(0)), IsInt32Constant(0)),
-      start());
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(
-          IsPhi(MachineRepresentation::kWord32,
-                IsInt32Add(IsWord32Clz(IsInt32Constant(low_word_value(0))),
-                           IsInt32Constant(32)),
-                IsWord32Clz(IsInt32Constant(high_word_value(0))),
-                IsMerge(
-                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
-                    IsIfFalse(
-                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
-          IsInt32Constant(0), start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ctz) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ctz().placeholder(),
-                              Int64Constant(value(0))),
-             MachineRepresentation::kWord64);
-  Capture<Node*> branch_capture;
-  Matcher<Node*> branch_matcher = IsBranch(
-      IsWord32Equal(IsInt32Constant(low_word_value(0)), IsInt32Constant(0)),
-      start());
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(
-          IsPhi(MachineRepresentation::kWord32,
-                IsInt32Add(IsWord32Ctz(IsInt32Constant(high_word_value(0))),
-                           IsInt32Constant(32)),
-                IsWord32Ctz(IsInt32Constant(low_word_value(0))),
-                IsMerge(
-                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
-                    IsIfFalse(
-                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
-          IsInt32Constant(0), start(), start()));
-}
-
 TEST_F(Int64LoweringTest, Dfs) {
   Node* common = Int64Constant(value(0));
   LowerGraph(graph()->NewNode(machine()->Word64And(), common,
@@ -845,103 +949,6 @@ TEST_F(Int64LoweringTest, I64Popcnt) {
       IsReturn2(IsInt32Add(IsWord32Popcnt(IsInt32Constant(low_word_value(0))),
                            IsWord32Popcnt(IsInt32Constant(high_word_value(0)))),
                 IsInt32Constant(0), start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ror) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ror(), Int64Constant(value(0)),
-                              Parameter(0)),
-             MachineRepresentation::kWord64, MachineRepresentation::kWord64, 1);
-
-  Matcher<Node*> branch_lt32_matcher =
-      IsBranch(IsInt32LessThan(IsParameter(0), IsInt32Constant(32)), start());
-
-  Matcher<Node*> low_input_matcher = IsPhi(
-      MachineRepresentation::kWord32, IsInt32Constant(low_word_value(0)),
-      IsInt32Constant(high_word_value(0)),
-      IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
-
-  Matcher<Node*> high_input_matcher = IsPhi(
-      MachineRepresentation::kWord32, IsInt32Constant(high_word_value(0)),
-      IsInt32Constant(low_word_value(0)),
-      IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
-
-  Matcher<Node*> shift_matcher =
-      IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
-
-  Matcher<Node*> bit_mask_matcher = IsWord32Xor(
-      IsWord32Shr(IsInt32Constant(-1), shift_matcher), IsInt32Constant(-1));
-
-  Matcher<Node*> inv_mask_matcher =
-      IsWord32Xor(bit_mask_matcher, IsInt32Constant(-1));
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(
-          IsWord32Or(IsWord32And(IsWord32Ror(low_input_matcher, shift_matcher),
-                                 inv_mask_matcher),
-                     IsWord32And(IsWord32Ror(high_input_matcher, shift_matcher),
-                                 bit_mask_matcher)),
-          IsWord32Or(IsWord32And(IsWord32Ror(high_input_matcher, shift_matcher),
-                                 inv_mask_matcher),
-                     IsWord32And(IsWord32Ror(low_input_matcher, shift_matcher),
-                                 bit_mask_matcher)),
-          start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ror_0) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ror(), Int64Constant(value(0)),
-                              Int32Constant(0)),
-             MachineRepresentation::kWord64);
-
-  EXPECT_THAT(graph()->end()->InputAt(1),
-              IsReturn2(IsInt32Constant(low_word_value(0)),
-                        IsInt32Constant(high_word_value(0)), start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ror_32) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ror(), Int64Constant(value(0)),
-                              Int32Constant(32)),
-             MachineRepresentation::kWord64);
-
-  EXPECT_THAT(graph()->end()->InputAt(1),
-              IsReturn2(IsInt32Constant(high_word_value(0)),
-                        IsInt32Constant(low_word_value(0)), start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ror_11) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ror(), Int64Constant(value(0)),
-                              Int32Constant(11)),
-             MachineRepresentation::kWord64);
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(IsWord32Or(IsWord32Shr(IsInt32Constant(low_word_value(0)),
-                                       IsInt32Constant(11)),
-                           IsWord32Shl(IsInt32Constant(high_word_value(0)),
-                                       IsInt32Constant(21))),
-                IsWord32Or(IsWord32Shr(IsInt32Constant(high_word_value(0)),
-                                       IsInt32Constant(11)),
-                           IsWord32Shl(IsInt32Constant(low_word_value(0)),
-                                       IsInt32Constant(21))),
-                start(), start()));
-}
-
-TEST_F(Int64LoweringTest, I64Ror_43) {
-  LowerGraph(graph()->NewNode(machine()->Word64Ror(), Int64Constant(value(0)),
-                              Int32Constant(43)),
-             MachineRepresentation::kWord64);
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(IsWord32Or(IsWord32Shr(IsInt32Constant(high_word_value(0)),
-                                       IsInt32Constant(11)),
-                           IsWord32Shl(IsInt32Constant(low_word_value(0)),
-                                       IsInt32Constant(21))),
-                IsWord32Or(IsWord32Shr(IsInt32Constant(low_word_value(0)),
-                                       IsInt32Constant(11)),
-                           IsWord32Shl(IsInt32Constant(high_word_value(0)),
-                                       IsInt32Constant(21))),
-                start(), start()));
 }
 
 TEST_F(Int64LoweringTest, I64PhiWord64) {
@@ -1063,20 +1070,20 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
 
   CallDescriptor* bigint_to_i64_call_descriptor =
       Linkage::GetStubCallDescriptor(
-          zone(),                   // zone
-          BigIntToI64Descriptor(),  // descriptor
-          BigIntToI64Descriptor()
-              .GetStackParameterCount(),   // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
+          zone(),                                           // zone
+          BigIntToI64Descriptor(),                          // descriptor
+          BigIntToI64Descriptor::GetStackParameterCount(),  // stack parameter
+                                                            // count
+          CallDescriptor::kNoFlags,                         // flags
+          Operator::kNoProperties,                          // properties
+          StubCallMode::kCallCodeObject);                   // stub call mode
 
   CallDescriptor* bigint_to_i32_pair_call_descriptor =
       Linkage::GetStubCallDescriptor(
           zone(),                       // zone
           BigIntToI32PairDescriptor(),  // descriptor
-          BigIntToI32PairDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
+          BigIntToI32PairDescriptor::
+              GetStackParameterCount(),    // stack parameter count
           CallDescriptor::kNoFlags,        // flags
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode
@@ -1109,20 +1116,20 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
 
   CallDescriptor* i64_to_bigint_call_descriptor =
       Linkage::GetStubCallDescriptor(
-          zone(),                   // zone
-          I64ToBigIntDescriptor(),  // descriptor
-          I64ToBigIntDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
+          zone(),                                           // zone
+          I64ToBigIntDescriptor(),                          // descriptor
+          I64ToBigIntDescriptor::GetStackParameterCount(),  // stack parameter
+                                                            // count
+          CallDescriptor::kNoFlags,                         // flags
+          Operator::kNoProperties,                          // properties
+          StubCallMode::kCallCodeObject);                   // stub call mode
 
   CallDescriptor* i32_pair_to_bigint_call_descriptor =
       Linkage::GetStubCallDescriptor(
           zone(),                       // zone
           I32PairToBigIntDescriptor(),  // descriptor
-          I32PairToBigIntDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
+          I32PairToBigIntDescriptor::
+              GetStackParameterCount(),    // stack parameter count
           CallDescriptor::kNoFlags,        // flags
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode

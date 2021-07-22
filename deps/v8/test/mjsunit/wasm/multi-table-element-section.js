@@ -32,7 +32,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     const f2 = builder_for_import.addFunction('f2', kSig_i_v)
       .addBody([kExprI32Const, value2]).index;
 
-    builder_for_import.addElementSegment(t1, offset1, false, [f1, f2]);
+    builder_for_import.addActiveElementSegment(t1, WasmInitExpr.I32Const(offset1),
+                                         [f1, f2]);
     const instance_for_import = builder_for_import.instantiate();
     const table1 = instance_for_import.exports.table;
     assertEquals(value1, table1.get(offset1)());
@@ -55,11 +56,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprI32Const, value5]).index;
 
 
-  builder.addElementSegment(t2, offset2, false, [f3, f4]);
-  builder.addElementSegment(t3, offset3, false, [f5, f4]);
-  builder.addElementSegment(t4, offset4, false, [f3, f5]);
+  builder.addActiveElementSegment(t2, WasmInitExpr.I32Const(offset2), [f3, f4]);
+  builder.addActiveElementSegment(t3, WasmInitExpr.I32Const(offset3), [f5, f4]);
+  builder.addActiveElementSegment(t4, WasmInitExpr.I32Const(offset4), [f3, f5]);
   // Add one more overlapping offset
-  builder.addElementSegment(t4, offset4 + 1, false, [f4, f3]);
+  builder.addActiveElementSegment(t4, WasmInitExpr.I32Const(offset4 + 1),
+                                  [f4, f3]);
 
   const instance = builder.instantiate(instance_for_import);
   // table2 == table1

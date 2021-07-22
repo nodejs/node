@@ -559,6 +559,8 @@ TEST(DisasmX64) {
       __ cmpltps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpleps(xmm5, xmm1);
       __ cmpleps(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpunordps(xmm5, xmm1);
+      __ cmpunordps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpneqps(xmm5, xmm1);
       __ cmpneqps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpnltps(xmm5, xmm1);
@@ -573,6 +575,8 @@ TEST(DisasmX64) {
       __ cmpltpd(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmplepd(xmm5, xmm1);
       __ cmplepd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpunordpd(xmm5, xmm1);
+      __ cmpunordpd(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpneqpd(xmm5, xmm1);
       __ cmpneqpd(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpnltpd(xmm5, xmm1);
@@ -727,6 +731,8 @@ TEST(DisasmX64) {
       __ vcmpltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpleps(xmm5, xmm4, xmm1);
       __ vcmpleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpunordps(xmm5, xmm4, xmm1);
+      __ vcmpunordps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpneqps(xmm5, xmm4, xmm1);
       __ vcmpneqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpnltps(xmm5, xmm4, xmm1);
@@ -741,6 +747,8 @@ TEST(DisasmX64) {
       __ vcmpltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmplepd(xmm5, xmm4, xmm1);
       __ vcmplepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpunordpd(xmm5, xmm4, xmm1);
+      __ vcmpunordpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpneqpd(xmm5, xmm4, xmm1);
       __ vcmpneqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpnltpd(xmm5, xmm4, xmm1);

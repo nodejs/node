@@ -35,8 +35,9 @@ PageAllocator* GetAllocator(PageAllocator* page_allocator) {
         default_page_allocator;
     page_allocator = default_page_allocator.get();
   }
-  // TODO(chromium:1056170): Wrap page_allocator into LsanPageAllocator when
-  // running with LEAK_SANITIZER.
+  // No need to introduce LSAN support for PageAllocator, as `GCInfoTable` is
+  // already a leaky object and the table payload (`GCInfoTable::table_`) should
+  // not refer to dynamically allocated objects.
   return page_allocator;
 }
 

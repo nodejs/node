@@ -37,12 +37,16 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   // Compares memory representation of a value stored in the slot with given
   // raw value without decompression.
   inline bool contains_value(Address raw_value) const;
+  inline bool contains_map_value(Address raw_value) const;
 
   // TODO(leszeks): Consider deprecating the operator* load, and always pass the
   // Isolate.
   inline Object operator*() const;
   inline Object load(PtrComprCageBase cage_base) const;
   inline void store(Object value) const;
+  inline void store_map(Map map) const;
+
+  inline Map load_map() const;
 
   inline Object Acquire_Load() const;
   inline Object Relaxed_Load() const;

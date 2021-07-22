@@ -60,6 +60,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceIsBeingInterpreted(Node* node);
   Reduction ReduceTurbofanStaticAssert(Node* node);
+  Reduction ReduceVerifyType(Node* node);
   Reduction ReduceToLength(Node* node);
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);

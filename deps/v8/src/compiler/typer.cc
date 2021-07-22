@@ -1839,8 +1839,6 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToNumber);
     case Runtime::kInlineToObject:
       return TypeUnaryOp(node, ToObject);
-    case Runtime::kInlineToString:
-      return TypeUnaryOp(node, ToString);
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:
@@ -2360,6 +2358,10 @@ Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
 Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeVerifyType(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
 
 // Heap constants.
 

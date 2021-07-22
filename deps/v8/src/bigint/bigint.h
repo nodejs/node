@@ -120,8 +120,116 @@ class Digits {
   }
 };
 
+// Writable version of a Digits array.
+// Does not own the memory it points at.
+class RWDigits : public Digits {
+ public:
+  RWDigits(digit_t* mem, int len) : Digits(mem, len) {}
+  RWDigits(RWDigits src, int offset, int len) : Digits(src, offset, len) {}
+  RWDigits operator+(int i) {
+    BIGINT_H_DCHECK(i >= 0 && i <= len_);
+    return RWDigits(digits_ + i, len_ - i);
+  }
+
+#if UINTPTR_MAX == 0xFFFFFFFF
+  digit_t& operator[](int i) {
+    BIGINT_H_DCHECK(i >= 0 && i < len_);
+    return digits_[i];
+  }
+#else
+  // 64-bit platform. We only require digits arrays to be 4-byte aligned,
+  // so we use a wrapper class to allow regular array syntax while
+  // performing unaligned memory accesses under the hood.
+  class WritableDigitReference {
+   public:
+    // Support "X[i] = x" notation.
+    void operator=(digit_t digit) { memcpy(ptr_, &digit, sizeof(digit)); }
+    // Support "X[i] = Y[j]" notation.
+    WritableDigitReference& operator=(const WritableDigitReference& src) {
+      memcpy(ptr_, src.ptr_, sizeof(digit_t));
+      return *this;
+    }
+    // Support "x = X[i]" notation.
+    operator digit_t() {
+      digit_t result;
+      memcpy(&result, ptr_, sizeof(result));
+      return result;
+    }
+
+   private:
+    // This class is not for public consumption.
+    friend class RWDigits;
+    // Primary constructor.
+    explicit WritableDigitReference(digit_t* ptr)
+        : ptr_(reinterpret_cast<uint32_t*>(ptr)) {}
+    // Required for returning WDR instances from "operator[]" below.
+    WritableDigitReference(const WritableDigitReference& src) = default;
+
+    uint32_t* ptr_;
+  };
+
+  WritableDigitReference operator[](int i) {
+    BIGINT_H_DCHECK(i >= 0 && i < len_);
+    return WritableDigitReference(digits_ + i);
+  }
+#endif
+
+  digit_t* digits() { return digits_; }
+  void set_len(int len) { len_ = len; }
+
+  void Clear() { memset(digits_, 0, len_ * sizeof(digit_t)); }
+};
+
+class Platform {
+ public:
+  virtual ~Platform() = default;
+
+  // If you want the ability to interrupt long-running operations, implement
+  // a Platform subclass that overrides this method. It will be queried
+  // every now and then by long-running operations.
+  virtual bool InterruptRequested() { return false; }
+};
+
+// These are the operations that this library supports.
+// The signatures follow the convention:
+//
+//   void Operation(RWDigits results, Digits inputs);
+//
+// You must preallocate the result; use the respective {OperationResultLength}
+// function to determine its minimum required length. The actual result may
+// be smaller, so you should call result.Normalize() on the result.
+//
+// The operations are divided into two groups: "fast" (O(n) with small
+// coefficient) operations are exposed directly as free functions, "slow"
+// operations are methods on a {BigIntProcessor} object, which provides
+// support for interrupting execution via the {Platform}'s {InterruptRequested}
+// mechanism when it takes too long. These functions return a {Status} value.
+
 // Returns r such that r < 0 if A < B; r > 0 if A > B; r == 0 if A == B.
 int Compare(Digits A, Digits B);
+
+enum class Status { kOk, kInterrupted };
+
+class Processor {
+ public:
+  // Takes ownership of {platform}.
+  static Processor* New(Platform* platform);
+
+  // Use this for any std::unique_ptr holding an instance of BigIntProcessor.
+  class Destroyer {
+   public:
+    void operator()(Processor* proc) { proc->Destroy(); }
+  };
+  // When not using std::unique_ptr, call this to delete the instance.
+  void Destroy();
+
+  // Z := X * Y
+  Status Multiply(RWDigits Z, Digits X, Digits Y);
+};
+
+inline int MultiplyResultLength(Digits X, Digits Y) {
+  return X.len() + Y.len();
+}
 
 }  // namespace bigint
 }  // namespace v8

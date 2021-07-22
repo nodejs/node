@@ -6,7 +6,8 @@
 #define V8_COMPILER_GRAPH_VISUALIZER_H_
 
 #include <stdio.h>
-#include <fstream>  // NOLINT(readability/streams)
+
+#include <fstream>
 #include <iosfwd>
 #include <memory>
 

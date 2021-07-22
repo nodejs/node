@@ -190,9 +190,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
-  template <typename LocalIsolate>
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, LocalIsolate* isolate);
+  template <typename IsolateT>
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
+                                                          Handle<Script> script,
+                                                          IsolateT* isolate);
 
   // ===========================================================================
   // The following family of methods provides support for OSR. Code generated
@@ -205,7 +206,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Generate and return optimized code for OSR, or empty handle on failure.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Handle<JSFunction> function, BytecodeOffset osr_offset,
+      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       JavaScriptFrame* osr_frame);
 };
 

@@ -731,7 +731,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   }
   CHECK(allocation_pointer_found_in_space);
 
-  if (identity() == OLD_SPACE) {
+  if (identity() == OLD_SPACE && !FLAG_concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
@@ -832,8 +832,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
-  RuntimeCallTimerScope runtime_timer(
-      heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
+  RCS_SCOPE(heap()->isolate(),
+            RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   return RawRefillLabMain(size_in_bytes, origin);
 }
 

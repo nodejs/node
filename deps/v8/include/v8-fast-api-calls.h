@@ -70,8 +70,7 @@
  *        return GetInternalField<CustomEmbedderType,
  *                                kV8EmbedderWrapperObjectIndex>(wrapper);
  *      }
- *      static void FastMethod(v8::ApiObject receiver_obj, int param) {
- *        v8::Object* v8_object = reinterpret_cast<v8::Object*>(&api_object);
+ *      static void FastMethod(v8::Local<v8::Object> receiver_obj, int param) {
  *        CustomEmbedderType* receiver = static_cast<CustomEmbedderType*>(
  *          receiver_obj->GetAlignedPointerFromInternalField(
  *            kV8EmbedderWrapperObjectIndex));
@@ -190,9 +189,12 @@
 #include <tuple>
 #include <type_traits>
 
+#include "v8.h"        // NOLINT(build/include_directory)
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
+
+class Isolate;
 
 class CTypeInfo {
  public:
@@ -206,6 +208,8 @@ class CTypeInfo {
     kFloat32,
     kFloat64,
     kV8Value,
+    kApiObject,  // This will be deprecated once all users have
+                 // migrated from v8::ApiObject to v8::Local<v8::Value>.
   };
 
   // kCallbackOptionsType is not part of the Type enum
@@ -322,6 +326,14 @@ struct ApiObject {
  */
 struct FastApiCallbackOptions {
   /**
+   * Creates a new instance of FastApiCallbackOptions for testing purpose.  The
+   * returned instance may be filled with mock data.
+   */
+  static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
+    return {false, {0}};
+  }
+
+  /**
    * If the callback wants to signal an error condition or to perform an
    * allocation, it must set options.fallback to true and do an early return
    * from the fast method. Then V8 checks the value of options.fallback and if
@@ -336,8 +348,12 @@ struct FastApiCallbackOptions {
 
   /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
+   * `data_ptr` allows for default constructing FastApiCallbackOptions.
    */
-  const ApiObject data;
+  union {
+    uintptr_t data_ptr;
+    v8::Value data;
+  };
 };
 
 namespace internal {
@@ -398,16 +414,22 @@ struct TypeInfoHelper {
     static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
   };
 
-#define BASIC_C_TYPES(V) \
-  V(void, kVoid)         \
-  V(bool, kBool)         \
-  V(int32_t, kInt32)     \
-  V(uint32_t, kUint32)   \
-  V(int64_t, kInt64)     \
-  V(uint64_t, kUint64)   \
-  V(float, kFloat32)     \
-  V(double, kFloat64)    \
-  V(ApiObject, kV8Value)
+#define BASIC_C_TYPES(V)            \
+  V(void, kVoid)                    \
+  V(bool, kBool)                    \
+  V(int32_t, kInt32)                \
+  V(uint32_t, kUint32)              \
+  V(int64_t, kInt64)                \
+  V(uint64_t, kUint64)              \
+  V(float, kFloat32)                \
+  V(double, kFloat64)               \
+  V(ApiObject, kApiObject)          \
+  V(v8::Local<v8::Value>, kV8Value) \
+  V(v8::Local<v8::Object>, kV8Value)
+
+// ApiObject was a temporary solution to wrap the pointer to the v8::Value.
+// Please use v8::Local<v8::Value> in new code for the arguments and
+// v8::Local<v8::Object> for the receiver, as ApiObject will be deprecated.
 
 BASIC_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR)
 

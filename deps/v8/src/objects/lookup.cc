@@ -15,6 +15,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/struct-inl.h"
 
@@ -471,7 +472,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
-    Handle<Map> new_map = Map::ReconfigureExistingProperty(
+    Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
         isolate_, old_map, descriptor_number(), i::kData, attributes,
         PropertyConstness::kMutable);
     if (!new_map->is_dictionary_map()) {
@@ -487,11 +488,15 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   if (!IsElement(*holder) && !holder_obj->HasFastProperties(isolate_)) {
     if (holder_obj->map(isolate_).is_prototype_map() &&
-        (property_details_.attributes() & READ_ONLY) == 0 &&
-        (attributes & READ_ONLY) != 0) {
+        (((property_details_.attributes() & READ_ONLY) == 0 &&
+          (attributes & READ_ONLY) != 0) ||
+         (property_details_.attributes() & DONT_ENUM) !=
+             (attributes & DONT_ENUM))) {
       // Invalidate prototype validity cell when a property is reconfigured
       // from writable to read-only as this may invalidate transitioning store
       // IC handlers.
+      // Invalidate prototype validity cell when a property changes
+      // enumerability to clear the prototype chain enum cache.
       JSObject::InvalidatePrototypeChains(holder->map(isolate_));
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
@@ -688,10 +693,10 @@ void LookupIterator::Delete() {
   } else {
     DCHECK(!name()->IsPrivateName(isolate_));
     bool is_prototype_map = holder->map(isolate_).is_prototype_map();
-    RuntimeCallTimerScope stats_scope(
-        isolate_, is_prototype_map
-                      ? RuntimeCallCounterId::kPrototypeObject_DeleteProperty
-                      : RuntimeCallCounterId::kObject_DeleteProperty);
+    RCS_SCOPE(isolate_,
+              is_prototype_map
+                  ? RuntimeCallCounterId::kPrototypeObject_DeleteProperty
+                  : RuntimeCallCounterId::kObject_DeleteProperty);
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
@@ -1026,7 +1031,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     GlobalDictionary dictionary =
         JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad);
     PropertyCell cell = dictionary.CellAt(isolate_, dictionary_entry());
-    DCHECK_EQ(cell.value(), *value);
+    DCHECK(cell.value() == *value ||
+           (cell.value().IsString() && value->IsString() &&
+            String::cast(cell.value()).Equals(String::cast(*value))));
 #endif  // DEBUG
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
@@ -1247,13 +1254,13 @@ bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(GetAccessors()->IsAccessorPair(isolate_));
 
-  Handle<Object> getter(accessor_pair->getter(isolate_), isolate());
-  MaybeHandle<Name> maybe_name =
-      FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
-  if (maybe_name.is_null()) return false;
+  base::Optional<Name> maybe_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(
+          isolate(), accessor_pair->getter(isolate_));
+  if (!maybe_name.has_value()) return false;
 
   // We have found a cached property! Modify the iterator accordingly.
-  name_ = maybe_name.ToHandleChecked();
+  name_ = handle(maybe_name.value(), isolate_);
   Restart();
   CHECK_EQ(state(), LookupIterator::DATA);
   return true;
@@ -1357,7 +1364,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
 
     // The access guard below protects only internalized string accesses.
     // TODO(jgruber): Support other string kinds.
-    Map wrapped_string_map = wrapped_string.synchronized_map(isolate);
+    Map wrapped_string_map = wrapped_string.map(isolate, kAcquireLoad);
     if (!InstanceTypeChecker::IsInternalizedString(
             wrapped_string_map.instance_type())) {
       return kGaveUp;

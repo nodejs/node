@@ -290,9 +290,9 @@ class CallParameters final {
   }
 
   using ArityField = base::BitField<size_t, 0, 27>;
-  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 1>;
-  using SpeculationModeField = base::BitField<SpeculationMode, 28, 1>;
-  using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 29, 2>;
+  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 2>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 29, 1>;
+  using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 30, 2>;
 
   uint32_t const bit_field_;
   CallFrequency const frequency_;
@@ -308,7 +308,7 @@ const CallParameters& CallParametersOf(const Operator* op);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
-class CallRuntimeParameters final {
+class V8_EXPORT_PRIVATE CallRuntimeParameters final {
  public:
   CallRuntimeParameters(Runtime::FunctionId id, size_t arity)
       : id_(id), arity_(arity) {}
@@ -328,8 +328,8 @@ size_t hash_value(CallRuntimeParameters const&);
 
 std::ostream& operator<<(std::ostream&, CallRuntimeParameters const&);
 
-const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op);
-
+V8_EXPORT_PRIVATE const CallRuntimeParameters& CallRuntimeParametersOf(
+    const Operator* op);
 
 // Defines the location of a context slot relative to a specific scope. This is
 // used as a parameter by JSLoadContext and JSStoreContext operators and allows
@@ -951,12 +951,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       CallFrequency const& frequency,
       const FeedbackSource& feedback = FeedbackSource{},
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
-      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kTarget);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource(),
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
-      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kTarget);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
@@ -1002,7 +1002,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const FeedbackSource& feedback,
-                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+                             TypeofMode typeof_mode = TypeofMode::kNotInside);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Handle<Name>& name,
                               const FeedbackSource& feedback);
@@ -1112,7 +1112,7 @@ class JSNodeWrapperBase : public NodeWrapper {
 class JSUnaryOpNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSUnaryOpNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
+    DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
   }
 
 #define INPUTS(V)            \
@@ -1129,7 +1129,7 @@ JS_UNOP_WITH_FEEDBACK(V)
 class JSBinaryOpNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSBinaryOpNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
+    DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
   }
 
   const FeedbackParameter& Parameters() const {
@@ -1151,7 +1151,7 @@ JS_BINOP_WITH_FEEDBACK(V)
 class JSGetIteratorNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSGetIteratorNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSGetIterator);
+    DCHECK_EQ(IrOpcode::kJSGetIterator, node->opcode());
   }
 
   const GetIteratorParameters& Parameters() const {
@@ -1168,7 +1168,7 @@ class JSGetIteratorNode final : public JSNodeWrapperBase {
 class JSCloneObjectNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCloneObjectNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCloneObject);
+    DCHECK_EQ(IrOpcode::kJSCloneObject, node->opcode());
   }
 
   const CloneObjectParameters& Parameters() const {
@@ -1186,7 +1186,7 @@ class JSGetTemplateObjectNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSGetTemplateObjectNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSGetTemplateObject);
+    DCHECK_EQ(IrOpcode::kJSGetTemplateObject, node->opcode());
   }
 
   const GetTemplateObjectParameters& Parameters() const {
@@ -1202,9 +1202,9 @@ class JSCreateLiteralOpNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCreateLiteralOpNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
-                     node->opcode() == IrOpcode::kJSCreateLiteralObject ||
-                     node->opcode() == IrOpcode::kJSCreateLiteralRegExp);
+    DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
+           node->opcode() == IrOpcode::kJSCreateLiteralObject ||
+           node->opcode() == IrOpcode::kJSCreateLiteralRegExp);
   }
 
   const CreateLiteralParameters& Parameters() const {
@@ -1223,7 +1223,7 @@ using JSCreateLiteralRegExpNode = JSCreateLiteralOpNode;
 class JSHasPropertyNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSHasPropertyNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSHasProperty);
+    DCHECK_EQ(IrOpcode::kJSHasProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {
@@ -1241,7 +1241,7 @@ class JSHasPropertyNode final : public JSNodeWrapperBase {
 class JSLoadPropertyNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSLoadPropertyNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadProperty);
+    DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {
@@ -1259,7 +1259,7 @@ class JSLoadPropertyNode final : public JSNodeWrapperBase {
 class JSStorePropertyNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStorePropertyNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreProperty);
+    DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {
@@ -1284,16 +1284,7 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCallOrConstructNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCall ||
-                     node->opcode() == IrOpcode::kJSCallWithArrayLike ||
-                     node->opcode() == IrOpcode::kJSCallWithSpread ||
-                     node->opcode() == IrOpcode::kJSConstruct ||
-                     node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-                     node->opcode() == IrOpcode::kJSConstructWithSpread
-#if V8_ENABLE_WEBASSEMBLY
-                     || node->opcode() == IrOpcode::kJSWasmCall
-#endif  // V8_ENABLE_WEBASSEMBLY
-    );  // NOLINT(whitespace/parens)
+    DCHECK(IsValidNode(node));
   }
 
 #define INPUTS(V)              \
@@ -1367,13 +1358,27 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
     return TNode<HeapObject>::UncheckedCast(
         NodeProperties::GetValueInput(node(), FeedbackVectorIndex()));
   }
+
+ private:
+  static constexpr bool IsValidNode(Node* node) {
+    return node->opcode() == IrOpcode::kJSCall ||
+           node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+           node->opcode() == IrOpcode::kJSCallWithSpread ||
+           node->opcode() == IrOpcode::kJSConstruct ||
+           node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
+           node->opcode() == IrOpcode::kJSConstructWithSpread
+#if V8_ENABLE_WEBASSEMBLY
+           || node->opcode() == IrOpcode::kJSWasmCall
+#endif     // V8_ENABLE_WEBASSEMBLY
+        ;  // NOLINT(whitespace/semicolon)
+  }
 };
 
 template <int kOpcode>
 class JSCallNodeBase final : public JSCallOrConstructNode {
  public:
   explicit constexpr JSCallNodeBase(Node* node) : JSCallOrConstructNode(node) {
-    CONSTEXPR_DCHECK(node->opcode() == kOpcode);
+    DCHECK_EQ(kOpcode, node->opcode());
   }
 
   const CallParameters& Parameters() const {
@@ -1405,7 +1410,7 @@ using JSCallWithArrayLikeNode = JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
 class JSWasmCallNode final : public JSCallOrConstructNode {
  public:
   explicit constexpr JSWasmCallNode(Node* node) : JSCallOrConstructNode(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSWasmCall);
+    DCHECK_EQ(IrOpcode::kJSWasmCall, node->opcode());
   }
 
   const JSWasmCallParameters& Parameters() const {
@@ -1437,7 +1442,7 @@ class JSConstructNodeBase final : public JSCallOrConstructNode {
  public:
   explicit constexpr JSConstructNodeBase(Node* node)
       : JSCallOrConstructNode(node) {
-    CONSTEXPR_DCHECK(node->opcode() == kOpcode);
+    DCHECK_EQ(kOpcode, node->opcode());
   }
 
   const ConstructParameters& Parameters() const {
@@ -1470,7 +1475,7 @@ using JSConstructWithArrayLikeNode =
 class JSLoadNamedNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSLoadNamedNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
+    DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   }
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
@@ -1486,7 +1491,7 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSLoadNamedFromSuperNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+    DCHECK_EQ(IrOpcode::kJSLoadNamedFromSuper, node->opcode());
   }
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
@@ -1502,7 +1507,7 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
 class JSStoreNamedNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStoreNamedNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
+    DCHECK_EQ(IrOpcode::kJSStoreNamed, node->opcode());
   }
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
@@ -1518,7 +1523,7 @@ class JSStoreNamedNode final : public JSNodeWrapperBase {
 class JSStoreNamedOwnNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStoreNamedOwnNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreNamedOwn);
+    DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, node->opcode());
   }
 
   const StoreNamedOwnParameters& Parameters() const {
@@ -1536,7 +1541,7 @@ class JSStoreNamedOwnNode final : public JSNodeWrapperBase {
 class JSStoreGlobalNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStoreGlobalNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreGlobal);
+    DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
   }
 
   const StoreGlobalParameters& Parameters() const {
@@ -1553,7 +1558,7 @@ class JSStoreGlobalNode final : public JSNodeWrapperBase {
 class JSLoadGlobalNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSLoadGlobalNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadGlobal);
+    DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   }
 
   const LoadGlobalParameters& Parameters() const {
@@ -1569,7 +1574,7 @@ class JSCreateEmptyLiteralArrayNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCreateEmptyLiteralArrayNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
+    DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
   }
 
   const FeedbackParameter& Parameters() const {
@@ -1585,7 +1590,7 @@ class JSStoreDataPropertyInLiteralNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStoreDataPropertyInLiteralNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+    DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
   }
 
   const FeedbackParameter& Parameters() const {
@@ -1606,7 +1611,7 @@ class JSStoreInArrayLiteralNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStoreInArrayLiteralNode(Node* node)
       : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreInArrayLiteral);
+    DCHECK_EQ(IrOpcode::kJSStoreInArrayLiteral, node->opcode());
   }
 
   const FeedbackParameter& Parameters() const {
@@ -1625,7 +1630,7 @@ class JSStoreInArrayLiteralNode final : public JSNodeWrapperBase {
 class JSCreateClosureNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSCreateClosureNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateClosure);
+    DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   }
 
   const CreateClosureParameters& Parameters() const {
@@ -1642,7 +1647,7 @@ class JSCreateClosureNode final : public JSNodeWrapperBase {
 class JSForInPrepareNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSForInPrepareNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSForInPrepare);
+    DCHECK_EQ(IrOpcode::kJSForInPrepare, node->opcode());
   }
 
   const ForInParameters& Parameters() const {
@@ -1659,7 +1664,7 @@ class JSForInPrepareNode final : public JSNodeWrapperBase {
 class JSForInNextNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSForInNextNode(Node* node) : JSNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSForInNext);
+    DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
   }
 
   const ForInParameters& Parameters() const {

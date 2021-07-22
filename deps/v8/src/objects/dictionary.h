@@ -76,9 +76,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
-      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+      IsolateT* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
@@ -142,9 +142,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   inline int Hash() const;
 
   // Creates a new dictionary.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      LocalIsolate* isolate, int at_least_space_for,
+      IsolateT* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -159,9 +159,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static Handle<FixedArray> IterationIndices(Isolate* isolate,
                                              Handle<Derived> dictionary);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+      IsolateT* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 

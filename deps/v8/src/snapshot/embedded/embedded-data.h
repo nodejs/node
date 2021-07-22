@@ -9,6 +9,7 @@
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/code-range.h"
 
 namespace v8 {
 namespace internal {
@@ -60,6 +61,13 @@ class EmbeddedData final {
     return EmbeddedData(
         isolate->embedded_blob_code(), isolate->embedded_blob_code_size(),
         isolate->embedded_blob_data(), isolate->embedded_blob_data_size());
+  }
+
+  static EmbeddedData FromBlob(CodeRange* code_range) {
+    return EmbeddedData(code_range->embedded_blob_code_copy(),
+                        Isolate::CurrentEmbeddedBlobCodeSize(),
+                        Isolate::CurrentEmbeddedBlobData(),
+                        Isolate::CurrentEmbeddedBlobDataSize());
   }
 
   const uint8_t* code() const { return code_; }

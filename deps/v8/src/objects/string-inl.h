@@ -92,12 +92,12 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   base::Optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
 };
 
-int String::synchronized_length() const {
+int String::length(AcquireLoadTag) const {
   return base::AsAtomic32::Acquire_Load(
       reinterpret_cast<const int32_t*>(field_address(kLengthOffset)));
 }
 
-void String::synchronized_set_length(int value) {
+void String::set_length(int value, ReleaseStoreTag) {
   base::AsAtomic32::Release_Store(
       reinterpret_cast<int32_t*>(field_address(kLengthOffset)), value);
 }
@@ -119,7 +119,7 @@ CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
 
 StringShape::StringShape(const String str)
-    : type_(str.synchronized_map().instance_type()) {
+    : type_(str.map(kAcquireLoad).instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -333,8 +333,8 @@ class SequentialStringKey final : public StringTableKey {
         chars_(chars),
         convert_(convert) {}
 
-  template <typename LocalIsolate>
-  bool IsMatch(LocalIsolate* isolate, String s) {
+  template <typename IsolateT>
+  bool IsMatch(IsolateT* isolate, String s) {
     return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 
@@ -823,10 +823,10 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 // Due to ThinString rewriting, concurrent visitors need to read the length with
 // acquire semantics.
 inline int SeqOneByteString::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
 inline int SeqTwoByteString::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
@@ -858,7 +858,8 @@ void ExternalString::AllocateExternalPointerEntries(Isolate* isolate) {
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {
-  return ReadExternalPointerField(kResourceOffset, cage_base,
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  return ReadExternalPointerField(kResourceOffset, isolate,
                                   kExternalStringResourceTag);
 }
 

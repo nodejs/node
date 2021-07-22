@@ -5,6 +5,8 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import sys
+
 print("""
 1
 v8-foozzie source: name/to/a/file.js
@@ -15,3 +17,6 @@ v8-foozzie source: name/to/file.js
 3
 unknown
 """)
+
+if '--bad-flag' in sys.argv:
+  print('bad behavior')

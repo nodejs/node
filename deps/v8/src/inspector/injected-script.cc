@@ -302,7 +302,8 @@ class InjectedScript::ProtocolPromiseHandler {
       exceptionDetails->setStackTrace(
           stack->buildInspectorObjectImpl(m_inspector->debugger()));
     if (stack && !stack->isEmpty())
-      exceptionDetails->setScriptId(toString16(stack->topScriptId()));
+      exceptionDetails->setScriptId(
+          String16::fromInteger(stack->topScriptId()));
     callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
   }
 

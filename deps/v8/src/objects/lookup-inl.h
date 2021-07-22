@@ -169,7 +169,8 @@ Handle<Name> LookupIterator::GetName() {
 
 bool LookupIterator::IsElement(JSReceiver object) const {
   return index_ <= JSObject::kMaxElementIndex ||
-         (index_ != kInvalidIndex && object.map().has_typed_array_elements());
+         (index_ != kInvalidIndex &&
+          object.map().has_typed_array_or_rab_gsab_typed_array_elements());
 }
 
 bool LookupIterator::is_dictionary_holder() const {
@@ -209,7 +210,7 @@ bool LookupIterator::IsCacheableTransition() {
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
-  RuntimeCallTimerScope scope(isolate, RuntimeCallCounterId::kUpdateProtector);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
 
   // This list must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!

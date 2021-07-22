@@ -892,6 +892,11 @@ TEST(JSWeakRefScavengedInWorklist) {
       weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
     }
 
+    // Store weak_ref in Global such that it is part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_weak_ref(
+        CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
+
     // Do marking. This puts the WeakRef above into the js_weak_refs worklist
     // since its target isn't marked.
     CHECK(
@@ -934,6 +939,10 @@ TEST(JSWeakRefTenuredInWorklist) {
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
+  // Store weak_ref such that it is part of the root set when starting
+  // incremental marking.
+  v8::Global<Value> global_weak_ref(
+      CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
   JSWeakRef old_weak_ref_location = *weak_ref;
 
   // Do marking. This puts the WeakRef above into the js_weak_refs worklist

@@ -24,7 +24,8 @@ class DeadCodeEliminationTest : public GraphTest {
 
  protected:
   Reduction Reduce(AdvancedReducer::Editor* editor, Node* node) {
-    DeadCodeElimination reducer(editor, graph(), common(), zone());
+    DeadCodeElimination reducer(editor, graph(), common(), zone(),
+                                FLAG_concurrent_inlining);
     return reducer.Reduce(node);
   }
 

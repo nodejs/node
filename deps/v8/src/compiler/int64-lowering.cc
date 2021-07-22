@@ -392,8 +392,7 @@ void Int64Lowering::LowerNode(Node* node) {
             if (call_descriptor->GetReturnType(old_index).representation() ==
                 MachineRepresentation::kWord64) {
               Node* high_node = graph()->NewNode(
-                  common()->Projection(new_index + 1), node,
-                  graph()->start());
+                  common()->Projection(new_index + 1), node, graph()->start());
               ReplaceNode(use_node, use_node, high_node);
               ++new_index;
             }
@@ -684,11 +683,11 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
-    case IrOpcode::kWord64Rol:
+    case IrOpcode::kWord64RolLowerable:
       DCHECK(machine()->Word32Rol().IsSupported());
       V8_FALLTHROUGH;
-    case IrOpcode::kWord64Ror: {
-      DCHECK_EQ(2, node->InputCount());
+    case IrOpcode::kWord64RorLowerable: {
+      DCHECK_EQ(3, node->InputCount());
       Node* input = node->InputAt(0);
       Node* shift = HasReplacementLow(node->InputAt(1))
                         ? GetReplacementLow(node->InputAt(1))
@@ -721,7 +720,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
           auto* op1 = machine()->Word32Shr();
           auto* op2 = machine()->Word32Shl();
-          bool is_ror = node->opcode() == IrOpcode::kWord64Ror;
+          bool is_ror = node->opcode() == IrOpcode::kWord64RorLowerable;
           if (!is_ror) std::swap(op1, op2);
 
           Node* low_node =
@@ -742,7 +741,7 @@ void Int64Lowering::LowerNode(Node* node) {
                                graph()->NewNode(common()->Int32Constant(0x1F)));
         }
 
-        bool is_ror = node->opcode() == IrOpcode::kWord64Ror;
+        bool is_ror = node->opcode() == IrOpcode::kWord64RorLowerable;
         Node* inv_mask =
             is_ror ? graph()->NewNode(
                          machine()->Word32Xor(),
@@ -774,6 +773,7 @@ void Int64Lowering::LowerNode(Node* node) {
             graph(), common(),
             graph()->NewNode(machine()->Int32LessThan(), masked_shift6,
                              graph()->NewNode(common()->Int32Constant(32))));
+        lt32.Chain(NodeProperties::GetControlInput(node));
 
         // The low word and the high word can be swapped either at the input or
         // at the output. We swap the inputs so that shift does not have to be
@@ -807,13 +807,14 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
-    case IrOpcode::kWord64Clz: {
-      DCHECK_EQ(1, node->InputCount());
+    case IrOpcode::kWord64ClzLowerable: {
+      DCHECK_EQ(2, node->InputCount());
       Node* input = node->InputAt(0);
       Diamond d(
           graph(), common(),
           graph()->NewNode(machine()->Word32Equal(), GetReplacementHigh(input),
                            graph()->NewNode(common()->Int32Constant(0))));
+      d.Chain(NodeProperties::GetControlInput(node));
 
       Node* low_node = d.Phi(
           MachineRepresentation::kWord32,
@@ -825,14 +826,16 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
-    case IrOpcode::kWord64Ctz: {
-      DCHECK_EQ(1, node->InputCount());
+    case IrOpcode::kWord64CtzLowerable: {
+      DCHECK_EQ(2, node->InputCount());
       DCHECK(machine()->Word32Ctz().IsSupported());
       Node* input = node->InputAt(0);
       Diamond d(
           graph(), common(),
           graph()->NewNode(machine()->Word32Equal(), GetReplacementLow(input),
                            graph()->NewNode(common()->Int32Constant(0))));
+      d.Chain(NodeProperties::GetControlInput(node));
+
       Node* low_node =
           d.Phi(MachineRepresentation::kWord32,
                 graph()->NewNode(machine()->Int32Add(),
@@ -844,6 +847,12 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
+    case IrOpcode::kWord64Ror:
+    case IrOpcode::kWord64Rol:
+    case IrOpcode::kWord64Ctz:
+    case IrOpcode::kWord64Clz:
+      FATAL("%s operator should not be used in 32-bit systems",
+            node->op()->mnemonic());
     case IrOpcode::kWord64Popcnt: {
       DCHECK_EQ(1, node->InputCount());
       Node* input = node->InputAt(0);
@@ -1030,7 +1039,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
     default: { DefaultLowering(node); }
   }
-}  // NOLINT(readability/fn_size)
+}
 
 void Int64Lowering::LowerComparison(Node* node, const Operator* high_word_op,
                                     const Operator* low_word_op) {

@@ -57,22 +57,22 @@ class HeapObjectHeader {
   static constexpr size_t kMaxSize = (size_t{1} << kSizeLog2) - 1;
   static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
-  inline static HeapObjectHeader& FromPayload(void* address);
-  inline static const HeapObjectHeader& FromPayload(const void* address);
+  inline static HeapObjectHeader& FromObject(void* address);
+  inline static const HeapObjectHeader& FromObject(const void* address);
 
   inline HeapObjectHeader(size_t size, GCInfoIndex gc_info_index);
 
-  // The payload starts directly after the HeapObjectHeader.
-  inline Address Payload() const;
+  // The object starts directly after the HeapObjectHeader.
+  inline Address ObjectStart() const;
   template <AccessMode mode = AccessMode::kNonAtomic>
-  inline Address PayloadEnd() const;
+  inline Address ObjectEnd() const;
 
   template <AccessMode mode = AccessMode::kNonAtomic>
   inline GCInfoIndex GetGCInfoIndex() const;
 
   template <AccessMode mode = AccessMode::kNonAtomic>
-  inline size_t GetSize() const;
-  inline void SetSize(size_t size);
+  inline size_t AllocatedSize() const;
+  inline void SetAllocatedSize(size_t size);
 
   template <AccessMode mode = AccessMode::kNonAtomic>
   inline size_t ObjectSize() const;
@@ -149,15 +149,15 @@ static_assert(kAllocationGranularity == sizeof(HeapObjectHeader),
               "guarantee alignment");
 
 // static
-HeapObjectHeader& HeapObjectHeader::FromPayload(void* payload) {
-  return *reinterpret_cast<HeapObjectHeader*>(static_cast<Address>(payload) -
+HeapObjectHeader& HeapObjectHeader::FromObject(void* object) {
+  return *reinterpret_cast<HeapObjectHeader*>(static_cast<Address>(object) -
                                               sizeof(HeapObjectHeader));
 }
 
 // static
-const HeapObjectHeader& HeapObjectHeader::FromPayload(const void* payload) {
+const HeapObjectHeader& HeapObjectHeader::FromObject(const void* object) {
   return *reinterpret_cast<const HeapObjectHeader*>(
-      static_cast<ConstAddress>(payload) - sizeof(HeapObjectHeader));
+      static_cast<ConstAddress>(object) - sizeof(HeapObjectHeader));
 }
 
 HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
@@ -183,16 +183,16 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
 #endif  // DEBUG
 }
 
-Address HeapObjectHeader::Payload() const {
+Address HeapObjectHeader::ObjectStart() const {
   return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
          sizeof(HeapObjectHeader);
 }
 
 template <AccessMode mode>
-Address HeapObjectHeader::PayloadEnd() const {
+Address HeapObjectHeader::ObjectEnd() const {
   DCHECK(!IsLargeObject());
   return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
-         GetSize<mode>();
+         AllocatedSize<mode>();
 }
 
 template <AccessMode mode>
@@ -203,7 +203,7 @@ GCInfoIndex HeapObjectHeader::GetGCInfoIndex() const {
 }
 
 template <AccessMode mode>
-size_t HeapObjectHeader::GetSize() const {
+size_t HeapObjectHeader::AllocatedSize() const {
   // Size is immutable after construction while either marking or sweeping
   // is running so relaxed load (if mode == kAtomic) is enough.
   uint16_t encoded_low_value =
@@ -212,19 +212,21 @@ size_t HeapObjectHeader::GetSize() const {
   return size;
 }
 
-void HeapObjectHeader::SetSize(size_t size) {
+void HeapObjectHeader::SetAllocatedSize(size_t size) {
   DCHECK(!IsMarked());
   encoded_low_ = EncodeSize(size);
 }
 
 template <AccessMode mode>
 size_t HeapObjectHeader::ObjectSize() const {
-  return GetSize<mode>() - sizeof(HeapObjectHeader);
+  // The following DCHECK also fails for large objects.
+  DCHECK_GT(AllocatedSize<mode>(), sizeof(HeapObjectHeader));
+  return AllocatedSize<mode>() - sizeof(HeapObjectHeader);
 }
 
 template <AccessMode mode>
 bool HeapObjectHeader::IsLargeObject() const {
-  return GetSize<mode>() == kLargeObjectSizeInHeader;
+  return AllocatedSize<mode>() == kLargeObjectSizeInHeader;
 }
 
 template <AccessMode mode>
@@ -235,7 +237,8 @@ bool HeapObjectHeader::IsInConstruction() const {
 }
 
 void HeapObjectHeader::MarkAsFullyConstructed() {
-  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(Payload());
+  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
+      ObjectStart());
 }
 
 template <AccessMode mode>
@@ -282,7 +285,7 @@ template <AccessMode mode>
 void HeapObjectHeader::Trace(Visitor* visitor) const {
   const GCInfo& gc_info =
       GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
-  return gc_info.trace(visitor, Payload());
+  return gc_info.trace(visitor, ObjectStart());
 }
 
 template <AccessMode mode, HeapObjectHeader::EncodedHalf part,

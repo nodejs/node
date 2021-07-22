@@ -13,7 +13,7 @@ function presentedAPIMethods()
     var methodCount = 0;
     for (var method of methods) {
         try {
-            if (eval("window." + method + "&&" + method + ".toString ? " + method + ".toString().indexOf(\\"[Command Line API]\\") !== -1 : false"))
+            if (eval("window." + method + "&&" + method + ".toString ? " + method + ".toString().indexOf(\\"[native code]\\") !== -1 : false"))
                 ++methodCount;
         } catch (e) {
         }

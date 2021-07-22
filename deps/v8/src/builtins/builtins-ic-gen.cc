@@ -10,70 +10,221 @@
 namespace v8 {
 namespace internal {
 
-#define IC_BUILTIN(Name)                                                \
-  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
-    AccessorAssembler assembler(state);                                 \
-    assembler.Generate##Name();                                         \
-  }
+void Builtins::Generate_LoadIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadIC();
+}
+void Builtins::Generate_LoadIC_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadIC_Megamorphic();
+}
+void Builtins::Generate_LoadIC_Noninlined(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadIC_Noninlined();
+}
+void Builtins::Generate_LoadIC_NoFeedback(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadIC_NoFeedback();
+}
+void Builtins::Generate_LoadICTrampoline(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICTrampoline();
+}
+void Builtins::Generate_LoadICBaseline(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICBaseline();
+}
+void Builtins::Generate_LoadICTrampoline_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICTrampoline_Megamorphic();
+}
+void Builtins::Generate_LoadSuperIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadSuperIC();
+}
+void Builtins::Generate_LoadSuperICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadSuperICBaseline();
+}
+void Builtins::Generate_KeyedLoadIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadIC();
+}
+void Builtins::Generate_KeyedLoadIC_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadIC_Megamorphic();
+}
+void Builtins::Generate_KeyedLoadIC_PolymorphicName(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadIC_PolymorphicName();
+}
+void Builtins::Generate_KeyedLoadICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadICTrampoline();
+}
+void Builtins::Generate_KeyedLoadICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadICBaseline();
+}
+void Builtins::Generate_KeyedLoadICTrampoline_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedLoadICTrampoline_Megamorphic();
+}
+void Builtins::Generate_LoadGlobalIC_NoFeedback(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalIC_NoFeedback();
+}
+void Builtins::Generate_StoreGlobalIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreGlobalIC();
+}
+void Builtins::Generate_StoreGlobalICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreGlobalICTrampoline();
+}
+void Builtins::Generate_StoreGlobalICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreGlobalICBaseline();
+}
+void Builtins::Generate_StoreIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreIC();
+}
+void Builtins::Generate_StoreICTrampoline(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreICTrampoline();
+}
+void Builtins::Generate_StoreICBaseline(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreICBaseline();
+}
+void Builtins::Generate_KeyedStoreIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedStoreIC();
+}
+void Builtins::Generate_KeyedStoreICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedStoreICTrampoline();
+}
+void Builtins::Generate_KeyedStoreICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedStoreICBaseline();
+}
+void Builtins::Generate_StoreInArrayLiteralIC(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreInArrayLiteralIC();
+}
+void Builtins::Generate_StoreInArrayLiteralICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreInArrayLiteralICBaseline();
+}
+void Builtins::Generate_CloneObjectIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateCloneObjectIC();
+}
+void Builtins::Generate_CloneObjectICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateCloneObjectICBaseline();
+}
+void Builtins::Generate_CloneObjectIC_Slow(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateCloneObjectIC_Slow();
+}
+void Builtins::Generate_KeyedHasIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedHasIC();
+}
+void Builtins::Generate_KeyedHasICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedHasICBaseline();
+}
+void Builtins::Generate_KeyedHasIC_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedHasIC_Megamorphic();
+}
+void Builtins::Generate_KeyedHasIC_PolymorphicName(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedHasIC_PolymorphicName();
+}
 
-#define IC_BUILTIN_PARAM(BuiltinName, GeneratorName, parameter)                \
-  void Builtins::Generate_##BuiltinName(compiler::CodeAssemblerState* state) { \
-    AccessorAssembler assembler(state);                                        \
-    assembler.Generate##GeneratorName(parameter);                              \
-  }
+void Builtins::Generate_LoadGlobalIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalIC(TypeofMode::kNotInside);
+}
 
-IC_BUILTIN(LoadIC)
-IC_BUILTIN(LoadIC_Megamorphic)
-IC_BUILTIN(LoadIC_Noninlined)
-IC_BUILTIN(LoadIC_NoFeedback)
-IC_BUILTIN(LoadICTrampoline)
-IC_BUILTIN(LoadICBaseline)
-IC_BUILTIN(LoadICTrampoline_Megamorphic)
-IC_BUILTIN(LoadSuperIC)
-IC_BUILTIN(LoadSuperICBaseline)
-IC_BUILTIN(KeyedLoadIC)
-IC_BUILTIN(KeyedLoadIC_Megamorphic)
-IC_BUILTIN(KeyedLoadIC_PolymorphicName)
-IC_BUILTIN(KeyedLoadICTrampoline)
-IC_BUILTIN(KeyedLoadICBaseline)
-IC_BUILTIN(KeyedLoadICTrampoline_Megamorphic)
-IC_BUILTIN(LoadGlobalIC_NoFeedback)
-IC_BUILTIN(StoreGlobalIC)
-IC_BUILTIN(StoreGlobalICTrampoline)
-IC_BUILTIN(StoreGlobalICBaseline)
-IC_BUILTIN(StoreIC)
-IC_BUILTIN(StoreICTrampoline)
-IC_BUILTIN(StoreICBaseline)
-IC_BUILTIN(KeyedStoreIC)
-IC_BUILTIN(KeyedStoreICTrampoline)
-IC_BUILTIN(KeyedStoreICBaseline)
-IC_BUILTIN(StoreInArrayLiteralIC)
-IC_BUILTIN(StoreInArrayLiteralICBaseline)
-IC_BUILTIN(CloneObjectIC)
-IC_BUILTIN(CloneObjectICBaseline)
-IC_BUILTIN(CloneObjectIC_Slow)
-IC_BUILTIN(KeyedHasIC)
-IC_BUILTIN(KeyedHasICBaseline)
-IC_BUILTIN(KeyedHasIC_Megamorphic)
-IC_BUILTIN(KeyedHasIC_PolymorphicName)
+void Builtins::Generate_LoadGlobalICInsideTypeof(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalIC(TypeofMode::kInside);
+}
 
-IC_BUILTIN_PARAM(LoadGlobalIC, LoadGlobalIC, NOT_INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadGlobalICInsideTypeof, LoadGlobalIC, INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
-                 NOT_INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
-                 INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadGlobalICBaseline, LoadGlobalICBaseline, NOT_INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofBaseline, LoadGlobalICBaseline,
-                 INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LookupGlobalICBaseline, LookupGlobalICBaseline,
-                 NOT_INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LookupGlobalICInsideTypeofBaseline, LookupGlobalICBaseline,
-                 INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LookupContextBaseline, LookupContextBaseline,
-                 NOT_INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LookupContextInsideTypeofBaseline, LookupContextBaseline,
-                 INSIDE_TYPEOF)
+void Builtins::Generate_LoadGlobalICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalICTrampoline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LoadGlobalICInsideTypeofTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalICTrampoline(TypeofMode::kInside);
+}
+
+void Builtins::Generate_LoadGlobalICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalICBaseline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LoadGlobalICInsideTypeofBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadGlobalICBaseline(TypeofMode::kInside);
+}
+
+void Builtins::Generate_LookupGlobalICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalICBaseline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LookupGlobalICInsideTypeofBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalICBaseline(TypeofMode::kInside);
+}
+
+void Builtins::Generate_LookupContextBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextBaseline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LookupContextInsideTypeofBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextBaseline(TypeofMode::kInside);
+}
 
 TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {
   auto map = Parameter<Map>(Descriptor::kMap);

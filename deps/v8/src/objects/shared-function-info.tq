@@ -49,7 +49,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
-  may_have_cached_code: bool: 1 bit;
 }
 
 @export

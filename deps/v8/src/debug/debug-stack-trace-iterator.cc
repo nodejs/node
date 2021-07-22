@@ -172,14 +172,6 @@ DebugStackTraceIterator::GetScopeIterator() const {
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }
 
-bool DebugStackTraceIterator::Restart() {
-  DCHECK(!Done());
-#if V8_ENABLE_WEBASSEMBLY
-  if (iterator_.is_wasm()) return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return LiveEdit::RestartFrame(iterator_.javascript_frame());
-}
-
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());

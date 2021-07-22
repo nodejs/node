@@ -8,6 +8,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
@@ -22,7 +23,7 @@ namespace {
 
 // Returns properties for the given binary op.
 constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
-  CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
+  DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
   return opcode == IrOpcode::kJSStrictEqual ? Operator::kPure
                                             : Operator::kNoProperties;
 }
@@ -41,7 +42,7 @@ FeedbackCellRef JSCreateClosureNode::GetFeedbackCellRefChecked(
     JSHeapBroker* broker) const {
   HeapObjectMatcher m(feedback_cell());
   CHECK(m.HasResolvedValue());
-  return FeedbackCellRef(broker, m.ResolvedValue());
+  return MakeRef(broker, Handle<FeedbackCell>::cast(m.ResolvedValue()));
 }
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
@@ -338,12 +339,13 @@ bool operator!=(LoadGlobalParameters const& lhs,
 
 
 size_t hash_value(LoadGlobalParameters const& p) {
-  return base::hash_combine(p.name().location(), p.typeof_mode());
+  return base::hash_combine(p.name().location(),
+                            static_cast<int>(p.typeof_mode()));
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
-  return os << Brief(*p.name()) << ", " << p.typeof_mode();
+  return os << Brief(*p.name()) << ", " << static_cast<int>(p.typeof_mode());
 }
 
 

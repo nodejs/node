@@ -1696,7 +1696,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     if (!result->IsNull(isolate)) return *factory->NewJSArray(0);
 
-    Handle<FixedArray> elems = factory->NewUninitializedFixedArray(1);
+    Handle<FixedArray> elems = factory->NewFixedArray(1);
     elems->set(0, *string);
     return *factory->NewJSArrayWithElements(elems);
   }
@@ -2002,6 +2002,14 @@ RUNTIME_FUNCTION(Runtime_IsRegExp) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj.IsJSRegExp());
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  Handle<String> flags = JSRegExp::StringFromFlags(isolate, regexp.GetFlags());
+  return *flags;
 }
 
 }  // namespace internal

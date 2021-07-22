@@ -65,7 +65,8 @@ class IA32OperandGenerator final : public OperandGenerator {
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
                           int effect_level) {
-    if (input->opcode() != IrOpcode::kLoad ||
+    if ((input->opcode() != IrOpcode::kLoad &&
+         input->opcode() != IrOpcode::kLoadImmutable) ||
         !selector()->CanCover(node, input)) {
       return false;
     }
@@ -551,6 +552,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
 
@@ -633,6 +635,7 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kWord64:             // Fall through.
+      case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -816,7 +819,8 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 
   Node* const value = node->InputAt(0);
   if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
-    DCHECK_EQ(IrOpcode::kLoad, value->opcode());
+    DCHECK(value->opcode() == IrOpcode::kLoad ||
+           value->opcode() == IrOpcode::kLoadImmutable);
 
     // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
     static constexpr int kMaxInputCount = 3;
@@ -1432,7 +1436,8 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
+  DCHECK(left->opcode() == IrOpcode::kLoad ||
+         left->opcode() == IrOpcode::kLoadImmutable);
   IA32OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[4];
@@ -1463,7 +1468,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
-  if (hint_node->opcode() == IrOpcode::kLoad) {
+  if (hint_node->opcode() == IrOpcode::kLoad ||
+      hint_node->opcode() == IrOpcode::kLoadImmutable) {
     MachineType hint = LoadRepresentationOf(hint_node->op());
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
@@ -1497,8 +1503,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
       }
     }
   }
-  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
-                                           : MachineType::None();
+  return node->opcode() == IrOpcode::kLoad ||
+                 node->opcode() == IrOpcode::kLoadImmutable
+             ? LoadRepresentationOf(node->op())
+             : MachineType::None();
 }
 
 // Tries to match the size of the given opcode to that of the operands, if
@@ -2346,30 +2354,24 @@ void InstructionSelector::VisitS128Const(Node* node) {
 
 void InstructionSelector::VisitF64x2Min(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
 
   if (IsSupported(AVX)) {
-    Emit(kIA32F64x2Min, g.DefineAsRegister(node), operand0, operand1,
-         arraysize(temps), temps);
+    Emit(kIA32F64x2Min, g.DefineAsRegister(node), operand0, operand1);
   } else {
-    Emit(kIA32F64x2Min, g.DefineSameAsFirst(node), operand0, operand1,
-         arraysize(temps), temps);
+    Emit(kIA32F64x2Min, g.DefineSameAsFirst(node), operand0, operand1);
   }
 }
 
 void InstructionSelector::VisitF64x2Max(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
   if (IsSupported(AVX)) {
-    Emit(kIA32F64x2Max, g.DefineAsRegister(node), operand0, operand1,
-         arraysize(temps), temps);
+    Emit(kIA32F64x2Max, g.DefineAsRegister(node), operand0, operand1);
   } else {
-    Emit(kIA32F64x2Max, g.DefineSameAsFirst(node), operand0, operand1,
-         arraysize(temps), temps);
+    Emit(kIA32F64x2Max, g.DefineSameAsFirst(node), operand0, operand1);
   }
 }
 
@@ -2378,7 +2380,7 @@ void InstructionSelector::VisitF64x2Splat(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
-  VisitRRISimd(this, node, kAVXF64x2ExtractLane, kSSEF64x2ExtractLane);
+  VisitRRISimd(this, node, kF64x2ExtractLane, kF64x2ExtractLane);
 }
 
 void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
@@ -2406,7 +2408,10 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 
 void InstructionSelector::VisitI64x2Neg(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseUnique(node->InputAt(0));
+  // If AVX unsupported, make sure dst != src to avoid a move.
+  InstructionOperand operand0 = IsSupported(AVX)
+                                    ? g.UseRegister(node->InputAt(0))
+                                    : g.UseUnique(node->InputAt(0));
   Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
 }
 
@@ -2546,27 +2551,15 @@ SIMD_REPLACE_LANE_TYPE_OP(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 #undef SIMD_REPLACE_LANE_TYPE_OP
 
-// The difference between this and VISIT_SIMD_REPLACE_LANE is that this forces
-// operand2 to be UseRegister, because the codegen relies on insertps using
-// registers.
-// TODO(v8:9764) Remove this UseRegister requirement
-#define VISIT_SIMD_REPLACE_LANE_USE_REG(Type)                            \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \
-    IA32OperandGenerator g(this);                                        \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
-    InstructionOperand operand1 =                                        \
-        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
-    InstructionOperand operand2 = g.UseUniqueRegister(node->InputAt(1)); \
-    if (IsSupported(AVX)) {                                              \
-      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
-           operand1, operand2);                                          \
-    } else {                                                             \
-      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0, \
-           operand1, operand2);                                          \
-    }                                                                    \
-  }
-VISIT_SIMD_REPLACE_LANE_USE_REG(F64x2)
-#undef VISIT_SIMD_REPLACE_LANE_USE_REG
+void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
+  IA32OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  // When no-AVX, define dst == src to save a move.
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kF64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
+}
 
 #define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)        \
   void InstructionSelector::Visit##Opcode(Node* node) { \
@@ -3157,6 +3150,12 @@ void InstructionSelector::VisitI64x2GeS(Node* node) {
 
 void InstructionSelector::VisitI64x2Abs(Node* node) {
   VisitRRSimd(this, node, kIA32I64x2Abs, kIA32I64x2Abs);
+}
+
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
 }
 
 // static

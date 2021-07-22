@@ -444,7 +444,7 @@ class ElementsKindDependency final : public CompilationDependency {
   bool IsValid() const override {
     Handle<AllocationSite> site = site_.object();
     ElementsKind kind = site->PointsToLiteral()
-                            ? site->boilerplate().GetElementsKind()
+                            ? site->boilerplate(kAcquireLoad).GetElementsKind()
                             : site->GetElementsKind();
     return kind_ == kind;
   }
@@ -580,38 +580,38 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
 }
 
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_,
       broker_->isolate()->factory()->array_buffer_detaching_protector()));
 }
 
 bool CompilationDependencies::DependOnArrayIteratorProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->array_iterator_protector()));
 }
 
 bool CompilationDependencies::DependOnArraySpeciesProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->array_species_protector()));
 }
 
 bool CompilationDependencies::DependOnNoElementsProtector() {
-  return DependOnProtector(PropertyCellRef(
-      broker_, broker_->isolate()->factory()->no_elements_protector()));
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()->factory()->no_elements_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseHookProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_hook_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseSpeciesProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_species_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseThenProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_then_protector()));
 }
 
@@ -680,7 +680,7 @@ namespace {
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
   while (true) {
-    HeapObjectRef proto = map.prototype();
+    HeapObjectRef proto = map.prototype().value();
     if (!proto.IsJSObject()) {
       CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
       break;
@@ -697,7 +697,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     MapContainer const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
   for (auto map : receiver_maps) {
-    MapRef receiver_map(broker_, map);
+    MapRef receiver_map = MakeRef(broker_, map);
     if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.

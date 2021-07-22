@@ -8,10 +8,11 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +29,9 @@ Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(unwrapped);
-      return m.Ref(broker).BooleanValue() ? Decision::kTrue : Decision::kFalse;
+      base::Optional<bool> maybe_result = m.Ref(broker).TryGetBooleanValue();
+      if (!maybe_result.has_value()) return Decision::kUnknown;
+      return *maybe_result ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
@@ -53,7 +56,8 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
 }
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(broker() == nullptr ||
+                                      !broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);

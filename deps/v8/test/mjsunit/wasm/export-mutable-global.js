@@ -7,16 +7,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function exportImmutableGlobal() {
   var builder = new WasmModuleBuilder();
   let globals = [
-    [kWasmI32, 'i32_noinit'],
-    [kWasmI32, 'i32', 4711],
-    [kWasmF32, 'f32_noinit'],
-    [kWasmF32, 'f32', Math.fround(3.14)],
-    [kWasmF64, 'f64_noinit'],
-    [kWasmF64, 'f64', 1 / 7]
+    [kWasmI32, 'i32', WasmInitExpr.I32Const(4711)],
+    [kWasmF32, 'f32', WasmInitExpr.F32Const(Math.fround(3.14))],
+    [kWasmF64, 'f64', WasmInitExpr.F64Const(1 / 7)]
   ];
   for (let [type, name, value] of globals) {
-    let global_builder = builder.addGlobal(type, false).exportAs(name);
-    if (value) global_builder.init = value;
+    builder.addGlobal(type, false, value).exportAs(name);
   }
   var instance = builder.instantiate();
 
@@ -24,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     let obj = instance.exports[name];
     assertEquals("object", typeof obj, name);
     assertTrue(obj instanceof WebAssembly.Global, name);
-    assertEquals(value || 0, obj.value, name);
+    assertEquals(value.value || 0, obj.value, name);
     assertThrows(() => obj.value = 0);
   }
 })();
@@ -48,16 +44,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function exportMutableGlobal() {
   var builder = new WasmModuleBuilder();
   let globals = [
-    [kWasmI32, 'i32_noinit'],              // -
-    [kWasmI32, 'i32', 4711],               // -
-    [kWasmF32, 'f32_noinit'],              // -
-    [kWasmF32, 'f32', Math.fround(3.14)],  // -
-    [kWasmF64, 'f64_noinit'],              // -
-    [kWasmF64, 'f64', 1 / 7]               // -
+    [kWasmI32, 'i32', WasmInitExpr.I32Const(4711)],               // -
+    [kWasmF32, 'f32', WasmInitExpr.F32Const(Math.fround(3.14))],  // -
+    [kWasmF64, 'f64', WasmInitExpr.F64Const(1 / 7)]               // -
   ];
   for (let [index, [type, name, value]] of globals.entries()) {
-    let global_builder = builder.addGlobal(type, true).exportAs(name);
-    if (value) global_builder.init = value;
+    builder.addGlobal(type, true, value).exportAs(name);
     builder.addFunction("get " + name, makeSig([], [type]))
       .addBody([kExprGlobalGet, index])
       .exportFunc();
@@ -70,7 +62,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   for (let [type, name, value] of globals) {
     let obj = instance.exports[name];
 
-    assertEquals(value || 0, obj.value, name);
+    assertEquals(value.value || 0, obj.value, name);
 
     // Changing the exported global should change the instance's global.
     obj.value = 1001;

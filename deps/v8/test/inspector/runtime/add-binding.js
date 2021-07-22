@@ -87,6 +87,44 @@ InspectorTest.runAsyncTestSuite([
     await session.Protocol.Runtime.evaluate({expression, contextId: contextId3});
   },
 
+  async function testAddBindingToMultipleContextsById() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    const contextId1 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    contextGroup.createContext();
+    const contextId2 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: contextId1});
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: contextId2});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression});
+
+    InspectorTest.log('Call binding in target context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextId2});
+  },
+
+  async function testAddBindingToMultipleContextsInDifferentContextGroups() {
+    const sessions1 = setupSessions(1, 'group1/');
+    const session1 = sessions1.sessions[0];
+    const contextId1 = (await session1.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    const sessions2 = setupSessions(1, 'group2/');
+    const session2 = sessions2.sessions[0];
+    const contextId2 = (await session2.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    await session1.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: contextId1});
+    await session2.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: contextId2});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should be exposed)');
+    await session1.Protocol.Runtime.evaluate({expression, contextId: contextId1});
+
+    InspectorTest.log('Call binding in target context (binding should be exposed)');
+    await session2.Protocol.Runtime.evaluate({expression, contextId: contextId2});
+  },
+
   async function testAddBindingToContextByName() {
     const {contextGroup, sessions: [session]} = setupSessions(1);
     const defaultContext = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
@@ -134,7 +172,7 @@ InspectorTest.runAsyncTestSuite([
 
 ]);
 
-function setupSessions(num) {
+function setupSessions(num, prefix = '') {
   const contextGroup = new InspectorTest.ContextGroup();
   const sessions = [];
   for (let i = 0; i < num; ++i) {
@@ -142,7 +180,7 @@ function setupSessions(num) {
     sessions.push(session);
     session.Protocol.Runtime.enable();
     session.Protocol.Runtime.onBindingCalled(msg => {
-      InspectorTest.log(`binding called in session${i + 1}`);
+      InspectorTest.log(`binding called in ${prefix}session${i + 1}`);
       InspectorTest.logMessage(msg);
     });
   }

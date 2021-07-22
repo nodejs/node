@@ -55,7 +55,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
   return CpuFeatures::IsSupported(SIMD);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -1824,6 +1828,12 @@ void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
        TX);
 }
 
+void Assembler::lxvx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
 void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
   int TX = 1;
   emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
@@ -1878,16 +1888,16 @@ void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
        SX);
 }
 
+void Assembler::stxvx(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVX | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
 void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   int TX = 1;
   CHECK(is_uint8(imm.immediate()));
   emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
-}
-
-void Assembler::xxbrq(const Simd128Register rt, const Simd128Register rb) {
-  int BX = 1;
-  int TX = 1;
-  emit(XXBRQ | rt.code() * B21 | 31 * B16 | rb.code() * B11 | BX * B1 | TX);
 }
 
 // Pseudo instructions.

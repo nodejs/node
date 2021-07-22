@@ -206,7 +206,7 @@ Operand::Operand(Smi value) : rmode_(RelocInfo::NONE) {
 Operand::Operand(Register rm) : rm_(rm), shift_op_(LSL), shift_imm_(0) {}
 
 void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
+  if (V8_UNLIKELY(buffer_space() <= kGap)) {
     GrowBuffer();
   }
   MaybeCheckConstPool();

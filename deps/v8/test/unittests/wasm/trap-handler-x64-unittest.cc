@@ -246,7 +246,9 @@ class TrapHandlerTest : public TestWithIsolate,
         .Call();
     EXPECT_TRUE(g_test_handler_executed);
     g_test_handler_executed = false;
-    if (check_wasm_flag) EXPECT_FALSE(GetThreadInWasmFlag());
+    if (check_wasm_flag) {
+      EXPECT_FALSE(GetThreadInWasmFlag());
+    }
   }
 
   bool test_handler_executed() { return g_test_handler_executed; }
@@ -468,9 +470,11 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
 }
 #endif
 
+#if !V8_OS_FUCHSIA
 INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
                          ::testing::Values(kDefault, kCallback),
                          PrintTrapHandlerTestParam);
+#endif  // !V8_OS_FUCHSIA
 
 #undef __
 }  // namespace wasm

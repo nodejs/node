@@ -107,15 +107,15 @@ static const char* const ANNOTATION_EXPORT = "@export";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
-// Generate C++ accessors with relaxed write semantics.
-// Weak<T> and MaybeObject fields always use relaxed write.
-static const char* const ANNOTATION_RELAXED_WRITE = "@relaxedWrite";
-// Generate C++ accessors with relaxed read semantics.
-static const char* const ANNOTATION_RELAXED_READ = "@relaxedRead";
-// Generate C++ accessors with release write semantics.
-static const char* const ANNOTATION_RELEASE_WRITE = "@releaseWrite";
-// Generate C++ accessors with acquire read semantics.
-static const char* const ANNOTATION_ACQUIRE_READ = "@acquireRead";
+// Generate C++ accessors with relaxed store semantics.
+// Weak<T> and MaybeObject fields always use relaxed store.
+static const char* const ANNOTATION_CPP_RELAXED_STORE = "@cppRelaxedStore";
+// Generate C++ accessors with relaxed load semantics.
+static const char* const ANNOTATION_CPP_RELAXED_LOAD = "@cppRelaxedLoad";
+// Generate C++ accessors with release store semantics.
+static const char* const ANNOTATION_CPP_RELEASE_STORE = "@cppReleaseStore";
+// Generate C++ accessors with acquire load semantics.
+static const char* const ANNOTATION_CPP_ACQUIRE_LOAD = "@cppAcquireLoad";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==

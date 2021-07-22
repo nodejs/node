@@ -27,6 +27,10 @@ RefsMap::Entry* RefsMap::LookupOrInsert(const Address& key) {
                                        []() { return nullptr; });
 }
 
+ObjectData* RefsMap::Remove(const Address& key) {
+  return UnderlyingMap::Remove(key, RefsMap::Hash(key));
+}
+
 uint32_t RefsMap::Hash(Address addr) { return static_cast<uint32_t>(addr); }
 
 }  // namespace compiler

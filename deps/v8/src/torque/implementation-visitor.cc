@@ -11,12 +11,14 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/torque/cc-generator.h"
+#include "src/torque/cfg.h"
 #include "src/torque/constants.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
+#include "src/torque/source-positions.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
@@ -25,6 +27,10 @@
 namespace v8 {
 namespace internal {
 namespace torque {
+
+namespace {
+const char* BuiltinIncludesMarker = "// __BUILTIN_INCLUDES_MARKER__\n";
+}  // namespace
 
 VisitResult ImplementationVisitor::Visit(Expression* expr) {
   CurrentSourcePosition::Scope scope(expr->pos);
@@ -76,11 +82,17 @@ void ImplementationVisitor::BeginGeneratedFiles() {
         out << "#include " << StringLiteralQuote(include_path) << "\n";
       }
 
-      for (SourceId file : SourceFileMap::AllSources()) {
-        out << "#include \"torque-generated/" +
-                   SourceFileMap::PathFromV8RootWithoutExtension(file) +
-                   "-tq-csa.h\"\n";
-      }
+      out << "// Required Builtins:\n";
+      out << "#include \"torque-generated/" +
+                 SourceFileMap::PathFromV8RootWithoutExtension(file) +
+                 "-tq-csa.h\"\n";
+      // Now that required include files are collected while generting the file,
+      // we only know the full set at the end. Insert a marker here that is
+      // replaced with the list of includes at the very end.
+      // TODO(nicohartmann@): This is not the most beautiful way to do this,
+      // replace once the cpp file builder is available, where this can be
+      // handled easily.
+      out << BuiltinIncludesMarker;
       out << "\n";
 
       out << "namespace v8 {\n"
@@ -658,8 +670,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   } else {
     DCHECK(builtin->IsStub());
 
-    bool has_context_parameter = signature.HasContextParameter();
     for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
+      const std::string& parameter_name = signature.parameter_names[i]->value;
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -667,14 +679,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       csa_ccfile() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedParameter<" << type->GetGeneratedTNodeTypeName()
-                   << ">(";
-      if (i == 0 && has_context_parameter) {
-        csa_ccfile() << "Descriptor::kContext";
-      } else {
-        csa_ccfile() << "Descriptor::ParameterIndex<"
-                     << (has_context_parameter ? i - 1 : i) << ">()";
-      }
-      csa_ccfile() << ");\n";
+                   << ">(Descriptor::k" << CamelifyString(parameter_name)
+                   << ");\n";
       csa_ccfile() << "  USE(" << var << ");\n";
     }
   }
@@ -1743,7 +1749,23 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
     GlobalContext::PerFileStreams& streams =
         GlobalContext::GeneratedPerFile(file);
 
-    WriteFile(base_filename + "-tq-csa.cc", streams.csa_ccfile.str());
+    std::string csa_cc = streams.csa_ccfile.str();
+    // Insert missing builtin includes where the marker is.
+    {
+      auto pos = csa_cc.find(BuiltinIncludesMarker);
+      CHECK_NE(pos, std::string::npos);
+      std::string includes;
+      for (const SourceId& include : streams.required_builtin_includes) {
+        std::string include_file =
+            SourceFileMap::PathFromV8RootWithoutExtension(include);
+        includes += "#include \"torque-generated/";
+        includes += include_file;
+        includes += "-tq-csa.h\"\n";
+      }
+      csa_cc.replace(pos, strlen(BuiltinIncludesMarker), std::move(includes));
+    }
+
+    WriteFile(base_filename + "-tq-csa.cc", std::move(csa_cc));
     WriteFile(base_filename + "-tq-csa.h", streams.csa_headerfile.str());
     WriteFile(base_filename + "-tq.inc",
               streams.class_definition_headerfile.str());
@@ -2368,6 +2390,10 @@ LocationReference ImplementationVisitor::GetLocationReference(
     }
   }
   Value* value = Declarations::LookupValue(name);
+  CHECK(value->Position().source.IsValid());
+  if (auto stream = CurrentFileStreams::Get()) {
+    stream->required_builtin_includes.insert(value->Position().source);
+  }
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->name->pos, value->name()->pos);
   }
@@ -2623,6 +2649,11 @@ VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
     Arguments arguments, const TypeVector& specialization_types,
     bool is_tailcall) {
+  CHECK(callable->Position().source.IsValid());
+  if (auto stream = CurrentFileStreams::Get()) {
+    stream->required_builtin_includes.insert(callable->Position().source);
+  }
+
   const Type* return_type = callable->signature().return_type;
 
   if (is_tailcall) {
@@ -3128,8 +3159,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   TypeVector argument_types = arguments.parameters.ComputeTypeVector();
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
-  Callable* callable = nullptr;
-  callable = LookupMethod(method_name, target_type, arguments, {});
+  Callable* callable = LookupMethod(method_name, target_type, arguments, {});
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->method->name->pos,
                                       callable->IdentifierPosition());
@@ -3437,40 +3467,40 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
         std::string descriptor_name = builtin->ExternalName() + "Descriptor";
         bool has_context_parameter = builtin->signature().HasContextParameter();
         size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
-        size_t parameter_count =
-            builtin->parameter_names().size() - kFirstNonContextParameter;
         TypeVector return_types = LowerType(builtin->signature().return_type);
 
-        interface_descriptors
-            << "class " << descriptor_name
-            << " : public TorqueInterfaceDescriptor<" << return_types.size()
-            << ", " << parameter_count << ", "
-            << (has_context_parameter ? "true" : "false") << "> {\n";
-        interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
-                              << descriptor_name
-                              << ", TorqueInterfaceDescriptor)\n";
+        interface_descriptors << "class " << descriptor_name
+                              << " : public StaticCallInterfaceDescriptor<"
+                              << descriptor_name << "> {\n";
 
-        interface_descriptors
-            << "  std::vector<MachineType> ReturnType() override {\n";
-        interface_descriptors << "    return {{";
-        PrintCommaSeparatedList(interface_descriptors, return_types,
-                                MachineTypeString);
-        interface_descriptors << "}};\n";
-        interface_descriptors << "  }\n";
+        interface_descriptors << " public:\n";
 
-        interface_descriptors << "  std::array<MachineType, " << parameter_count
-                              << "> ParameterTypes() override {\n";
-        interface_descriptors << "    return {";
+        if (has_context_parameter) {
+          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
+        } else {
+          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(";
+        }
+        interface_descriptors << return_types.size();
         for (size_t i = kFirstNonContextParameter;
              i < builtin->parameter_names().size(); ++i) {
-          bool last = i + 1 == builtin->parameter_names().size();
-          const Type* type = builtin->signature().parameter_types.types[i];
-          interface_descriptors << MachineTypeString(type)
-                                << (last ? "" : ", ");
+          Identifier* parameter = builtin->parameter_names()[i];
+          interface_descriptors << ", k" << CamelifyString(parameter->value);
         }
-        interface_descriptors << "};\n";
+        interface_descriptors << ")\n";
 
-        interface_descriptors << "  }\n";
+        interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
+        PrintCommaSeparatedList(interface_descriptors, return_types,
+                                MachineTypeString);
+        for (size_t i = kFirstNonContextParameter;
+             i < builtin->parameter_names().size(); ++i) {
+          const Type* type = builtin->signature().parameter_types.types[i];
+          interface_descriptors << ", " << MachineTypeString(type);
+        }
+        interface_descriptors << ")\n";
+
+        interface_descriptors << "  DECLARE_DEFAULT_DESCRIPTOR("
+                              << descriptor_name << ")\n";
+
         interface_descriptors << "};\n\n";
       } else {
         builtin_definitions << "TFJ(" << builtin->ExternalName();
@@ -4221,15 +4251,47 @@ void CppClassGenerator::GenerateFieldAccessors(
   }
 
   hdr_ << "  inline " << type_name << " " << name << "("
-       << (indexed ? "int i" : "") << ") const;\n";
+       << (indexed ? "int i" : "");
+  switch (class_field.read_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      hdr_ << (indexed ? ", RelaxedLoadTag" : "RelaxedLoadTag");
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      hdr_ << (indexed ? ", AcquireLoadTag" : "AcquireLoadTag");
+      break;
+  }
+  hdr_ << ") const;\n";
   if (can_contain_heap_objects) {
     hdr_ << "  inline " << type_name << " " << name
-         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "")
-         << ") const;\n";
+         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        hdr_ << ", RelaxedLoadTag";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        hdr_ << ", AcquireLoadTag";
+        break;
+    }
+
+    hdr_ << ") const;\n";
   }
   hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
-       << type_name << " value"
-       << (can_contain_heap_objects
+       << type_name << " value";
+  switch (class_field.write_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      hdr_ << ", RelaxedStoreTag";
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      hdr_ << ", ReleaseStoreTag";
+      break;
+  }
+  hdr_ << (can_contain_heap_objects
                ? ", WriteBarrierMode mode = UPDATE_WRITE_BARRIER"
                : "")
        << ");\n\n";
@@ -4239,10 +4301,32 @@ void CppClassGenerator::GenerateFieldAccessors(
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
-         << (indexed ? "int i" : "") << ") const {\n";
+         << (indexed ? "int i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        inl_ << (indexed ? ", RelaxedLoadTag" : "RelaxedLoadTag");
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        inl_ << (indexed ? ", AcquireLoadTag" : "AcquireLoadTag");
+        break;
+    }
+    inl_ << ") const {\n";
     inl_ << "  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);\n";
     inl_ << "  return " << gen_name_ << "::" << name << "(cage_base"
-         << (indexed ? ", i" : "") << ");\n";
+         << (indexed ? ", i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        inl_ << ", kRelaxedLoad";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        inl_ << ", kAcquireLoad";
+        break;
+    }
+    inl_ << ");\n";
     inl_ << "}\n";
   }
 
@@ -4252,6 +4336,18 @@ void CppClassGenerator::GenerateFieldAccessors(
   if (can_contain_heap_objects) inl_ << "PtrComprCageBase cage_base";
   if (can_contain_heap_objects && indexed) inl_ << ", ";
   if (indexed) inl_ << "int i";
+  switch (class_field.read_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      inl_ << ((can_contain_heap_objects || indexed) ? ", RelaxedLoadTag"
+                                                     : "RelaxedLoadTag");
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      inl_ << ((can_contain_heap_objects || indexed) ? ", AcquireLoadTag"
+                                                     : "AcquireLoadTag");
+      break;
+  }
   inl_ << ") const {\n";
 
   inl_ << "  " << type_name << " value;\n";
@@ -4266,6 +4362,16 @@ void CppClassGenerator::GenerateFieldAccessors(
     inl_ << "int i, ";
   }
   inl_ << type_name << " value";
+  switch (class_field.write_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      inl_ << ", RelaxedStoreTag";
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      inl_ << ", ReleaseStoreTag";
+      break;
+  }
   if (can_contain_heap_objects) {
     inl_ << ", WriteBarrierMode mode";
   }
@@ -4339,10 +4445,10 @@ void CppClassGenerator::EmitLoadFieldStatement(
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     if (class_field.read_synchronization ==
         FieldSynchronization::kAcquireRelease) {
-      ReportError("Torque doesn't support @acquireRead on untagged data");
+      ReportError("Torque doesn't support @cppAcquireRead on untagged data");
     } else if (class_field.read_synchronization ==
                FieldSynchronization::kRelaxed) {
-      ReportError("Torque doesn't support @relaxedRead on untagged data");
+      ReportError("Torque doesn't support @cppRelaxedRead on untagged data");
     }
     inl_ << "this->template ReadField<" << type_name << ">(" << offset
          << ");\n";
@@ -4636,11 +4742,33 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
             // TODO(turbofan): Print struct fields too.
             impl << "\" <struct field printing still unimplemented>\";\n";
           } else {
-            impl << "this->" << f.name_and_type.name << "();\n";
+            impl << "this->" << f.name_and_type.name;
+            switch (f.read_synchronization) {
+              case FieldSynchronization::kNone:
+                impl << "();\n";
+                break;
+              case FieldSynchronization::kRelaxed:
+                impl << "(kRelaxedLoad);\n";
+                break;
+              case FieldSynchronization::kAcquireRelease:
+                impl << "(kAcquireLoad);\n";
+                break;
+            }
           }
         } else {
           impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
-               << "Brief(this->" << f.name_and_type.name << "());\n";
+               << "Brief(this->" << f.name_and_type.name;
+          switch (f.read_synchronization) {
+            case FieldSynchronization::kNone:
+              impl << "());\n";
+              break;
+            case FieldSynchronization::kRelaxed:
+              impl << "(kRelaxedLoad));\n";
+              break;
+            case FieldSynchronization::kAcquireRelease:
+              impl << "(kAcquireLoad));\n";
+              break;
+          }
         }
       }
     }
@@ -4864,7 +4992,7 @@ namespace {
 void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
                                 std::string offset, const Field& leaf_field,
                                 std::string indexed_field_size,
-                                std::ostream& cc_contents) {
+                                std::ostream& cc_contents, bool is_map) {
   const Type* field_type = leaf_field.name_and_type.type;
 
   bool maybe_object =
@@ -4879,8 +5007,12 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
   const std::string value = leaf_field.name_and_type.name + "__value";
 
   // Read the field.
-  cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-              << object_type << ">::load(o, " << offset << ");\n";
+  if (is_map) {
+    cc_contents << "    " << object_type << " " << value << " = o.map();\n";
+  } else {
+    cc_contents << "    " << object_type << " " << value << " = TaggedField<"
+                << object_type << ">::load(o, " << offset << ");\n";
+  }
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
@@ -4947,13 +5079,13 @@ void GenerateClassFieldVerifier(const std::string& class_name,
             class_name, f.index.has_value(),
             field_start_offset + " + " + std::to_string(*struct_field.offset),
             struct_field, std::to_string((*struct_type)->PackedSize()),
-            cc_contents);
+            cc_contents, f.name_and_type.name == "map");
       }
     }
   } else {
     GenerateFieldValueVerifier(class_name, f.index.has_value(),
                                field_start_offset, f, "kTaggedSize",
-                               cc_contents);
+                               cc_contents, f.name_and_type.name == "map");
   }
 
   cc_contents << "  }\n";

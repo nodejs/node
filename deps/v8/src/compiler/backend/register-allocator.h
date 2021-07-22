@@ -305,7 +305,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   TopLevelLiveRange* GetOrCreateLiveRangeFor(int index);
   // Creates a new live range.
   TopLevelLiveRange* NewLiveRange(int index, MachineRepresentation rep);
-  TopLevelLiveRange* NextLiveRange(MachineRepresentation rep);
 
   SpillRange* AssignSpillRangeToLiveRange(TopLevelLiveRange* range,
                                           SpillMode spill_mode);
@@ -356,8 +355,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   }
 
  private:
-  int GetNextLiveRangeId();
-
   Zone* const allocation_zone_;
   Frame* const frame_;
   InstructionSequence* const code_;

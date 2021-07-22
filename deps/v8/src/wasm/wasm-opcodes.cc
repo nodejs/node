@@ -35,9 +35,6 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 // https://chromium-review.googlesource.com/c/v8/v8/+/2413251).
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
                              const WasmFeatures& enabled_features) {
-  if (!enabled_features.has_mv() && sig->return_count() > 1) {
-    return false;
-  }
   for (auto type : sig->all()) {
     // TODO(7748): Allow structs, arrays, and rtts when their JS-interaction is
     // decided on.

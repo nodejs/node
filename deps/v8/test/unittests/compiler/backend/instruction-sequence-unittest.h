@@ -42,7 +42,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
 
   enum TestOperandType {
     kInvalid,
-    kSameAsFirst,
+    kSameAsInput,
     kRegister,
     kFixedRegister,
     kSlot,
@@ -73,7 +73,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     MachineRepresentation rep_;
   };
 
-  static TestOperand Same() { return TestOperand(kSameAsFirst); }
+  static TestOperand Same() { return TestOperand(kSameAsInput); }
 
   static TestOperand Reg(VReg vreg, int index = kNoValue) {
     TestOperandType type = (index == kNoValue) ? kRegister : kFixedRegister;

@@ -482,8 +482,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       Node* control = NodeProperties::GetControlInput(node, 0);
       CHECK_EQ(effect_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + effect_count);
-      // If the control input is a Merge, then make sure that at least one
-      // of it's usages is non-phi.
+      // If the control input is a Merge, then make sure that at least one of
+      // its usages is non-phi.
       if (control->opcode() == IrOpcode::kMerge) {
         bool non_phi_use_found = false;
         for (Node* use : control->uses()) {
@@ -954,8 +954,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeBigIntNegate:
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kBigIntAsUintN:
-      CheckValueInputIs(node, 0, Type::BigInt());
+    case IrOpcode::kSpeculativeBigIntAsUintN:
+      CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kBigIntAdd:
@@ -1500,6 +1500,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAssertType:
       break;
 
+    case IrOpcode::kVerifyType:
+      if (NodeProperties::IsTyped(node)) {
+        Node* input = NodeProperties::GetValueInput(node, 0);
+        DCHECK(NodeProperties::IsTyped(input));
+        CHECK(NodeProperties::GetType(node).Equals(
+            NodeProperties::GetType(input)));
+      }
+      break;
+
     case IrOpcode::kCheckFloat64Hole:
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
@@ -1658,8 +1667,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord64Rol:
     case IrOpcode::kWord64Ror:
     case IrOpcode::kWord64Clz:
-    case IrOpcode::kWord64Popcnt:
     case IrOpcode::kWord64Ctz:
+    case IrOpcode::kWord64RolLowerable:
+    case IrOpcode::kWord64RorLowerable:
+    case IrOpcode::kWord64ClzLowerable:
+    case IrOpcode::kWord64CtzLowerable:
+    case IrOpcode::kWord64Popcnt:
     case IrOpcode::kWord64ReverseBits:
     case IrOpcode::kWord64ReverseBytes:
     case IrOpcode::kSimd128ReverseBytes:
@@ -1791,6 +1804,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
+    case IrOpcode::kWord32Select:
+    case IrOpcode::kWord64Select:
     case IrOpcode::kFloat32Select:
     case IrOpcode::kFloat64Select:
     case IrOpcode::kInt32PairAdd:
@@ -1850,7 +1865,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // TODO(rossberg): Check.
       break;
   }
-}  // NOLINT(readability/fn_size)
+}
 
 void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
                    CodeType code_type) {

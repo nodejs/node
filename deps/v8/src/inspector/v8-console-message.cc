@@ -152,7 +152,7 @@ class V8ValueStringBuilder {
 
   bool append(v8::Local<v8::Symbol> symbol) {
     m_builder.append("Symbol(");
-    bool result = append(symbol->Description(), IgnoreUndefined);
+    bool result = append(symbol->Description(m_isolate), IgnoreUndefined);
     m_builder.append(')');
     return result;
   }

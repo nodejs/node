@@ -212,9 +212,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
+  Handle<Script> CreateScript(IsolateT* isolate, Handle<String> source,
                               MaybeHandle<FixedArray> maybe_wrapped_arguments,
                               ScriptOriginOptions origin_options,
                               NativesFlag natives = NOT_NATIVES_CODE);

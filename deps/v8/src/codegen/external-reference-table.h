@@ -24,8 +24,10 @@ class ExternalReferenceTable {
  public:
   // For the nullptr ref, see the constructor.
   static constexpr int kSpecialReferenceCount = 1;
-  static constexpr int kExternalReferenceCount =
-      ExternalReference::kExternalReferenceCount;
+  static constexpr int kExternalReferenceCountIsolateIndependent =
+      ExternalReference::kExternalReferenceCountIsolateIndependent;
+  static constexpr int kExternalReferenceCountIsolateDependent =
+      ExternalReference::kExternalReferenceCountIsolateDependent;
   static constexpr int kBuiltinsReferenceCount =
 #define COUNT_C_BUILTIN(...) +1
       BUILTIN_LIST_C(COUNT_C_BUILTIN);
@@ -42,11 +44,14 @@ class ExternalReferenceTable {
 #define SC(...) +1
       STATS_COUNTER_NATIVE_CODE_LIST(SC);
 #undef SC
-  static constexpr int kSize =
-      kSpecialReferenceCount + kExternalReferenceCount +
+  static constexpr int kSizeIsolateIndependent =
+      kSpecialReferenceCount + kExternalReferenceCountIsolateIndependent +
       kBuiltinsReferenceCount + kRuntimeReferenceCount +
-      kIsolateAddressReferenceCount + kAccessorReferenceCount +
-      kStubCacheReferenceCount + kStatsCountersReferenceCount;
+      kAccessorReferenceCount;
+  static constexpr int kSize =
+      kSizeIsolateIndependent + kExternalReferenceCountIsolateDependent +
+      kIsolateAddressReferenceCount + kStubCacheReferenceCount +
+      kStatsCountersReferenceCount;
   static constexpr uint32_t kEntrySize =
       static_cast<uint32_t>(kSystemPointerSize);
   static constexpr uint32_t kSizeInBytes = kSize * kEntrySize + 2 * kUInt32Size;
@@ -63,6 +68,9 @@ class ExternalReferenceTable {
     return i * kEntrySize;
   }
 
+  static void InitializeOncePerProcess();
+  static const char* NameOfIsolateIndependentAddress(Address address);
+
   const char* NameFromOffset(uint32_t offset) {
     DCHECK_EQ(offset % kEntrySize, 0);
     DCHECK_LT(offset, kSizeInBytes);
@@ -76,13 +84,18 @@ class ExternalReferenceTable {
   void Init(Isolate* isolate);
 
  private:
+  static void AddIsolateIndependent(Address address, int* index);
+
+  static void AddIsolateIndependentReferences(int* index);
+  static void AddBuiltins(int* index);
+  static void AddRuntimeFunctions(int* index);
+  static void AddAccessors(int* index);
+
   void Add(Address address, int* index);
 
-  void AddReferences(Isolate* isolate, int* index);
-  void AddBuiltins(int* index);
-  void AddRuntimeFunctions(int* index);
+  void CopyIsolateIndependentReferences(int* index);
+  void AddIsolateDependentReferences(Isolate* isolate, int* index);
   void AddIsolateAddresses(Isolate* isolate, int* index);
-  void AddAccessors(int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
   Address GetStatsCounterAddress(StatsCounter* counter);

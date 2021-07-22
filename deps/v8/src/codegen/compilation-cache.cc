@@ -29,10 +29,9 @@ CompilationCache::CompilationCache(Isolate* isolate)
       eval_global_(isolate),
       eval_contextual_(isolate),
       reg_exp_(isolate, kRegExpGenerations),
-      code_(isolate),
       enabled_script_and_eval_(true) {
   CompilationSubCache* subcaches[kSubCacheCount] = {
-      &script_, &eval_global_, &eval_contextual_, &reg_exp_, &code_};
+      &script_, &eval_global_, &eval_contextual_, &reg_exp_};
   for (int i = 0; i < kSubCacheCount; ++i) {
     subcaches_[i] = subcaches[i];
   }
@@ -77,10 +76,6 @@ void CompilationCacheScript::Age() {
 }
 void CompilationCacheEval::Age() { AgeCustom(this); }
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
-void CompilationCacheCode::Age() {
-  if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
-  AgeByGeneration(this);
-}
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
   v->VisitRootPointers(Root::kCompilationCache, nullptr,
@@ -267,58 +262,6 @@ void CompilationCacheRegExp::Put(Handle<String> source, JSRegExp::Flags flags,
       CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data));
 }
 
-MaybeHandle<Code> CompilationCacheCode::Lookup(Handle<SharedFunctionInfo> key) {
-  // Make sure not to leak the table into the surrounding handle
-  // scope. Otherwise, we risk keeping old tables around even after
-  // having cleared the cache.
-  HandleScope scope(isolate());
-  MaybeHandle<Code> maybe_value;
-  int generation = 0;
-  for (; generation < generations(); generation++) {
-    Handle<CompilationCacheTable> table = GetTable(generation);
-    maybe_value = table->LookupCode(key);
-    if (!maybe_value.is_null()) break;
-  }
-
-  if (maybe_value.is_null()) {
-    isolate()->counters()->compilation_cache_misses()->Increment();
-    return MaybeHandle<Code>();
-  }
-
-  Handle<Code> value = maybe_value.ToHandleChecked();
-  if (generation != 0) Put(key, value);  // Add to the first generation.
-  isolate()->counters()->compilation_cache_hits()->Increment();
-  return scope.CloseAndEscape(value);
-}
-
-void CompilationCacheCode::Put(Handle<SharedFunctionInfo> key,
-                               Handle<Code> value) {
-  HandleScope scope(isolate());
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutCode(isolate(), table, key, value));
-}
-
-void CompilationCacheCode::TraceAgeing() {
-  DCHECK(FLAG_trace_turbo_nci);
-  StdoutStream os;
-  os << "NCI cache ageing: Removing oldest generation" << std::endl;
-}
-
-void CompilationCacheCode::TraceInsertion(Handle<SharedFunctionInfo> key,
-                                          Handle<Code> value) {
-  DCHECK(FLAG_trace_turbo_nci);
-  StdoutStream os;
-  os << "NCI cache insertion: " << Brief(*key) << ", " << Brief(*value)
-     << std::endl;
-}
-
-void CompilationCacheCode::TraceHit(Handle<SharedFunctionInfo> key,
-                                    Handle<Code> value) {
-  DCHECK(FLAG_trace_turbo_nci);
-  StdoutStream os;
-  os << "NCI cache hit: " << Brief(*key) << ", " << Brief(*value) << std::endl;
-}
-
 void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabledScriptAndEval()) return;
 
@@ -372,10 +315,6 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
   return reg_exp_.Lookup(source, flags);
 }
 
-MaybeHandle<Code> CompilationCache::LookupCode(Handle<SharedFunctionInfo> sfi) {
-  return code_.Lookup(sfi);
-}
-
 void CompilationCache::PutScript(Handle<String> source,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
@@ -412,11 +351,6 @@ void CompilationCache::PutEval(Handle<String> source,
 void CompilationCache::PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
   reg_exp_.Put(source, flags, data);
-}
-
-void CompilationCache::PutCode(Handle<SharedFunctionInfo> shared,
-                               Handle<Code> code) {
-  code_.Put(shared, code);
 }
 
 void CompilationCache::Clear() {

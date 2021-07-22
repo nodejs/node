@@ -6,7 +6,7 @@
 #ifdef __arm__
 #ifdef __QNXNTO__
 #include <sys/mman.h>  // for cache flushing.
-#undef MAP_TYPE        // NOLINT
+#undef MAP_TYPE
 #elif V8_OS_FREEBSD
 #include <machine/sysarch.h>  // for cache flushing
 #include <sys/types.h>

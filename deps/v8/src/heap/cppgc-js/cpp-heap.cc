@@ -5,6 +5,8 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 
 #include <cstdint>
+#include <memory>
+#include <numeric>
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
@@ -29,6 +31,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
+#include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/embedder-tracing.h"
@@ -63,6 +66,13 @@ cppgc::HeapStatistics CppHeap::CollectStatistics(
     cppgc::HeapStatistics::DetailLevel detail_level) {
   return internal::CppHeap::From(this)->AsBase().CollectStatistics(
       detail_level);
+}
+
+void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
+    std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+    std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
+  return internal::CppHeap::From(this)->CollectCustomSpaceStatisticsAtLastGC(
+      std::move(custom_spaces), std::move(receiver));
 }
 
 void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
@@ -200,7 +210,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap* v8_heap,
 
 void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(
-      cppgc::internal::HeapObjectHeader::FromPayload(object));
+      cppgc::internal::HeapObjectHeader::FromObject(object));
 }
 
 }  // namespace
@@ -318,10 +328,6 @@ void CppHeap::TracePrologue(TraceFlags flags) {
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
-  // TODO(chromium:1154636): The kAtomicMark/kIncrementalMark scope below is
-  // needed for recording all cpp marking time. Note that it can lead to double
-  // accounting since this scope is also accounted under an outer v8 scope.
-  // Make sure to only account this scope once.
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       stats_collector(),
       in_atomic_pause_ ? cppgc::internal::StatsCollector::kAtomicMark
@@ -342,8 +348,6 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
-  cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
   in_atomic_pause_ = true;
   if (override_stack_state_) {
     stack_state = *override_stack_state_;
@@ -359,8 +363,6 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
   {
-    cppgc::internal::StatsCollector::EnabledScope stats_scope(
-        stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
   }
@@ -376,7 +378,8 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   UnifiedHeapMarkingVerifier verifier(*this);
-  verifier.Run(stack_state_of_prev_gc_);
+  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
+               stats_collector()->marked_bytes());
 #endif
 
   {
@@ -422,12 +425,17 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     return;
   }
 
-  if (buffered_allocated_bytes_ < 0) {
-    DecreaseAllocatedSize(static_cast<size_t>(-buffered_allocated_bytes_));
-  } else {
-    IncreaseAllocatedSize(static_cast<size_t>(buffered_allocated_bytes_));
-  }
+  // The calls below may trigger full GCs that are synchronous and also execute
+  // epilogue callbacks. Since such callbacks may allocate, the counter must
+  // already be zeroed by that time.
+  const int64_t bytes_to_report = buffered_allocated_bytes_;
   buffered_allocated_bytes_ = 0;
+
+  if (bytes_to_report < 0) {
+    DecreaseAllocatedSize(static_cast<size_t>(-bytes_to_report));
+  } else {
+    IncreaseAllocatedSize(static_cast<size_t>(bytes_to_report));
+  }
 }
 
 void CppHeap::CollectGarbageForTesting(
@@ -436,6 +444,8 @@ void CppHeap::CollectGarbageForTesting(
 
   // Finish sweeping in case it is still running.
   sweeper().FinishIfRunning();
+
+  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
 
   if (isolate_) {
     // Go through EmbedderHeapTracer API and perform a unified heap collection.
@@ -479,6 +489,83 @@ void CppHeap::FinalizeIncrementalGarbageCollectionForTesting(
     CollectGarbageForTesting(stack_state);
   }
   sweeper_.FinishIfRunning();
+}
+
+namespace {
+
+void ReportCustomSpaceStatistics(
+    cppgc::internal::RawHeap& raw_heap,
+    std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+    std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
+  for (auto custom_space_index : custom_spaces) {
+    const cppgc::internal::BaseSpace* space =
+        raw_heap.CustomSpace(custom_space_index);
+    size_t allocated_bytes = std::accumulate(
+        space->begin(), space->end(), 0, [](size_t sum, auto* page) {
+          return sum + page->AllocatedBytesAtLastGC();
+        });
+    receiver->AllocatedBytes(custom_space_index, allocated_bytes);
+  }
+}
+
+class CollectCustomSpaceStatisticsAtLastGCTask final : public v8::Task {
+ public:
+  static constexpr v8::base::TimeDelta kTaskDelayMs =
+      v8::base::TimeDelta::FromMilliseconds(10);
+
+  CollectCustomSpaceStatisticsAtLastGCTask(
+      cppgc::internal::HeapBase& heap,
+      std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+      std::unique_ptr<CustomSpaceStatisticsReceiver> receiver)
+      : heap_(heap),
+        custom_spaces_(std::move(custom_spaces)),
+        receiver_(std::move(receiver)) {}
+
+  void Run() final {
+    cppgc::internal::Sweeper& sweeper = heap_.sweeper();
+    if (sweeper.PerformSweepOnMutatorThread(
+            heap_.platform()->MonotonicallyIncreasingTime() +
+            kStepSizeMs.InSecondsF())) {
+      // Sweeping is done.
+      DCHECK(!sweeper.IsSweepingInProgress());
+      ReportCustomSpaceStatistics(heap_.raw_heap(), std::move(custom_spaces_),
+                                  std::move(receiver_));
+    } else {
+      heap_.platform()->GetForegroundTaskRunner()->PostDelayedTask(
+          std::make_unique<CollectCustomSpaceStatisticsAtLastGCTask>(
+              heap_, std::move(custom_spaces_), std::move(receiver_)),
+          kTaskDelayMs.InSecondsF());
+    }
+  }
+
+ private:
+  static constexpr v8::base::TimeDelta kStepSizeMs =
+      v8::base::TimeDelta::FromMilliseconds(5);
+
+  cppgc::internal::HeapBase& heap_;
+  std::vector<cppgc::CustomSpaceIndex> custom_spaces_;
+  std::unique_ptr<CustomSpaceStatisticsReceiver> receiver_;
+};
+
+constexpr v8::base::TimeDelta
+    CollectCustomSpaceStatisticsAtLastGCTask::kTaskDelayMs;
+constexpr v8::base::TimeDelta
+    CollectCustomSpaceStatisticsAtLastGCTask::kStepSizeMs;
+
+}  // namespace
+
+void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
+    std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+    std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
+  if (sweeper().IsSweepingInProgress()) {
+    platform()->GetForegroundTaskRunner()->PostDelayedTask(
+        std::make_unique<CollectCustomSpaceStatisticsAtLastGCTask>(
+            AsBase(), std::move(custom_spaces), std::move(receiver)),
+        CollectCustomSpaceStatisticsAtLastGCTask::kTaskDelayMs.InSecondsF());
+    return;
+  }
+  ReportCustomSpaceStatistics(raw_heap(), std::move(custom_spaces),
+                              std::move(receiver));
 }
 
 }  // namespace internal

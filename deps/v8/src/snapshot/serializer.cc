@@ -98,9 +98,9 @@ void Serializer::OutputStatistics(const char* name) {
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
+#endif  // OBJECT_PRINT
 
   PrintF("\n");
-#endif  // OBJECT_PRINT
 }
 
 void Serializer::SerializeDeferredObjects() {

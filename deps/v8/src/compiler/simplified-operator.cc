@@ -615,6 +615,27 @@ NumberOperationParameters const& NumberOperationParametersOf(
   return OpParameter<NumberOperationParameters>(op);
 }
 
+bool operator==(SpeculativeBigIntAsUintNParameters const& lhs,
+                SpeculativeBigIntAsUintNParameters const& rhs) {
+  return lhs.bits() == rhs.bits() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(SpeculativeBigIntAsUintNParameters const& p) {
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.bits(), feedback_hash(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         SpeculativeBigIntAsUintNParameters const& p) {
+  return os << p.bits() << ", " << p.feedback();
+}
+
+SpeculativeBigIntAsUintNParameters const& SpeculativeBigIntAsUintNParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kSpeculativeBigIntAsUintN, op->opcode());
+  return OpParameter<SpeculativeBigIntAsUintNParameters>(op);
+}
+
 size_t hash_value(AllocateParameters info) {
   return base::hash_combine(info.type(),
                             static_cast<int>(info.allocation_type()));
@@ -1296,11 +1317,14 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
       static_cast<int>(reason));                // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::BigIntAsUintN(int bits) {
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
+    int bits, const FeedbackSource& feedback) {
   CHECK(0 <= bits && bits <= 64);
 
-  return zone()->New<Operator1<int>>(IrOpcode::kBigIntAsUintN, Operator::kPure,
-                                     "BigIntAsUintN", 1, 0, 0, 1, 0, 0, bits);
+  return zone()->New<Operator1<SpeculativeBigIntAsUintNParameters>>(
+      IrOpcode::kSpeculativeBigIntAsUintN, Operator::kNoProperties,
+      "SpeculativeBigIntAsUintN", 1, 1, 1, 1, 1, 0,
+      SpeculativeBigIntAsUintNParameters(bits, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
@@ -1316,10 +1340,16 @@ const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
 }
 
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
-  DCHECK(type.IsRange());
+  DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
                                       Operator::kNoThrow | Operator::kNoDeopt,
                                       "AssertType", 1, 0, 0, 1, 0, 0, type);
+}
+
+const Operator* SimplifiedOperatorBuilder::VerifyType() {
+  return zone()->New<Operator>(IrOpcode::kVerifyType,
+                               Operator::kNoThrow | Operator::kNoDeopt,
+                               "VerifyType", 1, 0, 0, 1, 0, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(

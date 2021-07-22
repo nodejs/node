@@ -249,6 +249,10 @@ bool ReadOnlyHeap::read_only_object_cache_is_initialized() const {
   return read_only_object_cache_.size() > 0;
 }
 
+size_t ReadOnlyHeap::read_only_object_cache_size() const {
+  return read_only_object_cache_.size();
+}
+
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap)
     : ReadOnlyHeapObjectIterator(ro_heap->read_only_space()) {}
 

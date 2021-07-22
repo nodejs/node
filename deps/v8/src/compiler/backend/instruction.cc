@@ -155,8 +155,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
           return os << "(S)";
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT:
-          return os << "(1)";
+        case UnallocatedOperand::SAME_AS_INPUT:
+          return os << "(" << unalloc->input_index() << ")";
         case UnallocatedOperand::REGISTER_OR_SLOT:
           return os << "(-)";
         case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
@@ -247,6 +247,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kMapWord:
+          UNREACHABLE();
       }
       return os << "]";
     }
@@ -914,6 +916,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kCompressed:
       return rep;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       break;
   }
 

@@ -262,12 +262,13 @@ enum TestMode { kJSToWasmInliningDisabled, kJSToWasmInliningEnabled };
 class FastJSWasmCallTester {
  public:
   FastJSWasmCallTester()
-      : allow_natives_syntax_(&i::FLAG_allow_natives_syntax, true),
-        inline_js_wasm_calls_(&i::FLAG_turbo_inline_js_wasm_calls, true),
-        stress_background_compile_(&i::FLAG_stress_background_compile, false),
-        allocator_(),
+      : allocator_(),
         zone_(&allocator_, ZONE_NAME),
-        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {}
+        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
+    i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inline_js_wasm_calls = true;
+    i::FLAG_stress_background_compile = false;
+  }
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
@@ -591,23 +592,25 @@ class FastJSWasmCallTester {
 
   v8::Local<v8::Value> CompileRunWithJSWasmCallNodeObserver(
       const std::string& js_code) {
+    // Note: Make sure to not capture stack locations (e.g. `this`) here since
+    // these lambdas are executed on another thread.
+    const auto test_mode = test_mode_;
     compiler::ModificationObserver js_wasm_call_observer(
         [](const compiler::Node* node) {
           CHECK_EQ(compiler::IrOpcode::kJSCall, node->opcode());
         },
-        [this](const compiler::Node* node,
-               const compiler::ObservableNodeState& old_state)
+        [test_mode](const compiler::Node* node,
+                    const compiler::ObservableNodeState& old_state)
             -> compiler::NodeObserver::Observation {
           if (old_state.opcode() != node->opcode()) {
             CHECK_EQ(compiler::IrOpcode::kJSCall, old_state.opcode());
 
             // JS-to-Wasm inlining is disabled when targeting 32 bits if the
             // Wasm function signature contains an I64.
-            if (test_mode_ == kJSToWasmInliningEnabled) {
-              CHECK_EQ(compiler::IrOpcode::kJSWasmCall, node->opcode());
-            } else {
-              CHECK_EQ(compiler::IrOpcode::kCall, node->opcode());
-            }
+            CHECK_EQ(test_mode == kJSToWasmInliningEnabled
+                         ? compiler::IrOpcode::kJSWasmCall
+                         : compiler::IrOpcode::kCall,
+                     node->opcode());
 
             return compiler::NodeObserver::Observation::kStop;
           }
@@ -740,9 +743,6 @@ class FastJSWasmCallTester {
     return string_stream.str();
   }
 
-  i::FlagScope<bool> allow_natives_syntax_;
-  i::FlagScope<bool> inline_js_wasm_calls_;
-  i::FlagScope<bool> stress_background_compile_;
   AccountingAllocator allocator_;
   Zone zone_;
   WasmModuleBuilder* builder_;
