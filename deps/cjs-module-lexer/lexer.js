@@ -651,8 +651,10 @@ function tryParseObjectDefineOrKeys (keys) {
             if (ch !== 33/*!*/) break;
             pos += 1;
             ch = commentWhitespace();
-            if (source.startsWith(id, pos)) {
-              pos += id.length;
+            if (ch === 79/*O*/ && source.startsWith('bject', pos + 1) && source[pos + 6] === '.') {
+              if (!tryParseObjectHasOwnProperty(it_id)) break;
+            }
+            else if (identifier()) {
               ch = commentWhitespace();
               if (ch !== 46/*.*/) break;
               pos++;
@@ -669,7 +671,7 @@ function tryParseObjectDefineOrKeys (keys) {
               if (ch !== 41/*)*/) break;
               pos += 1;
             }
-            else if (!tryParseObjectHasOwnProperty(it_id)) break;
+            else break;
             ch = commentWhitespace();
           }
           if (ch !== 41/*)*/) break;
