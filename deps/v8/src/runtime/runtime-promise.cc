@@ -29,8 +29,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     // undefined, which we interpret as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
   }
-  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
-                          isolate->factory()->undefined_value());
+  isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
+                              isolate->factory()->undefined_value());
   isolate->debug()->OnPromiseReject(rejected_promise, value);
 
   // Report only if we don't actually have a handler.
@@ -142,7 +142,7 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
   // hook for the throwaway promise (passing the {promise} as its
   // parent).
   Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, promise);
+  isolate->RunAllPromiseHooks(PromiseHookType::kInit, throwaway, promise);
 
   // On inspector side we capture async stack trace and store it by
   // outer_promise->async_task_id when async function is suspended first time.
@@ -204,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_AwaitPromisesInitOld) {
 
   // Fire the init hook for the wrapper promise (that we created for the
   // {value} previously).
-  isolate->RunPromiseHook(PromiseHookType::kInit, promise, outer_promise);
+  isolate->RunAllPromiseHooks(PromiseHookType::kInit, promise, outer_promise);
   return *AwaitPromisesInitCommon(isolate, value, promise, outer_promise,
                                   reject_handler, is_predicted_as_caught);
 }
