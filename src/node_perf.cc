@@ -3,7 +3,7 @@
 #include "node_internals.h"
 #include "node_perf.h"
 #include "node_buffer.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 
 #include <cinttypes>

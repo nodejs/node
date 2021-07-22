@@ -449,18 +449,24 @@ module.exports = {
             return ref.isRead() && (
 
                 // self update. e.g. `a += 1`, `a++`
-                (// in RHS of an assignment for itself. e.g. `a = a + 1`
-                    ((
-                        parent.type === "AssignmentExpression" &&
-                    isUnusedExpression(parent) &&
-                    parent.left === id
-                    ) ||
                 (
-                    parent.type === "UpdateExpression" &&
-                    isUnusedExpression(parent)
-                ) || rhsNode &&
-                isInside(id, rhsNode) &&
-                !isInsideOfStorableFunction(id, rhsNode)))
+                    (
+                        parent.type === "AssignmentExpression" &&
+                        parent.left === id &&
+                        isUnusedExpression(parent)
+                    ) ||
+                    (
+                        parent.type === "UpdateExpression" &&
+                        isUnusedExpression(parent)
+                    )
+                ) ||
+
+                // in RHS of an assignment for itself. e.g. `a = a + 1`
+                (
+                    rhsNode &&
+                    isInside(id, rhsNode) &&
+                    !isInsideOfStorableFunction(id, rhsNode)
+                )
             );
         }
 

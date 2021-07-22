@@ -11,7 +11,7 @@ subSystemLabels:
   /^src\/udp_/: c++, dgram
   /^src\/(?:fs_|node_file|node_stat_watcher)/: c++, fs
   /^src\/node_http_parser/: c++, http_parser
-  /^src\/node_i18n/: c++, intl
+  /^src\/node_i18n/: c++, i18n-api
   /^src\/uv\./: c++, libuv
   /^src\/(?:connect(?:ion)?|pipe|tcp)_/: c++, net
   /^src\/node_os/: c++, os
@@ -19,15 +19,15 @@ subSystemLabels:
   /^src\/timer_/: c++, timers
   /^src\/(?:CNNICHashWhitelist|node_root_certs|tls_)/: c++, tls
   /^src\/tty_/: c++, tty
-  /^src\/node_url/: c++, url-whatwg
+  /^src\/node_url/: c++, whatwg-url
   /^src\/node_util/: c++, util
-  /^src\/(?:node_v8|v8abbr)/: c++, V8 Engine
+  /^src\/(?:node_v8|v8abbr)/: c++, v8 engine
   /^src\/node_contextify/: c++, vm
   /^src\/.*win32.*/: c++, windows
   /^src\/node_zlib/: c++, zlib
   /^src\/tracing/: c++, tracing
-  /^src\/node_api/: c++, n-api
-  /^src\/node_http2/: c++, http2, dont-land-on-v6.x
+  /^src\/node_api/: c++, node-api
+  /^src\/node_http2/: c++, http2
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
   /^src\/node_worker/: c++, worker
@@ -35,7 +35,7 @@ subSystemLabels:
   /^src\/node_bob*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
 
   # don't label python files as c++
-  /^src\/.+\.py$/: lib / src, needs-ci
+  /^src\/.+\.py$/: python, needs-ci
 
   # properly label changes to v8 inspector integration-related files
   /^src\/inspector_/: c++, inspector, needs-ci
@@ -50,13 +50,13 @@ subSystemLabels:
   /^\w+\.md$/: doc
   # different variants of *Makefile and build files
   /^(tools\/)?(Makefile|BSDmakefile|create_android_makefiles|\.travis\.yml)$/: build, needs-ci
-  /^tools\/(install\.py|genv8constants\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, needs-ci
+  /^tools\/(install\.py|genv8constants\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, python, needs-ci
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # more specific tools
-  /^tools\/gyp/: tools, build, needs-ci
+  /^tools\/gyp/: tools, build, gyp, needs-ci
   /^tools\/doc\//: tools, doc
-  /^tools\/icu\//: tools, intl, needs-ci
+  /^tools\/icu\//: tools, i18n-api, icu, needs-ci
   /^tools\/(?:osx-pkg\.pmdoc|pkgsrc)\//: tools, macos, install
   /^tools\/(?:(?:mac)?osx-)/: tools, macos
   /^tools\/test-npm/: tools, test, npm
@@ -64,9 +64,10 @@ subSystemLabels:
   /^tools\/(?:certdata|mkssldef|mk-ca-bundle)/: tools, openssl, tls
   /^tools\/msvs\//: tools, windows, install, needs-ci
   /^tools\/[^/]+\.bat$/: tools, windows, needs-ci
-  /^tools\/make-v8/: tools, V8 Engine, needs-ci
-  /^tools\/(code_cache|snapshot|v8_gypfiles)/: needs-ci,
-  /^tools\/build-addons.js/: needs-ci,
+  /^tools\/make-v8/: tools, v8 engine, needs-ci
+  /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
+  /^tools\/(code_cache|snapshot)/: needs-ci
+  /^tools\/build-addons.js/: needs-ci
   # all other tool changes should be marked as such
   /^tools\//: tools
   /^\.eslint|\.remark|\.editorconfig/: tools
@@ -75,11 +76,12 @@ subSystemLabels:
   # libuv needs an explicit mapping, as the ordinary /deps/ mapping below would
   # end up as libuv changes labeled with "uv" (which is a non-existing label)
   /^deps\/uv\//: libuv
-  /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: V8 Engine, post-mortem
-  /^deps\/v8\//: V8 Engine
+  /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
+  /^deps\/v8\//: v8 engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/nghttp2\/nghttp2\.gyp/: build, http2, dont-land-on-v6.x
-  /^deps\/nghttp2\//: http2, dont-land-on-v6.x
+  /^deps\/npm\//: npm, fast-track
+  /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
+  /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/([^/]+)/: $1
@@ -94,10 +96,10 @@ subSystemLabels:
   /^lib\/\w+\/v8_prof_/: tools
   /^lib\/\w+\/socket_list/: net
   /^lib\/\w+\/streams$/: stream
-  /^lib\/.*http2/: http2, dont-land-on-v6.x
+  /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
-  /^lib\/internal\/url\.js$/: url-whatwg
-  /^lib\/internal\/modules\/esm/: ES Modules
+  /^lib\/internal\/url\.js$/: whatwg-url
+  /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/quic\/*/: quic, dont-land-on-v14.x, dont-land-on-v12.x
 
   # All other lib/ files map directly
@@ -114,12 +116,12 @@ exlusiveLabels:
   /^test\/pseudo-tty\//: test, tty
   /^test\/inspector\//: test, inspector
   /^test\/cctest\/test_inspector/: test, inspector
-  /^test\/cctest\/test_url/: test, url-whatwg
-  /^test\/addons-napi\//: test, n-api
+  /^test\/cctest\/test_url/: test, whatwg-url
+  /^test\/addons-napi\//: test, node-api
   /^test\/async-hooks\//: test, async_hooks
   /^test\/report\//: test, report
-  /^test\/fixtures\/es-module/: test, ES Modules
-  /^test\/es-module\//: test, ES Modules
+  /^test\/fixtures\/es-module/: test, esm
+  /^test\/es-module\//: test, esm
 
   /^test\//: test
 
@@ -127,11 +129,9 @@ exlusiveLabels:
   /^doc\/api\/webcrypto.md$/: doc, crypto
     # specific map for modules.md as it should be labeled 'module' not 'modules'
   /^doc\/api\/modules.md$/: doc, module
-    # specific map for esm.md as it should be labeled 'ES Modules' not 'esm'
-  /^doc\/api\/esm.md$/: doc, ES Modules
-    # n-api is treated separately since it is not a JS core module but is still
+    # node-api is treated separately since it is not a JS core module but is still
     # considered a subsystem of sorts
-  /^doc\/api\/n-api.md$/: doc, n-api
+  /^doc\/api\/n-api.md$/: doc, node-api
     # quic
   /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
     # add worker label to PRs that affect doc/api/worker_threads.md
@@ -140,12 +140,13 @@ exlusiveLabels:
   /^doc\/api\/(\w+)\.md$/: doc, $1
     # add deprecations label to PRs that affect doc/api/deprecations.md
   /^doc\/api\/deprecations.md$/: doc, deprecations
+  /^doc\/changelogs\//: release
 
   /^doc\//: doc
 
     # more specific benchmarks
   /^benchmark\/buffers\//: benchmark, buffer
-  /^benchmark\/(?:arrays|es)\//: benchmark, V8 Engine
+  /^benchmark\/(?:arrays|es)\//: benchmark, v8 engine
   /^benchmark\/_http/: benchmark, http
   /^benchmark\/(?:misc|fixtures)\//: benchmark
   /^benchmark\/streams\//: benchmark, stream

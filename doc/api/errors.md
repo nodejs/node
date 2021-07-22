@@ -876,6 +876,22 @@ An unknown cipher was specified.
 An unknown Diffie-Hellman group name was given. See
 [`crypto.getDiffieHellman()`][] for a list of valid group names.
 
+<a id="ERR_DEBUGGER_ERROR"></a>
+### `ERR_DEBUGGER_ERROR`
+<!-- YAML
+added: v14.17.4
+-->
+
+An error occurred with the [debugger][].
+
+<a id="ERR_DEBUGGER_STARTUP_ERROR"></a>
+### `ERR_DEBUGGER_STARTUP_ERROR`
+<!-- YAML
+added: v14.17.4
+-->
+
+The [debugger][] timed out waiting for the required host/port to be free.
+
 <a id="ERR_DIR_CLOSED"></a>
 ### `ERR_DIR_CLOSED`
 
@@ -2599,6 +2615,7 @@ closed.
 [`util.getSystemErrorName(error.errno)`]: util.md#util_util_getsystemerrorname_err
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#crypto_crypto_gethashes
+[debugger]: debugger.md
 [define a custom subpath]: packages.md#packages_subpath_exports
 [domains]: domain.md
 [event emitter-based]: events.md#events_class_eventemitter

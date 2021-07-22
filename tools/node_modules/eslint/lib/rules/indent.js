@@ -1177,8 +1177,7 @@ module.exports = {
                     offsets.setDesiredOffset(questionMarkToken, firstToken, 1);
                     offsets.setDesiredOffset(colonToken, firstToken, 1);
 
-                    offsets.setDesiredOffset(firstConsequentToken, firstToken,
-                        firstConsequentToken.type === "Punctuator" &&
+                    offsets.setDesiredOffset(firstConsequentToken, firstToken, firstConsequentToken.type === "Punctuator" &&
                         options.offsetTernaryExpressions ? 2 : 1);
 
                     /*
@@ -1204,8 +1203,7 @@ module.exports = {
                          * If `baz` were aligned with `bar` rather than being offset by 1 from `foo`, `baz` would end up
                          * having no expected indentation.
                          */
-                        offsets.setDesiredOffset(firstAlternateToken, firstToken,
-                            firstAlternateToken.type === "Punctuator" &&
+                        offsets.setDesiredOffset(firstAlternateToken, firstToken, firstAlternateToken.type === "Punctuator" &&
                             options.offsetTernaryExpressions ? 2 : 1);
                     }
                 }

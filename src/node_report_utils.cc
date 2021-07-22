@@ -82,6 +82,42 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
   ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
 }
 
+// Utility function to format libuv pipe information.
+static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
+  uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
+  MallocedBuffer<char> buffer(0);
+  size_t buffer_size = 0;
+  int rc = -1;
+
+  // First call to get required buffer size.
+  rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    buffer = MallocedBuffer<char>(buffer_size);
+    if (buffer.data != nullptr) {
+      rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+    }
+  }
+  if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
+    writer->json_keyvalue("localEndpoint", buffer.data);
+  } else {
+    writer->json_keyvalue("localEndpoint", null);
+  }
+
+  // First call to get required buffer size.
+  rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    buffer = MallocedBuffer<char>(buffer_size);
+    if (buffer.data != nullptr) {
+      rc = uv_pipe_getpeername(&handle->pipe, buffer.data, &buffer_size);
+    }
+  }
+  if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
+    writer->json_keyvalue("remoteEndpoint", buffer.data);
+  } else {
+    writer->json_keyvalue("remoteEndpoint", null);
+  }
+}
+
 // Utility function to format libuv path information.
 static void ReportPath(uv_handle_t* h, JSONWriter* writer) {
   MallocedBuffer<char> buffer(0);
@@ -146,6 +182,9 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     case UV_TCP:
     case UV_UDP:
       ReportEndpoints(h, writer);
+      break;
+    case UV_NAMED_PIPE:
+      ReportPipeEndpoints(h, writer);
       break;
     case UV_TIMER: {
       uint64_t due = handle->timer.timeout;

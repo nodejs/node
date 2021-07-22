@@ -238,7 +238,7 @@ test with Python 3.
 * GNU Make 3.81 or newer
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+  * Python 3.5, 3.6, 3.7, or 3.8
 
 Installation via Linux package manager can be achieved with:
 
@@ -255,7 +255,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 * Xcode Command Line Tools >= 10 for macOS
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8
+  * Python 3.5, 3.6, 3.7, or 3.8
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode

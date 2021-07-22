@@ -1,6 +1,6 @@
 # JSON5 – JSON for Humans
 
-[![Build Status](https://travis-ci.org/json5/json5.svg)][Build Status]
+[![Build Status](https://travis-ci.com/json5/json5.svg)][Build Status]
 [![Coverage
 Status](https://coveralls.io/repos/github/json5/json5/badge.svg)][Coverage
 Status]
@@ -12,7 +12,7 @@ some productions from [ECMAScript 5.1].
 This JavaScript library is the official reference implementation for JSON5
 parsing and serialization libraries.
 
-[Build Status]: https://travis-ci.org/json5/json5
+[Build Status]: https://travis-ci.com/json5/json5
 
 [Coverage Status]: https://coveralls.io/github/json5/json5
 

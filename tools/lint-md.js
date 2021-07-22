@@ -39714,7 +39714,7 @@ const dependencies$1 = {
 	remark: "^13.0.0",
 	"remark-gfm": "^1.0.0",
 	"remark-lint": "^8.0.0",
-	"remark-preset-lint-node": "^2.0.1",
+	"remark-preset-lint-node": "^2.3.0",
 	"unified-args": "^8.1.0"
 };
 const main = "dist/index.js";
@@ -49757,8 +49757,8 @@ function prohibitedStrings (ast, file, strings) {
         results.forEach(({ result, index }) => {
           const message = val.yes ? `Use "${val.yes}" instead of "${result}"` : `Do not use "${result}"`;
           file.message(message, {
-            start: location.toPosition(initial + index),
-            end: location.toPosition(initial + index + [...result].length)
+            start: location.toPoint(initial + index),
+            end: location.toPoint(initial + index + [...result].length)
           });
         });
       }
@@ -50535,6 +50535,7 @@ var plugins$2 = [
       { yes: "GitHub" },
       { no: "hostname", yes: "host name" },
       { yes: "JavaScript" },
+      { no: "[Ll]ong[ -][Tt]erm [Ss]upport", yes: "Long Term Support" },
       { no: "Node", yes: "Node.js", ignoreNextTo: "-API" },
       { yes: "Node.js" },
       { no: "Node[Jj][Ss]", yes: "Node.js" },

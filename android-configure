@@ -56,7 +56,7 @@ export CXX_host=$(command -v g++)
 host_gcc_version=$($CC_host --version | grep gcc | awk '{print $NF}')
 major=$(echo $host_gcc_version | awk -F . '{print $1}')
 minor=$(echo $host_gcc_version | awk -F . '{print $2}')
-if [ -z $major ] || [ -z $minor ] || [ $major -lt 6 ] || [ $major -eq 6 -a $minor -lt 3 ]; then
+if [ -z $major ] || [ -z $minor ] || [ $major -lt 6 ] || ( [ $major -eq 6 ] && [ $minor -lt 3 ] ); then
   echo "host gcc $host_gcc_version is too old, need gcc 6.3.0"
   return 1
 fi

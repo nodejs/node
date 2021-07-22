@@ -22,7 +22,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 

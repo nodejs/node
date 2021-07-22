@@ -308,7 +308,8 @@ v8_toolset_for_shell = "host"
 #
 
 config("internal_config_base") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+ # Only targets in this file and its subdirs can depend on this.
+  visibility = [ "./*" ]
 
   configs = [ ":v8_tracing_config" ]
 
@@ -321,7 +322,8 @@ config("internal_config_base") {
 
 config("internal_config") {
   defines = []
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and its subdirs can depend on this.
+  visibility = [ "./*" ]
 
   configs = [
     "//build/config/compiler:wexit_time_destructors",
@@ -429,7 +431,8 @@ config("v8_header_features") {
 # Put defines here that are only used in our internal files and NEVER in
 # external headers that embedders (such as chromium and node) might include.
 config("features") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and its subdirs can depend on this.
+  visibility = [ "./*" ]
 
   defines = []
 
@@ -559,7 +562,8 @@ config("features") {
 }
 
 config("toolchain") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and its subdirs can depend on this.
+  visibility = [ "./*" ]
 
   defines = []
   cflags = []

@@ -181,6 +181,7 @@ class MessagePort : public HandleWrap {
   // If this port is closed, or if there is no sibling, this message is
   // serialized with transfers, then silently discarded.
   v8::Maybe<bool> PostMessage(Environment* env,
+                              v8::Local<v8::Context> context,
                               v8::Local<v8::Value> message,
                               const TransferList& transfer);
 

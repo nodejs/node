@@ -248,7 +248,7 @@ class RefBase : protected Finalizer, RefTracker {
       delete reference;
     } else {
       // defer until finalizer runs as
-      // it may alread be queued
+      // it may already be queued
       reference->_delete_self = true;
     }
   }
@@ -321,7 +321,8 @@ class Reference : public RefBase {
   Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
       : RefBase(env, std::forward<Args>(args)...),
         _persistent(env->isolate, value),
-        _secondPassParameter(new SecondPassCallParameterRef(this)) {
+        _secondPassParameter(new SecondPassCallParameterRef(this)),
+        _secondPassScheduled(false) {
     if (RefCount() == 0) {
       SetWeak();
     }
@@ -348,7 +349,7 @@ class Reference : public RefBase {
     // If the second pass callback is scheduled, it will delete the
     // parameter passed to it, otherwise it will never be scheduled
     // and we need to delete it here.
-    if (_secondPassParameter != nullptr) {
+    if (!_secondPassScheduled) {
       delete _secondPassParameter;
     }
   }
@@ -416,7 +417,7 @@ class Reference : public RefBase {
   inline void SetWeak() {
     if (_secondPassParameter == nullptr) {
       // This means that the Reference has already been processed
-      // by the second pass calback, so its already been Finalized, do
+      // by the second pass callback, so its already been Finalized, do
       // nothing
       return;
     }
@@ -445,8 +446,7 @@ class Reference : public RefBase {
     reference->_persistent.Reset();
     // Mark the parameter not delete-able until the second pass callback is
     // invoked.
-    reference->_secondPassParameter = nullptr;
-
+    reference->_secondPassScheduled = true;
     data.SetSecondPassCallback(SecondPassCallback);
   }
 
@@ -455,9 +455,9 @@ class Reference : public RefBase {
   // second pass callback task. We have to make sure that parameter is kept
   // alive until the second pass callback is been invoked. In order to do
   // this and still allow our code to Finalize/delete the Reference during
-  // shutdown we have to use a seperately allocated parameter instead
+  // shutdown we have to use a separately allocated parameter instead
   // of a parameter within the Reference object itself. This is what
-  // is stored in _secondPassParameter and it is alocated in the
+  // is stored in _secondPassParameter and it is allocated in the
   // constructor for the Reference.
   static void SecondPassCallback(
       const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data) {
@@ -468,12 +468,14 @@ class Reference : public RefBase {
       // the reference itself has already been deleted so nothing to do
       return;
     }
+    reference->_secondPassParameter = nullptr;
     reference->Finalize();
   }
 
   bool env_teardown_finalize_started_ = false;
   v8impl::Persistent<v8::Value> _persistent;
   SecondPassCallParameterRef* _secondPassParameter;
+  bool _secondPassScheduled;
 };
 
 enum UnwrapAction {

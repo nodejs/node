@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
   // to call res.writeHead instead
   res._writeRaw('HTTP/1.1 102 Processing\r\n');
   res._writeRaw('Foo: Bar\r\n');
-  res._writeRaw('\r\n');
+  res._writeRaw('\r\n', common.mustCall());
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',

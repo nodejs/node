@@ -2254,10 +2254,12 @@ All `Readable` stream implementations must provide an implementation of the
 
 When [`readable._read()`][] is called, if data is available from the resource,
 the implementation should begin pushing that data into the read queue using the
-[`this.push(dataChunk)`][stream-push] method. `_read()` should continue reading
-from the resource and pushing data until `readable.push()` returns `false`. Only
-when `_read()` is called again after it has stopped should it resume pushing
-additional data onto the queue.
+[`this.push(dataChunk)`][stream-push] method. `_read()` will be called again
+after each call to [`this.push(dataChunk)`][stream-push] once the stream is
+ready to accept more data. `_read()` may continue reading from the resource and
+pushing data until `readable.push()` returns `false`. Only when `_read()` is
+called again after it has stopped should it resume pushing additional data into
+the queue.
 
 Once the [`readable._read()`][] method has been called, it will not be called
 again until more data is pushed through the [`readable.push()`][stream-push]

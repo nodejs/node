@@ -59,7 +59,7 @@ import xml.etree.ElementTree
 # if empty, use defaults
 _valid_extensions = set([])
 
-__VERSION__ = '1.5.4'
+__VERSION__ = '1.5.5'
 
 try:
   xrange          # Python 2
@@ -127,11 +127,11 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit|sed|gsed]
       error messages whose category names pass the filters will be printed.
       (Category names are printed with the message and look like
       "[whitespace/indent]".)  Filters are evaluated left to right.
-      "-FOO" and "FOO" means "do not print categories that start with FOO".
+      "-FOO" means "do not print categories that start with FOO".
       "+FOO" means "do print categories that start with FOO".
 
       Examples: --filter=-whitespace,+whitespace/braces
-                --filter=whitespace,runtime/printf,+runtime/printf_format
+                --filter=-whitespace,-runtime/printf,+runtime/printf_format
                 --filter=-,+build/include_what_you_use
 
       To see a list of all the categories used in cpplint, pass no arg:
@@ -2350,7 +2350,8 @@ def GetHeaderGuardCPPVariable(filename):
 
     #   --root=.. , will prepend the outer directory to the header guard
     full_path = fileinfo.FullName()
-    root_abspath = os.path.abspath(_root)
+    # adapt slashes for windows
+    root_abspath = os.path.abspath(_root).replace('\\', '/')
 
     maybe_path = StripListPrefix(PathSplitToList(full_path),
                                  PathSplitToList(root_abspath))
@@ -3499,7 +3500,7 @@ def CheckSpacingForFunctionCall(filename, clean_lines, linenum, error):
   # Note that we assume the contents of [] to be short enough that
   # they'll never need to wrap.
   if (  # Ignore control structures.
-      not Search(r'\b(if|for|while|switch|return|new|delete|catch|sizeof)\b',
+      not Search(r'\b(if|elif|for|while|switch|return|new|delete|catch|sizeof)\b',
                  fncall) and
       # Ignore pointers/references to functions.
       not Search(r' \([^)]+\)\([^)]*(\)|,$)', fncall) and
@@ -5846,7 +5847,7 @@ def CheckCasts(filename, clean_lines, linenum, error):
 
   if not expecting_function:
     CheckCStyleCast(filename, clean_lines, linenum, 'static_cast',
-                    r'\((int|float|double|bool|char|u?int(16|32|64))\)', error)
+                    r'\((int|float|double|bool|char|u?int(16|32|64)|size_t)\)', error)
 
   # This doesn't catch all cases. Consider (const char * const)"hello".
   #
@@ -6783,10 +6784,10 @@ def PrintUsage(message):
   Args:
     message: The optional error message.
   """
-  sys.stderr.write(_USAGE  % (list(GetAllExtensions()),
-       ','.join(list(GetAllExtensions())),
-       GetHeaderExtensions(),
-       ','.join(GetHeaderExtensions())))
+  sys.stderr.write(_USAGE  % (sorted(list(GetAllExtensions())),
+       ','.join(sorted(list(GetAllExtensions()))),
+       sorted(GetHeaderExtensions()),
+       ','.join(sorted(GetHeaderExtensions()))))
 
   if message:
     sys.exit('\nFATAL ERROR: ' + message)

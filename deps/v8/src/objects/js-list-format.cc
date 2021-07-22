@@ -24,12 +24,58 @@
 #include "unicode/fpositer.h"
 #include "unicode/listformatter.h"
 #include "unicode/ulistformatter.h"
+#include "unicode/uvernum.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
+#if U_ICU_VERSION_MAJOR_NUM < 67
+const char* kStandard = "standard";
+const char* kOr = "or";
+const char* kUnit = "unit";
+const char* kStandardShort = "standard-short";
+const char* kOrShort = "or-short";
+const char* kUnitShort = "unit-short";
+const char* kStandardNarrow = "standard-narrow";
+const char* kOrNarrow = "or-narrow";
+const char* kUnitNarrow = "unit-narrow";
+
+const char* GetIcuStyleString(JSListFormat::Style style,
+                              JSListFormat::Type type) {
+  switch (type) {
+    case JSListFormat::Type::CONJUNCTION:
+      switch (style) {
+        case JSListFormat::Style::LONG:
+          return kStandard;
+        case JSListFormat::Style::SHORT:
+          return kStandardShort;
+        case JSListFormat::Style::NARROW:
+          return kStandardNarrow;
+      }
+    case JSListFormat::Type::DISJUNCTION:
+      switch (style) {
+        case JSListFormat::Style::LONG:
+          return kOr;
+        case JSListFormat::Style::SHORT:
+          return kOrShort;
+        case JSListFormat::Style::NARROW:
+          return kOrNarrow;
+      }
+    case JSListFormat::Type::UNIT:
+      switch (style) {
+        case JSListFormat::Style::LONG:
+          return kUnit;
+        case JSListFormat::Style::SHORT:
+          return kUnitShort;
+        case JSListFormat::Style::NARROW:
+          return kUnitNarrow;
+      }
+  }
+  UNREACHABLE();
+}
+#else
 UListFormatterWidth GetIcuWidth(JSListFormat::Style style) {
   switch (style) {
     case JSListFormat::Style::LONG:
@@ -53,6 +99,7 @@ UListFormatterType GetIcuType(JSListFormat::Type type) {
   }
   UNREACHABLE();
 }
+#endif
 
 }  // namespace
 
@@ -124,7 +171,11 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
+#if U_ICU_VERSION_MAJOR_NUM < 67
+      icu_locale, GetIcuStyleString(style_enum, type_enum), status);
+#else
       icu_locale, GetIcuType(type_enum), GetIcuWidth(style_enum), status);
+#endif
   if (U_FAILURE(status) || formatter == nullptr) {
     delete formatter;
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),

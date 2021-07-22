@@ -1001,6 +1001,8 @@ class Heap {
       Reservation* reservations, const std::vector<HeapObject>& large_objects,
       const std::vector<Address>& maps);
 
+  void EnsureSweepingCompleted();
+
   IncrementalMarking* incremental_marking() {
     return incremental_marking_.get();
   }

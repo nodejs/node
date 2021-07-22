@@ -11,7 +11,7 @@ child.stderr.setEncoding('utf8');
 
 const expectedLines = [
   /^\(node:\d+\) \[DEP0068\] DeprecationWarning:/,
-  /Usage: .*node.* debug script\.js\r?\n       .*node.* debug <host>:<port>\r?\n       .*node.* debug -p <pid>\r?\n$/,
+  /Usage: .*node.* debug script\.js\r?\n       .*node.* debug <host>:<port>\r?\n       .*node.* debug --port=<port>\r?\n       .*node.* debug -p <pid>\r?\n$/,
 ];
 
 let actualUsageMessage = '';

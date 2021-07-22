@@ -1,7 +1,7 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 
 #include <time.h>  // tzset(), _tzset()
 

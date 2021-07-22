@@ -25,7 +25,10 @@ v8::Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
                                           const char* type = nullptr,
                                           const char* code = nullptr);
 
-v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
+template <typename... Args>
+inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
+                                          const char* fmt,
+                                          Args&&... args);
 v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
                                               const char* warning);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

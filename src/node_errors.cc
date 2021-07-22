@@ -5,7 +5,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_report.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 

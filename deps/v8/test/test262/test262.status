@@ -507,9 +507,6 @@
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
 
-  # http://crbug/v8/10448
-  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9646
   'built-ins/ThrowTypeError/name': [FAIL],
   'language/expressions/class/name': [FAIL],

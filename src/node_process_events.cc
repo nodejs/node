@@ -1,8 +1,7 @@
-#include <cstdarg>
 #include <set>
 
 #include "env-inl.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util.h"
 
 namespace node {
@@ -82,18 +81,6 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
     return Nothing<bool>();
   }
   return Just(true);
-}
-
-// Call process.emitWarning(str), fmt is a snprintf() format string
-Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
-  char warning[1024];
-  va_list ap;
-
-  va_start(ap, fmt);
-  vsnprintf(warning, sizeof(warning), fmt, ap);
-  va_end(ap);
-
-  return ProcessEmitWarningGeneric(env, warning);
 }
 
 

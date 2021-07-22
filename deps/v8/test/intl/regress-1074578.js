@@ -30,10 +30,12 @@ const df2 = new Intl.DateTimeFormat(
 const d3 = new Date("2020-03-09T00:00Z");
 const d4 = new Date("2021-03-09T00:00Z");
 
-// Before tz202a change will get "March 8, 2020 at 5:00:00 PM PDT"
-assertEquals("March 8, 2020 at 5:00:00 PM MST", df2.format(d3));
+// Before tz2020a change will get "March 8, 2020 at 5:00:00 PM PDT"
+// In tz2020a it should be "March 8, 2020 at 5:00:00 PM MST"
+// but tz2020b roll this back.
+assertEquals("March 8, 2020 at 5:00:00 PM PDT", df2.format(d3));
 
-// Before tz202a change will get "March 8, 2021 at 4:00:00 PM PST"
+// Before tz2020a change will get "March 8, 2021 at 4:00:00 PM PST"
 assertEquals("March 8, 2021 at 5:00:00 PM MST", df2.format(d4));
 
 // C. Test America/Nuuk renamed from America/Godthab.

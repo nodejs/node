@@ -39,10 +39,6 @@ const is = {
   }
 };
 
-const flatten = (arr) =>
-  arr.reduce((acc, c) =>
-    acc.concat(Array.isArray(c) ? flatten(c) : c), []);
-
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
@@ -174,7 +170,8 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
   'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
 }));
 
-flatten(Object.values(interfaces))
+Object.values(interfaces)
+  .flat(Infinity)
   .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
   .forEach(({ v, mask }) => {
     assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);

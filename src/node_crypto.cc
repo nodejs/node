@@ -27,7 +27,7 @@
 #include "node_crypto_groups.h"
 #include "node_errors.h"
 #include "node_mutex.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "allocated_buffer-inl.h"
 #include "tls_wrap.h"  // TLSWrap
 
