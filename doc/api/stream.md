@@ -411,6 +411,35 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
+```cjs
+const { Writable } = require('stream');
+
+const myStream = new Writable();
+
+const fooErr = new Error('foo error');
+myStream.destroy(fooErr);
+myStream.on('error', (fooErr) => console.error(fooErr.message)); // foo error
+```
+
+```cjs
+const { Writable } = require('stream');
+
+const myStream = new Writable();
+
+myStream.destroy();
+myStream.on('error', function wontHappen() {});
+```
+
+```cjs
+const { Writable } = require('stream');
+
+const myStream = new Writable();
+myStream.destroy();
+
+myStream.write('foo', (error) => console.error(error.code));
+// ERR_STREAM_DESTROYED
+```
+
 Once `destroy()` has been called any further calls will be a no-op and no
 further errors except from `_destroy()` may be emitted as `'error'`.
 
@@ -425,6 +454,16 @@ added: v8.0.0
 * {boolean}
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
+
+```cjs
+const { Writable } = require('stream');
+
+const myStream = new Writable();
+
+console.log(myStream.destroyed); // false
+myStream.destroy();
+console.log(myStream.destroyed); // true
+```
 
 ##### `writable.end([chunk[, encoding]][, callback])`
 <!-- YAML
