@@ -29,6 +29,7 @@
 * [Domain](domain.md)
 * [Errors](errors.md)
 * [Events](events.md)
+* [Fetch](fetch.md)
 * [File system](fs.md)
 * [Globals](globals.md)
 * [HTTP](http.md)
