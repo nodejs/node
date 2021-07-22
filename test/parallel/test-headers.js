@@ -98,6 +98,7 @@ const {
     function() {},
     1,
     'test',
+    true
   ].forEach((arg) => new Headers(arg));
 }
 
