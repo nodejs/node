@@ -1827,7 +1827,7 @@ added: REPLACEME
 
 * Returns: {ReadableStream}
 
-Returns the a `web.ReadableStream`.
+Returns a `web.ReadableStream`.
 
 ### `body.writableWebStream()`
 <!-- YAML
