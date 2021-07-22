@@ -1800,7 +1800,7 @@ added: REPLACEME
 
 * Returns: {Duplex}
 
-Returns the a `stream.Duplex`.
+Returns a `stream.Duplex`.
 
 ### `body.readableNodeStream()`
 <!-- YAML
@@ -1809,7 +1809,7 @@ added: REPLACEME
 
 * Returns: {Readable}
 
-Returns the a `stream.Readable`.
+Returns a `stream.Readable`.
 
 ### `body.writableNodeStream()`
 <!-- YAML
@@ -1818,7 +1818,7 @@ added: REPLACEME
 
 * Returns: {Readable}
 
-Returns the a `stream.Writable`.
+Returns a `stream.Writable`.
 
 ### `body.readableWebStream()`
 <!-- YAML
@@ -1836,7 +1836,7 @@ added: REPLACEME
 
 * Returns: {WritableStream}
 
-Returns the a `web.WritableStream`.
+Returns a `web.WritableStream`.
 
 ### `body.text()`
 <!-- YAML
