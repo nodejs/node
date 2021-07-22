@@ -990,6 +990,26 @@
                 "hostname": "test",
                 "port": "12"
             }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "http://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "http://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "sc://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
         }
     ],
     "hostname": [
@@ -1345,6 +1365,26 @@
                 "hostname": "",
                 "pathname": "//p"
             }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "http://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "http://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "sc://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
         }
     ],
     "port": [
@@ -1572,6 +1612,51 @@
             }
         },
         {
+            "comment": "Special URLs cannot have their paths erased",
+            "href": "file:///some/path",
+            "new_value": "",
+            "expected": {
+                "href": "file:///",
+                "pathname": "/"
+            }
+        },
+        {
+            "comment": "Non-special URLs can have their paths erased",
+            "href": "foo://somehost/some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo://somehost",
+                "pathname": ""
+            }
+        },
+        {
+            "comment": "Non-special URLs with an empty host can have their paths erased",
+            "href": "foo:///some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo://",
+                "pathname": ""
+            }
+        },
+        {
+            "comment": "Path-only URLs cannot have their paths erased",
+            "href": "foo:/some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo:/",
+                "pathname": "/"
+            }
+        },
+        {
+            "comment": "Path-only URLs always have an initial slash",
+            "href": "foo:/some/path",
+            "new_value": "test",
+            "expected": {
+                "href": "foo:/test",
+                "pathname": "/test"
+            }
+        },
+        {
             "href": "unix:/run/foo.socket?timeout=10",
             "new_value": "/var/log/../run/bar.socket",
             "expected": {
@@ -1665,6 +1750,24 @@
             "expected": {
                 "href": "sc://example.net/%23",
                 "pathname": "/%23"
+            }
+        },
+        {
+            "comment": "? doesn't mess up encoding",
+            "href": "http://example.net",
+            "new_value": "/?é",
+            "expected": {
+                "href": "http://example.net/%3F%C3%A9",
+                "pathname": "/%3F%C3%A9"
+            }
+        },
+        {
+            "comment": "# doesn't mess up encoding",
+            "href": "http://example.net",
+            "new_value": "/#é",
+            "expected": {
+                "href": "http://example.net/%23%C3%A9",
+                "pathname": "/%23%C3%A9"
             }
         },
         {

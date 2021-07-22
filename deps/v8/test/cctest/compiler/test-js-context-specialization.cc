@@ -39,6 +39,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
               MaybeHandle<JSFunction>()) {}
 
   JSContextSpecialization* spec() { return &spec_; }
+  Isolate* isolate() { return main_isolate(); }
   Factory* factory() { return main_isolate()->factory(); }
   CommonOperatorBuilder* common() { return &common_; }
   JSOperatorBuilder* javascript() { return &javascript_; }
@@ -111,7 +112,16 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
   CHECK_EQ(new_access.immutable(), access.immutable());
 }
 
-static const int slot_index = Context::PREVIOUS_INDEX;
+namespace {
+Handle<Context> NewContextForTesting(Isolate* isolate,
+                                     Handle<Context> previous) {
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForWithScope(isolate, {});
+  Handle<JSObject> extension = isolate->factory()->NewJSObjectWithNullProto();
+  return isolate->factory()->NewWithContext(previous, scope_info, extension);
+}
+}  // namespace
+
+static const int slot_index = 5;
 
 TEST(ReduceJSLoadContext0) {
   ContextSpecializationTester t(Nothing<OuterContext>());
@@ -121,12 +131,10 @@ TEST(ReduceJSLoadContext0) {
 
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
-  Handle<Context> subcontext1 = t.factory()->NewNativeContext();
-  Handle<Context> subcontext2 = t.factory()->NewNativeContext();
-  subcontext2->set_previous(*subcontext1);
-  subcontext1->set_previous(*native);
+  Handle<Context> subcontext1 = NewContextForTesting(t.isolate(), native);
+  Handle<Context> subcontext2 = NewContextForTesting(t.isolate(), subcontext1);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::PREVIOUS_INDEX;
+  const int slot = 5;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(ObjectRef(t.broker(), native));
@@ -271,8 +279,8 @@ TEST(ReduceJSLoadContext2) {
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
 
   Handle<Context> context_object0 = t.factory()->NewNativeContext();
-  Handle<Context> context_object1 = t.factory()->NewNativeContext();
-  context_object1->set_previous(*context_object0);
+  Handle<Context> context_object1 =
+      NewContextForTesting(t.isolate(), context_object0);
   context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
   context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
 
@@ -342,14 +350,15 @@ TEST(ReduceJSLoadContext3) {
   // expectations are the same as in ReduceJSLoadContext2.
 
   HandleAndZoneScope handle_zone_scope;
-  auto factory = handle_zone_scope.main_isolate()->factory();
+  auto isolate = handle_zone_scope.main_isolate();
+  auto factory = isolate->factory();
 
   Handle<HeapObject> slot_value0 = factory->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = factory->InternalizeUtf8String("1");
 
   Handle<Context> context_object0 = factory->NewNativeContext();
-  Handle<Context> context_object1 = factory->NewNativeContext();
-  context_object1->set_previous(*context_object0);
+  Handle<Context> context_object1 =
+      NewContextForTesting(isolate, context_object0);
   context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
   context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
 
@@ -427,12 +436,10 @@ TEST(ReduceJSStoreContext0) {
 
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
-  Handle<Context> subcontext1 = t.factory()->NewNativeContext();
-  Handle<Context> subcontext2 = t.factory()->NewNativeContext();
-  subcontext2->set_previous(*subcontext1);
-  subcontext1->set_previous(*native);
+  Handle<Context> subcontext1 = NewContextForTesting(t.isolate(), native);
+  Handle<Context> subcontext2 = NewContextForTesting(t.isolate(), subcontext1);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::PREVIOUS_INDEX;
+  const int slot = 5;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(ObjectRef(t.broker(), native));
@@ -542,8 +549,8 @@ TEST(ReduceJSStoreContext2) {
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
 
   Handle<Context> context_object0 = t.factory()->NewNativeContext();
-  Handle<Context> context_object1 = t.factory()->NewNativeContext();
-  context_object1->set_previous(*context_object0);
+  Handle<Context> context_object1 =
+      NewContextForTesting(t.isolate(), context_object0);
   context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
   context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
 
@@ -585,14 +592,15 @@ TEST(ReduceJSStoreContext2) {
 
 TEST(ReduceJSStoreContext3) {
   HandleAndZoneScope handle_zone_scope;
-  auto factory = handle_zone_scope.main_isolate()->factory();
+  auto isolate = handle_zone_scope.main_isolate();
+  auto factory = isolate->factory();
 
   Handle<HeapObject> slot_value0 = factory->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = factory->InternalizeUtf8String("1");
 
   Handle<Context> context_object0 = factory->NewNativeContext();
-  Handle<Context> context_object1 = factory->NewNativeContext();
-  context_object1->set_previous(*context_object0);
+  Handle<Context> context_object1 =
+      NewContextForTesting(isolate, context_object0);
   context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
   context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
 

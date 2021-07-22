@@ -540,6 +540,36 @@
     "hash": ""
   },
   {
+    "input": "\\x",
+    "base": "http://example.org/foo/bar",
+    "href": "http://example.org/x",
+    "origin": "http://example.org",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "example.org",
+    "hostname": "example.org",
+    "port": "",
+    "pathname": "/x",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "\\\\x\\hello",
+    "base": "http://example.org/foo/bar",
+    "href": "http://x/hello",
+    "origin": "http://x",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "x",
+    "hostname": "x",
+    "port": "",
+    "pathname": "/hello",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "::",
     "base": "http://example.org/foo/bar",
     "href": "http://example.org/foo/::",
@@ -4698,6 +4728,140 @@
     "base": "about:blank",
     "failure": true
   },
+  {
+    "input": "foo://ho\u0000st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "foo://ho|st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  "Forbidden host codepoints: tabs and newlines are removed during preprocessing",
+  {
+    "input": "foo://ho\u0009st/",
+    "base": "about:blank",
+    "hash": "",
+    "host": "host",
+    "hostname": "host",
+    "href":"foo://host/",
+    "password": "",
+    "pathname": "/",
+    "port":"",
+    "protocol": "foo:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "input": "foo://ho\u000Ast/",
+    "base": "about:blank",
+    "hash": "",
+    "host": "host",
+    "hostname": "host",
+    "href":"foo://host/",
+    "password": "",
+    "pathname": "/",
+    "port":"",
+    "protocol": "foo:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "input": "foo://ho\u000Dst/",
+    "base": "about:blank",
+    "hash": "",
+    "host": "host",
+    "hostname": "host",
+    "href":"foo://host/",
+    "password": "",
+    "pathname": "/",
+    "port":"",
+    "protocol": "foo:",
+    "search": "",
+    "username": ""
+  },
+  "Encoded forbidden host codepoints in special URLs",
+  {
+    "input": "http://ho%00st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%09st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%0Ast/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%0Dst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%20st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%23st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%2Fst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%3Ast/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%3Cst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%3Est/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%3Fst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%40st/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%5Bst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%5Cst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%5Dst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%7Cst/",
+    "base": "about:blank",
+    "failure": true
+  },
   "Allowed host code points",
   {
     "input": "http://\u001F!\"$&'()*+,-.;=_`{}~/",
@@ -7676,7 +7840,8 @@
     "search": "",
     "username": "joe"
   },
-  { "input": "foo://!\"$%&'()*+,-.;=_`{}~/",
+  {
+    "input": "foo://!\"$%&'()*+,-.;=_`{}~/",
     "base": "about:blank",
     "hash": "",
     "host": "!\"$%&'()*+,-.;=_`{}~",
@@ -7792,6 +7957,63 @@
     "pathname": "/dir/",
     "port":"",
     "protocol": "wss:",
+    "search": "",
+    "username": ""
+  },
+  "Ensure that input schemes are not ignored when resolving non-special URLs",
+  {
+    "input": "abc:rootless",
+    "base": "abc://host/path",
+    "hash": "",
+    "host": "",
+    "hostname": "",
+    "href":"abc:rootless",
+    "password": "",
+    "pathname": "rootless",
+    "port":"",
+    "protocol": "abc:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "input": "abc:rootless",
+    "base": "abc:/path",
+    "hash": "",
+    "host": "",
+    "hostname": "",
+    "href":"abc:rootless",
+    "password": "",
+    "pathname": "rootless",
+    "port":"",
+    "protocol": "abc:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "input": "abc:rootless",
+    "base": "abc:path",
+    "hash": "",
+    "host": "",
+    "hostname": "",
+    "href":"abc:rootless",
+    "password": "",
+    "pathname": "rootless",
+    "port":"",
+    "protocol": "abc:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "input": "abc:/rooted",
+    "base": "abc://host/path",
+    "hash": "",
+    "host": "",
+    "hostname": "",
+    "href":"abc:/rooted",
+    "password": "",
+    "pathname": "/rooted",
+    "port":"",
+    "protocol": "abc:",
     "search": "",
     "username": ""
   }

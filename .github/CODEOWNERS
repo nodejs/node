@@ -22,7 +22,6 @@
 /doc/guides/contributing/pull-requests.md @nodejs/tsc
 /doc/guides/collaborator-guide.md @nodejs/tsc
 /doc/guides/offboarding.md @nodejs/tsc
-/doc/guides/onboarding-extras.md @nodejs/tsc
 
 # streams
 
@@ -55,7 +54,7 @@
 # tls/crypto
 
 /lib/internal/crypto/* @nodejs/crypto
-/lib/internal/tls.js @nodejs/crypto @nodejs/net
+/lib/internal/tls/* @nodejs/crypto @nodejs/net
 /lib/crypto.js @nodejs/crypto
 /lib/tls.js @nodejs/crypto @nodejs/net
 /src/node_crypto* @nodejs/crypto
@@ -119,3 +118,8 @@
 # V8
 /deps/v8/* @nodejs/v8-update
 /tools/v8_gypfiles/* @nodejs/v8-update
+
+# Actions
+
+/.github/workflows/* @nodejs/actions
+/tools/actions/* @nodejs/actions

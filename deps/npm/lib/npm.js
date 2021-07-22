@@ -1,16 +1,12 @@
-// The order of the code in this file is relevant, because a lot of things
-// require('npm.js'), but also we need to use some of those modules.  So,
-// we define and instantiate the singleton ahead of loading any modules
-// required for its methods.
-
-// these are all dependencies used in the ctor
 const EventEmitter = require('events')
 const { resolve, dirname } = require('path')
 const Config = require('@npmcli/config')
+const log = require('npmlog')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
+// TODO make this only ever load once (or unload) in tests
 const procLogListener = require('./utils/proc-log-listener.js')
 
 const proxyCmds = new Proxy({}, {
@@ -36,22 +32,51 @@ const proxyCmds = new Proxy({}, {
   },
 })
 
+// Timers in progress
+const timers = new Map()
+// Finished timers
+const timings = {}
+
+const processOnTimeHandler = (name) => {
+  timers.set(name, Date.now())
+}
+
+const processOnTimeEndHandler = (name) => {
+  if (timers.has(name)) {
+    const ms = Date.now() - timers.get(name)
+    log.timing(name, `Completed in ${ms}ms`)
+    timings[name] = ms
+    timers.delete(name)
+  } else
+    log.silly('timing', "Tried to end timer that doesn't exist:", name)
+}
+
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const { shellouts } = require('./utils/cmd-list.js')
 const usage = require('./utils/npm-usage.js')
+
+const which = require('which')
+
+const deref = require('./utils/deref-command.js')
+const setupLog = require('./utils/setup-log.js')
+const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
+const getProjectScope = require('./utils/get-project-scope.js')
 
 let warnedNonDashArg = false
 const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
 const _tmpFolder = Symbol('_tmpFolder')
 const _title = Symbol('_title')
+
 const npm = module.exports = new class extends EventEmitter {
   constructor () {
     super()
-    require('./utils/perf.js')
     this.started = Date.now()
     this.command = null
     this.commands = proxyCmds
+    this.timings = timings
+    this.timers = timers
+    this.perfStart()
     procLogListener()
     process.emit('time', 'npm')
     this.version = require('../package.json').version
@@ -63,6 +88,16 @@ const npm = module.exports = new class extends EventEmitter {
     })
     this[_title] = process.title
     this.updateNotification = null
+  }
+
+  perfStart () {
+    process.on('time', processOnTimeHandler)
+    process.on('timeEnd', processOnTimeEndHandler)
+  }
+
+  perfStop () {
+    process.off('time', processOnTimeHandler)
+    process.off('timeEnd', processOnTimeEndHandler)
   }
 
   get shelloutCommands () {
@@ -77,8 +112,8 @@ const npm = module.exports = new class extends EventEmitter {
   [_runCmd] (cmd, impl, args, cb) {
     if (!this.loaded) {
       throw new Error(
-        'Call npm.load(cb) before using this command.\n' +
-        'See the README.md or bin/npm-cli.js for example usage.'
+        'Call npm.load() before using this command.\n' +
+        'See lib/cli.js for example usage.'
       )
     }
 
@@ -96,7 +131,7 @@ const npm = module.exports = new class extends EventEmitter {
       args.filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
         .forEach(arg => {
           warnedNonDashArg = true
-          log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+          this.log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
         })
     }
 
@@ -108,6 +143,9 @@ const npm = module.exports = new class extends EventEmitter {
       this.output(impl.usage)
       cb()
     } else if (filterByWorkspaces) {
+      if (this.config.get('global'))
+        return cb(new Error('Workspaces not supported for global packages'))
+
       impl.execWorkspaces(args, this.config.get('workspace'), er => {
         process.emit('timeEnd', `command:${cmd}`)
         cb(er)
@@ -120,33 +158,32 @@ const npm = module.exports = new class extends EventEmitter {
     }
   }
 
-  // call with parsed CLI options and a callback when done loading
-  // XXX promisify this and stop taking a callback
   load (cb) {
-    if (!cb || typeof cb !== 'function')
-      throw new TypeError('must call as: npm.load(callback)')
+    if (cb && typeof cb !== 'function')
+      throw new TypeError('callback must be a function if provided')
 
-    this.once('load', cb)
-    if (this.loaded || this.loadErr) {
-      this.emit('load', this.loadErr)
-      return
+    if (!this.loadPromise) {
+      process.emit('time', 'npm:load')
+      this.log.pause()
+      this.loadPromise = new Promise((resolve, reject) => {
+        this[_load]().catch(er => er).then((er) => {
+          this.loadErr = er
+          if (!er && this.config.get('force'))
+            this.log.warn('using --force', 'Recommended protections disabled.')
+
+          process.emit('timeEnd', 'npm:load')
+          if (er)
+            return reject(er)
+          resolve()
+        })
+      })
     }
-    if (this.loading)
-      return
+    if (!cb)
+      return this.loadPromise
 
-    this.loading = true
-
-    process.emit('time', 'npm:load')
-    this.log.pause()
-    return this[_load]().catch(er => er).then((er) => {
-      this.loading = false
-      this.loadErr = er
-      if (!er && this.config.get('force'))
-        this.log.warn('using --force', 'Recommended protections disabled.')
-
-      process.emit('timeEnd', 'npm:load')
-      this.emit('load', er)
-    })
+    // loadPromise is returned here for legacy purposes, old code was allowing
+    // the mixing of callback and promise here.
+    return this.loadPromise.then(cb, cb)
   }
 
   get loaded () {
@@ -164,10 +201,15 @@ const npm = module.exports = new class extends EventEmitter {
 
   async [_load] () {
     process.emit('time', 'npm:load:whichnode')
-    const node = await which(process.argv[0]).catch(er => null)
+    let node
+    try {
+      node = which.sync(process.argv[0])
+    } catch (_) {
+      // TODO should we throw here?
+    }
     process.emit('timeEnd', 'npm:load:whichnode')
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-      log.verbose('node symlink', node)
+      this.log.verbose('node symlink', node)
       process.execPath = node
       this.config.execPath = node
     }
@@ -195,10 +237,10 @@ const npm = module.exports = new class extends EventEmitter {
     process.env.COLOR = this.color ? '1' : '0'
 
     process.emit('time', 'npm:load:cleanupLog')
-    cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)
+    cleanUpLogFiles(this.cache, this.config.get('logs-max'), this.log.warn)
     process.emit('timeEnd', 'npm:load:cleanupLog')
 
-    log.resume()
+    this.log.resume()
 
     process.emit('time', 'npm:load:configScope')
     const configScope = this.config.get('scope')
@@ -307,18 +349,6 @@ const npm = module.exports = new class extends EventEmitter {
     this.log.showProgress()
   }
 }()
-
-// now load everything required by the class methods
-
-const log = require('npmlog')
-const { promisify } = require('util')
-
-const which = promisify(require('which'))
-
-const deref = require('./utils/deref-command.js')
-const setupLog = require('./utils/setup-log.js')
-const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
-const getProjectScope = require('./utils/get-project-scope.js')
 
 if (require.main === module)
   require('./cli.js')(process)

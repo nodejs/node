@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+// Find all transitions with given name and calls the callback.
+using ForEachTransitionCallback = std::function<void(Map)>;
+
 // TransitionsAccessor is a helper class to encapsulate access to the various
 // ways a Map can store transitions to other maps in its respective field at
 // Map::kTransitionsOrPrototypeInfo.
@@ -68,6 +71,14 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     return FindTransitionToDataProperty(name, kFieldOnly);
   }
 
+  // Find all transitions with given name and calls the callback.
+  // Neither GCs nor operations requiring Isolate::full_transition_array_access
+  // lock are allowed inside the callback.
+  // If any of the GC- or lock-requiring processing is necessary, it has to be
+  // done outside of the callback.
+  void ForEachTransitionTo(Name name, const ForEachTransitionCallback& callback,
+                           DisallowGarbageCollection* no_gc);
+
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
@@ -89,13 +100,13 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
       PropertyAttributes* out_integrity_level = nullptr);
 
   // ===== ITERATION =====
-  using TraverseCallback = void (*)(Map map, void* data);
+  using TraverseCallback = std::function<void(Map)>;
 
   // Traverse the transition tree in postorder.
-  void TraverseTransitionTree(TraverseCallback callback, void* data) {
+  void TraverseTransitionTree(TraverseCallback callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
-    TraverseTransitionTreeInternal(callback, data, &no_gc);
+    TraverseTransitionTreeInternal(callback, &no_gc);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -181,7 +192,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
   WeakFixedArray GetPrototypeTransitions();
 
-  void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
+  void TraverseTransitionTreeInternal(TraverseCallback callback,
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
@@ -319,6 +330,10 @@ class TransitionArray : public WeakFixedArray {
                     PropertyAttributes attributes, int* out_insertion_index);
   Map SearchDetailsAndGetTarget(int transition, PropertyKind kind,
                                 PropertyAttributes attributes);
+
+  // Find all transitions with given name and calls the callback.
+  void ForEachTransitionTo(Name name,
+                           const ForEachTransitionCallback& callback);
 
   inline int number_of_transitions() const;
 

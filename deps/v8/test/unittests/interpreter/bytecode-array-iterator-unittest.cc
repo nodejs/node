@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-
-#include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+
+#include "src/init/v8.h"
+#include "src/interpreter/bytecode-array-builder.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -44,7 +44,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   uint32_t load_feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
   uint32_t forin_feedback_slot = feedback_spec.AddForInSlot().ToInt();
   uint32_t load_global_feedback_slot =
-      feedback_spec.AddLoadGlobalICSlot(TypeofMode::NOT_INSIDE_TYPEOF).ToInt();
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kNotInside).ToInt();
 
   builder.LoadLiteral(heap_num_0)
       .StoreAccumulatorInRegister(reg_0)
@@ -66,8 +66,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .ForInPrepare(triple, forin_feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
-      .LoadGlobal(name, load_global_feedback_slot,
-                  TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, load_global_feedback_slot, TypeofMode::kNotInside)
       .Return();
 
   // Test iterator sees the expected output from the builder.

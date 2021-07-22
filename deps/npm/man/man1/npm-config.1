@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "1" "June 2021" "" ""
+.TH "NPM\-CONFIG" "1" "July 2021" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SS Synopsis
@@ -107,6 +107,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBglobal\fP
@@ -142,6 +148,17 @@ Type: String
 .RE
 .P
 The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
+.SS \fBlocation\fP
+.RS 0
+.IP \(bu 2
+Default: "user" unless \fB\-\-global\fP is passed, which will also set this value
+to "global"
+.IP \(bu 2
+Type: "global", "user", or "project"
+
+.RE
+.P
+When passed to \fBnpm config\fP this refers to which config file to use\.
 .SS \fBlong\fP
 .RS 0
 .IP \(bu 2

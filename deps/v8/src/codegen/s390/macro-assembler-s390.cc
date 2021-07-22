@@ -12,6 +12,7 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/external-reference-table.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
@@ -23,7 +24,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -37,6 +41,12 @@ namespace internal {
 void TurboAssembler::DoubleMax(DoubleRegister result_reg,
                                DoubleRegister left_reg,
                                DoubleRegister right_reg) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmax(result_reg, left_reg, right_reg, Condition(1), Condition(8),
+          Condition(3));
+    return;
+  }
+
   Label check_zero, return_left, return_right, return_nan, done;
   cdbr(left_reg, right_reg);
   bunordered(&return_nan, Label::kNear);
@@ -77,6 +87,11 @@ void TurboAssembler::DoubleMax(DoubleRegister result_reg,
 void TurboAssembler::DoubleMin(DoubleRegister result_reg,
                                DoubleRegister left_reg,
                                DoubleRegister right_reg) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmin(result_reg, left_reg, right_reg, Condition(1), Condition(8),
+          Condition(3));
+    return;
+  }
   Label check_zero, return_left, return_right, return_nan, done;
   cdbr(left_reg, right_reg);
   bunordered(&return_nan, Label::kNear);
@@ -123,6 +138,11 @@ void TurboAssembler::DoubleMin(DoubleRegister result_reg,
 void TurboAssembler::FloatMax(DoubleRegister result_reg,
                               DoubleRegister left_reg,
                               DoubleRegister right_reg) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmax(result_reg, left_reg, right_reg, Condition(1), Condition(8),
+          Condition(2));
+    return;
+  }
   Label check_zero, return_left, return_right, return_nan, done;
   cebr(left_reg, right_reg);
   bunordered(&return_nan, Label::kNear);
@@ -163,6 +183,12 @@ void TurboAssembler::FloatMax(DoubleRegister result_reg,
 void TurboAssembler::FloatMin(DoubleRegister result_reg,
                               DoubleRegister left_reg,
                               DoubleRegister right_reg) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmin(result_reg, left_reg, right_reg, Condition(1), Condition(8),
+          Condition(2));
+    return;
+  }
+
   Label check_zero, return_left, return_right, return_nan, done;
   cebr(left_reg, right_reg);
   bunordered(&return_nan, Label::kNear);
@@ -205,6 +231,39 @@ void TurboAssembler::FloatMin(DoubleRegister result_reg,
   }
   bind(&done);
 }
+
+void TurboAssembler::CeilF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_POS_INF, dst, src);
+}
+
+void TurboAssembler::CeilF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_POS_INF, dst, src);
+}
+
+void TurboAssembler::FloorF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_NEG_INF, dst, src);
+}
+
+void TurboAssembler::FloorF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_NEG_INF, dst, src);
+}
+
+void TurboAssembler::TruncF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_0, dst, src);
+}
+
+void TurboAssembler::TruncF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_0, dst, src);
+}
+
+void TurboAssembler::NearestIntF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+}
+
+void TurboAssembler::NearestIntF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+}
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,
@@ -224,7 +283,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   RegList list = kJSCallerSaved & ~exclusions;
   bytes += NumRegs(list) * kSystemPointerSize;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
 
@@ -249,7 +308,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   MultiPush(list);
   bytes += NumRegs(list) * kSystemPointerSize;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPushDoubles(kCallerSavedDoubles);
     bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
@@ -260,7 +319,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPopDoubles(kCallerSavedDoubles);
     bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
@@ -323,8 +382,6 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   Label skip;
 
   if (cond != al) b(NegateCondition(cond), &skip);
-
-  DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY);
 
   mov(ip, Operand(target, rmode));
   b(ip);
@@ -758,7 +815,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Label done;
 
   // Skip barrier if writing a smi.
-  if (smi_check == INLINE_SMI_CHECK) {
+  if (smi_check == SmiCheck::kInline) {
     JumpIfSmi(value, &done);
   }
 
@@ -767,7 +824,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   lay(dst, MemOperand(object, offset - kHeapObjectTag));
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     AndP(r0, dst, Operand(kTaggedSize - 1));
     beq(&ok, Label::kNear);
@@ -776,13 +833,13 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, dst, value, lr_status, save_fp, remembered_set_action,
-              OMIT_SMI_CHECK);
+              SmiCheck::kOmit);
 
   bind(&done);
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 4)));
     mov(dst, Operand(bit_cast<intptr_t>(kZapValue + 8)));
   }
@@ -910,13 +967,13 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   DCHECK(object != value);
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     LoadTaggedPointerField(r0, MemOperand(address));
     CmpS64(value, r0);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+  if ((remembered_set_action == RememberedSetAction::kOmit &&
        !FLAG_incremental_marking) ||
       FLAG_disable_write_barriers) {
     return;
@@ -925,7 +982,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   // catch stores of smis and stores into the young generation.
   Label done;
 
-  if (smi_check == INLINE_SMI_CHECK) {
+  if (smi_check == SmiCheck::kInline) {
     JumpIfSmi(value, &done);
   }
 
@@ -949,7 +1006,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 16)));
   }
@@ -1351,7 +1408,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // Reserve room for saved entry sp.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     StoreU64(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(),
              r1);
   }
@@ -1536,7 +1593,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeFlag flag) {
+                                    Label* done, InvokeType type) {
   Label regular_invoke;
 
   //  r2: actual arguments count
@@ -1652,9 +1709,9 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         Register expected_parameter_count,
                                         Register actual_parameter_count,
-                                        InvokeFlag flag) {
+                                        InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
   DCHECK_EQ(function, r3);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == r5);
 
@@ -1668,18 +1725,20 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, flag);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
   LoadTaggedPointerField(code,
                          FieldMemOperand(function, JSFunction::kCodeOffset));
-  if (flag == CALL_FUNCTION) {
-    CallCodeObject(code);
-  } else {
-    DCHECK(flag == JUMP_FUNCTION);
-    JumpCodeObject(code);
+  switch (type) {
+    case InvokeType::kCall:
+      CallCodeObject(code);
+      break;
+    case InvokeType::kJump:
+      JumpCodeObject(code);
+      break;
   }
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.
@@ -1688,9 +1747,9 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::InvokeFunctionWithNewTarget(
     Register fun, Register new_target, Register actual_parameter_count,
-    InvokeFlag flag) {
+    InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
 
   // Contract with called JS functions requires that function is passed in r3.
   DCHECK_EQ(fun, r3);
@@ -1706,15 +1765,15 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
                       SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunctionCode(fun, new_target, expected_reg, actual_parameter_count,
-                     flag);
+                     type);
 }
 
 void MacroAssembler::InvokeFunction(Register function,
                                     Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    InvokeFlag flag) {
+                                    InvokeType type) {
   // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
 
   // Contract with called JS functions requires that function is passed in r3.
   DCHECK_EQ(function, r3);
@@ -1724,18 +1783,7 @@ void MacroAssembler::InvokeFunction(Register function,
                          FieldMemOperand(function, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r3, no_reg, expected_parameter_count,
-                     actual_parameter_count, flag);
-}
-
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  Move(r3, restart_fp);
-  LoadU64(r3, MemOperand(r3));
-  CmpS64(r3, Operand::Zero());
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
-       ne);
+                     actual_parameter_count, type);
 }
 
 void MacroAssembler::PushStackHandler() {
@@ -1838,8 +1886,13 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   lay(sp, MemOperand(sp, -kDoubleSize));
   StoreF64(double_input, MemOperand(sp));
 
+#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
@@ -1898,8 +1951,8 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
-                                          kArgvOnStack, builtin_exit_frame);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                          ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1941,11 +1994,11 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
-  if (emit_debug_code()) Check(cond, reason, cr);
+  if (FLAG_debug_code) Check(cond, reason, cr);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
@@ -1959,11 +2012,11 @@ void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-#ifdef DEBUG
-  const char* msg = GetAbortReason(reason);
-  RecordComment("Abort message: ");
-  RecordComment(msg);
-#endif
+  if (FLAG_code_comments) {
+    const char* msg = GetAbortReason(reason);
+    RecordComment("Abort message: ");
+    RecordComment(msg);
+  }
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
@@ -2002,7 +2055,7 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
                          FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedPointerField(
       dst, FieldMemOperand(
@@ -2011,7 +2064,7 @@ void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmi, cr0);
@@ -2019,7 +2072,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(eq, AbortReason::kOperandIsNotASmi, cr0);
@@ -2027,7 +2080,7 @@ void MacroAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object, Register scratch) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
@@ -2039,7 +2092,7 @@ void MacroAssembler::AssertConstructor(Register object, Register scratch) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
@@ -2053,7 +2106,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
@@ -2065,7 +2118,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
@@ -2095,7 +2148,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);
@@ -4752,6 +4805,218 @@ void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
   flogr(scratch0, scratch0);
   mov(dst, Operand(63));
   SubS64(dst, scratch0);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicCmpExchangeHelper(Register addr, Register output,
+                                             Register old_value,
+                                             Register new_value, int start,
+                                             int end, int shift_amount,
+                                             int offset, Register temp0,
+                                             Register temp1) {
+  LoadU32(temp0, MemOperand(addr, offset));
+  llgfr(temp1, temp0);
+  RotateInsertSelectBits(temp0, old_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  RotateInsertSelectBits(temp1, new_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  CmpAndSwap(temp0, temp1, MemOperand(addr, offset));
+  RotateInsertSelectBits(output, temp0, Operand(start + shift_amount),
+                         Operand(end + shift_amount),
+                         Operand(64 - shift_amount), true);
+}
+
+void TurboAssembler::AtomicCmpExchangeU8(Register addr, Register output,
+                                         Register old_value, Register new_value,
+                                         Register temp0, Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * idx;                                     \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = (3 - idx) * 8;                             \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * (3 - idx);                               \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = idx * 8;                                   \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#endif
+
+  Label one, two, three, done;
+  tmll(addr, Operand(3));
+  b(Condition(1), &three);
+  b(Condition(2), &two);
+  b(Condition(4), &one);
+  /* ending with 0b00 */
+  ATOMIC_COMP_EXCHANGE_BYTE(0);
+  b(&done);
+  /* ending with 0b01 */
+  bind(&one);
+  ATOMIC_COMP_EXCHANGE_BYTE(1);
+  b(&done);
+  /* ending with 0b10 */
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_BYTE(2);
+  b(&done);
+  /* ending with 0b11 */
+  bind(&three);
+  ATOMIC_COMP_EXCHANGE_BYTE(3);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicCmpExchangeU16(Register addr, Register output,
+                                          Register old_value,
+                                          Register new_value, Register temp0,
+                                          Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * idx;                                    \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = (1 - idx) * 16;                            \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * (1 - idx);                              \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = idx * 16;                                  \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#endif
+
+  Label two, done;
+  tmll(addr, Operand(3));
+  b(Condition(2), &two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(0);
+  b(&done);
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(1);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicExchangeHelper(Register addr, Register value,
+                                          Register output, int start, int end,
+                                          int shift_amount, int offset,
+                                          Register scratch) {
+  Label do_cs;
+  LoadU32(output, MemOperand(addr, offset));
+  bind(&do_cs);
+  llgfr(scratch, output);
+  RotateInsertSelectBits(scratch, value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  csy(output, scratch, MemOperand(addr, offset));
+  bne(&do_cs, Label::kNear);
+  srl(output, Operand(shift_amount));
+}
+
+void TurboAssembler::AtomicExchangeU8(Register addr, Register value,
+                                      Register output, Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_EXCHANGE_BYTE(i)                                               \
+  {                                                                           \
+    constexpr int idx = (i);                                                  \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");              \
+    constexpr int start = 32 + 8 * idx;                                       \
+    constexpr int end = start + 7;                                            \
+    constexpr int shift_amount = (3 - idx) * 8;                               \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, -idx, \
+                         scratch);                                            \
+  }
+#else
+#define ATOMIC_EXCHANGE_BYTE(i)                                               \
+  {                                                                           \
+    constexpr int idx = (i);                                                  \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");              \
+    constexpr int start = 32 + 8 * (3 - idx);                                 \
+    constexpr int end = start + 7;                                            \
+    constexpr int shift_amount = idx * 8;                                     \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, -idx, \
+                         scratch);                                            \
+  }
+#endif
+  Label three, two, one, done;
+  tmll(addr, Operand(3));
+  b(Condition(1), &three);
+  b(Condition(2), &two);
+  b(Condition(4), &one);
+
+  // end with 0b00
+  ATOMIC_EXCHANGE_BYTE(0);
+  b(&done);
+
+  // ending with 0b01
+  bind(&one);
+  ATOMIC_EXCHANGE_BYTE(1);
+  b(&done);
+
+  // ending with 0b10
+  bind(&two);
+  ATOMIC_EXCHANGE_BYTE(2);
+  b(&done);
+
+  // ending with 0b11
+  bind(&three);
+  ATOMIC_EXCHANGE_BYTE(3);
+
+  bind(&done);
+}
+
+void TurboAssembler::AtomicExchangeU16(Register addr, Register value,
+                                       Register output, Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_EXCHANGE_HALFWORD(i)                                     \
+  {                                                                     \
+    constexpr int idx = (i);                                            \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");        \
+    constexpr int start = 32 + 16 * idx;                                \
+    constexpr int end = start + 15;                                     \
+    constexpr int shift_amount = (1 - idx) * 16;                        \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, \
+                         -idx * 2, scratch);                            \
+  }
+#else
+#define ATOMIC_EXCHANGE_HALFWORD(i)                                     \
+  {                                                                     \
+    constexpr int idx = (i);                                            \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");        \
+    constexpr int start = 32 + 16 * (1 - idx);                          \
+    constexpr int end = start + 15;                                     \
+    constexpr int shift_amount = idx * 16;                              \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, \
+                         -idx * 2, scratch);                            \
+  }
+#endif
+  Label two, done;
+  tmll(addr, Operand(3));
+  b(Condition(2), &two);
+
+  // end with 0b00
+  ATOMIC_EXCHANGE_HALFWORD(0);
+  b(&done);
+
+  // ending with 0b10
+  bind(&two);
+  ATOMIC_EXCHANGE_HALFWORD(1);
+
   bind(&done);
 }
 

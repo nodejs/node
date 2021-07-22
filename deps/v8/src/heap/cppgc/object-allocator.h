@@ -12,9 +12,9 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 
@@ -31,6 +31,8 @@ class PageBackend;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
+  static constexpr size_t kSmallestSpaceSize = 32;
+
   ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
                   StatsCollector* stats_collector);
 
@@ -85,8 +87,10 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
 // static
 RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
     size_t size) {
+  static_assert(kSmallestSpaceSize == 32,
+                "should be half the next larger size");
   if (size < 64) {
-    if (size < 32) return RawHeap::RegularSpaceType::kNormal1;
+    if (size < kSmallestSpaceSize) return RawHeap::RegularSpaceType::kNormal1;
     return RawHeap::RegularSpaceType::kNormal2;
   }
   if (size < 128) return RawHeap::RegularSpaceType::kNormal3;
@@ -107,10 +111,10 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
 #if !defined(V8_USE_MEMORY_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER) && \
     DEBUG
   // For debug builds, unzap only the payload.
-  SET_MEMORY_ACCESSIBLE(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
-                        size - sizeof(HeapObjectHeader));
+  SetMemoryAccessible(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
+                      size - sizeof(HeapObjectHeader));
 #else
-  SET_MEMORY_ACCESSIBLE(raw, size);
+  SetMemoryAccessible(raw, size);
 #endif
   auto* header = new (raw) HeapObjectHeader(size, gcinfo);
 
@@ -119,7 +123,7 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
       ->object_start_bitmap()
       .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
-  return header->Payload();
+  return header->ObjectStart();
 }
 
 }  // namespace internal

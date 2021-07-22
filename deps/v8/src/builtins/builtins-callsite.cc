@@ -121,9 +121,11 @@ BUILTIN(CallSitePrototypeGetThis) {
   CHECK_CALLSITE(frame, "getThis");
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
+#if V8_ENABLE_WEBASSEMBLY
   if (frame->IsAsmJsWasm()) {
     return frame->GetWasmInstance().native_context().global_proxy();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return frame->receiver_or_instance();
 }
 

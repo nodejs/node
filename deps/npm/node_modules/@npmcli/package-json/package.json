@@ -1,0 +1,34 @@
+{
+  "name": "@npmcli/package-json",
+  "version": "1.0.1",
+  "description": "Programmatic API to update package.json",
+  "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "snap": "tap",
+    "test": "tap",
+    "npmclilint": "npmcli-lint",
+    "lint": "npm run npmclilint -- \"lib/*.*js\" \"test/*.*js\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint --",
+    "postsnap": "npm run lintfix --"
+  },
+  "keywords": [
+    "npm",
+    "oss"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/lint": "^1.0.1",
+    "tap": "^15.0.9"
+  },
+  "dependencies": {
+    "json-parse-even-better-errors": "^2.3.1"
+  }
+}

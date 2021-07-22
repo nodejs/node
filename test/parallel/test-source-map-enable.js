@@ -307,6 +307,42 @@ function nextdir() {
   assert.ok(sourceMap);
 }
 
+// Does not throw TypeError when primitive value is thrown.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-string.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'throw-string.js',
+    coverageDirectory
+  );
+  // Original stack trace.
+  assert.match(output.stderr.toString(), /goodbye/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
+// Does not throw TypeError when exception occurs as result of missing named
+// export.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/esm-export-missing.mjs'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'esm-export-missing.mjs',
+    coverageDirectory
+  );
+  // Module loader error displayed.
+  assert.match(output.stderr.toString(),
+               /does not provide an export named 'Something'/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {

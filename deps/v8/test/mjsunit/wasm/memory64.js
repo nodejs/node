@@ -50,11 +50,16 @@ function BasicMemory64Tests(num_pages) {
   store(kStoreOffset, 11);
   assertEquals(11, load(kStoreOffset));
 
-  // Now check 100 random positions. All except for kStoreOffset should be zero.
+  // Now check 100 random positions.
   for (let i = 0; i < 100; ++i) {
     let position = Math.floor(Math.random() * num_bytes);
-    if (position == kStoreOffset) continue;
-    assertEquals(0, array[position]);
+    let expected = 0;
+    if (position == kStoreOffset) {
+      expected = 11;
+    } else if (num_bytes - position <= 4) {
+      expected = [0x12, 0x34, 0x56, 0x78][num_bytes - position - 1];
+    }
+    assertEquals(expected, array[position]);
   }
 }
 
@@ -81,3 +86,28 @@ function BasicMemory64Tests(num_pages) {
 //  let num_pages = 5 * 1024 * 1024 * 1024 / kPageSize;
 //  BasicMemory64Tests(num_pages);
 //})();
+
+(function TestGrow64() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 10, false);
+
+  builder.addFunction('grow', makeSig([kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,    // local.get 0
+        kExprMemoryGrow, 0,  // memory.grow 0
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertEquals(1n, instance.exports.grow(2n));
+  assertEquals(3n, instance.exports.grow(1n));
+  assertEquals(-1n, instance.exports.grow(-1n));
+  assertEquals(-1n, instance.exports.grow(1n << 31n));
+  assertEquals(-1n, instance.exports.grow(1n << 32n));
+  assertEquals(-1n, instance.exports.grow(1n << 33n));
+  assertEquals(-1n, instance.exports.grow(1n << 63n));
+  assertEquals(-1n, instance.exports.grow(7n));  // Above the of 10.
+  assertEquals(4n, instance.exports.grow(6n));   // Just at the maximum of 10.
+})();

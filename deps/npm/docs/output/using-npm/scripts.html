@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#configuration">configuration</a></li><li><a href="#special-packagejson-config-object">Special: package.json “config” object</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#hook-scripts">Hook Scripts</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -198,7 +198,8 @@ the prepare script will be run, before the package is packaged and
 installed.</p>
 </li>
 <li>
-<p>As of <code>npm@7</code> these scripts run in the background</p>
+<p>As of <code>npm@7</code> these scripts run in the background.
+To see the output, run with: <code>--foreground-scripts</code>.</p>
 </li>
 </ul>
 <p><strong>prepublish</strong> (DEPRECATED)</p>
@@ -367,30 +368,7 @@ package.json file, then your package scripts would have the
 <code>npm_package_version</code> set to “1.2.5”.  You can access these variables
 in your code with <code>process.env.npm_package_name</code> and
 <code>process.env.npm_package_version</code>, and so on for other fields.</p>
-<h4 id="configuration">configuration</h4>
-<p>Configuration parameters are put in the environment with the
-<code>npm_config_</code> prefix. For instance, you can view the effective <code>root</code>
-config by checking the <code>npm_config_root</code> environment variable.</p>
-<h4 id="special-packagejson-config-object">Special: package.json “config” object</h4>
-<p>The package.json “config” keys are overwritten in the environment if
-there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example,
-if the package.json has this:</p>
-<pre lang="json"><code>{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server.js"
-  }
-}
-</code></pre>
-<p>and the server.js is this:</p>
-<pre lang="javascript"><code>http.createServer(...).listen(process.env.npm_package_config_port)
-</code></pre>
-<p>then the user could change the behavior by doing:</p>
-<pre lang="bash"><code>  npm config set foo:port 80
-</code></pre>
+<p>See <a href="../using-npm/package-json.html"><code>package-json.md</code></a> for more on package configs.</p>
 <h4 id="current-lifecycle-event">current lifecycle event</h4>
 <p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to
 whichever stage of the cycle is being executed. So, you could have a
@@ -431,18 +409,9 @@ fine:</p>
 <p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
-<p>Note that these script files don’t have to be nodejs or even
-javascript programs. They just have to be some kind of executable
+<p>Note that these script files don’t have to be Node.js or even
+JavaScript programs. They just have to be some kind of executable
 file.</p>
-<h3 id="hook-scripts">Hook Scripts</h3>
-<p>If you want to run a specific script at a specific lifecycle event for
-ALL packages, then you can use a hook script.</p>
-<p>Place an executable file at <code>node_modules/.hooks/{eventname}</code>, and
-it’ll get run for all packages when they are going through that point
-in the package lifecycle for any packages installed in that root.</p>
-<p>Hook scripts are run exactly the same way as package.json scripts.
-That is, they are in a separate child process, with the env described
-above.</p>
 <h3 id="best-practices">Best Practices</h3>
 <ul>
 <li>Don’t exit with a non-zero error code unless you <em>really</em> mean it.

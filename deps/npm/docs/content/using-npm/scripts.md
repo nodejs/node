@@ -54,7 +54,8 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
  the prepare script will be run, before the package is packaged and
  installed.
 
-* As of `npm@7` these scripts run in the background
+* As of `npm@7` these scripts run in the background.
+  To see the output, run with: `--foreground-scripts`.
 
 **prepublish** (DEPRECATED)
 * Does not run during `npm publish`, but does run during `npm ci`
@@ -245,41 +246,7 @@ package.json file, then your package scripts would have the
 in your code with `process.env.npm_package_name` and
 `process.env.npm_package_version`, and so on for other fields.
 
-#### configuration
-
-Configuration parameters are put in the environment with the
-`npm_config_` prefix. For instance, you can view the effective `root`
-config by checking the `npm_config_root` environment variable.
-
-#### Special: package.json "config" object
-
-The package.json "config" keys are overwritten in the environment if
-there is a config param of `<name>[@<version>]:<key>`.  For example,
-if the package.json has this:
-
-```json
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server.js"
-  }
-}
-```
-
-and the server.js is this:
-
-```javascript
-http.createServer(...).listen(process.env.npm_package_config_port)
-```
-
-then the user could change the behavior by doing:
-
-```bash
-  npm config set foo:port 80
-  ```
+See [`package-json.md`](/using-npm/package-json) for more on package configs.
 
 #### current lifecycle event
 
@@ -337,22 +304,9 @@ Scripts are run by passing the line as a script argument to `sh`.
 If the script exits with a code other than 0, then this will abort the
 process.
 
-Note that these script files don't have to be nodejs or even
-javascript programs. They just have to be some kind of executable
+Note that these script files don't have to be Node.js or even
+JavaScript programs. They just have to be some kind of executable
 file.
-
-### Hook Scripts
-
-If you want to run a specific script at a specific lifecycle event for
-ALL packages, then you can use a hook script.
-
-Place an executable file at `node_modules/.hooks/{eventname}`, and
-it'll get run for all packages when they are going through that point
-in the package lifecycle for any packages installed in that root.
-
-Hook scripts are run exactly the same way as package.json scripts.
-That is, they are in a separate child process, with the env described
-above.
 
 ### Best Practices
 

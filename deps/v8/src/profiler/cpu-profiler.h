@@ -35,12 +35,16 @@ class Symbolizer;
   V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
   V(CODE_DEOPT, CodeDeoptEventRecord)            \
   V(REPORT_BUILTIN, ReportBuiltinEventRecord)    \
-  V(BYTECODE_FLUSH, BytecodeFlushEventRecord)
+  V(CODE_DELETE, CodeDeleteEventRecord)
+
+#define VM_EVENTS_TYPE_LIST(V) \
+  CODE_EVENTS_TYPE_LIST(V)     \
+  V(NATIVE_CONTEXT_MOVE, NativeContextMoveEventRecord)
 
 class CodeEventRecord {
  public:
 #define DECLARE_TYPE(type, ignore) type,
-  enum Type { NONE = 0, CODE_EVENTS_TYPE_LIST(DECLARE_TYPE) };
+  enum Type { NONE = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
 #undef DECLARE_TYPE
 
   Type type;
@@ -99,6 +103,13 @@ class ReportBuiltinEventRecord : public CodeEventRecord {
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
+// Signals that a native context's address has changed.
+class NativeContextMoveEventRecord : public CodeEventRecord {
+ public:
+  Address from_address;
+  Address to_address;
+};
+
 // A record type for sending samples from the main thread/signal handler to the
 // profiling thread.
 class TickSampleEventRecord {
@@ -112,9 +123,9 @@ class TickSampleEventRecord {
   TickSample sample;
 };
 
-class BytecodeFlushEventRecord : public CodeEventRecord {
+class CodeDeleteEventRecord : public CodeEventRecord {
  public:
-  Address instruction_start;
+  CodeEntry* entry;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
@@ -130,7 +141,7 @@ class CodeEventsContainer {
   union  {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
-    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
+    VM_EVENTS_TYPE_LIST(DECLARE_CLASS)
 #undef DECLARE_CLASS
   };
 };
@@ -174,7 +185,8 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
  protected:
   ProfilerEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
-                          ProfilerCodeObserver* code_observer);
+                          ProfilerCodeObserver* code_observer,
+                          CpuProfilesCollection* profiles);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -188,6 +200,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   Symbolizer* symbolizer_;
   ProfilerCodeObserver* code_observer_;
+  CpuProfilesCollection* profiles_;
   std::atomic_bool running_{true};
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
@@ -238,7 +251,6 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
   std::unique_ptr<sampler::Sampler> sampler_;
-  CpuProfilesCollection* profiles_;
   base::TimeDelta period_;           // Samples & code events processing period.
   const bool use_precise_sampling_;  // Whether or not busy-waiting is used for
                                      // low sampling intervals on Windows.
@@ -255,6 +267,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
   CodeMap* code_map() { return &code_map_; }
   StringsStorage* strings() { return &strings_; }
+  WeakCodeRegistry* weak_code_registry() { return &weak_code_registry_; }
 
   void ClearCodeMap();
 
@@ -279,6 +292,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   Isolate* const isolate_;
   StringsStorage strings_;
   CodeMap code_map_;
+  WeakCodeRegistry weak_code_registry_;
   ProfilerEventsProcessor* processor_;
 };
 

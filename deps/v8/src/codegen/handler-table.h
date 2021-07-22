@@ -58,7 +58,9 @@ class V8_EXPORT_PRIVATE HandlerTable {
   // Constructors for the various encodings.
   explicit HandlerTable(Code code);
   explicit HandlerTable(ByteArray byte_array);
+#if V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(const wasm::WasmCode* code);
+#endif  // V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(BytecodeArray bytecode_array);
   HandlerTable(Address handler_table, int handler_table_size,
                EncodingMode encoding_mode);
@@ -95,8 +97,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
   int NumberOfReturnEntries() const;
 
 #ifdef ENABLE_DISASSEMBLER
-  void HandlerTableRangePrint(std::ostream& os);   // NOLINT
-  void HandlerTableReturnPrint(std::ostream& os);  // NOLINT
+  void HandlerTableRangePrint(std::ostream& os);
+  void HandlerTableReturnPrint(std::ostream& os);
 #endif
 
  private:

@@ -15,6 +15,8 @@ extern runtime CreateObjectLiteral(
 
 namespace constructor {
 
+extern builtin FastNewClosure(
+    Context, SharedFunctionInfo, FeedbackCell): JSFunction;
 extern builtin FastNewObject(Context, JSFunction, JSReceiver): JSObject;
 
 extern enum AllocationSiteMode {
@@ -42,6 +44,15 @@ extern macro ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 extern macro ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(Context):
     JSObject;
 
+extern macro LoadContextFromBaseline(): Context;
+
+builtin FastNewClosureBaseline(
+    sharedFunctionInfo: SharedFunctionInfo,
+    feedbackCell: FeedbackCell): JSFunction {
+  const context = LoadContextFromBaseline();
+  tail FastNewClosure(context, sharedFunctionInfo, feedbackCell);
+}
+
 builtin FastNewFunctionContextEval(implicit context: Context)(
     scopeInfo: ScopeInfo, slots: uint32): Context {
   return FastNewFunctionContext(scopeInfo, slots, context, kEvalScope);
@@ -61,7 +72,7 @@ builtin CreateRegExpLiteral(implicit context: Context)(
 
 builtin CreateShallowArrayLiteral(implicit context: Context)(
     maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
-    constantElements: ArrayBoilerplateDescription): HeapObject {
+    constantElements: ArrayBoilerplateDescription, flags: Smi): HeapObject {
   try {
     const vector = Cast<FeedbackVector>(maybeFeedbackVector)
         otherwise CallRuntime;
@@ -70,8 +81,7 @@ builtin CreateShallowArrayLiteral(implicit context: Context)(
         otherwise CallRuntime;
   } label CallRuntime deferred {
     tail runtime::CreateArrayLiteral(
-        context, maybeFeedbackVector, slot, constantElements,
-        SmiConstant(kIsShallow));
+        context, maybeFeedbackVector, slot, constantElements, flags);
   }
 }
 

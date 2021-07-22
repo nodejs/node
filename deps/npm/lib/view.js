@@ -13,11 +13,11 @@ const semver = require('semver')
 const style = require('ansistyles')
 const { inspect, promisify } = require('util')
 const { packument } = require('pacote')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const readFile = promisify(fs.readFile)
 const readJson = async file => jsonParse(await readFile(file, 'utf8'))
 
+const Queryable = require('./utils/queryable.js')
 const BaseCommand = require('./base-command.js')
 class View extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -160,10 +160,9 @@ class View extends BaseCommand {
       args = [''] // getData relies on this
     }
     const results = {}
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    for (const workspace of [...workspaces.entries()]) {
-      const wsPkg = `${workspace[0]}${pkg.slice(1)}`
+    await this.setWorkspaces(filters)
+    for (const name of this.workspaceNames) {
+      const wsPkg = `${name}${pkg.slice(1)}`
       const [pckmnt, data] = await this.getData(wsPkg, args)
 
       let reducedData = data.reduce(reducer, {})
@@ -177,7 +176,7 @@ class View extends BaseCommand {
         if (wholePackument)
           data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
         else {
-          console.log(`${workspace[0]}:`)
+          console.log(`${name}:`)
           const msg = await this.jsonData(reducedData, pckmnt._id)
           if (msg !== '')
             console.log(msg)
@@ -185,7 +184,7 @@ class View extends BaseCommand {
       } else {
         const msg = await this.jsonData(reducedData, pckmnt._id)
         if (msg !== '')
-          results[workspace[0]] = JSON.parse(msg)
+          results[name] = JSON.parse(msg)
       }
     }
     if (Object.keys(results).length > 0)
@@ -461,56 +460,13 @@ function showFields (data, version, fields) {
       o[k] = s[k]
     })
   })
-  return search(o, fields.split('.'), version.version, fields)
-}
 
-function search (data, fields, version, title) {
-  let field
-  const tail = fields
-  while (!field && fields.length)
-    field = tail.shift()
-  fields = [field].concat(tail)
-  let o
-  if (!field && !tail.length) {
-    o = {}
-    o[version] = {}
-    o[version][title] = data
-    return o
-  }
-  let index = field.match(/(.+)\[([^\]]+)\]$/)
-  if (index) {
-    field = index[1]
-    index = index[2]
-    if (data[field] && data[field][index])
-      return search(data[field][index], tail, version, title)
-    else
-      field = field + '[' + index + ']'
-  }
-  if (Array.isArray(data)) {
-    if (data.length === 1)
-      return search(data[0], fields, version, title)
+  const queryable = new Queryable(o)
+  const s = queryable.query(fields)
+  const res = { [version.version]: s }
 
-    let results = []
-    data.forEach((data, i) => {
-      const tl = title.length
-      const newt = title.substr(0, tl - fields.join('.').length - 1) +
-                 '[' + i + ']' + [''].concat(fields).join('.')
-      results.push(search(data, fields.slice(), version, newt))
-    })
-    results = results.reduce(reducer, {})
-    return results
-  }
-  if (!data[field])
-    return undefined
-  data = data[field]
-  if (tail.length) {
-    // there are more fields to deal with.
-    return search(data, tail, version, title)
-  }
-  o = {}
-  o[version] = {}
-  o[version][title] = data
-  return o
+  if (s)
+    return res
 }
 
 function cleanup (data) {

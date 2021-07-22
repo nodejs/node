@@ -4,8 +4,9 @@
 
 #include "src/compiler/memory-lowering.h"
 
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/external-pointer.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -40,6 +41,15 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
   ZoneSet<NodeId> node_ids_;
   AllocationType const allocation_;
   Node* const size_;
+
+  static inline AllocationType CheckAllocationType(AllocationType allocation) {
+    // For non-generational heap, all young allocations are redirected to old
+    // space.
+    if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+      return AllocationType::kOld;
+    }
+    return allocation;
+  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationGroup);
 };
@@ -98,6 +108,9 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
+  if (FLAG_single_generation && allocation_type == AllocationType::kYoung) {
+    allocation_type = AllocationType::kOld;
+  }
   // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
   // guard pages. If we need to support allocating code here we would need to
   // call MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
@@ -292,7 +305,21 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 Reduction MemoryLowering::ReduceLoadFromObject(Node* node) {
   DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
   ObjectAccess const& access = ObjectAccessOf(node->op());
-  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+
+  MachineType machine_type = access.machine_type;
+
+  if (machine_type.IsMapWord()) {
+    CHECK_EQ(machine_type.semantic(), MachineSemantic::kAny);
+    return ReduceLoadMap(node);
+  }
+
+  MachineRepresentation rep = machine_type.representation();
+  const Operator* load_op =
+      ElementSizeInBytes(rep) > kTaggedSize &&
+              !machine()->UnalignedLoadSupported(machine_type.representation())
+          ? machine()->UnalignedLoad(machine_type)
+          : machine()->Load(machine_type);
+  NodeProperties::ChangeOp(node, load_op);
   return Changed(node);
 }
 
@@ -302,6 +329,7 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
   MachineType type = access.machine_type;
+  DCHECK(!type.IsMapWord());
   if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
@@ -339,13 +367,29 @@ Node* MemoryLowering::DecodeExternalPointer(
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
   if (external_pointer_tag != 0) {
-    Node* tag = __ IntPtrConstant(external_pointer_tag);
-    decoded_ptr = __ WordXor(decoded_ptr, tag);
+    Node* tag = __ IntPtrConstant(~external_pointer_tag);
+    decoded_ptr = __ WordAnd(decoded_ptr, tag);
   }
   return decoded_ptr;
 #else
   return node;
 #endif  // V8_HEAP_SANDBOX
+}
+
+Reduction MemoryLowering::ReduceLoadMap(Node* node) {
+#ifdef V8_MAP_PACKING
+  NodeProperties::ChangeOp(node, machine()->Load(MachineType::AnyTagged()));
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
+
+  node = __ AddNode(graph()->CloneNode(node));
+  return Replace(__ UnpackMapWord(node));
+#else
+  NodeProperties::ChangeOp(node, machine()->Load(MachineType::TaggedPointer()));
+  return Changed(node);
+#endif
 }
 
 Reduction MemoryLowering::ReduceLoadField(Node* node) {
@@ -359,11 +403,19 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
     // External pointer table indices are 32bit numbers
     type = MachineType::Uint32();
   }
+
+  if (type.IsMapWord()) {
+    DCHECK(!NeedsPoisoning(access.load_sensitivity));
+    DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));
+    return ReduceLoadMap(node);
+  }
+
   if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
     NodeProperties::ChangeOp(node, machine()->Load(type));
   }
+
   if (V8_HEAP_SANDBOX_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
 #ifdef V8_HEAP_SANDBOX
@@ -385,11 +437,17 @@ Reduction MemoryLowering::ReduceStoreToObject(Node* node,
   ObjectAccess const& access = ObjectAccessOf(node->op());
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(2);
+
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
       node, object, value, state, access.write_barrier_kind);
-  NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(
-                access.machine_type.representation(), write_barrier_kind)));
+  DCHECK(!access.machine_type.IsMapWord());
+  MachineRepresentation rep = access.machine_type.representation();
+  StoreRepresentation store_rep(rep, write_barrier_kind);
+  const Operator* store_op = ElementSizeInBytes(rep) > kTaggedSize &&
+                                     !machine()->UnalignedStoreSupported(rep)
+                                 ? machine()->UnalignedStore(rep)
+                                 : machine()->Store(store_rep);
+  NodeProperties::ChangeOp(node, store_op);
   return Changed(node);
 }
 
@@ -417,15 +475,29 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   DCHECK_IMPLIES(V8_HEAP_SANDBOX_BOOL,
                  !access.type.Is(Type::ExternalPointer()) &&
                      !access.type.Is(Type::SandboxedExternalPointer()));
+  MachineType machine_type = access.machine_type;
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
+
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
       node, object, value, state, access.write_barrier_kind);
   Node* offset = __ IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph_zone(), 1, offset);
+
+  if (machine_type.IsMapWord()) {
+    machine_type = MachineType::TaggedPointer();
+#ifdef V8_MAP_PACKING
+    Node* mapword = __ PackMapWord(TNode<Map>::UncheckedCast(value));
+    node->ReplaceInput(2, mapword);
+#endif
+  }
   NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(
-                access.machine_type.representation(), write_barrier_kind)));
+      node, machine()->Store(StoreRepresentation(machine_type.representation(),
+                                                 write_barrier_kind)));
   return Changed(node);
 }
 
@@ -503,6 +575,9 @@ WriteBarrierKind MemoryLowering::ComputeWriteBarrierKind(
   if (!ValueNeedsWriteBarrier(value, isolate())) {
     write_barrier_kind = kNoWriteBarrier;
   }
+  if (FLAG_disable_write_barriers) {
+    write_barrier_kind = kNoWriteBarrier;
+  }
   if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {
     write_barrier_assert_failed_(node, object, function_debug_name_, zone());
   }
@@ -527,14 +602,18 @@ bool MemoryLowering::NeedsPoisoning(LoadSensitivity load_sensitivity) const {
 MemoryLowering::AllocationGroup::AllocationGroup(Node* node,
                                                  AllocationType allocation,
                                                  Zone* zone)
-    : node_ids_(zone), allocation_(allocation), size_(nullptr) {
+    : node_ids_(zone),
+      allocation_(CheckAllocationType(allocation)),
+      size_(nullptr) {
   node_ids_.insert(node->id());
 }
 
 MemoryLowering::AllocationGroup::AllocationGroup(Node* node,
                                                  AllocationType allocation,
                                                  Node* size, Zone* zone)
-    : node_ids_(zone), allocation_(allocation), size_(size) {
+    : node_ids_(zone),
+      allocation_(CheckAllocationType(allocation)),
+      size_(size) {
   node_ids_.insert(node->id());
 }
 

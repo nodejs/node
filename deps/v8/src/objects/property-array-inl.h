@@ -22,17 +22,18 @@ OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
 CAST_ACCESSOR(PropertyArray)
 
 SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
-SYNCHRONIZED_SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,
+                              kLengthAndHashOffset)
 
 Object PropertyArray::get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object PropertyArray::get(IsolateRoot isolate, int index) const {
+Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
-  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
@@ -64,8 +65,8 @@ void PropertyArray::initialize_length(int len) {
   set_length_and_hash(len);
 }
 
-int PropertyArray::synchronized_length() const {
-  return LengthField::decode(synchronized_length_and_hash());
+int PropertyArray::length(AcquireLoadTag) const {
+  return LengthField::decode(length_and_hash(kAcquireLoad));
 }
 
 int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }

@@ -56,16 +56,9 @@
   DECL_PRIMITIVE_GETTER(name, type)          \
   DECL_PRIMITIVE_SETTER(name, type)
 
-#define DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, type) \
-  inline type synchronized_##name() const;                \
-  inline void synchronized_set_##name(type value);
-
 #define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
 #define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
-
-#define DECL_SYNCHRONIZED_INT_ACCESSORS(name) \
-  DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, int)
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
@@ -86,14 +79,14 @@
 // parameter.
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
-  inline type name(IsolateRoot isolate) const;
+  inline type name(PtrComprCageBase cage_base) const;
 
-#define DEF_GETTER(holder, name, type)                  \
-  type holder::name() const {                           \
-    IsolateRoot isolate = GetIsolateForPtrCompr(*this); \
-    return holder::name(isolate);                       \
-  }                                                     \
-  type holder::name(IsolateRoot isolate) const
+#define DEF_GETTER(holder, name, type)                       \
+  type holder::name() const {                                \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
+    return holder::name(cage_base);                          \
+  }                                                          \
+  type holder::name(PtrComprCageBase cage_base) const
 
 #define DECL_SETTER(name, type)      \
   inline void set_##name(type value, \
@@ -105,7 +98,7 @@
 
 #define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
   inline type name(tag_type tag) const;               \
-  inline type name(IsolateRoot isolate, tag_type) const;
+  inline type name(PtrComprCageBase cage_base, tag_type) const;
 
 #define DECL_ACCESSORS_STORE_TAG(name, type, tag_type) \
   inline void set_##name(type value, tag_type,         \
@@ -179,7 +172,7 @@
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
   DEF_GETTER(holder, name, type) {                                    \
-    type value = TaggedField<type, offset>::load(isolate, *this);     \
+    type value = TaggedField<type, offset>::load(cage_base, *this);   \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
@@ -215,18 +208,18 @@
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
   type holder::name(RelaxedLoadTag tag) const {                               \
-    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                       \
-    return holder::name(isolate, tag);                                        \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                  \
+    return holder::name(cage_base, tag);                                      \
   }                                                                           \
-  type holder::name(IsolateRoot isolate, RelaxedLoadTag) const {              \
-    type value = TaggedField<type, offset>::load(isolate, *this);             \
+  type holder::name(PtrComprCageBase cage_base, RelaxedLoadTag) const {       \
+    type value = TaggedField<type, offset>::Relaxed_Load(cage_base, *this);   \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
   }                                                                           \
   void holder::set_##name(type value, RelaxedStoreTag,                        \
                           WriteBarrierMode mode) {                            \
     DCHECK(set_condition);                                                    \
-    TaggedField<type, offset>::store(*this, value);                           \
+    TaggedField<type, offset>::Relaxed_Store(*this, value);                   \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
   }
 
@@ -236,22 +229,22 @@
 #define RELAXED_ACCESSORS(holder, name, type, offset) \
   RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,    \
-                                           get_condition, set_condition)  \
-  type holder::name(AcquireLoadTag tag) const {                           \
-    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                   \
-    return holder::name(isolate, tag);                                    \
-  }                                                                       \
-  type holder::name(IsolateRoot isolate, AcquireLoadTag) const {          \
-    type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
-    DCHECK(get_condition);                                                \
-    return value;                                                         \
-  }                                                                       \
-  void holder::set_##name(type value, ReleaseStoreTag,                    \
-                          WriteBarrierMode mode) {                        \
-    DCHECK(set_condition);                                                \
-    TaggedField<type, offset>::Release_Store(*this, value);               \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
+#define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,      \
+                                           get_condition, set_condition)    \
+  type holder::name(AcquireLoadTag tag) const {                             \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                \
+    return holder::name(cage_base, tag);                                    \
+  }                                                                         \
+  type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const {     \
+    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
+    DCHECK(get_condition);                                                  \
+    return value;                                                           \
+  }                                                                         \
+  void holder::set_##name(type value, ReleaseStoreTag,                      \
+                          WriteBarrierMode mode) {                          \
+    DCHECK(set_condition);                                                  \
+    TaggedField<type, offset>::Release_Store(*this, value);                 \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                  \
   }
 
 #define RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset,       \
@@ -266,7 +259,7 @@
                                 set_condition)                        \
   DEF_GETTER(holder, name, MaybeObject) {                             \
     MaybeObject value =                                               \
-        TaggedField<MaybeObject, offset>::load(isolate, *this);       \
+        TaggedField<MaybeObject, offset>::load(cage_base, *this);     \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
@@ -282,23 +275,23 @@
 #define WEAK_ACCESSORS(holder, name, offset) \
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
-                                                get_condition, set_condition) \
-  MaybeObject holder::name(AcquireLoadTag tag) const {                        \
-    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                       \
-    return holder::name(isolate, tag);                                        \
-  }                                                                           \
-  MaybeObject holder::name(IsolateRoot isolate, AcquireLoadTag) const {       \
-    MaybeObject value =                                                       \
-        TaggedField<MaybeObject, offset>::Acquire_Load(isolate, *this);       \
-    DCHECK(get_condition);                                                    \
-    return value;                                                             \
-  }                                                                           \
-  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                 \
-                          WriteBarrierMode mode) {                            \
-    DCHECK(set_condition);                                                    \
-    TaggedField<MaybeObject, offset>::Release_Store(*this, value);            \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
+#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,          \
+                                                get_condition, set_condition)  \
+  MaybeObject holder::name(AcquireLoadTag tag) const {                         \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                   \
+    return holder::name(cage_base, tag);                                       \
+  }                                                                            \
+  MaybeObject holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const { \
+    MaybeObject value =                                                        \
+        TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);      \
+    DCHECK(get_condition);                                                     \
+    return value;                                                              \
+  }                                                                            \
+  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                  \
+                          WriteBarrierMode mode) {                             \
+    DCHECK(set_condition);                                                     \
+    TaggedField<MaybeObject, offset>::Release_Store(*this, value);             \
+    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);                \
   }
 
 #define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED(holder, name, offset,       \
@@ -324,21 +317,29 @@
 #define SMI_ACCESSORS(holder, name, offset) \
   SMI_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)                 \
-  int holder::synchronized_##name() const {                              \
+#define DECL_RELEASE_ACQUIRE_INT_ACCESSORS(name) \
+  inline int name(AcquireLoadTag) const;         \
+  inline void set_##name(int value, ReleaseStoreTag);
+
+#define RELEASE_ACQUIRE_SMI_ACCESSORS(holder, name, offset)              \
+  int holder::name(AcquireLoadTag) const {                               \
     Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
     return value.value();                                                \
   }                                                                      \
-  void holder::synchronized_set_##name(int value) {                      \
+  void holder::set_##name(int value, ReleaseStoreTag) {                  \
     TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
+#define DECL_RELAXED_SMI_ACCESSORS(name) \
+  inline int name(RelaxedLoadTag) const; \
+  inline void set_##name(int value, RelaxedStoreTag);
+
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
-  int holder::relaxed_read_##name() const {                              \
+  int holder::name(RelaxedLoadTag) const {                               \
     Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
     return value.value();                                                \
   }                                                                      \
-  void holder::relaxed_write_##name(int value) {                         \
+  void holder::set_##name(int value, RelaxedStoreTag) {                  \
     TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
   }
 
@@ -351,22 +352,38 @@
     set_##field(BooleanBit::set(field(), offset, value));                \
   }
 
-#define BIT_FIELD_ACCESSORS(holder, field, name, BitField)      \
-  typename BitField::FieldType holder::name() const {           \
-    return BitField::decode(field());                           \
-  }                                                             \
-  void holder::set_##name(typename BitField::FieldType value) { \
-    set_##field(BitField::update(field(), value));              \
+#define DECL_RELAXED_BOOL_ACCESSORS(name) \
+  inline bool name(RelaxedLoadTag) const; \
+  inline void set_##name(bool value, RelaxedStoreTag);
+
+#define RELAXED_BOOL_ACCESSORS(holder, field, name, offset)          \
+  bool holder::name(RelaxedLoadTag) const {                          \
+    return BooleanBit::get(field(kRelaxedLoad), offset);             \
+  }                                                                  \
+  void holder::set_##name(bool value, RelaxedStoreTag) {             \
+    set_##field(BooleanBit::set(field(kRelaxedLoad), offset, value), \
+                kRelaxedStore);                                      \
   }
+
+#define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
+  typename BitField::FieldType holder::name() const {                      \
+    return BitField::decode(get_field());                                  \
+  }                                                                        \
+  void holder::set_##name(typename BitField::FieldType value) {            \
+    set_##set_field(BitField::update(set_field(), value));                 \
+  }
+
+#define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \
+  BIT_FIELD_ACCESSORS2(holder, field, field, name, BitField)
 
 #define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
   V8_INLINE bool Is##type(InstanceType instance_type) { \
     return instance_type == forinstancetype;            \
   }
 
-#define TYPE_CHECKER(type, ...)                                         \
-  DEF_GETTER(HeapObject, Is##type, bool) {                              \
-    return InstanceTypeChecker::Is##type(map(isolate).instance_type()); \
+#define TYPE_CHECKER(type, ...)                                           \
+  DEF_GETTER(HeapObject, Is##type, bool) {                                \
+    return InstanceTypeChecker::Is##type(map(cage_base).instance_type()); \
   }
 
 #define RELAXED_INT16_ACCESSORS(holder, name, offset) \
@@ -553,7 +570,23 @@
 #define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
   base::Relaxed_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::Atomic32>(value));
+      static_cast<base::Atomic32>(value))
+
+static_assert(sizeof(int) == sizeof(int32_t),
+              "sizeof int must match sizeof int32_t");
+
+#define RELAXED_READ_INT_FIELD(p, offset) RELAXED_READ_INT32_FIELD(p, offset)
+
+#define RELAXED_WRITE_INT_FIELD(p, offset, value) \
+  RELAXED_WRITE_INT32_FIELD(p, offset, value)
+
+static_assert(sizeof(unsigned) == sizeof(uint32_t),
+              "sizeof unsigned must match sizeof uint32_t");
+
+#define RELAXED_READ_UINT_FIELD(p, offset) RELAXED_READ_UINT32_FIELD(p, offset)
+
+#define RELAXED_WRITE_UINT_FIELD(p, offset, value) \
+  RELAXED_WRITE_UINT32_FIELD(p, offset, value)
 
 #define RELAXED_READ_BYTE_FIELD(p, offset) \
   static_cast<byte>(base::Relaxed_Load(    \
@@ -572,7 +605,7 @@
                       static_cast<base::Atomic8>(value));
 
 #ifdef OBJECT_PRINT
-#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
+#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);
 #else
 #define DECL_PRINTER(Name)
 #endif

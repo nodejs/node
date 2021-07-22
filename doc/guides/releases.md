@@ -128,7 +128,7 @@ Build is essential to make sure that the CI works, release files are published,
 and the release blog post is available on the project website.
 
 Build can be contacted best by opening up an issue on the [Build issue
-tracker][], and by posting in `#node-build` on [webchat.freenode.net][].
+tracker][].
 
 When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
@@ -398,7 +398,19 @@ Create a pull request targeting the correct release line. For example, a
 `v5.3.0-proposal` PR should target `v5.x`, not master. Paste the CHANGELOG
 modifications into the body of the PR so that collaborators can see what is
 changing. These PRs should be left open for at least 24 hours, and can be
-updated as new commits land.
+updated as new commits land. If the CHANGELOG pasted into the pull request
+is long enough that it slows down the GitHub UI, consider pasting the commits
+into `<details>` tags or in follow up comments.
+
+If using the `<details>` tag, use the following format:
+
+```markdown
+<details>
+<summary>Commits</summary>
+
+* Full list of commits...
+</details>
+```
 
 If you need any additional information about any of the commits, this PR is a
 good place to @-mention the relevant contributors.
@@ -583,9 +595,9 @@ $ git push upstream master
 
 ### 14. Push the release tag
 
-Push the tag to the repo before you promote the builds. If you haven't pushed
-your tag first, then build promotion won't work properly. Push the tag using the
-following command:
+Push the tag to the repository before you promote the builds. If you
+haven't pushed your tag first, then build promotion won't work properly.
+Push the tag using the following command:
 
 ```console
 $ git push <remote> <vx.y.z>
@@ -912,4 +924,3 @@ take place once a new LTS line has been released.
 [Snap]: https://snapcraft.io/node
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
-[webchat.freenode.net]: https://webchat.freenode.net/

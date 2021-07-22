@@ -38,26 +38,11 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
+class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
  public:
   DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
 
   DECL_PRINTER(ScopeInfo)
-  DECL_VERIFIER(ScopeInfo)
-
-  // For refactoring, clone some FixedArray member functions. Eventually this
-  // class will stop pretending to be a FixedArray, but we're not quite there.
-  inline Object get(int index) const;
-  inline Object get(IsolateRoot isolate, int index) const;
-  // Setter that doesn't need write barrier.
-  inline void set(int index, Smi value);
-  // Setter with explicit barrier mode.
-  inline void set(int index, Object value,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
-                           int src_index, int len, WriteBarrierMode mode);
-  inline ObjectSlot RawFieldOfElementAt(int index);
-
   class BodyDescriptor;
 
   // Return the type of this scope.
@@ -180,6 +165,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
 
+  int ModuleVariableCount() const;
+
   // Lookup support for serialized scope info. Returns the function context
   // slot index if the function name is present and context-allocated (named
   // function expressions, only), otherwise returns a value < 0. The name
@@ -226,19 +213,18 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
 
-  // REPL mode scopes allow re-declaraction of let variables. They come from
-  // debug evaluate but are different to IsDebugEvaluateScope().
+  // REPL mode scopes allow re-declaraction of let and const variables. They
+  // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
 
-  template <typename LocalIsolate>
-  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
-                                  Scope* scope,
+  template <typename IsolateT>
+  static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                   MaybeHandle<ScopeInfo> outer_scope);
-  static Handle<ScopeInfo> CreateForWithScope(
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
@@ -272,18 +258,20 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
         kVariablePartIndex
   };
 
-// Make sure the Fields enum agrees with Torque-generated offsets.
-#define ASSERT_MATCHED_FIELD(name) \
-  STATIC_ASSERT(FixedArray::OffsetOfElementAt(k##name) == k##name##Offset);
-  FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
-#undef ASSERT_MATCHED_FIELD
-
   STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
   bool IsEmpty() const;
 
+  // Returns the size in bytes for a ScopeInfo with |length| slots.
+  static constexpr int SizeFor(int length) { return OffsetOfElementAt(length); }
+
+  // Gives access to raw memory which stores the ScopeInfo's data.
+  inline ObjectSlot data_start();
+
  private:
+  friend class WebSnapshotDeserializer;
+
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
@@ -299,10 +287,33 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
 
   static bool NeedsPositionInfo(ScopeType type);
 
-  // Converts byte offsets within the object to FixedArray-style indices.
+  // Raw access by slot index. These functions rely on the fact that everything
+  // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is
+  // 'flags', the first field defined by ScopeInfo after the standard-size
+  // HeapObject header.
+  V8_EXPORT_PRIVATE Object get(int index) const;
+  Object get(PtrComprCageBase cage_base, int index) const;
+  // Setter that doesn't need write barrier.
+  void set(int index, Smi value);
+  // Setter with explicit barrier mode.
+  void set(int index, Object value,
+           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  void CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
+                    int src_index, int len, WriteBarrierMode mode);
+  ObjectSlot RawFieldOfElementAt(int index);
+  // The number of tagged-pointer-sized slots in the ScopeInfo after its
+  // standard HeapObject header.
+  V8_EXPORT_PRIVATE int length() const;
+
+  // Conversions between offset (bytes from the beginning of the object) and
+  // index (number of tagged-pointer-sized slots starting after the standard
+  // HeapObject header).
+  static constexpr int OffsetOfElementAt(int index) {
+    return HeapObject::kHeaderSize + index * kTaggedSize;
+  }
   static constexpr int ConvertOffsetToIndex(int offset) {
-    int index = (offset - FixedArray::kHeaderSize) / kTaggedSize;
-    CONSTEXPR_DCHECK(FixedArray::OffsetOfElementAt(index) == offset);
+    int index = (offset - HeapObject::kHeaderSize) / kTaggedSize;
+    DCHECK_EQ(OffsetOfElementAt(index), offset);
     return index;
   }
 
@@ -322,8 +333,12 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
                       InitializationFlag* init_flag = nullptr,
                       MaybeAssignedFlag* maybe_assigned_flag = nullptr);
 
-  static const int kFunctionNameEntries = 2;
-  static const int kPositionInfoEntries = 2;
+  static const int kFunctionNameEntries =
+      TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;
+  static const int kPositionInfoEntries =
+      TorqueGeneratedPositionInfoOffsets::kSize / kTaggedSize;
+  static const int kModuleVariableEntryLength =
+      TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
 
   // Properties of variables.
   DEFINE_TORQUE_GENERATED_VARIABLE_PROPERTIES()

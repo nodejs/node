@@ -158,6 +158,7 @@ Object {
     "diff",
     "dist-tag",
     "ping",
+    "pkg",
     "test",
     "stop",
     "start",

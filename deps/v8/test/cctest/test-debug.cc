@@ -108,12 +108,13 @@ static void ClearBreakPoint(i::Handle<i::BreakPoint> break_point) {
 
 
 // Change break on exception.
-static void ChangeBreakOnException(bool caught, bool uncaught) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+static void ChangeBreakOnException(v8::Isolate* isolate, bool caught,
+                                   bool uncaught) {
+  v8::internal::Debug* debug =
+      reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
   debug->ChangeBreakOnException(v8::internal::BreakException, caught);
   debug->ChangeBreakOnException(v8::internal::BreakUncaughtException, uncaught);
 }
-
 
 // Prepare to step to next break location.
 static void PrepareStep(i::StepAction step_action) {
@@ -1349,6 +1350,49 @@ TEST(BreakPointApiAccessor) {
   CompileRun("o.f = 3");
   CompileRun("o.f");
   CHECK_EQ(44, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(Regress1163547) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  i::Handle<i::BreakPoint> bp;
+
+  auto constructor_tmpl = v8::FunctionTemplate::New(env->GetIsolate());
+  auto prototype_tmpl = constructor_tmpl->PrototypeTemplate();
+  auto accessor_tmpl =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  prototype_tmpl->SetAccessorProperty(v8_str("f"), accessor_tmpl);
+
+  auto constructor =
+      constructor_tmpl->GetFunction(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("C"), constructor).ToChecked();
+
+  CompileRun("o = new C();");
+  v8::Local<v8::Function> function =
+      CompileRun("Object.getOwnPropertyDescriptor(C.prototype, 'f').get")
+          .As<v8::Function>();
+
+  // === Test API accessor ===
+  break_point_hit_count = 0;
+
+  // At this point, the C.prototype - which holds the "f" accessor - is in
+  // dictionary mode.
+  auto constructor_fun =
+      Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*constructor));
+  CHECK(!i::JSObject::cast(constructor_fun->prototype()).HasFastProperties());
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f");
+  CHECK_EQ(1, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -2985,7 +3029,7 @@ TEST(DebugBreakInWrappedScript) {
   static const char* expect = "TypeError: o[0] is not a function";
 
   // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(isolate, true, true);
 
   {
     v8::ScriptCompiler::Source script_source(v8_str(source));
@@ -3449,7 +3493,7 @@ TEST(SyntaxErrorEventOnSyntaxException) {
   v8::HandleScope scope(env->GetIsolate());
 
   // For this test, we want to break on uncaught exceptions:
-  ChangeBreakOnException(false, true);
+  ChangeBreakOnException(env->GetIsolate(), false, true);
 
   ScriptCompiledDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -3496,22 +3540,31 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
   int exception_event_count = 0;
 };
 
-TEST(NoBreakOnStackOverflow) {
+UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
+  // We must set FLAG_stack_size before initializing the isolate.
   i::FLAG_stack_size = 100;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
 
-  ChangeBreakOnException(true, true);
+    ChangeBreakOnException(isolate, true, true);
 
-  ExceptionEventCounter delegate;
-  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
-  CHECK_EQ(0, delegate.exception_event_count);
+    ExceptionEventCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+    CHECK_EQ(0, delegate.exception_event_count);
 
-  CompileRun(
-      "function f() { return f(); }"
-      "try { f() } catch {}");
+    CompileRun(
+        "function f() { return f(); }"
+        "try { f() } catch {}");
 
-  CHECK_EQ(0, delegate.exception_event_count);
+    CHECK_EQ(0, delegate.exception_event_count);
+  }
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 // Tests that break event is sent when event listener is reset.
@@ -4122,7 +4175,7 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   DebugEventExpectNoException delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
   v8::Local<v8::Context> context = env.local();
-  ChangeBreakOnException(false, true);
+  ChangeBreakOnException(isolate, false, true);
 
   v8::Local<v8::FunctionTemplate> fun =
       v8::FunctionTemplate::New(isolate, TryCatchWrappedThrowCallback);
@@ -4545,7 +4598,9 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
+#if V8_ENABLE_WEBASSEMBLY
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
+#endif  // V8_ENABLE_WEBASSEMBLY
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
 
     i::Handle<i::Script> gc_script =
@@ -5302,7 +5357,7 @@ TEST(TerminateOnResumeRunJavaScriptAtBreakpoint) {
 TEST(TerminateOnResumeAtException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Context> context = env.local();
@@ -5384,7 +5439,7 @@ TEST(TerminateOnResumeAtBreakOnEntryUserDefinedFunction) {
 TEST(TerminateOnResumeAtUnhandledRejection) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Context> context = env.local();
@@ -5432,7 +5487,7 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(isolate, true, true);
   SetTerminateOnResumeDelegate delegate;
   auto data = std::make_pair(isolate, &env);
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -5468,7 +5523,7 @@ TEST(TerminateOnResumeFromMicrotask) {
   v8::HandleScope scope(env->GetIsolate());
   SetTerminateOnResumeDelegate delegate(
       SetTerminateOnResumeDelegate::kPerformMicrotaskCheckpointAtBreakpoint);
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   {
     v8::TryCatch try_catch(env->GetIsolate());
@@ -5498,39 +5553,44 @@ TEST(TerminateOnResumeFromMicrotask) {
 
 class FutexInterruptionThread : public v8::base::Thread {
  public:
-  FutexInterruptionThread(v8::Isolate* isolate, v8::base::Semaphore* sem)
+  FutexInterruptionThread(v8::Isolate* isolate, v8::base::Semaphore* enter,
+                          v8::base::Semaphore* exit)
       : Thread(Options("FutexInterruptionThread")),
         isolate_(isolate),
-        sem_(sem) {}
+        enter_(enter),
+        exit_(exit) {}
 
   void Run() override {
-    // Wait a bit before terminating.
-    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    sem_->Wait();
+    enter_->Wait();
     v8::debug::SetTerminateOnResume(isolate_);
+    exit_->Signal();
   }
 
  private:
   v8::Isolate* isolate_;
-  v8::base::Semaphore* sem_;
+  v8::base::Semaphore* enter_;
+  v8::base::Semaphore* exit_;
 };
 
 namespace {
 class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
  public:
-  SemaphoreTriggerOnBreak() : sem_(0) {}
+  SemaphoreTriggerOnBreak() : enter_(0), exit_(0) {}
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              const std::vector<v8::debug::BreakpointId>&
                                  inspector_break_points_hit) override {
     break_count_++;
-    sem_.Signal();
+    enter_.Signal();
+    exit_.Wait();
   }
 
-  v8::base::Semaphore* semaphore() { return &sem_; }
+  v8::base::Semaphore* enter() { return &enter_; }
+  v8::base::Semaphore* exit() { return &exit_; }
   int break_count() const { return break_count_; }
 
  private:
-  v8::base::Semaphore sem_;
+  v8::base::Semaphore enter_;
+  v8::base::Semaphore exit_;
   int break_count_ = 0;
 };
 }  // anonymous namespace
@@ -5538,13 +5598,13 @@ class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
 TEST(TerminateOnResumeFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
 
   SemaphoreTriggerOnBreak delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  FutexInterruptionThread timeout_thread(env->GetIsolate(),
-                                         delegate.semaphore());
+  FutexInterruptionThread timeout_thread(env->GetIsolate(), delegate.enter(),
+                                         delegate.exit());
   CHECK(timeout_thread.Start());
 
   v8::Local<v8::Context> context = env.local();
@@ -5575,7 +5635,7 @@ namespace {
 class InterruptionBreakRightNow : public v8::base::Thread {
  public:
   explicit InterruptionBreakRightNow(v8::Isolate* isolate)
-      : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
+      : Thread(Options("InterruptionBreakRightNow")), isolate_(isolate) {}
 
   void Run() override {
     // Wait a bit before terminating.
@@ -5595,7 +5655,7 @@ class InterruptionBreakRightNow : public v8::base::Thread {
 TEST(TerminateOnResumeAtInterruptFromOtherThread) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  ChangeBreakOnException(true, true);
+  ChangeBreakOnException(env->GetIsolate(), true, true);
 
   SetTerminateOnResumeDelegate delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);

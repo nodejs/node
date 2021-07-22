@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("../../gni/v8.gni")
+
 group("v8_fuzzer") {
   testonly = true
 
@@ -18,10 +20,15 @@ group("v8_fuzzer") {
     "./parser/",
     "./regexp/",
     "./regexp_builtins/",
-    "./multi_return/",
-    "./wasm/",
-    "./wasm_async/",
-    "./wasm_code/",
-    "./wasm_compile/",
   ]
+
+  if (v8_enable_webassembly) {
+    data += [
+      "./multi_return/",
+      "./wasm/",
+      "./wasm_async/",
+      "./wasm_code/",
+      "./wasm_compile/",
+    ]
+  }
 }

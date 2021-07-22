@@ -22,9 +22,10 @@ else {
     t.end()
   })
 
-  t.test('call the error handle so we dont freak out', t => {
-    const errorHandler = require('../../lib/utils/error-handler.js')
-    errorHandler()
+  t.test('call the exit handler so we dont freak out', t => {
+    const exitHandler = require('../../lib/utils/exit-handler.js')
+    exitHandler.setNpm(npm)
+    exitHandler()
     t.end()
   })
 }

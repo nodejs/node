@@ -1,9 +1,56 @@
-// Basic npm fixture that you can give a config object that acts like
-// npm.config You still need a separate flatOptions but this is the first step
-// to eventually just using npm itself
+const npmlog = require('npmlog')
+const procLog = require('../../lib/utils/proc-log-listener.js')
+procLog.reset()
+
+const realLog = {}
+for (const level in npmlog.levels)
+  realLog[level] = npmlog[level]
+
+const { title, execPath } = process
+
+const RealMockNpm = (t, otherMocks = {}) => {
+  t.teardown(() => {
+    npm.perfStop()
+    npmlog.record.length = 0
+    for (const level in npmlog.levels)
+      npmlog[level] = realLog[level]
+    procLog.reset()
+    process.title = title
+    process.execPath = execPath
+    delete process.env.npm_command
+    delete process.env.COLOR
+  })
+  const logs = []
+  const outputs = []
+  const npm = t.mock('../../lib/npm.js', otherMocks)
+  const command = async (command, args = []) => {
+    return new Promise((resolve, reject) => {
+      npm.commands[command](args, err => {
+        if (err)
+          return reject(err)
+        return resolve()
+      })
+    })
+  }
+  for (const level in npmlog.levels) {
+    npmlog[level] = (...msg) => {
+      logs.push([level, ...msg])
+
+      const l = npmlog.level
+      npmlog.level = 'silent'
+      realLog[level](...msg)
+      npmlog.level = l
+    }
+  }
+  npm.output = (...msg) => outputs.push(msg)
+  return { npm, logs, outputs, command }
+}
 
 const realConfig = require('../../lib/utils/config')
 
+// Basic npm fixture that you can give a config object that acts like
+// npm.config You still need a separate flatOptions. Tests should migrate to
+// using the real npm mock above
 class MockNpm {
   constructor (base = {}) {
     this._mockOutputs = []
@@ -51,7 +98,11 @@ class MockNpm {
   }
 }
 
-// TODO export MockNpm, and change tests to use new MockNpm()
-module.exports = (base = {}) => {
-  return new MockNpm(base)
+const FakeMockNpm = (base = {}) => {
+    return new MockNpm(base)
+}
+
+module.exports = {
+  fake: FakeMockNpm,
+  real: RealMockNpm
 }

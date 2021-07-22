@@ -245,9 +245,11 @@ class V8_EXPORT_PRIVATE Debug {
   bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
+#if V8_ENABLE_WEBASSEMBLY
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check
   // whether they are hit. Return an empty handle if not, or a FixedArray with
@@ -292,17 +294,22 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveAllCoverageInfos();
 
   // This function is used in FunctionNameUsing* tests.
-  Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
-                                                int position);
+  Handle<Object> FindInnermostContainingFunctionInfo(Handle<Script> script,
+                                                     int position);
+
+  Handle<SharedFunctionInfo> FindClosestSharedFunctionInfoFromPosition(
+      int position, Handle<Script> script,
+      Handle<SharedFunctionInfo> outer_shared);
+
+  bool FindSharedFunctionInfosIntersectingRange(
+      Handle<Script> script, int start_position, int end_position,
+      std::vector<Handle<SharedFunctionInfo>>* candidates);
 
   static Handle<Object> GetSourceBreakLocations(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
-
-  // Support for LiveEdit
-  void ScheduleFrameRestart(StackFrame* frame);
 
   bool AllFramesOnStackAreBlackboxed();
 
@@ -368,13 +375,6 @@ class V8_EXPORT_PRIVATE Debug {
 
   Address suspended_generator_address() {
     return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
-  }
-
-  Address restart_fp_address() {
-    return reinterpret_cast<Address>(&thread_local_.restart_fp_);
-  }
-  bool will_restart() const {
-    return thread_local_.restart_fp_ != kNullAddress;
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
@@ -538,9 +538,6 @@ class V8_EXPORT_PRIVATE Debug {
     // The suspended generator object to track when stepping.
     Object suspended_generator_;
 
-    // The new frame pointer to drop to when restarting a frame.
-    Address restart_fp_;
-
     // Last used inspector breakpoint id.
     int last_breakpoint_id_;
 
@@ -554,8 +551,10 @@ class V8_EXPORT_PRIVATE Debug {
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
 
+#if V8_ENABLE_WEBASSEMBLY
   // This is a global handle, lazily initialized.
   Handle<WeakArrayList> wasm_scripts_with_breakpoints_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate_;
 
@@ -655,25 +654,6 @@ class SuppressDebug {
  private:
   Debug* debug_;
   bool old_state_;
-};
-
-// Code generator routines.
-class DebugCodegen : public AllStatic {
- public:
-  enum DebugBreakCallHelperMode {
-    SAVE_RESULT_REGISTER,
-    IGNORE_RESULT_REGISTER
-  };
-
-  // Builtin to drop frames to restart function.
-  static void GenerateFrameDropperTrampoline(MacroAssembler* masm);
-
-  // Builtin to atomically (wrt deopts) handle debugger statement and
-  // drop frames to restart function if necessary.
-  static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
-
-  // Builtin to trigger a debug break before entering the function.
-  static void GenerateDebugBreakTrampoline(MacroAssembler* masm);
 };
 
 }  // namespace internal

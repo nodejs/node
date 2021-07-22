@@ -1,0 +1,20 @@
+name: "Commit messages adheres to guidelines at https://goo.gl/p2fr5Q"
+
+on: [pull_request]
+
+jobs:
+  lint-commit-message:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Last 100 commits should be enough for a PR
+          fetch-depth: 100
+      - name: Use Node.js 12
+        uses: actions/setup-node@v2
+        with:
+          node-version: 12.x
+      - name: Validate commit messages
+        run: |
+          echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
+          git log --oneline ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -v -e fixup -e squash | awk '{ print $1 }' |  xargs npx -q core-validate-commit --no-validate-metadata --tap

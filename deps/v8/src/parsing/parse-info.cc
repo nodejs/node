@@ -36,7 +36,6 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
-  set_allow_harmony_logical_assignment(FLAG_harmony_logical_assignment);
 }
 
 // static
@@ -50,7 +49,9 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
   flags.SetFlagsForFunctionFromScript(script);
 
   flags.set_allow_lazy_parsing(true);
+#if V8_ENABLE_WEBASSEMBLY
   flags.set_is_asm_wasm_broken(shared.is_asm_wasm_broken());
+#endif  // V8_ENABLE_WEBASSEMBLY
   flags.set_is_repl_mode(shared.is_repl_mode());
 
   // CollectTypeProfile uses its own feedback slots. If we have existing
@@ -194,7 +195,9 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       source_range_map_(nullptr),
       literal_(nullptr),
       allow_eval_cache_(false),
+#if V8_ENABLE_WEBASSEMBLY
       contains_asm_module_(false),
+#endif  // V8_ENABLE_WEBASSEMBLY
       language_mode_(flags.outer_language_mode()) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
@@ -231,9 +234,9 @@ ParseInfo::~ParseInfo() = default;
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Script> ParseInfo::CreateScript(
-    LocalIsolate* isolate, Handle<String> source,
+    IsolateT* isolate, Handle<String> source,
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
   // Create a script object describing the script to be compiled.

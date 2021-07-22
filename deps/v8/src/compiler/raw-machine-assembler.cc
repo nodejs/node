@@ -648,7 +648,7 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
   //    be dropped in ADDITION to the 'pop' number of arguments).
   // Additionally, in order to simplify assembly code, PopAndReturn is also
   // not allowed in builtins with stub linkage and parameters on stack.
-  CHECK_EQ(call_descriptor()->StackParameterCount(), 0);
+  CHECK_EQ(call_descriptor()->ParameterSlotCount(), 0);
   Node* values[] = {pop, value};
   Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);
@@ -747,7 +747,8 @@ Node* CallCFunctionImpl(
   }
   for (const auto& arg : args) builder.AddParam(arg.first);
 
-  bool caller_saved_fp_regs = caller_saved_regs && (mode == kSaveFPRegs);
+  bool caller_saved_fp_regs =
+      caller_saved_regs && (mode == SaveFPRegsMode::kSave);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (caller_saved_regs) flags |= CallDescriptor::kCallerSavedRegisters;
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
@@ -772,14 +773,14 @@ Node* RawMachineAssembler::CallCFunction(
     Node* function, base::Optional<MachineType> return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kHasFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kHasFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithoutFunctionDescriptor(
     Node* function, MachineType return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kNoFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kNoFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithCallerSavedRegisters(

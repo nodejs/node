@@ -74,11 +74,8 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-In the event that a message is reported stating that a CRAN mirror must be
-selected first, specify a mirror by adding in the repo parameter.
-
-If we used the "<http://cran.us.r-project.org>" mirror, it could look something
-like this:
+If a message states that a CRAN mirror must be selected first, specify a mirror
+with the `repo` parameter.
 
 ```r
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
@@ -425,7 +422,7 @@ chunkLen     encoding      rate confidence.interval
 
 ### Running benchmarks on the CI
 
-To see the performance impact of a Pull Request by running benchmarks on
+To see the performance impact of a pull request by running benchmarks on
 the CI, check out [How to: Running core benchmarks on Node.js CI][benchmark-ci].
 
 ## Creating a benchmark

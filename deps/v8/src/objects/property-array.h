@@ -18,9 +18,7 @@ class PropertyArray : public HeapObject {
  public:
   // [length]: length of the array.
   inline int length() const;
-
-  // Get the length using acquire loads.
-  inline int synchronized_length() const;
+  inline int length(AcquireLoadTag) const;
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
@@ -30,7 +28,7 @@ class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Object get(int index) const;
-  inline Object get(IsolateRoot isolate, int index) const;
+  inline Object get(PtrComprCageBase cage_base, int index) const;
 
   inline void set(int index, Object value);
   // Setter with explicit barrier mode.
@@ -70,7 +68,7 @@ class PropertyArray : public HeapObject {
  private:
   DECL_INT_ACCESSORS(length_and_hash)
 
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_hash)
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length_and_hash)
 
   OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };

@@ -35,8 +35,10 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   }
   context_ = Handle<Context>::cast(frame_inspector->GetContext());
 
+#if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   TryParseAndRetrieveScopes(strategy);
 }
@@ -190,7 +192,13 @@ class ScopeChainRetriever {
     // functions that have the same end position.
     const bool position_fits_end =
         closure_scope_ ? position_ < end : position_ <= end;
-    return start < position_ && position_fits_end;
+    // While we're evaluating a class, the calling function will have a class
+    // context on the stack with a range that starts at Token::CLASS, and the
+    // source position will also point to Token::CLASS.  To identify the
+    // matching scope we include start in the accepted range for class scopes.
+    const bool position_fits_start =
+        scope->is_class_scope() ? start <= position_ : start < position_;
+    return position_fits_start && position_fits_end;
   }
 };
 
@@ -740,8 +748,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule))
     return;
 
-  int count_index = scope_info->ModuleVariableCountIndex();
-  int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
+  int module_variable_count = scope_info->ModuleVariableCount();
 
   Handle<SourceTextModule> module(context_->module(), isolate_);
 

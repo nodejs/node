@@ -3,7 +3,7 @@ const log = require('npmlog')
 const pacote = require('pacote')
 const libpack = require('libnpmpack')
 const npa = require('npm-package-arg')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
+const path = require('path')
 
 const { getContents, logTar } = require('./utils/tar.js')
 
@@ -24,7 +24,13 @@ class Pack extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['dry-run', 'json', 'workspace', 'workspaces']
+    return [
+      'dry-run',
+      'json',
+      'pack-destination',
+      'workspace',
+      'workspaces',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -68,9 +74,10 @@ class Pack extends BaseCommand {
     for (const { arg, filename, manifest } of manifests) {
       const tarballData = await libpack(arg, this.npm.flatOptions)
       const pkgContents = await getContents(manifest, tarballData)
+      const tarballFilename = path.resolve(this.npm.config.get('pack-destination'), filename)
 
       if (!dryRun)
-        await writeFile(filename, tarballData)
+        await writeFile(tarballFilename, tarballData)
 
       tarballs.push(pkgContents)
     }
@@ -97,9 +104,8 @@ class Pack extends BaseCommand {
       return this.pack(args)
     }
 
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
-    return this.pack([...workspaces.values(), ...args.filter(a => a !== '.')])
+    await this.setWorkspaces(filters)
+    return this.pack([...this.workspacePaths, ...args.filter(a => a !== '.')])
   }
 }
 module.exports = Pack

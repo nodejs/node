@@ -10,25 +10,28 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
 
-SafepointTable::SafepointTable(Code code)
-    : SafepointTable(code.InstructionStart(), code.SafepointTableAddress(),
-                     code.stack_slots(), true) {}
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
+    : SafepointTable(code.InstructionStart(isolate, pc),
+                     code.SafepointTableAddress(), true) {}
 
+#if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
     : SafepointTable(code->instruction_start(),
                      code->instruction_start() + code->safepoint_table_offset(),
-                     code->stack_slots(), false) {}
+                     false) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 SafepointTable::SafepointTable(Address instruction_start,
-                               Address safepoint_table_address,
-                               uint32_t stack_slots, bool has_deopt)
+                               Address safepoint_table_address, bool has_deopt)
     : instruction_start_(instruction_start),
-      stack_slots_(stack_slots),
       has_deopt_(has_deopt),
       safepoint_table_address_(safepoint_table_address),
       length_(ReadLength(safepoint_table_address)),
@@ -64,27 +67,18 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   UNREACHABLE();
 }
 
-void SafepointTable::PrintEntry(unsigned index,
-                                std::ostream& os) const {  // NOLINT
+void SafepointTable::PrintEntry(unsigned index, std::ostream& os) const {
   disasm::NameConverter converter;
   SafepointEntry entry = GetEntry(index);
   uint8_t* bits = entry.bits();
 
   // Print the stack slot bits.
   if (entry_size_ > 0) {
-    const int first = 0;
-    int last = entry_size_ - 1;
-    for (int i = first; i < last; i++) PrintBits(os, bits[i], kBitsPerByte);
-    int last_bits = stack_slots_ - ((last - first) * kBitsPerByte);
-    PrintBits(os, bits[last], last_bits);
-  }
-}
-
-void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
-                               uint8_t byte, int digits) {
-  DCHECK(digits >= 0 && digits <= kBitsPerByte);
-  for (int i = 0; i < digits; i++) {
-    os << (((byte & (1 << i)) == 0) ? "0" : "1");
+    for (uint32_t i = 0; i < entry_size_; ++i) {
+      for (int bit = 0; bit < kBitsPerByte; ++bit) {
+        os << ((bits[i] & (1 << bit)) ? "1" : "0");
+      }
+    }
   }
 }
 
@@ -92,7 +86,7 @@ Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler) {
   deoptimization_info_.push_back(
       DeoptimizationInfo(zone_, assembler->pc_offset_for_safepoint()));
   DeoptimizationInfo& new_info = deoptimization_info_.back();
-  return Safepoint(new_info.indexes);
+  return Safepoint(new_info.stack_indexes, &new_info.register_indexes);
 }
 
 unsigned SafepointTableBuilder::GetCodeOffset() const {
@@ -117,6 +111,12 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
+  TrimEntries(&bits_per_entry);
+
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+  // We cannot emit a const pool within the safepoint table.
+  Assembler::BlockConstPoolScope block_const_pool(assembler);
+#endif
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(Code::kMetadataAlignment);
@@ -143,18 +143,27 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   STATIC_ASSERT(SafepointTable::kFixedEntrySize == 3 * kIntSize);
   for (const DeoptimizationInfo& info : deoptimization_info_) {
     assembler->dd(info.pc);
-    assembler->dd(info.deopt_index);
+    if (info.register_indexes) {
+      // We emit the register indexes in the same bits as the deopt_index.
+      // Register indexes and deopt_index should not exist at the same time.
+      DCHECK_EQ(info.deopt_index,
+                static_cast<uint32_t>(Safepoint::kNoDeoptimizationIndex));
+      assembler->dd(info.register_indexes);
+    } else {
+      assembler->dd(info.deopt_index);
+    }
     assembler->dd(info.trampoline);
   }
 
   // Emit table of bitmaps.
   ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
   for (const DeoptimizationInfo& info : deoptimization_info_) {
-    ZoneChunkList<int>* indexes = info.indexes;
+    ZoneChunkList<int>* indexes = info.stack_indexes;
     std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the indexes and build a bitmap.
     for (int idx : *indexes) {
+      DCHECK_GT(bits_per_entry, idx);
       int index = bits_per_entry - 1 - idx;
       int byte_index = index >> kBitsPerByteLog2;
       int bit_index = index & (kBitsPerByte - 1);
@@ -190,16 +199,40 @@ void SafepointTableBuilder::RemoveDuplicates() {
   deoptimization_info_.front().pc = kMaxUInt32;
 }
 
+void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
+  int min_index = *bits_per_entry;
+  if (min_index == 0) return;  // Early exit: nothing to trim.
+
+  for (auto& info : deoptimization_info_) {
+    for (int idx : *info.stack_indexes) {
+      DCHECK_GT(*bits_per_entry, idx);  // Validity check.
+      if (idx >= min_index) continue;
+      if (idx == 0) return;  // Early exit: nothing to trim.
+      min_index = idx;
+    }
+  }
+
+  DCHECK_LT(0, min_index);
+  *bits_per_entry -= min_index;
+  for (auto& info : deoptimization_info_) {
+    for (int& idx : *info.stack_indexes) {
+      idx -= min_index;
+    }
+  }
+}
+
 bool SafepointTableBuilder::IsIdenticalExceptForPc(
     const DeoptimizationInfo& info1, const DeoptimizationInfo& info2) const {
   if (info1.deopt_index != info2.deopt_index) return false;
 
-  ZoneChunkList<int>* indexes1 = info1.indexes;
-  ZoneChunkList<int>* indexes2 = info2.indexes;
+  ZoneChunkList<int>* indexes1 = info1.stack_indexes;
+  ZoneChunkList<int>* indexes2 = info2.stack_indexes;
   if (indexes1->size() != indexes2->size()) return false;
   if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
     return false;
   }
+
+  if (info1.register_indexes != info2.register_indexes) return false;
 
   return true;
 }

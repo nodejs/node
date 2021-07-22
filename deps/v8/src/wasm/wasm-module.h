@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_MODULE_H_
 #define V8_WASM_WASM_MODULE_H_
 
@@ -12,10 +16,11 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/utils/vector.h"
+#include "src/wasm/branch-hint-map.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-init-expr.h"
 
 namespace v8 {
 
@@ -103,30 +108,34 @@ struct WasmDataSegment {
 
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
-
   // Construct an active segment.
-  WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : type(kWasmFuncRef),
+  WasmElemSegment(ValueType type, uint32_t table_index, WasmInitExpr offset)
+      : type(type),
         table_index(table_index),
         offset(std::move(offset)),
         status(kStatusActive) {}
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
-  explicit WasmElemSegment(bool declarative)
-      : type(kWasmFuncRef),
+  WasmElemSegment(ValueType type, bool declarative)
+      : type(type),
         table_index(0),
         status(declarative ? kStatusDeclarative : kStatusPassive) {}
 
-  // Used in the {entries} vector to represent a `ref.null` entry in a passive
-  // segment.
-  V8_EXPORT_PRIVATE static const uint32_t kNullIndex = ~0u;
+  // Construct a passive or declarative segment, which has no table index or
+  // offset.
+  WasmElemSegment()
+      : type(kWasmBottom), table_index(0), status(kStatusActive) {}
+
+  WasmElemSegment(const WasmElemSegment&) = delete;
+  WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
+  WasmElemSegment& operator=(const WasmElemSegment&) = delete;
+  WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
 
   ValueType type;
   uint32_t table_index;
   WasmInitExpr offset;
-  std::vector<uint32_t> entries;
+  std::vector<WasmInitExpr> entries;
   enum Status {
     kStatusActive,      // copied automatically during instantiation.
     kStatusPassive,     // copied explicitly after instantiation.
@@ -184,8 +193,7 @@ struct ModuleWireBytes;
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                  uint32_t function_index,
-                                  Vector<const WasmExport> export_table) const;
+                                  uint32_t function_index) const;
 
   void AddForTesting(int function_index, WireBytesRef name);
 
@@ -331,6 +339,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmException> exceptions;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
+  BranchHintInfo branch_hints;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
@@ -343,6 +352,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
+  ~WasmModule();
   WasmModule& operator=(const WasmModule&) = delete;
 };
 
@@ -354,19 +364,20 @@ struct WasmTable {
   // TODO(9495): Update this function as more table types are supported, or
   // remove it completely when all reference types are allowed.
   static bool IsValidTableType(ValueType type, const WasmModule* module) {
-    if (!type.is_nullable()) return false;
+    if (!type.is_object_reference()) return false;
     HeapType heap_type = type.heap_type();
     return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }
 
-  ValueType type = kWasmStmt;     // table type.
+  ValueType type = kWasmVoid;     // table type.
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.
+  WasmInitExpr initial_value;
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

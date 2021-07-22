@@ -32,6 +32,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCeilWS:
     case kRiscvClz32:
     case kRiscvCmp:
+    case kRiscvCmpZero:
     case kRiscvCmpD:
     case kRiscvCmpS:
     case kRiscvCtz32:
@@ -98,13 +99,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI64x2Sub:
     case kRiscvI64x2Mul:
     case kRiscvI64x2Neg:
+    case kRiscvI64x2Abs:
     case kRiscvI64x2Shl:
     case kRiscvI64x2ShrS:
     case kRiscvI64x2ShrU:
     case kRiscvI64x2BitMask:
+    case kRiscvI64x2GtS:
+    case kRiscvI64x2GeS:
     case kRiscvF32x4Abs:
     case kRiscvF32x4Add:
-    case kRiscvF32x4AddHoriz:
     case kRiscvF32x4Eq:
     case kRiscvF32x4ExtractLane:
     case kRiscvF32x4Lt:
@@ -131,6 +134,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF32x4Trunc:
     case kRiscvF32x4NearestInt:
     case kRiscvI64x2Eq:
+    case kRiscvI64x2Ne:
     case kRiscvF64x2Splat:
     case kRiscvF64x2ExtractLane:
     case kRiscvF64x2ReplaceLane:
@@ -158,7 +162,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI64x2UConvertI32x4Low:
     case kRiscvI64x2UConvertI32x4High:
     case kRiscvI16x8Add:
-    case kRiscvI16x8AddHoriz:
     case kRiscvI16x8AddSatS:
     case kRiscvI16x8AddSatU:
     case kRiscvI16x8Eq:
@@ -198,7 +201,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI16x8Abs:
     case kRiscvI16x8BitMask:
     case kRiscvI32x4Add:
-    case kRiscvI32x4AddHoriz:
     case kRiscvI32x4Eq:
     case kRiscvI32x4ExtractLane:
     case kRiscvI32x4GeS:
@@ -241,7 +243,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI8x16MaxU:
     case kRiscvI8x16MinS:
     case kRiscvI8x16MinU:
-    case kRiscvI8x16Mul:
     case kRiscvI8x16Ne:
     case kRiscvI8x16Neg:
     case kRiscvI8x16ReplaceLane:
@@ -295,10 +296,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS16x8PackOdd:
     case kRiscvS16x2Reverse:
     case kRiscvS16x4Reverse:
-    case kRiscvV8x16AllTrue:
-    case kRiscvV32x4AllTrue:
-    case kRiscvV16x8AllTrue:
+    case kRiscvI8x16AllTrue:
+    case kRiscvI32x4AllTrue:
+    case kRiscvI16x8AllTrue:
     case kRiscvV128AnyTrue:
+    case kRiscvI64x2AllTrue:
     case kRiscvS32x4InterleaveEven:
     case kRiscvS32x4InterleaveOdd:
     case kRiscvS32x4InterleaveLeft:
@@ -811,7 +813,7 @@ int MultiPushFPULatency() {
 
 int PushCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = MultiPushLatency();
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPushFPULatency();
   }
   return latency;
@@ -835,7 +837,7 @@ int MultiPopFPULatency() {
 
 int PopCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = MultiPopLatency();
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPopFPULatency();
   }
   return latency;

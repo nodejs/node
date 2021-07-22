@@ -13,10 +13,11 @@ underlying operating system via a collection of POSIX-like functions.
 ```mjs
 import fs from 'fs';
 import { WASI } from 'wasi';
+import { argv, env } from 'process';
 
 const wasi = new WASI({
-  args: process.argv,
-  env: process.env,
+  args: argv,
+  env,
   preopens: {
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }
@@ -33,9 +34,11 @@ wasi.start(instance);
 'use strict';
 const fs = require('fs');
 const { WASI } = require('wasi');
+const { argv, env } = require('process');
+
 const wasi = new WASI({
-  args: process.argv,
-  env: process.env,
+  args: argv,
+  env,
   preopens: {
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }

@@ -153,10 +153,8 @@ to use as a custom module loader.
 .It Fl -experimental-policy
 Use the specified file as a security policy.
 .
-.It Fl -experimental-repl-await
-Enable experimental top-level
-.Sy await
-keyword support in REPL.
+.It Fl -no-experimental-repl-await
+Disable top-level await keyword support in REPL.
 .
 .It Fl -experimental-specifier-resolution
 Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'.
@@ -266,7 +264,7 @@ This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
-Specify the maximum size of HTTP headers in bytes. Defaults to 16KB.
+Specify the maximum size of HTTP headers in bytes. Defaults to 16 KB.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -698,17 +696,13 @@ Documentation:
 .Sy https://nodejs.org/api/
 .
 .Pp
-GitHub repository & Issue Tracker:
+GitHub repository and issue tracker:
 .Sy https://github.com/nodejs/node
 .
 .Pp
 IRC (general questions):
-.Sy "chat.freenode.net #node.js"
+.Sy "libera.chat #node.js"
 (unofficial)
-.
-.Pp
-IRC (Node.js core development):
-.Sy "chat.freenode.net #node-dev"
 .
 .\"======================================================================
 .Sh AUTHORS

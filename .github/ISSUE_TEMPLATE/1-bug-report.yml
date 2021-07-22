@@ -1,0 +1,45 @@
+name: "\U0001F41B Bug report"
+description: Create a report to help us improve
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue.
+
+        This issue tracker is for bugs and issues found within Node.js core.
+        If you require more general support please file an issue on our help repo. https://github.com/nodejs/help
+
+        Please fill in as much of the form below as you're able.
+  - type: input
+    attributes:
+      label: Version
+      description: Output of `node -v`
+  - type: input
+    attributes:
+      label: Platform
+      description: |
+        UNIX: output of `uname -a`
+        Windows: output of `"$([Environment]::OSVersion | ForEach-Object VersionString) $(if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" })"` in PowerShell console
+  - type: input
+    attributes:
+      label: Subsystem
+      description: If known, please specify affected core module name
+  - type: textarea
+    attributes:
+      label: What steps will reproduce the bug?
+      description: Enter details about your bug, preferably a simple code snippet that can be run using `node` directly without installing third-party dependencies.
+  - type: textarea
+    attributes:
+      label: How often does it reproduce? Is there a required condition?
+  - type: textarea
+    attributes:
+      label: What is the expected behavior?
+      description: If possible please provide textual output instead of screenshots.
+  - type: textarea
+    attributes:
+      label: What do you see instead?
+      description: If possible please provide textual output instead of screenshots.
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: Tell us anything else you think we should know.

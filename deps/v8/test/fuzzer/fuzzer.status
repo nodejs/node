@@ -5,18 +5,27 @@
 [
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'multi_return/*': [SKIP],
   'wasm/*': [SKIP],
   'wasm_async/*': [SKIP],
   'wasm_code/*': [SKIP],
   'wasm_compile/*': [SKIP],
-}], # lite_mode or variant == jitless
+}], # not has_webassembly or variant == jitless
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['third_party_heap', {
+  # Requires a second isolate
+  'inspector/empty': [SKIP],
+  'inspector/endless-loop': [SKIP],
+  'inspector/invalid': [SKIP],
+  'inspector/regress-1166549': [SKIP],
+}], # third_party_heap
 
 ]

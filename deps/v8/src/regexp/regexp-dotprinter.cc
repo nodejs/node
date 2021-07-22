@@ -13,8 +13,6 @@ namespace internal {
 // -------------------------------------------------------------------
 // Dot/dotty output
 
-#ifdef DEBUG
-
 class DotPrinterImpl : public NodeVisitor {
  public:
   explicit DotPrinterImpl(std::ostream& os) : os_(os) {}
@@ -62,8 +60,7 @@ void DotPrinterImpl::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
 
 class AttributePrinter {
  public:
-  explicit AttributePrinter(std::ostream& os)  // NOLINT
-      : os_(os), first_(true) {}
+  explicit AttributePrinter(std::ostream& os) : os_(os), first_(true) {}
   void PrintSeparator() {
     if (first_) {
       first_ = false;
@@ -239,14 +236,10 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
   Visit(successor);
 }
 
-#endif  // DEBUG
-
 void DotPrinter::DotPrint(const char* label, RegExpNode* node) {
-#ifdef DEBUG
   StdoutStream os;
   DotPrinterImpl printer(os);
   printer.PrintNode(label, node);
-#endif  // DEBUG
 }
 
 }  // namespace internal

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_CONSTANTS_H_
 #define V8_WASM_WASM_CONSTANTS_H_
 
@@ -97,10 +101,11 @@ enum SectionCode : int8_t {
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
   kCompilationHintsSectionCode,   // Compilation hints section
+  kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kCompilationHintsSectionCode,
+  kLastKnownModuleSection = kBranchHintsSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
@@ -109,7 +114,21 @@ constexpr uint8_t kDefaultCompilationHint = 0x0;
 constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
-enum NameSectionKindCode : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
+enum NameSectionKindCode : uint8_t {
+  kModule = 0,
+  kFunction = 1,
+  kLocal = 2,
+  // https://github.com/WebAssembly/extended-name-section/
+  kLabel = 3,
+  kType = 4,
+  kTable = 5,
+  kMemory = 6,
+  kGlobal = 7,
+  kElementSegment = 8,
+  kDataSegment = 9,
+  // https://github.com/WebAssembly/gc/issues/193
+  kField = 10
+};
 
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
@@ -137,6 +156,10 @@ constexpr int kAnonymousFuncIndex = -1;
 // wrappers early on for those functions that have the potential to be called
 // often enough.
 constexpr uint32_t kGenericWrapperBudget = 1000;
+
+#if V8_TARGET_ARCH_X64
+constexpr int32_t kOSRTargetOffset = 3 * kSystemPointerSize;
+#endif
 
 }  // namespace wasm
 }  // namespace internal

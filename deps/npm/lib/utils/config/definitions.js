@@ -203,10 +203,10 @@ define('audit', {
   default: true,
   type: Boolean,
   description: `
-    When "true" submit audit reports alongside \`npm install\` runs to the
+    When "true" submit audit reports alongside the current npm command to the
     default registry and all registries configured for scopes.  See the
-    documentation for [\`npm audit\`](/commands/npm-audit) for details on
-    what is submitted.
+    documentation for [\`npm audit\`](/commands/npm-audit) for details on what
+    is submitted.
   `,
   flatten,
 })
@@ -322,6 +322,7 @@ define('cache', {
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.cache = join(obj.cache, '_cacache')
+    flatOptions.npxCache = join(obj.cache, '_npx')
   },
 })
 
@@ -439,6 +440,7 @@ define('cidr', {
 
 define('color', {
   default: !process.env.NO_COLOR || process.env.NO_COLOR === '0',
+  usage: '--color|--no-color|--color always',
   defaultDescription: `
     true unless the NO_COLOR environ is set to something other than '0'
   `,
@@ -506,6 +508,7 @@ define('dev', {
 
 define('diff', {
   default: [],
+  hint: '<pkg-name|spec|version>',
   type: [String, Array],
   description: `
     Define arguments to compare in \`npm diff\`.
@@ -545,6 +548,7 @@ define('diff-no-prefix', {
 
 define('diff-dst-prefix', {
   default: 'b/',
+  hint: '<path>',
   type: String,
   description: `
     Destination prefix to be used in \`npm diff\` output.
@@ -554,6 +558,7 @@ define('diff-dst-prefix', {
 
 define('diff-src-prefix', {
   default: 'a/',
+  hint: '<path>',
   type: String,
   description: `
     Source prefix to be used in \`npm diff\` output.
@@ -711,6 +716,7 @@ define('force', {
     * Allow unpublishing all versions of a published package.
     * Allow conflicting peerDependencies to be installed in the root project.
     * Implicitly set \`--yes\` during \`npm init\`.
+    * Allow clobbering existing values in \`npm pkg\`
 
     If you don't have a clear idea of what you want to do, it is strongly
     recommended that you do not use this option!
@@ -1025,6 +1031,9 @@ define('json', {
   description: `
     Whether or not to output JSON data, rather than the normal output.
 
+    * In \`npm pkg set\` it enables parsing set values with JSON.parse()
+    before saving them to your \`package.json\`.
+
     Not supported by all npm commands.
   `,
   flatten,
@@ -1083,18 +1092,8 @@ define('link', {
   default: false,
   type: Boolean,
   description: `
-    If true, then local installs will link if there is a suitable globally
-    installed package.
-
-    Note that this means that local installs can cause things to be installed
-    into the global space at the same time.  The link is only done if one of
-    the two conditions are met:
-
-    * The package is not already installed globally, or
-    * the globally installed version is identical to the version that is
-      being installed locally.
-
-    When used with \`npm ls\`, only show packages that are linked.
+    Used with \`npm ls\`, limiting output to only those packages that are
+    linked.
   `,
 })
 
@@ -1107,6 +1106,31 @@ define('local-address', {
     the npm registry.  Must be IPv4 in versions of Node prior to 0.12.
   `,
   flatten,
+})
+
+define('location', {
+  default: 'user',
+  short: 'L',
+  type: [
+    'global',
+    'user',
+    'project',
+  ],
+  defaultDescription: `
+    "user" unless \`--global\` is passed, which will also set this value to "global"
+  `,
+  description: `
+    When passed to \`npm config\` this refers to which config file to use.
+  `,
+  // NOTE: the flattener here deliberately does not alter the value of global
+  // for now, this is to avoid inadvertently causing any breakage. the value of
+  // global, however, does modify this flag.
+  flatten (key, obj, flatOptions) {
+    // if global is set, we override ourselves
+    if (obj.global)
+      obj.location = 'global'
+    flatOptions.location = obj.location
+  },
 })
 
 define('loglevel', {
@@ -1206,7 +1230,10 @@ define('noproxy', {
     Also accepts a comma-delimited string.
   `,
   flatten (key, obj, flatOptions) {
-    flatOptions.noProxy = obj[key].join(',')
+    if (Array.isArray(obj[key]))
+      flatOptions.noProxy = obj[key].join(',')
+    else
+      flatOptions.noProxy = obj[key]
   },
 })
 
@@ -1330,10 +1357,24 @@ define('package-lock-only', {
   default: false,
   type: Boolean,
   description: `
-    If set to true, it will update only the \`package-lock.json\`, instead of
-    checking \`node_modules\` and downloading dependencies.
+    If set to true, the current operation will only use the \`package-lock.json\`,
+    ignoring \`node_modules\`.
+
+    For \`update\` this means only the \`package-lock.json\` will be updated,
+    instead of checking \`node_modules\` and downloading dependencies.
+
+    For \`list\` this means the output will be based on the tree described by the
+    \`package-lock.json\`, rather than the contents of \`node_modules\`.
   `,
   flatten,
+})
+
+define('pack-destination', {
+  default: '.',
+  type: String,
+  description: `
+    Directory in which \`npm pack\` will save tarballs.
+  `,
 })
 
 define('parseable', {

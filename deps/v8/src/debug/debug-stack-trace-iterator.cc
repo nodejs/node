@@ -7,11 +7,14 @@
 #include "src/api/api-inl.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
-#include "src/debug/debug-wasm-objects.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 
@@ -119,9 +122,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
 
 v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   CHECK(!Done());
+#if V8_ENABLE_WEBASSEMBLY
   if (frame_inspector_ && frame_inspector_->IsWasm()) {
     return v8::Local<v8::Value>();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
   bool is_optimized = iterator_.frame()->is_optimized();
   if (is_optimized || !is_top_frame_ ||
@@ -159,17 +164,12 @@ v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {
 std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
-  CommonFrame* frame = iterator_.frame();
-  if (frame->is_wasm()) {
-    return GetWasmScopeIterator(WasmFrame::cast(frame));
+#if V8_ENABLE_WEBASSEMBLY
+  if (iterator_.frame()->is_wasm()) {
+    return GetWasmScopeIterator(WasmFrame::cast(iterator_.frame()));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
-}
-
-bool DebugStackTraceIterator::Restart() {
-  DCHECK(!Done());
-  if (iterator_.is_wasm()) return false;
-  return LiveEdit::RestartFrame(iterator_.javascript_frame());
 }
 
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(

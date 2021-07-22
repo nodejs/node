@@ -108,15 +108,19 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   // Compares memory representation of a value stored in the slot with given
   // raw value.
   inline bool contains_value(Address raw_value) const;
+  inline bool contains_map_value(Address raw_value) const;
 
   inline Object operator*() const;
-  inline Object load(IsolateRoot isolate) const;
+  inline Object load(PtrComprCageBase cage_base) const;
   inline void store(Object value) const;
+  inline void store_map(Map map) const;
+
+  inline Map load_map() const;
 
   inline Object Acquire_Load() const;
-  inline Object Acquire_Load(IsolateRoot isolate) const;
+  inline Object Acquire_Load(PtrComprCageBase cage_base) const;
   inline Object Relaxed_Load() const;
-  inline Object Relaxed_Load(IsolateRoot isolate) const;
+  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(Object value) const;
   inline void Release_Store(Object value) const;
   inline Object Relaxed_CompareAndSwap(Object old, Object target) const;
@@ -147,11 +151,11 @@ class FullMaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*() const;
-  inline MaybeObject load(IsolateRoot isolate) const;
+  inline MaybeObject load(PtrComprCageBase cage_base) const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;
-  inline MaybeObject Relaxed_Load(IsolateRoot isolate) const;
+  inline MaybeObject Relaxed_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(MaybeObject value) const;
   inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
 };
@@ -174,7 +178,7 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
       : SlotBase(slot.address()) {}
 
   inline HeapObjectReference operator*() const;
-  inline HeapObjectReference load(IsolateRoot isolate) const;
+  inline HeapObjectReference load(PtrComprCageBase cage_base) const;
   inline void store(HeapObjectReference value) const;
 
   inline HeapObject ToHeapObject() const;

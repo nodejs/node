@@ -6,6 +6,7 @@
 
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-utils.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -126,7 +127,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   ThinString thin = ThinString::unchecked_cast(*this);
   thin.set_actual(internalized);
   DCHECK_GE(old_size, ThinString::kSize);
-  this->synchronized_set_map(*map);
+  this->set_map(*map, kReleaseStore);
   Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
@@ -171,7 +172,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
 
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-      isolate->string_access());
+      isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -199,7 +200,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);
@@ -249,7 +250,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   }
 
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-      isolate->string_access());
+      isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -276,7 +277,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);
@@ -373,7 +374,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   accumulator->Put('>');
 }
 
-void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
+void String::PrintUC16(std::ostream& os, int start, int end) {
   if (end < 0) end = length();
   StringCharacterStream stream(*this, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
@@ -734,8 +735,8 @@ static void CalculateLineEndsImpl(std::vector<int>* line_ends,
   }
 }
 
-template <typename LocalIsolate>
-Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
                                              Handle<String> src,
                                              bool include_ending_line) {
   src = Flatten(isolate, src);
@@ -773,7 +774,7 @@ template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
 
-bool String::SlowEquals(String other) {
+bool String::SlowEquals(String other) const {
   DisallowGarbageCollection no_gc;
   // Fast check: negative check with lengths.
   int len = length();
@@ -825,6 +826,7 @@ bool String::SlowEquals(String other) {
   return comparator.Equals(*this, other);
 }
 
+// static
 bool String::SlowEquals(Isolate* isolate, Handle<String> one,
                         Handle<String> two) {
   // Fast check: negative check with lengths.
@@ -1285,7 +1287,10 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
 }
 
 bool String::HasOneBytePrefix(Vector<const char> str) {
-  return IsEqualTo<EqualityType::kPrefix>(str);
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return IsEqualToImpl<EqualityType::kPrefix>(
+      str, GetPtrComprCageBase(*this),
+      SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 namespace {
@@ -1420,7 +1425,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
                              ClearRecordedSlots::kNo);
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
-  string->synchronized_set_length(new_length);
+  string->set_length(new_length, kReleaseStore);
 
   return string;
 }
@@ -1437,7 +1442,7 @@ void SeqTwoByteString::clear_padding() {
          SizeFor(length()) - data_size);
 }
 
-uint16_t ConsString::Get(int index) {
+uint16_t ConsString::Get(int index) const {
   DCHECK(index >= 0 && index < this->length());
 
   // Check for a flattened cons string
@@ -1466,9 +1471,11 @@ uint16_t ConsString::Get(int index) {
   UNREACHABLE();
 }
 
-uint16_t ThinString::Get(int index) { return actual().Get(index); }
+uint16_t ThinString::Get(int index) const { return actual().Get(index); }
 
-uint16_t SlicedString::Get(int index) { return parent().Get(offset() + index); }
+uint16_t SlicedString::Get(int index) const {
+  return parent().Get(offset() + index);
+}
 
 int ExternalString::ExternalPayloadSize() const {
   int length_multiplier = IsTwoByteRepresentation() ? i::kShortSize : kCharSize;

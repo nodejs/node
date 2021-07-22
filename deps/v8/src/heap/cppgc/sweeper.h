@@ -9,6 +9,7 @@
 
 #include "include/cppgc/heap.h"
 #include "src/base/macros.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc {
 
@@ -16,8 +17,7 @@ class Platform;
 
 namespace internal {
 
-class StatsCollector;
-class RawHeap;
+class HeapBase;
 class ConcurrentSweeperTest;
 class NormalPageSpace;
 
@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
         CompactableSpaceHandling::kSweep;
   };
 
-  Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
+  explicit Sweeper(HeapBase&);
   ~Sweeper();
 
   Sweeper(const Sweeper&) = delete;
@@ -50,10 +50,15 @@ class V8_EXPORT_PRIVATE Sweeper final {
   bool IsSweepingOnMutatorThread() const;
   bool IsSweepingInProgress() const;
 
+  // Assist with sweeping. Returns true if sweeping is done.
+  bool PerformSweepOnMutatorThread(double deadline_in_seconds);
+
  private:
   void WaitForConcurrentSweepingForTesting();
 
   class SweeperImpl;
+
+  HeapBase& heap_;
   std::unique_ptr<SweeperImpl> impl_;
 
   friend class ConcurrentSweeperTest;

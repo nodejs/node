@@ -44,8 +44,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Isolate* isolate = info->GetIsolate();
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kCompileSerialize);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileSerialize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
 
   base::ElapsedTimer timer;
@@ -56,9 +55,11 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
     script->name().ShortPrint();
     PrintF("]\n");
   }
+#if V8_ENABLE_WEBASSEMBLY
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
@@ -158,9 +159,12 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   if (obj->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(obj);
+    DCHECK(!sfi->IsApiFunction());
+#if V8_ENABLE_WEBASSEMBLY
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
-    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
+    DCHECK(!sfi->HasAsmWasmData());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     DebugInfo debug_info;
     BytecodeArray debug_bytecode_array;
@@ -252,9 +256,8 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
-            CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
-                            abstract_code, info, name_handle, line_num,
-                            column_num));
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, abstract_code,
+                            info, name_handle, line_num, column_num));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM
@@ -385,11 +388,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
               script->GetLineNumber(shared_info->StartPosition()) + 1;
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
-          PROFILE(isolate,
-                  CodeCreateEvent(
-                      CodeEventListener::SCRIPT_TAG,
-                      handle(shared_info->abstract_code(isolate), isolate),
-                      shared_info, name, line_num, column_num));
+          PROFILE(
+              isolate,
+              CodeCreateEvent(
+                  shared_info->is_toplevel() ? CodeEventListener::SCRIPT_TAG
+                                             : CodeEventListener::FUNCTION_TAG,
+                  handle(shared_info->abstract_code(isolate), isolate),
+                  shared_info, name, line_num, column_num));
         }
       }
     }

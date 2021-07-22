@@ -1,9 +1,11 @@
 const t = require('tap')
 
+t.cleanSnapshot = str => str.replace(/published .*? ago/g, 'published {TIME} ago')
+
 // run the same as tap does when running directly with node
 process.stdout.columns = undefined
 
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 
 let logs
 const cleanLogs = () => {

@@ -1,19 +1,18 @@
-bmeurer@chromium.org
-danno@chromium.org
-sigurds@chromium.org
-neis@chromium.org
-mvstanton@chromium.org
-mslekova@chromium.org
 jgruber@chromium.org
+mslekova@chromium.org
+mvstanton@chromium.org
+neis@chromium.org
 nicohartmann@chromium.org
+sigurds@chromium.org
 solanes@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org
-per-file wasm-*=binji@chromium.org
 per-file wasm-*=clemensb@chromium.org
 per-file wasm-*=gdeepti@chromium.org
 per-file wasm-*=jkummerow@chromium.org
+per-file wasm-*=manoskouk@chromium.org
+per-file wasm-*=thibaudm@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
 
@@ -26,7 +25,3 @@ per-file opcodes.*=ahaas@chromium.org
 per-file opcodes.*=bbudge@chromium.org
 per-file opcodes.*=gdeepti@chromium.org
 per-file opcodes.*=zhin@chromium.org
-
-per-file simd-scalar-lowering.*=bbudge@chromium.org
-per-file simd-scalar-lowering.*=gdeepti@chromium.org
-per-file simd-scalar-lowering.*=zhin@chromium.org

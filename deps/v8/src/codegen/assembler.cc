@@ -69,10 +69,16 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
 #endif
   options.inline_offheap_trampolines &= !generating_embedded_builtin;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-  const base::AddressRegion& code_range = isolate->heap()->code_range();
+  const base::AddressRegion& code_range = isolate->heap()->code_region();
   DCHECK_IMPLIES(code_range.begin() != kNullAddress, !code_range.is_empty());
   options.code_range_start = code_range.begin();
 #endif
+  options.short_builtin_calls =
+      isolate->is_short_builtin_calls_enabled() &&
+      !generating_embedded_builtin &&
+      (options.code_range_start != kNullAddress) &&
+      // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
+      !serializer;
   return options;
 }
 
@@ -174,7 +180,6 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
     : buffer_(std::move(buffer)),
       options_(options),
       enabled_cpu_features_(0),
-      emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
@@ -292,6 +297,7 @@ Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
 
 
 int Assembler::WriteCodeComments() {
+  if (!FLAG_code_comments) return 0;
   CHECK_IMPLIES(code_comments_writer_.entry_count() > 0,
                 options().emit_code_comments);
   if (code_comments_writer_.entry_count() == 0) return 0;

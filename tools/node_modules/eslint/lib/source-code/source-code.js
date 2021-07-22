@@ -349,7 +349,7 @@ class SourceCode extends TokenStore {
             let currentToken = this.getTokenBefore(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.start < node.parent.start)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.start < node.parent.start)) {
                     break;
                 }
                 comments.leading.push(currentToken);
@@ -361,7 +361,7 @@ class SourceCode extends TokenStore {
             currentToken = this.getTokenAfter(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.end > node.parent.end)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.end > node.parent.end)) {
                     break;
                 }
                 comments.trailing.push(currentToken);

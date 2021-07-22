@@ -68,7 +68,7 @@ section {
   border-radius: 8px;
   cursor: pointer;
 }
-::-webkit-scrollbar-thumb:hover { 
+::-webkit-scrollbar-thumb:hover {
   background-color: rgba(128, 128, 128, 0.8);
 }
 
@@ -132,7 +132,7 @@ dd {
   font-weight: 400;
 }
 
-.panel > select{
+.panel > select {
   width: calc(100% + 20px);
   margin: 0 -10px 10px -10px;
 }

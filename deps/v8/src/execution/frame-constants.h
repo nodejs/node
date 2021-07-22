@@ -216,6 +216,7 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(5);
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class CWasmEntryFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative:
@@ -236,6 +237,7 @@ class WasmExitFrameConstants : public WasmFrameConstants {
   static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
  public:
@@ -388,23 +390,23 @@ inline static int FrameSlotToFPOffset(int slot) {
 }  // namespace v8
 
 #if V8_TARGET_ARCH_IA32
-#include "src/execution/ia32/frame-constants-ia32.h"  // NOLINT
+#include "src/execution/ia32/frame-constants-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/execution/x64/frame-constants-x64.h"  // NOLINT
+#include "src/execution/x64/frame-constants-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/execution/arm64/frame-constants-arm64.h"  // NOLINT
+#include "src/execution/arm64/frame-constants-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/execution/arm/frame-constants-arm.h"  // NOLINT
+#include "src/execution/arm/frame-constants-arm.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-#include "src/execution/ppc/frame-constants-ppc.h"  // NOLINT
+#include "src/execution/ppc/frame-constants-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/execution/mips/frame-constants-mips.h"  // NOLINT
+#include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/execution/mips64/frame-constants-mips64.h"  // NOLINT
+#include "src/execution/mips64/frame-constants-mips64.h"
 #elif V8_TARGET_ARCH_S390
-#include "src/execution/s390/frame-constants-s390.h"  // NOLINT
+#include "src/execution/s390/frame-constants-s390.h"
 #elif V8_TARGET_ARCH_RISCV64
-#include "src/execution/riscv64/frame-constants-riscv64.h"  // NOLINT
+#include "src/execution/riscv64/frame-constants-riscv64.h"
 #else
 #error Unsupported target architecture.
 #endif

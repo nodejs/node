@@ -74,7 +74,7 @@ class FieldStatsCollector : public ObjectVisitor {
       raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
       *boxed_double_fields_count_ += 1;
     } else if (host.IsSeqString()) {
-      int string_data = SeqString::cast(host).synchronized_length() *
+      int string_data = SeqString::cast(host).length(kAcquireLoad) *
                         (String::cast(host).IsOneByteRepresentation() ? 1 : 2) /
                         kTaggedSize;
       DCHECK_LE(string_data, raw_fields_count_in_object);
@@ -132,7 +132,7 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = map.instance_descriptors();
     for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
@@ -856,7 +856,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  DescriptorArray array = map.instance_descriptors(kRelaxedLoad);
+  DescriptorArray array = map.instance_descriptors(isolate());
   if (map.owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already

@@ -117,8 +117,10 @@ const dummy_func = exports.set_table_func1;
 
   const offset1 = 3;
   const offset2 = 9;
-  builder.addElementSegment(t1, offset1, false, [f1.index, f2.index]);
-  builder.addElementSegment(t2, offset2, false, [f3.index, f1.index]);
+  builder.addActiveElementSegment(t1, WasmInitExpr.I32Const(offset1),
+                                  [f1.index, f2.index]);
+  builder.addActiveElementSegment(t2, WasmInitExpr.I32Const(offset2),
+                                  [f3.index, f1.index]);
 
   const instance = builder.instantiate();
 
@@ -147,7 +149,6 @@ const dummy_func = exports.set_table_func1;
         kExprTableSet, table_index,                // --
         kExprI32Const, index,                      // entry index
         kExprCallIndirect, sig_index, table_index  // --
-
       ])
       .exportFunc();
 

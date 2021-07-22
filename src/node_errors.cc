@@ -215,6 +215,12 @@ void AppendExceptionLine(Environment* env,
   Local<Object> err_obj;
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
+    // If arrow_message is already set, skip.
+    auto maybe_value = err_obj->GetPrivate(env->context(),
+                                          env->arrow_message_private_symbol());
+    Local<Value> lvalue;
+    if (!maybe_value.ToLocal(&lvalue) || lvalue->IsString())
+      return;
   }
 
   bool added_exception_line = false;
@@ -425,13 +431,10 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   Isolate* isolate = Isolate::GetCurrent();
-  // TODO(legendecas): investigate failures on triggering node-report with
-  // nullptr isolates.
-  if (isolate == nullptr) {
-    fflush(stderr);
-    ABORT();
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
   }
-  Environment* env = Environment::GetCurrent(isolate);
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
@@ -823,9 +826,10 @@ void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
-static void EnableSourceMaps(const FunctionCallbackInfo<Value>& args) {
+static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  env->set_source_maps_enabled(true);
+  CHECK(args[0]->IsBoolean());
+  env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
 }
 
 static void SetEnhanceStackForFatalException(
@@ -861,7 +865,7 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPrepareStackTraceCallback);
-  registry->Register(EnableSourceMaps);
+  registry->Register(SetSourceMapsEnabled);
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
@@ -874,7 +878,7 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
-  env->SetMethod(target, "enableSourceMaps", EnableSourceMaps);
+  env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
   env->SetMethod(target,
                  "setEnhanceStackForFatalException",
                  SetEnhanceStackForFatalException);

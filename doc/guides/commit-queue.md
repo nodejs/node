@@ -2,12 +2,12 @@
 
 > Stability: 1 - Experimental
 
-*tl;dr: You can land Pull Requests by adding the `commit-queue` label to it.*
+*tl;dr: You can land pull requests by adding the `commit-queue` label to it.*
 
 Commit Queue is an experimental feature for the project which simplifies the
-landing process by automating it via GitHub Actions. With it, Collaborators can
-land Pull Requests by adding the `commit-queue` label to a PR. All
-checks will run via node-core-utils, and if the Pull Request is ready to land,
+landing process by automating it via GitHub Actions. With it, collaborators can
+land pull requests by adding the `commit-queue` label to a PR. All
+checks will run via node-core-utils, and if the pull request is ready to land,
 the Action will rebase it and push to master.
 
 This document gives an overview of how the Commit Queue works, as well as
@@ -17,8 +17,8 @@ implementation details, reasoning for design choices, and current limitations.
 
 From a high-level, the Commit Queue works as follow:
 
-1. Collaborators will add `commit-queue` label to Pull Requests ready to land
-2. Every five minutes the queue will do the following for each Pull Request
+1. Collaborators will add `commit-queue` label to pull requests ready to land
+2. Every five minutes the queue will do the following for each pull request
    with the label:
    1. Check if the PR also has a `request-ci` label (if it has, skip this PR
       since it's pending a CI run)
@@ -40,16 +40,16 @@ From a high-level, the Commit Queue works as follow:
 ## Current limitations
 
 The Commit Queue feature is still in early stages, and as such it might not
-work for more complex Pull Requests. These are the currently known limitations
+work for more complex pull requests. These are the currently known limitations
 of the commit queue:
 
-1. All commits in a Pull Request must either be following commit message
+1. All commits in a pull request must either be following commit message
    guidelines or be a valid [`fixup!`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupltcommitgt)
    commit that will be correctly handled by the [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
    option
 2. A CI must've ran and succeeded since the last change on the PR
-3. A Collaborator must have approved the PR since the last change
-4. Only Jenkins CI is checked (Actions, V8 CI and CITGM are ignored)
+3. A collaborator must have approved the PR since the last change
+4. Only Jenkins CI and GitHub Actions are checked (V8 CI and CITGM are ignored)
 
 ## Implementation
 
@@ -73,7 +73,7 @@ reasons:
 `node-core-utils` is configured with a personal token and
 a Jenkins token from
 [@nodejs-github-bot](https://github.com/nodejs/github-bot).
-`octokit/graphql-action` is used to fetch all Pull Requests with the
+`octokit/graphql-action` is used to fetch all pull requests with the
 `commit-queue` label. The output is a JSON payload, so `jq` is used to turn
 that into a list of PR ids we can pass as arguments to
 [`commit-queue.sh`](../../tools/actions/commit-queue.sh).
@@ -87,8 +87,8 @@ that into a list of PR ids we can pass as arguments to
 1. The repository owner
 2. The repository name
 3. The Action GITHUB_TOKEN
-4. Every positional argument starting at this one will be a Pull Request ID of
-    a Pull Request with commit-queue set.
+4. Every positional argument starting at this one will be a pull request ID of
+    a pull request with commit-queue set.
 
 The script will iterate over the pull requests. `ncu-ci` is used to check if
 the last CI is still pending, and calls to the GitHub API are used to check if
@@ -108,7 +108,7 @@ until all PRs have done the steps above.
 
 ## Reverting broken commits
 
-Reverting broken commits is done manually by Collaborators, just like when
+Reverting broken commits is done manually by collaborators, just like when
 commits are landed manually via `git node land`. An easy way to revert is a
 good feature for the project, but is not explicitly required for the Commit
 Queue to work because the Action lands PRs just like collaborators do today. If

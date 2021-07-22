@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 
@@ -61,9 +62,11 @@ void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     auto bs = backing_store(store_index);
     buffer->AllocateExternalPointerEntries(isolate());
+    // TODO(v8:11111): Support RAB / GSAB.
+    CHECK(!buffer->is_resizable());
     SharedFlag shared =
         bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-    buffer->Setup(shared, bs);
+    buffer->Setup(shared, ResizableFlag::kNotResizable, bs);
   }
 }
 

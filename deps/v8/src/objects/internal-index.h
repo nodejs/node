@@ -40,8 +40,7 @@ class InternalIndex {
     return static_cast<uint32_t>(entry_);
   }
   constexpr int as_int() const {
-    CONSTEXPR_DCHECK(entry_ <=
-                     static_cast<size_t>(std::numeric_limits<int>::max()));
+    DCHECK_GE(std::numeric_limits<int>::max(), entry_);
     return static_cast<int>(entry_);
   }
 

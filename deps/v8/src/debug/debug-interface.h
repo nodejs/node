@@ -7,13 +7,16 @@
 
 #include <memory>
 
-#include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
 #include "src/utils/vector.h"
+
+namespace v8_inspector {
+class V8Inspector;
+}  // namespace v8_inspector
 
 namespace v8 {
 
@@ -37,6 +40,16 @@ int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
+
+// Returns the debug name for the function, which is supposed to be used
+// by the debugger and the developer tools. This can thus be different from
+// the name returned by the StackFrame::GetFunctionName() method. For example,
+// in case of WebAssembly, the debug name is WAT-compatible and thus always
+// preceeded by a dollar ('$').
+Local<String> GetFunctionDebugName(Local<StackFrame> frame);
+
+// Returns a debug string representation of the function.
+Local<String> GetFunctionDescription(Local<Function> function);
 
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
@@ -119,11 +132,7 @@ struct LiveEditResult {
     OK,
     COMPILE_ERROR,
     BLOCKED_BY_RUNNING_GENERATOR,
-    BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME,
-    BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME,
-    BLOCKED_BY_ACTIVE_FUNCTION,
-    BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME,
-    FRAME_RESTART_IS_NOT_SUPPORTED
+    BLOCKED_BY_ACTIVE_FUNCTION
   };
   Status status = OK;
   bool stack_changed = false;
@@ -154,7 +163,6 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> SourceMappingURL() const;
   Maybe<int> ContextId() const;
   MaybeLocal<String> Source() const;
-  bool IsWasm() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
       const debug::Location& start, const debug::Location& end,
@@ -166,10 +174,14 @@ class V8_EXPORT_PRIVATE Script {
                        LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsWasm() const;
   void RemoveWasmBreakpoint(BreakpointId id);
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 // Specialization for wasm Scripts.
 class WasmScript : public Script {
  public:
@@ -190,10 +202,10 @@ class WasmScript : public Script {
   int CodeOffset() const;
   int CodeLength() const;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-V8_EXPORT_PRIVATE void GetLoadedScripts(
-    Isolate* isolate,
-    PersistentValueVector<Script>& scripts);  // NOLINT(runtime/references)
+V8_EXPORT_PRIVATE void GetLoadedScripts(Isolate* isolate,
+                                        PersistentValueVector<Script>& scripts);
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
@@ -228,8 +240,10 @@ class DebugDelegate {
 V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
                                         DebugDelegate* listener);
 
+#if V8_ENABLE_WEBASSEMBLY
 V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
 V8_EXPORT_PRIVATE void TierUpAllModulesPerIsolate(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class AsyncEventDelegate {
  public:
@@ -474,7 +488,6 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual v8::Local<v8::Function> GetFunction() const = 0;
   virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
 
-  virtual bool Restart() = 0;
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                              bool throw_on_side_effect) = 0;
 };
@@ -516,6 +529,10 @@ enum class EvaluateGlobalMode {
 V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
     v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
     bool repl_mode = false);
+
+V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
+    v8::Isolate* isolate, v8::Local<v8::Script> function,
+    v8::debug::EvaluateGlobalMode mode, bool repl);
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
@@ -616,28 +633,30 @@ class PropertyIterator {
   virtual bool is_array_index() = 0;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class V8_EXPORT_PRIVATE WasmValueObject : public v8::Object {
  public:
   WasmValueObject() = delete;
   static bool IsWasmValueObject(v8::Local<v8::Value> obj);
-  V8_INLINE static WasmValueObject* Cast(v8::Value* obj);
+  static WasmValueObject* Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<WasmValueObject*>(value);
+  }
+
+  v8::Local<v8::String> type() const;
 
  private:
   static void CheckCast(v8::Value* obj);
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 AccessorPair* AccessorPair::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
   return static_cast<AccessorPair*>(value);
-}
-
-WasmValueObject* WasmValueObject::Cast(v8::Value* value) {
-#ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
-#endif
-  return static_cast<WasmValueObject*>(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);

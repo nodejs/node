@@ -9,7 +9,7 @@ deprecated: v7.0.0
 
 <!-- source_link=lib/punycode.js -->
 
-**The version of the punycode module bundled in Node.js is being deprecated**.
+**The version of the punycode module bundled in Node.js is being deprecated.**
 In a future major version of Node.js this module will be removed. Users
 currently depending on the `punycode` module should switch to using the
 userland-provided [Punycode.js][] module instead. For punycode-based URL

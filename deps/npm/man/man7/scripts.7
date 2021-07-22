@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "June 2021" "" ""
+.TH "SCRIPTS" "7" "July 2021" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -60,7 +60,8 @@ script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and
 the prepare script will be run, before the package is packaged and
 installed\.
 .IP \(bu 2
-As of \fBnpm@7\fP these scripts run in the background
+As of \fBnpm@7\fP these scripts run in the background\.
+To see the output, run with: \fB\-\-foreground\-scripts\fP\|\.
 
 .RE
 .P
@@ -329,46 +330,8 @@ package\.json file, then your package scripts would have the
 \fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
 in your code with \fBprocess\.env\.npm_package_name\fP and
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
-.SS configuration
 .P
-Configuration parameters are put in the environment with the
-\fBnpm_config_\fP prefix\. For instance, you can view the effective \fBroot\fP
-config by checking the \fBnpm_config_root\fP environment variable\.
-.SS Special: package\.json "config" object
-.P
-The package\.json "config" keys are overwritten in the environment if
-there is a config param of \fB<name>[@<version>]:<key>\fP\|\.  For example,
-if the package\.json has this:
-.P
-.RS 2
-.nf
-{
-  "name" : "foo",
-  "config" : {
-    "port" : "8080"
-  },
-  "scripts" : {
-    "start" : "node server\.js"
-  }
-}
-.fi
-.RE
-.P
-and the server\.js is this:
-.P
-.RS 2
-.nf
-http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
-.fi
-.RE
-.P
-then the user could change the behavior by doing:
-.P
-.RS 2
-.nf
-  npm config set foo:port 80
-.fi
-.RE
+See npm help \fBpackage\-json\.md\fP for more on package configs\.
 .SS current lifecycle event
 .P
 Lastly, the \fBnpm_lifecycle_event\fP environment variable is set to
@@ -429,21 +392,9 @@ Scripts are run by passing the line as a script argument to \fBsh\fP\|\.
 If the script exits with a code other than 0, then this will abort the
 process\.
 .P
-Note that these script files don't have to be nodejs or even
-javascript programs\. They just have to be some kind of executable
+Note that these script files don't have to be Node\.js or even
+JavaScript programs\. They just have to be some kind of executable
 file\.
-.SS Hook Scripts
-.P
-If you want to run a specific script at a specific lifecycle event for
-ALL packages, then you can use a hook script\.
-.P
-Place an executable file at \fBnode_modules/\.hooks/{eventname}\fP, and
-it'll get run for all packages when they are going through that point
-in the package lifecycle for any packages installed in that root\.
-.P
-Hook scripts are run exactly the same way as package\.json scripts\.
-That is, they are in a separate child process, with the env described
-above\.
 .SS Best Practices
 .RS 0
 .IP \(bu 2

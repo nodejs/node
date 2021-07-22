@@ -11,7 +11,6 @@ const chalk = require('chalk')
 
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 // for historical reasons, publishConfig in package.json can contain ANY config
 // keys that npm supports in .npmrc files and elsewhere.  We *may* want to
@@ -67,6 +66,7 @@ class Publish extends BaseCommand {
     const dryRun = this.npm.config.get('dry-run')
     const json = this.npm.config.get('json')
     const defaultTag = this.npm.config.get('tag')
+    const ignoreScripts = this.npm.config.get('ignore-scripts')
     const silent = log.level === 'silent'
 
     if (semver.validRange(defaultTag))
@@ -83,7 +83,7 @@ class Publish extends BaseCommand {
       flatten(manifest.publishConfig, opts)
 
     // only run scripts for directory type publishes
-    if (spec.type === 'directory') {
+    if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
         event: 'prepublishOnly',
         path: spec.fetchSpec,
@@ -120,7 +120,7 @@ class Publish extends BaseCommand {
       await otplease(opts, opts => libpub(manifest, tarballData, opts))
     }
 
-    if (spec.type === 'directory') {
+    if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
         event: 'publish',
         path: spec.fetchSpec,
@@ -138,7 +138,7 @@ class Publish extends BaseCommand {
       })
     }
 
-    if (!this.workspaces) {
+    if (!this.suppressOutput) {
       if (!silent && json)
         this.npm.output(JSON.stringify(pkgContents, null, 2))
       else if (!silent)
@@ -150,17 +150,16 @@ class Publish extends BaseCommand {
 
   async publishWorkspaces (args, filters) {
     // Suppresses JSON output in publish() so we can handle it here
-    this.workspaces = true
+    this.suppressOutput = true
 
     const results = {}
     const json = this.npm.config.get('json')
     const silent = log.level === 'silent'
     const noop = a => a
     const color = this.npm.color ? chalk : { green: noop, bold: noop }
-    const workspaces =
-      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    await this.setWorkspaces(filters)
 
-    for (const [name, workspace] of workspaces.entries()) {
+    for (const [name, workspace] of this.workspaces.entries()) {
       let pkgContents
       try {
         pkgContents = await this.publish([workspace])

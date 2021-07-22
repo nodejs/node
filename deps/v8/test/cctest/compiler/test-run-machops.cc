@@ -400,6 +400,243 @@ TEST(RunWord64Popcnt) {
 
 #endif  // V8_TARGET_ARCH_64_BIT
 
+TEST(RunWord32Select) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32());
+  if (!m.machine()->Word32Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Word32Equal(m.Parameter(2), m.Int32Constant(0));
+  m.Return(m.Word32Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int input1 = 16;
+  constexpr int input2 = 3443;
+
+  for (int i = 0; i < 2; ++i) {
+    int expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, input2, i));
+  }
+}
+
+TEST(RunWord64Select) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Int32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Word32Equal(m.Parameter(2), m.Int32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  for (int i = 0; i < 2; ++i) {
+    int64_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, input2, i));
+  }
+}
+
+TEST(RunSelectUnorderedEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32Equal(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input1, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input2, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input2, m.Call(input1, input2, std::nanf("")));
+}
+
+TEST(RunSelectUnorderedNotEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32NotEqual(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input2, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input1, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input1, m.Call(input1, input2, std::nanf("")));
+}
+
+namespace {
+void FooForSelect() {}
+}  // namespace
+
+TEST(RunWord32SelectWithMemoryInput) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+                                               MachineType::Int32());
+  if (!m.machine()->Word32Select().IsSupported()) {
+    return;
+  }
+
+  // Test that the generated code also works with values spilled on the stack.
+
+  auto* foo_ptr = &FooForSelect;
+  constexpr int input1 = 16;
+  int input2 = 3443;
+  // Load {value2} before the function call so that it gets spilled.
+  Node* value2 = m.LoadFromPointer(&input2, MachineType::Int32());
+  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
+  // Call a function so that {value2} gets spilled on the stack.
+  m.CallCFunction(function, MachineType::Int32());
+  Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
+  m.Return(m.Word32Select(cmp, m.Parameter(0), value2));
+
+  for (int i = 0; i < 2; ++i) {
+    int32_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, i));
+  }
+}
+
+TEST(RunWord64SelectWithMemoryInput) {
+  BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                               MachineType::Int32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  // Test that the generated code also works with values spilled on the stack.
+
+  auto* foo_ptr = &FooForSelect;
+  constexpr int64_t input1 = 16;
+  int64_t input2 = 0x12345678ABCD;
+  // Load {value2} before the function call so that it gets spilled.
+  Node* value2 = m.LoadFromPointer(&input2, MachineType::Int64());
+  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
+  // Call a function so that {value2} gets spilled on the stack.
+  m.CallCFunction(function, MachineType::Int32());
+  Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), value2));
+
+  for (int i = 0; i < 2; ++i) {
+    int64_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, i));
+  }
+}
+
+TEST(RunFloat32SelectRegFloatCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32Equal(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float32Select(cmp, m.Parameter(0), m.Parameter(1)));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected_result = pl == pr ? pl : pr;
+      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat64SelectRegFloatCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float64LessThan(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Parameter(0), m.Parameter(1)));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double expected_result = pl < pr ? pl : pr;
+      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat32SelectImmediateOnLeftFloatCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  const float pl = -5.0;
+  Node* a = m.Float32Constant(pl);
+  Node* cmp = m.Float32LessThan(a, m.Parameter(0));
+  m.Return(m.Float32Select(cmp, a, m.Parameter(0)));
+
+  FOR_FLOAT32_INPUTS(pr) {
+    float expected_result = pl < pr ? pl : pr;
+    CHECK_FLOAT_EQ(expected_result, m.Call(pr));
+  }
+}
+
+TEST(RunFloat64SelectImmediateOnRightFloatCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  double pr = 5.0;
+  Node* b = m.Float64Constant(pr);
+  Node* cmp = m.Float64LessThanOrEqual(m.Parameter(0), b);
+  m.Return(m.Float64Select(cmp, m.Parameter(0), b));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    double expected_result = pl <= pr ? pl : pr;
+    CHECK_DOUBLE_EQ(expected_result, m.Call(pl));
+  }
+}
+
+TEST(RunFloat32SelectImmediateIntCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Int32(),
+                                             MachineType::Int32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  float tval = -1.0;
+  float fval = 1.0;
+  Node* cmp = m.Int32LessThanOrEqual(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Float32Constant(tval),
+                           m.Float32Constant(fval)));
+
+  FOR_INT32_INPUTS(pl) {
+    FOR_INT32_INPUTS(pr) {
+      float expected_result = pl <= pr ? tval : fval;
+      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat64SelectImmediateIntCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Int64(),
+                                              MachineType::Int64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  double tval = -1.0;
+  double fval = 1.0;
+  Node* cmp = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Float64Constant(tval),
+                           m.Float64Constant(fval)));
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      double expected_result = pl < pr ? tval : fval;
+      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
 
 static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
   switch (index) {

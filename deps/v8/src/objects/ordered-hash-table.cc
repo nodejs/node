@@ -16,9 +16,9 @@ namespace v8 {
 namespace internal {
 
 template <class Derived, int entrysize>
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
-    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+    IsolateT* isolate, int capacity, AllocationType allocation) {
   // Capacity must be a power of two, since we depend on being able
   // to divide and multiple by 2 (kLoadFactor) to derive capacity
   // from number of buckets. If we decide to change kLoadFactor
@@ -63,9 +63,9 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
 }
 
 template <class Derived, int entrysize>
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
-    LocalIsolate* isolate, Handle<Derived> table) {
+    IsolateT* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
   int nof = table->NumberOfElements();
@@ -238,17 +238,17 @@ HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
 }
 
 template <class Derived, int entrysize>
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    LocalIsolate* isolate, Handle<Derived> table) {
+    IsolateT* isolate, Handle<Derived> table) {
   return OrderedHashTable<Derived, entrysize>::Rehash(isolate, table,
                                                       table->Capacity());
 }
 
 template <class Derived, int entrysize>
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    LocalIsolate* isolate, Handle<Derived> table, int new_capacity) {
+    IsolateT* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
   MaybeHandle<Derived> new_table_candidate =
@@ -320,10 +320,9 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
   return Base::Rehash(isolate, table, new_capacity);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
-    LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
-    int new_capacity) {
+    IsolateT* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
   MaybeHandle<OrderedNameDictionary> new_table_candidate =
       Base::Rehash(isolate, table, new_capacity);
   Handle<OrderedNameDictionary> new_table;
@@ -407,9 +406,8 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
-template <typename LocalIsolate>
-InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
-                                               Object key) {
+template <typename IsolateT>
+InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   DisallowGarbageCollection no_gc;
 
   DCHECK(key.IsUniqueName());
@@ -438,42 +436,10 @@ InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
   return InternalIndex::NotFound();
 }
 
-// TODO(emrich): This is almost an identical copy of
-// Dictionary<..>::SlowReverseLookup.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-Object OrderedNameDictionary::SlowReverseLookup(Isolate* isolate,
-                                                Object value) {
-  ReadOnlyRoots roots(isolate);
-  for (InternalIndex i : IterateEntries()) {
-    Object k;
-    if (!ToKey(roots, i, &k)) continue;
-    Object e = this->ValueAt(i);
-    if (e == value) return k;
-  }
-  return roots.undefined_value();
-}
-
-// TODO(emrich): This is almost an identical copy of
-// HashTable<..>::NumberOfEnumerableProperties.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-int OrderedNameDictionary::NumberOfEnumerableProperties() {
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
-  int result = 0;
-  for (InternalIndex i : this->IterateEntries()) {
-    Object k;
-    if (!this->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
-    PropertyDetails details = this->DetailsAt(i);
-    PropertyAttributes attr = details.attributes();
-    if ((attr & ONLY_ENUMERABLE) == 0) result++;
-  }
-  return result;
-}
-
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
-    LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
-    Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+    IsolateT* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
+    Handle<Object> value, PropertyDetails details) {
   DCHECK(key->IsUniqueName());
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
@@ -537,21 +503,21 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::DeleteEntry(
   return Shrink(isolate, table);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<OrderedHashSet> OrderedHashSet::Allocate(
-    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+    IsolateT* isolate, int capacity, AllocationType allocation) {
   return Base::Allocate(isolate, capacity, allocation);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<OrderedHashMap> OrderedHashMap::Allocate(
-    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+    IsolateT* isolate, int capacity, AllocationType allocation) {
   return Base::Allocate(isolate, capacity, allocation);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
-    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+    IsolateT* isolate, int capacity, AllocationType allocation) {
   MaybeHandle<OrderedNameDictionary> table_candidate =
       Base::Allocate(isolate, capacity, allocation);
   Handle<OrderedNameDictionary> table;
@@ -712,17 +678,9 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InYoungGeneration(*this)) {
-    MemsetTagged(RawField(DataTableStartOffset()),
-                 ReadOnlyRoots(isolate).the_hole_value(),
-                 capacity * Derived::kEntrySize);
-  } else {
-    for (int i = 0; i < capacity; i++) {
-      for (int j = 0; j < Derived::kEntrySize; j++) {
-        SetDataEntry(i, j, ReadOnlyRoots(isolate).the_hole_value());
-      }
-    }
-  }
+  MemsetTagged(RawField(DataTableStartOffset()),
+               ReadOnlyRoots(isolate).the_hole_value(),
+               capacity * Derived::kEntrySize);
 
 #ifdef DEBUG
   for (int i = 0; i < num_buckets; ++i) {

@@ -94,6 +94,8 @@ class ValueSerializer {
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
  private:
+  friend class WebSnapshotSerializer;
+
   // Managing allocations of the internal buffer.
   Maybe<bool> ExpandBuffer(size_t required_capacity);
 
@@ -129,10 +131,12 @@ class ValueSerializer {
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
   Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
+#if V8_ENABLE_WEBASSEMBLY
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
       V8_WARN_UNUSED_RESULT;
+#endif  // V8_ENABLE_WEBASSEMBLY
   Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
 
   /*
@@ -180,6 +184,7 @@ class ValueDeserializer {
  public:
   ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
                     v8::ValueDeserializer::Delegate* delegate);
+  ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
   ~ValueDeserializer();
   ValueDeserializer(const ValueDeserializer&) = delete;
   ValueDeserializer& operator=(const ValueDeserializer&) = delete;
@@ -228,6 +233,8 @@ class ValueDeserializer {
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
 
  private:
+  friend class WebSnapshotDeserializer;
+
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const V8_WARN_UNUSED_RESULT;
   void ConsumeTag(SerializationTag peeked_tag);
@@ -274,8 +281,10 @@ class ValueDeserializer {
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
+#if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
+#endif  // V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*

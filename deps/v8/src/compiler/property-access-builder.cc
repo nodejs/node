@@ -35,7 +35,7 @@ SimplifiedOperatorBuilder* PropertyAccessBuilder::simplified() const {
 bool HasOnlyStringMaps(JSHeapBroker* broker,
                        ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
-    MapRef map_ref(broker, map);
+    MapRef map_ref = MakeRef(broker, map);
     if (!map_ref.IsStringMap()) return false;
   }
   return true;
@@ -46,7 +46,7 @@ namespace {
 bool HasOnlyNumberMaps(JSHeapBroker* broker,
                        ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
-    MapRef map_ref(broker, map);
+    MapRef map_ref = MakeRef(broker, map);
     if (map_ref.instance_type() != HEAP_NUMBER_TYPE) return false;
   }
   return true;
@@ -89,7 +89,7 @@ void PropertyAccessBuilder::BuildCheckMaps(
     MapRef object_map = m.Ref(broker()).map();
     if (object_map.is_stable()) {
       for (Handle<Map> map : maps) {
-        if (MapRef(broker(), map).equals(object_map)) {
+        if (MakeRef(broker(), map).equals(object_map)) {
           dependencies()->DependOnStableMap(object_map);
           return;
         }
@@ -99,7 +99,7 @@ void PropertyAccessBuilder::BuildCheckMaps(
   ZoneHandleSet<Map> map_set;
   CheckMapsFlags flags = CheckMapsFlag::kNone;
   for (Handle<Map> map : maps) {
-    MapRef object_map(broker(), map);
+    MapRef object_map = MakeRef(broker(), map);
     map_set.insert(object_map.object(), graph()->zone());
     if (object_map.is_migration_target()) {
       flags |= CheckMapsFlag::kTryMigrateInstance;
@@ -148,10 +148,41 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
   }
 }
 
-Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
+Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
+    PropertyAccessInfo const& access_info) {
+  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(access_info.IsDictionaryProtoDataConstant());
+
+  JSObjectRef holder =
+      MakeRef(broker(), access_info.holder().ToHandleChecked());
+  base::Optional<ObjectRef> value =
+      holder.GetOwnDictionaryProperty(access_info.dictionary_index());
+
+  for (Handle<Map> map : access_info.lookup_start_object_maps()) {
+    // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
+    // must have different lookup start map.
+    if (!map->IsJSReceiverMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      JSFunction constructor =
+          Map::GetConstructorFunction(
+              *map, *broker()->target_native_context().object())
+              .value();
+      map = handle(constructor.initial_map(), isolate());
+      DCHECK(map->IsJSObjectMap());
+    }
+    dependencies()->DependOnConstantInDictionaryPrototypeChain(
+        MakeRef(broker(), map), MakeRef(broker(), access_info.name()),
+        value.value(), PropertyKind::kData);
+  }
+
+  return jsgraph()->Constant(value.value());
+}
+
+Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
-  if (!access_info.IsDataConstant()) return nullptr;
+  if (!access_info.IsFastDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
   Handle<JSObject> holder;
@@ -167,7 +198,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     if (std::find_if(
             access_info.lookup_start_object_maps().begin(),
             access_info.lookup_start_object_maps().end(), [&](Handle<Map> map) {
-              return MapRef(broker(), map).equals(lookup_start_object_map);
+              return MakeRef(broker(), map).equals(lookup_start_object_map);
             }) == access_info.lookup_start_object_maps().end()) {
       // The map of the lookup_start_object is not in the feedback, let us bail
       // out.
@@ -176,8 +207,8 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     holder = m.Ref(broker()).AsJSObject().object();
   }
 
-  JSObjectRef holder_ref(broker(), holder);
-  base::Optional<ObjectRef> value = holder_ref.GetOwnDataProperty(
+  JSObjectRef holder_ref = MakeRef(broker(), holder);
+  base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
       access_info.field_representation(), access_info.field_index());
   if (!value.has_value()) {
     return nullptr;
@@ -272,9 +303,10 @@ Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {
-  DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
-  if (Node* value = TryBuildLoadConstantDataField(name, access_info,
-                                                  lookup_start_object)) {
+  DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
+
+  if (Node* value = TryFoldLoadConstantDataField(name, access_info,
+                                                 lookup_start_object)) {
     return value;
   }
 
@@ -298,7 +330,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     // used by the LoadElimination to eliminate map checks on the result.
     Handle<Map> field_map;
     if (access_info.field_map().ToHandle(&field_map)) {
-      MapRef field_map_ref(broker(), field_map);
+      MapRef field_map_ref = MakeRef(broker(), field_map);
       if (field_map_ref.is_stable()) {
         dependencies()->DependOnStableMap(field_map_ref);
         field_access.map = field_map;

@@ -125,9 +125,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   using Key = typename Shape::Key;
 
   // Returns a new HashTable object.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      LocalIsolate* isolate, int at_least_space_for,
+      IsolateT* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -138,24 +138,25 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   void IterateElements(ObjectVisitor* visitor);
 
   // Find entry for key otherwise return kNotFound.
-  inline InternalIndex FindEntry(IsolateRoot isolate, ReadOnlyRoots roots,
-                                 Key key, int32_t hash);
-  template <typename LocalIsolate>
-  inline InternalIndex FindEntry(LocalIsolate* isolate, Key key);
+  inline InternalIndex FindEntry(PtrComprCageBase cage_base,
+                                 ReadOnlyRoots roots, Key key, int32_t hash);
+  template <typename IsolateT>
+  inline InternalIndex FindEntry(IsolateT* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash(IsolateRoot isolate);
+  void Rehash(PtrComprCageBase cage_base);
 
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
   static inline bool IsKey(ReadOnlyRoots roots, Object k);
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_k);
-  inline bool ToKey(IsolateRoot isolate, InternalIndex entry, Object* out_k);
+  inline bool ToKey(PtrComprCageBase cage_base, InternalIndex entry,
+                    Object* out_k);
 
   // Returns the key at entry.
   inline Object KeyAt(InternalIndex entry);
-  inline Object KeyAt(IsolateRoot isolate, InternalIndex entry);
+  inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry);
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
@@ -193,9 +194,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      LocalIsolate* isolate, Handle<Derived> table, int n = 1,
+      IsolateT* isolate, Handle<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -211,14 +212,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  protected:
   friend class ObjectHashTable;
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      LocalIsolate* isolate, int capacity, AllocationType allocation);
+      IsolateT* isolate, int capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
-  InternalIndex FindInsertionEntry(IsolateRoot isolate, ReadOnlyRoots roots,
-                                   uint32_t hash);
+  InternalIndex FindInsertionEntry(PtrComprCageBase cage_base,
+                                   ReadOnlyRoots roots, uint32_t hash);
   InternalIndex FindInsertionEntry(Isolate* isolate, uint32_t hash);
 
   // Computes the capacity a table with the given capacity would need to have
@@ -231,7 +232,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(IsolateRoot isolate, Derived new_table);
+  void Rehash(PtrComprCageBase cage_base, Derived new_table);
 
   inline void set_key(int index, Object value);
   inline void set_key(int index, Object value, WriteBarrierMode mode);
@@ -322,7 +323,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   // returned in case the key is not present.
   Object Lookup(Handle<Object> key);
   Object Lookup(Handle<Object> key, int32_t hash);
-  Object Lookup(IsolateRoot isolate, Handle<Object> key, int32_t hash);
+  Object Lookup(PtrComprCageBase cage_base, Handle<Object> key, int32_t hash);
 
   // Returns the value at entry.
   Object ValueAt(InternalIndex entry);

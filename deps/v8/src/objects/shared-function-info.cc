@@ -78,43 +78,55 @@ Code SharedFunctionInfo::GetCode() const {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
     return isolate->builtins()->builtin(builtin_id());
-  } else if (data.IsBytecodeArray()) {
+  }
+  if (data.IsBytecodeArray()) {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  } else if (data.IsBaselineData()) {
+  }
+  if (data.IsBaselineData()) {
     // Having BaselineData means we are a compiled, baseline function.
     DCHECK(HasBaselineData());
     return baseline_data().baseline_code();
-  } else if (data.IsAsmWasmData()) {
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
     return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
-  } else if (data.IsUncompiledData()) {
-    // Having uncompiled data (with or without scope) means we need to compile.
-    DCHECK(HasUncompiledData());
-    return isolate->builtins()->builtin(Builtins::kCompileLazy);
-  } else if (data.IsFunctionTemplateInfo()) {
-    // Having a function template info means we are an API function.
-    DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data.IsWasmExportedFunctionData()) {
+  }
+  if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
     DCHECK(HasWasmExportedFunctionData());
     return wasm_exported_function_data().wrapper_code();
-  } else if (data.IsInterpreterData()) {
+  }
+  if (data.IsWasmJSFunctionData()) {
+    return wasm_js_function_data().wrapper_code();
+  }
+  if (data.IsWasmCapiFunctionData()) {
+    return wasm_capi_function_data().wrapper_code();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  if (data.IsUncompiledData()) {
+    // Having uncompiled data (with or without scope) means we need to compile.
+    DCHECK(HasUncompiledData());
+    return isolate->builtins()->builtin(Builtins::kCompileLazy);
+  }
+  if (data.IsFunctionTemplateInfo()) {
+    // Having a function template info means we are an API function.
+    DCHECK(IsApiFunction());
+    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
+  }
+  if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();
     DCHECK(code.IsCode());
     DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
-  } else if (data.IsWasmJSFunctionData()) {
-    return wasm_js_function_data().wrapper_code();
-  } else if (data.IsWasmCapiFunctionData()) {
-    return wasm_capi_function_data().wrapper_code();
   }
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());
@@ -130,6 +142,7 @@ WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
   DCHECK(HasWasmCapiFunctionData());
   return WasmCapiFunctionData::cast(function_data(kAcquireLoad));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script script)
@@ -238,10 +251,12 @@ CoverageInfo SharedFunctionInfo::GetCoverageInfo() const {
 }
 
 std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() {
+#if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
     return WasmExportedFunction::GetDebugName(
         wasm_exported_function_data().sig());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   DisallowGarbageCollection no_gc;
   String function_name = Name();
   if (function_name.length() == 0) function_name = inferred_name();
@@ -251,12 +266,14 @@ std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() {
 // static
 Handle<String> SharedFunctionInfo::DebugName(
     Handle<SharedFunctionInfo> shared) {
+#if V8_ENABLE_WEBASSEMBLY
   if (shared->HasWasmExportedFunctionData()) {
     return shared->GetIsolate()
         ->factory()
         ->NewStringFromUtf8(CStrVector(shared->DebugNameCStr().get()))
         .ToHandleChecked();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   DisallowHeapAllocation no_gc;
   String function_name = shared->Name();
   if (function_name.length() == 0) function_name = shared->inferred_name();
@@ -414,12 +431,6 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   }
 }
 
-MaybeHandle<Code> SharedFunctionInfo::TryGetCachedCode(Isolate* isolate) {
-  if (!may_have_cached_code()) return {};
-  Handle<SharedFunctionInfo> zis(*this, isolate);
-  return isolate->compilation_cache()->LookupCode(zis);
-}
-
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
 
@@ -439,9 +450,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
   DCHECK(!shared_info->name_or_scope_info(kAcquireLoad).IsScopeInfo());
 
@@ -597,12 +608,14 @@ int SharedFunctionInfo::StartPosition() const {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
     return 0;
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
     WasmInstanceObject instance = wasm_exported_function_data().instance();
     int func_index = wasm_exported_function_data().function_index();
     auto& function = instance.module()->functions[func_index];
     return static_cast<int>(function.code.offset());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return kNoSourcePosition;
 }
 
@@ -622,12 +635,14 @@ int SharedFunctionInfo::EndPosition() const {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
     return 0;
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
     WasmInstanceObject instance = wasm_exported_function_data().instance();
     int func_index = wasm_exported_function_data().function_index();
     auto& function = instance.module()->functions[func_index];
     return static_cast<int>(function.code.end_offset());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return kNoSourcePosition;
 }
 

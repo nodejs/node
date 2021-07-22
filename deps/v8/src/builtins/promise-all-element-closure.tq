@@ -60,7 +60,7 @@ struct PromiseAllSettledWrapResultAsRejectedFunctor {
   }
 }
 
-extern macro LoadJSReceiverIdentityHash(Object): intptr labels IfNoHash;
+extern macro LoadJSReceiverIdentityHash(JSReceiver): intptr labels IfNoHash;
 
 type PromiseAllResolveElementContext extends FunctionContext;
 extern enum PromiseAllResolveElementContextSlots extends intptr

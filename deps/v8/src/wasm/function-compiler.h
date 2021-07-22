@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_FUNCTION_COMPILER_H_
 #define V8_WASM_FUNCTION_COMPILER_H_
 
@@ -123,8 +127,10 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
                                  AllowGeneric allow_generic);
   ~JSToWasmWrapperCompilationUnit();
 
+  Isolate* isolate() const { return isolate_; }
+
   void Execute();
-  Handle<Code> Finalize(Isolate* isolate);
+  Handle<Code> Finalize();
 
   bool is_import() const { return is_import_; }
   const FunctionSig* sig() const { return sig_; }
@@ -142,6 +148,11 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
                                                      const WasmModule* module);
 
  private:
+  // Wrapper compilation is bound to an isolate. Concurrent accesses to the
+  // isolate (during the "Execute" phase) must be audited carefully, i.e. we
+  // should only access immutable information (like the root table). The isolate
+  // is guaranteed to be alive when this unit executes.
+  Isolate* isolate_;
   bool is_import_;
   const FunctionSig* sig_;
   bool use_generic_wrapper_;

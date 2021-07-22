@@ -78,13 +78,14 @@ HeapObjectReference HeapObjectReference::From(Object object,
 }
 
 // static
-HeapObjectReference HeapObjectReference::ClearedValue(IsolateRoot isolate) {
+HeapObjectReference HeapObjectReference::ClearedValue(
+    PtrComprCageBase cage_base) {
   // Construct cleared weak ref value.
 #ifdef V8_COMPRESS_POINTERS
   // This is necessary to make pointer decompression computation also
   // suitable for cleared weak references.
   Address raw_value =
-      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
+      DecompressTaggedPointer(cage_base, kClearedWeakHeapObjectLower32);
 #else
   Address raw_value = kClearedWeakHeapObjectLower32;
 #endif

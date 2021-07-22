@@ -6,11 +6,12 @@
 
 let codeKinds = [
     "UNKNOWN",
-    "CPPPARSE",
-    "CPPCOMPBC",
-    "CPPCOMP",
-    "CPPGC",
-    "CPPEXT",
+    "CPP_PARSE",
+    "CPP_COMP_BC",
+    "CPP_COMP_BASELINE",
+    "CPP_COMP",
+    "CPP_GC",
+    "CPP_EXT",
     "CPP",
     "LIB",
     "IC",
@@ -18,10 +19,10 @@ let codeKinds = [
     "STUB",
     "BUILTIN",
     "REGEXP",
-    "JSOPT",
-    "JSUNOPT",
-    "JSNCI",
-    "JSTURBOPROP"
+    "JS_OPT",
+    "JS_UNOPT",
+    "JS_TURBOPROP",
+    "JS_BASELINE",
 ];
 
 function resolveCodeKind(code) {
@@ -52,15 +53,15 @@ function resolveCodeKind(code) {
     return "CODE";
   } else if (code.type === "JS") {
     if (code.kind === "Builtin") {
-      return "JSUNOPT";
+      return "JS_UNOPT";
     } else if (code.kind === "Opt") {
-      return "JSOPT";
+      return "JS_OPT";
     } else if (code.kind === "Unopt") {
-      return "JSUNOPT";
-    } else if (code.kind === "NCI") {
-      return "JSNCI";
+      return "JS_UNOPT";
+    } else if (code.kind === "Baseline") {
+      return "JS_BASELINE";
     } else if (code.kind === "Turboprop") {
-      return "JSTURBOPROP";
+      return "JS_TURBOPROP";
     }
   }
   console.log("Unknown code type '" + type + "'.");
@@ -70,16 +71,17 @@ function resolveCodeKindAndVmState(code, vmState) {
   let kind = resolveCodeKind(code);
   if (kind === "CPP") {
     if (vmState === 1) {
-      kind = "CPPGC";
+      kind = "CPP_GC";
     } else if (vmState === 2) {
-      kind = "CPPPARSE";
+      kind = "CPP_PARSE";
     } else if (vmState === 3) {
-      kind = "CPPCOMPBC";
+      kind = "CPP_COMP_BC";
     } else if (vmState === 4) {
-      kind = "CPPCOMP";
+      kind = "CPP_COMP";
     } else if (vmState === 6) {
-      kind = "CPPEXT";
+      kind = "CPP_EXT";
     }
+    // TODO(cbruni): add CPP_COMP_BASELINE
   }
   return kind;
 }
@@ -269,19 +271,20 @@ function buildCategoryTreeAndLookup() {
     }
     root.children.push(n);
   }
-  addCategory("JS Optimized", [ "JSOPT" ]);
-  addCategory("JS NCI", [ "JSNCI" ]);
-  addCategory("JS Turboprop", [ "JSTURBOPROP" ]);
-  addCategory("JS Unoptimized", [ "JSUNOPT", "BC" ]);
+  addCategory("JS Optimized", [ "JS_OPT" ]);
+  addCategory("JS Turboprop", [ "JS_TURBOPROP" ]);
+  addCategory("JS Baseline", [ "JS_BASELINE" ]);
+  addCategory("JS Unoptimized", [ "JS_UNOPT", "BC" ]);
   addCategory("IC", [ "IC" ]);
   addCategory("RegExp", [ "REGEXP" ]);
   addCategory("Other generated", [ "STUB", "BUILTIN" ]);
   addCategory("C++", [ "CPP", "LIB" ]);
-  addCategory("C++/GC", [ "CPPGC" ]);
-  addCategory("C++/Parser", [ "CPPPARSE" ]);
-  addCategory("C++/Bytecode compiler", [ "CPPCOMPBC" ]);
-  addCategory("C++/Compiler", [ "CPPCOMP" ]);
-  addCategory("C++/External", [ "CPPEXT" ]);
+  addCategory("C++/GC", [ "CPP_GC" ]);
+  addCategory("C++/Parser", [ "CPP_PARSE" ]);
+  addCategory("C++/Bytecode Compiler", [ "CPP_COMP_BC" ]);
+  addCategory("C++/Baseline Compiler", [ "CPP_COMP_BASELINE" ]);
+  addCategory("C++/Compiler", [ "CPP_COMP" ]);
+  addCategory("C++/External", [ "CPP_EXT" ]);
   addCategory("Unknown", [ "UNKNOWN" ]);
 
   return { categories, root };

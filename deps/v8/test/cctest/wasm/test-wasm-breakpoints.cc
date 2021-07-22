@@ -237,7 +237,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     CHECK_EQ(expected.locals.size(), num_locals);
     for (int i = 0; i < num_locals; ++i) {
       WasmValue local_value = debug_info->GetLocalValue(
-          i, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp(), isolate_);
       CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
@@ -245,7 +245,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     CHECK_EQ(expected.stack.size(), stack_depth);
     for (int i = 0; i < stack_depth; ++i) {
       WasmValue stack_value = debug_info->GetStackValue(
-          i, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp(), isolate_);
       CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 
@@ -546,7 +546,6 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   // being used. There was a bug where we were trying to update the "detected"
   // features set, but we were passing a nullptr when compiling with
   // breakpoints.
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 

@@ -464,6 +464,9 @@ void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.push_back(descriptors);
+  } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
+    Handle<NativeContext> context = Handle<NativeContext>::cast(obj);
+    context->AllocateExternalPointerEntries(isolate());
   }
 
   // Check alignment.
@@ -690,7 +693,7 @@ void Deserializer::RelocInfoVisitor::VisitOffHeapTarget(Code host,
   DCHECK(Builtins::IsBuiltinId(builtin_index));
 
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
   Address address = d.InstructionStartOfBuiltin(builtin_index);
   CHECK_NE(kNullAddress, address);
 

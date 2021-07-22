@@ -14,6 +14,8 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
@@ -188,13 +190,24 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 
     case ExecutionTier::kLiftoff:
       // The --wasm-tier-mask-for-testing flag can force functions to be
-      // compiled with TurboFan, see documentation.
+      // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
+      // them to be compiled for debugging, see documentation.
       if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
           func_index_ >= 32 ||
           ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
-        result = ExecuteLiftoffCompilation(wasm_engine->allocator(), env,
-                                           func_body, func_index_,
-                                           for_debugging_, counters, detected);
+        if (V8_LIKELY(func_index_ >= 32 || (FLAG_wasm_debug_mask_for_testing &
+                                            (1 << func_index_)) == 0)) {
+          result = ExecuteLiftoffCompilation(
+              wasm_engine->allocator(), env, func_body, func_index_,
+              for_debugging_, counters, detected);
+        } else {
+          // We don't use the debug side table, we only pass it to cover
+          // different code paths in Liftoff for testing.
+          std::unique_ptr<DebugSideTable> debug_sidetable;
+          result = ExecuteLiftoffCompilation(
+              wasm_engine->allocator(), env, func_body, func_index_,
+              kForDebugging, counters, detected, {}, &debug_sidetable);
+        }
         if (result.succeeded()) break;
       }
 
@@ -293,7 +306,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, WasmEngine* wasm_engine, const FunctionSig* sig,
     const WasmModule* module, bool is_import,
     const WasmFeatures& enabled_features, AllowGeneric allow_generic)
-    : is_import_(is_import),
+    : isolate_(isolate),
+      is_import_(is_import),
       sig_(sig),
       use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
                            !is_import),
@@ -313,19 +327,19 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   Handle<Code> code;
   if (use_generic_wrapper_) {
     code =
-        isolate->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
+        isolate_->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
   } else {
-    CompilationJob::Status status = job_->FinalizeJob(isolate);
+    CompilationJob::Status status = job_->FinalizeJob(isolate_);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
     code = job_->compilation_info()->code();
   }
-  if (!use_generic_wrapper_ && must_record_function_compilation(isolate)) {
+  if (!use_generic_wrapper_ && must_record_function_compilation(isolate_)) {
     RecordWasmHeapStubCompilation(
-        isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
+        isolate_, code, "%s", job_->compilation_info()->GetDebugName().get());
   }
   return code;
 }
@@ -340,7 +354,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
                                       module, is_import, enabled_features,
                                       kAllowGeneric);
   unit.Execute();
-  return unit.Finalize(isolate);
+  return unit.Finalize();
 }
 
 // static
@@ -353,7 +367,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
                                       module, is_import, enabled_features,
                                       kDontAllowGeneric);
   unit.Execute();
-  return unit.Finalize(isolate);
+  return unit.Finalize();
 }
 
 }  // namespace wasm

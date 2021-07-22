@@ -1,4 +1,4 @@
-.TH "NPM\-PROFILE" "1" "June 2021" "" ""
+.TH "NPM\-PROFILE" "1" "July 2021" "" ""
 .SH "NAME"
 \fBnpm-profile\fR \- Change settings on your registry profile
 .SS Synopsis
@@ -105,6 +105,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBparseable\fP

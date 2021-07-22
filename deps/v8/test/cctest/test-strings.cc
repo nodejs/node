@@ -1087,7 +1087,7 @@ TEST(ExternalShortStringAdd) {
       "  var non_one_byte_chars = "
       "'\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1"
       "234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\"
-      "u1234';"  // NOLINT
+      "u1234';"
       "  if (one_byte_chars.length != max_length) return 1;"
       "  if (non_one_byte_chars.length != max_length) return 2;"
       "  var one_byte = Array(max_length + 1);"
@@ -2094,6 +2094,84 @@ TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
   Handle<String> internal = factory->InternalizeString(external);
   CHECK(!external->IsInternalizedString());
   CHECK(internal->IsInternalizedString());
+}
+
+// Show that we cache the data pointer for internal, external and uncached
+// strings with cacheable resources through MakeExternal. One byte version.
+TEST(CheckCachedDataInternalExternalUncachedString) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Due to different size restrictions the string needs to be small but not too
+  // small. One of these restrictions is whether pointer compression is enabled.
+#ifdef V8_COMPRESS_POINTERS
+  const char* raw_small = "small string";
+#elif V8_TARGET_ARCH_32_BIT
+  const char* raw_small = "smol";
+#else
+  const char* raw_small = "smalls";
+#endif  // V8_COMPRESS_POINTERS
+
+  Handle<String> string =
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
+  OneByteResource* resource =
+      new OneByteResource(i::StrDup(raw_small), strlen(raw_small));
+
+  // Check it is external, internalized, and uncached with a cacheable resource.
+  string->MakeExternal(resource);
+  CHECK(string->IsOneByteRepresentation());
+  CHECK(string->IsExternalString());
+  CHECK(string->IsInternalizedString());
+
+  // Check that the external string is uncached, its resource is cacheable, and
+  // that we indeed cached it.
+  Handle<ExternalOneByteString> external_string =
+      Handle<ExternalOneByteString>::cast(string);
+  CHECK(external_string->is_uncached());
+  CHECK(external_string->resource()->IsCacheable());
+  CHECK_NOT_NULL(external_string->resource()->cached_data());
+  CHECK_EQ(external_string->resource()->cached_data(),
+           external_string->resource()->data());
+}
+
+// Show that we cache the data pointer for internal, external and uncached
+// strings with cacheable resources through MakeExternal. One byte version.
+TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Due to different size restrictions the string needs to be small but not too
+  // small. One of these restrictions is whether pointer compression is enabled.
+#ifdef V8_COMPRESS_POINTERS
+  const char* raw_small = "small string";
+#elif V8_TARGET_ARCH_32_BIT
+  const char* raw_small = "smol";
+#else
+  const char* raw_small = "smalls";
+#endif  // V8_COMPRESS_POINTERS
+
+  Handle<String> string =
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
+  Resource* resource =
+      new Resource(AsciiToTwoByteString(raw_small), strlen(raw_small));
+
+  // Check it is external, internalized, and uncached with a cacheable resource.
+  string->MakeExternal(resource);
+  CHECK(string->IsTwoByteRepresentation());
+  CHECK(string->IsExternalString());
+  CHECK(string->IsInternalizedString());
+
+  // Check that the external string is uncached, its resource is cacheable, and
+  // that we indeed cached it.
+  Handle<ExternalTwoByteString> external_string =
+      Handle<ExternalTwoByteString>::cast(string);
+  CHECK(external_string->is_uncached());
+  CHECK(external_string->resource()->IsCacheable());
+  CHECK_NOT_NULL(external_string->resource()->cached_data());
+  CHECK_EQ(external_string->resource()->cached_data(),
+           external_string->resource()->data());
 }
 
 }  // namespace test_strings

@@ -35,11 +35,19 @@ using cppgc::internal::HeapObjectHeader;
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   explicit EmbedderNode(const char* name, size_t size)
-      : name_(name), size_(size) {}
+      : name_(name), size_(size) {
+    USE(size_);
+  }
   ~EmbedderNode() override = default;
 
   const char* Name() final { return name_; }
-  size_t SizeInBytes() final { return size_; }
+  size_t SizeInBytes() final {
+#if CPPGC_SUPPORTS_OBJECT_NAMES
+    return size_;
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+    return 0;
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+  }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     wrapper_node_ = wrapper_node;
@@ -374,7 +382,7 @@ class CppGraphBuilderImpl final {
   EmbedderNode* AddNode(const HeapObjectHeader& header) {
     return static_cast<EmbedderNode*>(
         graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
-            new EmbedderNode(header.GetName().value, header.GetSize())}));
+            new EmbedderNode(header.GetName().value, header.AllocatedSize())}));
   }
 
   void AddEdge(State& parent, const HeapObjectHeader& header) {
@@ -410,7 +418,7 @@ class CppGraphBuilderImpl final {
 
       if (HasEmbedderDataBackref(
               reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
-              v8_value, parent.header()->Payload())) {
+              v8_value, parent.header()->ObjectStart())) {
         parent.get_node()->SetWrapperNode(v8_node);
 
         auto* profiler =
@@ -504,7 +512,7 @@ class VisiblityVisitor final : public JSVisitor {
   void Visit(const void*, cppgc::TraceDescriptor desc) final {
     graph_builder_.VisitForVisibility(
         &parent_scope_.ParentAsRegularState(),
-        HeapObjectHeader::FromPayload(desc.base_object_payload));
+        HeapObjectHeader::FromObject(desc.base_object_payload));
   }
   void VisitRoot(const void*, cppgc::TraceDescriptor,
                  const cppgc::SourceLocation&) final {}
@@ -548,13 +556,13 @@ class GraphBuildingVisitor final : public JSVisitor {
   void Visit(const void*, cppgc::TraceDescriptor desc) final {
     graph_builder_.AddEdge(
         parent_scope_.ParentAsRegularState(),
-        HeapObjectHeader::FromPayload(desc.base_object_payload));
+        HeapObjectHeader::FromObject(desc.base_object_payload));
   }
   void VisitRoot(const void*, cppgc::TraceDescriptor desc,
                  const cppgc::SourceLocation& loc) final {
     graph_builder_.VisitRootForGraphBuilding(
         parent_scope_.ParentAsRootState(),
-        HeapObjectHeader::FromPayload(desc.base_object_payload), loc);
+        HeapObjectHeader::FromObject(desc.base_object_payload), loc);
   }
   void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
                      const void*, const cppgc::SourceLocation&) final {}
@@ -696,6 +704,7 @@ void CppGraphBuilderImpl::Run() {
     ParentScope parent_scope(
         states_.CreateRootState(AddRootNode("C++ cross-thread roots")));
     GraphBuildingVisitor object_visitor(*this, parent_scope);
+    cppgc::internal::PersistentRegionLock guard;
     cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
   }
 }

@@ -6,14 +6,16 @@
 #include "src/deoptimizer/deoptimizer.h"
 
 extern "C" {
-void Builtins_InterpreterEnterBytecodeAdvance();
-void Builtins_InterpreterEnterBytecodeDispatch();
+void Builtins_InterpreterEnterAtBytecode();
+void Builtins_InterpreterEnterAtNextBytecode();
 void Builtins_ContinueToCodeStubBuiltinWithResult();
 void Builtins_ContinueToCodeStubBuiltin();
 void Builtins_ContinueToJavaScriptBuiltinWithResult();
 void Builtins_ContinueToJavaScriptBuiltin();
 void construct_stub_create_deopt_addr();
 void construct_stub_invoke_deopt_addr();
+void Builtins_BaselineEnterAtBytecode();
+void Builtins_BaselineEnterAtNextBytecode();
 typedef void (*function_ptr)();
 }
 
@@ -22,14 +24,16 @@ namespace internal {
 
 // List of allowed builtin addresses that we can return to in the deoptimizer.
 constexpr function_ptr builtins[] = {
-    &Builtins_InterpreterEnterBytecodeAdvance,
-    &Builtins_InterpreterEnterBytecodeDispatch,
+    &Builtins_InterpreterEnterAtBytecode,
+    &Builtins_InterpreterEnterAtNextBytecode,
     &Builtins_ContinueToCodeStubBuiltinWithResult,
     &Builtins_ContinueToCodeStubBuiltin,
     &Builtins_ContinueToJavaScriptBuiltinWithResult,
     &Builtins_ContinueToJavaScriptBuiltin,
     &construct_stub_create_deopt_addr,
     &construct_stub_invoke_deopt_addr,
+    &Builtins_BaselineEnterAtBytecode,
+    &Builtins_BaselineEnterAtNextBytecode,
 };
 
 bool Deoptimizer::IsValidReturnAddress(Address address) {

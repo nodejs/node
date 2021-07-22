@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <map>
 
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -18,7 +20,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
-#include "src/sanitizer/asan.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/utils/utils.h"
@@ -382,7 +383,7 @@ namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
   int field_count = jsobject.GetEmbedderFieldCount();
-  IsolateRoot isolate = GetIsolateForPtrCompr(jsobject);
+  Isolate* isolate = GetIsolateForHeapSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
@@ -1252,18 +1253,21 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
   if (!FLAG_reclaim_unmodified_wrappers) return;
 
-  LocalEmbedderHeapTracer* const tracer =
-      isolate()->heap()->local_embedder_heap_tracer();
+  // Treat all objects as roots during incremental marking to avoid corrupting
+  // marking worklists.
+  if (isolate()->heap()->incremental_marking()->IsMarking()) return;
+
+  auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
     if (node->IsInUse()) {
       DCHECK(node->is_root());
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
         if (node->has_destructor()) {
-          node->set_root(tracer->IsRootForNonTracingGC(
+          node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
         } else {
-          node->set_root(tracer->IsRootForNonTracingGC(
+          node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
         }
       }
@@ -1337,8 +1341,7 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
 
   if (!FLAG_reclaim_unmodified_wrappers) return;
 
-  LocalEmbedderHeapTracer* const tracer =
-      isolate()->heap()->local_embedder_heap_tracer();
+  auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
@@ -1353,7 +1356,7 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
           node->ResetPhantomHandle(HandleHolder::kLive);
         } else {
           v8::Value* value = ToApi<v8::Value>(node->handle());
-          tracer->ResetHandleInNonTracingGC(
+          handler->ResetRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
           DCHECK(!node->IsInUse());
         }

@@ -11,4 +11,5 @@ jobs:
     steps:
       - uses: nodejs/node-pr-labeler@v1
         with:
+          repo-token: ${{ secrets.GH_USER_TOKEN }}
           configuration-path: .github/label-pr-config.yml

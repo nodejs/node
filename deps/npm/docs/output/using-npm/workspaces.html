@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#installing-workspaces">Installing workspaces</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#defining-workspaces">Defining workspaces</a></li><li><a href="#getting-started-with-workspaces">Getting started with workspaces</a></li><li><a href="#adding-dependencies-to-a-workspace">Adding dependencies to a workspace</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -157,7 +157,7 @@ order to add references to packages that should be symlinked into the current
 single <strong>workspace</strong>, meaning it’s a nested package within the current local
 file system that is explicitly defined in the <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a>
 <code>workspaces</code> configuration.</p>
-<h3 id="installing-workspaces">Installing workspaces</h3>
+<h3 id="defining-workspaces">Defining workspaces</h3>
 <p>Workspaces are usually defined via the <code>workspaces</code> property of the
 <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a> file, e.g:</p>
 <pre lang="json"><code>{
@@ -168,8 +168,8 @@ file system that is explicitly defined in the <a href="../configuring-npm/packag
 }
 </code></pre>
 <p>Given the above <code>package.json</code> example living at a current working
-directory <code>.</code> that contains a folder named <code>workspace-a</code> that disposes
-of a <code>package.json</code> inside it, defining a nodejs package, e.g:</p>
+directory <code>.</code> that contains a folder named <code>workspace-a</code> that itself contains
+a <code>package.json</code> inside it, defining a Node.js package, e.g:</p>
 <pre><code>.
 +-- package.json
 `-- workspace-a
@@ -188,6 +188,35 @@ structure of files and folders:</p>
 `-- workspace-a
    `-- package.json
 </code></pre>
+<h3 id="getting-started-with-workspaces">Getting started with workspaces</h3>
+<p>You may automate the required steps to define a new workspace using
+<a href="../commands/npm-init.html">npm init</a>. For example in a project that already has a
+<code>package.json</code> defined you can run:</p>
+<pre><code>npm init -w ./packages/a
+</code></pre>
+<p>This command will create the missing folders and a new <code>package.json</code>
+file (if needed) while also making sure to properly configure the
+<code>"workspaces"</code> property of your root project <code>package.json</code>.</p>
+<h3 id="adding-dependencies-to-a-workspace">Adding dependencies to a workspace</h3>
+<p>It’s possible to directly add/remove/update dependencies of your workspaces
+using the <a href="../using-npm/config#workspace.html"><code>workspace</code> config</a>.</p>
+<p>For example, assuming the following structure:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- b
+       `-- package.json
+</code></pre>
+<p>If you want to add a dependency named <code>abbrev</code> from the registry as a
+dependency of your workspace <strong>a</strong>, you may use the workspace config to tell
+the npm installer that package should be added as a dependency of the provided
+workspace:</p>
+<pre><code>npm install abbrev -w a
+</code></pre>
+<p>Note: other installing commands such as <code>uninstall</code>, <code>ci</code>, etc will also
+respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
 <p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it’s possible to consume any defined workspace
 by it’s declared <code>package.json</code> <code>name</code>. Continuing from the example defined
@@ -240,6 +269,7 @@ configured workspaces. e.g:</p>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>
+<li><a href="../using-npm/config.html">config</a></li>
 </ul>
 </div>
 

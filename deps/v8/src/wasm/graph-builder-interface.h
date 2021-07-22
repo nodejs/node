@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_GRAPH_BUILDER_INTERFACE_H_
 #define V8_WASM_GRAPH_BUILDER_INTERFACE_H_
 
 #include "src/wasm/decoder.h"
-#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -15,6 +18,7 @@ namespace internal {
 namespace compiler {  // external declarations from compiler.
 class NodeOriginTable;
 class WasmGraphBuilder;
+struct WasmLoopInfo;
 }  // namespace compiler
 
 namespace wasm {
@@ -27,7 +31,8 @@ V8_EXPORT_PRIVATE DecodeResult
 BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
              const WasmModule* module, compiler::WasmGraphBuilder* builder,
              WasmFeatures* detected, const FunctionBody& body,
-             compiler::NodeOriginTable* node_origins);
+             std::vector<compiler::WasmLoopInfo>* loop_infos,
+             compiler::NodeOriginTable* node_origins, int func_index);
 
 }  // namespace wasm
 }  // namespace internal

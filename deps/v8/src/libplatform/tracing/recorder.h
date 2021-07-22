@@ -9,6 +9,23 @@
 
 #include "include/libplatform/v8-tracing.h"
 
+#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#error "only include this file if V8_ENABLE_SYSTEM_INSTRUMENTATION"
+#endif
+
+#if V8_OS_MACOSX
+#include <os/signpost.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
+
+#if V8_OS_WIN
+#ifndef V8_ETW_GUID
+#define V8_ETW_GUID \
+  0x57277741, 0x3638, 0x4A4B, 0xBD, 0xBA, 0x0A, 0xC6, 0xE4, 0x5D, 0xA5, 0x6C
+#endif
+#endif
+
 namespace v8 {
 namespace platform {
 namespace tracing {
@@ -19,7 +36,7 @@ namespace tracing {
 // the --enable-system-instrumentation command line flag. When enabled, it is
 // called from within SystemInstrumentationTraceWriter and replaces the
 // JSONTraceWriter for event-tracing.
-class Recorder {
+class V8_PLATFORM_EXPORT Recorder {
  public:
   Recorder();
   ~Recorder();
@@ -28,10 +45,19 @@ class Recorder {
   bool IsEnabled(const uint8_t level);
 
   void AddEvent(TraceObject* trace_event);
+
+ private:
+#if V8_OS_MACOSX
+  os_log_t v8Provider;
+#endif
 };
 
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8
+
+#if V8_OS_MACOSX
+#pragma clang diagnostic pop
+#endif
 
 #endif  // V8_LIBPLATFORM_TRACING_RECORDER_H_

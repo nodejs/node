@@ -349,7 +349,7 @@ class AndroidMkWriter:
             for output in outputs[1:]:
                 # Make each output depend on the main output, with an empty command
                 # to force make to notice that the mtime has changed.
-                self.WriteLn("{}: {} ;".format(self.LocalPathify(output), main_output))
+                self.WriteLn(f"{self.LocalPathify(output)}: {main_output} ;")
 
             extra_outputs += outputs
             self.WriteLn()
@@ -616,7 +616,7 @@ class AndroidMkWriter:
             if IsCPPExtension(ext) and ext != local_cpp_extension:
                 local_file = root + local_cpp_extension
             if local_file != source:
-                self.WriteLn("{}: {}".format(local_file, self.LocalPathify(source)))
+                self.WriteLn(f"{local_file}: {self.LocalPathify(source)}")
                 self.WriteLn("\tmkdir -p $(@D); cp $< $@")
                 origin_src_dirs.append(os.path.dirname(source))
             final_generated_sources.append(local_file)
@@ -908,7 +908,7 @@ class AndroidMkWriter:
                 if isinstance(v, list):
                     self.WriteList(v, k)
                 else:
-                    self.WriteLn("{} := {}".format(k, make.QuoteIfNecessary(v)))
+                    self.WriteLn(f"{k} := {make.QuoteIfNecessary(v)}")
             self.WriteLn("")
 
         # Add to the set of targets which represent the gyp 'all' target. We use the

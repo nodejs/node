@@ -33,6 +33,7 @@ class CI extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
     return [
+      'audit',
       'ignore-scripts',
       'script-shell',
     ]
@@ -55,7 +56,7 @@ class CI extends ArboristWorkspaceCmd {
       path: where,
       log: this.npm.log,
       save: false, // npm ci should never modify the lockfile or package.json
-      workspaces: this.workspaces,
+      workspaces: this.workspaceNames,
     }
 
     const arb = new Arborist(opts)

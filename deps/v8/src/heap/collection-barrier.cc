@@ -6,24 +6,36 @@
 
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 
 namespace v8 {
 namespace internal {
 
-void CollectionBarrier::ResumeThreadsAwaitingCollection() {
-  base::MutexGuard guard(&mutex_);
-  ClearCollectionRequested();
-  cond_.NotifyAll();
+bool CollectionBarrier::CollectionRequested() {
+  return main_thread_state_relaxed() == LocalHeap::kCollectionRequested;
 }
 
-void CollectionBarrier::ShutdownRequested() {
+LocalHeap::ThreadState CollectionBarrier::main_thread_state_relaxed() {
+  LocalHeap* main_thread_local_heap = heap_->main_thread_local_heap();
+  return main_thread_local_heap->state_relaxed();
+}
+
+void CollectionBarrier::NotifyShutdownRequested() {
   base::MutexGuard guard(&mutex_);
   if (timer_.IsStarted()) timer_.Stop();
-  state_.store(RequestState::kShutdown);
-  cond_.NotifyAll();
+  shutdown_requested_ = true;
+  cv_wakeup_.NotifyAll();
+}
+
+void CollectionBarrier::ResumeThreadsAwaitingCollection() {
+  base::MutexGuard guard(&mutex_);
+  cv_wakeup_.NotifyAll();
 }
 
 class BackgroundCollectionInterruptTask : public CancelableTask {
@@ -44,30 +56,29 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
   Heap* heap_;
 };
 
-void CollectionBarrier::AwaitCollectionBackground() {
-  bool first;
+bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
+  ParkedScope scope(local_heap);
+  base::MutexGuard guard(&mutex_);
 
-  {
-    base::MutexGuard guard(&mutex_);
-    first = FirstCollectionRequest();
-    if (first) timer_.Start();
+  while (CollectionRequested()) {
+    if (shutdown_requested_) return false;
+    cv_wakeup_.Wait(&mutex_);
   }
 
-  if (first) {
-    // This is the first background thread requesting collection, ask the main
-    // thread for GC.
-    ActivateStackGuardAndPostTask();
-  }
-
-  BlockUntilCollected();
+  return true;
 }
 
 void CollectionBarrier::StopTimeToCollectionTimer() {
-  base::MutexGuard guard(&mutex_);
-  RequestState old_state = state_.exchange(RequestState::kCollectionStarted,
-                                           std::memory_order_relaxed);
-  if (old_state == RequestState::kCollectionRequested) {
-    DCHECK(timer_.IsStarted());
+  LocalHeap::ThreadState main_thread_state = main_thread_state_relaxed();
+  CHECK(main_thread_state == LocalHeap::kRunning ||
+        main_thread_state == LocalHeap::kCollectionRequested);
+
+  if (main_thread_state == LocalHeap::kCollectionRequested) {
+    base::MutexGuard guard(&mutex_);
+    // The first background thread that requests the GC, starts the timer first
+    // and only then parks itself. Since we are in a safepoint here, the timer
+    // is therefore always initialized here already.
+    CHECK(timer_.IsStarted());
     base::TimeDelta delta = timer_.Elapsed();
     TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                          "V8.GC.TimeToCollectionOnBackground",
@@ -78,9 +89,6 @@ void CollectionBarrier::StopTimeToCollectionTimer() {
         ->gc_time_to_collection_on_background()
         ->AddTimedSample(delta);
     timer_.Stop();
-  } else {
-    DCHECK_EQ(old_state, RequestState::kDefault);
-    DCHECK(!timer_.IsStarted());
   }
 }
 
@@ -88,20 +96,15 @@ void CollectionBarrier::ActivateStackGuardAndPostTask() {
   Isolate* isolate = heap_->isolate();
   ExecutionAccess access(isolate);
   isolate->stack_guard()->RequestGC();
+
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
       reinterpret_cast<v8::Isolate*>(isolate));
   taskrunner->PostTask(
       std::make_unique<BackgroundCollectionInterruptTask>(heap_));
-}
 
-void CollectionBarrier::BlockUntilCollected() {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_COLLECTION,
-            ThreadKind::kBackground);
   base::MutexGuard guard(&mutex_);
-
-  while (CollectionRequested()) {
-    cond_.Wait(&mutex_);
-  }
+  CHECK(!timer_.IsStarted());
+  timer_.Start();
 }
 
 }  // namespace internal

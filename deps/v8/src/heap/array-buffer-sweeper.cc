@@ -101,30 +101,25 @@ void ArrayBufferSweeper::EnsureFinished() {
       UNREACHABLE();
   }
 
-  DecrementExternalMemoryCounters();
+  UpdateCountersForConcurrentlySweptExtensions();
   sweeping_in_progress_ = false;
 }
 
-void ArrayBufferSweeper::AdjustCountersAndMergeIfPossible() {
+void ArrayBufferSweeper::MergeBackExtensionsWhenSwept() {
   if (sweeping_in_progress_) {
     DCHECK(job_.has_value());
     if (job_->state_ == SweepingState::kDone) {
       Merge();
       sweeping_in_progress_ = false;
     } else {
-      DecrementExternalMemoryCounters();
+      UpdateCountersForConcurrentlySweptExtensions();
     }
   }
 }
 
-void ArrayBufferSweeper::DecrementExternalMemoryCounters() {
+void ArrayBufferSweeper::UpdateCountersForConcurrentlySweptExtensions() {
   size_t freed_bytes = freed_bytes_.exchange(0, std::memory_order_relaxed);
-
-  if (freed_bytes > 0) {
-    heap_->DecrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kArrayBuffer, freed_bytes);
-    heap_->update_external_memory(-static_cast<int64_t>(freed_bytes));
-  }
+  DecrementExternalMemoryCounters(freed_bytes);
 }
 
 void ArrayBufferSweeper::RequestSweepYoung() {
@@ -166,7 +161,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
     Prepare(scope);
     job_->Sweep();
     Merge();
-    DecrementExternalMemoryCounters();
+    UpdateCountersForConcurrentlySweptExtensions();
   }
 }
 
@@ -228,16 +223,50 @@ void ArrayBufferSweeper::Append(JSArrayBuffer object,
     old_bytes_ += bytes;
   }
 
-  AdjustCountersAndMergeIfPossible();
-  DecrementExternalMemoryCounters();
+  MergeBackExtensionsWhenSwept();
   IncrementExternalMemoryCounters(bytes);
 }
 
+void ArrayBufferSweeper::Detach(JSArrayBuffer object,
+                                ArrayBufferExtension* extension) {
+  size_t bytes = extension->ClearAccountingLength();
+
+  // We cannot free the extension eagerly here, since extensions are tracked in
+  // a singly linked list. The next GC will remove it automatically.
+
+  if (!sweeping_in_progress_) {
+    // If concurrent sweeping isn't running at the moment, we can also adjust
+    // young_bytes_ or old_bytes_ right away.
+    if (Heap::InYoungGeneration(object)) {
+      DCHECK_GE(young_bytes_, bytes);
+      young_bytes_ -= bytes;
+      young_.bytes_ -= bytes;
+    } else {
+      DCHECK_GE(old_bytes_, bytes);
+      old_bytes_ -= bytes;
+      old_.bytes_ -= bytes;
+    }
+  }
+
+  MergeBackExtensionsWhenSwept();
+  DecrementExternalMemoryCounters(bytes);
+}
+
 void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
+  if (bytes == 0) return;
   heap_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, bytes);
   reinterpret_cast<v8::Isolate*>(heap_->isolate())
       ->AdjustAmountOfExternalAllocatedMemory(static_cast<int64_t>(bytes));
+}
+
+void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
+  if (bytes == 0) return;
+  heap_->DecrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kArrayBuffer, bytes);
+  // Unlike IncrementExternalMemoryCounters we don't use
+  // AdjustAmountOfExternalAllocatedMemory such that we never start a GC here.
+  heap_->update_external_memory(-static_cast<int64_t>(bytes));
 }
 
 void ArrayBufferSweeper::IncrementFreedBytes(size_t bytes) {

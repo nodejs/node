@@ -114,21 +114,18 @@ static void RunInt32AddTest(TestExecutionTier execution_tier, const byte* code,
 }
 
 WASM_EXEC_TEST(Int32Add_P2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block1) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), kExprBr, DEPTH_0),
       kExprI32Add};
@@ -136,7 +133,6 @@ WASM_EXEC_TEST(Int32Add_block2) {
 }
 
 WASM_EXEC_TEST(Int32Add_multi_if) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_IF_ELSE_X(1, WASM_LOCAL_GET(0),
                      WASM_SEQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
@@ -2425,18 +2421,47 @@ WASM_EXEC_TEST(Regular_Factorial) {
   }
 }
 
+namespace {
+// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+class IsolateScope {
+ public:
+  IsolateScope() {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    isolate_ = v8::Isolate::New(create_params);
+    isolate_->Enter();
+  }
+
+  ~IsolateScope() {
+    isolate_->Exit();
+    isolate_->Dispose();
+  }
+
+  v8::Isolate* isolate() { return isolate_; }
+  Isolate* i_isolate() { return reinterpret_cast<Isolate*>(isolate_); }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // namespace
+
 // Tail-recursive variation on factorial:
 // fact(N) => f(N,1).
 //
 // f(N,X) where N=<1 => X
 // f(N,X) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_Factorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
@@ -2464,12 +2489,17 @@ WASM_EXEC_TEST(ReturnCall_Factorial) {
 // g(X,0) => X.
 // g(X,N) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
   WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
@@ -2506,12 +2536,17 @@ WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 // f(N,X,_) where N=<1 => X
 // f(N,X,F) => F(N-1,X*N,F).
 
-WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   TestSignatures sigs;
 
@@ -2550,12 +2585,17 @@ WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 // sum(N,k) where N<1 =>k.
 // sum(N,k) => sum(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
@@ -2587,12 +2627,17 @@ WASM_EXEC_TEST(ReturnCall_Sum) {
 // b3(N,_,_,k) where N<1 =>k.
 // b3(N,_,_,k) => b1(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");
@@ -2741,7 +2786,6 @@ WASM_EXEC_TEST(AddCall) {
 }
 
 WASM_EXEC_TEST(MultiReturnSub) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
 
   ValueType storage[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32};
@@ -2763,7 +2807,6 @@ WASM_EXEC_TEST(MultiReturnSub) {
 
 template <typename T>
 void RunMultiReturnSelect(TestExecutionTier execution_tier, const T* inputs) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType type = ValueType::For(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;
@@ -3083,6 +3126,46 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
   CHECK_TRAP(r.Call(5));
 }
 
+WASM_EXEC_TEST(Regress_PushReturns) {
+  ValueType kSigTypes[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(12, 0, kSigTypes);
+  WasmRunner<int32_t> r(execution_tier);
+
+  WasmFunctionCompiler& f1 = r.NewFunction(&sig);
+  BUILD(f1, WASM_I32V(1), WASM_I32V(2), WASM_I32V(3), WASM_I32V(4),
+        WASM_I32V(5), WASM_I32V(6), WASM_I32V(7), WASM_I32V(8), WASM_I32V(9),
+        WASM_I32V(10), WASM_I32V(11), WASM_I32V(12));
+
+  BUILD(r, WASM_CALL_FUNCTION0(f1.function_index()), WASM_DROP, WASM_DROP,
+        WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+        WASM_DROP, WASM_DROP, WASM_DROP);
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_EXEC_TEST(Regress_EnsureArguments) {
+  ValueType kSigTypes[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(0, 12, kSigTypes);
+  WasmRunner<int32_t> r(execution_tier);
+
+  WasmFunctionCompiler& f2 = r.NewFunction(&sig);
+  BUILD(f2, kExprReturn);
+
+  BUILD(r, WASM_I32V(42), kExprReturn,
+        WASM_CALL_FUNCTION(f2.function_index(), WASM_I32V(1)));
+  CHECK_EQ(42, r.Call());
+}
+
+WASM_EXEC_TEST(Regress_PushControl) {
+  WasmRunner<int32_t> r(execution_tier);
+  BUILD(r, WASM_I32V(42),
+        WASM_IF(WASM_I32V(0), WASM_UNREACHABLE, kExprIf, kVoidCode, kExprEnd));
+  CHECK_EQ(42, r.Call());
+}
+
 WASM_EXEC_TEST(F32Floor) {
   WasmRunner<float, float> r(execution_tier);
   BUILD(r, WASM_F32_FLOOR(WASM_LOCAL_GET(0)));
@@ -3341,7 +3424,7 @@ static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; ++num_params) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
+    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);
@@ -3813,12 +3896,23 @@ TEST(Liftoff_tier_up) {
 }
 
 TEST(Regression_1085507) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   TestSignatures sigs;
   uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());
   BUILD(r, WASM_I32V_1(0), kExprIf, kVoidCode, WASM_UNREACHABLE,
         WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd, WASM_I32V_1(0));
+}
+
+TEST(Regression_1185323_1185492) {
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+  BUILD(r, WASM_I32V_1(0),
+        // Use a long leb128 encoding of kExprTableSize instruction.
+        // This exercises a bug in the interpreter which tries to read the
+        // immediate at pc+2 (it should be pc+4).
+        kNumericPrefix, 0x90, 0x80, 0x00, 0x00,  // table.size 0.
+        WASM_UNREACHABLE, kExprTableSet, 0x00);  // Hits a DCHECK if reached.
+  r.Call();
 }
 
 #undef B1

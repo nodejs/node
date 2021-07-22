@@ -4,9 +4,6 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (common.hasOpenSSL3)
-  common.skip('temporarily skipping for OpenSSL 3.0-alpha15');
-
 const assert = require('assert');
 const { types: { isKeyObject } } = require('util');
 const {
@@ -308,7 +305,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => {
     createPrivateKey({ key: '' });
   }, common.hasOpenSSL3 ? {
-    message: 'Failed to read private key',
+    message: 'error:1E08010C:DECODER routines::unsupported',
   } : {
     message: 'error:0909006C:PEM routines:get_name:no start line',
     code: 'ERR_OSSL_PEM_NO_START_LINE',
@@ -522,8 +519,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // Reading an encrypted key without a passphrase should fail.
   assert.throws(() => createPrivateKey(privateDsa), common.hasOpenSSL3 ? {
     name: 'Error',
-    message: 'error:07880109:common libcrypto routines::interrupted or ' +
-             'cancelled',
+    message: 'error:1E08010C:DECODER routines::unsupported',
   } : {
     name: 'TypeError',
     code: 'ERR_MISSING_PASSPHRASE',
@@ -549,7 +545,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     passphrase: Buffer.alloc(1024, 'a')
   }), {
     message: common.hasOpenSSL3 ?
-      'error:07880109:common libcrypto routines::interrupted or cancelled' :
+      'error:1E08010C:DECODER routines::unsupported' :
       /bad decrypt/
   });
 

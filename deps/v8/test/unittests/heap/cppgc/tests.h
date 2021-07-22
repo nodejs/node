@@ -76,10 +76,20 @@ class TestWithHeap : public TestWithPlatform {
         "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
+  void ConservativeGC() {
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kMayContainHeapPointers);
+  }
+
   cppgc::Heap* GetHeap() const { return heap_.get(); }
 
   cppgc::AllocationHandle& GetAllocationHandle() const {
     return allocation_handle_;
+  }
+
+  cppgc::HeapHandle& GetHeapHandle() const {
+    return GetHeap()->GetHeapHandle();
   }
 
   std::unique_ptr<MarkerBase>& GetMarkerRef() {
@@ -100,7 +110,7 @@ class TestWithHeap : public TestWithPlatform {
 // Restrictive test fixture that supports allocation but will make sure no
 // garbage collection is triggered. This is useful for writing idiomatic
 // tests where object are allocated on the managed heap while still avoiding
-// far reaching test consquences of full garbage collection calls.
+// far reaching test consequences of full garbage collection calls.
 class TestSupportingAllocationOnly : public TestWithHeap {
  protected:
   TestSupportingAllocationOnly();

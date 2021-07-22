@@ -148,7 +148,7 @@ bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader* header) {
   DCHECK_NOT_NULL(current_space_stats_);
   DCHECK_NOT_NULL(current_page_stats_);
   if (header->IsFree()) return true;
-  size_t object_size = header->GetSize();
+  size_t object_size = header->AllocatedSize();
   RecordObjectType(current_space_stats_, header, object_size);
   current_page_stats_->used_size_bytes += object_size;
   return true;

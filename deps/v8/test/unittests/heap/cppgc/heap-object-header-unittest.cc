@@ -21,7 +21,7 @@ TEST(HeapObjectHeaderTest, Constructor) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
-  EXPECT_EQ(kSize, header.GetSize());
+  EXPECT_EQ(kSize, header.AllocatedSize());
   EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex());
   EXPECT_TRUE(header.IsInConstruction());
   EXPECT_FALSE(header.IsMarked());
@@ -32,7 +32,15 @@ TEST(HeapObjectHeaderTest, Payload) {
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(reinterpret_cast<ConstAddress>(&header) + sizeof(HeapObjectHeader),
-            header.Payload());
+            header.ObjectStart());
+}
+
+TEST(HeapObjectHeaderTest, PayloadEnd) {
+  constexpr GCInfoIndex kGCInfoIndex = 17;
+  constexpr size_t kSize = kAllocationGranularity;
+  HeapObjectHeader header(kSize, kGCInfoIndex);
+  EXPECT_EQ(reinterpret_cast<ConstAddress>(&header) + kSize,
+            header.ObjectEnd());
 }
 
 TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
@@ -43,12 +51,12 @@ TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
   EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex<AccessMode::kAtomic>());
 }
 
-TEST(HeapObjectHeaderTest, GetSize) {
+TEST(HeapObjectHeaderTest, AllocatedSize) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity * 23;
   HeapObjectHeader header(kSize, kGCInfoIndex);
-  EXPECT_EQ(kSize, header.GetSize());
-  EXPECT_EQ(kSize, header.GetSize<AccessMode::kAtomic>());
+  EXPECT_EQ(kSize, header.AllocatedSize());
+  EXPECT_EQ(kSize, header.AllocatedSize<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, IsLargeObject) {
@@ -71,7 +79,7 @@ TEST(HeapObjectHeaderTest, MarkObjectAsFullyConstructed) {
   EXPECT_FALSE(header.IsInConstruction());
   // Size shares the same bitfield and should be unaffected by
   // MarkObjectAsFullyConstructed.
-  EXPECT_EQ(kSize, header.GetSize());
+  EXPECT_EQ(kSize, header.AllocatedSize());
 }
 
 TEST(HeapObjectHeaderTest, TryMark) {
@@ -148,10 +156,10 @@ TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
       ~kAllocationMask;
   typename std::aligned_storage<kSize, kAllocationGranularity>::type data;
   HeapObjectHeader* header = new (&data) HeapObjectHeader(kSize, 1);
-  ConcurrentGCThread gc_thread(header,
-                               reinterpret_cast<Payload*>(header->Payload()));
+  ConcurrentGCThread gc_thread(
+      header, reinterpret_cast<Payload*>(header->ObjectStart()));
   CHECK(gc_thread.Start());
-  new (header->Payload()) Payload();
+  new (header->ObjectStart()) Payload();
   header->MarkAsFullyConstructed();
   gc_thread.Join();
 }

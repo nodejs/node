@@ -5,7 +5,7 @@
 #include "test/unittests/codegen/code-stub-assembler-unittest.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
@@ -13,7 +13,6 @@
 #include "test/unittests/compiler/node-test-utils.h"
 
 using ::testing::_;
-using v8::internal::compiler::Node;
 
 namespace c = v8::internal::compiler;
 

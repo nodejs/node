@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
@@ -80,9 +81,10 @@ v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver,
-    bool treat_global_objects_as_roots) {
+    bool treat_global_objects_as_roots, bool capture_numeric_value) {
   is_taking_snapshot_ = true;
-  HeapSnapshot* result = new HeapSnapshot(this, treat_global_objects_as_roots);
+  HeapSnapshot* result = new HeapSnapshot(this, treat_global_objects_as_roots,
+                                          capture_numeric_value);
   {
     HeapSnapshotGenerator generator(result, control, resolver, heap());
     if (!generator.GenerateSnapshot()) {

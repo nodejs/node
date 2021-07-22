@@ -125,11 +125,17 @@
         let v1 = b.value;
         maybe_sideeffect(b);
         let v2 = b.value;
-        %TurbofanStaticAssert(Object.is(v1, v2));
-        %TurbofanStaticAssert(Object.is(v2, k));
+        if (!%IsDictPropertyConstTrackingEnabled()) {
+          // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
+          // b has a dictionary mode prototype and the load elimination doesn't
+          // work, yet.
+          %TurbofanStaticAssert(Object.is(v1, v2));
+          %TurbofanStaticAssert(Object.is(v2, k));
+        }
     }
 
-    %EnsureFeedbackVectorForFunction(B);
+    %PrepareFunctionForOptimization(B);
+
     %PrepareFunctionForOptimization(inst_param);
     inst_param(1); inst_param(2);
     %OptimizeFunctionOnNextCall(inst_param); inst_param(3);
@@ -151,11 +157,15 @@
         let v1 = b.value;
         maybe_sideeffect(b);
         let v2 = b.value;
-        %TurbofanStaticAssert(Object.is(v1, v2));
-        %TurbofanStaticAssert(Object.is(v2, kk));
+        if (!%IsDictPropertyConstTrackingEnabled()) {
+          // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
+          // b has a dictionary mode prototype and the load elimination doesn't
+          // work, yet.
+          %TurbofanStaticAssert(Object.is(v1, v2));
+          %TurbofanStaticAssert(Object.is(v2, kk));
+        }
     }
 
-    %EnsureFeedbackVectorForFunction(B);
     %PrepareFunctionForOptimization(inst_computed);
     inst_computed(1); inst_computed(2);
     %OptimizeFunctionOnNextCall(inst_computed); inst_computed(3);

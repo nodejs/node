@@ -285,6 +285,11 @@ void GenerateFieldValueAccessor(const Field& field,
   cc_contents << "  d::MemoryAccessResult validity = accessor("
               << address_getter << "()" << index_offset
               << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+#ifdef V8_MAP_PACKING
+  if (field_getter == "GetMapValue") {
+    cc_contents << "  value = i::MapWord::Unpack(value);\n";
+  }
+#endif
   cc_contents << "  return {validity, "
               << (debug_field_type.IsTagged()
                       ? "EnsureDecompressed(value, address_)"
@@ -545,19 +550,18 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     h_contents
         << "\n#include \"tools/debug_helper/debug-helper-internal.h\"\n\n";
 
-    h_contents << "// Unset a windgi.h macro that causes conflicts.\n";
-    h_contents << "#ifdef GetBValue\n";
-    h_contents << "#undef GetBValue\n";
-    h_contents << "#endif\n\n";
+    const char* kWingdiWorkaround =
+        "// Unset a wingdi.h macro that causes conflicts.\n"
+        "#ifdef GetBValue\n"
+        "#undef GetBValue\n"
+        "#endif\n\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
-    }
-    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-    cc_contents << "#include \"torque-generated/"
-                << "debug-macros"
-                << ".h\"\n";
-    cc_contents << "#include \"include/v8-internal.h\"\n\n";
+    h_contents << kWingdiWorkaround;
+
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n\n";
+    cc_contents << "#include \"src/objects/all-objects-inl.h\"\n";
+    cc_contents << "#include \"torque-generated/debug-macros.h\"\n\n";
+    cc_contents << kWingdiWorkaround;
     cc_contents << "namespace i = v8::internal;\n\n";
 
     NamespaceScope h_namespaces(h_contents,

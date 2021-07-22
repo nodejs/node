@@ -50,6 +50,7 @@ Protocol.Debugger.onPaused(async msg => {
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
+    await Protocol.Runtime.enable();
     await Protocol.Debugger.enable();
     InspectorTest.log('Instantiating.');
     // Spawn asynchronously:

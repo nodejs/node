@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   DCHECK(is_activated_);
   DCHECK(!marking_state_.IsImpossible(value));
   // Host may have an impossible markbit pattern if manual allocation folding
@@ -27,8 +28,14 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     // visits the host object.
     return false;
   }
-  if (WhiteToGreyAndPush(value) && is_main_thread_barrier_) {
-    incremental_marking_->RestartIfNotMarking();
+  if (WhiteToGreyAndPush(value)) {
+    if (is_main_thread_barrier_) {
+      incremental_marking_->RestartIfNotMarking();
+    }
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
+    }
   }
   return true;
 }

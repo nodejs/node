@@ -1,5 +1,5 @@
 const t = require('tap')
-const mockNpm = require('../fixtures/mock-npm')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const fs = require('fs')
 
 // The way we set loglevel is kind of convoluted, and there is no way to affect
@@ -761,4 +761,104 @@ t.test('private workspaces', (t) => {
   })
 
   t.end()
+})
+
+t.test('runs correct lifecycle scripts', t => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+      scripts: {
+        prepublishOnly: 'echo test prepublishOnly',
+        prepublish: 'echo test prepublish', // should NOT run this one
+        publish: 'echo test publish',
+        postpublish: 'echo test postpublish',
+      },
+    }, null, 2),
+  })
+
+  const scripts = []
+  const Publish = t.mock('../../lib/publish.js', {
+    '@npmcli/run-script': (args) => {
+      scripts.push(args)
+    },
+    '../../lib/utils/tar.js': {
+      getContents: () => ({
+        id: 'someid',
+      }),
+      logTar: () => {
+        t.pass('logTar is called')
+      },
+    },
+    libnpmpublish: {
+      publish: () => {
+        t.pass('publish called')
+      },
+    },
+  })
+  const npm = mockNpm({
+    output: () => {
+      t.pass('output is called')
+    },
+  })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
+  publish.exec([testDir], (er) => {
+    if (er)
+      throw er
+    t.same(
+      scripts.map(s => s.event),
+      ['prepublishOnly', 'publish', 'postpublish'],
+      'runs only expected scripts, in order'
+    )
+    t.end()
+  })
+})
+
+t.test('does not run scripts on --ignore-scripts', t => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+    }, null, 2),
+  })
+
+  const Publish = t.mock('../../lib/publish.js', {
+    '@npmcli/run-script': () => {
+      t.fail('should not call run-script')
+    },
+    '../../lib/utils/tar.js': {
+      getContents: () => ({
+        id: 'someid',
+      }),
+      logTar: () => {
+        t.pass('logTar is called')
+      },
+    },
+    libnpmpublish: {
+      publish: () => {
+        t.pass('publish called')
+      },
+    },
+  })
+  const npm = mockNpm({
+    config: { 'ignore-scripts': true },
+    output: () => {
+      t.pass('output is called')
+    },
+  })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
+  publish.exec([testDir], (er) => {
+    if (er)
+      throw er
+    t.pass('got to callback')
+    t.end()
+  })
 })

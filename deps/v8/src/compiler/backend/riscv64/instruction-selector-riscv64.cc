@@ -459,6 +459,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -533,6 +534,7 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -878,6 +880,22 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   VisitRRR(this, kRiscvMul32, node);
 }
 
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitRRR(this, kRiscvMulHigh32, node);
 }
@@ -1198,7 +1216,9 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
     // Generate sign-extending load.
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     InstructionCode opcode = kArchNop;
@@ -1226,7 +1246,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
-  if (node->opcode() == IrOpcode::kLoad) {
+  if (node->opcode() == IrOpcode::kLoad ||
+      node->opcode() == IrOpcode::kLoadImmutable) {
     LoadRepresentation load_rep = LoadRepresentationOf(node->op());
     if (load_rep.IsUnsigned()) {
       switch (load_rep.representation()) {
@@ -1500,7 +1521,7 @@ void InstructionSelector::EmitPrepareArguments(
       ++slot;
     }
   } else {
-    int push_count = static_cast<int>(call_descriptor->StackParameterCount());
+    int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
     if (push_count > 0) {
       // Calculate needed space
       int stack_size = 0;
@@ -1582,6 +1603,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1635,6 +1657,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1862,8 +1885,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
 void EmitWordCompareZero(InstructionSelector* selector, Node* value,
                          FlagsContinuation* cont) {
   RiscvOperandGenerator g(selector);
-  selector->EmitWithContinuation(kRiscvCmp, g.UseRegister(value),
-                                 g.TempImmediate(0), cont);
+  selector->EmitWithContinuation(kRiscvCmpZero, g.UseRegister(value), cont);
 }
 
 void VisitAtomicLoad(InstructionSelector* selector, Node* node,
@@ -2589,8 +2611,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Trunc, kRiscvF64x2Trunc)                           \
   V(F64x2NearestInt, kRiscvF64x2NearestInt)                 \
   V(I64x2Neg, kRiscvI64x2Neg)                               \
+  V(I64x2Abs, kRiscvI64x2Abs)                               \
   V(I64x2BitMask, kRiscvI64x2BitMask)                       \
   V(I64x2Eq, kRiscvI64x2Eq)                                 \
+  V(I64x2Ne, kRiscvI64x2Ne)                                 \
+  V(I64x2GtS, kRiscvI64x2GtS)                               \
+  V(I64x2GeS, kRiscvI64x2GeS)                               \
   V(F32x4SConvertI32x4, kRiscvF32x4SConvertI32x4)           \
   V(F32x4UConvertI32x4, kRiscvF32x4UConvertI32x4)           \
   V(F32x4Abs, kRiscvF32x4Abs)                               \
@@ -2631,9 +2657,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Popcnt, kRiscvI8x16Popcnt)                         \
   V(S128Not, kRiscvS128Not)                                 \
   V(V128AnyTrue, kRiscvV128AnyTrue)                         \
-  V(V32x4AllTrue, kRiscvV32x4AllTrue)                       \
-  V(V16x8AllTrue, kRiscvV16x8AllTrue)                       \
-  V(V8x16AllTrue, kRiscvV8x16AllTrue)
+  V(I32x4AllTrue, kRiscvI32x4AllTrue)                       \
+  V(I16x8AllTrue, kRiscvI16x8AllTrue)                       \
+  V(I8x16AllTrue, kRiscvI8x16AllTrue)                       \
+  V(I64x2AllTrue, kRiscvI64x2AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -2664,7 +2691,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Sub, kRiscvI64x2Sub)                           \
   V(I64x2Mul, kRiscvI64x2Mul)                           \
   V(F32x4Add, kRiscvF32x4Add)                           \
-  V(F32x4AddHoriz, kRiscvF32x4AddHoriz)                 \
   V(F32x4Sub, kRiscvF32x4Sub)                           \
   V(F32x4Mul, kRiscvF32x4Mul)                           \
   V(F32x4Div, kRiscvF32x4Div)                           \
@@ -2675,7 +2701,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Lt, kRiscvF32x4Lt)                             \
   V(F32x4Le, kRiscvF32x4Le)                             \
   V(I32x4Add, kRiscvI32x4Add)                           \
-  V(I32x4AddHoriz, kRiscvI32x4AddHoriz)                 \
   V(I32x4Sub, kRiscvI32x4Sub)                           \
   V(I32x4Mul, kRiscvI32x4Mul)                           \
   V(I32x4MaxS, kRiscvI32x4MaxS)                         \
@@ -2692,7 +2717,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8Add, kRiscvI16x8Add)                           \
   V(I16x8AddSatS, kRiscvI16x8AddSatS)                   \
   V(I16x8AddSatU, kRiscvI16x8AddSatU)                   \
-  V(I16x8AddHoriz, kRiscvI16x8AddHoriz)                 \
   V(I16x8Sub, kRiscvI16x8Sub)                           \
   V(I16x8SubSatS, kRiscvI16x8SubSatS)                   \
   V(I16x8SubSatU, kRiscvI16x8SubSatU)                   \
@@ -2717,7 +2741,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Sub, kRiscvI8x16Sub)                           \
   V(I8x16SubSatS, kRiscvI8x16SubSatS)                   \
   V(I8x16SubSatU, kRiscvI8x16SubSatU)                   \
-  V(I8x16Mul, kRiscvI8x16Mul)                           \
   V(I8x16MaxS, kRiscvI8x16MaxS)                         \
   V(I8x16MinS, kRiscvI8x16MinS)                         \
   V(I8x16MaxU, kRiscvI8x16MaxU)                         \
@@ -2997,6 +3020,12 @@ VISIT_EXT_MUL(I32x4, I16x8U)
 VISIT_EXT_MUL(I16x8, I8x16S)
 VISIT_EXT_MUL(I16x8, I8x16U)
 #undef VISIT_EXT_MUL
+
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
 
 // static
 MachineOperatorBuilder::Flags

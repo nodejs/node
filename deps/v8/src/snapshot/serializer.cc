@@ -98,9 +98,9 @@ void Serializer::OutputStatistics(const char* name) {
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
+#endif  // OBJECT_PRINT
 
   PrintF("\n");
-#endif  // OBJECT_PRINT
 }
 
 void Serializer::SerializeDeferredObjects() {
@@ -1003,11 +1003,12 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
 
-  Code target = InstructionStream::TryLookupCode(isolate(), addr);
-  CHECK(Builtins::IsIsolateIndependentBuiltin(target));
+  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate(), addr);
+  CHECK(Builtins::IsBuiltinId(builtin));
+  CHECK(Builtins::IsIsolateIndependent(builtin));
 
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
-  sink_->PutInt(target.builtin_index(), "builtin index");
+  sink_->PutInt(builtin, "builtin index");
 }
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code host,

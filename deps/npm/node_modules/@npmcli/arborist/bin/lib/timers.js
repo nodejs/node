@@ -1,5 +1,6 @@
 const timers = Object.create(null)
 const { format } = require('util')
+const options = require('./options.js')
 
 process.on('time', name => {
   if (timers[name])
@@ -15,7 +16,8 @@ process.on('timeEnd', name => {
   const res = process.hrtime(timers[name])
   delete timers[name]
   const msg = format(`${process.pid} ${name}`, res[0] * 1e3 + res[1] / 1e6)
-  console.error(dim(msg))
+  if (options.timers !== false)
+    console.error(dim(msg))
 })
 
 process.on('exit', () => {

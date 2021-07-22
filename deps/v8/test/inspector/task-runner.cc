@@ -8,8 +8,8 @@
 #include "src/flags/flags.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>  // NOLINT
-#endif               // !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif  // !defined(_WIN32) && !defined(_WIN64)
 
 namespace v8 {
 namespace internal {
@@ -53,7 +53,7 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
   CHECK(Start());
 }
 
-TaskRunner::~TaskRunner() { Join(); }
+TaskRunner::~TaskRunner() {}
 
 void TaskRunner::Run() {
   data_.reset(new IsolateData(this, std::move(setup_global_tasks_),

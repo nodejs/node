@@ -70,7 +70,6 @@
 
   # https://crbug.com/v8/8141
   'debug/debug-liveedit-1': [SKIP],
-  'debug/debug-liveedit-double-call': [SKIP],
   'debug/es6/debug-liveedit-new-target-3': [SKIP],
   'debug/side-effect/debug-evaluate-no-side-effect-control': [SKIP],
 }],  # 'gc_stress == True'
@@ -126,8 +125,6 @@
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug/debug-liveedit-check-stack': [SKIP],
-  'debug/debug-liveedit-double-call': [SKIP],
-  'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
@@ -153,9 +150,27 @@
   'debug/wasm/*': [SKIP],
 }],
 
+##############################################################################
+# Tests requiring Sparkplug.
+['arch not in (x64, arm64, ia32, arm)', {
+  'regress/regress-crbug-1199681': [SKIP],
+}],
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['third_party_heap', {
+  # Requires --concurrent_recompilation
+  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
+  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
+  'regress/regress-7421': [SKIP],
+  # Requires a second isolate
+  'debug/debug-step': [SKIP],
+  'debug/deserialize-script-id': [SKIP],
+  'regress/regress-crbug-507070': [SKIP],
+}], # third_party_heap
 
 ]

@@ -1,4 +1,4 @@
-.TH "NPM\-VIEW" "1" "June 2021" "" ""
+.TH "NPM\-VIEW" "1" "July 2021" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SS Synopsis
@@ -55,7 +55,7 @@ npm view opts@$(npm view ronn dependencies\.opts)
 .P
 For fields that are arrays, requesting a non\-numeric field will return
 all of the values from the objects in the list\. For example, to get all
-the contributor names for the \fBexpress\fP package, you would run:
+the contributor email addresses for the \fBexpress\fP package, you would run:
 .P
 .RS 2
 .nf
@@ -124,6 +124,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBworkspace\fP

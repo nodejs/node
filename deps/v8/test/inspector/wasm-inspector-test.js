@@ -7,9 +7,12 @@ utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 WasmInspectorTest = {}
 InspectorTest.getWasmOpcodeName = getOpcodeName;
 
-WasmInspectorTest.evalWithUrl = async function(code, url) {
+WasmInspectorTest.evalWithUrl = async function(expression, url) {
+  const sourceURL = `v8://test/${url}`;
+  const {result: {scriptId}} = await Protocol.Runtime.compileScript({
+    expression, sourceURL, persistScript: true}).then(printIfFailure);
   return await Protocol.Runtime
-      .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
+      .runScript({scriptId})
       .then(printIfFailure);
 };
 
@@ -36,9 +39,10 @@ WasmInspectorTest.compile = async function(bytes, module_name = 'module') {
 };
 
 WasmInspectorTest.instantiate =
-    async function(bytes, instance_name = 'instance') {
+    async function(bytes, instance_name = 'instance', imports) {
   const instantiate_code = `var ${instance_name} = (${
-      WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(bytes)});`;
+      WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(bytes)},
+        ${imports});`;
   await WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
 };
 
@@ -51,12 +55,13 @@ WasmInspectorTest.dumpScopeProperties = async function(message) {
 };
 
 WasmInspectorTest.getWasmValue = async function(value) {
-  let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
+  let msg = await Protocol.Runtime.getProperties({ objectId: value.objectId });
   printIfFailure(msg);
   const value_type = msg.result.result.find(({name}) => name === 'type');
   const value_value = msg.result.result.find(({name}) => name === 'value');
   return `${
       value_value.value.unserializableValue ??
+      value_value.value.description ??
       value_value.value.value} (${value_type.value.value})`;
 };
 

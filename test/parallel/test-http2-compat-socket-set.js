@@ -26,9 +26,9 @@ server.on('request', common.mustCall(function(request, response) {
   assert.strictEqual(request.stream.destroyed, true);
   request.socket.destroyed = false;
 
-  assert.strictEqual(request.stream.readable, false);
-  request.socket.readable = true;
   assert.strictEqual(request.stream.readable, true);
+  request.socket.readable = false;
+  assert.strictEqual(request.stream.readable, false);
 
   assert.strictEqual(request.stream.writable, true);
   request.socket.writable = false;

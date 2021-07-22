@@ -165,7 +165,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (param_count > Code::kMaxArguments) return 0;
 
   size_t return_count = input.NumNonZeroBytes(param_count + 1, kNumTypes);
-  if (return_count > wasm::kV8MaxWasmFunctionMultiReturns) return 0;
+  if (return_count > wasm::kV8MaxWasmFunctionReturns) return 0;
 
   CallDescriptor* desc =
       CreateRandomCallDescriptor(&zone, return_count, param_count, &input);

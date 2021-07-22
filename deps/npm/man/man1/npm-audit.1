@@ -1,4 +1,4 @@
-.TH "NPM\-AUDIT" "1" "June 2021" "" ""
+.TH "NPM\-AUDIT" "1" "July 2021" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SS Synopsis
@@ -263,6 +263,8 @@ Allow unpublishing all versions of a published package\.
 Allow conflicting peerDependencies to be installed in the root project\.
 .IP \(bu 2
 Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
+.IP \(bu 2
+Allow clobbering existing values in \fBnpm pkg\fP
 
 .RE
 .P
@@ -278,6 +280,12 @@ Type: Boolean
 .RE
 .P
 Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
 .P
 Not supported by all npm commands\.
 .SS \fBpackage\-lock\-only\fP
@@ -289,8 +297,14 @@ Type: Boolean
 
 .RE
 .P
-If set to true, it will update only the \fBpackage\-lock\.json\fP, instead of
-checking \fBnode_modules\fP and downloading dependencies\.
+If set to true, the current operation will only use the \fBpackage\-lock\.json\fP,
+ignoring \fBnode_modules\fP\|\.
+.P
+For \fBupdate\fP this means only the \fBpackage\-lock\.json\fP will be updated,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
+.P
+For \fBlist\fP this means the output will be based on the tree described by the
+\fBpackage\-lock\.json\fP, rather than the contents of \fBnode_modules\fP\|\.
 .SS \fBomit\fP
 .RS 0
 .IP \(bu 2

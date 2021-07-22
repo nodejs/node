@@ -32,7 +32,6 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
@@ -531,17 +530,19 @@ class CompilationStateImpl {
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        std::shared_ptr<Counters> async_counters);
   ~CompilationStateImpl() {
-    DCHECK(compile_job_->IsValid());
-    compile_job_->CancelAndDetach();
+    if (compile_job_->IsValid()) compile_job_->CancelAndDetach();
   }
 
   // Call right after the constructor, after the {compilation_state_} field in
   // the {NativeModule} has been initialized.
   void InitCompileJob(WasmEngine*);
 
-  // Cancel all background compilation, without waiting for compile tasks to
-  // finish.
-  void CancelCompilation();
+  // {kCancelUnconditionally}: Cancel all compilation.
+  // {kCancelInitialCompilation}: Cancel all compilation if initial (baseline)
+  // compilation is not finished yet.
+  enum CancellationPolicy { kCancelUnconditionally, kCancelInitialCompilation };
+  void CancelCompilation(CancellationPolicy);
+
   bool cancelled() const;
 
   // Initialize compilation progress. Set compilation tiers to expect for
@@ -767,7 +768,6 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
   using Feature = v8::Isolate::UseCounterFeature;
   constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
       {kFeature_reftypes, Feature::kWasmRefTypes},
-      {kFeature_mv, Feature::kWasmMultiValue},
       {kFeature_simd, Feature::kWasmSimdOpcodes},
       {kFeature_threads, Feature::kWasmThreadOpcodes},
       {kFeature_eh, Feature::kWasmExceptionHandling}};
@@ -791,7 +791,14 @@ void CompilationState::InitCompileJob(WasmEngine* engine) {
   Impl(this)->InitCompileJob(engine);
 }
 
-void CompilationState::CancelCompilation() { Impl(this)->CancelCompilation(); }
+void CompilationState::CancelCompilation() {
+  Impl(this)->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
+}
+
+void CompilationState::CancelInitialCompilation() {
+  Impl(this)->CancelCompilation(
+      CompilationStateImpl::kCancelInitialCompilation);
+}
 
 void CompilationState::SetError() { Impl(this)->SetError(); }
 
@@ -1152,12 +1159,11 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
 
   if (WasmCode::ShouldBeLogged(isolate)) {
     DisallowGarbageCollection no_gc;
-    Object source_url_obj = module_object->script().source_url();
-    DCHECK(source_url_obj.IsString() || source_url_obj.IsUndefined());
-    std::unique_ptr<char[]> source_url =
-        source_url_obj.IsString() ? String::cast(source_url_obj).ToCString()
-                                  : nullptr;
-    code->LogCode(isolate, source_url.get(), module_object->script().id());
+    Object url_obj = module_object->script().name();
+    DCHECK(url_obj.IsString() || url_obj.IsUndefined());
+    std::unique_ptr<char[]> url =
+        url_obj.IsString() ? String::cast(url_obj).ToCString() : nullptr;
+    code->LogCode(isolate, url.get(), module_object->script().id());
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -1203,16 +1209,25 @@ CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
   std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit = nullptr;
   int num_processed_wrappers = 0;
 
+  OperationsBarrier::Token wrapper_compilation_token;
+  Isolate* isolate;
+
   {
     BackgroundCompileScope compile_scope(native_module);
     if (compile_scope.cancelled()) return kYield;
     wrapper_unit = compile_scope.compilation_state()
                        ->GetNextJSToWasmWrapperCompilationUnit();
     if (!wrapper_unit) return kNoMoreUnits;
+    isolate = wrapper_unit->isolate();
+    wrapper_compilation_token =
+        compile_scope.native_module()->engine()->StartWrapperCompilation(
+            isolate);
+    if (!wrapper_compilation_token) return kNoMoreUnits;
   }
 
   TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
   while (true) {
+    DCHECK_EQ(isolate, wrapper_unit->isolate());
     wrapper_unit->Execute();
     ++num_processed_wrappers;
     bool yield = delegate && delegate->ShouldYield();
@@ -1830,10 +1845,10 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 AsyncCompileJob::~AsyncCompileJob() {
   // Note: This destructor always runs on the foreground thread of the isolate.
   background_task_manager_.CancelAndWait();
-  // If the runtime objects were not created yet, then initial compilation did
-  // not finish yet. In this case we can abort compilation.
-  if (native_module_ && module_object_.is_null()) {
-    Impl(native_module_->compilation_state())->CancelCompilation();
+  // If initial compilation did not finish yet we can abort it.
+  if (native_module_) {
+    Impl(native_module_->compilation_state())
+        ->CancelCompilation(CompilationStateImpl::kCancelInitialCompilation);
   }
   // Tell the streaming decoder that the AsyncCompileJob is not available
   // anymore.
@@ -2460,7 +2475,8 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
   if (job_->native_module_) {
-    Impl(job_->native_module_->compilation_state())->CancelCompilation();
+    Impl(job_->native_module_->compilation_state())
+        ->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
 
     job_->DoSync<AsyncCompileJob::DecodeFail,
                  AsyncCompileJob::kUseExistingForegroundTask>(error);
@@ -2784,13 +2800,22 @@ void CompilationStateImpl::InitCompileJob(WasmEngine* engine) {
                                              async_counters_));
 }
 
-void CompilationStateImpl::CancelCompilation() {
+void CompilationStateImpl::CancelCompilation(
+    CompilationStateImpl::CancellationPolicy cancellation_policy) {
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+
+  if (cancellation_policy == kCancelInitialCompilation &&
+      finished_events_.contains(
+          CompilationEvent::kFinishedBaselineCompilation)) {
+    // Initial compilation already finished; cannot be cancelled.
+    return;
+  }
+
   // std::memory_order_relaxed is sufficient because no other state is
   // synchronized with |compile_cancelled_|.
   compile_cancelled_.store(true, std::memory_order_relaxed);
 
   // No more callbacks after abort.
-  base::MutexGuard callbacks_guard(&callbacks_mutex_);
   callbacks_.clear();
 }
 
@@ -3041,7 +3066,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
                js_to_wasm_wrapper_units_.size());
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
-    Handle<Code> code = unit->Finalize(isolate);
+    DCHECK_EQ(isolate, unit->isolate());
+    Handle<Code> code = unit->Finalize();
     int wrapper_index =
         GetExportWrapperIndex(module, unit->sig(), unit->is_import());
     (*export_wrappers_out)->set(wrapper_index, *code);
@@ -3091,7 +3117,8 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
     DCHECK_NOT_NULL(code);
     DCHECK_LT(code->index(), native_module_->num_functions());
 
-    if (code->index() < native_module_->num_imported_functions()) {
+    if (code->index() <
+        static_cast<int>(native_module_->num_imported_functions())) {
       // Import wrapper.
       DCHECK_EQ(code->tier(), ExecutionTier::kTurbofan);
       outstanding_baseline_units_--;
@@ -3343,6 +3370,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
       return done_->load(std::memory_order_relaxed);
     }
 
+    bool IsJoiningThread() const override { return true; }
+
     void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
 
     uint8_t GetTaskId() override { return kMainTaskId; }
@@ -3448,7 +3477,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   for (auto& pair : compilation_units) {
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
-    Handle<Code> code = unit->Finalize(isolate);
+    DCHECK_EQ(isolate, unit->isolate());
+    Handle<Code> code = unit->Finalize();
     int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
     (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());

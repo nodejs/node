@@ -10,6 +10,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
@@ -29,17 +30,37 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
   return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
+bool FullObjectSlot::contains_map_value(Address raw_value) const {
+  return load_map().ptr() == raw_value;
+}
+
 Object FullObjectSlot::operator*() const { return Object(*location()); }
 
-Object FullObjectSlot::load(IsolateRoot isolate) const { return **this; }
+Object FullObjectSlot::load(PtrComprCageBase cage_base) const { return **this; }
 
 void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
+
+void FullObjectSlot::store_map(Map map) const {
+#ifdef V8_MAP_PACKING
+  *location() = MapWord::Pack(map.ptr());
+#else
+  store(map);
+#endif
+}
+
+Map FullObjectSlot::load_map() const {
+#ifdef V8_MAP_PACKING
+  return Map::unchecked_cast(Object(MapWord::Unpack(*location())));
+#else
+  return Map::unchecked_cast(Object(*location()));
+#endif
+}
 
 Object FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-Object FullObjectSlot::Acquire_Load(IsolateRoot isolate) const {
+Object FullObjectSlot::Acquire_Load(PtrComprCageBase cage_base) const {
   return Acquire_Load();
 }
 
@@ -47,7 +68,7 @@ Object FullObjectSlot::Relaxed_Load() const {
   return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-Object FullObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
+Object FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
   return Relaxed_Load();
 }
 
@@ -79,7 +100,7 @@ MaybeObject FullMaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
 }
 
-MaybeObject FullMaybeObjectSlot::load(IsolateRoot isolate) const {
+MaybeObject FullMaybeObjectSlot::load(PtrComprCageBase cage_base) const {
   return **this;
 }
 
@@ -91,7 +112,8 @@ MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-MaybeObject FullMaybeObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
+MaybeObject FullMaybeObjectSlot::Relaxed_Load(
+    PtrComprCageBase cage_base) const {
   return Relaxed_Load();
 }
 
@@ -113,7 +135,7 @@ HeapObjectReference FullHeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
 }
 
-HeapObjectReference FullHeapObjectSlot::load(IsolateRoot isolate) const {
+HeapObjectReference FullHeapObjectSlot::load(PtrComprCageBase cage_base) const {
   return **this;
 }
 

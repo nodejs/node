@@ -228,11 +228,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
       int capacity, AllocationType allocation);
 
+  Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
+
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);
   HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
   HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
+
+  template <typename StructType>
+  inline StructType NewStructInternal(InstanceType type,
+                                      AllocationType allocation);
+  Struct NewStructInternal(ReadOnlyRoots roots, Map map, int size,
+                           AllocationType allocation);
 
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
@@ -252,6 +260,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
  private:
+  friend class WebSnapshotDeserializer;
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }

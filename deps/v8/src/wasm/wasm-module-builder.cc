@@ -13,7 +13,6 @@
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -301,6 +300,11 @@ uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
   return index;
 }
 
+// static
+const uint32_t WasmModuleBuilder::kNullIndex =
+    std::numeric_limits<uint32_t>::max();
+
+// TODO(9495): Add support for typed function tables and more init. expressions.
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   DCHECK(allocating_indirect_functions_allowed_);
   uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
@@ -310,12 +314,12 @@ uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   }
   uint32_t new_size = static_cast<uint32_t>(indirect_functions_.size()) + count;
   DCHECK(max_table_size_ == 0 || new_size <= max_table_size_);
-  indirect_functions_.resize(new_size, WasmElemSegment::kNullIndex);
+  indirect_functions_.resize(new_size, kNullIndex);
   uint32_t max = max_table_size_ > 0 ? max_table_size_ : new_size;
   if (tables_.empty()) {
     // This cannot use {AddTable} because that would flip the
     // {allocating_indirect_functions_allowed_} flag.
-    tables_.push_back({kWasmFuncRef, new_size, max, true});
+    tables_.push_back({kWasmFuncRef, new_size, max, true, {}});
   } else {
     // There can only be the indirect function table so far, otherwise the
     // {allocating_indirect_functions_allowed_} flag would have been false.
@@ -347,7 +351,7 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size) {
 #if DEBUG
   allocating_indirect_functions_allowed_ = false;
 #endif
-  tables_.push_back({type, min_size, 0, false});
+  tables_.push_back({type, min_size, 0, false, {}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -356,7 +360,16 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
 #if DEBUG
   allocating_indirect_functions_allowed_ = false;
 #endif
-  tables_.push_back({type, min_size, max_size, true});
+  tables_.push_back({type, min_size, max_size, true, {}});
+  return static_cast<uint32_t>(tables_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
+                                     uint32_t max_size, WasmInitExpr init) {
+#if DEBUG
+  allocating_indirect_functions_allowed_ = false;
+#endif
+  tables_.push_back({type, min_size, max_size, true, std::move(init)});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -432,8 +445,8 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   }
 }
 
-void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
-                            ValueType type) {
+void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
+                                ValueType type) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -494,7 +507,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
           break;
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kS128:
         case kBottom:
         case kRef:
@@ -512,7 +525,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       break;
     case WasmInitExpr::kRttSub:
       // The operand to rtt.sub must be emitted first.
-      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
+      WriteInitializerExpression(buffer, *init.operand(), kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
@@ -611,6 +624,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
+      if (table.init.kind() != WasmInitExpr::kNone) {
+        WriteInitializerExpression(buffer, table.init, table.type);
+      }
     }
     FixupSection(buffer, start);
   }
@@ -651,7 +667,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      WriteGlobalInitializer(buffer, global.init, global.type);
+      WriteInitializerExpression(buffer, global.init, global.type);
       buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);
@@ -698,13 +714,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u8(0);              // table index
     uint32_t first_element = 0;
     while (first_element < indirect_functions_.size() &&
-           indirect_functions_[first_element] == WasmElemSegment::kNullIndex) {
+           indirect_functions_[first_element] == kNullIndex) {
       first_element++;
     }
     uint32_t last_element =
         static_cast<uint32_t>(indirect_functions_.size() - 1);
     while (last_element >= first_element &&
-           indirect_functions_[last_element] == WasmElemSegment::kNullIndex) {
+           indirect_functions_[last_element] == kNullIndex) {
       last_element--;
     }
     buffer->write_u8(kExprI32Const);  // offset

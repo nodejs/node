@@ -15,6 +15,8 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/memory.h"
+#include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 
@@ -128,7 +130,7 @@ void MovableReferences::AddOrFilter(MovableReference* slot) {
            interior_movable_references_.find(slot));
   interior_movable_references_.emplace(slot, nullptr);
 #if DEBUG
-  interior_slot_to_object_.emplace(slot, slot_header.Payload());
+  interior_slot_to_object_.emplace(slot, slot_header.ObjectStart());
 #endif  // DEBUG
 }
 
@@ -143,8 +145,8 @@ void MovableReferences::Relocate(Address from, Address to) {
   // find the corresponding slot A.x. Object A may be moved already and the
   // memory may have been freed, which would result in a crash.
   if (!interior_movable_references_.empty()) {
-    const HeapObjectHeader& header = HeapObjectHeader::FromPayload(to);
-    const size_t size = header.GetSize() - sizeof(HeapObjectHeader);
+    const HeapObjectHeader& header = HeapObjectHeader::FromObject(to);
+    const size_t size = header.ObjectSize();
     RelocateInteriorReferences(from, to, size);
   }
 
@@ -274,14 +276,14 @@ class CompactionState final {
     // Return remaining available pages to the free page pool, decommitting
     // them from the pagefile.
     for (NormalPage* page : available_pages_) {
-      SET_MEMORY_INACCESSIBLE(page->PayloadStart(), page->PayloadSize());
+      SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
       NormalPage::Destroy(page);
     }
   }
 
   void FinishCompactingPage(NormalPage* page) {
-#if DEBUG || defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if DEBUG || defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_ADDRESS_SANITIZER)
     // Zap the unused portion, until it is either compacted into or freed.
     if (current_page_ != page) {
       ZapMemory(page->PayloadStart(), page->PayloadSize());
@@ -302,7 +304,7 @@ class CompactionState final {
           current_page_->PayloadSize() - used_bytes_in_current_page_;
       Address payload = current_page_->PayloadStart();
       Address free_start = payload + used_bytes_in_current_page_;
-      SET_MEMORY_INACCESSIBLE(free_start, freed_size);
+      SetMemoryInaccessible(free_start, freed_size);
       space_->free_list().Add({free_start, freed_size});
       current_page_->object_start_bitmap().SetBit(free_start);
     }
@@ -328,7 +330,7 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
        header_address < page->PayloadEnd();) {
     HeapObjectHeader* header =
         reinterpret_cast<HeapObjectHeader*>(header_address);
-    size_t size = header->GetSize();
+    size_t size = header->AllocatedSize();
     DCHECK_GT(size, 0u);
     DCHECK_LT(size, kPageSize);
 
@@ -348,8 +350,8 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
       // As compaction is under way, leave the freed memory accessible
       // while compacting the rest of the page. We just zap the payload
       // to catch out other finalizers trying to access it.
-#if DEBUG || defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if DEBUG || defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_ADDRESS_SANITIZER)
       ZapMemory(header, size);
 #endif
       header_address += size;
@@ -370,6 +372,10 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
 void CompactSpace(NormalPageSpace* space,
                   MovableReferences& movable_references) {
   using Pages = NormalPageSpace::Pages;
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+  UnmarkedObjectsPoisoner().Traverse(space);
+#endif  // V8_USE_ADDRESS_SANITIZER
 
   DCHECK(space->is_compactable());
 
@@ -465,7 +471,6 @@ void Compactor::InitializeIfShouldCompact(
   compaction_worklists_ = std::make_unique<CompactionWorklists>();
 
   is_enabled_ = true;
-  enable_for_next_gc_for_testing_ = false;
 }
 
 bool Compactor::CancelIfShouldNotCompact(
@@ -501,8 +506,14 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
     CompactSpace(space, movable_references);
   }
 
+  enable_for_next_gc_for_testing_ = false;
   is_enabled_ = false;
   return CompactableSpaceHandling::kIgnore;
+}
+
+void Compactor::EnableForNextGCForTesting() {
+  DCHECK_NULL(heap_.heap()->marker());
+  enable_for_next_gc_for_testing_ = true;
 }
 
 }  // namespace internal

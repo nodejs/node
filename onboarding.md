@@ -1,6 +1,6 @@
 # Onboarding
 
-This document is an outline of the things we tell new Collaborators at their
+This document is an outline of the things we tell new collaborators at their
 onboarding session.
 
 ## One week before the onboarding session
@@ -18,7 +18,7 @@ onboarding session.
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
-  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
+  [the collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 * Ask them if they want to join any subsystem teams. See
   [Who to CC in the issue tracker][who-to-cc].
 
@@ -26,17 +26,17 @@ onboarding session.
 
 * This session will cover:
   * [local setup](#local-setup)
-  * [project goals & values](#project-goals--values)
+  * [project goals and values](#project-goals-and-values)
   * [managing the issue tracker](#managing-the-issue-tracker)
-  * [reviewing PRs](#reviewing-prs)
-  * [landing PRs](#landing-prs)
+  * [reviewing pull requests](#reviewing-pull-requests)
+  * [landing pull requests](#landing-pull-requests)
 
 ## Local setup
 
 * git:
   * Make sure you have whitespace=fix: `git config --global --add
     apply.whitespace fix`
-  * Always continue to PR from your own GitHub fork
+  * Always create a branch in your own GitHub fork for pull requests
     * Branches in the `nodejs/node` repository are only for release lines
   * Add the canonical nodejs repository as `upstream` remote:
     * `git remote add upstream git://github.com/nodejs/node.git`
@@ -44,29 +44,23 @@ onboarding session.
     * `git checkout master`
     * `git remote update -p` OR `git fetch --all`
     * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
-  * Make a new branch for each PR you submit.
+  * Make a new branch for each pull request you submit.
   * Membership: Consider making your membership in the Node.js GitHub
-    organization public. This makes it easier to identify Collaborators.
+    organization public. This makes it easier to identify collaborators.
     Instructions on how to do that are available at
     [Publicizing or hiding organization membership][].
 
 * Notifications:
   * Use [https://github.com/notifications](https://github.com/notifications) or
     set up email
-  * Watching the main repo will flood your inbox (several hundred notifications
-    on typical weekdays), so be prepared
+  * Watching the main repository will flood your inbox (several hundred
+    notifications on typical weekdays), so be prepared
 
 The project has two venues for real-time discussion:
 * [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
   the [OpenJS Foundation](https://slack-invite.openjsf.org/)
-* `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is a
-  great place to interact with the TSC and other Collaborators
-  * If there are any questions after the session, a good place to ask is
-    there!
-  * Presence is not mandatory, but please drop a note there if force-pushing
-    to `master`
 
-## Project goals & values
+## Project goals and values
 
 * Collaborators are the collective owners of the project
   * The project has the goals of its contributors
@@ -83,11 +77,11 @@ The project has two venues for real-time discussion:
 ## Managing the issue tracker
 
 * You have (mostly) free rein; don't hesitate to close an issue if you are
-  confident that it should be closed
-  * Be nice about closing issues! Let people know why, and that issues and PRs
-    can be reopened if necessary
+  confident that it should be closed.
+  * Be nice about closing issues! Let people know why, and that issues and pull
+    requests can be reopened if necessary.
 
-* [**See "Labels"**](./doc/guides/onboarding-extras.md#labels)
+* See [Labels][].
   * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that
     applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`)
     so that we know what parts of the code base the pull request modifies. It is
@@ -98,7 +92,7 @@ The project has two venues for real-time discussion:
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the [`author-ready`][] label for PRs, if applicable.
+  * Please add the [`author-ready`][] label for pull requests, if applicable.
 
 * See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
@@ -107,16 +101,16 @@ The project has two venues for real-time discussion:
     * Some are WGs with some process around adding people, others are only there
       for notifications
 
-* When a discussion gets heated, you can request that other Collaborators keep
+* When a discussion gets heated, you can request that other collaborators keep
   an eye on it by opening an issue at the private
   [nodejs/moderation](https://github.com/nodejs/moderation) repository.
   * This is a repository to which all members of the `nodejs` GitHub
-    organization (not just Collaborators on Node.js core) have access. Its
+    organization (not just collaborators on Node.js core) have access. Its
     contents should not be shared externally.
   * You can find the full moderation policy
     [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
 
-## Reviewing PRs
+## Reviewing pull requests
 
 * The primary goal is for the codebase to improve.
 * Secondary (but not far off) is for the person submitting code to succeed. A
@@ -153,7 +147,7 @@ The project has two venues for real-time discussion:
     * If you see that the requested changes have been made, you can clear
       another collaborator's `Changes requested` review.
     * Use `Changes requested` to indicate that you are considering some of your
-      comments to block the PR from landing.
+      comments to block the pull request from landing.
 
 * What belongs in Node.js:
   * Opinions vary – it’s good to have a broad collaborator base for that reason!
@@ -185,23 +179,20 @@ The project has two venues for real-time discussion:
       `7006` in the `PR_ID`.
     * The remaining elements on the form are typically unchanged.
   * If you need help with something CI-related:
-    * Use #node-dev (IRC) to talk to other Collaborators.
-    * Use #node-build (IRC) to talk to the Build WG members who maintain the CI
-      infrastructure.
-    * Use the [Build WG repo](https://github.com/nodejs/build) to file issues
-      for the Build WG members who maintain the CI infrastructure.
+    * Use the [Build WG repository](https://github.com/nodejs/build) to file
+      issues for the Build WG members who maintain the CI infrastructure.
 
-## Landing PRs
+## Landing pull requests
 
-See the Collaborator Guide: [Landing Pull Requests][].
+See the Collaborator Guide: [Landing pull requests][].
 
-Commits in one PR that belong to one logical change should
+Commits in one pull request that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
 needs to be pointed out separately during the onboarding.
 
 <!-- TODO(joyeechueng): provide examples about "one logical change" -->
 
-## Exercise: Make a PR adding yourself to the README
+## Exercise: Make a pull request adding yourself to the README
 
 * Example:
   <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
@@ -213,13 +204,15 @@ needs to be pointed out separately during the onboarding.
   so that when the commit lands, the nomination issue url will be
   automatically closed.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
-  labels.
-* Run CI on the PR. Use the `node-test-pull-request` CI task.
+  labels. The `fast-track` label should cause the Node.js GitHub bot to post a
+  comment in the pull request asking collaborators to approve the pull request
+  by leaving a 👍 reaction on the comment.
+* Run CI on the pull request. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
-* Leave a comment in the PR: `Please 👍 this comment to approve fast-tracking`.
 * If there are not enough approvals within a reasonable time, consider the
-  single approval of the onboarding TSC member sufficient, and land the PR.
+  single approval of the onboarding TSC member sufficient, and land the pull
+  request.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
   * [`node-core-utils`][] automates the generation of metadata and the landing
@@ -233,7 +226,7 @@ needs to be pointed out separately during the onboarding.
 * Don't worry about making mistakes: everybody makes them, there's a lot to
   internalize and that takes time (and we recognize that!)
 * Almost any mistake you could make can be fixed or reverted.
-* The existing Collaborators trust you and are grateful for your help!
+* The existing collaborators trust you and are grateful for your help!
 * Other repositories:
   * [https://github.com/nodejs/TSC](https://github.com/nodejs/TSC)
   * [https://github.com/nodejs/build](https://github.com/nodejs/build)
@@ -248,7 +241,8 @@ needs to be pointed out separately during the onboarding.
   the [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
-[Landing Pull Requests]: doc/guides/collaborator-guide.md#landing-pull-requests
+[Labels]: doc/guides/collaborator-guide.md#labels
+[Landing pull requests]: doc/guides/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [`author-ready`]: doc/guides/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit

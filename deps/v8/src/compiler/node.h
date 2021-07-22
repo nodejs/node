@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   const Operator* op() const { return op_; }
 
-  IrOpcode::Value opcode() const {
+  constexpr IrOpcode::Value opcode() const {
     DCHECK_GE(IrOpcode::kLast, op_->opcode());
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
@@ -69,14 +69,14 @@ class V8_EXPORT_PRIVATE Node final {
 #endif
 
   Node* InputAt(int index) const {
-    CHECK_LE(0, index);
-    CHECK_LT(index, InputCount());
+    DCHECK_LE(0, index);
+    DCHECK_LT(index, InputCount());
     return *GetInputPtrConst(index);
   }
 
   void ReplaceInput(int index, Node* new_to) {
-    CHECK_LE(0, index);
-    CHECK_LT(index, InputCount());
+    DCHECK_LE(0, index);
+    DCHECK_LT(index, InputCount());
     ZoneNodePtr* input_ptr = GetInputPtr(index);
     Node* old_to = *input_ptr;
     if (old_to != new_to) {

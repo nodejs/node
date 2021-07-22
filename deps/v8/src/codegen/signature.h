@@ -104,6 +104,14 @@ class Signature : public ZoneObject {
     T* buffer_;
   };
 
+  static Signature<T>* Build(Zone* zone, std::initializer_list<T> returns,
+                             std::initializer_list<T> params) {
+    Builder builder(zone, returns.size(), params.size());
+    for (T ret : returns) builder.AddReturn(ret);
+    for (T param : params) builder.AddParam(param);
+    return builder.Build();
+  }
+
   static constexpr size_t kReturnCountOffset = 0;
   static constexpr size_t kParameterCountOffset =
       kReturnCountOffset + kSizetSize;
@@ -123,6 +131,60 @@ size_t hash_value(const Signature<T>& sig) {
   for (const T& t : sig.all()) hash = base::hash_combine(hash, t);
   return hash;
 }
+
+template <typename T, size_t kNumReturns = 0, size_t kNumParams = 0>
+class FixedSizeSignature : public Signature<T> {
+ public:
+  // Add return types to this signature (only allowed if there are none yet).
+  template <typename... ReturnTypes>
+  auto Returns(ReturnTypes... return_types) const {
+    static_assert(kNumReturns == 0, "Please specify all return types at once");
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), kNumParams>{
+        std::initializer_list<T>{return_types...}.begin(), reps_};
+  }
+
+  // Add parameters to this signature (only allowed if there are none yet).
+  template <typename... ParamTypes>
+  auto Params(ParamTypes... param_types) const {
+    static_assert(kNumParams == 0, "Please specify all parameters at once");
+    return FixedSizeSignature<T, kNumReturns, sizeof...(ParamTypes)>{
+        reps_, std::initializer_list<T>{param_types...}.begin()};
+  }
+
+ private:
+  // Other template instantiations can call the private constructor.
+  template <typename T2, size_t kNumReturns2, size_t kNumParams2>
+  friend class FixedSizeSignature;
+
+  FixedSizeSignature(const T* returns, const T* params)
+      : Signature<T>(kNumReturns, kNumParams, reps_) {
+    std::copy(returns, returns + kNumReturns, reps_);
+    std::copy(params, params + kNumParams, reps_ + kNumReturns);
+  }
+
+  T reps_[kNumReturns + kNumParams];
+};
+
+// Specialization for zero-sized signatures.
+template <typename T>
+class FixedSizeSignature<T, 0, 0> : public Signature<T> {
+ public:
+  constexpr FixedSizeSignature() : Signature<T>(0, 0, nullptr) {}
+
+  // Add return types.
+  template <typename... ReturnTypes>
+  static auto Returns(ReturnTypes... return_types) {
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), 0>{
+        std::initializer_list<T>{return_types...}.begin(), nullptr};
+  }
+
+  // Add parameters.
+  template <typename... ParamTypes>
+  static auto Params(ParamTypes... param_types) {
+    return FixedSizeSignature<T, 0, sizeof...(ParamTypes)>{
+        nullptr, std::initializer_list<T>{param_types...}.begin()};
+  }
+};
 
 }  // namespace internal
 }  // namespace v8

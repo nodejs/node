@@ -19,7 +19,6 @@
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
-#include "src/sanitizer/tsan.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -45,13 +44,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
-
-Object FixedArrayBase::unchecked_synchronized_length() const {
+Object FixedArrayBase::unchecked_length(AcquireLoadTag) const {
   return ACQUIRE_READ_FIELD(*this, kLengthOffset);
 }
 
@@ -70,13 +67,13 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object FixedArray::get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index) const {
+Object FixedArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
@@ -126,11 +123,12 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
 }
 
 Object FixedArray::get(int index, RelaxedLoadTag) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index, RelaxedLoadTag) const {
+Object FixedArray::get(PtrComprCageBase cage_base, int index,
+                       RelaxedLoadTag) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
 }
@@ -149,11 +147,12 @@ void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
 }
 
 Object FixedArray::get(int index, AcquireLoadTag) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object FixedArray::get(IsolateRoot isolate, int index, AcquireLoadTag) const {
+Object FixedArray::get(PtrComprCageBase cage_base, int index,
+                       AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
@@ -243,15 +242,11 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
-}
+inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
 inline int WeakFixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
-inline int WeakArrayList::AllocatedSize() {
-  return SizeFor(synchronized_capacity());
-}
+inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -439,13 +434,13 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject WeakFixedArray::Get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return Get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return Get(cage_base, index);
 }
 
-MaybeObject WeakFixedArray::Get(IsolateRoot isolate, int index) const {
+MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return objects(isolate, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
@@ -474,13 +469,13 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
 }
 
 MaybeObject WeakArrayList::Get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return Get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return Get(cage_base, index);
 }
 
-MaybeObject WeakArrayList::Get(IsolateRoot isolate, int index) const {
+MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
-  return objects(isolate, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
@@ -529,8 +524,8 @@ Object ArrayList::Get(int index) const {
   return FixedArray::cast(*this).get(kFirstIndex + index);
 }
 
-Object ArrayList::Get(IsolateRoot isolate, int index) const {
-  return FixedArray::cast(*this).get(isolate, kFirstIndex + index);
+Object ArrayList::Get(PtrComprCageBase cage_base, int index) const {
+  return FixedArray::cast(*this).get(cage_base, kFirstIndex + index);
 }
 
 ObjectSlot ArrayList::Slot(int index) {
@@ -654,8 +649,8 @@ Object TemplateList::get(int index) const {
   return FixedArray::cast(*this).get(kFirstElementIndex + index);
 }
 
-Object TemplateList::get(IsolateRoot isolate, int index) const {
-  return FixedArray::cast(*this).get(isolate, kFirstElementIndex + index);
+Object TemplateList::get(PtrComprCageBase cage_base, int index) const {
+  return FixedArray::cast(*this).get(cage_base, kFirstElementIndex + index);
 }
 
 void TemplateList::set(int index, Object value) {

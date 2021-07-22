@@ -16,7 +16,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       ]).exportFunc();
   builder.addFunction("main", kSig_i_i)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprLocalGet, 0,
           kExprCallFunction, f.index,
           kExprCallFunction, f.index,

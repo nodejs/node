@@ -92,7 +92,7 @@ operating systems will clean up the memory of the process after the
 shutdown while attempting to free all memory to get a clean
 report may have a negative impact on the code complexity and
 shutdown times. Node.js does a pretty good job only leaving on
-the order of 6KB that are not freed on shutdown.
+the order of 6 KB that are not freed on shutdown.
 
 ## An obvious memory leak
 
@@ -100,8 +100,8 @@ Leaks can be introduced in native addons and the following is a simple
 example leak based on the "Hello world" addon from
 [node-addon-examples](https://github.com/nodejs/node-addon-examples).
 
-In this example, a loop which allocates ~1MB of memory and never frees it
-has been added:
+In this example, a loop which allocates approximately 1 MB of memory and never
+frees it has been added:
 
 ```cpp
 void* malloc_holder = nullptr;

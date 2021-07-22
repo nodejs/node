@@ -1,0 +1,19 @@
+Regression test for crbug.com/1183664
+
+Running test: testMultipleScriptsInSameLineWithSameURL
+Setting breakpoint in first script
+[
+    [0] : {
+        columnNumber : 1
+        lineNumber : 0
+        scriptId : <scriptId>
+    }
+]
+Setting breakpoint in second script
+[
+    [0] : {
+        columnNumber : 65
+        lineNumber : 0
+        scriptId : <scriptId>
+    }
+]

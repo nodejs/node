@@ -14,6 +14,7 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers.h"
+#include "torque-generated/debug-macros.h"
 
 namespace i = v8::internal;
 
@@ -131,6 +132,23 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
       return {d::TypeCheckResult::kUnknownInstanceType,
               std::make_unique<TqHeapObject>(address)};
   }
+}
+
+bool IsTypedHeapObjectInstanceTypeOf(uintptr_t address,
+                                     d::MemoryAccessor accessor,
+                                     i::InstanceType instance_type) {
+  auto heap_object = std::make_unique<TqHeapObject>(address);
+  Value<uintptr_t> map_ptr = heap_object->GetMapValue(accessor);
+
+  if (map_ptr.validity == d::MemoryAccessResult::kOk) {
+    Value<i::InstanceType> type =
+        TqMap(map_ptr.value).GetInstanceTypeValue(accessor);
+    if (type.validity == d::MemoryAccessResult::kOk) {
+      return instance_type == type.value;
+    }
+  }
+
+  return false;
 }
 
 TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
@@ -298,7 +316,10 @@ class ReadStringVisitor : public TqObjectVisitor {
   bool IsExternalStringCached(const TqExternalString* object) {
     // The safest way to get the instance type is to use known map pointers, in
     // case the map data is not available.
-    uintptr_t map = GetOrFinish(object->GetMapValue(accessor_));
+    Value<uintptr_t> map_ptr = object->GetMapValue(accessor_);
+    DCHECK_IMPLIES(map_ptr.validity == d::MemoryAccessResult::kOk,
+                   !v8::internal::MapWord::IsPacked(map_ptr.value));
+    uintptr_t map = GetOrFinish(map_ptr);
     if (done_) return false;
     auto instance_types = FindKnownMapInstanceTypes(map, heap_addresses_);
     // Exactly one of the matched instance types should be a string type,
@@ -329,10 +350,10 @@ class ReadStringVisitor : public TqObjectVisitor {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
 #ifdef V8_COMPRESS_POINTERS
-      uintptr_t data_address = static_cast<uintptr_t>(
-          DecodeExternalPointer(GetIsolateForPtrComprFromOnHeapAddress(
-                                    heap_addresses_.any_heap_pointer),
-                                resource_data, kExternalStringResourceDataTag));
+      Isolate* isolate = GetIsolateForHeapSandbox(
+          HeapObject::unchecked_cast(Object(heap_addresses_.any_heap_pointer)));
+      uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
+          isolate, resource_data, kExternalStringResourceDataTag));
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_COMPRESS_POINTERS
@@ -482,6 +503,7 @@ class AddInfoVisitor : public TqObjectVisitor {
     if (map_ptr.validity != d::MemoryAccessResult::kOk) {
       return;  // Can't read the JSObject. Nothing useful to do.
     }
+    DCHECK(!v8::internal::MapWord::IsPacked(map_ptr.value));
     TqMap map(map_ptr.value);
 
     // On JSObject instances, this value is the start of in-object properties.
@@ -654,6 +676,90 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
           sizeof(v8::internal::JSFunction),
           std::vector<std::unique_ptr<StructProperty>>(),
           d::PropertyKind::kSingle));
+      // Add more items in the Locals pane representing the JS function name,
+      // source file name, and line & column numbers within the source file, so
+      // that the user doesn’t need to dig through the shared_function_info to
+      // find them.
+      intptr_t js_function_ptr = 0;
+      validity = memory_accessor(
+          frame_pointer + StandardFrameConstants::kFunctionOffset,
+          reinterpret_cast<void*>(&js_function_ptr), sizeof(intptr_t));
+      if (validity == d::MemoryAccessResult::kOk) {
+        TqJSFunction js_function(js_function_ptr);
+        auto shared_function_info_ptr =
+            js_function.GetSharedFunctionInfoValue(memory_accessor);
+        if (shared_function_info_ptr.validity == d::MemoryAccessResult::kOk) {
+          TqSharedFunctionInfo shared_function_info(
+              shared_function_info_ptr.value);
+          auto script_or_debug_info_ptr =
+              shared_function_info.GetScriptOrDebugInfoValue(memory_accessor);
+          if (script_or_debug_info_ptr.validity == d::MemoryAccessResult::kOk) {
+            // Make sure script_or_debug_info_ptr is script.
+            auto address = script_or_debug_info_ptr.value;
+            if (IsTypedHeapObjectInstanceTypeOf(address, memory_accessor,
+                                                i::InstanceType::SCRIPT_TYPE)) {
+              TqScript script(script_or_debug_info_ptr.value);
+              props.push_back(std::make_unique<ObjectProperty>(
+                  "script_name", kObjectAsStoredInHeap, kObject,
+                  script.GetNameAddress(), 1, i::kTaggedSize,
+                  std::vector<std::unique_ptr<StructProperty>>(),
+                  d::PropertyKind::kSingle));
+              props.push_back(std::make_unique<ObjectProperty>(
+                  "script_source", kObjectAsStoredInHeap, kObject,
+                  script.GetSourceAddress(), 1, i::kTaggedSize,
+                  std::vector<std::unique_ptr<StructProperty>>(),
+                  d::PropertyKind::kSingle));
+            }
+          }
+          auto name_or_scope_info_ptr =
+              shared_function_info.GetNameOrScopeInfoValue(memory_accessor);
+          if (name_or_scope_info_ptr.validity == d::MemoryAccessResult::kOk) {
+            auto scope_info_address = name_or_scope_info_ptr.value;
+            // Make sure name_or_scope_info_ptr is scope info.
+            if (IsTypedHeapObjectInstanceTypeOf(
+                    scope_info_address, memory_accessor,
+                    i::InstanceType::SCOPE_INFO_TYPE)) {
+              auto indexed_field_slice_function_variable_info =
+                  TqDebugFieldSliceScopeInfoFunctionVariableInfo(
+                      memory_accessor, scope_info_address);
+              if (indexed_field_slice_function_variable_info.validity ==
+                  d::MemoryAccessResult::kOk) {
+                props.push_back(std::make_unique<ObjectProperty>(
+                    "function_name", kObjectAsStoredInHeap, kObject,
+                    scope_info_address - i::kHeapObjectTag +
+                        std::get<1>(
+                            indexed_field_slice_function_variable_info.value),
+                    std::get<2>(
+                        indexed_field_slice_function_variable_info.value),
+                    i::kTaggedSize,
+                    std::vector<std::unique_ptr<StructProperty>>(),
+                    d::PropertyKind::kSingle));
+              }
+              std::vector<std::unique_ptr<StructProperty>>
+                  position_info_struct_field_list;
+              position_info_struct_field_list.push_back(
+                  std::make_unique<StructProperty>(
+                      "start", kObjectAsStoredInHeap, kObject, 0, 0, 0));
+              position_info_struct_field_list.push_back(
+                  std::make_unique<StructProperty>("end", kObjectAsStoredInHeap,
+                                                   kObject, 4, 0, 0));
+              auto indexed_field_slice_position_info =
+                  TqDebugFieldSliceScopeInfoPositionInfo(memory_accessor,
+                                                         scope_info_address);
+              if (indexed_field_slice_position_info.validity ==
+                  d::MemoryAccessResult::kOk) {
+                props.push_back(std::make_unique<ObjectProperty>(
+                    "function_character_offset", "", "",
+                    scope_info_address - i::kHeapObjectTag +
+                        std::get<1>(indexed_field_slice_position_info.value),
+                    std::get<2>(indexed_field_slice_position_info.value),
+                    i::kTaggedSize, std::move(position_info_struct_field_list),
+                    d::PropertyKind::kSingle));
+              }
+            }
+          }
+        }
+      }
     }
   }
 

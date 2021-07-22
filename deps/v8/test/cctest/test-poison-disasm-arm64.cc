@@ -29,7 +29,11 @@ TEST(DisasmPoisonMonomorphicLoad) {
 
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_untrusted_code_mitigations = true;
+#ifdef V8_ENABLE_DEBUG_CODE
   i::FLAG_debug_code = false;
+#else
+  STATIC_ASSERT(i::FLAG_debug_code == false);
+#endif
 
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -79,7 +83,11 @@ TEST(DisasmPoisonPolymorphicLoad) {
 
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_untrusted_code_mitigations = true;
+#ifdef V8_ENABLE_DEBUG_CODE
   i::FLAG_debug_code = false;
+#else
+  STATIC_ASSERT(i::FLAG_debug_code == false);
+#endif
 
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -121,7 +129,7 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "csdb",                                            // spec. barrier
       "ldur w<<BSt:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",    // load backing store
                                                          // branchful decompress
-      "add x<<BSt>>, x26, x<<BSt>>",                     // Add root to ref
+      "add x<<BSt>>, x2[68], x<<BSt>>",                  // Add root to ref
       "and x<<BSt>>, x<<BSt>>, " + kPReg,                // apply the poison
       "ldur w<<Prop:[0-9]+>>, \\[x<<BSt>>, #[0-9]+\\]",  // load the property
       "and x<<Prop>>, x<<Prop>>, " + kPReg,              // apply the poison
@@ -194,7 +202,7 @@ TEST(DisasmPoisonMonomorphicLoadFloat64) {
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
       "csdb",                                              // spec. barrier
       "ldur w<<F1:[0-9]+>>, \\[<<Obj>>, #11\\]",           // load heap number
-      "add x<<F1>>, x26, x<<F1>>",                         // Decompress ref
+      "add x<<F1>>, x2[68], x<<F1>>",                      // Decompress ref
       "and x<<F1>>, x<<F1>>, " + kPReg,                    // apply the poison
       "add <<Addr:x[0-9]+>>, x<<F1>>, #0x[0-9a-f]+",       // addr. calculation
       "and <<Addr>>, <<Addr>>, " + kPReg,                  // apply the poison

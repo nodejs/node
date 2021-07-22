@@ -89,6 +89,19 @@ class JSHeapBroker;
   static void Test##Name()
 #endif
 
+// Similar to TEST, but used when test definitions appear as members of a
+// (probably parameterized) class. This allows re-using the given tests multiple
+// times. For this to work, the following conditions must hold:
+//   1. The class has a template parameter named kTestFileName of type  char
+//      const*, which is instantiated with __FILE__ at the *use site*, in order
+//      to correctly associate the tests with the test suite using them.
+//   2. To actually execute the tests, create an instance of the class
+//      containing the MEMBER_TESTs.
+#define MEMBER_TEST(Name)                                   \
+  CcTest register_test_##Name =                             \
+      CcTest(Test##Name, kTestFileName, #Name, true, true); \
+  static void Test##Name()
+
 #define EXTENSION_LIST(V)                                                      \
   V(GC_EXTENSION,       "v8/gc")                                               \
   V(PRINT_EXTENSION,    "v8/print")                                            \
@@ -606,7 +619,7 @@ class InitializedHandleScopeImpl;
 
 class V8_NODISCARD InitializedHandleScope {
  public:
-  InitializedHandleScope();
+  explicit InitializedHandleScope(i::Isolate* isolate = nullptr);
   ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -829,11 +842,11 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 
 bool IsValidUnwrapObject(v8::Object* object);
 
-template <typename T, int offset>
+template <typename T>
 T* GetInternalField(v8::Object* wrapper) {
-  assert(offset < wrapper->InternalFieldCount());
+  assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
   return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
 }
 
 #endif  // ifndef CCTEST_H_

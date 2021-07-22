@@ -1,4 +1,4 @@
-# Node.js Collaborator Guide
+# Node.js collaborator guide
 
 ## Contents
 
@@ -36,14 +36,14 @@
     * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
-This document explains how Collaborators manage the Node.js project.
+This document explains how collaborators manage the Node.js project.
 Collaborators should understand the
 [guidelines for new contributors](../../CONTRIBUTING.md) and the
 [project governance model](../../GOVERNANCE.md).
 
 ## Issues and pull requests
 
-Mind these guidelines, the opinions of other Collaborators, and guidance of the
+Mind these guidelines, the opinions of other collaborators, and guidance of the
 [TSC][]. Notify other qualified parties for more input on an issue or a pull
 request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
@@ -71,7 +71,7 @@ issues and pull requests can always be re-opened if necessary.
 A pull request is _author ready_ when:
 
 * There is a CI run in progress or completed.
-* There is at least one Collaborator approval.
+* There is at least one collaborator approval.
 * There are no outstanding review comments.
 
 Please always add the `author ready` label to the pull request in that case.
@@ -83,7 +83,7 @@ When you open a pull request, [start a CI](#testing-and-ci) right away. Later,
 after new code changes or rebasing, start a new CI.
 
 As soon as the pull request is ready to land, please do so. This allows other
-Collaborators to focus on other pull requests. If your pull request is not ready
+collaborators to focus on other pull requests. If your pull request is not ready
 to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
@@ -95,7 +95,7 @@ issues. If a user opens a security issue in the public repository:
 
 * Ask the user to submit a report through HackerOne as outlined in
   [SECURITY.md][].
-* Move the issue to the private repo called
+* Move the issue to the private repository called
   [premature-disclosures](https://github.com/nodejs/premature-disclosures).
 * For any related pull requests, create an associated issue in the
   `premature-disclosures` repository.  Add a copy of the patch for the
@@ -113,25 +113,25 @@ issues. If a user opens a security issue in the public repository:
 ## Accepting modifications
 
 Contributors propose modifications to Node.js using GitHub pull requests. This
-includes modifications proposed by TSC members and other Collaborators. A pull
+includes modifications proposed by TSC members and other collaborators. A pull
 request must pass code review and CI before landing into the codebase.
 
 ### Code reviews
 
-At least two Collaborators must approve a pull request before the pull request
-lands. One Collaborator approval is enough if the pull request has been open
+At least two collaborators must approve a pull request before the pull request
+lands. One collaborator approval is enough if the pull request has been open
 for more than seven days.
 
-Approving a pull request indicates that the Collaborator accepts responsibility
+Approving a pull request indicates that the collaborator accepts responsibility
 for the change.
 
-Approval must be from Collaborators who are not authors of the change.
+Approval must be from collaborators who are not authors of the change.
 
 In some cases, it might be necessary to summon a GitHub team to a pull request
 for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-If you are the first Collaborator to approve a pull request that has no CI yet,
+If you are the first collaborator to approve a pull request that has no CI yet,
 please [start one](#testing-and-ci). Please also start a new CI if the
 pull request creator pushed new code since the last CI run.
 
@@ -173,7 +173,7 @@ adding the `tsc-agenda` label to the issue.
 
 ### Waiting for approvals
 
-Before landing pull requests, allow 48 hours for input from other Collaborators.
+Before landing pull requests, allow 48 hours for input from other collaborators.
 Certain types of pull requests can be fast-tracked and can land after a shorter
 delay. For example:
 
@@ -185,14 +185,14 @@ delay. For example:
   * Regressions that happen right before a release, or reported soon after.
 
 To propose fast-tracking a pull request, apply the `fast-track` label. Then add
-a comment that Collaborators can upvote.
+a comment that collaborators can upvote.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
 
-The pull request can be fast-tracked if two Collaborators approve the
+The pull request can be fast-tracked if two collaborators approve the
 fast-tracking request. To land, the pull request itself still needs two
-Collaborator approvals and a passing CI.
+collaborator approvals and a passing CI.
 
 Collaborators can request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
@@ -372,7 +372,7 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the master branch, a Collaborator can revert
+change. If such a change lands on the master branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
@@ -474,7 +474,7 @@ Do this if a pull request or issue:
 * Is labeled `semver-major`, or
 * Has a significant impact on the codebase, or
 * Is controversial, or
-* Is at an impasse among Collaborators who are participating in the discussion.
+* Is at an impasse among collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
@@ -488,7 +488,7 @@ The TSC serves as the final arbiter where required.
    who wish to land their own pull requests will self-assign them. Sometimes, an
    author will delegate to someone else. If in doubt, ask the assignee whether
    it is okay to land.
-1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
+1. Never use GitHub's green ["Merge pull request"][] button. Reasons for not
    using the web interface button:
    * The "Create a merge commit" method will add an unnecessary merge commit.
    * The "Squash and merge" method will add metadata (the pull request #) to the
@@ -552,7 +552,7 @@ Checkout proper target branch:
 $ git checkout master
 ```
 
-Update the tree (assumes your repo is set up as detailed in
+Update the tree (assumes your repository is set up as detailed in
 [CONTRIBUTING.md](./contributing/pull-requests.md#step-1-fork)):
 
 ```text
@@ -659,7 +659,7 @@ for that commit. This is an opportunity to fix commit messages.
     issue. A commit message can include more than one `Fixes:` lines.
   * Optional: One or more `Refs:` lines referencing a URL for any relevant
     background.
-  * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
+  * Required: A `Reviewed-By: Name <email>` line for each collaborator who
     reviewed the change.
     * Useful for @mentions / contact list if something goes wrong in the
       pull request.
@@ -726,7 +726,6 @@ git push upstream master
 ### I made a mistake
 
 * Ping a TSC member.
-* `#node-dev` on freenode.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit
@@ -735,7 +734,6 @@ git push upstream master
   10-minute period passes, consider the commit final.
   * Use `--force-with-lease` to reduce the chance of overwriting someone else's
     change.
-  * Post to `#node-dev` (IRC) if you force push.
 
 ### Long Term Support
 
@@ -777,7 +775,7 @@ There are several LTS-related labels:
   release. For example, `land-on-v10.x` would be for a change to land in Node.js
   10.x.
 
-Any Collaborator can attach these labels to any pull request/issue. As commits
+Any collaborator can attach these labels to any pull request/issue. As commits
 land on the staging branches, the backporter removes the `lts-watch-` label.
 Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
@@ -833,7 +831,87 @@ When things need extra attention, are controversial, or `semver-major`:
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
-["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+## Labels
+
+### General labels
+
+* `confirmed-bug`: Bugs you have verified
+* `discuss`: Things that need larger discussion
+* `feature request`: Any issue that requests a new feature
+* `good first issue`: Issues suitable for newcomers to fix
+* `meta`: Governance, policies, procedures, etc.
+* `tsc-agenda`: Open issues and pull requests with this label will be added to
+  the Technical Steering Committee meeting agenda
+
+---
+
+* `author-ready` - A pull request is _author ready_ when:
+  * There is a CI run in progress or completed.
+  * There is at least one collaborator approval (or two TSC approvals for
+    semver-major pull requests).
+  * There are no outstanding review comments.
+
+Please always add the `author ready` label to pull requests that qualify.
+Please always remove it again as soon as the conditions are not met anymore,
+such as if the CI run fails or a new outstanding review comment is posted.
+
+---
+
+* `semver-{minor,major}`
+  * be conservative – that is, if a change has the remote *chance* of breaking
+    something, go for semver-major
+  * when adding a semver label, add a comment explaining why you're adding it
+  * minor vs. patch: roughly: "does it add a new method / does it add a new
+    section to the docs"
+  * major vs. everything else: run last versions tests against this version, if
+    they pass, **probably** minor or patch
+
+### LTS/version labels
+
+We use labels to keep track of which branches a commit should land on:
+
+* `dont-land-on-v?.x`
+  * For changes that do not apply to a certain release line
+  * Also used when the work of backporting a change outweighs the benefits
+* `land-on-v?.x`
+  * Used by releasers to mark a pull request as scheduled for inclusion in an
+    LTS release
+  * Applied to the original pull request for clean cherry-picks, to the backport
+    pull request otherwise
+* `backport-requested-v?.x`
+  * Used to indicate that a pull request needs a manual backport to a branch in
+    order to land the changes on that branch
+  * Typically applied by a releaser when the pull request does not apply cleanly
+    or it breaks the tests after applying
+  * Will be replaced by either `dont-land-on-v?.x` or `backported-to-v?.x`
+* `backported-to-v?.x`
+  * Applied to pull requests for which a backport pull request has been merged
+* `lts-watch-v?.x`
+  * Applied to pull requests which the Release working group should consider
+    including in an LTS release
+  * Does not indicate that any specific action will be taken, but can be
+    effective as messaging to non-collaborators
+* `release-agenda`
+  * For things that need discussion by the Release working group
+  * (for example semver-minor changes that need or should go into an LTS
+    release)
+* `v?.x`
+  * Automatically applied to changes that do not target `master` but rather the
+    `v?.x-staging` branch
+
+Once a release line enters maintenance mode, the corresponding labels do not
+need to be attached anymore, as only important bugfixes will be included.
+
+### Other labels
+
+* Operating system labels
+  * `macos`, `windows`, `smartos`, `aix`
+  * No `linux` label because it is the implied default
+* Architecture labels
+  * `arm`, `mips`, `s390`, `ppc`
+  * No `x86{_64}` label because it is the implied default
+
+["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index

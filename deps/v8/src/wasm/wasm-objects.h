@@ -2,6 +2,10 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_OBJECTS_H_
 #define V8_WASM_WASM_OBJECTS_H_
 
@@ -162,17 +166,11 @@ class WasmModuleObject : public JSObject {
                                                    Handle<WasmModuleObject>,
                                                    uint32_t func_index);
 
-  // Get the function name of the function identified by the given index.
-  // Returns "func[func_index]" if the function is unnamed or the
-  // name is not a valid UTF-8 string.
-  static Handle<String> GetFunctionName(Isolate*, Handle<WasmModuleObject>,
-                                        uint32_t func_index);
-
   // Get the raw bytes of the function name of the function identified by the
   // given index.
   // Meant to be used for debugging or frame printing.
   // Does not allocate, hence gc-safe.
-  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
+  Vector<const uint8_t> GetRawFunctionName(int func_index);
 
   // Extract a portion of the wire bytes as UTF-8 string, optionally
   // internalized. (Prefer to internalize early if the string will be used for a
@@ -743,19 +741,31 @@ class WasmIndirectFunctionTable : public Struct {
   OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable, Struct);
 };
 
+class WasmFunctionData
+    : public TorqueGeneratedWasmFunctionData<WasmFunctionData, Foreign> {
+ public:
+  DECL_ACCESSORS(ref, Object)
+
+  DECL_CAST(WasmFunctionData)
+  DECL_PRINTER(WasmFunctionData)
+
+  TQ_OBJECT_CONSTRUCTORS(WasmFunctionData)
+};
+
 // Information for a WasmExportedFunction which is referenced as the function
 // data of the SharedFunctionInfo underlying the function. For details please
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
-class WasmExportedFunctionData : public Struct {
+class WasmExportedFunctionData : public WasmFunctionData {
  public:
   DECL_ACCESSORS(wrapper_code, Code)
+  // This is the instance that exported the function (which in case of
+  // imported and re-exported functions is different from the instance
+  // where the function is defined -- for the latter see WasmFunctionData::ref).
   DECL_ACCESSORS(instance, WasmInstanceObject)
-  DECL_INT_ACCESSORS(jump_table_offset)
   DECL_INT_ACCESSORS(function_index)
   DECL_ACCESSORS(signature, Foreign)
   DECL_INT_ACCESSORS(wrapper_budget)
   DECL_ACCESSORS(c_wrapper_code, Object)
-  DECL_ACCESSORS(wasm_call_target, Object)
   DECL_INT_ACCESSORS(packed_args_size)
 
   inline wasm::FunctionSig* sig() const;
@@ -768,21 +778,22 @@ class WasmExportedFunctionData : public Struct {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      HeapObject::kHeaderSize,
+      WasmFunctionData::kSize,
       TORQUE_GENERATED_WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 
-  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct);
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, WasmFunctionData);
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of
 // the SharedFunctionInfo underlying the function. For details please see the
 // {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
-class WasmJSFunctionData : public Struct {
+class WasmJSFunctionData : public WasmFunctionData {
  public:
   DECL_INT_ACCESSORS(serialized_return_count)
   DECL_INT_ACCESSORS(serialized_parameter_count)
   DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
-  DECL_ACCESSORS(callable, JSReceiver)
   DECL_ACCESSORS(wrapper_code, Code)
   DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
 
@@ -793,10 +804,12 @@ class WasmJSFunctionData : public Struct {
   DECL_VERIFIER(WasmJSFunctionData)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(WasmFunctionData::kSize,
                                 TORQUE_GENERATED_WASM_JS_FUNCTION_DATA_FIELDS)
 
-  OBJECT_CONSTRUCTORS(WasmJSFunctionData, Struct);
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(WasmJSFunctionData, WasmFunctionData);
 };
 
 class WasmScript : public AllStatic {
@@ -911,8 +924,12 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
   static inline wasm::StructType* type(Map map);
   inline wasm::StructType* type() const;
   static inline wasm::StructType* GcSafeType(Map map);
+  static inline int Size(const wasm::StructType* type);
+  static inline int GcSafeSize(Map map);
 
   inline ObjectSlot RawField(int raw_offset);
+
+  wasm::WasmValue GetFieldValue(uint32_t field_index);
 
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)
@@ -927,6 +944,8 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
   static inline wasm::ArrayType* type(Map map);
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Map map);
+
+  wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
   static inline int GcSafeSizeFor(Map map, int length);

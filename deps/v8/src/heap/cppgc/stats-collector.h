@@ -39,6 +39,7 @@ namespace internal {
   V(MarkTransitiveClosure)                  \
   V(MarkTransitiveClosureWithDeadline)      \
   V(MarkFlushEphemerons)                    \
+  V(MarkOnAllocation)                       \
   V(MarkProcessBailOutObjects)              \
   V(MarkProcessMarkingWorklist)             \
   V(MarkProcessWriteBarrierWorklist)        \
@@ -52,6 +53,7 @@ namespace internal {
   V(MarkVisitRememberedSets)                \
   V(SweepInvokePreFinalizers)               \
   V(SweepIdleStep)                          \
+  V(SweepInTask)                            \
   V(SweepOnAllocation)                      \
   V(SweepFinalize)
 
@@ -256,10 +258,12 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
   void NotifyAllocation(size_t);
   void NotifyExplicitFree(size_t);
-  // Safepoints should only be invoked when garabge collections are possible.
+  // Safepoints should only be invoked when garbage collections are possible.
   // This is necessary as increments and decrements are reported as close to
   // their actual allocation/reclamation as possible.
   void NotifySafePointForConservativeCollection();
+
+  void NotifySafePointForTesting();
 
   // Indicates a new garbage collection cycle.
   void NotifyMarkingStarted(CollectionType, IsForcedGC);
@@ -274,6 +278,13 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // Size of live objects in bytes  on the heap. Based on the most recent marked
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
+
+  // Returns the most recent marked bytes count. Should not be called during
+  // marking.
+  size_t marked_bytes() const;
+  // Returns the overall duration of the most recent marking phase. Should not
+  // be called during marking.
+  v8::base::TimeDelta marking_time() const;
 
   double GetRecentAllocationSpeedInBytesPerMs() const;
 

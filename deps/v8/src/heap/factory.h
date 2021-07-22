@@ -99,7 +99,7 @@ enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
-  inline ReadOnlyRoots read_only_roots();
+  inline ReadOnlyRoots read_only_roots() const;
 
   template <typename T>
   Handle<T> MakeHandle(T obj) {
@@ -130,9 +130,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates an uninitialized fixed array. It must be filled by the caller.
-  Handle<FixedArray> NewUninitializedFixedArray(int length);
 
   // Allocates a closure feedback cell array whose feedback cells are
   // initialized with undefined values.
@@ -555,8 +552,28 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+#if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
-                                       Handle<Map> opt_parent);
+                                       Handle<Map> opt_parent,
+                                       int instance_size_bytes);
+  Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
+      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+      Address call_target, Handle<Object> ref, int func_index,
+      Address sig_address, int wrapper_budget);
+  // {opt_call_target} is kNullAddress for JavaScript functions, and
+  // non-null for exported Wasm functions.
+  Handle<WasmJSFunctionData> NewWasmJSFunctionData(
+      Address opt_call_target, Handle<JSReceiver> callable, int return_count,
+      int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
+      Handle<Code> wrapper_code);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
+      Handle<String> name, Handle<WasmExportedFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
+      Handle<String> name, Handle<WasmJSFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
+      Handle<WasmCapiFunctionData> data);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
@@ -683,13 +700,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       MaybeHandle<String> maybe_name,
       Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
 
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
-      Handle<String> name, Handle<WasmExportedFunctionData> data);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
-      Handle<String> name, Handle<WasmJSFunctionData> data);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
-      Handle<WasmCapiFunctionData> data);
-
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, int builtin_index,
       FunctionKind kind = kNormalFunction);
@@ -730,7 +740,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<LoadHandler> NewLoadHandler(
       int data_count, AllocationType allocation = AllocationType::kOld);
   Handle<StoreHandler> NewStoreHandler(int data_count);
-
+  Handle<MegaDomHandler> NewMegaDomHandler(MaybeObjectHandle accessor,
+                                           MaybeObjectHandle context);
   Handle<RegExpMatchInfo> NewRegExpMatchInfo();
 
   // Creates a new FixedArray that holds the data associated with the
@@ -826,26 +837,29 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
     CodeBuilder& set_builtin_index(int32_t builtin_index) {
+      DCHECK_IMPLIES(builtin_index != Builtins::kNoBuiltinId,
+                     !CodeKindIsJSFunction(kind_));
       builtin_index_ = builtin_index;
       return *this;
     }
 
     CodeBuilder& set_inlined_bytecode_size(uint32_t size) {
+      DCHECK_IMPLIES(size != 0, CodeKindIsOptimizedJSFunction(kind_));
       inlined_bytecode_size_ = size;
       return *this;
     }
 
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
+      DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
-      source_position_table_ = table;
+      position_table_ = table;
       return *this;
     }
 
     CodeBuilder& set_bytecode_offset_table(Handle<ByteArray> table) {
+      DCHECK_EQ(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
-      // TODO(v8:11429): Rename this and clean up calls to SourcePositionTable
-      // under Baseline.
-      source_position_table_ = table;
+      position_table_ = table;
       return *this;
     }
 
@@ -857,11 +871,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
     CodeBuilder& set_is_turbofanned() {
+      DCHECK(!CodeKindIsUnoptimizedJSFunction(kind_));
       is_turbofanned_ = true;
       return *this;
     }
 
     CodeBuilder& set_is_executable(bool executable) {
+      DCHECK_EQ(kind_, CodeKind::BUILTIN);
       is_executable_ = executable;
       return *this;
     }
@@ -896,8 +912,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     int32_t builtin_index_ = Builtins::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
-    // Contains bytecode offset table for baseline
-    Handle<ByteArray> source_position_table_;
+    // Either source_position_table for non-baseline code
+    // or bytecode_offset_table for baseline code.
+    Handle<ByteArray> position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
     BasicBlockProfilerData* profiler_data_ = nullptr;
@@ -915,7 +932,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
 
-  Isolate* isolate() {
+  Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to
     // avoid undefined behavior (as static_cast cannot cast across private
     // bases).
@@ -936,10 +953,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map, Handle<FixedArrayBase> elements,
       Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
 
+  Symbol NewSymbolInternal(AllocationType allocation = AllocationType::kOld);
+
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Handle<Context> NewContext(Handle<Map> map, int size,
+  Context NewContextInternal(Handle<Map> map, int size,
                              int variadic_part_length,
                              AllocationType allocation);
 
@@ -993,11 +1012,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                    AllocationSite allocation_site);
 
   // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(Handle<JSObject> obj,
-                                 Handle<Object> properties, Handle<Map> map);
+  void InitializeJSObjectFromMap(JSObject obj, Object properties, Map map);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
-                              int start_offset);
+  void InitializeJSObjectBody(JSObject obj, Map map, int start_offset);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);

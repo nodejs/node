@@ -70,8 +70,7 @@
  *        return GetInternalField<CustomEmbedderType,
  *                                kV8EmbedderWrapperObjectIndex>(wrapper);
  *      }
- *      static void FastMethod(v8::ApiObject receiver_obj, int param) {
- *        v8::Object* v8_object = reinterpret_cast<v8::Object*>(&api_object);
+ *      static void FastMethod(v8::Local<v8::Object> receiver_obj, int param) {
  *        CustomEmbedderType* receiver = static_cast<CustomEmbedderType*>(
  *          receiver_obj->GetAlignedPointerFromInternalField(
  *            kV8EmbedderWrapperObjectIndex));
@@ -187,9 +186,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <tuple>
+#include <type_traits>
+
+#include "v8.h"        // NOLINT(build/include_directory)
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
+
+class Isolate;
 
 class CTypeInfo {
  public:
@@ -203,157 +208,66 @@ class CTypeInfo {
     kFloat32,
     kFloat64,
     kV8Value,
+    kApiObject,  // This will be deprecated once all users have
+                 // migrated from v8::ApiObject to v8::Local<v8::Value>.
   };
 
-  // kCallbackOptionsType and kInvalidType are not part of the Type enum
-  // because they are only used internally. Use values 255 and 254 that
-  // are larger than any valid Type enum.
+  // kCallbackOptionsType is not part of the Type enum
+  // because it is only used internally. Use value 255 that is larger
+  // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
-  static constexpr Type kInvalidType = Type(254);
 
-  enum class ArgFlags : uint8_t {
+  enum class Flags : uint8_t {
     kNone = 0,
   };
 
-  explicit constexpr CTypeInfo(Type type, ArgFlags flags = ArgFlags::kNone)
+  explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
       : type_(type), flags_(flags) {}
 
   constexpr Type GetType() const { return type_; }
 
-  constexpr ArgFlags GetFlags() const { return flags_; }
-
-  static const CTypeInfo& Invalid() {
-    static CTypeInfo invalid = CTypeInfo(kInvalidType);
-    return invalid;
-  }
+  constexpr Flags GetFlags() const { return flags_; }
 
  private:
   Type type_;
-  ArgFlags flags_;
+  Flags flags_;
 };
 
-class CFunctionInfo {
+class V8_EXPORT CFunctionInfo {
  public:
-  virtual const CTypeInfo& ReturnInfo() const = 0;
-  virtual unsigned int ArgumentCount() const = 0;
-  virtual const CTypeInfo& ArgumentInfo(unsigned int index) const = 0;
-  virtual bool HasOptions() const = 0;
-};
+  // Construct a struct to hold a CFunction's type information.
+  // |return_info| describes the function's return type.
+  // |arg_info| is an array of |arg_count| CTypeInfos describing the
+  //   arguments. Only the last argument may be of the special type
+  //   CTypeInfo::kCallbackOptionsType.
+  CFunctionInfo(const CTypeInfo& return_info, unsigned int arg_count,
+                const CTypeInfo* arg_info);
 
-struct ApiObject {
-  uintptr_t address;
-};
+  const CTypeInfo& ReturnInfo() const { return return_info_; }
 
-/**
- * A struct which may be passed to a fast call callback, like so:
- * \code
- *    void FastMethodWithOptions(int param, FastApiCallbackOptions& options);
- * \endcode
- */
-struct FastApiCallbackOptions {
-  /**
-   * If the callback wants to signal an error condition or to perform an
-   * allocation, it must set options.fallback to true and do an early return
-   * from the fast method. Then V8 checks the value of options.fallback and if
-   * it's true, falls back to executing the SlowCallback, which is capable of
-   * reporting the error (either by throwing a JS exception or logging to the
-   * console) or doing the allocation. It's the embedder's responsibility to
-   * ensure that the fast callback is idempotent up to the point where error and
-   * fallback conditions are checked, because otherwise executing the slow
-   * callback might produce visible side-effects twice.
-   */
-  bool fallback;
-
-  /**
-   * The `data` passed to the FunctionTemplate constructor, or `undefined`.
-   */
-  const ApiObject data;
-};
-
-namespace internal {
-
-template <typename T>
-struct GetCType;
-
-#define SPECIALIZE_GET_C_TYPE_FOR(ctype, ctypeinfo) \
-  template <>                                       \
-  struct GetCType<ctype> {                          \
-    static constexpr CTypeInfo Get() {              \
-      return CTypeInfo(CTypeInfo::Type::ctypeinfo); \
-    }                                               \
-  };
-
-#define SUPPORTED_C_TYPES(V) \
-  V(void, kVoid)             \
-  V(bool, kBool)             \
-  V(int32_t, kInt32)         \
-  V(uint32_t, kUint32)       \
-  V(int64_t, kInt64)         \
-  V(uint64_t, kUint64)       \
-  V(float, kFloat32)         \
-  V(double, kFloat64)        \
-  V(ApiObject, kV8Value)
-
-SUPPORTED_C_TYPES(SPECIALIZE_GET_C_TYPE_FOR)
-
-template <>
-struct GetCType<FastApiCallbackOptions&> {
-  static constexpr CTypeInfo Get() {
-    return CTypeInfo(CTypeInfo::kCallbackOptionsType);
-  }
-};
-
-// Helper to count the number of occurances of `T` in `List`
-template <typename T, typename... List>
-struct count : std::integral_constant<int, 0> {};
-template <typename T, typename... Args>
-struct count<T, T, Args...>
-    : std::integral_constant<std::size_t, 1 + count<T, Args...>::value> {};
-template <typename T, typename U, typename... Args>
-struct count<T, U, Args...> : count<T, Args...> {};
-
-template <typename R, typename... Args>
-class CFunctionInfoImpl : public CFunctionInfo {
- public:
-  static constexpr int kOptionsArgCount =
-      count<FastApiCallbackOptions&, Args...>();
-  static constexpr int kReceiverCount = 1;
-  CFunctionInfoImpl()
-      : return_info_(internal::GetCType<R>::Get()),
-        arg_count_(sizeof...(Args) - kOptionsArgCount),
-        arg_info_{internal::GetCType<Args>::Get()...} {
-    static_assert(kOptionsArgCount == 0 || kOptionsArgCount == 1,
-                  "Only one options parameter is supported.");
-    static_assert(sizeof...(Args) >= kOptionsArgCount + kReceiverCount,
-                  "The receiver or the fallback argument is missing.");
-    constexpr CTypeInfo::Type type = internal::GetCType<R>::Get().GetType();
-    static_assert(type == CTypeInfo::Type::kVoid ||
-                      type == CTypeInfo::Type::kBool ||
-                      type == CTypeInfo::Type::kInt32 ||
-                      type == CTypeInfo::Type::kUint32 ||
-                      type == CTypeInfo::Type::kFloat32 ||
-                      type == CTypeInfo::Type::kFloat64,
-                  "64-bit int and api object values are not currently "
-                  "supported return types.");
+  // The argument count, not including the v8::FastApiCallbackOptions
+  // if present.
+  unsigned int ArgumentCount() const {
+    return HasOptions() ? arg_count_ - 1 : arg_count_;
   }
 
-  const CTypeInfo& ReturnInfo() const override { return return_info_; }
-  unsigned int ArgumentCount() const override { return arg_count_; }
-  const CTypeInfo& ArgumentInfo(unsigned int index) const override {
-    if (index >= ArgumentCount()) {
-      return CTypeInfo::Invalid();
-    }
-    return arg_info_[index];
+  // |index| must be less than ArgumentCount().
+  //  Note: if the last argument passed on construction of CFunctionInfo
+  //  has type CTypeInfo::kCallbackOptionsType, it is not included in
+  //  ArgumentCount().
+  const CTypeInfo& ArgumentInfo(unsigned int index) const;
+
+  bool HasOptions() const {
+    // The options arg is always the last one.
+    return arg_count_ > 0 && arg_info_[arg_count_ - 1].GetType() ==
+                                 CTypeInfo::kCallbackOptionsType;
   }
-  bool HasOptions() const override { return kOptionsArgCount == 1; }
 
  private:
   const CTypeInfo return_info_;
   const unsigned int arg_count_;
-  const CTypeInfo arg_info_[sizeof...(Args)];
+  const CTypeInfo* arg_info_;
 };
-
-}  // namespace internal
 
 class V8_EXPORT CFunction {
  public:
@@ -376,27 +290,16 @@ class V8_EXPORT CFunction {
   }
 
   template <typename F>
-  V8_DEPRECATED("Use CFunction::Make instead.")
+  V8_DEPRECATED("Use CFunctionBuilder instead.")
   static CFunction MakeWithFallbackSupport(F* func) {
     return ArgUnwrap<F*>::Make(func);
   }
 
-  template <typename F>
-  static CFunction Make(F* func, const CFunctionInfo* type_info) {
-    return CFunction(reinterpret_cast<const void*>(func), type_info);
-  }
+  CFunction(const void* address, const CFunctionInfo* type_info);
 
  private:
   const void* address_;
   const CFunctionInfo* type_info_;
-
-  CFunction(const void* address, const CFunctionInfo* type_info);
-
-  template <typename R, typename... Args>
-  static CFunctionInfo* GetCFunctionInfo() {
-    static internal::CFunctionInfoImpl<R, Args...> instance;
-    return &instance;
-  }
 
   template <typename F>
   class ArgUnwrap {
@@ -407,12 +310,241 @@ class V8_EXPORT CFunction {
   template <typename R, typename... Args>
   class ArgUnwrap<R (*)(Args...)> {
    public:
-    static CFunction Make(R (*func)(Args...)) {
-      return CFunction(reinterpret_cast<const void*>(func),
-                       GetCFunctionInfo<R, Args...>());
-    }
+    static CFunction Make(R (*func)(Args...));
   };
 };
+
+struct ApiObject {
+  uintptr_t address;
+};
+
+/**
+ * A struct which may be passed to a fast call callback, like so:
+ * \code
+ *    void FastMethodWithOptions(int param, FastApiCallbackOptions& options);
+ * \endcode
+ */
+struct FastApiCallbackOptions {
+  /**
+   * Creates a new instance of FastApiCallbackOptions for testing purpose.  The
+   * returned instance may be filled with mock data.
+   */
+  static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
+    return {false, {0}};
+  }
+
+  /**
+   * If the callback wants to signal an error condition or to perform an
+   * allocation, it must set options.fallback to true and do an early return
+   * from the fast method. Then V8 checks the value of options.fallback and if
+   * it's true, falls back to executing the SlowCallback, which is capable of
+   * reporting the error (either by throwing a JS exception or logging to the
+   * console) or doing the allocation. It's the embedder's responsibility to
+   * ensure that the fast callback is idempotent up to the point where error and
+   * fallback conditions are checked, because otherwise executing the slow
+   * callback might produce visible side-effects twice.
+   */
+  bool fallback;
+
+  /**
+   * The `data` passed to the FunctionTemplate constructor, or `undefined`.
+   * `data_ptr` allows for default constructing FastApiCallbackOptions.
+   */
+  union {
+    uintptr_t data_ptr;
+    v8::Value data;
+  };
+};
+
+namespace internal {
+
+// Helper to count the number of occurances of `T` in `List`
+template <typename T, typename... List>
+struct count : std::integral_constant<int, 0> {};
+template <typename T, typename... Args>
+struct count<T, T, Args...>
+    : std::integral_constant<std::size_t, 1 + count<T, Args...>::value> {};
+template <typename T, typename U, typename... Args>
+struct count<T, U, Args...> : count<T, Args...> {};
+
+template <typename RetBuilder, typename... ArgBuilders>
+class CFunctionInfoImpl : public CFunctionInfo {
+  static constexpr int kOptionsArgCount =
+      count<FastApiCallbackOptions&, ArgBuilders...>();
+  static constexpr int kReceiverCount = 1;
+
+  static_assert(kOptionsArgCount == 0 || kOptionsArgCount == 1,
+                "Only one options parameter is supported.");
+
+  static_assert(sizeof...(ArgBuilders) >= kOptionsArgCount + kReceiverCount,
+                "The receiver or the options argument is missing.");
+
+ public:
+  constexpr CFunctionInfoImpl()
+      : CFunctionInfo(RetBuilder::Build(), sizeof...(ArgBuilders),
+                      arg_info_storage_),
+        arg_info_storage_{ArgBuilders::Build()...} {
+    constexpr CTypeInfo::Type kReturnType = RetBuilder::Build().GetType();
+    static_assert(kReturnType == CTypeInfo::Type::kVoid ||
+                      kReturnType == CTypeInfo::Type::kBool ||
+                      kReturnType == CTypeInfo::Type::kInt32 ||
+                      kReturnType == CTypeInfo::Type::kUint32 ||
+                      kReturnType == CTypeInfo::Type::kFloat32 ||
+                      kReturnType == CTypeInfo::Type::kFloat64,
+                  "64-bit int and api object values are not currently "
+                  "supported return types.");
+  }
+
+ private:
+  const CTypeInfo arg_info_storage_[sizeof...(ArgBuilders)];
+};
+
+template <typename T>
+struct TypeInfoHelper {
+  static_assert(sizeof(T) != sizeof(T), "This type is not supported");
+};
+
+#define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR(T, Enum)                          \
+  template <>                                                                 \
+  struct TypeInfoHelper<T> {                                                  \
+    static constexpr CTypeInfo::Flags Flags() {                               \
+      return CTypeInfo::Flags::kNone;                                         \
+    }                                                                         \
+                                                                              \
+    static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
+  };
+
+#define BASIC_C_TYPES(V)            \
+  V(void, kVoid)                    \
+  V(bool, kBool)                    \
+  V(int32_t, kInt32)                \
+  V(uint32_t, kUint32)              \
+  V(int64_t, kInt64)                \
+  V(uint64_t, kUint64)              \
+  V(float, kFloat32)                \
+  V(double, kFloat64)               \
+  V(ApiObject, kApiObject)          \
+  V(v8::Local<v8::Value>, kV8Value) \
+  V(v8::Local<v8::Object>, kV8Value)
+
+// ApiObject was a temporary solution to wrap the pointer to the v8::Value.
+// Please use v8::Local<v8::Value> in new code for the arguments and
+// v8::Local<v8::Object> for the receiver, as ApiObject will be deprecated.
+
+BASIC_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR)
+
+#undef BASIC_C_TYPES
+
+template <>
+struct TypeInfoHelper<FastApiCallbackOptions&> {
+  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
+
+  static constexpr CTypeInfo::Type Type() {
+    return CTypeInfo::kCallbackOptionsType;
+  }
+};
+
+template <typename T, CTypeInfo::Flags... Flags>
+class CTypeInfoBuilder {
+ public:
+  using BaseType = T;
+
+  static constexpr CTypeInfo Build() {
+    // Get the flags and merge in any additional flags.
+    uint8_t flags = uint8_t(TypeInfoHelper<T>::Flags());
+    int unused[] = {0, (flags |= uint8_t(Flags), 0)...};
+    // With C++17, we could use a "..." fold expression over a parameter pack.
+    // Since we're still using C++14, we have to evaluate an OR expresion while
+    // constructing an unused list of 0's. This applies the binary operator
+    // for each value in Flags.
+    (void)unused;
+
+    // Return the same type with the merged flags.
+    return CTypeInfo(TypeInfoHelper<T>::Type(), CTypeInfo::Flags(flags));
+  }
+};
+
+template <typename RetBuilder, typename... ArgBuilders>
+class CFunctionBuilderWithFunction {
+ public:
+  explicit constexpr CFunctionBuilderWithFunction(const void* fn) : fn_(fn) {}
+
+  template <CTypeInfo::Flags... Flags>
+  constexpr auto Ret() {
+    return CFunctionBuilderWithFunction<
+        CTypeInfoBuilder<typename RetBuilder::BaseType, Flags...>,
+        ArgBuilders...>(fn_);
+  }
+
+  template <unsigned int N, CTypeInfo::Flags... Flags>
+  constexpr auto Arg() {
+    // Return a copy of the builder with the Nth arg builder merged with
+    // template parameter pack Flags.
+    return ArgImpl<N, Flags...>(
+        std::make_index_sequence<sizeof...(ArgBuilders)>());
+  }
+
+  auto Build() {
+    static CFunctionInfoImpl<RetBuilder, ArgBuilders...> instance;
+    return CFunction(fn_, &instance);
+  }
+
+ private:
+  template <bool Merge, unsigned int N, CTypeInfo::Flags... Flags>
+  struct GetArgBuilder;
+
+  // Returns the same ArgBuilder as the one at index N, including its flags.
+  // Flags in the template parameter pack are ignored.
+  template <unsigned int N, CTypeInfo::Flags... Flags>
+  struct GetArgBuilder<false, N, Flags...> {
+    using type =
+        typename std::tuple_element<N, std::tuple<ArgBuilders...>>::type;
+  };
+
+  // Returns an ArgBuilder with the same base type as the one at index N,
+  // but merges the flags with the flags in the template parameter pack.
+  template <unsigned int N, CTypeInfo::Flags... Flags>
+  struct GetArgBuilder<true, N, Flags...> {
+    using type = CTypeInfoBuilder<
+        typename std::tuple_element<N,
+                                    std::tuple<ArgBuilders...>>::type::BaseType,
+        std::tuple_element<N, std::tuple<ArgBuilders...>>::type::Build()
+            .GetFlags(),
+        Flags...>;
+  };
+
+  // Return a copy of the CFunctionBuilder, but merges the Flags on ArgBuilder
+  // index N with the new Flags passed in the template parameter pack.
+  template <unsigned int N, CTypeInfo::Flags... Flags, size_t... I>
+  constexpr auto ArgImpl(std::index_sequence<I...>) {
+    return CFunctionBuilderWithFunction<
+        RetBuilder, typename GetArgBuilder<N == I, I, Flags...>::type...>(fn_);
+  }
+
+  const void* fn_;
+};
+
+class CFunctionBuilder {
+ public:
+  constexpr CFunctionBuilder() {}
+
+  template <typename R, typename... Args>
+  constexpr auto Fn(R (*fn)(Args...)) {
+    return CFunctionBuilderWithFunction<CTypeInfoBuilder<R>,
+                                        CTypeInfoBuilder<Args>...>(
+        reinterpret_cast<const void*>(fn));
+  }
+};
+
+}  // namespace internal
+
+// static
+template <typename R, typename... Args>
+CFunction CFunction::ArgUnwrap<R (*)(Args...)>::Make(R (*func)(Args...)) {
+  return internal::CFunctionBuilder().Fn(func).Build();
+}
+
+using CFunctionBuilder = internal::CFunctionBuilder;
 
 }  // namespace v8
 

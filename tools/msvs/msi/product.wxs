@@ -46,6 +46,11 @@
     <Property Id="ApplicationFolderName" Value="nodejs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
+    <!-- PropertyRef of the account users for setting InstallDir permission explicitly -->
+    <PropertyRef Id="WIX_ACCOUNT_LOCALSYSTEM" />
+    <PropertyRef Id="WIX_ACCOUNT_USERS" />
+    <PropertyRef Id="WIX_ACCOUNT_ADMINISTRATORS" />
+
     <Property Id="INSTALLDIR" Secure="yes">
       <RegistrySearch Id="InstallPathRegistry"
                       Type="raw"
@@ -73,6 +78,7 @@
       <ComponentRef Id="NodeStartMenu"/>
       <ComponentRef Id="AppData" />
       <ComponentRef Id="InstallToolsBat" />
+      <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="Product.Generated"/>
 
       <Feature Id="NodeEtwSupport"
@@ -93,6 +99,7 @@
       <ComponentRef Id="NpxBashScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
       <ComponentRef Id="AppData" />
+      <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
 
@@ -167,6 +174,20 @@
         </File>
       </Component>
       <?endif?>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- Create component for setting the install directory permission explicitly -->
+      <Component Id="SetInstallDirPermission" Guid="{EFFC4F74-183A-4237-BBD7-0CAD2B950053}">
+        <CreateFolder>
+          <Permission User="[WIX_ACCOUNT_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[AUTHENTICATED_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[WIX_ACCOUNT_ADMINISTRATORS]" GenericAll="yes"/>
+          <Permission User="[WIX_ACCOUNT_LOCALSYSTEM]" GenericAll="yes"/>
+        </CreateFolder>
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
@@ -306,6 +327,12 @@
                   Execute="immediate"
                   Return="check" />
 
+    <CustomAction Id="GetLocalizedUserNames"
+                  BinaryKey="CustomActionsDLL"
+                  DllEntry="GetLocalizedUserNames"
+                  Execute="immediate"
+                  Return="check" />
+
     <Property Id="WixShellExecTarget" Value="[#InstallToolsBat]" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" />
 
@@ -315,6 +342,7 @@
 
     <InstallExecuteSequence>
       <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
+      <Custom Action='GetLocalizedUserNames' After='SetInstallScope'/>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 

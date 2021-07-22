@@ -35,10 +35,12 @@ class V8Profile extends Profile {
   static IC_RE =
       /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
   static BYTECODES_RE = /^(BytecodeHandler: )/;
+  static BASELINE_HANDLERS_RE = /^(Builtin: .*Baseline.*)/;
   static BUILTINS_RE = /^(Builtin: )/;
   static STUBS_RE = /^(Stub: )/;
 
-  constructor(separateIc, separateBytecodes, separateBuiltins, separateStubs) {
+  constructor(separateIc, separateBytecodes, separateBuiltins, separateStubs,
+        separateBaselineHandlers) {
     super();
     const regexps = [];
     if (!separateIc) regexps.push(V8Profile.IC_RE);
@@ -46,7 +48,7 @@ class V8Profile extends Profile {
     if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
     if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
     if (regexps.length > 0) {
-      this.skipThisFunction = function (name) {
+      this.skipThisFunction = function(name) {
         for (let i = 0; i < regexps.length; i++) {
           if (regexps[i].test(name)) return true;
         }
@@ -64,7 +66,7 @@ export function readFile(fileName) {
   try {
     return read(fileName);
   } catch (e) {
-    printErr(`${fileName}: ${e.message || e}`);
+    printErr(`file="${fileName}": ${e.message || e}`);
     throw e;
   }
 }
@@ -77,6 +79,7 @@ export class TickProcessor extends LogReader {
     separateBytecodes,
     separateBuiltins,
     separateStubs,
+    separateBaselineHandlers,
     callGraphSize,
     ignoreUnknown,
     stateFilter,
@@ -211,7 +214,7 @@ export class TickProcessor extends LogReader {
       this.profile_ = new JsonProfile();
     } else {
       this.profile_ = new V8Profile(separateIc, separateBytecodes,
-        separateBuiltins, separateStubs);
+        separateBuiltins, separateStubs, separateBaselineHandlers);
     }
     this.codeTypes_ = {};
     // Count each tick as a time unit.
@@ -228,6 +231,7 @@ export class TickProcessor extends LogReader {
     GC: 1,
     PARSER: 2,
     BYTECODE_COMPILER: 3,
+    // TODO(cbruni): add BASELINE_COMPILER
     COMPILER: 4,
     OTHER: 5,
     EXTERNAL: 6,
@@ -285,7 +289,7 @@ export class TickProcessor extends LogReader {
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
     const entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
     this.setCodeType(entry.getName(), 'SHARED_LIB');
-    const libFuncs = this.cppEntriesProvider_.parseVmSymbols(
+    this.cppEntriesProvider_.parseVmSymbols(
       name, startAddr, endAddr, aslrSlide, (fName, fStart, fEnd) => {
         this.profile_.addStaticCode(fName, fStart, fEnd);
         this.setCodeType(fName, 'CPP');
@@ -293,7 +297,7 @@ export class TickProcessor extends LogReader {
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
-    if (maybe_func.length) {
+    if (type != 'RegExp' && maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
       const state = Profile.parseState(maybe_func[1]);
       this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
@@ -407,6 +411,11 @@ export class TickProcessor extends LogReader {
 
     this.currentProducerProfile_ = null;
     this.generation_++;
+  }
+
+  printVMSymbols() {
+    console.log(
+      JSON.stringify(this.profile_.serializeVMSymbols()));
   }
 
   printStatistics() {
@@ -854,6 +863,8 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
         'Separate Builtin entries'],
       '--separate-stubs': ['separateStubs', parseBool,
         'Separate Stub entries'],
+      '--separate-baseline-handlers': ['separateBaselineHandlers', parseBool,
+        'Separate Baseline Handler entries'],
       '--unix': ['platform', 'unix',
         'Specify that we are running on *nix platform'],
       '--windows': ['platform', 'windows',
@@ -880,6 +891,8 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
         'Ignore ticks outside pairs of Date.now() calls'],
       '--only-summary': ['onlySummary', true,
         'Print only tick summary, exclude other information'],
+      '--serialize-vm-symbols': ['serializeVMSymbols', true,
+        'Print all C++ symbols and library addresses as JSON data'],
       '--preprocess': ['preprocessJson', true,
         'Preprocess for consumption with web interface']
     };
@@ -903,6 +916,7 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
       separateBytecodes: false,
       separateBuiltins: true,
       separateStubs: true,
+      separateBaselineHandlers: false,
       preprocessJson: null,
       targetRootFS: '',
       nm: 'nm',
@@ -913,6 +927,7 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
       pairwiseTimedRange: false,
       onlySummary: false,
       runtimeTimerFilter: null,
+      serializeVMSymbols: false,
     };
   }
 }

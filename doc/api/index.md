@@ -1,6 +1,6 @@
 <!--
   NB(chrisdickinson): if you move this file, be sure to update
-  tools/doc/html.js to point at the new location.
+  tools/doc/html.mjs to point at the new location.
 -->
 
 <!--introduced_in=v0.10.0-->
@@ -65,6 +65,7 @@
 * [VM](vm.md)
 * [WASI](wasi.md)
 * [Web Crypto API](webcrypto.md)
+* [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
 

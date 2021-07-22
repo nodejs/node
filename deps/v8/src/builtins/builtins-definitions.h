@@ -50,8 +50,13 @@ namespace internal {
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
   ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                         \
+      CallTrampoline_Baseline_Compact)                                         \
   TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)        \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                      \
+      CallTrampoline_Baseline_Compact)                                         \
   TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)     \
+  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)    \
   TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                    \
   TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
       CallTrampoline_WithFeedback)                                             \
@@ -133,14 +138,17 @@ namespace internal {
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \
       InterpreterPushArgsThenConstruct)                                        \
-  ASM(InterpreterEnterBytecodeAdvance, Dummy)                                  \
-  ASM(InterpreterEnterBytecodeDispatch, Dummy)                                 \
+  ASM(InterpreterEnterAtBytecode, Dummy)                                       \
+  ASM(InterpreterEnterAtNextBytecode, Dummy)                                   \
   ASM(InterpreterOnStackReplacement, ContextOnly)                              \
                                                                                \
   /* Baseline Compiler */                                                      \
   ASM(BaselineOutOfLinePrologue, BaselineOutOfLinePrologue)                    \
-  ASM(BaselineOnStackReplacement, ContextOnly)                                 \
+  ASM(BaselineOnStackReplacement, Void)                                        \
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
+  ASM(BaselineEnterAtBytecode, Void)                                           \
+  ASM(BaselineEnterAtNextBytecode, Void)                                       \
+  ASM(InterpreterOnStackReplacement_ToBaseline, Void)                          \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
@@ -197,8 +205,6 @@ namespace internal {
                                                                                \
   /* Debugger */                                                               \
   TFJ(DebugBreakTrampoline, kDontAdaptArgumentsSentinel)                       \
-  ASM(FrameDropperTrampoline, FrameDropperTrampoline)                          \
-  ASM(HandleDebuggerStatement, ContextOnly)                                    \
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
@@ -530,6 +536,8 @@ namespace internal {
   /* ES6 #sec-generator.prototype.throw */                                     \
   TFJ(GeneratorPrototypeThrow, kDontAdaptArgumentsSentinel)                    \
   CPP(AsyncFunctionConstructor)                                                \
+  TFC(SuspendGeneratorBaseline, SuspendGeneratorBaseline)                      \
+  TFC(ResumeGeneratorBaseline, ResumeGeneratorBaseline)                        \
                                                                                \
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
@@ -600,7 +608,7 @@ namespace internal {
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
   TFS(IterableToFixedArrayWithSymbolLookupSlow, kIterable)                     \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
-  TFS(IterableToFixedArrayForWasm, kIterable, kExpectedLength)                 \
+  IF_WASM(TFS, IterableToFixedArrayForWasm, kIterable, kExpectedLength)        \
                                                                                \
   /* #sec-createstringlistfromiterable */                                      \
   TFS(StringListFromIterable, kIterable)                                       \
@@ -765,6 +773,11 @@ namespace internal {
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
   ASM(RegExpExperimentalTrampoline, CCall)                                     \
                                                                                \
+  /* ResizableArrayBuffer & GrowableSharedArrayBuffer */                       \
+  CPP(ResizableArrayBufferPrototypeResize)                                     \
+  CPP(GrowableSharedArrayBufferPrototypeGrow)                                  \
+  CPP(GrowableSharedArrayBufferPrototypeGetByteLength)                         \
+                                                                               \
   /* Set */                                                                    \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, 1, kReceiver, kKey)                                     \
@@ -855,14 +868,15 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* Wasm */                                                                   \
-  ASM(GenericJSToWasmWrapper, Dummy)                                           \
-  ASM(WasmCompileLazy, Dummy)                                                  \
-  ASM(WasmDebugBreak, Dummy)                                                   \
-  TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
-  TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
-  TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
-  TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
-  TFC(JSToWasmLazyDeoptContinuation, SingleParameterOnStack)                   \
+  IF_WASM(ASM, GenericJSToWasmWrapper, Dummy)                                  \
+  IF_WASM(ASM, WasmCompileLazy, Dummy)                                         \
+  IF_WASM(ASM, WasmDebugBreak, Dummy)                                          \
+  IF_WASM(ASM, WasmOnStackReplace, Dummy)                                      \
+  IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
+  IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
+  IF_WASM(TFC, WasmI32AtomicWait32, WasmI32AtomicWait32)                       \
+  IF_WASM(TFC, WasmI64AtomicWait32, WasmI64AtomicWait32)                       \
+  IF_WASM(TFC, JSToWasmLazyDeoptContinuation, SingleParameterOnStack)          \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \
@@ -978,6 +992,7 @@ namespace internal {
   CPP(CollatorPrototypeCompare)                                        \
   /* ecma402 #sec-intl.collator.supportedlocalesof */                  \
   CPP(CollatorSupportedLocalesOf)                                      \
+  /* ecma402 #sec-intl.collator.prototype.resolvedoptions */           \
   CPP(CollatorPrototypeResolvedOptions)                                \
   /* ecma402 #sup-date.prototype.tolocaledatestring */                 \
   CPP(DatePrototypeToLocaleDateString)                                 \
@@ -1023,21 +1038,46 @@ namespace internal {
   CPP(ListFormatSupportedLocalesOf)                                    \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
+  /* ecma402 #sec-Intl.Locale.prototype.baseName */                    \
   CPP(LocalePrototypeBaseName)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.calendar */                    \
   CPP(LocalePrototypeCalendar)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.calendars */                   \
+  CPP(LocalePrototypeCalendars)                                        \
+  /* ecma402 #sec-Intl.Locale.prototype.caseFirst */                   \
   CPP(LocalePrototypeCaseFirst)                                        \
+  /* ecma402 #sec-Intl.Locale.prototype.collation */                   \
   CPP(LocalePrototypeCollation)                                        \
+  /* ecma402 #sec-Intl.Locale.prototype.collations */                  \
+  CPP(LocalePrototypeCollations)                                       \
+  /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                   \
   CPP(LocalePrototypeHourCycle)                                        \
+  /* ecma402 #sec-Intl.Locale.prototype.hourCycles */                  \
+  CPP(LocalePrototypeHourCycles)                                       \
+  /* ecma402 #sec-Intl.Locale.prototype.language */                    \
   CPP(LocalePrototypeLanguage)                                         \
   /* ecma402 #sec-Intl.Locale.prototype.maximize */                    \
   CPP(LocalePrototypeMaximize)                                         \
   /* ecma402 #sec-Intl.Locale.prototype.minimize */                    \
   CPP(LocalePrototypeMinimize)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.numeric */                     \
   CPP(LocalePrototypeNumeric)                                          \
+  /* ecma402 #sec-Intl.Locale.prototype.numberingSystem */             \
   CPP(LocalePrototypeNumberingSystem)                                  \
+  /* ecma402 #sec-Intl.Locale.prototype.numberingSystems */            \
+  CPP(LocalePrototypeNumberingSystems)                                 \
+  /* ecma402 #sec-Intl.Locale.prototype.region */                      \
   CPP(LocalePrototypeRegion)                                           \
+  /* ecma402 #sec-Intl.Locale.prototype.script */                      \
   CPP(LocalePrototypeScript)                                           \
+  /* ecma402 #sec-Intl.Locale.prototype.textInfo */                    \
+  CPP(LocalePrototypeTextInfo)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.timezones */                   \
+  CPP(LocalePrototypeTimeZones)                                        \
+  /* ecma402 #sec-Intl.Locale.prototype.toString */                    \
   CPP(LocalePrototypeToString)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.weekInfo */                    \
+  CPP(LocalePrototypeWeekInfo)                                         \
   /* ecma402 #sec-intl.numberformat */                                 \
   CPP(NumberFormatConstructor)                                         \
   /* ecma402 #sec-number-format-functions */                           \
@@ -1052,6 +1092,7 @@ namespace internal {
   CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.pluralrules */                                  \
   CPP(PluralRulesConstructor)                                          \
+  /* ecma402 #sec-intl.pluralrules.prototype.resolvedoptions */        \
   CPP(PluralRulesPrototypeResolvedOptions)                             \
   /* ecma402 #sec-intl.pluralrules.prototype.select */                 \
   CPP(PluralRulesPrototypeSelect)                                      \

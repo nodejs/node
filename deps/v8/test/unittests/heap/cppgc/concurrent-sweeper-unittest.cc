@@ -132,7 +132,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
       // The corresponding page could be removed.
       if (!backend->Lookup(static_cast<ConstAddress>(object))) continue;
 
-      if (!freelist.Contains({object, 0})) return false;
+      if (!freelist.ContainsForTesting({object, 0})) return false;
     }
 
     return true;
@@ -145,7 +145,7 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
+  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
 
   auto* page = BasePage::FromPayload(unmarked_object);
   auto* space = page->space();
@@ -160,10 +160,10 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 
 #if !defined(CPPGC_YOUNG_GENERATION)
   // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #else
   // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #endif
 
   // Check that free list entries are created right away for non-finalizable
@@ -184,7 +184,7 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
+  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
 
   auto* unmarked_page = BasePage::FromPayload(unmarked_object);
   auto* marked_page = BasePage::FromPayload(marked_object);
@@ -199,10 +199,10 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
 
 #if !defined(CPPGC_YOUNG_GENERATION)
   // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #else
   // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(marked_object).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #endif
 
   // Check that free list entries are created right away for non-finalizable
@@ -299,9 +299,8 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
       MakeGarbageCollected<LargeFinalizable>(GetAllocationHandle());
 
   auto& marked_normal_header =
-      HeapObjectHeader::FromPayload(marked_normal_object);
-  auto& marked_large_header =
-      HeapObjectHeader::FromPayload(marked_large_object);
+      HeapObjectHeader::FromObject(marked_normal_object);
+  auto& marked_large_header = HeapObjectHeader::FromObject(marked_large_object);
 
   marked_normal_header.TryMarkAtomic();
   marked_large_header.TryMarkAtomic();

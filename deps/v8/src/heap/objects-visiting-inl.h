@@ -18,7 +18,10 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -73,8 +76,9 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
     HeapObject host) {
-  DCHECK(!host.map_word().IsForwardingAddress());
-  static_cast<ConcreteVisitor*>(this)->VisitPointer(host, host.map_slot());
+  DCHECK(!host.map_word(kRelaxedLoad).IsForwardingAddress());
+  if (!static_cast<ConcreteVisitor*>(this)->ShouldVisitMapPointer()) return;
+  static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
 #define VISIT(TypeName)                                                        \
@@ -164,7 +168,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object);
   }
-  return static_cast<ResultType>(object.size());
+  return static_cast<ResultType>(object.size(kRelaxedLoad));
 }
 
 template <typename ConcreteVisitor>

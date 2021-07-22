@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
@@ -65,7 +66,9 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     auto bs = backing_store(store_index);
     SharedFlag shared =
         bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-    buffer->Setup(shared, bs);
+    // TODO(v8:11111): Support RAB / GSAB.
+    CHECK(!bs || !bs->is_resizable());
+    buffer->Setup(shared, ResizableFlag::kNotResizable, bs);
   }
 
   for (Handle<Script> script : new_scripts()) {

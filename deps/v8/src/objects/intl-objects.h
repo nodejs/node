@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 68
+#define V8_MINIMUM_ICU_VERSION 69
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -330,6 +330,14 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocales();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
+
+  // ecma402/#sec-getoptionsobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetOptionsObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
+
+  // ecma402/#sec-coerceoptionstoobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
 };
 
 }  // namespace internal

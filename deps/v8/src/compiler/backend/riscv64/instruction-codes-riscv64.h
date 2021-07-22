@@ -59,6 +59,7 @@ namespace compiler {
   V(RiscvMov)                               \
   V(RiscvTst)                               \
   V(RiscvCmp)                               \
+  V(RiscvCmpZero)                           \
   V(RiscvCmpS)                              \
   V(RiscvAddS)                              \
   V(RiscvSubS)                              \
@@ -170,7 +171,6 @@ namespace compiler {
   V(RiscvI32x4ExtractLane)                  \
   V(RiscvI32x4ReplaceLane)                  \
   V(RiscvI32x4Add)                          \
-  V(RiscvI32x4AddHoriz)                     \
   V(RiscvI32x4Sub)                          \
   V(RiscvF64x2Abs)                          \
   V(RiscvF64x2Neg)                          \
@@ -193,7 +193,10 @@ namespace compiler {
   V(RiscvI32x4ShrU)                         \
   V(RiscvI32x4MaxU)                         \
   V(RiscvI32x4MinU)                         \
+  V(RiscvI64x2GtS)                          \
+  V(RiscvI64x2GeS)                          \
   V(RiscvI64x2Eq)                           \
+  V(RiscvI64x2Ne)                           \
   V(RiscvF64x2Sqrt)                         \
   V(RiscvF64x2Add)                          \
   V(RiscvF64x2Sub)                          \
@@ -223,6 +226,7 @@ namespace compiler {
   V(RiscvI64x2Add)                          \
   V(RiscvI64x2Sub)                          \
   V(RiscvI64x2Mul)                          \
+  V(RiscvI64x2Abs)                          \
   V(RiscvI64x2Neg)                          \
   V(RiscvI64x2Shl)                          \
   V(RiscvI64x2ShrS)                         \
@@ -234,7 +238,6 @@ namespace compiler {
   V(RiscvF32x4RecipApprox)                  \
   V(RiscvF32x4RecipSqrtApprox)              \
   V(RiscvF32x4Add)                          \
-  V(RiscvF32x4AddHoriz)                     \
   V(RiscvF32x4Sub)                          \
   V(RiscvF32x4Mul)                          \
   V(RiscvF32x4Div)                          \
@@ -273,7 +276,6 @@ namespace compiler {
   V(RiscvI16x8ShrU)                         \
   V(RiscvI16x8Add)                          \
   V(RiscvI16x8AddSatS)                      \
-  V(RiscvI16x8AddHoriz)                     \
   V(RiscvI16x8Sub)                          \
   V(RiscvI16x8SubSatS)                      \
   V(RiscvI16x8Mul)                          \
@@ -304,7 +306,6 @@ namespace compiler {
   V(RiscvI8x16AddSatS)                      \
   V(RiscvI8x16Sub)                          \
   V(RiscvI8x16SubSatS)                      \
-  V(RiscvI8x16Mul)                          \
   V(RiscvI8x16MaxS)                         \
   V(RiscvI8x16MinS)                         \
   V(RiscvI8x16Eq)                           \
@@ -328,10 +329,11 @@ namespace compiler {
   V(RiscvS128Not)                           \
   V(RiscvS128Select)                        \
   V(RiscvS128AndNot)                        \
-  V(RiscvV32x4AllTrue)                      \
-  V(RiscvV16x8AllTrue)                      \
+  V(RiscvI32x4AllTrue)                      \
+  V(RiscvI16x8AllTrue)                      \
   V(RiscvV128AnyTrue)                       \
-  V(RiscvV8x16AllTrue)                      \
+  V(RiscvI8x16AllTrue)                      \
+  V(RiscvI64x2AllTrue)                      \
   V(RiscvS32x4InterleaveRight)              \
   V(RiscvS32x4InterleaveLeft)               \
   V(RiscvS32x4PackEven)                     \

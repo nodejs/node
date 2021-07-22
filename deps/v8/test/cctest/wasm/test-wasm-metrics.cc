@@ -7,6 +7,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/flag-utils.h"

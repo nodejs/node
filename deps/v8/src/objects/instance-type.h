@@ -33,16 +33,11 @@ enum StringRepresentationTag {
 };
 const uint32_t kIsIndirectStringMask = 1 << 0;
 const uint32_t kIsIndirectStringTag = 1 << 0;
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((kSeqStringTag & kIsIndirectStringMask) == 0);
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((kExternalStringTag & kIsIndirectStringMask) == 0);
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((kConsStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((kSlicedStringTag & kIsIndirectStringMask) ==
               kIsIndirectStringTag);
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
 // For strings, bit 3 indicates whether the string consists of two-byte
@@ -152,7 +147,6 @@ enum InstanceType : uint16_t {
 constexpr InstanceType LAST_STRING_TYPE =
     static_cast<InstanceType>(FIRST_NONSTRING_TYPE - 1);
 
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((FIRST_NONSTRING_TYPE & kIsNotStringMask) != kStringTag);
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_ASSERT(JS_API_OBJECT_TYPE == Internals::kJSApiObjectType);
@@ -258,6 +252,7 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
   V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
+  V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
   V(_, MetaMap, meta_map, Map)                                                 \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \

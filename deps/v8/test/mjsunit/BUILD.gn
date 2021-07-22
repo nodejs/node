@@ -24,14 +24,10 @@ group("v8_mjsunit") {
     "../../tools/profile.mjs",
     "../../tools/profile_view.mjs",
     "../../tools/splaytree.mjs",
-    "../../tools/system-analyzer/helper.mjs",
-    "../../tools/system-analyzer/log/api.mjs",
-    "../../tools/system-analyzer/log/code.mjs",
-    "../../tools/system-analyzer/log/ic.mjs",
-    "../../tools/system-analyzer/log/log.mjs",
-    "../../tools/system-analyzer/log/map.mjs",
+    "../../tools/system-analyzer/log/",
     "../../tools/system-analyzer/processor.mjs",
     "../../tools/system-analyzer/timeline.mjs",
+    "../../tools/system-analyzer/helper.mjs",
     "../../tools/tickprocessor.mjs",
   ]
 }

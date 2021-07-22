@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>  // NOLINT
-#endif               // !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif  // !defined(_WIN32) && !defined(_WIN64)
 
 #include <locale.h>
 
@@ -128,7 +128,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       v8::Local<v8::String> str_obj;
 
       if (arg->IsSymbol()) {
-        arg = v8::Local<v8::Symbol>::Cast(arg)->Description();
+        arg = v8::Local<v8::Symbol>::Cast(arg)->Description(args.GetIsolate());
       }
       if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
                .ToLocal(&str_obj)) {
@@ -171,7 +171,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     std::string filename(*str, str.length());
     *chars = v8::internal::ReadFile(filename.c_str(), &exists);
     if (!exists) {
-      isolate->ThrowException(ToV8String(isolate, "Error reading file"));
+      isolate->ThrowError("Error reading file");
       return false;
     }
     return true;
@@ -322,8 +322,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
 
     RunSyncTask(backend_runner_, [&context_group_id, name](IsolateData* data) {
-      data->CreateContext(context_group_id,
-                          v8_inspector::StringView(name.data(), name.size()));
+      CHECK(data->CreateContext(
+          context_group_id,
+          v8_inspector::StringView(name.data(), name.size())));
     });
   }
 
@@ -631,14 +632,14 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
   static void AccessorGetter(v8::Local<v8::String> property,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
-    isolate->ThrowException(ToV8String(isolate, "Getter is called"));
+    isolate->ThrowError("Getter is called");
   }
 
   static void AccessorSetter(v8::Local<v8::String> property,
                              v8::Local<v8::Value> value,
                              const v8::PropertyCallbackInfo<void>& info) {
     v8::Isolate* isolate = info.GetIsolate();
-    isolate->ThrowException(ToV8String(isolate, "Setter is called"));
+    isolate->ThrowError("Setter is called");
   }
 
   static void StoreCurrentStackTrace(

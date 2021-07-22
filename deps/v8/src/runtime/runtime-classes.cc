@@ -117,7 +117,7 @@ namespace {
 
 template <typename Dictionary>
 Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key) {
-  STATIC_ASSERT((std::is_same<Dictionary, OrderedNameDictionary>::value ||
+  STATIC_ASSERT((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   DCHECK(key->IsName());
   return Handle<Name>::cast(key);
@@ -188,10 +188,8 @@ Object GetMethodWithSharedName(
 template <typename Dictionary>
 Handle<Dictionary> ShallowCopyDictionaryTemplate(
     Isolate* isolate, Handle<Dictionary> dictionary_template) {
-  Handle<Map> dictionary_map(dictionary_template->map(), isolate);
   Handle<Dictionary> dictionary =
-      Handle<Dictionary>::cast(isolate->factory()->CopyFixedArrayWithMap(
-          dictionary_template, dictionary_map));
+      Dictionary::ShallowCopy(isolate, dictionary_template);
   // Clone all AccessorPairs in the dictionary.
   for (InternalIndex i : dictionary->IterateEntries()) {
     Object value = dictionary->ValueAt(i);
@@ -376,7 +374,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->synchronized_set_map(*map);
+  receiver->set_map(*map, kReleaseStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
@@ -470,7 +468,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->synchronized_set_map(*map);
+  receiver->set_map(*map, kReleaseStore);
   receiver->set_raw_properties_or_hash(*properties_dictionary);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
@@ -499,7 +497,7 @@ bool InitClassPrototype(Isolate* isolate,
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
   Map::SetPrototype(isolate, map, prototype_parent);
-  constructor->set_prototype_or_initial_map(*prototype);
+  constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
@@ -529,9 +527,9 @@ bool InitClassPrototype(Isolate* isolate,
     // Class prototypes do not have a name accessor.
     const bool install_name_accessor = false;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      Handle<OrderedNameDictionary> properties_dictionary_template =
-          Handle<OrderedNameDictionary>::cast(properties_template);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Handle<SwissNameDictionary> properties_dictionary_template =
+          Handle<SwissNameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, prototype,
@@ -590,9 +588,9 @@ bool InitClassConstructor(
     // All class constructors have a name accessor.
     const bool install_name_accessor = true;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      Handle<OrderedNameDictionary> properties_dictionary_template =
-          Handle<OrderedNameDictionary>::cast(properties_template);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Handle<SwissNameDictionary> properties_dictionary_template =
+          Handle<SwissNameDictionary>::cast(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,

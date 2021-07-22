@@ -3,12 +3,35 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-typed-funcref --experimental-wasm-eh
-// Flags: --wasm-loop-unrolling
+// Flags: --wasm-loop-unrolling --experimental-wasm-return-call
 // Needed for exceptions-utils.js.
 // Flags: --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 load("test/mjsunit/wasm/exceptions-utils.js");
+
+// Test that lowering a ror operator with int64-lowering does not produce
+// floating control, which is incompatible with loop unrolling.
+(function I64RorLoweringTest() {
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(1000, 1000);
+
+  builder.addFunction("main", makeSig([kWasmI32, kWasmI64], []))
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0x00,
+        kExprI32LoadMem, 0x00, 0x00,
+        kExprI64UConvertI32,
+        kExprLocalGet, 0x01,
+        kExprI64Ror,
+        kExprI32ConvertI64,
+        kExprBrIf, 0x00,
+      kExprEnd])
+    .exportFunc();
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+})();
 
 // Test the interaction between multireturn and loop unrolling.
 (function MultiBlockResultTest() {
@@ -17,10 +40,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       ...wasmI32Const(1),
-        kExprLet, kWasmStmt, 1, 1, kWasmI32,
-        kExprLoop, kWasmStmt,
+        kExprLet, kWasmVoid, 1, 1, kWasmI32,
+        kExprLoop, kWasmVoid,
           ...wasmI32Const(10),
-          kExprLet, kWasmStmt, 1, 1, kWasmI32,
+          kExprLet, kWasmVoid, 1, 1, kWasmI32,
             kExprLocalGet, 0,
             kExprLocalGet, 1,
             kExprI32Sub,
@@ -36,6 +59,33 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
   assertEquals(instance.exports.main(100), 109);
+})();
+
+// Test the interaction between tail calls and loop unrolling.
+(function TailCallTest() {
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprIf, kWasmVoid,
+          kExprLocalGet, 0,
+          kExprReturnCall, callee.index,
+        kExprElse,
+          kExprBr, 1,
+        kExprEnd,
+      kExprEnd,
+      kExprUnreachable
+    ])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(1), 1);
 })();
 
 // Test the interaction between the eh proposal and loop unrolling.
@@ -59,16 +109,16 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprI32Const, 0,
           kExprI32Eq,
-          kExprIf, kWasmStmt,
-            kExprLoop, kWasmStmt,
+          kExprIf, kWasmVoid,
+            kExprLoop, kWasmVoid,
               kExprRethrow, 2,
             kExprEnd,
           kExprEnd,
           kExprLocalGet, 0,
           kExprI32Const, 1,
           kExprI32Eq,
-          kExprIf, kWasmStmt,
-            kExprLoop, kWasmStmt,
+          kExprIf, kWasmVoid,
+            kExprLoop, kWasmVoid,
               kExprRethrow, 3,
             kExprEnd,
           kExprEnd,
@@ -92,11 +142,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except1 = builder.addException(kSig_v_v);
   builder.addFunction("throw", kSig_i_i)
     .addBody([
-      kExprLoop, kWasmStmt,
+      kExprLoop, kWasmVoid,
         kExprLocalGet, 0,
         kExprI32Const, 10,
         kExprI32GtS,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
           kExprThrow, except1,
         kExprElse,
           kExprLocalGet, 0,
@@ -125,7 +175,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprI32Const, 10,
           kExprI32GtS,
-          kExprIf, kWasmStmt,
+          kExprIf, kWasmVoid,
             kExprThrow, except1,
           kExprElse,
             kExprLocalGet, 0,

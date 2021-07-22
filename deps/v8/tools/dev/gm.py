@@ -98,15 +98,26 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
 
 OUTDIR = "out"
 
+def _Which(cmd):
+  for path in os.environ["PATH"].split(os.pathsep):
+    if os.path.exists(os.path.join(path, cmd)):
+      return os.path.join(path, cmd)
+  return None
+
 def DetectGoma():
-  home_goma = os.path.expanduser("~/goma")
-  if os.path.exists(home_goma):
-    return home_goma
   if os.environ.get("GOMA_DIR"):
     return os.environ.get("GOMA_DIR")
   if os.environ.get("GOMADIR"):
     return os.environ.get("GOMADIR")
-  return None
+  # There is a copy of goma in depot_tools, but it might not be in use on
+  # this machine.
+  goma = _Which("goma_ctl")
+  if goma is None: return None
+  cipd_bin = os.path.join(os.path.dirname(goma), ".cipd_bin")
+  if not os.path.exists(cipd_bin): return None
+  goma_auth = os.path.expanduser("~/.goma_client_oauth2_config")
+  if not os.path.exists(goma_auth): return None
+  return cipd_bin
 
 GOMADIR = DetectGoma()
 IS_GOMA_MACHINE = GOMADIR is not None
@@ -118,12 +129,11 @@ is_component_build = false
 is_debug = false
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -131,12 +141,11 @@ is_debug = true
 symbol_level = 2
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -144,12 +153,11 @@ is_debug = true
 symbol_level = 1
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
@@ -160,6 +168,17 @@ ARGS_TEMPLATES = {
 def PrintHelpAndExit():
   print(__doc__)
   print(HELP)
+  sys.exit(0)
+
+def PrintCompletionsAndExit():
+  for a in ARCHES:
+    print("%s" % a)
+    for m in MODES:
+      print("%s" % m)
+      print("%s.%s" % (a, m))
+      for t in TARGETS:
+        print("%s" % t)
+        print("%s.%s.%s" % (a, m, t))
   sys.exit(0)
 
 def _Call(cmd, silent=False):
@@ -195,12 +214,6 @@ def _CallWithOutput(cmd):
     p.wait()
   return p.returncode, "".join(output)
 
-def _Which(cmd):
-  for path in os.environ["PATH"].split(os.pathsep):
-    if os.path.exists(os.path.join(path, cmd)):
-      return os.path.join(path, cmd)
-  return None
-
 def _Write(filename, content):
   print("# echo > %s << EOF\n%sEOF" % (filename, content))
   with open(filename, "w") as f:
@@ -211,6 +224,11 @@ def _Notify(summary, body):
     _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
   else:
     print("{} - {}".format(summary, body))
+
+def _GetMachine():
+  # Once we migrate to Python3, this can use os.uname().machine.
+  # The index-based access is compatible with all Python versions.
+  return os.uname()[4]
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
@@ -239,33 +257,52 @@ class Config(object):
     self.tests.update(tests)
 
   def GetTargetCpu(self):
-    if self.arch == "android_arm": return "target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "target_cpu = \"arm64\""
     cpu = "x86"
-    if "64" in self.arch or self.arch == "s390x":
+    if self.arch == "android_arm":
+      cpu = "arm"
+    elif self.arch == "android_arm64":
+      cpu = "arm64"
+    elif self.arch == "arm64" and _GetMachine() in ("aarch64", "arm64"):
+      # arm64 build host:
+      cpu = "arm64"
+    elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
+      cpu = "arm"
+    elif "64" in self.arch or self.arch == "s390x":
+      # Native x64 or simulator build.
       cpu = "x64"
-    return "target_cpu = \"%s\"" % cpu
+    return ["target_cpu = \"%s\"" % cpu]
 
   def GetV8TargetCpu(self):
-    if self.arch == "android_arm": return "\nv8_target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "\nv8_target_cpu = \"arm64\""
-    if self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-                     "riscv64", "s390", "s390x"):
-      return "\nv8_target_cpu = \"%s\"" % self.arch
-    return ""
+    if self.arch == "android_arm":
+      v8_cpu = "arm"
+    elif self.arch == "android_arm64":
+      v8_cpu = "arm64"
+    elif self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
+                       "riscv64", "s390", "s390x"):
+      v8_cpu = self.arch
+    else:
+      return []
+    return ["v8_target_cpu = \"%s\"" % v8_cpu]
 
   def GetTargetOS(self):
     if self.arch in ("android_arm", "android_arm64"):
-      return "\ntarget_os = \"android\""
-    return ""
+      return ["target_os = \"android\""]
+    return []
+
+  def GetSpecialCompiler(self):
+    if _GetMachine() == "aarch64":
+      # We have no prebuilt Clang for arm64 on Linux, so use the system Clang
+      # instead.
+      return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
+    return []
 
   def GetGnArgs(self):
     # Use only substring before first '-' as the actual mode
     mode = re.match("([^-]+)", self.mode).group(1)
     template = ARGS_TEMPLATES[mode]
     arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
-                     self.GetTargetOS())
-    return template % arch_specific
+                     self.GetTargetOS() + self.GetSpecialCompiler())
+    return template % "\n".join(arch_specific)
 
   def Build(self):
     path = GetPath(self.arch, self.mode)
@@ -352,6 +389,8 @@ class ArgumentParser(object):
   def ParseArg(self, argstring):
     if argstring in ("-h", "--help", "help"):
       PrintHelpAndExit()
+    if argstring == "--print-completions":
+      PrintCompletionsAndExit()
     arches = []
     modes = []
     targets = []
@@ -426,7 +465,7 @@ def Main(argv):
   configs = parser.ParseArguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
-  if (GOMADIR is not None and
+  if (IS_GOMA_MACHINE and
       _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:

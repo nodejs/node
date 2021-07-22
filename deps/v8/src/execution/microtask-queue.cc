@@ -113,6 +113,16 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
 void MicrotaskQueue::PerformCheckpoint(v8::Isolate* v8_isolate) {
   if (!IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
       !HasMicrotasksSuppressions()) {
+    std::unique_ptr<MicrotasksScope> microtasks_scope;
+    if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
+      // If we're using microtask scopes to schedule microtask execution, V8
+      // API calls will check that there's always a microtask scope on the
+      // stack. As the microtasks we're about to execute could invoke embedder
+      // callbacks which then calls back into V8, we create an artificial
+      // microtask scope here to avoid running into the CallDepthScope check.
+      microtasks_scope.reset(new v8::MicrotasksScope(
+          v8_isolate, this, v8::MicrotasksScope::kDoNotRunMicrotasks));
+    }
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     RunMicrotasks(isolate);
     isolate->ClearKeptObjects();

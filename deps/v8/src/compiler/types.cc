@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
@@ -255,6 +256,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
     case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
@@ -264,6 +266,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case WASM_STRUCT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case WEAK_CELL_TYPE:
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());
@@ -343,7 +346,9 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
     case COVERAGE_INFO_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_TYPE_INFO_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -833,7 +838,14 @@ Type Type::Constant(double value, Zone* zone) {
 }
 
 Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
-  ObjectRef ref(broker, value);
+  // TODO(jgruber,chromium:1209798): Using kAssumeMemoryFence works around
+  // the fact that the graph stores handles (and not refs). The assumption is
+  // that any handle inserted into the graph is safe to read; but we don't
+  // preserve the reason why it is safe to read. Thus we must over-approximate
+  // here and assume the existence of a memory fence. In the future, we should
+  // consider having the graph store ObjectRefs or ObjectData pointer instead,
+  // which would make new ref construction here unnecessary.
+  ObjectRef ref = MakeRefAssumeMemoryFence(broker, value);
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
@@ -965,8 +977,7 @@ const char* BitsetType::Name(bitset bits) {
   }
 }
 
-void BitsetType::Print(std::ostream& os,  // NOLINT
-                       bitset bits) {
+void BitsetType::Print(std::ostream& os, bitset bits) {
   DisallowGarbageCollection no_gc;
   const char* name = Name(bits);
   if (name != nullptr) {

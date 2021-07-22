@@ -1,6 +1,7 @@
 // Base class for npm.commands[cmd]
 const usageUtil = require('./utils/usage.js')
 const ConfigDefinitions = require('./utils/config/definitions.js')
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 class BaseCommand {
   constructor (npm) {
@@ -71,6 +72,13 @@ class BaseCommand {
       new Error('This command does not support workspaces.'),
       { code: 'ENOWORKSPACES' }
     )
+  }
+
+  async setWorkspaces (filters) {
+    const ws = await getWorkspaces(filters, { path: this.npm.localPrefix })
+    this.workspaces = ws
+    this.workspaceNames = [...ws.keys()]
+    this.workspacePaths = [...ws.values()]
   }
 }
 module.exports = BaseCommand

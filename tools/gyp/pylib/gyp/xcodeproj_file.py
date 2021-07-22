@@ -299,8 +299,8 @@ class XCObject:
         try:
             name = self.Name()
         except NotImplementedError:
-            return "<{} at 0x{:x}>".format(self.__class__.__name__, id(self))
-        return "<{} {!r} at 0x{:x}>".format(self.__class__.__name__, name, id(self))
+            return f"<{self.__class__.__name__} at 0x{id(self):x}>"
+        return f"<{self.__class__.__name__} {name!r} at 0x{id(self):x}>"
 
     def Copy(self):
         """Make a copy of this object.
@@ -2251,7 +2251,7 @@ class PBXContainerItemProxy(XCObject):
     def __repr__(self):
         props = self._properties
         name = "{}.gyp:{}".format(props["containerPortal"].Name(), props["remoteInfo"])
-        return "<{} {!r} at 0x{:x}>".format(self.__class__.__name__, name, id(self))
+        return f"<{self.__class__.__name__} {name!r} at 0x{id(self):x}>"
 
     def Name(self):
         # Admittedly not the best name, but it's what Xcode uses.
@@ -2288,7 +2288,7 @@ class PBXTargetDependency(XCObject):
 
     def __repr__(self):
         name = self._properties.get("name") or self._properties["target"].Name()
-        return "<{} {!r} at 0x{:x}>".format(self.__class__.__name__, name, id(self))
+        return f"<{self.__class__.__name__} {name!r} at 0x{id(self):x}>"
 
     def Name(self):
         # Admittedly not the best name, but it's what Xcode uses.

@@ -7,12 +7,14 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
 #include <type_traits>
 #include <unordered_map>
 
 #include "src/baseline/baseline-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-function.h"
@@ -22,6 +24,12 @@
 #include "src/baseline/x64/baseline-assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/baseline/arm64/baseline-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_IA32
+#include "src/baseline/ia32/baseline-assembler-ia32-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "src/baseline/arm/baseline-assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/baseline/riscv64/baseline-assembler-riscv64-inl.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -36,10 +44,10 @@ void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   __ GetCode(isolate, desc);
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
-bool BaselineAssembler::emit_debug_code() const { return __ emit_debug_code(); }
 void BaselineAssembler::CodeEntry() const { __ CodeEntry(); }
 void BaselineAssembler::ExceptionHandler() const { __ ExceptionHandler(); }
 void BaselineAssembler::RecordComment(const char* string) {
+  if (!FLAG_code_comments) return;
   __ RecordComment(string);
 }
 void BaselineAssembler::Trap() { __ Trap(); }
@@ -62,7 +70,7 @@ void BaselineAssembler::LoadRoot(Register output, RootIndex index) {
   __ LoadRoot(output, index);
 }
 void BaselineAssembler::LoadNativeContextSlot(Register output, uint32_t index) {
-  __ LoadNativeContextSlot(index, output);
+  __ LoadNativeContextSlot(output, index);
 }
 
 void BaselineAssembler::Move(Register output, interpreter::Register source) {

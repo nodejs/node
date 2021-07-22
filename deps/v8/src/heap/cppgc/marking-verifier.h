@@ -21,6 +21,9 @@ class VerificationState {
   void VerifyMarked(const void*) const;
   void SetCurrentParent(const HeapObjectHeader* header) { parent_ = header; }
 
+  // No parent means parent was on stack.
+  bool IsParentOnStack() const { return !parent_; }
+
  private:
   const HeapObjectHeader* parent_ = nullptr;
 };
@@ -37,12 +40,11 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(Heap::Config::StackState);
+  void Run(Heap::Config::StackState, uintptr_t, size_t);
 
  protected:
-  MarkingVerifierBase(HeapBase&, std::unique_ptr<cppgc::Visitor>);
-
-  virtual void SetCurrentParent(const HeapObjectHeader*) = 0;
+  MarkingVerifierBase(HeapBase&, VerificationState&,
+                      std::unique_ptr<cppgc::Visitor>);
 
  private:
   void VisitInConstructionConservatively(HeapObjectHeader&,
@@ -51,20 +53,20 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
 
   bool VisitHeapObjectHeader(HeapObjectHeader*);
 
+  VerificationState& verification_state_;
   std::unique_ptr<cppgc::Visitor> visitor_;
 
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_heap_;
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
   std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
       &in_construction_objects_heap_;
+  size_t found_marked_bytes_ = 0;
 };
 
 class V8_EXPORT_PRIVATE MarkingVerifier final : public MarkingVerifierBase {
  public:
   explicit MarkingVerifier(HeapBase&);
   ~MarkingVerifier() final = default;
-
-  void SetCurrentParent(const HeapObjectHeader*) final;
 
  private:
   VerificationState state_;

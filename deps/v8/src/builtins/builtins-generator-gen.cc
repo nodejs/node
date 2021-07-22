@@ -202,5 +202,114 @@ TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
                            "[Generator].prototype.throw");
 }
 
+// TODO(cbruni): Merge with corresponding bytecode handler.
+TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
+  auto generator = Parameter<JSGeneratorObject>(Descriptor::kGeneratorObject);
+  auto context = LoadContextFromBaseline();
+  StoreJSGeneratorObjectContext(generator, context);
+  auto suspend_id = SmiTag(UncheckedParameter<IntPtrT>(Descriptor::kSuspendId));
+  StoreJSGeneratorObjectContinuation(generator, suspend_id);
+  // Store the bytecode offset in the [input_or_debug_pos] field, to be used by
+  // the inspector.
+  auto bytecode_offset =
+      SmiTag(UncheckedParameter<IntPtrT>(Descriptor::kBytecodeOffset));
+  // Avoid the write barrier by using the generic helper.
+  StoreObjectFieldNoWriteBarrier(
+      generator, JSGeneratorObject::kInputOrDebugPosOffset, bytecode_offset);
+
+  TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
+  auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
+  TNode<IntPtrT> formal_parameter_count = Signed(
+      ChangeUint32ToWord(LoadSharedFunctionInfoFormalParameterCount(sfi)));
+  CSA_ASSERT(this, Word32BinaryNot(IntPtrEqual(
+                       formal_parameter_count,
+                       IntPtrConstant(kDontAdaptArgumentsSentinel))));
+
+  TNode<FixedArray> parameters_and_registers =
+      LoadJSGeneratorObjectParametersAndRegisters(generator);
+  auto parameters_and_registers_length =
+      SmiUntag(LoadFixedArrayBaseLength(parameters_and_registers));
+
+  // Copy over the function parameters
+  auto parameter_base_index = IntPtrConstant(
+      interpreter::Register::FromParameterIndex(0, 1).ToOperand() + 1);
+  CSA_CHECK(this, UintPtrLessThan(formal_parameter_count,
+                                  parameters_and_registers_length));
+  auto parent_frame_pointer = LoadParentFramePointer();
+  BuildFastLoop<IntPtrT>(
+      IntPtrConstant(0), formal_parameter_count,
+      [=](TNode<IntPtrT> index) {
+        auto reg_index = IntPtrAdd(parameter_base_index, index);
+        TNode<Object> value = LoadFullTagged(parent_frame_pointer,
+                                             TimesSystemPointerSize(reg_index));
+        UnsafeStoreFixedArrayElement(parameters_and_registers, index, value);
+      },
+      1, IndexAdvanceMode::kPost);
+
+  // Iterate over register file and write values into array.
+  // The mapping of register to array index must match that used in
+  // BytecodeGraphBuilder::VisitResumeGenerator.
+  auto register_base_index =
+      IntPtrAdd(formal_parameter_count,
+                IntPtrConstant(interpreter::Register(0).ToOperand()));
+  auto register_count = UncheckedParameter<IntPtrT>(Descriptor::kRegisterCount);
+  auto end_index = IntPtrAdd(formal_parameter_count, register_count);
+  CSA_CHECK(this, UintPtrLessThan(end_index, parameters_and_registers_length));
+  BuildFastLoop<IntPtrT>(
+      formal_parameter_count, end_index,
+      [=](TNode<IntPtrT> index) {
+        auto reg_index = IntPtrSub(register_base_index, index);
+        TNode<Object> value = LoadFullTagged(parent_frame_pointer,
+                                             TimesSystemPointerSize(reg_index));
+        UnsafeStoreFixedArrayElement(parameters_and_registers, index, value);
+      },
+      1, IndexAdvanceMode::kPost);
+
+  // The return value is unused, defaulting to undefined.
+  Return(UndefinedConstant());
+}
+
+// TODO(cbruni): Merge with corresponding bytecode handler.
+TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
+  auto generator = Parameter<JSGeneratorObject>(Descriptor::kGeneratorObject);
+  TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
+  auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
+  TNode<IntPtrT> formal_parameter_count = Signed(
+      ChangeUint32ToWord(LoadSharedFunctionInfoFormalParameterCount(sfi)));
+  CSA_ASSERT(this, Word32BinaryNot(IntPtrEqual(
+                       formal_parameter_count,
+                       IntPtrConstant(kDontAdaptArgumentsSentinel))));
+
+  TNode<FixedArray> parameters_and_registers =
+      LoadJSGeneratorObjectParametersAndRegisters(generator);
+
+  // Iterate over array and write values into register file.  Also erase the
+  // array contents to not keep them alive artificially.
+  auto register_base_index =
+      IntPtrAdd(formal_parameter_count,
+                IntPtrConstant(interpreter::Register(0).ToOperand()));
+  auto register_count = UncheckedParameter<IntPtrT>(Descriptor::kRegisterCount);
+  auto end_index = IntPtrAdd(formal_parameter_count, register_count);
+  auto parameters_and_registers_length =
+      SmiUntag(LoadFixedArrayBaseLength(parameters_and_registers));
+  CSA_CHECK(this, UintPtrLessThan(end_index, parameters_and_registers_length));
+  auto parent_frame_pointer = LoadParentFramePointer();
+  BuildFastLoop<IntPtrT>(
+      formal_parameter_count, end_index,
+      [=](TNode<IntPtrT> index) {
+        TNode<Object> value =
+            UnsafeLoadFixedArrayElement(parameters_and_registers, index);
+        auto reg_index = IntPtrSub(register_base_index, index);
+        StoreFullTaggedNoWriteBarrier(parent_frame_pointer,
+                                      TimesSystemPointerSize(reg_index), value);
+        UnsafeStoreFixedArrayElement(parameters_and_registers, index,
+                                     StaleRegisterConstant(),
+                                     SKIP_WRITE_BARRIER);
+      },
+      1, IndexAdvanceMode::kPost);
+
+  Return(LoadJSGeneratorObjectInputOrDebugPos(generator));
+}
+
 }  // namespace internal
 }  // namespace v8

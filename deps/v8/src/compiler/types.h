@@ -267,7 +267,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static bitset ExpandInternals(bitset bits);
 
   static const char* Name(bitset);
-  static void Print(std::ostream& os, bitset);  // NOLINT
+  static void Print(std::ostream& os, bitset);
 #ifdef DEBUG
   static void Print(bitset);
 #endif
@@ -411,6 +411,10 @@ class V8_EXPORT_PRIVATE Type {
     return Is(Type::Null()) || Is(Type::Undefined()) || Is(Type::MinusZero()) ||
            Is(Type::NaN()) || Is(Type::Hole()) || IsHeapConstant() ||
            (Is(Type::PlainNumber()) && Min() == Max());
+  }
+
+  bool CanBeAsserted() const {
+    return IsRange() || (Is(Type::Integral32()) && !IsNone());
   }
 
   const HeapConstantType* AsHeapConstant() const;

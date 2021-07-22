@@ -56,6 +56,7 @@ class Config extends BaseCommand {
       'json',
       'global',
       'editor',
+      'location',
       'long',
     ]
   }
@@ -137,7 +138,7 @@ class Config extends BaseCommand {
     if (!args.length)
       throw this.usageError()
 
-    const where = this.npm.config.get('global') ? 'global' : 'user'
+    const where = this.npm.config.get('location')
     for (const [key, val] of Object.entries(keyValues(args))) {
       this.npm.log.info('config', 'set %j %j', key, val)
       this.npm.config.set(key, val || '', where)
@@ -167,16 +168,15 @@ class Config extends BaseCommand {
     if (!keys.length)
       throw this.usageError()
 
-    const where = this.npm.config.get('global') ? 'global' : 'user'
+    const where = this.npm.config.get('location')
     for (const key of keys)
       this.npm.config.delete(key, where)
     await this.npm.config.save(where)
   }
 
   async edit () {
-    const global = this.npm.config.get('global')
     const e = this.npm.config.get('editor')
-    const where = global ? 'global' : 'user'
+    const where = this.npm.config.get('location')
     const file = this.npm.config.data.get(where).source
 
     // save first, just to make sure it's synced up

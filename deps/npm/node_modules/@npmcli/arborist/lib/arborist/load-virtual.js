@@ -221,7 +221,7 @@ module.exports = cls => class VirtualLoader extends cls {
   [assignBundles] (nodes) {
     for (const [location, node] of nodes) {
       // Skip assignment of parentage for the root package
-      if (!location || node.target && !node.target.location)
+      if (!location || node.isLink && !node.target.location)
         continue
       const { name, parent, package: { inBundle }} = node
 

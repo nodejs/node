@@ -21,6 +21,8 @@
 
 #include <signal.h>
 
+#include <cstdio>
+
 #include "src/trap-handler/handler-inside-posix.h"
 #include "src/trap-handler/trap-handler-internal.h"
 
@@ -39,7 +41,7 @@ bool g_is_default_signal_handler_registered;
 }  // namespace
 
 bool RegisterDefaultTrapHandler() {
-  CHECK(!g_is_default_signal_handler_registered);
+  TH_CHECK(!g_is_default_signal_handler_registered);
 
   struct sigaction action;
   action.sa_sigaction = HandleSignal;
@@ -61,7 +63,7 @@ bool RegisterDefaultTrapHandler() {
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
     defined(UNDEFINED_SANITIZER)
   struct sigaction installed_handler;
-  CHECK_EQ(sigaction(kOobSignal, NULL, &installed_handler), 0);
+  TH_CHECK(sigaction(kOobSignal, NULL, &installed_handler) == 0);
   // If the installed handler does not point to HandleSignal, then
   // allow_user_segv_handler is 0.
   if (installed_handler.sa_sigaction != HandleSignal) {

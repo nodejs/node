@@ -204,29 +204,22 @@ check: test
 # in place
 coverage-clean:
 	$(RM) -r node_modules
-	$(RM) -r gcovr build
+	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
 	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
 		-type f -exec $(RM) {} \;
 
 .PHONY: coverage
-# Build and test with code coverage reporting.  Leave the lib directory
-# instrumented for any additional runs the user may want to make.
-# For C++ coverage reporting, this needs to be run in conjunction with configure
-#  --coverage.  html coverage reports will be created under coverage/
-# Related CI job: node-test-commit-linux-coverage
+# Build and test with code coverage reporting. HTML coverage reports will be
+# created under coverage/. For C++ coverage reporting, this needs to be run
+# in conjunction with configure --coverage.
+# Related CI job: node-test-commit-linux-coverage-daily
 coverage: coverage-test ## Run the tests and generate a coverage report.
 
 .PHONY: coverage-build
 coverage-build: all
 	-$(MAKE) coverage-build-js
-	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
-		--single-branch https://github.com/gcovr/gcovr.git; fi
-	if [ ! -d build ]; then git clone --depth=1 \
-		--single-branch https://github.com/nodejs/build.git; fi
-	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
-		(cd gcovr && patch -N -p1 < \
-		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches-3.4.diff"); fi
+	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==4.2; fi
 	$(MAKE)
 
 .PHONY: coverage-build-js
@@ -238,16 +231,14 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*/*.gcda
+	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {} \;
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && "../gcovr/scripts/gcovr" \
+	-(cd out && PYTHONPATH=../gcovr $(PYTHON) -m gcovr \
 		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-		-r Release/obj.target --html --html-detail -o ../coverage/cxxcoverage.html \
+		-r ../src/ --object-directory Release/obj.target \
+		--html --html-details -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@printf "Javascript coverage %%: "
 	@grep -B1 Lines coverage/index.html | head -n1 \
@@ -338,7 +329,7 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
@@ -352,7 +343,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	else \
 		$(RM) -r test/addons/??_*/; \
 		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
-		touch $@; \
+		[ $$? -eq 0 ] && touch $@; \
 	fi
 
 ADDONS_BINDING_GYPS := \
@@ -589,12 +580,12 @@ test-doc: doc-only lint-md ## Builds, lints, and verifies the docs.
 	else \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
-	$(NODE) tools/doc/checkLinks.js .
+	$(NODE) tools/doc/checkLinks.mjs .
 
 .PHONY: test-doc-ci
 test-doc-ci: doc-only
 	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
-	$(NODE) tools/doc/checkLinks.js .
+	$(NODE) tools/doc/checkLinks.mjs .
 
 test-known-issues: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
@@ -667,12 +658,12 @@ test-v8: v8  ## Runs the V8 test suite on deps/v8.
 test-v8-intl: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
-				--mode=$(BUILDTYPE_LOWER) intl \
+				intl \
 				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
-		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
 
@@ -736,33 +727,33 @@ run-npm-ci = $(PWD)/$(NPM) ci
 
 LINK_DATA = out/doc/apilinks.json
 VERSIONS_DATA = out/previous-doc-versions.json
-gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
+gen-api = tools/doc/generate.mjs --node-version=$(FULLVERSION) \
 		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
 		--versions-file=$(VERSIONS_DATA)
-gen-apilink = tools/doc/apilinks.js $(LINK_DATA) $(wildcard lib/*.js)
+gen-apilink = tools/doc/apilinks.mjs $(LINK_DATA) $(wildcard lib/*.js)
 
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js | out/doc
+$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
 	$(call available-node, $(gen-apilink))
 
 # Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.js
-	$(call available-node, tools/doc/versions.js $@)
+$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
+	$(call available-node, tools/doc/versions.mjs $@)
 
-out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
-	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js \
-	tools/doc/apilinks.js $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
+out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.mjs \
+	tools/doc/markdown.mjs tools/doc/html.mjs tools/doc/json.mjs \
+	tools/doc/apilinks.mjs $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
 	$(call available-node, $(gen-api))
 
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
-	tools/doc/apilinks.js | out/doc/api
-	$(call available-node, tools/doc/allhtml.js)
+out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.mjs \
+	tools/doc/apilinks.mjs | out/doc/api
+	$(call available-node, tools/doc/allhtml.mjs)
 
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js | out/doc/api
-	$(call available-node, tools/doc/alljson.js)
+out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
+	$(call available-node, tools/doc/alljson.mjs)
 
 .PHONY: out/doc/api/stability
-out/doc/api/stability: out/doc/api/all.json tools/doc/stability.js | out/doc/api
-	$(call available-node, tools/doc/stability.js)
+out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
+	$(call available-node, tools/doc/stability.mjs)
 
 .PHONY: docopen
 docopen: out/doc/api/all.html
@@ -847,7 +838,11 @@ else
 ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
 DESTCPU ?= ppc64
 else
+ifeq ($(findstring riscv64,$(UNAME_M)),riscv64)
+DESTCPU ?= riscv64
+else
 DESTCPU ?= x86
+endif
 endif
 endif
 endif
@@ -878,7 +873,11 @@ else
 ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
+ifeq ($(DESTCPU),riscv64)
+ARCH=riscv64
+else
 ARCH=x86
+endif
 endif
 endif
 endif
@@ -983,7 +982,7 @@ $(PKG): release-only
 ifneq ($(OSTYPE),darwin)
 	$(warning Invalid OSTYPE)
 	$(error OSTYPE should be `darwin` currently is $(OSTYPE))
-endif 
+endif
 ifneq ($(ARCHTYPE),arm64)
 	$(warning Invalid ARCHTYPE)
 	$(error ARCHTYPE should be `arm64` currently is $(ARCHTYPE))
@@ -1093,7 +1092,7 @@ $(TARBALL): release-only doc-only
 	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/deps/zlib/contrib/* -type d ! -regex '.*/contrib/optimizations$$' | xargs $(RM) -r
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
-	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
+	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
 	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
