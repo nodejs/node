@@ -5,7 +5,6 @@
 # This definition stops the following lines choking if HOME or CN
 # is undefined.
 HOME			= .
-RANDFILE		= $ENV::HOME/.rnd
 CN			= "Not Defined"
 default_ca		= ca
 

@@ -1,0 +1,13 @@
+openssl_conf = openssl_init
+
+.include fipsmodule.cnf
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+fips = fips_sect
+base = base_sect
+
+[base_sect]
+activate = 1

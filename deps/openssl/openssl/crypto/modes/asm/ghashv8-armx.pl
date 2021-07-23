@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -42,18 +42,22 @@
 # Denver	0.51		0.65		6.02
 # Mongoose	0.65		1.10		8.06
 # Kryo		0.76		1.16		8.00
+# ThunderX2	1.05
 #
 # (*)	presented for reference/comparison purposes;
 
-$flavour = shift;
-$output  = shift;
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 $Xi="x0";	# argument block
@@ -66,18 +70,26 @@ $inc="x12";
 {
 my ($Xl,$Xm,$Xh,$IN)=map("q$_",(0..3));
 my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
+my $_byte = ($flavour =~ /win/ ? "DCB" : ".byte");
 
 $code=<<___;
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7
-.text
 ___
-$code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
-$code.=<<___				if ($flavour !~ /64/);
+$code.=".arch	armv8-a+crypto\n.text\n"	if ($flavour =~ /64/);
+$code.=<<___					if ($flavour !~ /64/);
 .fpu	neon
-.code	32
-#undef	__thumb2__
+#ifdef __thumb2__
+.syntax        unified
+.thumb
+# define INST(a,b,c,d) $_byte  c,0xef,a,b
+#else
+.code  32
+# define INST(a,b,c,d) $_byte  a,b,c,0xf2
+#endif
+
+.text
 ___
 
 ################################################################################
@@ -752,7 +764,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	    # since ARMv7 instructions are always encoded little-endian.
 	    # correct solution is to use .inst directive, but older
 	    # assemblers don't implement it:-(
-	    sprintf ".byte\t0x%02x,0x%02x,0x%02x,0x%02x\t@ %s %s",
+	    sprintf "INST(0x%02x,0x%02x,0x%02x,0x%02x)\t@ %s %s",
 			$word&0xff,($word>>8)&0xff,
 			($word>>16)&0xff,($word>>24)&0xff,
 			$mnemonic,$arg;
@@ -767,12 +779,16 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	# fix up remaining new-style suffixes
 	s/\],#[0-9]+/]!/o;
 
-	s/cclr\s+([^,]+),\s*([a-z]+)/mov$2	$1,#0/o			or
+	s/cclr\s+([^,]+),\s*([a-z]+)/mov.$2	$1,#0/o			or
 	s/vdup\.32\s+(.*)/unvdup32($1)/geo				or
 	s/v?(pmull2?)\.p64\s+(.*)/unvpmullp64($1,$2)/geo		or
 	s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo	or
 	s/^(\s+)b\./$1b/o						or
 	s/^(\s+)ret/$1bx\tlr/o;
+
+	if (s/^(\s+)mov\.([a-z]+)/$1mov$2/) {
+	    print "     it      $2\n";
+	}
 
 	print $_,"\n";
     }

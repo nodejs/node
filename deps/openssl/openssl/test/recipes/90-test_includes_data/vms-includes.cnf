@@ -2,4 +2,4 @@
 # Example configuration file using includes.
 #
 
-.include [.conf-includes]
+.include [.cnf-includes]

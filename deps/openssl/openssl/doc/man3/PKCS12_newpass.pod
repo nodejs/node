@@ -17,8 +17,6 @@ PKCS12_newpass() changes the password of a PKCS12 structure.
 B<p12> is a pointer to a PKCS12 structure. B<oldpass> is the existing password
 and B<newpass> is the new password.
 
-=head1 NOTES
-
 Each of B<oldpass> and B<newpass> is independently interpreted as a string in
 the UTF-8 encoding. If it is not valid UTF-8, it is assumed to be ISO8859-1
 instead.
@@ -28,6 +26,15 @@ In particular, this means that passwords in the locale character set
 use. This may include passwords from local text files, or input from
 the terminal or command line. Refer to the documentation of
 L<UI_OpenSSL(3)>, for example.
+
+If the PKCS#12 structure does not have a password, then you must use the empty
+string "" for B<oldpass>. Using NULL for B<oldpass> will result in a
+PKCS12_newpass() failure.
+
+If the wrong password is used for B<oldpass> then the function will fail,
+with a MAC verification error. In rare cases the PKCS12 structure does not
+contain a MAC: in this case it will usually fail with a decryption padding
+error.
 
 =head1 RETURN VALUES
 
@@ -83,17 +90,6 @@ the result to a new file.
  }
 
 
-=head1 NOTES
-
-If the PKCS#12 structure does not have a password, then you must use the empty
-string "" for B<oldpass>. Using NULL for B<oldpass> will result in a
-PKCS12_newpass() failure.
-
-If the wrong password is used for B<oldpass> then the function will fail,
-with a MAC verification error. In rare cases the PKCS12 structure does not
-contain a MAC: in this case it will usually fail with a decryption padding
-error.
-
 =head1 BUGS
 
 The password format is a NULL terminated ASCII string which is converted to
@@ -107,9 +103,9 @@ L<passphrase-encoding(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

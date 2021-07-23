@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -21,6 +21,7 @@
 #include <openssl/crypto.h>
 
 #ifndef OPENSSL_NO_CT
+
 /* Used when declaring buffers to read text files into */
 # define CT_TEST_MAX_FILE_SIZE 8096
 
@@ -63,7 +64,7 @@ static CT_TEST_FIXTURE *set_up(const char *const test_case_name)
     if (!TEST_ptr(fixture = OPENSSL_zalloc(sizeof(*fixture))))
         goto end;
     fixture->test_case_name = test_case_name;
-    fixture->epoch_time_in_ms = 1473269626000ULL; /* Sep 7 17:33:46 2016 GMT */
+    fixture->epoch_time_in_ms = 1580335307000ULL; /* Wed 29 Jan 2020 10:01:47 PM UTC */
     if (!TEST_ptr(fixture->ctlog_store = CTLOG_STORE_new())
             || !TEST_int_eq(
                     CTLOG_STORE_load_default_file(fixture->ctlog_store), 1))
@@ -158,6 +159,10 @@ static int compare_extension_printout(X509_EXTENSION *extension,
     if (!TEST_ptr(text_buffer = BIO_new(BIO_s_mem()))
             || !TEST_true(X509V3_EXT_print(text_buffer, extension,
                                            X509V3_EXT_DEFAULT, 0)))
+        goto end;
+
+    /* Append \n because it's easier to create files that end with one. */
+    if (!TEST_true(BIO_write(text_buffer, "\n", 1)))
         goto end;
 
     /* Append \0 because we're about to use the buffer contents as a string. */
@@ -331,8 +336,6 @@ end:
 static int test_no_scts_in_certificate(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "leaf.pem";
     fixture->issuer_file = "subinterCA.pem";
@@ -344,8 +347,6 @@ static int test_no_scts_in_certificate(void)
 static int test_one_sct_in_certificate(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "embeddedSCTs1.pem";
     fixture->issuer_file = "embeddedSCTs1_issuer.pem";
@@ -359,8 +360,6 @@ static int test_one_sct_in_certificate(void)
 static int test_multiple_scts_in_certificate(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "embeddedSCTs3.pem";
     fixture->issuer_file = "embeddedSCTs3_issuer.pem";
@@ -374,8 +373,6 @@ static int test_multiple_scts_in_certificate(void)
 static int test_verify_one_sct(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "embeddedSCTs1.pem";
     fixture->issuer_file = "embeddedSCTs1_issuer.pem";
@@ -388,8 +385,6 @@ static int test_verify_one_sct(void)
 static int test_verify_multiple_scts(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "embeddedSCTs3.pem";
     fixture->issuer_file = "embeddedSCTs3_issuer.pem";
@@ -402,8 +397,6 @@ static int test_verify_multiple_scts(void)
 static int test_verify_fails_for_future_sct(void)
 {
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->epoch_time_in_ms = 1365094800000ULL; /* Apr 4 17:00:00 2013 GMT */
     fixture->certs_dir = certs_dir;
     fixture->certificate_file = "embeddedSCTs1.pem";
@@ -436,8 +429,6 @@ static int test_decode_tls_sct(void)
         "\xED\xBF\x08";
 
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
     fixture->tls_sct_list = tls_sct_list;
     fixture->tls_sct_list_len = 0x7a;
     fixture->sct_dir = ct_dir;
@@ -456,8 +447,6 @@ static int test_encode_tls_sct(void)
     SCT *sct = NULL;
 
     SETUP_CT_TEST_FIXTURE();
-    if (fixture == NULL)
-        return 0;
 
     fixture->sct_list = sk_SCT_new_null();
     if (!TEST_ptr(sct = SCT_new_from_base64(SCT_VERSION_V1, log_id,

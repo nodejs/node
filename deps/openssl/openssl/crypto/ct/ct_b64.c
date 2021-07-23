@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -35,13 +35,13 @@ static int ct_base64_decode(const char *in, unsigned char **out)
     outlen = (inlen / 4) * 3;
     outbuf = OPENSSL_malloc(outlen);
     if (outbuf == NULL) {
-        CTerr(CT_F_CT_BASE64_DECODE, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     outlen = EVP_DecodeBlock(outbuf, (unsigned char *)in, inlen);
     if (outlen < 0) {
-        CTerr(CT_F_CT_BASE64_DECODE, CT_R_BASE64_DECODE_ERROR);
+        ERR_raise(ERR_LIB_CT, CT_R_BASE64_DECODE_ERROR);
         goto err;
     }
 
@@ -71,7 +71,7 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
     int declen;
 
     if (sct == NULL) {
-        CTerr(CT_F_SCT_NEW_FROM_BASE64, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
 
@@ -80,13 +80,13 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
      * can only construct SCT versions that have been defined.
      */
     if (!SCT_set_version(sct, version)) {
-        CTerr(CT_F_SCT_NEW_FROM_BASE64, CT_R_SCT_UNSUPPORTED_VERSION);
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_UNSUPPORTED_VERSION);
         goto err;
     }
 
     declen = ct_base64_decode(logid_base64, &dec);
     if (declen < 0) {
-        CTerr(CT_F_SCT_NEW_FROM_BASE64, X509_R_BASE64_DECODE_ERROR);
+        ERR_raise(ERR_LIB_CT, X509_R_BASE64_DECODE_ERROR);
         goto err;
     }
     if (!SCT_set0_log_id(sct, dec, declen))
@@ -95,7 +95,7 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
 
     declen = ct_base64_decode(extensions_base64, &dec);
     if (declen < 0) {
-        CTerr(CT_F_SCT_NEW_FROM_BASE64, X509_R_BASE64_DECODE_ERROR);
+        ERR_raise(ERR_LIB_CT, X509_R_BASE64_DECODE_ERROR);
         goto err;
     }
     SCT_set0_extensions(sct, dec, declen);
@@ -103,7 +103,7 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
 
     declen = ct_base64_decode(signature_base64, &dec);
     if (declen < 0) {
-        CTerr(CT_F_SCT_NEW_FROM_BASE64, X509_R_BASE64_DECODE_ERROR);
+        ERR_raise(ERR_LIB_CT, X509_R_BASE64_DECODE_ERROR);
         goto err;
     }
 
@@ -132,7 +132,9 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
  * 0 on decoding failure, or invalid parameter if any
  * -1 on internal (malloc) failure
  */
-int CTLOG_new_from_base64(CTLOG **ct_log, const char *pkey_base64, const char *name)
+int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
+                             const char *name, OSSL_LIB_CTX *libctx,
+                             const char *propq)
 {
     unsigned char *pkey_der = NULL;
     int pkey_der_len;
@@ -140,29 +142,35 @@ int CTLOG_new_from_base64(CTLOG **ct_log, const char *pkey_base64, const char *n
     EVP_PKEY *pkey = NULL;
 
     if (ct_log == NULL) {
-        CTerr(CT_F_CTLOG_NEW_FROM_BASE64, ERR_R_PASSED_INVALID_ARGUMENT);
+        ERR_raise(ERR_LIB_CT, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
 
     pkey_der_len = ct_base64_decode(pkey_base64, &pkey_der);
     if (pkey_der_len < 0) {
-        CTerr(CT_F_CTLOG_NEW_FROM_BASE64, CT_R_LOG_CONF_INVALID_KEY);
+        ERR_raise(ERR_LIB_CT, CT_R_LOG_CONF_INVALID_KEY);
         return 0;
     }
 
     p = pkey_der;
-    pkey = d2i_PUBKEY(NULL, &p, pkey_der_len);
+    pkey = d2i_PUBKEY_ex(NULL, &p, pkey_der_len, libctx, propq);
     OPENSSL_free(pkey_der);
     if (pkey == NULL) {
-        CTerr(CT_F_CTLOG_NEW_FROM_BASE64, CT_R_LOG_CONF_INVALID_KEY);
+        ERR_raise(ERR_LIB_CT, CT_R_LOG_CONF_INVALID_KEY);
         return 0;
     }
 
-    *ct_log = CTLOG_new(pkey, name);
+    *ct_log = CTLOG_new_ex(pkey, name, libctx, propq);
     if (*ct_log == NULL) {
         EVP_PKEY_free(pkey);
         return 0;
     }
 
     return 1;
+}
+
+int CTLOG_new_from_base64(CTLOG **ct_log, const char *pkey_base64,
+                          const char *name)
+{
+    return CTLOG_new_from_base64_ex(ct_log, pkey_base64, name, NULL, NULL);
 }

@@ -1,12 +1,15 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* We need to use some engine deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include "eng_local.h"
 #include <openssl/conf.h>
@@ -17,10 +20,8 @@ int ENGINE_set_default(ENGINE *e, unsigned int flags)
         return 0;
     if ((flags & ENGINE_METHOD_DIGESTS) && !ENGINE_set_default_digests(e))
         return 0;
-#ifndef OPENSSL_NO_RSA
     if ((flags & ENGINE_METHOD_RSA) && !ENGINE_set_default_RSA(e))
         return 0;
-#endif
 #ifndef OPENSSL_NO_DSA
     if ((flags & ENGINE_METHOD_DSA) && !ENGINE_set_default_DSA(e))
         return 0;
@@ -82,9 +83,8 @@ int ENGINE_set_default_string(ENGINE *e, const char *def_list)
 {
     unsigned int flags = 0;
     if (!CONF_parse_list(def_list, ',', 1, int_def_cb, &flags)) {
-        ENGINEerr(ENGINE_F_ENGINE_SET_DEFAULT_STRING,
-                  ENGINE_R_INVALID_STRING);
-        ERR_add_error_data(2, "str=", def_list);
+        ERR_raise_data(ERR_LIB_ENGINE, ENGINE_R_INVALID_STRING,
+                       "str=%s", def_list);
         return 0;
     }
     return ENGINE_set_default(e, flags);
@@ -94,9 +94,7 @@ int ENGINE_register_complete(ENGINE *e)
 {
     ENGINE_register_ciphers(e);
     ENGINE_register_digests(e);
-#ifndef OPENSSL_NO_RSA
     ENGINE_register_RSA(e);
-#endif
 #ifndef OPENSSL_NO_DSA
     ENGINE_register_DSA(e);
 #endif

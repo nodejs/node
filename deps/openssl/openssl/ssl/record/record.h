@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -25,6 +25,8 @@ typedef struct ssl3_buffer_st {
     size_t offset;
     /* how many bytes left */
     size_t left;
+    /* 'buf' is from application for KTLS */
+    int app_buffer;
 } SSL3_BUFFER;
 
 #define SEQ_NUM_SIZE                            8
@@ -176,6 +178,12 @@ typedef struct record_layer_st {
  *                                                                           *
  *****************************************************************************/
 
+struct ssl_mac_buf_st {
+    unsigned char *mac;
+    int alloced;
+};
+typedef struct ssl_mac_buf_st SSL_MAC_BUF;
+
 #define MIN_SSL2_RECORD_LEN     9
 
 #define RECORD_LAYER_set_read_ahead(rl, ra)     ((rl)->read_ahead = (ra))
@@ -211,13 +219,16 @@ __owur int ssl3_read_bytes(SSL *s, int type, int *recvd_type,
                            unsigned char *buf, size_t len, int peek,
                            size_t *readbytes);
 __owur int ssl3_setup_buffers(SSL *s);
-__owur int ssl3_enc(SSL *s, SSL3_RECORD *inrecs, size_t n_recs, int send);
+__owur int ssl3_enc(SSL *s, SSL3_RECORD *inrecs, size_t n_recs, int send,
+                    SSL_MAC_BUF *mac, size_t macsize);
 __owur int n_ssl3_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int send);
 __owur int ssl3_write_pending(SSL *s, int type, const unsigned char *buf, size_t len,
                               size_t *written);
-__owur int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int send);
+__owur int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
+                    SSL_MAC_BUF *mac, size_t macsize);
 __owur int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int send);
-__owur int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int send);
+__owur int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int send,
+                     SSL_MAC_BUF *mac, size_t macsize);
 int DTLS_RECORD_LAYER_new(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_free(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_clear(RECORD_LAYER *rl);

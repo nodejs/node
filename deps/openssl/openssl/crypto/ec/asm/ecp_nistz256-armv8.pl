@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -31,15 +31,18 @@
 # on benchmark. Lower coefficients are for ECDSA sign, server-side
 # operation. Keep in mind that +400% means 5x improvement.
 
-$flavour = shift;
-while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 {
@@ -1479,7 +1482,7 @@ $code.=<<___;
 
 ////////////////////////////////////////////////////////////////////////
 // void ecp_nistz256_ord_sqr_mont(uint64_t res[4], uint64_t a[4],
-//                                int rep);
+//                                uint64_t rep);
 .globl	ecp_nistz256_ord_sqr_mont
 .type	ecp_nistz256_ord_sqr_mont,%function
 .align	4
@@ -1645,7 +1648,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[$inp]		// X
 	ldp	x6,x7,[$inp,#16]
-	str	w4,[$out,#64*0-4]
+	stur	w4,[$out,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[$out,#64*1-4]
 	lsr	x5,x5,#32
@@ -1661,7 +1664,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[$inp,#32]	// Y
 	ldp	x6,x7,[$inp,#48]
-	str	w4,[$out,#64*0-4]
+	stur	w4,[$out,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[$out,#64*1-4]
 	lsr	x5,x5,#32
@@ -1677,7 +1680,7 @@ ecp_nistz256_scatter_w5:
 
 	ldp	x4,x5,[$inp,#64]	// Z
 	ldp	x6,x7,[$inp,#80]
-	str	w4,[$out,#64*0-4]
+	stur	w4,[$out,#64*0-4]
 	lsr	x4,x4,#32
 	str	w5,[$out,#64*1-4]
 	lsr	x5,x5,#32

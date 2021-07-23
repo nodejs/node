@@ -1,13 +1,31 @@
+#ifndef	__KERNEL__
+# include "arm_arch.h"
+
+.hidden	OPENSSL_armv8_rsa_neonized
+#endif
 .text
 
 .globl	bn_mul_mont
 .type	bn_mul_mont,%function
 .align	5
 bn_mul_mont:
+.Lbn_mul_mont:
+	tst	x5,#3
+	b.ne	.Lmul_mont
+	cmp	x5,#32
+	b.le	.Lscalar_impl
+#ifndef	__KERNEL__
+	adrp	x17,OPENSSL_armv8_rsa_neonized
+	ldr	w17,[x17,#:lo12:OPENSSL_armv8_rsa_neonized]
+	cbnz	w17, bn_mul8x_mont_neon
+#endif
+
+.Lscalar_impl:
 	tst	x5,#7
 	b.eq	__bn_sqr8x_mont
 	tst	x5,#3
 	b.eq	__bn_mul4x_mont
+
 .Lmul_mont:
 	stp	x29,x30,[sp,#-64]!
 	add	x29,sp,#0
@@ -131,7 +149,7 @@ bn_mul_mont:
 	mul	x16,x14,x15		// np[j]*m1
 	adds	x12,x12,x6
 	umulh	x17,x14,x15
-	str	x12,[x22,#-16]		// tp[j-1]
+	stur	x12,[x22,#-16]		// tp[j-1]
 	cbnz	x21,.Linner
 
 .Linner_skip:
@@ -187,13 +205,13 @@ bn_mul_mont:
 	csel	x14,x23,x8,lo		// did it borrow?
 	ldr	x23,[x22],#8
 	ldr	x8,[x0],#8
-	str	xzr,[x22,#-16]		// wipe tp
-	str	x14,[x0,#-16]
+	stur	xzr,[x22,#-16]		// wipe tp
+	stur	x14,[x0,#-16]
 	cbnz	x5,.Lcond_copy
 
 	csel	x14,x23,x8,lo
-	str	xzr,[x22,#-8]		// wipe tp
-	str	x14,[x0,#-8]
+	stur	xzr,[x22,#-8]		// wipe tp
+	stur	x14,[x0,#-8]
 
 	ldp	x19,x20,[x29,#16]
 	mov	sp,x29
@@ -203,6 +221,704 @@ bn_mul_mont:
 	ldr	x29,[sp],#64
 	ret
 .size	bn_mul_mont,.-bn_mul_mont
+.type	bn_mul8x_mont_neon,%function
+.align	5
+bn_mul8x_mont_neon:
+	stp	x29,x30,[sp,#-80]!
+	mov	x16,sp
+	stp	d8,d9,[sp,#16]
+	stp	d10,d11,[sp,#32]
+	stp	d12,d13,[sp,#48]
+	stp	d14,d15,[sp,#64]
+	lsl	x5,x5,#1
+	eor	v14.16b,v14.16b,v14.16b
+
+.align	4
+.LNEON_8n:
+	eor	v6.16b,v6.16b,v6.16b
+	sub	x7,sp,#128
+	eor	v7.16b,v7.16b,v7.16b
+	sub	x7,x7,x5,lsl#4
+	eor	v8.16b,v8.16b,v8.16b
+	and	x7,x7,#-64
+	eor	v9.16b,v9.16b,v9.16b
+	mov	sp,x7		// alloca
+	eor	v10.16b,v10.16b,v10.16b
+	add	x7,x7,#256
+	eor	v11.16b,v11.16b,v11.16b
+	sub	x8,x5,#8
+	eor	v12.16b,v12.16b,v12.16b
+	eor	v13.16b,v13.16b,v13.16b
+
+.LNEON_8n_init:
+	st1	{v6.2d,v7.2d},[x7],#32
+	subs	x8,x8,#8
+	st1	{v8.2d,v9.2d},[x7],#32
+	st1	{v10.2d,v11.2d},[x7],#32
+	st1	{v12.2d,v13.2d},[x7],#32
+	bne	.LNEON_8n_init
+
+	add	x6,sp,#256
+	ld1	{v0.4s,v1.4s},[x1],#32
+	add	x10,sp,#8
+	ldr	s30,[x4],#4
+	mov	x9,x5
+	b	.LNEON_8n_outer
+
+.align	4
+.LNEON_8n_outer:
+	ldr	s28,[x2],#4   // *b++
+	uxtl	v28.4s,v28.4h
+	add	x7,sp,#128
+	ld1	{v2.4s,v3.4s},[x3],#32
+
+	umlal	v6.2d,v28.2s,v0.s[0]
+	umlal	v7.2d,v28.2s,v0.s[1]
+	umlal	v8.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v6.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v9.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v6.2d
+	umlal	v10.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v11.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[sp]		// put aside smashed b[8*i+0]
+	umlal	v12.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v13.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v6.2d,v29.2s,v2.s[0]
+	umlal	v7.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v8.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v6.2d,#16
+	umlal	v9.2d,v29.2s,v2.s[3]
+	umlal	v10.2d,v29.2s,v3.s[0]
+	ext	v6.16b,v6.16b,v6.16b,#8
+	add	v6.2d,v6.2d,v15.2d
+	umlal	v11.2d,v29.2s,v3.s[1]
+	ushr	v6.2d,v6.2d,#16
+	umlal	v12.2d,v29.2s,v3.s[2]
+	umlal	v13.2d,v29.2s,v3.s[3]
+	add	v16.2d,v7.2d,v6.2d
+	ins	v7.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+0]
+	umlal	v7.2d,v28.2s,v0.s[0]
+	ld1	{v6.2d},[x6],#16
+	umlal	v8.2d,v28.2s,v0.s[1]
+	umlal	v9.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v7.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v10.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v7.2d
+	umlal	v11.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v12.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+1]
+	umlal	v13.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v6.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v7.2d,v29.2s,v2.s[0]
+	umlal	v8.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v9.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v7.2d,#16
+	umlal	v10.2d,v29.2s,v2.s[3]
+	umlal	v11.2d,v29.2s,v3.s[0]
+	ext	v7.16b,v7.16b,v7.16b,#8
+	add	v7.2d,v7.2d,v15.2d
+	umlal	v12.2d,v29.2s,v3.s[1]
+	ushr	v7.2d,v7.2d,#16
+	umlal	v13.2d,v29.2s,v3.s[2]
+	umlal	v6.2d,v29.2s,v3.s[3]
+	add	v16.2d,v8.2d,v7.2d
+	ins	v8.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+1]
+	umlal	v8.2d,v28.2s,v0.s[0]
+	ld1	{v7.2d},[x6],#16
+	umlal	v9.2d,v28.2s,v0.s[1]
+	umlal	v10.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v8.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v11.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v8.2d
+	umlal	v12.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v13.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+2]
+	umlal	v6.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v7.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v8.2d,v29.2s,v2.s[0]
+	umlal	v9.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v10.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v8.2d,#16
+	umlal	v11.2d,v29.2s,v2.s[3]
+	umlal	v12.2d,v29.2s,v3.s[0]
+	ext	v8.16b,v8.16b,v8.16b,#8
+	add	v8.2d,v8.2d,v15.2d
+	umlal	v13.2d,v29.2s,v3.s[1]
+	ushr	v8.2d,v8.2d,#16
+	umlal	v6.2d,v29.2s,v3.s[2]
+	umlal	v7.2d,v29.2s,v3.s[3]
+	add	v16.2d,v9.2d,v8.2d
+	ins	v9.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+2]
+	umlal	v9.2d,v28.2s,v0.s[0]
+	ld1	{v8.2d},[x6],#16
+	umlal	v10.2d,v28.2s,v0.s[1]
+	umlal	v11.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v9.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v12.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v9.2d
+	umlal	v13.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v6.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+3]
+	umlal	v7.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v8.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v9.2d,v29.2s,v2.s[0]
+	umlal	v10.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v11.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v9.2d,#16
+	umlal	v12.2d,v29.2s,v2.s[3]
+	umlal	v13.2d,v29.2s,v3.s[0]
+	ext	v9.16b,v9.16b,v9.16b,#8
+	add	v9.2d,v9.2d,v15.2d
+	umlal	v6.2d,v29.2s,v3.s[1]
+	ushr	v9.2d,v9.2d,#16
+	umlal	v7.2d,v29.2s,v3.s[2]
+	umlal	v8.2d,v29.2s,v3.s[3]
+	add	v16.2d,v10.2d,v9.2d
+	ins	v10.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+3]
+	umlal	v10.2d,v28.2s,v0.s[0]
+	ld1	{v9.2d},[x6],#16
+	umlal	v11.2d,v28.2s,v0.s[1]
+	umlal	v12.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v10.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v13.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v10.2d
+	umlal	v6.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v7.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+4]
+	umlal	v8.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v9.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v10.2d,v29.2s,v2.s[0]
+	umlal	v11.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v12.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v10.2d,#16
+	umlal	v13.2d,v29.2s,v2.s[3]
+	umlal	v6.2d,v29.2s,v3.s[0]
+	ext	v10.16b,v10.16b,v10.16b,#8
+	add	v10.2d,v10.2d,v15.2d
+	umlal	v7.2d,v29.2s,v3.s[1]
+	ushr	v10.2d,v10.2d,#16
+	umlal	v8.2d,v29.2s,v3.s[2]
+	umlal	v9.2d,v29.2s,v3.s[3]
+	add	v16.2d,v11.2d,v10.2d
+	ins	v11.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+4]
+	umlal	v11.2d,v28.2s,v0.s[0]
+	ld1	{v10.2d},[x6],#16
+	umlal	v12.2d,v28.2s,v0.s[1]
+	umlal	v13.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v11.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v6.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v11.2d
+	umlal	v7.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v8.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+5]
+	umlal	v9.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v10.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v11.2d,v29.2s,v2.s[0]
+	umlal	v12.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v13.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v11.2d,#16
+	umlal	v6.2d,v29.2s,v2.s[3]
+	umlal	v7.2d,v29.2s,v3.s[0]
+	ext	v11.16b,v11.16b,v11.16b,#8
+	add	v11.2d,v11.2d,v15.2d
+	umlal	v8.2d,v29.2s,v3.s[1]
+	ushr	v11.2d,v11.2d,#16
+	umlal	v9.2d,v29.2s,v3.s[2]
+	umlal	v10.2d,v29.2s,v3.s[3]
+	add	v16.2d,v12.2d,v11.2d
+	ins	v12.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+5]
+	umlal	v12.2d,v28.2s,v0.s[0]
+	ld1	{v11.2d},[x6],#16
+	umlal	v13.2d,v28.2s,v0.s[1]
+	umlal	v6.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v12.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v7.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v12.2d
+	umlal	v8.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v9.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+6]
+	umlal	v10.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v11.2d,v28.2s,v1.s[3]
+	ldr	s28,[x2],#4   // *b++
+	umlal	v12.2d,v29.2s,v2.s[0]
+	umlal	v13.2d,v29.2s,v2.s[1]
+	uxtl	v28.4s,v28.4h
+	umlal	v6.2d,v29.2s,v2.s[2]
+	ushr	v15.2d,v12.2d,#16
+	umlal	v7.2d,v29.2s,v2.s[3]
+	umlal	v8.2d,v29.2s,v3.s[0]
+	ext	v12.16b,v12.16b,v12.16b,#8
+	add	v12.2d,v12.2d,v15.2d
+	umlal	v9.2d,v29.2s,v3.s[1]
+	ushr	v12.2d,v12.2d,#16
+	umlal	v10.2d,v29.2s,v3.s[2]
+	umlal	v11.2d,v29.2s,v3.s[3]
+	add	v16.2d,v13.2d,v12.2d
+	ins	v13.d[0],v16.d[0]
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+6]
+	umlal	v13.2d,v28.2s,v0.s[0]
+	ld1	{v12.2d},[x6],#16
+	umlal	v6.2d,v28.2s,v0.s[1]
+	umlal	v7.2d,v28.2s,v0.s[2]
+	shl	v29.2d,v13.2d,#16
+	ext	v29.16b,v29.16b,v29.16b,#8
+	umlal	v8.2d,v28.2s,v0.s[3]
+	add	v29.2d,v29.2d,v13.2d
+	umlal	v9.2d,v28.2s,v1.s[0]
+	mul	v29.2s,v29.2s,v30.2s
+	umlal	v10.2d,v28.2s,v1.s[1]
+	st1	{v28.2s},[x10],#8	// put aside smashed b[8*i+7]
+	umlal	v11.2d,v28.2s,v1.s[2]
+	uxtl	v29.4s,v29.4h
+	umlal	v12.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[sp]		// pull smashed b[8*i+0]
+	umlal	v13.2d,v29.2s,v2.s[0]
+	ld1	{v0.4s,v1.4s},[x1],#32
+	umlal	v6.2d,v29.2s,v2.s[1]
+	umlal	v7.2d,v29.2s,v2.s[2]
+	mov	v5.16b,v13.16b
+	ushr	v5.2d,v5.2d,#16
+	ext	v13.16b,v13.16b,v13.16b,#8
+	umlal	v8.2d,v29.2s,v2.s[3]
+	umlal	v9.2d,v29.2s,v3.s[0]
+	add	v13.2d,v13.2d,v5.2d
+	umlal	v10.2d,v29.2s,v3.s[1]
+	ushr	v13.2d,v13.2d,#16
+	eor	v15.16b,v15.16b,v15.16b
+	ins	v13.d[1],v15.d[0]
+	umlal	v11.2d,v29.2s,v3.s[2]
+	umlal	v12.2d,v29.2s,v3.s[3]
+	add	v6.2d,v6.2d,v13.2d
+	st1	{v29.2s},[x10],#8	// put aside smashed m[8*i+7]
+	add	x10,sp,#8		// rewind
+	sub	x8,x5,#8
+	b	.LNEON_8n_inner
+
+.align	4
+.LNEON_8n_inner:
+	subs	x8,x8,#8
+	umlal	v6.2d,v28.2s,v0.s[0]
+	ld1	{v13.2d},[x6]
+	umlal	v7.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+0]
+	umlal	v8.2d,v28.2s,v0.s[2]
+	ld1	{v2.4s,v3.4s},[x3],#32
+	umlal	v9.2d,v28.2s,v0.s[3]
+	b.eq	.LInner_jump
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump:
+	umlal	v10.2d,v28.2s,v1.s[0]
+	umlal	v11.2d,v28.2s,v1.s[1]
+	umlal	v12.2d,v28.2s,v1.s[2]
+	umlal	v13.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+1]
+	umlal	v6.2d,v29.2s,v2.s[0]
+	umlal	v7.2d,v29.2s,v2.s[1]
+	umlal	v8.2d,v29.2s,v2.s[2]
+	umlal	v9.2d,v29.2s,v2.s[3]
+	umlal	v10.2d,v29.2s,v3.s[0]
+	umlal	v11.2d,v29.2s,v3.s[1]
+	umlal	v12.2d,v29.2s,v3.s[2]
+	umlal	v13.2d,v29.2s,v3.s[3]
+	st1	{v6.2d},[x7],#16
+	umlal	v7.2d,v28.2s,v0.s[0]
+	ld1	{v6.2d},[x6]
+	umlal	v8.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+1]
+	umlal	v9.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump1
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump1:
+	umlal	v10.2d,v28.2s,v0.s[3]
+	umlal	v11.2d,v28.2s,v1.s[0]
+	umlal	v12.2d,v28.2s,v1.s[1]
+	umlal	v13.2d,v28.2s,v1.s[2]
+	umlal	v6.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+2]
+	umlal	v7.2d,v29.2s,v2.s[0]
+	umlal	v8.2d,v29.2s,v2.s[1]
+	umlal	v9.2d,v29.2s,v2.s[2]
+	umlal	v10.2d,v29.2s,v2.s[3]
+	umlal	v11.2d,v29.2s,v3.s[0]
+	umlal	v12.2d,v29.2s,v3.s[1]
+	umlal	v13.2d,v29.2s,v3.s[2]
+	umlal	v6.2d,v29.2s,v3.s[3]
+	st1	{v7.2d},[x7],#16
+	umlal	v8.2d,v28.2s,v0.s[0]
+	ld1	{v7.2d},[x6]
+	umlal	v9.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+2]
+	umlal	v10.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump2
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump2:
+	umlal	v11.2d,v28.2s,v0.s[3]
+	umlal	v12.2d,v28.2s,v1.s[0]
+	umlal	v13.2d,v28.2s,v1.s[1]
+	umlal	v6.2d,v28.2s,v1.s[2]
+	umlal	v7.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+3]
+	umlal	v8.2d,v29.2s,v2.s[0]
+	umlal	v9.2d,v29.2s,v2.s[1]
+	umlal	v10.2d,v29.2s,v2.s[2]
+	umlal	v11.2d,v29.2s,v2.s[3]
+	umlal	v12.2d,v29.2s,v3.s[0]
+	umlal	v13.2d,v29.2s,v3.s[1]
+	umlal	v6.2d,v29.2s,v3.s[2]
+	umlal	v7.2d,v29.2s,v3.s[3]
+	st1	{v8.2d},[x7],#16
+	umlal	v9.2d,v28.2s,v0.s[0]
+	ld1	{v8.2d},[x6]
+	umlal	v10.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+3]
+	umlal	v11.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump3
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump3:
+	umlal	v12.2d,v28.2s,v0.s[3]
+	umlal	v13.2d,v28.2s,v1.s[0]
+	umlal	v6.2d,v28.2s,v1.s[1]
+	umlal	v7.2d,v28.2s,v1.s[2]
+	umlal	v8.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+4]
+	umlal	v9.2d,v29.2s,v2.s[0]
+	umlal	v10.2d,v29.2s,v2.s[1]
+	umlal	v11.2d,v29.2s,v2.s[2]
+	umlal	v12.2d,v29.2s,v2.s[3]
+	umlal	v13.2d,v29.2s,v3.s[0]
+	umlal	v6.2d,v29.2s,v3.s[1]
+	umlal	v7.2d,v29.2s,v3.s[2]
+	umlal	v8.2d,v29.2s,v3.s[3]
+	st1	{v9.2d},[x7],#16
+	umlal	v10.2d,v28.2s,v0.s[0]
+	ld1	{v9.2d},[x6]
+	umlal	v11.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+4]
+	umlal	v12.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump4
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump4:
+	umlal	v13.2d,v28.2s,v0.s[3]
+	umlal	v6.2d,v28.2s,v1.s[0]
+	umlal	v7.2d,v28.2s,v1.s[1]
+	umlal	v8.2d,v28.2s,v1.s[2]
+	umlal	v9.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+5]
+	umlal	v10.2d,v29.2s,v2.s[0]
+	umlal	v11.2d,v29.2s,v2.s[1]
+	umlal	v12.2d,v29.2s,v2.s[2]
+	umlal	v13.2d,v29.2s,v2.s[3]
+	umlal	v6.2d,v29.2s,v3.s[0]
+	umlal	v7.2d,v29.2s,v3.s[1]
+	umlal	v8.2d,v29.2s,v3.s[2]
+	umlal	v9.2d,v29.2s,v3.s[3]
+	st1	{v10.2d},[x7],#16
+	umlal	v11.2d,v28.2s,v0.s[0]
+	ld1	{v10.2d},[x6]
+	umlal	v12.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+5]
+	umlal	v13.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump5
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump5:
+	umlal	v6.2d,v28.2s,v0.s[3]
+	umlal	v7.2d,v28.2s,v1.s[0]
+	umlal	v8.2d,v28.2s,v1.s[1]
+	umlal	v9.2d,v28.2s,v1.s[2]
+	umlal	v10.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+6]
+	umlal	v11.2d,v29.2s,v2.s[0]
+	umlal	v12.2d,v29.2s,v2.s[1]
+	umlal	v13.2d,v29.2s,v2.s[2]
+	umlal	v6.2d,v29.2s,v2.s[3]
+	umlal	v7.2d,v29.2s,v3.s[0]
+	umlal	v8.2d,v29.2s,v3.s[1]
+	umlal	v9.2d,v29.2s,v3.s[2]
+	umlal	v10.2d,v29.2s,v3.s[3]
+	st1	{v11.2d},[x7],#16
+	umlal	v12.2d,v28.2s,v0.s[0]
+	ld1	{v11.2d},[x6]
+	umlal	v13.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+6]
+	umlal	v6.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump6
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump6:
+	umlal	v7.2d,v28.2s,v0.s[3]
+	umlal	v8.2d,v28.2s,v1.s[0]
+	umlal	v9.2d,v28.2s,v1.s[1]
+	umlal	v10.2d,v28.2s,v1.s[2]
+	umlal	v11.2d,v28.2s,v1.s[3]
+	ld1	{v28.2s},[x10],#8	// pull smashed b[8*i+7]
+	umlal	v12.2d,v29.2s,v2.s[0]
+	umlal	v13.2d,v29.2s,v2.s[1]
+	umlal	v6.2d,v29.2s,v2.s[2]
+	umlal	v7.2d,v29.2s,v2.s[3]
+	umlal	v8.2d,v29.2s,v3.s[0]
+	umlal	v9.2d,v29.2s,v3.s[1]
+	umlal	v10.2d,v29.2s,v3.s[2]
+	umlal	v11.2d,v29.2s,v3.s[3]
+	st1	{v12.2d},[x7],#16
+	umlal	v13.2d,v28.2s,v0.s[0]
+	ld1	{v12.2d},[x6]
+	umlal	v6.2d,v28.2s,v0.s[1]
+	ld1	{v29.2s},[x10],#8	// pull smashed m[8*i+7]
+	umlal	v7.2d,v28.2s,v0.s[2]
+	b.eq	.LInner_jump7
+	add	x6,x6,#16	// don't advance in last iteration
+.LInner_jump7:
+	umlal	v8.2d,v28.2s,v0.s[3]
+	umlal	v9.2d,v28.2s,v1.s[0]
+	umlal	v10.2d,v28.2s,v1.s[1]
+	umlal	v11.2d,v28.2s,v1.s[2]
+	umlal	v12.2d,v28.2s,v1.s[3]
+	b.ne	.LInner_after_rewind8
+	sub	x1,x1,x5,lsl#2	// rewind
+.LInner_after_rewind8:
+	umlal	v13.2d,v29.2s,v2.s[0]
+	ld1	{v28.2s},[sp]		// pull smashed b[8*i+0]
+	umlal	v6.2d,v29.2s,v2.s[1]
+	ld1	{v0.4s,v1.4s},[x1],#32
+	umlal	v7.2d,v29.2s,v2.s[2]
+	add	x10,sp,#8		// rewind
+	umlal	v8.2d,v29.2s,v2.s[3]
+	umlal	v9.2d,v29.2s,v3.s[0]
+	umlal	v10.2d,v29.2s,v3.s[1]
+	umlal	v11.2d,v29.2s,v3.s[2]
+	st1	{v13.2d},[x7],#16
+	umlal	v12.2d,v29.2s,v3.s[3]
+
+	bne	.LNEON_8n_inner
+	add	x6,sp,#128
+	st1	{v6.2d,v7.2d},[x7],#32
+	eor	v2.16b,v2.16b,v2.16b	// v2
+	st1	{v8.2d,v9.2d},[x7],#32
+	eor	v3.16b,v3.16b,v3.16b	// v3
+	st1	{v10.2d,v11.2d},[x7],#32
+	st1	{v12.2d},[x7]
+
+	subs	x9,x9,#8
+	ld1	{v6.2d,v7.2d},[x6],#32
+	ld1	{v8.2d,v9.2d},[x6],#32
+	ld1	{v10.2d,v11.2d},[x6],#32
+	ld1	{v12.2d,v13.2d},[x6],#32
+
+	b.eq	.LInner_8n_jump_2steps
+	sub	x3,x3,x5,lsl#2	// rewind
+	b	.LNEON_8n_outer
+
+.LInner_8n_jump_2steps:
+	add	x7,sp,#128
+	st1	{v2.2d,v3.2d}, [sp],#32	// start wiping stack frame
+	mov	v5.16b,v6.16b
+	ushr	v15.2d,v6.2d,#16
+	ext	v6.16b,v6.16b,v6.16b,#8
+	st1	{v2.2d,v3.2d}, [sp],#32
+	add	v6.2d,v6.2d,v15.2d
+	st1	{v2.2d,v3.2d}, [sp],#32
+	ushr	v15.2d,v6.2d,#16
+	st1	{v2.2d,v3.2d}, [sp],#32
+	zip1	v6.4h,v5.4h,v6.4h
+	ins	v15.d[1],v14.d[0]
+
+	mov	x8,x5
+	b	.LNEON_tail_entry
+
+.align	4
+.LNEON_tail:
+	add	v6.2d,v6.2d,v15.2d
+	mov	v5.16b,v6.16b
+	ushr	v15.2d,v6.2d,#16
+	ext	v6.16b,v6.16b,v6.16b,#8
+	ld1	{v8.2d,v9.2d}, [x6],#32
+	add	v6.2d,v6.2d,v15.2d
+	ld1	{v10.2d,v11.2d}, [x6],#32
+	ushr	v15.2d,v6.2d,#16
+	ld1	{v12.2d,v13.2d}, [x6],#32
+	zip1	v6.4h,v5.4h,v6.4h
+	ins	v15.d[1],v14.d[0]
+
+.LNEON_tail_entry:
+	add	v7.2d,v7.2d,v15.2d
+	st1	{v6.s}[0], [x7],#4
+	ushr	v15.2d,v7.2d,#16
+	mov	v5.16b,v7.16b
+	ext	v7.16b,v7.16b,v7.16b,#8
+	add	v7.2d,v7.2d,v15.2d
+	ushr	v15.2d,v7.2d,#16
+	zip1	v7.4h,v5.4h,v7.4h
+	ins	v15.d[1],v14.d[0]
+	add	v8.2d,v8.2d,v15.2d
+	st1	{v7.s}[0], [x7],#4
+	ushr	v15.2d,v8.2d,#16
+	mov	v5.16b,v8.16b
+	ext	v8.16b,v8.16b,v8.16b,#8
+	add	v8.2d,v8.2d,v15.2d
+	ushr	v15.2d,v8.2d,#16
+	zip1	v8.4h,v5.4h,v8.4h
+	ins	v15.d[1],v14.d[0]
+	add	v9.2d,v9.2d,v15.2d
+	st1	{v8.s}[0], [x7],#4
+	ushr	v15.2d,v9.2d,#16
+	mov	v5.16b,v9.16b
+	ext	v9.16b,v9.16b,v9.16b,#8
+	add	v9.2d,v9.2d,v15.2d
+	ushr	v15.2d,v9.2d,#16
+	zip1	v9.4h,v5.4h,v9.4h
+	ins	v15.d[1],v14.d[0]
+	add	v10.2d,v10.2d,v15.2d
+	st1	{v9.s}[0], [x7],#4
+	ushr	v15.2d,v10.2d,#16
+	mov	v5.16b,v10.16b
+	ext	v10.16b,v10.16b,v10.16b,#8
+	add	v10.2d,v10.2d,v15.2d
+	ushr	v15.2d,v10.2d,#16
+	zip1	v10.4h,v5.4h,v10.4h
+	ins	v15.d[1],v14.d[0]
+	add	v11.2d,v11.2d,v15.2d
+	st1	{v10.s}[0], [x7],#4
+	ushr	v15.2d,v11.2d,#16
+	mov	v5.16b,v11.16b
+	ext	v11.16b,v11.16b,v11.16b,#8
+	add	v11.2d,v11.2d,v15.2d
+	ushr	v15.2d,v11.2d,#16
+	zip1	v11.4h,v5.4h,v11.4h
+	ins	v15.d[1],v14.d[0]
+	add	v12.2d,v12.2d,v15.2d
+	st1	{v11.s}[0], [x7],#4
+	ushr	v15.2d,v12.2d,#16
+	mov	v5.16b,v12.16b
+	ext	v12.16b,v12.16b,v12.16b,#8
+	add	v12.2d,v12.2d,v15.2d
+	ushr	v15.2d,v12.2d,#16
+	zip1	v12.4h,v5.4h,v12.4h
+	ins	v15.d[1],v14.d[0]
+	add	v13.2d,v13.2d,v15.2d
+	st1	{v12.s}[0], [x7],#4
+	ushr	v15.2d,v13.2d,#16
+	mov	v5.16b,v13.16b
+	ext	v13.16b,v13.16b,v13.16b,#8
+	add	v13.2d,v13.2d,v15.2d
+	ushr	v15.2d,v13.2d,#16
+	zip1	v13.4h,v5.4h,v13.4h
+	ins	v15.d[1],v14.d[0]
+	ld1	{v6.2d,v7.2d}, [x6],#32
+	subs	x8,x8,#8
+	st1	{v13.s}[0], [x7],#4
+	bne	.LNEON_tail
+
+	st1	{v15.s}[0], [x7],#4	// top-most bit
+	sub	x3,x3,x5,lsl#2		// rewind x3
+	subs	x1,sp,#0			// clear carry flag
+	add	x2,sp,x5,lsl#2
+
+.LNEON_sub:
+	ldp	w4,w5,[x1],#8
+	ldp	w6,w7,[x1],#8
+	ldp	w8,w9,[x3],#8
+	ldp	w10,w11,[x3],#8
+	sbcs	w8,w4,w8
+	sbcs	w9,w5,w9
+	sbcs	w10,w6,w10
+	sbcs	w11,w7,w11
+	sub	x17,x2,x1
+	stp	w8,w9,[x0],#8
+	stp	w10,w11,[x0],#8
+	cbnz	x17,.LNEON_sub
+
+	ldr	w10, [x1]		// load top-most bit
+	mov	x11,sp
+	eor	v0.16b,v0.16b,v0.16b
+	sub	x11,x2,x11		// this is num*4
+	eor	v1.16b,v1.16b,v1.16b
+	mov	x1,sp
+	sub	x0,x0,x11		// rewind x0
+	mov	x3,x2		// second 3/4th of frame
+	sbcs	w10,w10,wzr		// result is carry flag
+
+.LNEON_copy_n_zap:
+	ldp	w4,w5,[x1],#8
+	ldp	w6,w7,[x1],#8
+	ldp	w8,w9,[x0],#8
+	ldp	w10,w11,[x0]
+	sub	x0,x0,#8
+	b.cs	.LCopy_1
+	mov	w8,w4
+	mov	w9,w5
+	mov	w10,w6
+	mov	w11,w7
+.LCopy_1:
+	st1	{v0.2d,v1.2d}, [x3],#32		// wipe
+	st1	{v0.2d,v1.2d}, [x3],#32		// wipe
+	ldp	w4,w5,[x1],#8
+	ldp	w6,w7,[x1],#8
+	stp	w8,w9,[x0],#8
+	stp	w10,w11,[x0],#8
+	sub	x1,x1,#32
+	ldp	w8,w9,[x0],#8
+	ldp	w10,w11,[x0]
+	sub	x0,x0,#8
+	b.cs	.LCopy_2
+	mov	w8, w4
+	mov	w9, w5
+	mov	w10, w6
+	mov	w11, w7
+.LCopy_2:
+	st1	{v0.2d,v1.2d}, [x1],#32		// wipe
+	st1	{v0.2d,v1.2d}, [x3],#32		// wipe
+	sub	x17,x2,x1		// preserves carry
+	stp	w8,w9,[x0],#8
+	stp	w10,w11,[x0],#8
+	cbnz	x17,.LNEON_copy_n_zap
+
+	mov	sp,x16
+	ldp	d14,d15,[sp,#64]
+	ldp	d12,d13,[sp,#48]
+	ldp	d10,d11,[sp,#32]
+	ldp	d8,d9,[sp,#16]
+	ldr	x29,[sp],#80
+	ret	// bx lr
+
+.size	bn_mul8x_mont_neon,.-bn_mul8x_mont_neon
 .type	__bn_sqr8x_mont,%function
 .align	5
 __bn_sqr8x_mont:
@@ -518,7 +1234,7 @@ __bn_sqr8x_mont:
 	ldp	x10,x11,[x2,#8*4]
 	ldp	x12,x13,[x2,#8*6]
 	adds	x19,x19,x6
-	ldr	x4,[x0,#-8*8]
+	ldur	x4,[x0,#-8*8]
 	adcs	x20,x20,x7
 	ldp	x6,x7,[x1,#8*0]
 	adcs	x21,x21,x8
@@ -713,7 +1429,7 @@ __bn_sqr8x_mont:
 	//adc	x28,xzr,xzr		// moved below
 	cbz	x27,.Lsqr8x8_post_condition
 
-	ldr	x4,[x2,#-8*8]
+	ldur	x4,[x2,#-8*8]
 	ldp	x6,x7,[x1,#8*0]
 	ldp	x8,x9,[x1,#8*2]
 	ldp	x10,x11,[x1,#8*4]
@@ -771,7 +1487,7 @@ __bn_sqr8x_mont:
 	ldp	x12,x13,[x2,#8*6]
 	cbz	x27,.Lsqr8x_tail_break
 
-	ldr	x4,[x0,#-8*8]
+	ldur	x4,[x0,#-8*8]
 	adds	x19,x19,x6
 	adcs	x20,x20,x7
 	ldp	x6,x7,[x1,#8*0]

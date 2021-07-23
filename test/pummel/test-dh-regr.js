@@ -33,9 +33,9 @@ if (process.config.variables.arm_version === '7') {
 const assert = require('assert');
 const crypto = require('crypto');
 
-// FIPS requires length >= 1024 but we use 256 in this test to keep it from
+// FIPS requires length >= 1024 but we use 512/256 in this test to keep it from
 // taking too long and timing out in CI.
-const length = (common.hasFipsCrypto || common.hasOpenSSL3) ? 1024 : 256;
+const length = (common.hasFipsCrypto) ? 1024 : common.hasOpenSSL3 ? 512 : 256;
 
 const p = crypto.createDiffieHellman(length).getPrime();
 

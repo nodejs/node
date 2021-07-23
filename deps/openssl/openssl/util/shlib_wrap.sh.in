@@ -2,20 +2,8 @@
 {-
     use lib '.';
     use configdata;
-
-    sub shlib {
-        my $lib = shift;
-        return "" if $disabled{shared};
-        $lib = $unified_info{rename}->{$lib}
-            if defined $unified_info{rename}->{$lib};
-        $lib = $unified_info{sharednames}->{$lib}
-            . ($target{shlib_variant} || "")
-            . ($target{shared_extension} || ".so");
-        $lib =~ s|\.\$\(SHLIB_VERSION_NUMBER\)
-                 |.$config{shlib_version_number}|x;
-        return $lib;
-    }
-    "";     # Make sure no left over string sneaks its way into the script
+    use lib catdir($config{sourcedir}, 'Configurations');
+    use platform;
 -}
 # To test this OpenSSL version's applications against another version's
 # shared libraries, simply set
@@ -42,8 +30,8 @@ fi
 THERE="`echo $0 | sed -e 's|[^/]*$||' 2>/dev/null`.."
 [ -d "${THERE}" ] || exec "$@"	# should never happen...
 
-LIBCRYPTOSO="${THERE}/{- shlib('libcrypto') -}"
-LIBSSLSO="${THERE}/{- shlib('libssl') -}"
+LIBCRYPTOSO="${THERE}/{- platform->sharedlib('libcrypto') -}"
+LIBSSLSO="${THERE}/{- platform->sharedlib('libssl') -}"
 
 SYSNAME=`(uname -s) 2>/dev/null`;
 case "$SYSNAME" in
@@ -95,6 +83,15 @@ SunOS|IRIX*)
 	esac
 	eval $rld_var=\"${THERE}'${'$rld_var':+:$'$rld_var'}'\"; export $rld_var
 	unset rld_var
+	;;
+NONSTOP_KERNEL)
+	# HPE NonStop has a proprietary mechanism for specifying
+	# the location of DLLs. It does not use PATH or variables
+	# commonly used on other platforms. The platform has a limited
+	# environment space keeping extraneous variables to a minimum
+	# is recommended.
+	_RLD_LIB_PATH="${THERE}:$LD_LIBRARY_PATH"
+	export _RLD_LIB_PATH
 	;;
 *)	LD_LIBRARY_PATH="${THERE}:$LD_LIBRARY_PATH"	# Linux, ELF HP-UX
 	DYLD_LIBRARY_PATH="${THERE}:$DYLD_LIBRARY_PATH"	# MacOS X

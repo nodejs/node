@@ -1,7 +1,7 @@
 /*
- * Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,6 +9,7 @@
 
 #ifndef OSSL_INTERNAL_CONSTANT_TIME_H
 # define OSSL_INTERNAL_CONSTANT_TIME_H
+# pragma once
 
 # include <stdlib.h>
 # include <string.h>
@@ -181,6 +182,11 @@ static ossl_inline uint32_t constant_time_is_zero_32(uint32_t a)
     return constant_time_msb_32(~a & (a - 1));
 }
 
+static ossl_inline uint64_t constant_time_is_zero_64(uint64_t a)
+{
+    return constant_time_msb_64(~a & (a - 1));
+}
+
 static ossl_inline unsigned int constant_time_eq(unsigned int a,
                                                  unsigned int b)
 {
@@ -350,6 +356,34 @@ static ossl_inline void constant_time_cond_swap_64(uint64_t mask, uint64_t *a,
     xor &= mask;
     *a ^= xor;
     *b ^= xor;
+}
+
+/*
+ * mask must be 0xFF or 0x00.
+ * "constant time" is per len.
+ *
+ * if (mask) {
+ *     unsigned char tmp[len];
+ *
+ *     memcpy(tmp, a, len);
+ *     memcpy(a, b);
+ *     memcpy(b, tmp);
+ * }
+ */
+static ossl_inline void constant_time_cond_swap_buff(unsigned char mask,
+                                                     unsigned char *a,
+                                                     unsigned char *b,
+                                                     size_t len)
+{
+    size_t i;
+    unsigned char tmp;
+
+    for (i = 0; i < len; i++) {
+        tmp = a[i] ^ b[i];
+        tmp &= mask;
+        a[i] ^= tmp;
+        b[i] ^= tmp;
+    }
 }
 
 /*

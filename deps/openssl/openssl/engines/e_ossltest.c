@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,18 @@
  * implementations for test purposes. It is highly insecure and must NOT be
  * used for any purpose except testing
  */
+
+/* We need to use some engine deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
+
+/*
+ * SHA low level APIs are deprecated for public use, but still ok for
+ * internal use.  Note, that due to symbols not being exported, only the
+ * #defines and type definitions can be accessed, function calls are not
+ * available.  The digest lengths, block sizes and sizeof(CTX) are used herein
+ * for several different digests.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,8 +37,13 @@
 #include <openssl/aes.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
+#include <openssl/pem.h>
 
 #include "e_ossltest_err.c"
+
+#ifdef _WIN32
+# define strncasecmp _strnicmp
+#endif
 
 /* Engine Id and Name */
 static const char *engine_ossltest_id = "ossltest";
@@ -134,10 +151,13 @@ static const EVP_MD *digest_sha256(void)
 
 /* SHA384/SHA512 */
 static int digest_sha384_init(EVP_MD_CTX *ctx);
+static int digest_sha384_update(EVP_MD_CTX *ctx, const void *data,
+                                size_t count);
+static int digest_sha384_final(EVP_MD_CTX *ctx, unsigned char *md);
+
 static int digest_sha512_init(EVP_MD_CTX *ctx);
 static int digest_sha512_update(EVP_MD_CTX *ctx, const void *data,
                                 size_t count);
-static int digest_sha384_final(EVP_MD_CTX *ctx, unsigned char *md);
 static int digest_sha512_final(EVP_MD_CTX *ctx, unsigned char *md);
 
 static EVP_MD *_hidden_sha384_md = NULL;
@@ -153,7 +173,7 @@ static const EVP_MD *digest_sha384(void)
                                              sizeof(EVP_MD *) + sizeof(SHA512_CTX))
             || !EVP_MD_meth_set_flags(md, EVP_MD_FLAG_DIGALGID_ABSENT)
             || !EVP_MD_meth_set_init(md, digest_sha384_init)
-            || !EVP_MD_meth_set_update(md, digest_sha512_update)
+            || !EVP_MD_meth_set_update(md, digest_sha384_update)
             || !EVP_MD_meth_set_final(md, digest_sha384_final)) {
             EVP_MD_meth_free(md);
             md = NULL;
@@ -206,15 +226,15 @@ static int ossltest_digest_nids(const int **nids)
     if (!init) {
         const EVP_MD *md;
         if ((md = digest_md5()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha1()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha256()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha384()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         if ((md = digest_sha512()) != NULL)
-            digest_nids[pos++] = EVP_MD_type(md);
+            digest_nids[pos++] = EVP_MD_get_type(md);
         digest_nids[pos] = 0;
         init = 1;
     }
@@ -259,7 +279,7 @@ static const EVP_CIPHER *ossltest_aes_128_cbc(void)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc,
                                               ossltest_aes128_cbc_cipher)
             || !EVP_CIPHER_meth_set_impl_ctx_size(_hidden_aes_128_cbc,
-                                                  EVP_CIPHER_impl_ctx_size(EVP_aes_128_cbc())))) {
+                    EVP_CIPHER_impl_ctx_size(EVP_aes_128_cbc())))) {
         EVP_CIPHER_meth_free(_hidden_aes_128_cbc);
         _hidden_aes_128_cbc = NULL;
     }
@@ -288,7 +308,7 @@ static const EVP_CIPHER *ossltest_aes_128_gcm(void)
             || !EVP_CIPHER_meth_set_ctrl(_hidden_aes_128_gcm,
                                               ossltest_aes128_gcm_ctrl)
             || !EVP_CIPHER_meth_set_impl_ctx_size(_hidden_aes_128_gcm,
-                              EVP_CIPHER_impl_ctx_size(EVP_aes_128_gcm())))) {
+                    EVP_CIPHER_impl_ctx_size(EVP_aes_128_gcm())))) {
         EVP_CIPHER_meth_free(_hidden_aes_128_gcm);
         _hidden_aes_128_gcm = NULL;
     }
@@ -302,6 +322,43 @@ static void destroy_ciphers(void)
     _hidden_aes_128_cbc = NULL;
 }
 
+/* Key loading */
+static EVP_PKEY *load_key(ENGINE *eng, const char *key_id, int pub,
+                          UI_METHOD *ui_method, void *ui_data)
+{
+    BIO *in;
+    EVP_PKEY *key;
+
+    if (strncasecmp(key_id, "ot:", 3) != 0)
+        return NULL;
+    key_id += 3;
+
+    fprintf(stderr, "[ossltest]Loading %s key %s\n",
+            pub ? "Public" : "Private", key_id);
+    in = BIO_new_file(key_id, "r");
+    if (!in)
+        return NULL;
+    if (pub)
+        key = PEM_read_bio_PUBKEY(in, NULL, 0, NULL);
+    else
+        key = PEM_read_bio_PrivateKey(in, NULL, 0, NULL);
+    BIO_free(in);
+    return key;
+}
+
+static EVP_PKEY *ossltest_load_privkey(ENGINE *eng, const char *key_id,
+                                       UI_METHOD *ui_method, void *ui_data)
+{
+    return load_key(eng, key_id, 0, ui_method, ui_data);
+}
+
+static EVP_PKEY *ossltest_load_pubkey(ENGINE *eng, const char *key_id,
+                                      UI_METHOD *ui_method, void *ui_data)
+{
+    return load_key(eng, key_id, 1, ui_method, ui_data);
+}
+
+
 static int bind_ossltest(ENGINE *e)
 {
     /* Ensure the ossltest error handling is set up */
@@ -313,6 +370,8 @@ static int bind_ossltest(ENGINE *e)
         || !ENGINE_set_ciphers(e, ossltest_ciphers)
         || !ENGINE_set_RAND(e, ossltest_rand_method())
         || !ENGINE_set_destroy_function(e, ossltest_destroy)
+        || !ENGINE_set_load_privkey_function(e, ossltest_load_privkey)
+        || !ENGINE_set_load_pubkey_function(e, ossltest_load_pubkey)
         || !ENGINE_set_init_function(e, ossltest_init)
         || !ENGINE_set_finish_function(e, ossltest_finish)) {
         OSSLTESTerr(OSSLTEST_F_BIND_OSSLTEST, OSSLTEST_R_INIT_FAILED);
@@ -454,23 +513,20 @@ static void fill_known_data(unsigned char *md, unsigned int len)
  * value, so that all "MD5" digests using the test engine always end up with
  * the same value.
  */
-#undef data
-#define data(ctx) ((MD5_CTX *)EVP_MD_CTX_md_data(ctx))
 static int digest_md5_init(EVP_MD_CTX *ctx)
 {
-    return MD5_Init(data(ctx));
+   return EVP_MD_meth_get_init(EVP_md5())(ctx);
 }
 
 static int digest_md5_update(EVP_MD_CTX *ctx, const void *data,
                              size_t count)
 {
-    return MD5_Update(data(ctx), data, (size_t)count);
+    return EVP_MD_meth_get_update(EVP_md5())(ctx, data, count);
 }
 
 static int digest_md5_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    int ret;
-    ret = MD5_Final(md, data(ctx));
+    int ret = EVP_MD_meth_get_final(EVP_md5())(ctx, md);
 
     if (ret > 0) {
         fill_known_data(md, MD5_DIGEST_LENGTH);
@@ -481,23 +537,20 @@ static int digest_md5_final(EVP_MD_CTX *ctx, unsigned char *md)
 /*
  * SHA1 implementation.
  */
-#undef data
-#define data(ctx) ((SHA_CTX *)EVP_MD_CTX_md_data(ctx))
 static int digest_sha1_init(EVP_MD_CTX *ctx)
 {
-    return SHA1_Init(data(ctx));
+    return EVP_MD_meth_get_init(EVP_sha1())(ctx);
 }
 
 static int digest_sha1_update(EVP_MD_CTX *ctx, const void *data,
                               size_t count)
 {
-    return SHA1_Update(data(ctx), data, (size_t)count);
+    return EVP_MD_meth_get_update(EVP_sha1())(ctx, data, count);
 }
 
 static int digest_sha1_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    int ret;
-    ret = SHA1_Final(md, data(ctx));
+    int ret = EVP_MD_meth_get_final(EVP_sha1())(ctx, md);
 
     if (ret > 0) {
         fill_known_data(md, SHA_DIGEST_LENGTH);
@@ -508,23 +561,20 @@ static int digest_sha1_final(EVP_MD_CTX *ctx, unsigned char *md)
 /*
  * SHA256 implementation.
  */
-#undef data
-#define data(ctx) ((SHA256_CTX *)EVP_MD_CTX_md_data(ctx))
 static int digest_sha256_init(EVP_MD_CTX *ctx)
 {
-    return SHA256_Init(data(ctx));
+    return EVP_MD_meth_get_init(EVP_sha256())(ctx);
 }
 
 static int digest_sha256_update(EVP_MD_CTX *ctx, const void *data,
                                 size_t count)
 {
-    return SHA256_Update(data(ctx), data, (size_t)count);
+    return EVP_MD_meth_get_update(EVP_sha256())(ctx, data, count);
 }
 
 static int digest_sha256_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    int ret;
-    ret = SHA256_Final(md, data(ctx));
+    int ret = EVP_MD_meth_get_final(EVP_sha256())(ctx, md);
 
     if (ret > 0) {
         fill_known_data(md, SHA256_DIGEST_LENGTH);
@@ -533,31 +583,22 @@ static int digest_sha256_final(EVP_MD_CTX *ctx, unsigned char *md)
 }
 
 /*
- * SHA384/512 implementation.
+ * SHA384 implementation.
  */
-#undef data
-#define data(ctx) ((SHA512_CTX *)EVP_MD_CTX_md_data(ctx))
 static int digest_sha384_init(EVP_MD_CTX *ctx)
 {
-    return SHA384_Init(data(ctx));
+    return EVP_MD_meth_get_init(EVP_sha384())(ctx);
 }
 
-static int digest_sha512_init(EVP_MD_CTX *ctx)
-{
-    return SHA512_Init(data(ctx));
-}
-
-static int digest_sha512_update(EVP_MD_CTX *ctx, const void *data,
+static int digest_sha384_update(EVP_MD_CTX *ctx, const void *data,
                                 size_t count)
 {
-    return SHA512_Update(data(ctx), data, (size_t)count);
+    return EVP_MD_meth_get_update(EVP_sha384())(ctx, data, count);
 }
 
 static int digest_sha384_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    int ret;
-    /* Actually uses SHA512_Final! */
-    ret = SHA512_Final(md, data(ctx));
+    int ret = EVP_MD_meth_get_final(EVP_sha384())(ctx, md);
 
     if (ret > 0) {
         fill_known_data(md, SHA384_DIGEST_LENGTH);
@@ -565,10 +606,23 @@ static int digest_sha384_final(EVP_MD_CTX *ctx, unsigned char *md)
     return ret;
 }
 
+/*
+ * SHA512 implementation.
+ */
+static int digest_sha512_init(EVP_MD_CTX *ctx)
+{
+    return EVP_MD_meth_get_init(EVP_sha512())(ctx);
+}
+
+static int digest_sha512_update(EVP_MD_CTX *ctx, const void *data,
+                                size_t count)
+{
+    return EVP_MD_meth_get_update(EVP_sha512())(ctx, data, count);
+}
+
 static int digest_sha512_final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    int ret;
-    ret = SHA512_Final(md, data(ctx));
+    int ret = EVP_MD_meth_get_final(EVP_sha512())(ctx, md);
 
     if (ret > 0) {
         fill_known_data(md, SHA512_DIGEST_LENGTH);

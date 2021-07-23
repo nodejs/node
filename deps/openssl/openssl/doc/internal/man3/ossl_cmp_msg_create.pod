@@ -1,0 +1,75 @@
+=pod
+
+=head1 NAME
+
+ossl_cmp_bodytype_to_string,
+ossl_cmp_msg_get_bodytype,
+ossl_cmp_msg_set_bodytype,
+ossl_cmp_msg_create,
+ossl_cmp_msg_gen_ITAV_push0,
+ossl_cmp_msg_gen_ITAVs_push1
+- functions manipulating CMP messages
+
+=head1 SYNOPSIS
+
+  #include "cmp_local.h"
+
+  const char *ossl_cmp_bodytype_to_string(int type);
+  int ossl_cmp_msg_get_bodytype(const OSSL_CMP_MSG *msg);
+  int ossl_cmp_msg_set_bodytype( OSSL_CMP_MSG *msg, int type);
+  OSSL_CMP_MSG *ossl_cmp_msg_create(OSSL_CMP_CTX *ctx, int bodytype);
+  int ossl_cmp_msg_gen_ITAV_push0(OSSL_CMP_MSG *msg, OSSL_CMP_ITAV *itav);
+  int ossl_cmp_msg_gen_ITAVs_push1(OSSL_CMP_MSG *msg,
+                                    STACK_OF(OSSL_CMP_ITAV) *itavs);
+
+=head1 DESCRIPTION
+
+ossl_cmp_bodytype_to_string() returns the name of the given body type as string,
+or "illegal body type" on error.
+
+ossl_cmp_msg_get_bodytype() returns the body type of the given PKIMessage,
+or -1 on error.
+
+ossl_cmp_msg_set_bodytype() sets the type of the message contained in
+the PKIMessage body field.
+Returns 1 on success, 0 on error.
+
+ossl_cmp_msg_create() creates and initializes a OSSL_CMP_MSG structure,
+using B<ctx> for the header and B<bodytype> for the body.
+Returns pointer to created OSSL_CMP_MSG on success, NULL on error.
+
+ossl_cmp_msg_gen_ITAV_push0() pushes the B<itav> to the body of the
+PKIMessage B<msg> of GenMsg or GenRep type. Consumes the B<itavs> pointer.
+Returns 1 on success, 0 on error.
+
+ossl_cmp_msg_gen_ITAVs_push1() adds a copy of the B<itavs> stack to the body
+of the PKIMessage B<msg> of GenMsg or GenRep type.
+Does not consume the B<itavs> pointer nor its elements.
+Returns 1 on success, 0 on error.
+
+=head1 NOTES
+
+CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+
+=head1 RETURN VALUES
+
+See the individual functions above.
+
+=head1 SEE ALSO
+
+L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_exec_certreq(3)>
+
+=head1 HISTORY
+
+The OpenSSL CMP support was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

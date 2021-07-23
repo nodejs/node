@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -36,6 +36,13 @@
 /* Note: rewritten a little bit to provide error control and an OpenSSL-
    compatible API */
 
+/*
+ * AES low level APIs are deprecated for public use, but still ok for internal
+ * use where we're using them to implement the higher level EVP interface, as is
+ * the case here.
+ */
+#include "internal/deprecated.h"
+
 #include <assert.h>
 
 #include <stdlib.h>
@@ -43,7 +50,7 @@
 #include <openssl/aes.h>
 #include "aes_local.h"
 
-#if defined(OPENSSL_AES_CONST_TIME) && !defined(AES_ASM)
+#if !defined(OPENSSL_NO_AES_CONST_TIME) && !defined(AES_ASM)
 typedef union {
     unsigned char b[8];
     u32 w[2];
@@ -72,10 +79,10 @@ static void XtimeLong(u64 *w)
     u64 a, b;
 
     a = *w;
-    b = a & 0x8080808080808080uLL;
+    b = a & 0x8080808080808080u;
     a ^= b;
     b -= b >> 7;
-    b &= 0x1B1B1B1B1B1B1B1BuLL;
+    b &= 0x1B1B1B1B1B1B1B1Bu;
     b ^= a << 1;
     *w = b;
 }
@@ -222,89 +229,89 @@ static void SubLong(u64 *w)
     u64 x, y, a1, a2, a3, a4, a5, a6;
 
     x = *w;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xDDDDDDDDDDDDDDDDuLL;
-    x ^= y & 0x5757575757575757uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1C1C1C1C1C1C1C1CuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x4A4A4A4A4A4A4A4AuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x4242424242424242uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x6464646464646464uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xE0E0E0E0E0E0E0E0uLL;
+    y = ((x & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((x & 0x0101010101010101u) << 7);
+    x &= 0xDDDDDDDDDDDDDDDDu;
+    x ^= y & 0x5757575757575757u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x1C1C1C1C1C1C1C1Cu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x4A4A4A4A4A4A4A4Au;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x4242424242424242u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x6464646464646464u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xE0E0E0E0E0E0E0E0u;
     a1 = x;
-    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
-    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+    a1 ^= (x & 0xF0F0F0F0F0F0F0F0u) >> 4;
+    a2 = ((x & 0xCCCCCCCCCCCCCCCCu) >> 2) | ((x & 0x3333333333333333u) << 2);
     a3 = x & a1;
-    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAu;
     a4 = a2 & a1;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAu;
+    a5 = (a3 & 0xCCCCCCCCCCCCCCCCu) >> 2;
+    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCu;
+    a4 = a5 & 0x2222222222222222u;
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & 0x2222222222222222u;
     a3 ^= a4;
-    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+    a5 = a3 & 0xA0A0A0A0A0A0A0A0u;
     a5 |= a5 >> 1;
-    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
-    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0u;
+    a4 = a5 & 0xC0C0C0C0C0C0C0C0u;
     a6 = a4 >> 2;
-    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
-    a5 = a6 & 0x2020202020202020uLL;
+    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0u;
+    a5 = a6 & 0x2020202020202020u;
     a5 |= a5 >> 1;
-    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+    a5 ^= (a6 << 1) & 0x2020202020202020u;
     a4 |= a5;
     a3 ^= a4 >> 4;
-    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+    a3 &= 0x0F0F0F0F0F0F0F0Fu;
     a2 = a3;
-    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0Cu) >> 2;
     a4 = a3 & a2;
-    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
-    a5 = a4 & 0x0808080808080808uLL;
+    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0Au) >> 1;
+    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0Au;
+    a5 = a4 & 0x0808080808080808u;
     a5 |= a5 >> 1;
-    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+    a5 ^= (a4 << 1) & 0x0808080808080808u;
     a4 ^= a5 >> 2;
-    a4 &= 0x0303030303030303uLL;
-    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+    a4 &= 0x0303030303030303u;
+    a4 ^= (a4 & 0x0202020202020202u) >> 1;
     a4 |= a4 << 2;
     a3 = a2 & a4;
-    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0Au) >> 1;
+    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0Au;
     a3 |= a3 << 4;
-    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCu) >> 2) | ((a1 & 0x3333333333333333u) << 2);
     x = a1 & a3;
-    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+    x ^= (x & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAu;
     a4 = a2 & a3;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAu;
+    a5 = (x & 0xCCCCCCCCCCCCCCCCu) >> 2;
+    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCu;
+    a4 = a5 & 0x2222222222222222u;
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & 0x2222222222222222u;
     x ^= a4;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0x3939393939393939uLL;
-    x ^= y & 0x3F3F3F3F3F3F3F3FuLL;
-    y = ((y & 0xFCFCFCFCFCFCFCFCuLL) >> 2) | ((y & 0x0303030303030303uLL) << 6);
-    x ^= y & 0x9797979797979797uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x9B9B9B9B9B9B9B9BuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x3C3C3C3C3C3C3C3CuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xDDDDDDDDDDDDDDDDuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7272727272727272uLL;
-    x ^= 0x6363636363636363uLL;
+    y = ((x & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((x & 0x0101010101010101u) << 7);
+    x &= 0x3939393939393939u;
+    x ^= y & 0x3F3F3F3F3F3F3F3Fu;
+    y = ((y & 0xFCFCFCFCFCFCFCFCu) >> 2) | ((y & 0x0303030303030303u) << 6);
+    x ^= y & 0x9797979797979797u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x9B9B9B9B9B9B9B9Bu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x3C3C3C3C3C3C3C3Cu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xDDDDDDDDDDDDDDDDu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x7272727272727272u;
+    x ^= 0x6363636363636363u;
     *w = x;
 }
 
@@ -316,93 +323,93 @@ static void InvSubLong(u64 *w)
     u64 x, y, a1, a2, a3, a4, a5, a6;
 
     x = *w;
-    x ^= 0x6363636363636363uLL;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xFDFDFDFDFDFDFDFDuLL;
-    x ^= y & 0x5E5E5E5E5E5E5E5EuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xF3F3F3F3F3F3F3F3uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xF5F5F5F5F5F5F5F5uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7878787878787878uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7777777777777777uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1515151515151515uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xA5A5A5A5A5A5A5A5uLL;
+    x ^= 0x6363636363636363u;
+    y = ((x & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((x & 0x0101010101010101u) << 7);
+    x &= 0xFDFDFDFDFDFDFDFDu;
+    x ^= y & 0x5E5E5E5E5E5E5E5Eu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xF3F3F3F3F3F3F3F3u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xF5F5F5F5F5F5F5F5u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x7878787878787878u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x7777777777777777u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x1515151515151515u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xA5A5A5A5A5A5A5A5u;
     a1 = x;
-    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
-    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+    a1 ^= (x & 0xF0F0F0F0F0F0F0F0u) >> 4;
+    a2 = ((x & 0xCCCCCCCCCCCCCCCCu) >> 2) | ((x & 0x3333333333333333u) << 2);
     a3 = x & a1;
-    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAu;
     a4 = a2 & a1;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAu;
+    a5 = (a3 & 0xCCCCCCCCCCCCCCCCu) >> 2;
+    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCu;
+    a4 = a5 & 0x2222222222222222u;
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & 0x2222222222222222u;
     a3 ^= a4;
-    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+    a5 = a3 & 0xA0A0A0A0A0A0A0A0u;
     a5 |= a5 >> 1;
-    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
-    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0u;
+    a4 = a5 & 0xC0C0C0C0C0C0C0C0u;
     a6 = a4 >> 2;
-    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
-    a5 = a6 & 0x2020202020202020uLL;
+    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0u;
+    a5 = a6 & 0x2020202020202020u;
     a5 |= a5 >> 1;
-    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+    a5 ^= (a6 << 1) & 0x2020202020202020u;
     a4 |= a5;
     a3 ^= a4 >> 4;
-    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+    a3 &= 0x0F0F0F0F0F0F0F0Fu;
     a2 = a3;
-    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0Cu) >> 2;
     a4 = a3 & a2;
-    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
-    a5 = a4 & 0x0808080808080808uLL;
+    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0Au) >> 1;
+    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0Au;
+    a5 = a4 & 0x0808080808080808u;
     a5 |= a5 >> 1;
-    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+    a5 ^= (a4 << 1) & 0x0808080808080808u;
     a4 ^= a5 >> 2;
-    a4 &= 0x0303030303030303uLL;
-    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+    a4 &= 0x0303030303030303u;
+    a4 ^= (a4 & 0x0202020202020202u) >> 1;
     a4 |= a4 << 2;
     a3 = a2 & a4;
-    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0Au) >> 1;
+    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0Au;
     a3 |= a3 << 4;
-    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCu) >> 2) | ((a1 & 0x3333333333333333u) << 2);
     x = a1 & a3;
-    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+    x ^= (x & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAu;
     a4 = a2 & a3;
-    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
-    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
-    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
-    a4 = a5 & 0x2222222222222222uLL;
+    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAu) >> 1;
+    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAu;
+    a5 = (x & 0xCCCCCCCCCCCCCCCCu) >> 2;
+    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCu;
+    a4 = a5 & 0x2222222222222222u;
     a4 |= a4 >> 1;
-    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+    a4 ^= (a5 << 1) & 0x2222222222222222u;
     x ^= a4;
-    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
-    x &= 0xB5B5B5B5B5B5B5B5uLL;
-    x ^= y & 0x4040404040404040uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x8080808080808080uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x1616161616161616uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xEBEBEBEBEBEBEBEBuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x9797979797979797uLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0xFBFBFBFBFBFBFBFBuLL;
-    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
-    x ^= y & 0x7D7D7D7D7D7D7D7DuLL;
+    y = ((x & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((x & 0x0101010101010101u) << 7);
+    x &= 0xB5B5B5B5B5B5B5B5u;
+    x ^= y & 0x4040404040404040u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x8080808080808080u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x1616161616161616u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xEBEBEBEBEBEBEBEBu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x9797979797979797u;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0xFBFBFBFBFBFBFBFBu;
+    y = ((y & 0xFEFEFEFEFEFEFEFEu) >> 1) | ((y & 0x0101010101010101u) << 7);
+    x ^= y & 0x7D7D7D7D7D7D7D7Du;
     *w = x;
 }
 
@@ -453,10 +460,10 @@ static void MixColumns(u64 *state)
     for (c = 0; c < 2; c++) {
         s1.d = state[c];
         s.d = s1.d;
-        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
-               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
-        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
-               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s.d ^= ((s.d & 0xFFFF0000FFFF0000u) >> 16)
+               | ((s.d & 0x0000FFFF0000FFFFu) << 16);
+        s.d ^= ((s.d & 0xFF00FF00FF00FF00u) >> 8)
+               | ((s.d & 0x00FF00FF00FF00FFu) << 8);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
         s.d ^= s1.d;
@@ -481,10 +488,10 @@ static void InvMixColumns(u64 *state)
     for (c = 0; c < 2; c++) {
         s1.d = state[c];
         s.d = s1.d;
-        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
-               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
-        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
-               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s.d ^= ((s.d & 0xFFFF0000FFFF0000u) >> 16)
+               | ((s.d & 0x0000FFFF0000FFFFu) << 16);
+        s.d ^= ((s.d & 0xFF00FF00FF00FF00u) >> 8)
+               | ((s.d & 0x00FF00FF00FF00FFu) << 8);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
         s.d ^= s1.d;
@@ -497,12 +504,12 @@ static void InvMixColumns(u64 *state)
         s.b[6] ^= s1.b[7];
         s.b[7] ^= s1.b[4];
         XtimeLong(&s1.d);
-        s1.d ^= ((s1.d & 0xFFFF0000FFFF0000uLL) >> 16)
-                | ((s1.d & 0x0000FFFF0000FFFFuLL) << 16);
+        s1.d ^= ((s1.d & 0xFFFF0000FFFF0000u) >> 16)
+                | ((s1.d & 0x0000FFFF0000FFFFu) << 16);
         s.d ^= s1.d;
         XtimeLong(&s1.d);
-        s1.d ^= ((s1.d & 0xFF00FF00FF00FF00uLL) >> 8)
-                | ((s1.d & 0x00FF00FF00FF00FFuLL) << 8);
+        s1.d ^= ((s1.d & 0xFF00FF00FF00FF00u) >> 8)
+                | ((s1.d & 0x00FF00FF00FF00FFu) << 8);
         s.d ^= s1.d;
         state[c] = s.d;
     }

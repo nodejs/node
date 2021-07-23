@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,7 @@
 
 #include <openssl/rand.h>
 #include <openssl/asn1t.h>
+#include <openssl/obj_mac.h>
 #include "internal/numbers.h"
 #include "testutil.h"
 
@@ -28,7 +29,7 @@ static unsigned char t_invalid_zero[] = {
     0x02, 0x00                   /* INTEGER tag + length */
 };
 
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 /* LONG case ************************************************************* */
 
 typedef struct {
@@ -195,9 +196,33 @@ static int test_invalid_template(void)
     return 0;
 }
 
+static int test_reuse_asn1_object(void)
+{
+    static unsigned char cn_der[] = { 0x06, 0x03, 0x55, 0x04, 0x06 };
+    static unsigned char oid_der[] = {
+        0x06, 0x06, 0x2a, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    int ret = 0;
+    ASN1_OBJECT *obj;
+    unsigned char const *p = oid_der;
+
+    /* Create an object that owns dynamically allocated 'sn' and 'ln' fields */
+
+    if (!TEST_ptr(obj = ASN1_OBJECT_create(NID_undef, cn_der, sizeof(cn_der),
+                                           "C", "countryName")))
+        goto err;
+    /* reuse obj - this should not leak sn and ln */
+    if (!TEST_ptr(d2i_ASN1_OBJECT(&obj, &p, sizeof(oid_der))))
+        goto err;
+    ret = 1;
+err:
+    ASN1_OBJECT_free(obj);
+    return ret;
+}
+
 int setup_tests(void)
 {
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_TEST(test_long);
 #endif
     ADD_TEST(test_int32);
@@ -205,5 +230,6 @@ int setup_tests(void)
     ADD_TEST(test_int64);
     ADD_TEST(test_uint64);
     ADD_TEST(test_invalid_template);
+    ADD_TEST(test_reuse_asn1_object);
     return 1;
 }

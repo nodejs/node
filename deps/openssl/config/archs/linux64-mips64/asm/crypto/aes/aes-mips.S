@@ -106,6 +106,33 @@ _mips_AES_encrypt:
 
 	srl	$1,$9,6
 #else
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	move	$1,$7
+	move	$2,$7
+	move	$24,$7
+	move	$25,$7
+	ext	$12,$9,8,8
+.Loop_enc:
+	ext	$13,$10,8,8
+	ext	$14,$11,8,8
+	ext	$15,$8,8,8
+	dins $1,$12,2,8
+	dins $2,$13,2,8
+	dins $24,$14,2,8
+	dins $25,$15,2,8
+	lw	$12,0($1)		# Te1[s1>>16]
+	ext	$16,$10,16,8
+	lw	$13,0($2)		# Te1[s2>>16]
+	ext	$17,$11,16,8
+	lw	$14,0($24)		# Te1[s3>>16]
+	ext	$18,$8,16,8
+	lw	$15,0($25)		# Te1[s0>>16]
+	ext	$19,$9,16,8
+	dins $1,$16,2,8
+	dins $2,$17,2,8
+	dins $24,$18,2,8
+	dins $25,$19,2,8
+#else
 	srl	$1,$9,6
 .Loop_enc:
 	srl	$2,$10,6
@@ -119,16 +146,6 @@ _mips_AES_encrypt:
 	daddu $2,$7
 	daddu $24,$7
 	daddu $25,$7
-#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
-	lw	$12,0($1)		# Te1[s1>>16]
-	srl	$1,$10,14
-	lw	$13,0($2)		# Te1[s2>>16]
-	srl	$2,$11,14
-	lw	$14,0($24)		# Te1[s3>>16]
-	srl	$24,$8,14
-	lw	$15,0($25)		# Te1[s0>>16]
-	srl	$25,$9,14
-#else
 	lwl	$12,2($1)		# Te1[s1>>16]
 	lwl	$13,2($2)		# Te1[s2>>16]
 	lwl	$14,2($24)		# Te1[s3>>16]
@@ -141,7 +158,6 @@ _mips_AES_encrypt:
 	srl	$24,$8,14
 	lwr	$15,3($25)		# Te1[s0>>16]
 	srl	$25,$9,14
-#endif
 	and	$1,0x3fc
 	and	$2,0x3fc
 	and	$24,0x3fc
@@ -150,6 +166,7 @@ _mips_AES_encrypt:
 	daddu $2,$7
 	daddu $24,$7
 	daddu $25,$7
+#endif
 #if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
 	rotr	$12,$12,24
 	rotr	$13,$13,24
@@ -157,22 +174,18 @@ _mips_AES_encrypt:
 	rotr	$15,$15,24
 # if defined(_MIPSEL)
 	lw	$16,0($1)		# Te2[s2>>8]
-	srl	$1,$11,22
+	ext	$20,$11,24,8
 	lw	$17,0($2)		# Te2[s3>>8]
-	srl	$2,$8,22
+	ext	$21,$8,24,8
 	lw	$18,0($24)		# Te2[s0>>8]
-	srl	$24,$9,22
+	ext	$22,$9,24,8
 	lw	$19,0($25)		# Te2[s1>>8]
-	srl	$25,$10,22
+	ext	$23,$10,24,8
+	dins $1,$20,2,8
+	dins $2,$21,2,8
+	dins $24,$22,2,8
+	dins $25,$23,2,8
 
-	and	$1,0x3fc
-	and	$2,0x3fc
-	and	$24,0x3fc
-	and	$25,0x3fc
-	daddu $1,$7
-	daddu $2,$7
-	daddu $24,$7
-	daddu $25,$7
 	lw	$20,0($1)		# Te3[s3]
 	dins $1,$8,2,8
 	lw	$21,0($2)		# Te3[s0]
@@ -293,6 +306,9 @@ _mips_AES_encrypt:
 	xor	$11,$15
 	.set	noreorder
 	bnez	$30,.Loop_enc
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	ext	$12,$9,8,8
+#endif
 	srl	$1,$9,6
 #endif
 
@@ -666,6 +682,33 @@ _mips_AES_decrypt:
 
 	srl	$1,$11,6
 #else
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	move	$1,$7
+	move	$2,$7
+	move	$24,$7
+	move	$25,$7
+	ext	$12,$11,8,8
+.Loop_dec:
+	ext	$13,$8,8,8
+	ext	$14,$9,8,8
+	ext	$15,$10,8,8
+	dins $1,$12,2,8
+	dins $2,$13,2,8
+	dins $24,$14,2,8
+	dins $25,$15,2,8
+	lw	$12,0($1)		# Td1[s3>>16]
+	ext	$16,$10,16,8
+	lw	$13,0($2)		# Td1[s0>>16]
+	ext	$17,$11,16,8
+	lw	$14,0($24)		# Td1[s1>>16]
+	ext	$18,$8,16,8
+	lw	$15,0($25)		# Td1[s2>>16]
+	ext	$19,$9,16,8
+	dins $1,$16,2,8
+	dins $2,$17,2,8
+	dins $24,$18,2,8
+	dins $25,$19,2,8
+#else
 	srl	$1,$11,6
 .Loop_dec:
 	srl	$2,$8,6
@@ -679,16 +722,6 @@ _mips_AES_decrypt:
 	daddu $2,$7
 	daddu $24,$7
 	daddu $25,$7
-#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
-	lw	$12,0($1)		# Td1[s3>>16]
-	srl	$1,$10,14
-	lw	$13,0($2)		# Td1[s0>>16]
-	srl	$2,$11,14
-	lw	$14,0($24)		# Td1[s1>>16]
-	srl	$24,$8,14
-	lw	$15,0($25)		# Td1[s2>>16]
-	srl	$25,$9,14
-#else
 	lwl	$12,2($1)		# Td1[s3>>16]
 	lwl	$13,2($2)		# Td1[s0>>16]
 	lwl	$14,2($24)		# Td1[s1>>16]
@@ -701,8 +734,6 @@ _mips_AES_decrypt:
 	srl	$24,$8,14
 	lwr	$15,3($25)		# Td1[s2>>16]
 	srl	$25,$9,14
-#endif
-
 	and	$1,0x3fc
 	and	$2,0x3fc
 	and	$24,0x3fc
@@ -711,6 +742,7 @@ _mips_AES_decrypt:
 	daddu $2,$7
 	daddu $24,$7
 	daddu $25,$7
+#endif
 #if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
 	rotr	$12,$12,24
 	rotr	$13,$13,24
@@ -718,22 +750,17 @@ _mips_AES_decrypt:
 	rotr	$15,$15,24
 # if defined(_MIPSEL)
 	lw	$16,0($1)		# Td2[s2>>8]
-	srl	$1,$9,22
+	ext	$20,$9,24,8
 	lw	$17,0($2)		# Td2[s3>>8]
-	srl	$2,$10,22
+	ext	$21,$10,24,8
 	lw	$18,0($24)		# Td2[s0>>8]
-	srl	$24,$11,22
+	ext	$22,$11,24,8
 	lw	$19,0($25)		# Td2[s1>>8]
-	srl	$25,$8,22
-
-	and	$1,0x3fc
-	and	$2,0x3fc
-	and	$24,0x3fc
-	and	$25,0x3fc
-	daddu $1,$7
-	daddu $2,$7
-	daddu $24,$7
-	daddu $25,$7
+	ext	$23,$8,24,8
+	dins $1,$20,2,8
+	dins $2,$21,2,8
+	dins $24,$22,2,8
+	dins $25,$23,2,8
 	lw	$20,0($1)		# Td3[s1]
 	dins $1,$8,2,8
 	lw	$21,0($2)		# Td3[s2]
@@ -855,6 +882,10 @@ _mips_AES_decrypt:
 	xor	$11,$15
 	.set	noreorder
 	bnez	$30,.Loop_dec
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	ext	$12,$11,8,8
+#endif
+
 	srl	$1,$11,6
 #endif
 

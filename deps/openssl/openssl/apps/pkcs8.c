@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,7 +18,7 @@
 #include <openssl/pkcs12.h>
 
 typedef enum OPTION_choice {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
+    OPT_COMMON,
     OPT_INFORM, OPT_OUTFORM, OPT_ENGINE, OPT_IN, OPT_OUT,
     OPT_TOPK8, OPT_NOITER, OPT_NOCRYPT,
 #ifndef OPENSSL_NO_SCRYPT
@@ -26,35 +26,44 @@ typedef enum OPTION_choice {
 #endif
     OPT_V2, OPT_V1, OPT_V2PRF, OPT_ITER, OPT_PASSIN, OPT_PASSOUT,
     OPT_TRADITIONAL,
-    OPT_R_ENUM
+    OPT_R_ENUM, OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs8_options[] = {
+    OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
-    {"inform", OPT_INFORM, 'F', "Input format (DER or PEM)"},
-    {"outform", OPT_OUTFORM, 'F', "Output format (DER or PEM)"},
-    {"in", OPT_IN, '<', "Input file"},
-    {"out", OPT_OUT, '>', "Output file"},
-    {"topk8", OPT_TOPK8, '-', "Output PKCS8 file"},
-    {"noiter", OPT_NOITER, '-', "Use 1 as iteration count"},
-    {"nocrypt", OPT_NOCRYPT, '-', "Use or expect unencrypted private key"},
-    OPT_R_OPTIONS,
-    {"v2", OPT_V2, 's', "Use PKCS#5 v2.0 and cipher"},
-    {"v1", OPT_V1, 's', "Use PKCS#5 v1.5 and cipher"},
-    {"v2prf", OPT_V2PRF, 's', "Set the PRF algorithm to use with PKCS#5 v2.0"},
-    {"iter", OPT_ITER, 'p', "Specify the iteration count"},
-    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
-    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
-    {"traditional", OPT_TRADITIONAL, '-', "use traditional format private key"},
 #ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
 #endif
+    {"v1", OPT_V1, 's', "Use PKCS#5 v1.5 and cipher"},
+    {"v2", OPT_V2, 's', "Use PKCS#5 v2.0 and cipher"},
+    {"v2prf", OPT_V2PRF, 's', "Set the PRF algorithm to use with PKCS#5 v2.0"},
+
+    OPT_SECTION("Input"),
+    {"in", OPT_IN, '<', "Input file"},
+    {"inform", OPT_INFORM, 'F', "Input format (DER or PEM)"},
+    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
+    {"nocrypt", OPT_NOCRYPT, '-', "Use or expect unencrypted private key"},
+
+    OPT_SECTION("Output"),
+    {"out", OPT_OUT, '>', "Output file"},
+    {"outform", OPT_OUTFORM, 'F', "Output format (DER or PEM)"},
+    {"topk8", OPT_TOPK8, '-', "Output PKCS8 file"},
+    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
+    {"traditional", OPT_TRADITIONAL, '-', "use traditional format private key"},
+    {"iter", OPT_ITER, 'p', "Specify the iteration count"},
+    {"noiter", OPT_NOITER, '-', "Use 1 as iteration count"},
+
 #ifndef OPENSSL_NO_SCRYPT
+    OPT_SECTION("Scrypt"),
     {"scrypt", OPT_SCRYPT, '-', "Use scrypt algorithm"},
     {"scrypt_N", OPT_SCRYPT_N, 's', "Set scrypt N parameter"},
     {"scrypt_r", OPT_SCRYPT_R, 's', "Set scrypt r parameter"},
     {"scrypt_p", OPT_SCRYPT_P, 's', "Set scrypt p parameter"},
 #endif
+
+    OPT_R_OPTIONS,
+    OPT_PROV_OPTIONS,
     {NULL}
 };
 
@@ -65,8 +74,8 @@ int pkcs8_main(int argc, char **argv)
     EVP_PKEY *pkey = NULL;
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
     X509_SIG *p8 = NULL;
-    const EVP_CIPHER *cipher = NULL;
-    char *infile = NULL, *outfile = NULL;
+    EVP_CIPHER *cipher = NULL;
+    char *infile = NULL, *outfile = NULL, *ciphername = NULL;
     char *passinarg = NULL, *passoutarg = NULL, *prog;
 #ifndef OPENSSL_NO_UI_CONSOLE
     char pass[APP_PASS_LEN];
@@ -74,7 +83,7 @@ int pkcs8_main(int argc, char **argv)
     char *passin = NULL, *passout = NULL, *p8pass = NULL;
     OPTION_CHOICE o;
     int nocrypt = 0, ret = 1, iter = PKCS12_DEFAULT_ITER;
-    int informat = FORMAT_PEM, outformat = FORMAT_PEM, topk8 = 0, pbe_nid = -1;
+    int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, topk8 = 0, pbe_nid = -1;
     int private = 0, traditional = 0;
 #ifndef OPENSSL_NO_SCRYPT
     long scrypt_N = 0, scrypt_r = 0, scrypt_p = 0;
@@ -119,12 +128,15 @@ int pkcs8_main(int argc, char **argv)
             if (!opt_rand(o))
                 goto end;
             break;
+        case OPT_PROV_CASES:
+            if (!opt_provider(o))
+                goto end;
+            break;
         case OPT_TRADITIONAL:
             traditional = 1;
             break;
         case OPT_V2:
-            if (!opt_cipher(opt_arg(), &cipher))
-                goto opthelp;
+            ciphername = opt_arg();
             break;
         case OPT_V1:
             pbe_nid = OBJ_txt2nid(opt_arg());
@@ -142,11 +154,10 @@ int pkcs8_main(int argc, char **argv)
                 goto opthelp;
             }
             if (cipher == NULL)
-                cipher = EVP_aes_256_cbc();
+                cipher = (EVP_CIPHER *)EVP_aes_256_cbc();
             break;
         case OPT_ITER:
-            if (!opt_int(opt_arg(), &iter))
-                goto opthelp;
+            iter =  opt_int_arg();
             break;
         case OPT_PASSIN:
             passinarg = opt_arg();
@@ -163,7 +174,7 @@ int pkcs8_main(int argc, char **argv)
             scrypt_r = 8;
             scrypt_p = 1;
             if (cipher == NULL)
-                cipher = EVP_aes_256_cbc();
+                cipher = (EVP_CIPHER *)EVP_aes_256_cbc();
             break;
         case OPT_SCRYPT_N:
             if (!opt_long(opt_arg(), &scrypt_N) || scrypt_N <= 0)
@@ -180,11 +191,20 @@ int pkcs8_main(int argc, char **argv)
 #endif
         }
     }
+
+    /* No extra arguments. */
     argc = opt_num_rest();
     if (argc != 0)
         goto opthelp;
 
     private = 1;
+    if (!app_RAND_load())
+        goto end;
+
+    if (ciphername != NULL) {
+        if (!opt_cipher(ciphername, &cipher))
+            goto opthelp;
+    }
 
     if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
@@ -192,9 +212,10 @@ int pkcs8_main(int argc, char **argv)
     }
 
     if ((pbe_nid == -1) && cipher == NULL)
-        cipher = EVP_aes_256_cbc();
+        cipher = (EVP_CIPHER *)EVP_aes_256_cbc();
 
-    in = bio_open_default(infile, 'r', informat);
+    in = bio_open_default(infile, 'r',
+                          informat == FORMAT_UNDEF ? FORMAT_PEM : informat);
     if (in == NULL)
         goto end;
     out = bio_open_owner(outfile, outformat, private);
@@ -278,7 +299,7 @@ int pkcs8_main(int argc, char **argv)
     }
 
     if (nocrypt) {
-        if (informat == FORMAT_PEM) {
+        if (informat == FORMAT_PEM || informat == FORMAT_UNDEF) {
             p8inf = PEM_read_bio_PKCS8_PRIV_KEY_INFO(in, NULL, NULL, NULL);
         } else if (informat == FORMAT_ASN1) {
             p8inf = d2i_PKCS8_PRIV_KEY_INFO_bio(in, NULL);
@@ -287,7 +308,7 @@ int pkcs8_main(int argc, char **argv)
             goto end;
         }
     } else {
-        if (informat == FORMAT_PEM) {
+        if (informat == FORMAT_PEM || informat == FORMAT_UNDEF) {
             p8 = PEM_read_bio_PKCS8(in, NULL, NULL, NULL);
         } else if (informat == FORMAT_ASN1) {
             p8 = d2i_PKCS8_bio(in, NULL);
@@ -349,6 +370,7 @@ int pkcs8_main(int argc, char **argv)
     X509_SIG_free(p8);
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     EVP_PKEY_free(pkey);
+    EVP_CIPHER_free(cipher);
     release_engine(e);
     BIO_free_all(out);
     BIO_free(in);

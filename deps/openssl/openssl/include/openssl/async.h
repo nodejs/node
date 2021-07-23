@@ -1,7 +1,7 @@
 /*
  * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -9,8 +9,14 @@
 
 #include <stdlib.h>
 
-#ifndef HEADER_ASYNC_H
-# define HEADER_ASYNC_H
+#ifndef OPENSSL_ASYNC_H
+# define OPENSSL_ASYNC_H
+# pragma once
+
+# include <openssl/macros.h>
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+#  define HEADER_ASYNC_H
+# endif
 
 #if defined(_WIN32)
 # if defined(BASETYPES) || defined(_WINDEF_H)
@@ -31,11 +37,17 @@ extern "C" {
 
 typedef struct async_job_st ASYNC_JOB;
 typedef struct async_wait_ctx_st ASYNC_WAIT_CTX;
+typedef int (*ASYNC_callback_fn)(void *arg);
 
 #define ASYNC_ERR      0
 #define ASYNC_NO_JOBS  1
 #define ASYNC_PAUSE    2
 #define ASYNC_FINISH   3
+
+#define ASYNC_STATUS_UNSUPPORTED    0
+#define ASYNC_STATUS_ERR            1
+#define ASYNC_STATUS_OK             2
+#define ASYNC_STATUS_EAGAIN         3
 
 int ASYNC_init_thread(size_t max_size, size_t init_size);
 void ASYNC_cleanup_thread(void);
@@ -52,6 +64,14 @@ int ASYNC_WAIT_CTX_get_fd(ASYNC_WAIT_CTX *ctx, const void *key,
                         OSSL_ASYNC_FD *fd, void **custom_data);
 int ASYNC_WAIT_CTX_get_all_fds(ASYNC_WAIT_CTX *ctx, OSSL_ASYNC_FD *fd,
                                size_t *numfds);
+int ASYNC_WAIT_CTX_get_callback(ASYNC_WAIT_CTX *ctx,
+                                ASYNC_callback_fn *callback,
+                                void **callback_arg);
+int ASYNC_WAIT_CTX_set_callback(ASYNC_WAIT_CTX *ctx,
+                                ASYNC_callback_fn callback,
+                                void *callback_arg);
+int ASYNC_WAIT_CTX_set_status(ASYNC_WAIT_CTX *ctx, int status);
+int ASYNC_WAIT_CTX_get_status(ASYNC_WAIT_CTX *ctx);
 int ASYNC_WAIT_CTX_get_changed_fds(ASYNC_WAIT_CTX *ctx, OSSL_ASYNC_FD *addfd,
                                    size_t *numaddfds, OSSL_ASYNC_FD *delfd,
                                    size_t *numdelfds);

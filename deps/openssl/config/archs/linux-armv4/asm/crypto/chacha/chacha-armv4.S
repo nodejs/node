@@ -1,6 +1,5 @@
 #include "arm_arch.h"
 
-.text
 #if defined(__thumb2__) || defined(__clang__)
 .syntax	unified
 #endif
@@ -14,6 +13,8 @@
 #define ldrhsb	ldrbhs
 #endif
 
+.text
+
 .align	5
 .Lsigma:
 .long	0x61707865,0x3320646e,0x79622d32,0x6b206574	@ endian-neutral
@@ -21,7 +22,11 @@
 .long	1,0,0,0
 #if __ARM_MAX_ARCH__>=7
 .LOPENSSL_armcap:
+# ifdef	_WIN32
+.word	OPENSSL_armcap_P
+# else
 .word	OPENSSL_armcap_P-.LChaCha20_ctr32
+# endif
 #else
 .word	-1
 #endif
@@ -48,8 +53,10 @@ ChaCha20_ctr32:
 	cmp	r2,#192			@ test len
 	bls	.Lshort
 	ldr	r4,[r14,#-32]
+# if !defined(_WIN32)
 	ldr	r4,[r14,r4]
-# ifdef	__APPLE__
+# endif
+# if defined(__APPLE__) || defined(_WIN32)
 	ldr	r4,[r4]
 # endif
 	tst	r4,#ARMV7_NEON

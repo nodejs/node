@@ -1,7 +1,7 @@
 /*
- * Copyright 2001-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -27,7 +27,7 @@ int X509_CRL_set_version(X509_CRL *x, long version)
     return ASN1_INTEGER_set(x->crl.version, version);
 }
 
-int X509_CRL_set_issuer_name(X509_CRL *x, X509_NAME *name)
+int X509_CRL_set_issuer_name(X509_CRL *x, const X509_NAME *name)
 {
     if (x == NULL)
         return 0;
@@ -38,14 +38,14 @@ int X509_CRL_set1_lastUpdate(X509_CRL *x, const ASN1_TIME *tm)
 {
     if (x == NULL)
         return 0;
-    return x509_set1_time(&x->crl.lastUpdate, tm);
+    return ossl_x509_set1_time(&x->crl.lastUpdate, tm);
 }
 
 int X509_CRL_set1_nextUpdate(X509_CRL *x, const ASN1_TIME *tm)
 {
     if (x == NULL)
         return 0;
-    return x509_set1_time(&x->crl.nextUpdate, tm);
+    return ossl_x509_set1_time(&x->crl.nextUpdate, tm);
 }
 
 int X509_CRL_sort(X509_CRL *c)
@@ -91,7 +91,7 @@ const ASN1_TIME *X509_CRL_get0_nextUpdate(const X509_CRL *crl)
     return crl->crl.nextUpdate;
 }
 
-#if OPENSSL_API_COMPAT < 0x10100000L
+#ifndef OPENSSL_NO_DEPRECATED_1_1_0
 ASN1_TIME *X509_CRL_get_lastUpdate(X509_CRL *crl)
 {
     return crl->crl.lastUpdate;

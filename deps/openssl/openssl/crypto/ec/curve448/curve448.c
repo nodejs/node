@@ -1,8 +1,8 @@
 /*
- * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -15,6 +15,7 @@
 
 #include "point_448.h"
 #include "ed448.h"
+#include "crypto/ecx.h"
 #include "curve448_local.h"
 
 #define COFACTOR 4
@@ -54,7 +55,7 @@ static void gf_invert(gf y, const gf x, int assert_nonzero)
 }
 
 /** identity = (0,1) */
-const curve448_point_t curve448_point_identity =
+const curve448_point_t ossl_curve448_point_identity =
     { {{{{0}}}, {{{1}}}, {{{1}}}, {{{0}}}} };
 
 static void point_double_internal(curve448_point_t p, const curve448_point_t q,
@@ -81,7 +82,7 @@ static void point_double_internal(curve448_point_t p, const curve448_point_t q,
         gf_mul(p->t, b, d);
 }
 
-void curve448_point_double(curve448_point_t p, const curve448_point_t q)
+void ossl_curve448_point_double(curve448_point_t p, const curve448_point_t q)
 {
     point_double_internal(p, q, 0);
 }
@@ -183,8 +184,9 @@ static void sub_pniels_from_pt(curve448_point_t p, const pniels_t pn,
     sub_niels_from_pt(p, pn->n, before_double);
 }
 
-c448_bool_t curve448_point_eq(const curve448_point_t p,
-                              const curve448_point_t q)
+c448_bool_t
+ossl_curve448_point_eq(const curve448_point_t p,
+                       const curve448_point_t q)
 {
     mask_t succ;
     gf a, b;
@@ -197,7 +199,8 @@ c448_bool_t curve448_point_eq(const curve448_point_t p,
     return mask_to_bool(succ);
 }
 
-c448_bool_t curve448_point_valid(const curve448_point_t p)
+c448_bool_t
+ossl_curve448_point_valid(const curve448_point_t p)
 {
     mask_t out;
     gf a, b, c;
@@ -224,7 +227,8 @@ static ossl_inline void constant_time_lookup_niels(niels_s * RESTRICT ni,
     constant_time_lookup(ni, table, sizeof(niels_s), nelts, idx);
 }
 
-void curve448_precomputed_scalarmul(curve448_point_t out,
+void
+ossl_curve448_precomputed_scalarmul(curve448_point_t out,
                                     const curve448_precomputed_s * table,
                                     const curve448_scalar_t scalar)
 {
@@ -233,8 +237,8 @@ void curve448_precomputed_scalarmul(curve448_point_t out,
     niels_t ni;
     curve448_scalar_t scalar1x;
 
-    curve448_scalar_add(scalar1x, scalar, precomputed_scalarmul_adjustment);
-    curve448_scalar_halve(scalar1x, scalar1x);
+    ossl_curve448_scalar_add(scalar1x, scalar, precomputed_scalarmul_adjustment);
+    ossl_curve448_scalar_halve(scalar1x, scalar1x);
 
     for (i = s; i > 0; i--) {
         if (i != s)
@@ -271,7 +275,8 @@ void curve448_precomputed_scalarmul(curve448_point_t out,
     OPENSSL_cleanse(scalar1x, sizeof(scalar1x));
 }
 
-void curve448_point_mul_by_ratio_and_encode_like_eddsa(
+void
+ossl_curve448_point_mul_by_ratio_and_encode_like_eddsa(
                                     uint8_t enc[EDDSA_448_PUBLIC_BYTES],
                                     const curve448_point_t p)
 {
@@ -315,10 +320,11 @@ void curve448_point_mul_by_ratio_and_encode_like_eddsa(
     OPENSSL_cleanse(y, sizeof(y));
     OPENSSL_cleanse(z, sizeof(z));
     OPENSSL_cleanse(t, sizeof(t));
-    curve448_point_destroy(q);
+    ossl_curve448_point_destroy(q);
 }
 
-c448_error_t curve448_point_decode_like_eddsa_and_mul_by_ratio(
+c448_error_t
+ossl_curve448_point_decode_like_eddsa_and_mul_by_ratio(
                                 curve448_point_t p,
                                 const uint8_t enc[EDDSA_448_PUBLIC_BYTES])
 {
@@ -371,14 +377,15 @@ c448_error_t curve448_point_decode_like_eddsa_and_mul_by_ratio(
     }
 
     OPENSSL_cleanse(enc2, sizeof(enc2));
-    assert(curve448_point_valid(p) || ~succ);
+    assert(ossl_curve448_point_valid(p) || ~succ);
 
     return c448_succeed_if(mask_to_bool(succ));
 }
 
-c448_error_t x448_int(uint8_t out[X_PUBLIC_BYTES],
-                      const uint8_t base[X_PUBLIC_BYTES],
-                      const uint8_t scalar[X_PRIVATE_BYTES])
+c448_error_t
+ossl_x448_int(uint8_t out[X_PUBLIC_BYTES],
+              const uint8_t base[X_PUBLIC_BYTES],
+              const uint8_t scalar[X_PRIVATE_BYTES])
 {
     gf x1, x2, z2, x3, z3, t1, t2;
     int t;
@@ -455,7 +462,8 @@ c448_error_t x448_int(uint8_t out[X_PUBLIC_BYTES],
     return c448_succeed_if(mask_to_bool(nz));
 }
 
-void curve448_point_mul_by_ratio_and_encode_like_x448(uint8_t
+void
+ossl_curve448_point_mul_by_ratio_and_encode_like_x448(uint8_t
                                                       out[X_PUBLIC_BYTES],
                                                       const curve448_point_t p)
 {
@@ -466,11 +474,11 @@ void curve448_point_mul_by_ratio_and_encode_like_x448(uint8_t
     gf_mul(q->z, q->t, q->y);   /* y/x */
     gf_sqr(q->y, q->z);         /* (y/x)^2 */
     gf_serialize(out, q->y, 1);
-    curve448_point_destroy(q);
+    ossl_curve448_point_destroy(q);
 }
 
-void x448_derive_public_key(uint8_t out[X_PUBLIC_BYTES],
-                            const uint8_t scalar[X_PRIVATE_BYTES])
+void ossl_x448_derive_public_key(uint8_t out[X_PUBLIC_BYTES],
+                                 const uint8_t scalar[X_PRIVATE_BYTES])
 {
     /* Scalar conditioning */
     uint8_t scalar2[X_PRIVATE_BYTES];
@@ -484,15 +492,16 @@ void x448_derive_public_key(uint8_t out[X_PUBLIC_BYTES],
     scalar2[X_PRIVATE_BYTES - 1] &= ~((0u - 1u) << ((X_PRIVATE_BITS + 7) % 8));
     scalar2[X_PRIVATE_BYTES - 1] |= 1 << ((X_PRIVATE_BITS + 7) % 8);
 
-    curve448_scalar_decode_long(the_scalar, scalar2, sizeof(scalar2));
+    ossl_curve448_scalar_decode_long(the_scalar, scalar2, sizeof(scalar2));
 
     /* Compensate for the encoding ratio */
     for (i = 1; i < X448_ENCODE_RATIO; i <<= 1)
-        curve448_scalar_halve(the_scalar, the_scalar);
+        ossl_curve448_scalar_halve(the_scalar, the_scalar);
 
-    curve448_precomputed_scalarmul(p, curve448_precomputed_base, the_scalar);
-    curve448_point_mul_by_ratio_and_encode_like_x448(out, p);
-    curve448_point_destroy(p);
+    ossl_curve448_precomputed_scalarmul(p, ossl_curve448_precomputed_base,
+                                        the_scalar);
+    ossl_curve448_point_mul_by_ratio_and_encode_like_x448(out, p);
+    ossl_curve448_point_destroy(p);
 }
 
 /* Control for variable-time scalar multiply algorithms. */
@@ -501,9 +510,9 @@ struct smvt_control {
 };
 
 #if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 3))
-# define NUMTRAILINGZEROS	__builtin_ctz
+# define NUMTRAILINGZEROS       __builtin_ctz
 #else
-# define NUMTRAILINGZEROS	numtrailingzeros
+# define NUMTRAILINGZEROS       numtrailingzeros
 static uint32_t numtrailingzeros(uint32_t i)
 {
     uint32_t tmp;
@@ -609,7 +618,7 @@ static void prepare_wnaf_table(pniels_t * output,
     if (tbits == 0)
         return;
 
-    curve448_point_double(tmp, working);
+    ossl_curve448_point_double(tmp, working);
     pt_to_pniels(twop, tmp);
 
     add_pniels_to_pt(tmp, output[0], 0);
@@ -620,11 +629,12 @@ static void prepare_wnaf_table(pniels_t * output,
         pt_to_pniels(output[i], tmp);
     }
 
-    curve448_point_destroy(tmp);
+    ossl_curve448_point_destroy(tmp);
     OPENSSL_cleanse(twop, sizeof(twop));
 }
 
-void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
+void
+ossl_curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
                                                const curve448_scalar_t scalar1,
                                                const curve448_point_t base2,
                                                const curve448_scalar_t scalar2)
@@ -644,7 +654,7 @@ void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
     i = control_var[0].power;
 
     if (i < 0) {
-        curve448_point_copy(combo, curve448_point_identity);
+        curve448_point_copy(combo, ossl_curve448_point_identity);
         return;
     }
     if (i > control_pre[0].power) {
@@ -652,13 +662,14 @@ void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
         contv++;
     } else if (i == control_pre[0].power && i >= 0) {
         pniels_to_pt(combo, precmp_var[control_var[0].addend >> 1]);
-        add_niels_to_pt(combo, curve448_wnaf_base[control_pre[0].addend >> 1],
+        add_niels_to_pt(combo,
+                        ossl_curve448_wnaf_base[control_pre[0].addend >> 1],
                         i);
         contv++;
         contp++;
     } else {
         i = control_pre[0].power;
-        niels_to_pt(combo, curve448_wnaf_base[control_pre[0].addend >> 1]);
+        niels_to_pt(combo, ossl_curve448_wnaf_base[control_pre[0].addend >> 1]);
         contp++;
     }
 
@@ -687,11 +698,11 @@ void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
 
             if (control_pre[contp].addend > 0)
                 add_niels_to_pt(combo,
-                                curve448_wnaf_base[control_pre[contp].addend
+                                ossl_curve448_wnaf_base[control_pre[contp].addend
                                                    >> 1], i);
             else
                 sub_niels_from_pt(combo,
-                                  curve448_wnaf_base[(-control_pre
+                                  ossl_curve448_wnaf_base[(-control_pre
                                                       [contp].addend) >> 1], i);
             contp++;
         }
@@ -708,20 +719,20 @@ void curve448_base_double_scalarmul_non_secret(curve448_point_t combo,
     (void)ncb_pre;
 }
 
-void curve448_point_destroy(curve448_point_t point)
+void ossl_curve448_point_destroy(curve448_point_t point)
 {
     OPENSSL_cleanse(point, sizeof(curve448_point_t));
 }
 
-int X448(uint8_t out_shared_key[56], const uint8_t private_key[56],
-         const uint8_t peer_public_value[56])
+int ossl_x448(uint8_t out_shared_key[56], const uint8_t private_key[56],
+              const uint8_t peer_public_value[56])
 {
-    return x448_int(out_shared_key, peer_public_value, private_key)
+    return ossl_x448_int(out_shared_key, peer_public_value, private_key)
            == C448_SUCCESS;
 }
 
-void X448_public_from_private(uint8_t out_public_value[56],
-                              const uint8_t private_key[56])
+void ossl_x448_public_from_private(uint8_t out_public_value[56],
+                                   const uint8_t private_key[56])
 {
-    x448_derive_public_key(out_public_value, private_key);
+    ossl_x448_derive_public_key(out_public_value, private_key);
 }

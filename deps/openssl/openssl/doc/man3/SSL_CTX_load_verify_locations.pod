@@ -2,36 +2,51 @@
 
 =head1 NAME
 
-SSL_CTX_load_verify_locations, SSL_CTX_set_default_verify_paths,
-SSL_CTX_set_default_verify_dir, SSL_CTX_set_default_verify_file - set
-default locations for trusted CA certificates
+SSL_CTX_load_verify_dir, SSL_CTX_load_verify_file,
+SSL_CTX_load_verify_store, SSL_CTX_set_default_verify_paths,
+SSL_CTX_set_default_verify_dir, SSL_CTX_set_default_verify_file,
+SSL_CTX_set_default_verify_store, SSL_CTX_load_verify_locations
+- set default locations for trusted CA certificates
 
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
 
- int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
-                                   const char *CApath);
+ int SSL_CTX_load_verify_dir(SSL_CTX *ctx, const char *CApath);
+ int SSL_CTX_load_verify_file(SSL_CTX *ctx, const char *CAfile);
+ int SSL_CTX_load_verify_store(SSL_CTX *ctx, const char *CAstore);
 
  int SSL_CTX_set_default_verify_paths(SSL_CTX *ctx);
 
  int SSL_CTX_set_default_verify_dir(SSL_CTX *ctx);
-
  int SSL_CTX_set_default_verify_file(SSL_CTX *ctx);
+ int SSL_CTX_set_default_verify_store(SSL_CTX *ctx);
+
+ int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
+                                   const char *CApath);
 
 =head1 DESCRIPTION
 
-SSL_CTX_load_verify_locations() specifies the locations for B<ctx>, at
-which CA certificates for verification purposes are located. The certificates
-available via B<CAfile> and B<CApath> are trusted.
+SSL_CTX_load_verify_locations(), SSL_CTX_load_verify_dir(),
+SSL_CTX_load_verify_file(), SSL_CTX_load_verify_store() specifies the
+locations for B<ctx>, at which CA certificates for verification purposes
+are located. The certificates available via B<CAfile>, B<CApath> and
+B<CAstore> are trusted.
+
+Details of the certificate verification and chain checking process are
+described in L<openssl-verification-options(1)/Certification Path Validation>.
 
 SSL_CTX_set_default_verify_paths() specifies that the default locations from
-which CA certificates are loaded should be used. There is one default directory
-and one default file. The default CA certificates directory is called "certs" in
-the default OpenSSL directory. Alternatively the SSL_CERT_DIR environment
-variable can be defined to override this location. The default CA certificates
-file is called "cert.pem" in the default OpenSSL directory. Alternatively the
-SSL_CERT_FILE environment variable can be defined to override this location.
+which CA certificates are loaded should be used. There is one default directory,
+one default file and one default store.
+The default CA certificates directory is called F<certs> in the default OpenSSL
+directory, and this is also the default store.
+Alternatively the B<SSL_CERT_DIR> environment variable can be defined to
+override this location.
+The default CA certificates file is called F<cert.pem> in the default
+OpenSSL directory.
+Alternatively the B<SSL_CERT_FILE> environment variable can be defined to
+override this location.
 
 SSL_CTX_set_default_verify_dir() is similar to
 SSL_CTX_set_default_verify_paths() except that just the default directory is
@@ -39,6 +54,10 @@ used.
 
 SSL_CTX_set_default_verify_file() is similar to
 SSL_CTX_set_default_verify_paths() except that just the default file is
+used.
+
+SSL_CTX_set_default_verify_store() is similar to
+SSL_CTX_set_default_verify_paths() except that just the default store is
 used.
 
 =head1 NOTES
@@ -69,14 +88,15 @@ The certificates in B<CApath> are only looked up when required, e.g. when
 building the certificate chain or when actually performing the verification
 of a peer certificate.
 
-When looking up CA certificates, the OpenSSL library will first search the
-certificates in B<CAfile>, then those in B<CApath>. Certificate matching
-is done based on the subject name, the key identifier (if present), and the
-serial number as taken from the certificate to be verified. If these data
-do not match, the next certificate will be tried. If a first certificate
-matching the parameters is found, the verification process will be performed;
-no other certificates for the same parameters will be searched in case of
-failure.
+When looking up CA certificates for chain building, the OpenSSL library
+will search for suitable certificates first in B<CAfile>, then in B<CApath>.
+Details of the chain building process are described in
+L<openssl-verification-options(1)/Certification Path Building>.
+
+If B<CAstore> is not NULL, it's a URI for to a store, which may
+represent a single container or a whole catalogue of containers.
+Apart from the B<CAstore> not necessarily being a local file or
+directory, it's generally treated the same way as a B<CApath>.
 
 In server mode, when requesting a client certificate, the server must send
 the list of CAs of which it will accept client certificates. This list
@@ -151,9 +171,9 @@ L<SSL_CTX_set_client_CA_list(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

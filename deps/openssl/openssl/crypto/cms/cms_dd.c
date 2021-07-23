@@ -1,7 +1,7 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -17,11 +17,14 @@
 
 /* CMS DigestedData Utilities */
 
-CMS_ContentInfo *cms_DigestedData_create(const EVP_MD *md)
+CMS_ContentInfo *ossl_cms_DigestedData_create(const EVP_MD *md,
+                                              OSSL_LIB_CTX *libctx,
+                                              const char *propq)
 {
     CMS_ContentInfo *cms;
     CMS_DigestedData *dd;
-    cms = CMS_ContentInfo_new();
+
+    cms = CMS_ContentInfo_new_ex(libctx, propq);
     if (cms == NULL)
         return NULL;
 
@@ -45,14 +48,16 @@ CMS_ContentInfo *cms_DigestedData_create(const EVP_MD *md)
     return NULL;
 }
 
-BIO *cms_DigestedData_init_bio(CMS_ContentInfo *cms)
+BIO *ossl_cms_DigestedData_init_bio(const CMS_ContentInfo *cms)
 {
-    CMS_DigestedData *dd;
-    dd = cms->d.digestedData;
-    return cms_DigestAlgorithm_init_bio(dd->digestAlgorithm);
+    CMS_DigestedData *dd = cms->d.digestedData;
+
+    return ossl_cms_DigestAlgorithm_init_bio(dd->digestAlgorithm,
+                                             ossl_cms_get0_cmsctx(cms));
 }
 
-int cms_DigestedData_do_final(CMS_ContentInfo *cms, BIO *chain, int verify)
+int ossl_cms_DigestedData_do_final(const CMS_ContentInfo *cms, BIO *chain,
+                                   int verify)
 {
     EVP_MD_CTX *mctx = EVP_MD_CTX_new();
     unsigned char md[EVP_MAX_MD_SIZE];
@@ -61,13 +66,13 @@ int cms_DigestedData_do_final(CMS_ContentInfo *cms, BIO *chain, int verify)
     CMS_DigestedData *dd;
 
     if (mctx == NULL) {
-        CMSerr(CMS_F_CMS_DIGESTEDDATA_DO_FINAL, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     dd = cms->d.digestedData;
 
-    if (!cms_DigestAlgorithm_find_ctx(mctx, chain, dd->digestAlgorithm))
+    if (!ossl_cms_DigestAlgorithm_find_ctx(mctx, chain, dd->digestAlgorithm))
         goto err;
 
     if (EVP_DigestFinal_ex(mctx, md, &mdlen) <= 0)
@@ -75,14 +80,12 @@ int cms_DigestedData_do_final(CMS_ContentInfo *cms, BIO *chain, int verify)
 
     if (verify) {
         if (mdlen != (unsigned int)dd->digest->length) {
-            CMSerr(CMS_F_CMS_DIGESTEDDATA_DO_FINAL,
-                   CMS_R_MESSAGEDIGEST_WRONG_LENGTH);
+            ERR_raise(ERR_LIB_CMS, CMS_R_MESSAGEDIGEST_WRONG_LENGTH);
             goto err;
         }
 
         if (memcmp(md, dd->digest->data, mdlen))
-            CMSerr(CMS_F_CMS_DIGESTEDDATA_DO_FINAL,
-                   CMS_R_VERIFICATION_FAILURE);
+            ERR_raise(ERR_LIB_CMS, CMS_R_VERIFICATION_FAILURE);
         else
             r = 1;
     } else {

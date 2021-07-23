@@ -1,8 +1,8 @@
 /*
- * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 BaishanCloud. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,11 +18,11 @@
 #include <openssl/err.h>
 #include <time.h>
 
-#include "../ssl/packet_local.h"
+#include "internal/packet.h"
 
 #include "testutil.h"
 #include "internal/nelem.h"
-#include "ssltestlib.h"
+#include "helpers/ssltestlib.h"
 
 #define CLIENT_VERSION_LEN      2
 
@@ -31,16 +31,29 @@ static const char *host = "dummy-host";
 static char *cert = NULL;
 static char *privkey = NULL;
 
+#if defined(OPENSSL_NO_TLS1_3) || \
+    (defined(OPENSSL_NO_EC) && defined(OPENSSL_NO_DH))
+static int maxversion = TLS1_2_VERSION;
+#else
+static int maxversion = 0;
+#endif
+
 static int get_sni_from_client_hello(BIO *bio, char **sni)
 {
     long len;
     unsigned char *data;
-    PACKET pkt = {0}, pkt2 = {0}, pkt3 = {0}, pkt4 = {0}, pkt5 = {0};
+    PACKET pkt, pkt2, pkt3, pkt4, pkt5;
     unsigned int servname_type = 0, type = 0;
     int ret = 0;
 
-    len = BIO_get_mem_data(bio, (char **)&data);
-    if (!TEST_true(PACKET_buf_init(&pkt, data, len))
+    memset(&pkt, 0, sizeof(pkt));
+    memset(&pkt2, 0, sizeof(pkt2));
+    memset(&pkt3, 0, sizeof(pkt3));
+    memset(&pkt4, 0, sizeof(pkt4));
+    memset(&pkt5, 0, sizeof(pkt5));
+
+    if (!TEST_long_ge(len = BIO_get_mem_data(bio, (char **)&data), 0)
+            || !TEST_true(PACKET_buf_init(&pkt, data, len))
                /* Skip the record header */
             || !PACKET_forward(&pkt, SSL3_RT_HEADER_LENGTH)
                /* Skip the handshake message header */
@@ -95,6 +108,10 @@ static int client_setup_sni_before_state(void)
     if (!TEST_ptr(ctx))
         goto end;
 
+    if (maxversion > 0
+            && !TEST_true(SSL_CTX_set_max_proto_version(ctx, maxversion)))
+        goto end;
+
     con = SSL_new(ctx);
     if (!TEST_ptr(con))
         goto end;
@@ -143,6 +160,10 @@ static int client_setup_sni_after_state(void)
     if (!TEST_ptr(ctx))
         goto end;
 
+    if (maxversion > 0
+            && !TEST_true(SSL_CTX_set_max_proto_version(ctx, maxversion)))
+        goto end;
+
     con = SSL_new(ctx);
     if (!TEST_ptr(con))
         goto end;
@@ -184,9 +205,9 @@ static int server_setup_sni(void)
     SSL *clientssl = NULL, *serverssl = NULL;
     int testresult = 0;
 
-    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
+    if (!TEST_true(create_ssl_ctx_pair(NULL, TLS_server_method(),
                                        TLS_client_method(),
-                                       TLS1_VERSION, TLS_MAX_VERSION,
+                                       TLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey))
             || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
                                              NULL, NULL)))
@@ -233,6 +254,11 @@ static int test_servername(int test)
 
 int setup_tests(void)
 {
+    if (!test_skip_common_options()) {
+        TEST_error("Error parsing test options\n");
+        return 0;
+    }
+
     if (!TEST_ptr(cert = test_get_argument(0))
             || !TEST_ptr(privkey = test_get_argument(1)))
         return 0;

@@ -1,7 +1,7 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -107,9 +107,50 @@ static int test_standard_methods(void)
     return 0;
 }
 
+/**********************************************************************
+ *
+ * Tests of the Unicode code point range
+ *
+ ***/
+
+static int test_unicode(const unsigned char *univ, size_t len, int expected)
+{
+    const unsigned char *end = univ + len;
+    int ok = 1;
+
+    for (; univ < end; univ += 4) {
+        if (!TEST_int_eq(ASN1_mbstring_copy(NULL, univ, 4, MBSTRING_UNIV,
+                                            B_ASN1_UTF8STRING),
+                         expected))
+            ok = 0;
+    }
+    return ok;
+}
+
+static int test_unicode_range(void)
+{
+    const unsigned char univ_ok[] = "\0\0\0\0"
+                                    "\0\0\xd7\xff"
+                                    "\0\0\xe0\x00"
+                                    "\0\x10\xff\xff";
+    const unsigned char univ_bad[] = "\0\0\xd8\x00"
+                                     "\0\0\xdf\xff"
+                                     "\0\x11\x00\x00"
+                                     "\x80\x00\x00\x00"
+                                     "\xff\xff\xff\xff";
+    int ok = 1;
+
+    if (!test_unicode(univ_ok, sizeof univ_ok - 1, V_ASN1_UTF8STRING))
+        ok = 0;
+    if (!test_unicode(univ_bad, sizeof univ_bad - 1, -1))
+        ok = 0;
+    return ok;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_tbl_standard);
     ADD_TEST(test_standard_methods);
+    ADD_TEST(test_unicode_range);
     return 1;
 }

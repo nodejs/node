@@ -2,27 +2,31 @@
 
 =head1 NAME
 
-PKCS7_sign - create a PKCS#7 signedData structure
+PKCS7_sign_ex, PKCS7_sign
+- create a PKCS#7 signedData structure
 
 =head1 SYNOPSIS
 
  #include <openssl/pkcs7.h>
 
+ PKCS7 *PKCS7_sign_ex(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+                      BIO *data, int flags, OSSL_LIB_CTX *libctx,
+                      const char *propq);
  PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
                    BIO *data, int flags);
 
 =head1 DESCRIPTION
 
-PKCS7_sign() creates and returns a PKCS#7 signedData structure. B<signcert> is
-the certificate to sign with, B<pkey> is the corresponding private key.
-B<certs> is an optional additional set of certificates to include in the PKCS#7
-structure (for example any intermediate CAs in the chain).
+PKCS7_sign_ex() creates and returns a PKCS#7 signedData structure.
+I<igncert> is the certificate to sign with, Ipkey> is the corresponding
+private key. I<certs> is an optional additional set of certificates to include
+in the PKCS#7 structure (for example any intermediate CAs in the chain). The
+library context I<libctx> and property query I<propq> are used when
+retrieving algorithms from providers.
 
 The data to be signed is read from BIO B<data>.
 
 B<flags> is an optional set of flags.
-
-=head1 NOTES
 
 Any of the following flags (ored together) can be passed in the B<flags>
 parameter.
@@ -66,8 +70,6 @@ way data can be signed in a single pass.
 If the B<PKCS7_PARTIAL> flag is set a partial B<PKCS7> structure is output to
 which additional signers and capabilities can be added before finalization.
 
-=head1 NOTES
-
 If the flag B<PKCS7_STREAM> is set the returned B<PKCS7> structure is B<not>
 complete and outputting its contents via a function that does not properly
 finalize the B<PKCS7> structure will give unpredictable results.
@@ -92,20 +94,25 @@ PKCS#7 structure is output.
 In versions of OpenSSL before 1.0.0 the B<signcert> and B<pkey> parameters must
 B<NOT> be NULL.
 
+PKCS7_sign() is similar to PKCS7_sign_ex() but uses default values of
+NULL for the library context I<libctx> and the property query I<propq>.
+
 =head1 BUGS
 
 Some advanced attributes such as counter signatures are not supported.
 
 =head1 RETURN VALUES
 
-PKCS7_sign() returns either a valid PKCS7 structure or NULL if an error
-occurred.  The error can be obtained from ERR_get_error(3).
+PKCS7_sign_ex() and PKCS7_sign() return either a valid PKCS7 structure
+or NULL if an error occurred.  The error can be obtained from ERR_get_error(3).
 
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>, L<PKCS7_verify(3)>
 
 =head1 HISTORY
+
+The function PKCS7_sign_ex() was added in OpenSSL 3.0.
 
 The B<PKCS7_PARTIAL> flag, and the ability for B<certs>, B<signcert>,
 and B<pkey> parameters to be B<NULL> were added in OpenSSL 1.0.0.
@@ -114,9 +121,9 @@ The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

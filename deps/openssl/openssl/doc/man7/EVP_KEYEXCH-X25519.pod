@@ -1,0 +1,50 @@
+=pod
+
+=head1 NAME
+
+EVP_KEYEXCH-X25519,
+EVP_KEYEXCH-X448
+- X25519 and X448 Key Exchange algorithm support
+
+=head1 DESCRIPTION
+
+Key exchange support for the B<X25519> and B<X448> key types.
+
+=head2 Key exchange parameters
+
+=over 4
+
+=item "pad" (B<OSSL_EXCHANGE_PARAM_PAD>) <unsigned integer>
+
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
+
+=back
+
+=head1 EXAMPLES
+
+Keys for the host and peer can be generated as shown in
+L<EVP_PKEY-X25519(7)/Examples>.
+
+The code to generate a shared secret is identical to
+L<EVP_KEYEXCH-DH(7)/Examples>.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY-FFC(7)>,
+L<EVP_PKEY-DH(7)>
+L<EVP_PKEY(3)>,
+L<provider-keyexch(7)>,
+L<provider-keymgmt(7)>,
+L<OSSL_PROVIDER-default(7)>,
+L<OSSL_PROVIDER-FIPS(7)>,
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

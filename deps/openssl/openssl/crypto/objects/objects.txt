@@ -11,6 +11,9 @@ iso 2			: member-body		: ISO Member Body
 
 iso 3			: identified-organization
 
+# GMAC OID
+iso 0 9797 3 4                          : GMAC          : gmac
+
 # HMAC OIDs
 identified-organization 6 1 5 5 8 1 1	: HMAC-MD5	: hmac-md5
 identified-organization 6 1 5 5 8 1 2	: HMAC-SHA1	: hmac-sha1
@@ -271,8 +274,14 @@ id-smime-ct 8		: id-smime-ct-DVCSResponseData
 id-smime-ct 9		: id-smime-ct-compressedData
 id-smime-ct 19		: id-smime-ct-contentCollection
 id-smime-ct 23		: id-smime-ct-authEnvelopedData
+id-smime-ct 24		: id-ct-routeOriginAuthz
+id-smime-ct 26		: id-ct-rpkiManifest
 id-smime-ct 27		: id-ct-asciiTextWithCRLF
 id-smime-ct 28		: id-ct-xml
+id-smime-ct 35		: id-ct-rpkiGhostbusters
+id-smime-ct 36		: id-ct-resourceTaggedAttest
+id-smime-ct 47		: id-ct-geofeedCSVwithCRLF
+id-smime-ct 48		: id-ct-signedChecklist
 
 # S/MIME Attributes
 id-smime-aa 1		: id-smime-aa-receiptRequest
@@ -385,6 +394,8 @@ sm-scheme 301           : SM2                   : sm2
 sm-scheme 401           : SM3                   : sm3
 sm-scheme 504           : RSA-SM3		: sm3WithRSAEncryption
 
+sm-scheme 501           : SM2-SM3               : SM2-with-SM3
+
 # From RFC4231
 rsadsi 2 8		:			: hmacWithSHA224
 rsadsi 2 9		:			: hmacWithSHA256
@@ -460,6 +471,7 @@ id-pkix 8		: id-on
 id-pkix 9		: id-pda
 id-pkix 10		: id-aca
 id-pkix 11		: id-qcs
+id-pkix 14		: id-cp
 id-pkix 12		: id-cct
 id-pkix 21		: id-ppl
 id-pkix 48		: id-ad
@@ -498,12 +510,15 @@ id-pe 10		: ac-proxying
 id-pe 11		: subjectInfoAccess	: Subject Information Access
 id-pe 14		: proxyCertInfo		: Proxy Certificate Information
 id-pe 24		: tlsfeature		: TLS Feature
+id-pe 28		: sbgp-ipAddrBlockv2
+id-pe 29		: sbgp-autonomousSysNumv2
 
 # PKIX policyQualifiers for Internet policy qualifiers
 id-qt 1			: id-qt-cps		: Policy Qualifier CPS
 id-qt 2			: id-qt-unotice		: Policy Qualifier User Notice
 id-qt 3			: textNotice
 
+# https://www.iana.org/assignments/smi-numbers/smi-numbers.xhtml#smi-numbers-1.3.6.1.5.5.7.3
 # PKIX key purpose identifiers
 !Cname server-auth
 id-kp 1			: serverAuth		: TLS Web Server Authentication
@@ -536,7 +551,12 @@ id-kp 25                : sendOwner             : Send Owner
 id-kp 26                : sendProxiedOwner      : Send Proxied Owner
 id-kp 27                : cmcCA                 : CMC Certificate Authority
 id-kp 28                : cmcRA                 : CMC Registration Authority
+id-kp 29                : cmcArchive            : CMC Archive Server
+id-kp 30                : id-kp-bgpsec-router 	: BGPsec Router
+id-kp 31                : id-kp-BrandIndicatorforMessageIdentification : Brand Indicator for Message Identification
+id-kp 32                : cmKGA                 : Certificate Management Key Generation Authority
 
+# https://www.iana.org/assignments/smi-numbers/smi-numbers.xhtml#smi-numbers-1.3.6.1.5.5.7.4
 # CMP information types
 id-it 1			: id-it-caProtEncCert
 id-it 2			: id-it-signKeyPairTypes
@@ -556,6 +576,9 @@ id-it 13		: id-it-implicitConfirm
 id-it 14		: id-it-confirmWaitTime
 id-it 15		: id-it-origPKIMessage
 id-it 16		: id-it-suppLangTags
+id-it 17		: id-it-caCerts
+id-it 18		: id-it-rootCaKeyUpdate
+id-it 19		: id-it-certReqTemplate
 
 # CRMF registration
 id-pkip 1		: id-regCtrl
@@ -604,6 +627,10 @@ id-cmc 24		: id-cmc-confirmCertAcceptance
 # other names
 id-on 1			: id-on-personalData
 id-on 3			: id-on-permanentIdentifier : Permanent Identifier
+id-on 5			: id-on-xmppAddr : XmppAddr
+id-on 7			: id-on-dnsSRV : SRVName
+id-on 8			: id-on-NAIRealm : NAIRealm
+id-on 9			: id-on-SmtpUTF8Mailbox : Smtp UTF8 Mailbox
 
 # personal data attributes
 id-pda 1		: id-pda-dateOfBirth
@@ -623,6 +650,10 @@ id-aca 6		: id-aca-encAttrs
 
 # qualified certificate statements
 id-qcs 1		: id-qcs-pkixQCSyntax-v1
+
+# PKIX Certificate Policies
+id-cp 2			: ipAddr-asNumber
+id-cp 3			: ipAddr-asNumberv2
 
 # CMC content types
 id-cct 1		: id-cct-crs
@@ -644,7 +675,9 @@ id-ad 3			: ad_timestamping	: AD Time Stamping
 !Cname ad-dvcs
 id-ad 4			: AD_DVCS		: ad dvcs
 id-ad 5			: caRepository		: CA Repository
-
+id-ad 10		: rpkiManifest		: RPKI Manifest
+id-ad 11		: signedObject		: Signed Object
+id-ad 13		: rpkiNotify		: RPKI Notify
 
 !Alias id-pkix-OCSP ad-OCSP
 !module id-pkix-OCSP
@@ -698,8 +731,10 @@ algorithm 29		: RSA-SHA1-2		: sha1WithRSA
 1 3 36 3 2 1		: RIPEMD160		: ripemd160
 1 3 36 3 3 1 2		: RSA-RIPEMD160		: ripemd160WithRSA
 
-1 3 6 1 4 1 1722 12 2 1 16 : BLAKE2b512        : blake2b512
-1 3 6 1 4 1 1722 12 2 2 8  : BLAKE2s256        : blake2s256
+1 3 6 1 4 1 1722 12 2 1 : BLAKE2BMAC	        : blake2bmac
+1 3 6 1 4 1 1722 12 2 2 : BLAKE2SMAC   	        : blake2smac
+blake2bmac 16           : BLAKE2b512            : blake2b512
+blake2smac 8            : BLAKE2s256            : blake2s256
 
 !Cname sxnet
 1 3 101 1 4 1		: SXNetID		: Strong Extranet ID
@@ -976,6 +1011,10 @@ nist_hashalgs 16	: id-hmacWithSHA3-512	: hmac-sha3-512
 # how to handle them...
 # nist_hashalgs 17	: id-shake128-len	: shake128-len
 # nist_hashalgs 18	: id-shake256-len	: shake256-len
+nist_hashalgs 19        : KMAC128               : kmac128
+nist_hashalgs 20        : KMAC256               : kmac256
+# nist_hashalgs 21      : KMAC128-XOF           : kmac128-xof
+# nist_hashalgs 22      : KMAC256-XOF           : kmac256-xof
 
 # OIDs for dsa-with-sha224 and dsa-with-sha256
 !Alias dsa_with_sha2 nistAlgorithms 3
@@ -1344,11 +1383,11 @@ id-tc26-mac 2		: id-tc26-hmac-gost-3411-2012-512 : HMAC GOST 34.11-2012 512 bit
 
 id-tc26-algorithms 5	: id-tc26-cipher
 id-tc26-cipher 1	:  id-tc26-cipher-gostr3412-2015-magma
-id-tc26-cipher-gostr3412-2015-magma 1	: id-tc26-cipher-gostr3412-2015-magma-ctracpkm
-id-tc26-cipher-gostr3412-2015-magma 2	: id-tc26-cipher-gostr3412-2015-magma-ctracpkm-omac
+id-tc26-cipher-gostr3412-2015-magma 1	: magma-ctr-acpkm
+id-tc26-cipher-gostr3412-2015-magma 2	: magma-ctr-acpkm-omac
 id-tc26-cipher 2	:  id-tc26-cipher-gostr3412-2015-kuznyechik
-id-tc26-cipher-gostr3412-2015-kuznyechik 1	: id-tc26-cipher-gostr3412-2015-kuznyechik-ctracpkm
-id-tc26-cipher-gostr3412-2015-kuznyechik 2	: id-tc26-cipher-gostr3412-2015-kuznyechik-ctracpkm-omac
+id-tc26-cipher-gostr3412-2015-kuznyechik 1	: kuznyechik-ctr-acpkm
+id-tc26-cipher-gostr3412-2015-kuznyechik 2	: kuznyechik-ctr-acpkm-omac
 
 id-tc26-algorithms 6	: id-tc26-agreement
 id-tc26-agreement 1	: id-tc26-agreement-gost-3410-2012-256
@@ -1356,9 +1395,9 @@ id-tc26-agreement 2	: id-tc26-agreement-gost-3410-2012-512
 
 id-tc26-algorithms 7	:	id-tc26-wrap
 id-tc26-wrap 1	: id-tc26-wrap-gostr3412-2015-magma
-id-tc26-wrap-gostr3412-2015-magma 1	: id-tc26-wrap-gostr3412-2015-magma-kexp15
+id-tc26-wrap-gostr3412-2015-magma 1	: magma-kexp15
 id-tc26-wrap 2	: id-tc26-wrap-gostr3412-2015-kuznyechik
-id-tc26-wrap-gostr3412-2015-kuznyechik 1	: id-tc26-wrap-gostr3412-2015-kuznyechik-kexp15
+id-tc26-wrap-gostr3412-2015-kuznyechik 1	: kuznyechik-kexp15
 
 id-tc26 2 		: id-tc26-constants
 
@@ -1382,16 +1421,24 @@ id-tc26-gost-28147-constants 1	: id-tc26-gost-28147-param-Z : GOST 28147-89 TC26
 member-body 643 3 131 1 1	: INN	: INN
 member-body 643 100 1		: OGRN	: OGRN
 member-body 643 100 3		: SNILS	: SNILS
+member-body 643 100 5		: OGRNIP	: OGRNIP
 member-body 643 100 111	: subjectSignTool	: Signing Tool of Subject
 member-body 643 100 112	: issuerSignTool	: Signing Tool of Issuer
+member-body 643 100 113  : classSignTool   : Class of Signing Tool
+member-body 643 100 113 1 : classSignToolKC1 : Class of Signing Tool KC1
+member-body 643 100 113 2 : classSignToolKC2 : Class of Signing Tool KC2
+member-body 643 100 113 3 : classSignToolKC3 : Class of Signing Tool KC3
+member-body 643 100 113 4 : classSignToolKB1 : Class of Signing Tool KB1
+member-body 643 100 113 5 : classSignToolKB2 : Class of Signing Tool KB2
+member-body 643 100 113 6 : classSignToolKA1 : Class of Signing Tool KA1
 
 #GOST R34.13-2015 Grasshopper "Kuznechik"
-			: grasshopper-ecb
-			: grasshopper-ctr
-			: grasshopper-ofb
-			: grasshopper-cbc
-			: grasshopper-cfb
-			: grasshopper-mac
+			: kuznyechik-ecb
+			: kuznyechik-ctr
+			: kuznyechik-ofb
+			: kuznyechik-cbc
+			: kuznyechik-cfb
+			: kuznyechik-mac
 
 #GOST R34.13-2015 Magma
 			: magma-ecb
@@ -1600,6 +1647,17 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
 # NID for HKDF
                             : HKDF              : hkdf
 
+# NID for SSHKDF
+                            : SSHKDF            : sshkdf
+
+# NID for SSKDF
+                            : SSKDF              : sskdf
+# NID for X942KDF
+                            : X942KDF            : x942kdf
+
+# NID for X963-2001 KDF
+                            : X963KDF            : x963kdf
+
 # RFC 4556
 1 3 6 1 5 2 3 : id-pkinit
 id-pkinit 4                     : pkInitClientAuth      : PKINIT Client Auth
@@ -1622,6 +1680,7 @@ id-pkinit 5                     : pkInitKDC             : Signing KDC Response
                             : KxPSK        : kx-psk
                             : KxSRP        : kx-srp
                             : KxGOST       : kx-gost
+                            : KxGOST18     : kx-gost18
                             : KxANY        : kx-any
 
 # NIDs for cipher authentication
@@ -1638,13 +1697,19 @@ id-pkinit 5                     : pkInitKDC             : Signing KDC Response
                             : Poly1305     : poly1305
 # NID for SipHash
                             : SipHash      : siphash
-
 # NIDs for RFC7919 DH parameters
                             : ffdhe2048
                             : ffdhe3072
                             : ffdhe4096
                             : ffdhe6144
                             : ffdhe8192
+# NIDs for RFC3526 DH parameters
+                            : modp_1536
+                            : modp_2048
+                            : modp_3072
+                            : modp_4096
+                            : modp_6144
+                            : modp_8192
 
 # OIDs for DSTU-4145/DSTU-7564 (http://zakon2.rada.gov.ua/laws/show/z0423-17)
 
@@ -1675,3 +1740,7 @@ dstu4145le 2 6 : uacurve6 : DSTU curve 6
 dstu4145le 2 7 : uacurve7 : DSTU curve 7
 dstu4145le 2 8 : uacurve8 : DSTU curve 8
 dstu4145le 2 9 : uacurve9 : DSTU curve 9
+# NID for AES-SIV
+                            : AES-128-SIV  : aes-128-siv
+                            : AES-192-SIV  : aes-192-siv
+                            : AES-256-SIV  : aes-256-siv

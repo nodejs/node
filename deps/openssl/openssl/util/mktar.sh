@@ -1,14 +1,18 @@
 #! /bin/sh
-# Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
 HERE=`dirname $0`
 
-version=`grep 'OPENSSL_VERSION_TEXT  *"OpenSSL' $HERE/../include/openssl/opensslv.h | sed -e 's|.*"OpenSSL ||' -e 's| .*||'`
+# Get all version data as shell variables
+. $HERE/../VERSION.dat
+
+if [ -n "$PRE_RELEASE_TAG" ]; then PRE_RELEASE_TAG=-$PRE_RELEASE_TAG; fi
+version=$MAJOR.$MINOR.$PATCH$PRE_RELEASE_TAG$BUILD_METADATA
 basename=openssl
 
 NAME="$basename-$version"
@@ -27,8 +31,7 @@ done
 if [ -z "$TARFILE" ]; then TARFILE="$NAME.tar"; fi
 
 # This counts on .gitattributes to specify what files should be ignored
-git archive --worktree-attributes --format=tar --prefix="$NAME/" -v HEAD \
-    | gzip -9 > "$TARFILE.gz"
+git archive --worktree-attributes -9 --prefix="$NAME/" -o $TARFILE.gz -v HEAD
 
 # Good old way to ensure we display an absolute path
 td=`dirname $TARFILE`
