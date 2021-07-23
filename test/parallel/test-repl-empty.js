@@ -7,10 +7,11 @@ const repl = require('repl');
   let evalCalledWithExpectedArgs = false;
 
   const options = {
-    eval: common.mustCall((cmd, context) => {
+    eval: common.mustCall((cmd, _context, _file, cb) => {
       // Assertions here will not cause the test to exit with an error code
       // so set a boolean that is checked later instead.
       evalCalledWithExpectedArgs = (cmd === '\n');
+      cb();
     })
   };
 
