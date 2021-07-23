@@ -38,6 +38,14 @@
   --color-text-secondary: var(--green2);
 }
 
+[data-color-scheme='dark'] {
+  color-scheme: dark;
+}
+
+[data-color-scheme='light'] {
+  color-scheme: light;
+}
+
 .dark-mode {
   --background-color-highlight: var(--black2);
   --color-fill-app: var(--black1);
