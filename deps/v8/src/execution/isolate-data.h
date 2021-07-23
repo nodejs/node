@@ -30,7 +30,7 @@ class Isolate;
 class IsolateData final {
  public:
   IsolateData(Isolate* isolate, Address cage_base)
-      : cage_base_(cage_base), stack_guard_(isolate) {}
+      : stack_guard_(isolate), cage_base_(cage_base) {}
 
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
