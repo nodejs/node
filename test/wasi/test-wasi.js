@@ -78,7 +78,6 @@ if (process.argv[2] === 'wasi-child') {
     runWASI({ test: 'getrusage' });
   }
   runWASI({ test: 'gettimeofday' });
-  runWASI({ test: 'link' });
   runWASI({ test: 'main_args' });
   runWASI({ test: 'notdir' });
   runWASI({ test: 'poll' });
