@@ -428,6 +428,9 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
+const async_hooks = require('async_hooks');
+const fs = require('fs');
+const net = require('net');
 const { fd } = process.stdout;
 
 let indent = 0;
