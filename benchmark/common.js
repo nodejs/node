@@ -18,21 +18,36 @@ class Benchmark {
     this.name = require.main.filename.slice(__dirname.length + 1);
 
     // Execution arguments i.e. flags used to run the jobs
-    this.flags = process.env.NODE_BENCHMARK_FLAGS ?
-      process.env.NODE_BENCHMARK_FLAGS.split(/\s+/) :
-      [];
+    this.flags = process.env.NODE_BENCHMARK_FLAGS?.split(/\s+/) ?? [];
 
     // Parse job-specific configuration from the command line arguments
     const argv = process.argv.slice(2);
-    const parsed_args = this._parseArgs(argv, configs, options);
-    this.options = parsed_args.cli;
-    this.extra_options = parsed_args.extra;
+
+    // The configuration list as a queue of jobs
+    this.queue = [];
+
+    if (options.byGroup) {
+      const groups = process.env.NODE_RUN_BENCHMARK_GROUPS?.split(',') ??
+        Object.keys(configs);
+
+      for (const key of groups) {
+        const config = configs[key];
+        config.group = key;
+        const parsed_args = this._parseArgs(argv, config, options);
+        this.options = parsed_args.cli;
+        this.extra_options = parsed_args.extra;
+        this.queue = this.queue.concat(this._queue(this.options));
+      }
+    } else {
+      const parsed_args = this._parseArgs(argv, configs, options);
+      this.options = parsed_args.cli;
+      this.extra_options = parsed_args.extra;
+      this.queue = this._queue(this.options);
+    }
+
     if (options.flags) {
       this.flags = this.flags.concat(options.flags);
     }
-
-    // The configuration list as a queue of jobs
-    this.queue = this._queue(this.options);
 
     // The configuration of the current job, head of the queue
     this.config = this.queue[0];
