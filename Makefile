@@ -580,12 +580,10 @@ test-doc: doc-only lint-md ## Builds, lints, and verifies the docs.
 	else \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
-	$(NODE) tools/doc/checkLinks.mjs .
 
 .PHONY: test-doc-ci
 test-doc-ci: doc-only
 	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
-	$(NODE) tools/doc/checkLinks.mjs .
 
 test-known-issues: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
