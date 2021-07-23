@@ -13,8 +13,8 @@ export function getGlobalPreloadCode() {
 `;
 }
 
-export function resolve(specifier, context, defaultResolve) {
-  const def = defaultResolve(specifier, context);
+export async function resolve(specifier, context, defaultResolve) {
+  const def = await defaultResolve(specifier, context);
   if (def.url.startsWith('node:')) {
     return {
       url: `custom-${def.url}`,
