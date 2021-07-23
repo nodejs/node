@@ -46,6 +46,7 @@
 * [Performance hooks](perf_hooks.md)
 * [Policies](policy.md)
 * [Process](process.md)
+* [PromiseHooks](promise_hooks.md)
 * [Punycode](punycode.md)
 * [Query strings](querystring.md)
 * [Readline](readline.md)
