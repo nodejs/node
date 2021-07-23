@@ -286,6 +286,12 @@ if (global.gc) {
 if (global.performance) {
   knownGlobals.push(global.performance);
 }
+if (global.PerformanceMark) {
+  knownGlobals.push(global.PerformanceMark);
+}
+if (global.PerformanceMeasure) {
+  knownGlobals.push(global.PerformanceMeasure);
+}
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
