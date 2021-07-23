@@ -921,6 +921,9 @@ class Http2Session : public AsyncWrap,
   // Also use the invalid frame count as a measure for rejecting input frames.
   uint32_t invalid_frame_count_ = 0;
 
+  // keep track of the depth of nghttp2 callbacks
+  uint32_t nghttp2_callback_scope_ = 0;
+
   void PushOutgoingBuffer(NgHttp2StreamWrite&& write);
 
   BaseObjectPtr<Http2State> http2_state_;
@@ -930,6 +933,7 @@ class Http2Session : public AsyncWrap,
 
   friend class Http2Scope;
   friend class Http2StreamListener;
+  friend class NgHttp2CallbackScope;
 };
 
 struct Http2SessionPerformanceEntryTraits {
