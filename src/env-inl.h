@@ -957,7 +957,7 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
-std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
+std::unordered_map<void*, std::unique_ptr<v8::BackingStore>>*
     Environment::released_allocated_buffers() {
   return &released_allocated_buffers_;
 }
