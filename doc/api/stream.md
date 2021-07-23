@@ -1861,6 +1861,8 @@ failure, this can cause event listener leaks and swallowed errors.
 added: REPLACEME
 -->
 
+> Stability: 1 - `stream.compose` is experimental.
+
 * `streams` {Stream[]|Iterable[]|AsyncIterable[]|Function[]}
 * Returns: {stream.Duplex}
 
