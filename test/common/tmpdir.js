@@ -5,7 +5,29 @@ const path = require('path');
 const { isMainThread } = require('worker_threads');
 
 function rmSync(pathname) {
-  fs.rmSync(pathname, { maxRetries: 3, recursive: true, force: true });
+  let err = null;
+  const maxRetries = 10;
+
+  for (let retryNumber = 0; retryNumber < maxRetries; ++retryNumber) {
+    try {
+      fs.rmSync(pathname, { maxRetries: 3, recursive: true, force: true });
+      return;
+    } catch (_err) {
+      err = _err;
+    }
+
+    const errPath = err.path;
+    const errCode = err.code;
+
+    if (errCode === 'EACCES' || errCode === 'EPERM') {
+      const surroundingDir = path.join(errPath, '..');
+
+      try { fs.chmodSync(surroundingDir, 0o777); } catch {}
+      try { fs.chmodSync(errPath, 0o777); } catch {}
+    }
+  }
+
+  throw err;
 }
 
 const testRoot = process.env.NODE_TEST_DIR ?
@@ -37,7 +59,7 @@ function onexit() {
 
   try {
     rmSync(tmpPath);
-  } catch (e) {
+  } catch (err) {
     console.error('Can\'t clean tmpdir:', tmpPath);
 
     const files = fs.readdirSync(tmpPath);
@@ -50,8 +72,15 @@ function onexit() {
       console.error('See http://nfs.sourceforge.net/#faq_d2 for details.');
     }
 
-    console.error();
-    throw e;
+    // Manually logging err instead of throwing it, so that it doesn't get
+    // overshadowed by an error from a test failure.
+    console.error(err);
+
+    // Setting the process exit code to a non-zero exit code, so that this gets
+    // marked as `not ok` during a CI run.
+    if (!process.exitCode) {
+      process.exitCode = 1;
+    }
   }
 }
 

@@ -5,7 +5,6 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const { validateRmOptionsSync } = require('internal/fs/utils');
 
@@ -287,74 +286,134 @@ function removeAsync(dir) {
   // IBMi has a different access permission mechanism
   // This test should not be run as `root`
   if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
-    function makeDirectoryReadOnly(dir, mode) {
-      let accessErrorCode = 'EACCES';
-      if (common.isWindows) {
-        accessErrorCode = 'EPERM';
-        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC)"`);
-      } else {
-        fs.chmodSync(dir, mode);
+    class InvalidStateError extends Error {
+      constructor(err) {
+        super('Invalid state');
+        this.cause = err;
       }
-      return accessErrorCode;
     }
 
-    function makeDirectoryWritable(dir) {
-      if (fs.existsSync(dir)) {
-        if (common.isWindows) {
-          execSync(`icacls ${dir} /remove:d "everyone"`);
-        } else {
-          fs.chmodSync(dir, 0o777);
+    // Check that deleting a file that cannot be accessed using rmsync throws:
+    // https://github.com/nodejs/node/issues/38683
+    {
+      function validateState(exists, err) {
+        // On Windows, we are allowed to access and modify the contents of a
+        // read-only folder.
+        const isValidState =
+          common.isWindows ?
+            (exists === false && err === null) :
+            (exists === true && err?.code === 'EACCES');
+
+        if (!isValidState) {
+          throw new InvalidStateError(err);
         }
       }
-    }
 
-    {
-      // Check that deleting a file that cannot be accessed using rmsync throws
-      // https://github.com/nodejs/node/issues/38683
-      const dirname = nextDirPath();
-      const filePath = path.join(dirname, 'text.txt');
-      try {
+      {
+        const dirname = nextDirPath();
+        const filePath = path.join(dirname, 'text.txt');
+
         fs.mkdirSync(dirname, { recursive: true });
         fs.writeFileSync(filePath, 'hello');
-        const code = makeDirectoryReadOnly(dirname, 0o444);
-        assert.throws(() => {
+
+        fs.chmodSync(filePath, 0o444);
+        fs.chmodSync(dirname, 0o444);
+
+        let err = null;
+
+        try {
           fs.rmSync(filePath, { force: true });
-        }, {
-          code,
-          name: 'Error',
-        });
-      } finally {
-        makeDirectoryWritable(dirname);
+        } catch (_err) {
+          err = _err;
+        }
+
+        try { fs.chmodSync(dirname, 0o777); } catch {}
+        try { fs.chmodSync(filePath, 0o777); } catch {}
+
+        validateState(fs.existsSync(filePath), err);
+      }
+
+      {
+        const dirname = nextDirPath();
+        const filePath = path.join(dirname, 'text.txt');
+
+        fs.mkdirSync(dirname, { recursive: true });
+        fs.writeFileSync(filePath, 'hello');
+
+        fs.chmodSync(filePath, 0o444);
+        fs.chmodSync(dirname, 0o444);
+
+        fs.rm(filePath, { force: true }, common.mustCall((err) => {
+          try { fs.chmodSync(dirname, 0o777); } catch {}
+          try { fs.chmodSync(filePath, 0o777); } catch {}
+
+          validateState(fs.existsSync(filePath), err);
+        }));
       }
     }
 
+    // Check endless recursion.
+    // https://github.com/nodejs/node/issues/34580
     {
-      // Check endless recursion.
-      // https://github.com/nodejs/node/issues/34580
-      const dirname = nextDirPath();
-      fs.mkdirSync(dirname, { recursive: true });
-      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
-      const middle = path.join(root, 'middle');
-      fs.mkdirSync(middle);
-      fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
-      try {
-        const code = makeDirectoryReadOnly(middle, 0o555);
-        try {
-          assert.throws(() => {
-            fs.rmSync(root, { recursive: true });
-          }, {
-            code,
-            name: 'Error',
-          });
-        } catch (err) {
-          // Only fail the test if the folder was not deleted.
-          // as in some cases rmSync succesfully deletes read-only folders.
-          if (fs.existsSync(root)) {
-            throw err;
-          }
+      function validateState(exists, err) {
+        // On Windows, we are not allowed to delete a read-only folder yet.
+        // TODO(RaisinTen): Remove Windows special-casing if this lands:
+        // https://github.com/libuv/libuv/pull/3193
+        const isValidState =
+          exists === true &&
+          err?.code === common.isWindows ? 'EPERM' : 'EACCES';
+
+        if (!isValidState) {
+          throw new InvalidStateError(err);
         }
-      } finally {
-        makeDirectoryWritable(middle);
+      }
+
+      {
+        const dirname = nextDirPath();
+        fs.mkdirSync(dirname, { recursive: true });
+        const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+        const middle = path.join(root, 'middle');
+        const leaf = path.join(middle, 'leaf');
+
+        fs.mkdirSync(middle);
+        fs.mkdirSync(leaf);
+
+        fs.chmodSync(leaf, 0o555);
+        fs.chmodSync(middle, 0o555);
+
+        let err = null;
+
+        try {
+          fs.rmSync(root, { recursive: true });
+        } catch (_err) {
+          err = _err;
+        }
+
+        try { fs.chmodSync(middle, 0o777); } catch {}
+        try { fs.chmodSync(leaf, 0o777); } catch {}
+
+        validateState(fs.existsSync(root), err);
+      }
+
+      {
+        const dirname = nextDirPath();
+        fs.mkdirSync(dirname, { recursive: true });
+        const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+        const middle = path.join(root, 'middle');
+        const leaf = path.join(middle, 'leaf');
+
+        fs.mkdirSync(middle);
+        fs.mkdirSync(leaf);
+
+        fs.chmodSync(leaf, 0o555);
+        fs.chmodSync(middle, 0o555);
+
+        fs.rm(root, { recursive: true }, common.mustCall((err) => {
+          try { fs.chmodSync(middle, 0o777); } catch {}
+          try { fs.chmodSync(leaf, 0o777); } catch {}
+
+          validateState(fs.existsSync(root), err);
+        }));
       }
     }
   }
