@@ -1,5 +1,5 @@
 {
-  "version": "7.20.0",
+  "version": "7.20.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -102,14 +102,14 @@
     "npm-profile": "^5.0.3",
     "npm-registry-fetch": "^11.0.0",
     "npm-user-validate": "^1.0.1",
-    "npmlog": "~4.1.2",
+    "npmlog": "^5.0.0",
     "opener": "^1.5.2",
     "pacote": "^11.3.5",
     "parse-conflict-json": "^1.1.1",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",
     "read-package-json": "^3.0.1",
-    "read-package-json-fast": "^2.0.2",
+    "read-package-json-fast": "^2.0.3",
     "readdir-scoped-modules": "^1.1.0",
     "rimraf": "^3.0.2",
     "semver": "^7.3.5",
@@ -193,7 +193,7 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "eslint": "^7.30.0",
+    "eslint": "^7.31.0",
     "eslint-plugin-import": "^2.23.4",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",

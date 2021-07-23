@@ -18,6 +18,7 @@ module.exports = (config) => {
   const stderrTTY = process.stderr.isTTY
   const dumbTerm = process.env.TERM === 'dumb'
   const stderrNotDumb = stderrTTY && !dumbTerm
+  // this logic is duplicated in the config 'color' flattener
   const enableColorStderr = color === 'always' ? true
     : color === false ? false
     : stderrTTY
@@ -58,6 +59,4 @@ module.exports = (config) => {
     log.enableProgress()
   else
     log.disableProgress()
-
-  return enableColorStdout
 }

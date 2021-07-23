@@ -16,7 +16,7 @@ npm pkg delete <field> [.<subfield> ...]
 
 A command that automates the management of `package.json` files.
 `npm pkg` provide 3 different sub commands that allow you to modify or retrieve
-values for given object keys in your `packge.json`.
+values for given object keys in your `package.json`.
 
 The syntax to retrieve and set fields is a dot separated representation of
 the nested object properties to be found within your `package.json`, it's the

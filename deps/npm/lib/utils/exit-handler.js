@@ -52,16 +52,17 @@ process.on('exit', code => {
 
   if (!code)
     npm.log.info('ok')
-  else {
+  else
     npm.log.verbose('code', code)
-    if (!exitHandlerCalled) {
-      npm.log.error('', 'Exit handler never called!')
-      console.error('')
-      npm.log.error('', 'This is an error with npm itself. Please report this error at:')
-      npm.log.error('', '    <https://github.com/npm/cli/issues>')
-      // TODO this doesn't have an npm.config.loaded guard
-      writeLogFile()
-    }
+
+  if (!exitHandlerCalled) {
+    process.exitCode = code || 1
+    npm.log.error('', 'Exit handler never called!')
+    console.error('')
+    npm.log.error('', 'This is an error with npm itself. Please report this error at:')
+    npm.log.error('', '    <https://github.com/npm/cli/issues>')
+    // TODO this doesn't have an npm.config.loaded guard
+    writeLogFile()
   }
   // In timing mode we always write the log file
   if (npm.config.loaded && npm.config.get('timing') && !wroteLogFile)

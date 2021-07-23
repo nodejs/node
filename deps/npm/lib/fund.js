@@ -109,7 +109,7 @@ class Fund extends ArboristWorkspaceCmd {
   }
 
   printHuman (fundingInfo) {
-    const color = !!this.npm.color
+    const color = this.npm.color
     const unicode = this.npm.config.get('unicode')
     const seenUrls = new Map()
 
