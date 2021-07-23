@@ -257,6 +257,6 @@ channel.subscribe(onMessage);
 channel.unsubscribe(onMessage);
 ```
 
-[`'uncaughtException'`]: process.md#process_event_uncaughtexception
-[`channel.subscribe(onMessage)`]: #diagnostics_channel_channel_subscribe_onmessage
-[`diagnostics_channel.channel(name)`]: #diagnostics_channel_diagnostics_channel_channel_name
+[`'uncaughtException'`]: process.md#event-uncaughtexception
+[`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
+[`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname

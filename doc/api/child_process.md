@@ -1780,42 +1780,42 @@ Therefore, this feature requires opting in by setting the
 `serialization` option to `'advanced'` when calling [`child_process.spawn()`][]
 or [`child_process.fork()`][].
 
-[Advanced serialization]: #child_process_advanced_serialization
-[Default Windows shell]: #child_process_default_windows_shell
+[Advanced serialization]: #advanced-serialization
+[Default Windows shell]: #default-windows-shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Shell requirements]: #child_process_shell_requirements
-[Signal Events]: process.md#process_signal_events
-[`'disconnect'`]: process.md#process_event_disconnect
-[`'error'`]: #child_process_event_error
-[`'exit'`]: #child_process_event_exit
-[`'message'`]: process.md#process_event_message
-[`ChildProcess`]: #child_process_class_childprocess
-[`Error`]: errors.md#errors_class_error
-[`EventEmitter`]: events.md#events_class_eventemitter
-[`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
-[`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
-[`child_process.execFileSync()`]: #child_process_child_process_execfilesync_file_args_options
-[`child_process.execSync()`]: #child_process_child_process_execsync_command_options
-[`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
-[`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
-[`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
-[`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
-[`net.Server`]: net.md#net_class_net_server
-[`net.Socket`]: net.md#net_class_net_socket
-[`options.detached`]: #child_process_options_detached
-[`process.disconnect()`]: process.md#process_process_disconnect
-[`process.env`]: process.md#process_process_env
-[`process.execPath`]: process.md#process_process_execpath
-[`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
-[`stdio`]: #child_process_options_stdio
-[`subprocess.connected`]: #child_process_subprocess_connected
-[`subprocess.disconnect()`]: #child_process_subprocess_disconnect
-[`subprocess.kill()`]: #child_process_subprocess_kill_signal
-[`subprocess.send()`]: #child_process_subprocess_send_message_sendhandle_options_callback
-[`subprocess.stderr`]: #child_process_subprocess_stderr
-[`subprocess.stdin`]: #child_process_subprocess_stdin
-[`subprocess.stdio`]: #child_process_subprocess_stdio
-[`subprocess.stdout`]: #child_process_subprocess_stdout
-[`util.promisify()`]: util.md#util_util_promisify_original
-[synchronous counterparts]: #child_process_synchronous_process_creation
-[v8.serdes]: v8.md#v8_serialization_api
+[Shell requirements]: #shell-requirements
+[Signal Events]: process.md#signal-events
+[`'disconnect'`]: process.md#event-disconnect
+[`'error'`]: #event-error
+[`'exit'`]: #event-exit
+[`'message'`]: process.md#event-message
+[`ChildProcess`]: #class-childprocess
+[`Error`]: errors.md#class-error
+[`EventEmitter`]: events.md#class-eventemitter
+[`child_process.exec()`]: #child_processexeccommand-options-callback
+[`child_process.execFile()`]: #child_processexecfilefile-args-options-callback
+[`child_process.execFileSync()`]: #child_processexecfilesyncfile-args-options
+[`child_process.execSync()`]: #child_processexecsynccommand-options
+[`child_process.fork()`]: #child_processforkmodulepath-args-options
+[`child_process.spawn()`]: #child_processspawncommand-args-options
+[`child_process.spawnSync()`]: #child_processspawnsynccommand-args-options
+[`maxBuffer` and Unicode]: #maxbuffer-and-unicode
+[`net.Server`]: net.md#class-netserver
+[`net.Socket`]: net.md#class-netsocket
+[`options.detached`]: #optionsdetached
+[`process.disconnect()`]: process.md#processdisconnect
+[`process.env`]: process.md#processenv
+[`process.execPath`]: process.md#processexecpath
+[`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
+[`stdio`]: #optionsstdio
+[`subprocess.connected`]: #subprocessconnected
+[`subprocess.disconnect()`]: #subprocessdisconnect
+[`subprocess.kill()`]: #subprocesskillsignal
+[`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
+[`subprocess.stderr`]: #subprocessstderr
+[`subprocess.stdin`]: #subprocessstdin
+[`subprocess.stdio`]: #subprocessstdio
+[`subprocess.stdout`]: #subprocessstdout
+[`util.promisify()`]: util.md#utilpromisifyoriginal
+[synchronous counterparts]: #synchronous-process-creation
+[v8.serdes]: v8.md#serialization-api
