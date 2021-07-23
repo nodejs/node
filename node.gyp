@@ -790,7 +790,7 @@
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'process_outputs_as_sources': 1,
               'action': [
-                'python',
+                '<(python_exec_path)',
                 'tools/mkssldef.py',
                 '<@(mkssldef_flags)',
                 '-o',
@@ -816,7 +816,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
-            'python',
+            '<(python_exec_path)',
             'tools/js2c.py',
             '--directory',
             'lib',
