@@ -269,6 +269,18 @@ def _CreateVersion(name, path, sdk_based=False):
     if path:
         path = os.path.normpath(path)
     versions = {
+        "2019e": VisualStudioVersion(
+            "2019e",
+            "Visual Studio 2019",
+            solution_version="12.00",
+            project_version="16.0",
+            flat_sln=False,
+            uses_vcxproj=True,
+            path=path,
+            sdk_based=sdk_based,
+            default_toolset="v142",
+            compatible_sdks=["v8.1", "v10.0"],
+        ),
         "2019": VisualStudioVersion(
             "2019",
             "Visual Studio 2019",
