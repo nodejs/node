@@ -11,6 +11,8 @@ namespace crypto {
 namespace Timing {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 
+static const int kKeySize = 256;
+
 }  // namespace Timing
 }  // namespace crypto
 }  // namespace node
