@@ -468,6 +468,10 @@ if the socket is not connected.
 <!-- YAML
 added: v0.1.99
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39190
+    description: The `address` parameter now only accepts a `string`, `null`
+                 or `undefined`.
   - version:
     - v14.5.0
     - v12.19.0
@@ -517,7 +521,7 @@ If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host. If `address` is not
-provided or otherwise falsy, `'127.0.0.1'` (for `udp4` sockets) or `'::1'`
+provided or otherwise nullish, `'127.0.0.1'` (for `udp4` sockets) or `'::1'`
 (for `udp6` sockets) will be used by default.
 
 If the socket has not been previously bound with a call to `bind`, the socket
