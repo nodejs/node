@@ -22,7 +22,7 @@ const expectCertError = /^Error: unable to verify the first certificate$/;
 const checkRequest = (socket, server) => {
   let result = '';
   socket.on('connect', common.mustCall((data) => {
-    socket.write('GET / HTTP/1.1\r\n\r\n');
+    socket.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
     socket.end();
   }));
   socket.on('data', common.mustCall((chunk) => {

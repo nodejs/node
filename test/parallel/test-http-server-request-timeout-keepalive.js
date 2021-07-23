@@ -12,7 +12,7 @@ const { connect } = require('net');
 
 function performRequestWithDelay(client, firstDelay, secondDelay) {
   client.resume();
-  client.write('GET / HTTP/1.1\r\n');
+  client.write('GET / HTTP/1.1\r\nHost: example.com\r\n');
 
   firstDelay = common.platformTimeout(firstDelay);
   secondDelay = common.platformTimeout(secondDelay);

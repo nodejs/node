@@ -47,7 +47,7 @@ function test(statusCode) {
     const conn = net.createConnection(
       server.address().port,
       common.mustCall(() => {
-        conn.write('GET / HTTP/1.1\r\n\r\n');
+        conn.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
 
         let resp = '';
         conn.setEncoding('utf8');

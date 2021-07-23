@@ -17,7 +17,7 @@ server.listen(0, mustCall(() => {
   let received = '';
 
   c.on('connect', mustCall(() => {
-    c.write('GET /blah HTTP/1.1\r\n\r\n');
+    c.write('GET /blah HTTP/1.1\r\nHost: example.com\r\n\r\n');
   }));
   c.on('data', mustCall((data) => {
     received += data.toString();
