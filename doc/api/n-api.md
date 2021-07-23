@@ -5586,6 +5586,22 @@ napi_status napi_is_promise(napi_env env,
 * `[out] is_promise`: Flag indicating whether `promise` is a native promise
   object (that is, a promise object created by the underlying engine).
 
+### napi_promise_then
+<!-- YAML
+added: REPLACEME
+napiVersion: 8
+-->
+```c
+napi_status napi_promise_then(napi_env env,
+                            napi_value promise,
+                            napi_callback on_fulfilled,
+                            napi_callback on_rejected);
+```
+* `[in] env`: The environment that the API is invoked under.
+* `[in] promise`: The JavaScript Promise Object
+* `[in] on_fulfilled`: when promise state is fulfilled will  callback.
+* `[in] on_rejected`: when promise state is rejected will  callback.
+
 ## Script execution
 
 Node-API provides an API for executing a string containing JavaScript using the
