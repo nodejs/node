@@ -306,12 +306,16 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_env env = _bundle->env;
     napi_callback cb = _bundle->cb;
 
-    napi_value result;
+    napi_value result = nullptr;
+    bool exceptionOccurred = false;
     env->CallIntoModule([&](napi_env env) {
       result = cb(env, cbinfo_wrapper);
+    }, [&](napi_env env, v8::Local<v8::Value> value) {
+      exceptionOccurred = true;
+      env->isolate->ThrowException(value);
     });
 
-    if (result != nullptr) {
+    if (!exceptionOccurred && (result != nullptr)) {
       this->SetReturnValue(result);
     }
   }
