@@ -49,6 +49,8 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, RangeError)                              \
   V(ERR_CRYPTO_INVALID_STATE, Error)                                           \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, RangeError)                                 \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_CURVE, Error)                                   \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE, Error)                                \
   V(ERR_CRYPTO_OPERATION_FAILED, Error)                                        \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, RangeError)                           \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
@@ -136,6 +138,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, "Invalid scrypt params")                 \
   V(ERR_CRYPTO_INVALID_STATE, "Invalid state")                                 \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, "Invalid taglength")                        \
+  V(ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE, "Unsupported JWK Key Type.")          \
   V(ERR_CRYPTO_OPERATION_FAILED, "Operation failed")                           \
   V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH,                                       \
     "Input buffers must have the same byte length")                            \

@@ -31,7 +31,8 @@ enum PKEncodingType {
 
 enum PKFormatType {
   kKeyFormatDER,
-  kKeyFormatPEM
+  kKeyFormatPEM,
+  kKeyFormatJWK
 };
 
 enum KeyType {
