@@ -1925,6 +1925,7 @@ configure_section_file(output)
 
 # Forward OSS-Fuzz settings
 output['variables']['ossfuzz'] = b(options.ossfuzz)
+output['variables']['python_exec'] = sys.executable
 
 # variables should be a root level element,
 # move everything else to target_defaults

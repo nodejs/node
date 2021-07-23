@@ -27,6 +27,7 @@
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
+    'python_exec': 'python',
     # We list the deps/ files out instead of globbing them in js2c.py since we
     # only include a subset of all the files under these directories.
     # The lengths of their file names combined should not exceed the
@@ -790,7 +791,7 @@
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'process_outputs_as_sources': 1,
               'action': [
-                'python',
+                '<(python_exec)',
                 'tools/mkssldef.py',
                 '<@(mkssldef_flags)',
                 '-o',
@@ -816,7 +817,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
-            'python',
+            '<(python_exec)',
             'tools/js2c.py',
             '--directory',
             'lib',
