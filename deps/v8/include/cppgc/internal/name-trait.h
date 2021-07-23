@@ -73,7 +73,7 @@ class NameTrait final : public NameTraitBase {
 
  private:
   static HeapObjectName GetNameFor(const NameProvider* name_provider) {
-    return {name_provider->GetName(), false};
+    return {name_provider->GetHumanReadableName(), false};
   }
 
   static HeapObjectName GetNameFor(...) {
@@ -91,7 +91,7 @@ class NameTrait final : public NameTraitBase {
 
     static const HeapObjectName leaky_name =
         GetNameFromTypeSignature(PRETTY_FUNCTION_VALUE);
-    return leaky_name;
+    return {leaky_name, false};
 
 #undef PRETTY_FUNCTION_VALUE
 

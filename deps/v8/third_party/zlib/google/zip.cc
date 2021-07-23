@@ -4,7 +4,6 @@
 
 #include "third_party/zlib/google/zip.h"
 
-#include <queue>
 #include <string>
 #include <vector>
 
@@ -30,10 +29,6 @@ bool ExcludeNoFilesFilter(const base::FilePath& file_path) {
   return true;
 }
 
-bool ExcludeHiddenFilesFilter(const base::FilePath& file_path) {
-  return !IsHiddenFile(file_path);
-}
-
 // Creates a directory at |extract_dir|/|entry_path|, including any parents.
 bool CreateDirectory(const base::FilePath& extract_dir,
                      const base::FilePath& entry_path) {
@@ -50,50 +45,70 @@ std::unique_ptr<WriterDelegate> CreateFilePathWriterDelegate(
 
 class DirectFileAccessor : public FileAccessor {
  public:
+  explicit DirectFileAccessor(base::FilePath src_dir)
+      : src_dir_(std::move(src_dir)) {}
+
   ~DirectFileAccessor() override = default;
 
-  std::vector<base::File> OpenFilesForReading(
-      const std::vector<base::FilePath>& paths) override {
-    std::vector<base::File> files;
+  bool Open(const Paths paths, std::vector<base::File>* const files) override {
+    DCHECK(files);
+    files->reserve(files->size() + paths.size());
 
-    for (const auto& path : paths) {
-      base::File file;
-      if (base::PathExists(path) && !base::DirectoryExists(path)) {
-        file = base::File(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+    for (const base::FilePath& path : paths) {
+      DCHECK(!path.IsAbsolute());
+      const base::FilePath absolute_path = src_dir_.Append(path);
+      if (base::DirectoryExists(absolute_path)) {
+        files->emplace_back();
+        LOG(ERROR) << "Cannot open '" << path << "': It is a directory";
+      } else {
+        files->emplace_back(absolute_path,
+                            base::File::FLAG_OPEN | base::File::FLAG_READ);
+        LOG_IF(ERROR, !files->back().IsValid())
+            << "Cannot open '" << path << "'";
       }
-      files.push_back(std::move(file));
     }
 
-    return files;
+    return true;
   }
 
-  bool DirectoryExists(const base::FilePath& file) override {
-    return base::DirectoryExists(file);
-  }
-
-  std::vector<DirectoryContentEntry> ListDirectoryContent(
-      const base::FilePath& dir) override {
-    std::vector<DirectoryContentEntry> files;
+  bool List(const base::FilePath& path,
+            std::vector<base::FilePath>* const files,
+            std::vector<base::FilePath>* const subdirs) override {
+    DCHECK(!path.IsAbsolute());
+    DCHECK(files);
+    DCHECK(subdirs);
 
     base::FileEnumerator file_enumerator(
-        dir, false /* recursive */,
+        src_dir_.Append(path), false /* recursive */,
         base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
-    for (base::FilePath path = file_enumerator.Next(); !path.empty();
-         path = file_enumerator.Next()) {
-      const bool is_directory = base::DirectoryExists(path);
-      files.push_back({std::move(path), is_directory});
+
+    while (!file_enumerator.Next().empty()) {
+      const base::FileEnumerator::FileInfo info = file_enumerator.GetInfo();
+      (info.IsDirectory() ? subdirs : files)
+          ->push_back(path.Append(info.GetName()));
     }
 
-    return files;
+    return true;
   }
 
-  base::Time GetLastModifiedTime(const base::FilePath& path) override {
+  bool GetInfo(const base::FilePath& path, Info* const info) override {
+    DCHECK(!path.IsAbsolute());
+    DCHECK(info);
+
     base::File::Info file_info;
-    if (!base::GetFileInfo(path, &file_info)) {
-      LOG(ERROR) << "Cannot get modification time for '" << path << "'";
+    if (!base::GetFileInfo(src_dir_.Append(path), &file_info)) {
+      LOG(ERROR) << "Cannot get info of '" << path << "'";
+      return false;
     }
-    return file_info.last_modified;
+
+    info->is_directory = file_info.is_directory;
+    info->last_modified = file_info.last_modified;
+
+    return true;
   }
+
+ private:
+  const base::FilePath src_dir_;
 };
 
 }  // namespace
@@ -104,61 +119,52 @@ std::ostream& operator<<(std::ostream& out, const Progress& progress) {
 }
 
 bool Zip(const ZipParams& params) {
-  DirectFileAccessor default_accessor;
+  DirectFileAccessor default_accessor(params.src_dir);
   FileAccessor* const file_accessor = params.file_accessor ?: &default_accessor;
-
-  Paths files_to_add = params.src_files;
-
-  std::vector<base::FilePath> all_files;
-  if (files_to_add.empty()) {
-    // Perform a Breadth First Search (BFS) of the source tree. Note that the
-    // BFS order might not be optimal when storing files in a ZIP (either for
-    // the storing side, or for the program that will extract this ZIP).
-    for (std::queue<base::FilePath> q({params.src_dir}); !q.empty(); q.pop()) {
-      for (FileAccessor::DirectoryContentEntry& entry :
-           file_accessor->ListDirectoryContent(q.front())) {
-        // Skip hidden and filtered files.
-        if ((!params.include_hidden_files && IsHiddenFile(entry.path)) ||
-            (params.filter_callback && !params.filter_callback.Run(entry.path)))
-          continue;
-
-        // Store relative path.
-        all_files.emplace_back();
-        const bool success =
-            params.src_dir.AppendRelativePath(entry.path, &all_files.back());
-        DCHECK(success);
-
-        if (entry.is_directory)
-          q.push(std::move(entry.path));
-      }
-    }
-
-    files_to_add = all_files;
-  }
 
   std::unique_ptr<internal::ZipWriter> zip_writer;
 
 #if defined(OS_POSIX)
   if (params.dest_fd != base::kInvalidPlatformFile) {
     DCHECK(params.dest_file.empty());
-    zip_writer = internal::ZipWriter::CreateWithFd(
-        params.dest_fd, params.src_dir, file_accessor);
+    zip_writer =
+        internal::ZipWriter::CreateWithFd(params.dest_fd, file_accessor);
     if (!zip_writer)
       return false;
   }
 #endif
 
   if (!zip_writer) {
-    zip_writer = internal::ZipWriter::Create(params.dest_file, params.src_dir,
-                                             file_accessor);
+    zip_writer = internal::ZipWriter::Create(params.dest_file, file_accessor);
     if (!zip_writer)
       return false;
   }
 
   zip_writer->SetProgressCallback(params.progress_callback,
                                   params.progress_period);
+  zip_writer->SetRecursive(params.recursive);
 
-  return zip_writer->WriteEntries(files_to_add);
+  if (!params.include_hidden_files || params.filter_callback)
+    zip_writer->SetFilterCallback(base::BindRepeating(
+        [](const ZipParams* const params, const base::FilePath& path) -> bool {
+          return (params->include_hidden_files || !IsHiddenFile(path)) &&
+                 (!params->filter_callback ||
+                  params->filter_callback.Run(params->src_dir.Append(path)));
+        },
+        &params));
+
+  if (params.src_files.empty()) {
+    // No source items are specified. Zip the entire source directory.
+    zip_writer->SetRecursive(true);
+    if (!zip_writer->AddDirectoryContents(base::FilePath()))
+      return false;
+  } else {
+    // Only zip the specified source items.
+    if (!zip_writer->AddMixedEntries(params.src_files))
+      return false;
+  }
+
+  return zip_writer->Close();
 }
 
 bool Unzip(const base::FilePath& src_file, const base::FilePath& dest_dir) {
@@ -172,9 +178,10 @@ bool UnzipWithFilterCallback(const base::FilePath& src_file,
                              bool log_skipped_files) {
   base::File file(src_file, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
-    DLOG(WARNING) << "Failed to open " << src_file.value();
+    DLOG(WARNING) << "Cannot open '" << src_file << "'";
     return false;
   }
+
   return UnzipWithFilterAndWriters(
       file.GetPlatformFile(),
       base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
@@ -189,7 +196,7 @@ bool UnzipWithFilterAndWriters(const base::PlatformFile& src_file,
                                bool log_skipped_files) {
   ZipReader reader;
   if (!reader.OpenFromPlatformFile(src_file)) {
-    DLOG(WARNING) << "Failed to open src_file " << src_file;
+    DLOG(WARNING) << "Cannot open '" << src_file << "'";
     return false;
   }
   while (reader.HasMore()) {
@@ -238,13 +245,9 @@ bool ZipWithFilterCallback(const base::FilePath& src_dir,
 bool Zip(const base::FilePath& src_dir,
          const base::FilePath& dest_file,
          bool include_hidden_files) {
-  if (include_hidden_files) {
-    return ZipWithFilterCallback(src_dir, dest_file,
-                                 base::BindRepeating(&ExcludeNoFilesFilter));
-  } else {
-    return ZipWithFilterCallback(
-        src_dir, dest_file, base::BindRepeating(&ExcludeHiddenFilesFilter));
-  }
+  return Zip({.src_dir = src_dir,
+              .dest_file = dest_file,
+              .include_hidden_files = include_hidden_files});
 }
 
 #if defined(OS_POSIX)

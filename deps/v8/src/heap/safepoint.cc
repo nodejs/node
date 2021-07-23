@@ -21,7 +21,7 @@ namespace internal {
 GlobalSafepoint::GlobalSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
-void GlobalSafepoint::EnterSafepointScope() {
+void GlobalSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
   if (++active_safepoint_scopes_ > 1) return;
 
   TimedHistogramScope timer(
@@ -37,10 +37,10 @@ void GlobalSafepoint::EnterSafepointScope() {
 
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
-    if (local_heap->is_main_thread()) {
+    if (local_heap->is_main_thread() &&
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
-    DCHECK(!local_heap->is_main_thread());
 
     LocalHeap::ThreadState expected = local_heap->state_relaxed();
 
@@ -64,7 +64,7 @@ void GlobalSafepoint::EnterSafepointScope() {
   barrier_.WaitUntilRunningThreadsInSafepoint(running);
 }
 
-void GlobalSafepoint::LeaveSafepointScope() {
+void GlobalSafepoint::LeaveSafepointScope(StopMainThread stop_main_thread) {
   DCHECK_GT(active_safepoint_scopes_, 0);
   if (--active_safepoint_scopes_ > 0) return;
 
@@ -72,7 +72,8 @@ void GlobalSafepoint::LeaveSafepointScope() {
 
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
-    if (local_heap->is_main_thread()) {
+    if (local_heap->is_main_thread() &&
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
 
@@ -151,10 +152,12 @@ void GlobalSafepoint::Barrier::WaitInUnpark() {
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->EnterSafepointScope();
+  safepoint_->EnterSafepointScope(GlobalSafepoint::StopMainThread::kNo);
 }
 
-SafepointScope::~SafepointScope() { safepoint_->LeaveSafepointScope(); }
+SafepointScope::~SafepointScope() {
+  safepoint_->LeaveSafepointScope(GlobalSafepoint::StopMainThread::kNo);
+}
 
 bool GlobalSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);

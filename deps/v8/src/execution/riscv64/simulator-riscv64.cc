@@ -51,6 +51,7 @@
 #include <stdlib.h>
 
 #include "src/base/bits.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
@@ -58,7 +59,6 @@
 #include "src/heap/combined-heap.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -181,7 +181,7 @@ bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
 
 void RiscvDebugger::PrintRegs(char name_prefix, int start_index,
                               int end_index) {
-  EmbeddedVector<char, 10> name1, name2;
+  base::EmbeddedVector<char, 10> name1, name2;
   DCHECK(name_prefix == 'a' || name_prefix == 't' || name_prefix == 's');
   DCHECK(start_index >= 0 && end_index <= 99);
   int num_registers = (end_index - start_index) + 1;
@@ -260,7 +260,7 @@ void RiscvDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
-      v8::internal::EmbeddedVector<char, 256> buffer;
+      v8::base::EmbeddedVector<char, 256> buffer;
       const char* name = sim_->builtins_.Lookup((Address)sim_->get_pc());
       if (name != nullptr) {
         PrintF("Call builtin:  %s\n", name);
@@ -426,7 +426,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::internal::EmbeddedVector<char, 256> buffer;
+        v8::base::EmbeddedVector<char, 256> buffer;
 
         byte* cur = nullptr;
         byte* end = nullptr;
@@ -544,7 +544,7 @@ void RiscvDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::internal::EmbeddedVector<char, 256> buffer;
+        v8::base::EmbeddedVector<char, 256> buffer;
 
         byte* cur = nullptr;
         byte* end = nullptr;
@@ -1269,14 +1269,14 @@ T Simulator::ReadMem(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-
+#ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
   if ((addr & (sizeof(T) - 1)) != 0) {
     PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-
+#endif
   T* ptr = reinterpret_cast<T*>(addr);
   T value = *ptr;
   return value;
@@ -1291,14 +1291,14 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-
+#ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
   if ((addr & (sizeof(T) - 1)) != 0) {
     PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-
+#endif
   T* ptr = reinterpret_cast<T*>(addr);
   TraceMemWr(addr, value);
   *ptr = value;
@@ -1388,6 +1388,8 @@ void Simulator::SoftwareInterrupt() {
     // See comment in codegen-arm.cc and bug 1242173.
     int64_t saved_ra = get_register(ra);
 
+    int64_t pc = get_pc();
+
     intptr_t external =
         reinterpret_cast<intptr_t>(redirection->external_function());
 
@@ -1403,17 +1405,20 @@ void Simulator::SoftwareInterrupt() {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
-            PrintF("Call to host function at %p with args %f, %f",
+            PrintF("Call to host function %s at %p with args %f, %f",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
-            PrintF("Call to host function at %p with arg %f",
+            PrintF("Call to host function %s at %p with arg %f",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
-            PrintF("Call to host function at %p with args %f, %d",
+            PrintF("Call to host function %s at %p with args %f, %d",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, ival);
             break;
@@ -1473,7 +1478,8 @@ void Simulator::SoftwareInterrupt() {
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 " \n",
+        PrintF("Call to host function %s at %p args %08" PRIx64 " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0);
       }
       SimulatorRuntimeDirectApiCall target =
@@ -1481,8 +1487,9 @@ void Simulator::SoftwareInterrupt() {
       target(arg0);
     } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeProfilingApiCall target =
@@ -1490,8 +1497,9 @@ void Simulator::SoftwareInterrupt() {
       target(arg0, Redirection::ReverseRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeDirectGetterCall target =
@@ -1500,8 +1508,9 @@ void Simulator::SoftwareInterrupt() {
     } else if (redirection->type() ==
                ExternalReference::PROFILING_GETTER_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                "  %08" PRIx64 " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1, arg2);
       }
       SimulatorRuntimeProfilingGetterCall target =
@@ -1514,10 +1523,11 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
         PrintF(
-            "Call to host function at %p "
+            "Call to host function %s at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " \n",
+            ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
             arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       }
@@ -1842,7 +1852,7 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
   float rounded = 0;
   switch (rmode) {
     case RNE: {  // Round to Nearest, tiest to Even
-      rounded = std::floorf(input_val);
+      rounded = floorf(input_val);
       float error = input_val - rounded;
 
       // Take care of correctly handling the range [-0.5, -0.0], which must
@@ -3182,13 +3192,13 @@ void Simulator::DecodeCAType() {
       set_rvc_rs1s(sext_xlen(rvc_rs1s() - rvc_rs2s()));
       break;
     case RO_C_XOR:
-      set_rvc_rs1s(sext_xlen(rvc_rs1s() ^ rvc_rs2s()));
+      set_rvc_rs1s(rvc_rs1s() ^ rvc_rs2s());
       break;
     case RO_C_OR:
-      set_rvc_rs1s(sext_xlen(rvc_rs1s() | rvc_rs2s()));
+      set_rvc_rs1s(rvc_rs1s() | rvc_rs2s());
       break;
     case RO_C_AND:
-      set_rvc_rs1s(sext_xlen(rvc_rs1s() & rvc_rs2s()));
+      set_rvc_rs1s(rvc_rs1s() & rvc_rs2s());
       break;
     case RO_C_SUBW:
       set_rvc_rs1s(sext32(rvc_rs1s() - rvc_rs2s()));
@@ -3347,6 +3357,37 @@ void Simulator::DecodeCJType() {
   }
 }
 
+void Simulator::DecodeCBType() {
+  switch (instr_.RvcOpcode()) {
+    case RO_C_BNEZ:
+      if (rvc_rs1() != 0) {
+        int64_t next_pc = get_pc() + rvc_imm8_b();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_C_BEQZ:
+      if (rvc_rs1() == 0) {
+        int64_t next_pc = get_pc() + rvc_imm8_b();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_C_MISC_ALU:
+      if (instr_.RvcFunct2BValue() == 0b00) {  // c.srli
+        set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
+      } else if (instr_.RvcFunct2BValue() == 0b01) {  // c.srai
+        require(rvc_shamt6() < xlen);
+        set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
+      } else if (instr_.RvcFunct2BValue() == 0b10) {  // c.andi
+        set_rvc_rs1s(rvc_imm6() & rvc_rs1s());
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -3354,7 +3395,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
   pc_modified_ = false;
 
-  v8::internal::EmbeddedVector<char, 256> buffer;
+  v8::base::EmbeddedVector<char, 256> buffer;
 
   if (::v8::internal::FLAG_trace_sim) {
     SNPrintF(trace_buf_, " ");
@@ -3364,7 +3405,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
 
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-    //       reinterpret_cast<intptr_t>(instr), buffer.begin());
+    //        reinterpret_cast<intptr_t>(instr), buffer.begin());
   }
 
   instr_ = instr;
@@ -3399,6 +3440,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     case Instruction::kCJType:
       DecodeCJType();
       break;
+    case Instruction::kCBType:
+      DecodeCBType();
+      break;
     case Instruction::kCIType:
       DecodeCIType();
       break;
@@ -3415,7 +3459,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
       DecodeCSType();
       break;
     default:
-      if (::v8::internal::FLAG_trace_sim) {
+      if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex
                   << registers_[pc] << "]: 0x" << instr->InstructionBits()
                   << std::endl;

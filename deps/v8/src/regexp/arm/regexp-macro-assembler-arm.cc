@@ -191,8 +191,8 @@ void RegExpMacroAssemblerARM::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(eq, on_equal);
 }
 
-
-void RegExpMacroAssemblerARM::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerARM::CheckCharacterGT(base::uc16 limit,
+                                               Label* on_greater) {
   __ cmp(current_character(), Operand(limit));
   BranchOrBacktrack(gt, on_greater);
 }
@@ -214,12 +214,11 @@ void RegExpMacroAssemblerARM::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(ne, on_not_at_start);
 }
 
-
-void RegExpMacroAssemblerARM::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerARM::CheckCharacterLT(base::uc16 limit,
+                                               Label* on_less) {
   __ cmp(current_character(), Operand(limit));
   BranchOrBacktrack(lt, on_less);
 }
-
 
 void RegExpMacroAssemblerARM::CheckGreedyLoop(Label* on_equal) {
   __ ldr(r0, MemOperand(backtrack_stackpointer(), 0));
@@ -458,12 +457,8 @@ void RegExpMacroAssemblerARM::CheckNotCharacterAfterAnd(unsigned c,
   BranchOrBacktrack(ne, on_not_equal);
 }
 
-
 void RegExpMacroAssemblerARM::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ sub(r0, current_character(), Operand(minus));
   __ and_(r0, r0, Operand(mask));
@@ -471,26 +466,21 @@ void RegExpMacroAssemblerARM::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(ne, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerARM::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerARM::CheckCharacterInRange(base::uc16 from,
+                                                    base::uc16 to,
+                                                    Label* on_in_range) {
   __ sub(r0, current_character(), Operand(from));
   __ cmp(r0, Operand(to - from));
   BranchOrBacktrack(ls, on_in_range);  // Unsigned lower-or-same condition.
 }
 
-
-void RegExpMacroAssemblerARM::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+void RegExpMacroAssemblerARM::CheckCharacterNotInRange(base::uc16 from,
+                                                       base::uc16 to,
+                                                       Label* on_not_in_range) {
   __ sub(r0, current_character(), Operand(from));
   __ cmp(r0, Operand(to - from));
   BranchOrBacktrack(hi, on_not_in_range);  // Unsigned higher condition.
 }
-
 
 void RegExpMacroAssemblerARM::CheckBitInTable(
     Handle<ByteArray> table,
@@ -509,8 +499,7 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
   BranchOrBacktrack(ne, on_bit_set);
 }
 
-
-bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(base::uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
@@ -624,7 +613,6 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     return false;
   }
 }
-
 
 void RegExpMacroAssemblerARM::Fail() {
   __ mov(r0, Operand(FAILURE));
@@ -828,8 +816,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
         // Advance current position after a zero-length match.
         Label advance;
         __ bind(&advance);
-        __ add(current_input_offset(),
-               current_input_offset(),
+        __ add(current_input_offset(), current_input_offset(),
                Operand((mode_ == UC16) ? 2 : 1));
         if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
@@ -1084,7 +1071,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   __ mov(ip, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  Address entry = d.InstructionStartOfBuiltin(Builtin::kDirectCEntry);
   __ mov(lr, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(lr);
 

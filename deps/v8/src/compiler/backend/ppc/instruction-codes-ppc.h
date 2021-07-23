@@ -120,7 +120,9 @@ namespace compiler {
   V(PPC_LoadWordU16)                 \
   V(PPC_LoadWordS32)                 \
   V(PPC_LoadWordU32)                 \
+  V(PPC_LoadByteRev32)               \
   V(PPC_LoadWord64)                  \
+  V(PPC_LoadByteRev64)               \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
   V(PPC_LoadSimd128)                 \
@@ -128,7 +130,9 @@ namespace compiler {
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
+  V(PPC_StoreByteRev32)              \
   V(PPC_StoreWord64)                 \
+  V(PPC_StoreByteRev64)              \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
   V(PPC_StoreSimd128)                \
@@ -214,7 +218,6 @@ namespace compiler {
   V(PPC_F64x2Ceil)                   \
   V(PPC_F64x2Floor)                  \
   V(PPC_F64x2Trunc)                  \
-  V(PPC_F64x2NearestInt)             \
   V(PPC_F64x2Pmin)                   \
   V(PPC_F64x2Pmax)                   \
   V(PPC_F64x2ConvertLowI32x4S)       \
@@ -243,7 +246,6 @@ namespace compiler {
   V(PPC_F32x4Ceil)                   \
   V(PPC_F32x4Floor)                  \
   V(PPC_F32x4Trunc)                  \
-  V(PPC_F32x4NearestInt)             \
   V(PPC_F32x4Pmin)                   \
   V(PPC_F32x4Pmax)                   \
   V(PPC_F32x4Qfma)                   \

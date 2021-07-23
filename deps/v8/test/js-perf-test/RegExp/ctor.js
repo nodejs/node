@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("base.js");
-load("base_ctor.js");
+d8.file.execute("base.js");
+d8.file.execute("base_ctor.js");
 
 createBenchmarkSuite("Ctor");

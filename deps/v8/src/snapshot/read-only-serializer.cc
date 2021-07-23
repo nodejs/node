@@ -42,9 +42,7 @@ void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // serialize twice.
   if (*obj != ReadOnlyRoots(isolate()).not_mapped_symbol()) {
     if (SerializeHotObject(obj)) return;
-    if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) {
-      return;
-    }
+    if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;
     if (SerializeBackReference(obj)) return;
   }
 

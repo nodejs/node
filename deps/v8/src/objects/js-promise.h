@@ -42,6 +42,10 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
 
+  // [is_silent]: Whether this promise should cause the debugger to pause when
+  // rejected.
+  DECL_BOOLEAN_ACCESSORS(is_silent)
+
   int async_task_id() const;
   void set_async_task_id(int id);
 

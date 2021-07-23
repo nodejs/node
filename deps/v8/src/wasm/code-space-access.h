@@ -16,7 +16,61 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+
+class NativeModule;
+
+// Within the scope, the code space is writable (and for Apple M1 also not
+// executable). After the last (nested) scope is destructed, the code space is
+// not writable.
+// This uses three different implementations, depending on the platform, flags,
+// and runtime support:
+// - On MacOS on ARM64 ("Apple M1"/Apple Silicon), it uses APRR/MAP_JIT to
+// switch only the calling thread between writable and executable. This achieves
+// "real" W^X and is thread-local and fast.
+// - When Intel PKU (aka. memory protection keys) are available, it switches
+// the protection keys' permission between writable and not writable. The
+// executable permission cannot be retracted with PKU. That is, this "only"
+// achieves write-protection, but is similarly thread-local and fast.
+// - As a fallback, we switch with {mprotect()} between R-X and RWX (due to
+// concurrent compilation and execution). This is slow and process-wide. With
+// {mprotect()}, we currently switch permissions for the entire module's memory:
+//  - for AOT, that's as efficient as it can be.
+//  - for Lazy, we don't have a heuristic for functions that may need patching,
+//    and even if we did, the resulting set of pages may be fragmented.
+//    Currently, we try and keep the number of syscalls low.
+// -  similar argument for debug time.
+// MAP_JIT on Apple M1 cannot switch permissions for smaller ranges of memory,
+// and for PKU we would need multiple keys, so both of them also switch
+// permissions for all code pages.
+class V8_NODISCARD CodeSpaceWriteScope final {
+ public:
+  explicit CodeSpaceWriteScope(NativeModule* native_module);
+  ~CodeSpaceWriteScope();
+
+  // Disable copy constructor and copy-assignment operator, since this manages
+  // a resource and implicit copying of the scope can yield surprising errors.
+  CodeSpaceWriteScope(const CodeSpaceWriteScope&) = delete;
+  CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
+
+ private:
 #if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+  static thread_local int code_space_write_nesting_level_;
+#else   // On non-M1 hardware:
+  // The M1 implementation knows implicitly from the {MAP_JIT} flag during
+  // allocation which region to switch permissions for. On non-M1 hardware,
+  // however, we either need the protection key or code space from the
+  // {native_module_}.
+  NativeModule* native_module_;
+#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+};
+
+}  // namespace wasm
+
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+
+// Low-level API for switching MAP_JIT pages between writable and executable.
+// TODO(wasm): Access to these functions is only needed in tests. Remove?
 
 // Ignoring this warning is considered better than relying on
 // __builtin_available.
@@ -30,42 +84,13 @@ inline void SwitchMemoryPermissionsToExecutable() {
 }
 #pragma clang diagnostic pop
 
-namespace wasm {
-
-class V8_NODISCARD CodeSpaceWriteScope {
- public:
-  // TODO(jkummerow): Background threads could permanently stay in
-  // writable mode; only the main thread has to switch back and forth.
-  CodeSpaceWriteScope() {
-    if (code_space_write_nesting_level_ == 0) {
-      SwitchMemoryPermissionsToWritable();
-    }
-    code_space_write_nesting_level_++;
-  }
-  ~CodeSpaceWriteScope() {
-    code_space_write_nesting_level_--;
-    if (code_space_write_nesting_level_ == 0) {
-      SwitchMemoryPermissionsToExecutable();
-    }
-  }
-
- private:
-  static thread_local int code_space_write_nesting_level_;
-};
-
-#define CODE_SPACE_WRITE_SCOPE CodeSpaceWriteScope _write_access_;
-
-}  // namespace wasm
-
 #else  // Not Mac-on-arm64.
 
 // Nothing to do, we map code memory with rwx permissions.
 inline void SwitchMemoryPermissionsToWritable() {}
 inline void SwitchMemoryPermissionsToExecutable() {}
 
-#define CODE_SPACE_WRITE_SCOPE
-
-#endif  // V8_OS_MACOSX && V8_HOST_ARCH_ARM64
+#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 
 }  // namespace internal
 }  // namespace v8

@@ -6,11 +6,10 @@
 #define V8_API_API_ARGUMENTS_INL_H_
 
 #include "src/api/api-arguments.h"
-
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/slots-inl.h"
 #include "src/tracing/trace-event.h"

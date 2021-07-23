@@ -107,11 +107,11 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
   auto* custom2 =
       MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces + 1,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, DifferentSpacesUsesDifferentPages) {
@@ -135,11 +135,11 @@ TEST_F(TestWithHeapWithCustomSpaces,
   auto* custom2 =
       MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom1)->space()->index());
+            NormalPage::FromPayload(custom1)->space().index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
-            NormalPage::FromPayload(custom2)->space()->index());
+            NormalPage::FromPayload(custom2)->space().index());
   EXPECT_EQ(static_cast<size_t>(RawHeap::RegularSpaceType::kNormal1),
-            NormalPage::FromPayload(regular)->space()->index());
+            NormalPage::FromPayload(regular)->space().index());
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
@@ -246,11 +246,11 @@ TEST_F(TestWithHeapWithCompactableCustomSpaces,
       GetHeap()->GetAllocationHandle());
   auto* default_compactable = MakeGarbageCollected<DefaultCompactableGCed>(
       GetHeap()->GetAllocationHandle());
-  EXPECT_TRUE(NormalPage::FromPayload(compactable)->space()->is_compactable());
+  EXPECT_TRUE(NormalPage::FromPayload(compactable)->space().is_compactable());
   EXPECT_FALSE(
-      NormalPage::FromPayload(not_compactable)->space()->is_compactable());
+      NormalPage::FromPayload(not_compactable)->space().is_compactable());
   EXPECT_FALSE(
-      NormalPage::FromPayload(default_compactable)->space()->is_compactable());
+      NormalPage::FromPayload(default_compactable)->space().is_compactable());
 }
 
 }  // namespace internal

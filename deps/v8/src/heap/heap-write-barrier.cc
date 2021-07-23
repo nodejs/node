@@ -78,7 +78,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   }
 #endif
   WriteBarrier::Marking(host, slot, MaybeObject(value));
-  // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
+  // Called by WriteBarrierCodeStubAssembler, which doesnt accept void type
   return 0;
 }
 

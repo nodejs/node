@@ -5,6 +5,7 @@
 #include "src/heap/cppgc/stats-collector.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 #include "src/base/atomicops.h"
@@ -18,9 +19,7 @@ namespace internal {
 // static
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
 
-StatsCollector::StatsCollector(
-    std::unique_ptr<MetricRecorder> histogram_recorder, Platform* platform)
-    : metric_recorder_(std::move(histogram_recorder)), platform_(platform) {
+StatsCollector::StatsCollector(Platform* platform) : platform_(platform) {
   USE(platform_);
 }
 
@@ -42,11 +41,19 @@ void StatsCollector::NotifyAllocation(size_t bytes) {
   // The current GC may not have been started. This is ok as recording considers
   // the whole time range between garbage collections.
   allocated_bytes_since_safepoint_ += bytes;
+#ifdef CPPGC_VERIFY_LIVE_BYTES
+  DCHECK_GE(live_bytes_ + bytes, live_bytes_);
+  live_bytes_ += bytes;
+#endif  // CPPGC_VERIFY_LIVE_BYTES
 }
 
 void StatsCollector::NotifyExplicitFree(size_t bytes) {
   // See IncreaseAllocatedObjectSize for lifetime of the counter.
   explicitly_freed_bytes_since_safepoint_ += bytes;
+#ifdef CPPGC_VERIFY_LIVE_BYTES
+  DCHECK_GE(live_bytes_, bytes);
+  live_bytes_ -= bytes;
+#endif  // CPPGC_VERIFY_LIVE_BYTES
 }
 
 void StatsCollector::NotifySafePointForConservativeCollection() {
@@ -66,6 +73,9 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
       static_cast<int64_t>(allocated_bytes_since_safepoint_) -
       static_cast<int64_t>(explicitly_freed_bytes_since_safepoint_);
 
+  // Save the epoch to avoid clearing counters when a GC happened, see below.
+  const auto saved_epoch = current_.epoch;
+
   // These observer methods may start or finalize GC. In case they trigger a
   // final GC pause, the delta counters are reset there and the following
   // observer calls are called with '0' updates.
@@ -80,8 +90,15 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
       observer->AllocatedObjectSizeIncreased(static_cast<size_t>(delta));
     }
   });
-  allocated_bytes_since_safepoint_ = 0;
-  explicitly_freed_bytes_since_safepoint_ = 0;
+  // Only clear the counters when no garbage collection happened. In case of a
+  // garbage collection in the callbacks, the counters have been cleared by
+  // `NotifyMarkingFinished()`. In addition, atomic sweeping may have already
+  // allocated new memory which would be dropped from accounting in case
+  // of clearing here.
+  if (saved_epoch == current_.epoch) {
+    allocated_bytes_since_safepoint_ = 0;
+    explicitly_freed_bytes_since_safepoint_ = 0;
+  }
 }
 
 StatsCollector::Event::Event() {
@@ -107,6 +124,9 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
       explicitly_freed_bytes_since_safepoint_;
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
+#ifdef CPPGC_VERIFY_LIVE_BYTES
+  live_bytes_ = marked_bytes;
+#endif  // CPPGC_VERIFY_LIVE_BYTES
 
   DCHECK_LE(memory_freed_bytes_since_end_of_marking_, memory_allocated_bytes_);
   memory_allocated_bytes_ -= memory_freed_bytes_since_end_of_marking_;
@@ -133,12 +153,12 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 
 namespace {
 
-int64_t SumPhases(const MetricRecorder::CppGCFullCycle::Phases& phases) {
+int64_t SumPhases(const MetricRecorder::FullCycle::Phases& phases) {
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
-MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
+MetricRecorder::FullCycle GetFullCycleEventForMetricRecorder(
     int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
     int64_t atomic_sweep_us, int64_t incremental_mark_us,
     int64_t incremental_sweep_us, int64_t concurrent_mark_us,
@@ -146,7 +166,7 @@ MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
     int64_t objects_after_bytes, int64_t objects_freed_bytes,
     int64_t memory_before_bytes, int64_t memory_after_bytes,
     int64_t memory_freed_bytes) {
-  MetricRecorder::CppGCFullCycle event;
+  MetricRecorder::FullCycle event;
   // MainThread.Incremental:
   event.main_thread_incremental.mark_duration_us = incremental_mark_us;
   event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
@@ -202,7 +222,7 @@ void StatsCollector::NotifySweepingCompleted() {
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::CppGCFullCycle event = GetFullCycleEventForMetricRecorder(
+    MetricRecorder::FullCycle event = GetFullCycleEventForMetricRecorder(
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),
@@ -264,30 +284,72 @@ v8::base::TimeDelta StatsCollector::marking_time() const {
 
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {
   memory_allocated_bytes_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeIncreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeIncreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
 }
 
 void StatsCollector::NotifyFreedMemory(int64_t size) {
   memory_freed_bytes_since_end_of_marking_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeDecreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeDecreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
+}
+
+void StatsCollector::IncrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_add(value, std::memory_order_relaxed);
+  DCHECK_GE(old + value, old);
+  USE(old);
+}
+
+void StatsCollector::DecrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_sub(value, std::memory_order_relaxed);
+  DCHECK_GE(old, old - value);
+  USE(old);
+}
+
+void StatsCollector::ResetDiscardedMemory() {
+  discarded_bytes_.store(0, std::memory_order_relaxed);
+}
+
+size_t StatsCollector::discarded_memory_size() const {
+  return discarded_bytes_.load(std::memory_order_relaxed);
+}
+
+size_t StatsCollector::resident_memory_size() const {
+  const auto allocated = allocated_memory_size();
+  const auto discarded = discarded_memory_size();
+  DCHECK_IMPLIES(allocated == 0, discarded == 0);
+  DCHECK_IMPLIES(allocated > 0, allocated > discarded);
+  return allocated - discarded;
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
                                            v8::base::TimeDelta time) {
   switch (scope_id_) {
     case kIncrementalMark: {
-      MetricRecorder::CppGCMainThreadIncrementalMark event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalMark event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
     case kIncrementalSweep: {
-      MetricRecorder::CppGCMainThreadIncrementalSweep event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalSweep event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }

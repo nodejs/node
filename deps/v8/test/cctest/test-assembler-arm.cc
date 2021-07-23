@@ -27,6 +27,7 @@
 
 #include <iostream>
 
+#include "src/base/numbers/double.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -34,7 +35,6 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
-#include "src/numbers/double.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
@@ -266,16 +266,16 @@ TEST(4) {
     __ vstr(s1, r4, offsetof(T, y));
 
     // Move a literal into a register that can be encoded in the instruction.
-    __ vmov(d4, Double(1.0));
+    __ vmov(d4, base::Double(1.0));
     __ vstr(d4, r4, offsetof(T, e));
 
     // Move a literal into a register that requires 64 bits to encode.
     // 0x3FF0000010000000 = 1.000000059604644775390625
-    __ vmov(d4, Double(1.000000059604644775390625));
+    __ vmov(d4, base::Double(1.000000059604644775390625));
     __ vstr(d4, r4, offsetof(T, d));
 
     // Convert from floating point to integer.
-    __ vmov(d4, Double(2.0));
+    __ vmov(d4, base::Double(2.0));
     __ vcvt_s32_f64(s1, d4);
     __ vstr(s1, r4, offsetof(T, i));
 
@@ -447,7 +447,7 @@ static void TestRoundingMode(VCVTTypes types,
   __ vmsr(r2);
 
   // Load value, convert, and move back result to r0 if everything went well.
-  __ vmov(d1, Double(value));
+  __ vmov(d1, base::Double(value));
   switch (types) {
     case s32_f64:
       __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
@@ -1074,8 +1074,8 @@ TEST(13) {
     __ vstm(ia_w, r4, d29, d31);
 
     // Move constants into d20, d21, d22 and store into i, j, k.
-    __ vmov(d20, Double(14.7610017472335499));
-    __ vmov(d21, Double(16.0));
+    __ vmov(d20, base::Double(14.7610017472335499));
+    __ vmov(d21, base::Double(16.0));
     __ mov(r1, Operand(372106121));
     __ mov(r2, Operand(1079146608));
     __ vmov(NeonS32, d22, 0, r1);
@@ -1283,6 +1283,8 @@ TEST(15) {
     uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
     uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
     uint32_t vpadd_i8[2], vpadd_i16[2], vpadd_i32[2];
+    uint32_t vpadal_s8[4], vpadal_s16[4], vpadal_s32[4];
+    uint32_t vpadal_u8[4], vpadal_u16[4], vpadal_u32[4];
     uint32_t vpaddl_s8[4], vpaddl_s16[4], vpaddl_s32[4];
     uint32_t vpaddl_u8[4], vpaddl_u16[4], vpaddl_u32[4];
     uint32_t vpmin_s8[2], vpmin_u16[2], vpmin_s32[2];
@@ -1364,12 +1366,12 @@ TEST(15) {
 
     // ARM core register to scalar.
     __ mov(r4, Operand(0xFFFFFFF8));
-    __ vmov(d0, Double(0.0));
+    __ vmov(d0, base::Double(0.0));
     __ vmov(NeonS8, d0, 1, r4);
     __ vmov(NeonS16, d0, 1, r4);
     __ vmov(NeonS32, d0, 1, r4);
     __ vstr(d0, r0, offsetof(T, vmov_to_scalar1));
-    __ vmov(d0, Double(0.0));
+    __ vmov(d0, base::Double(0.0));
     __ vmov(NeonS8, d0, 3, r4);
     __ vmov(NeonS16, d0, 3, r4);
     __ vstr(d0, r0, offsetof(T, vmov_to_scalar2));
@@ -1647,6 +1649,47 @@ TEST(15) {
     __ vstr(d0, r0, offsetof(T, vpadd_i16));
     __ vpadd(Neon32, d0, d0, d2);
     __ vstr(d0, r0, offsetof(T, vpadd_i32));
+
+    // vpadal signed.
+    __ mov(r4, Operand(0x81));
+    __ vdup(Neon8, q0, r4);
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vpadal unsigned.
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vpaddl signed.
     __ mov(r4, Operand(0x81));
@@ -2254,6 +2297,14 @@ TEST(15) {
     CHECK_EQ_32X2(vpadd_i8, 0x03030303u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i16, 0x0C0C0606u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i32, 0x12120C0Cu, 0x06060606u);
+
+    CHECK_EQ_32X4(vpadal_s8, 0x30003, 0x30003, 0x30003, 0x30003);
+    CHECK_EQ_32X4(vpadal_s16, 0x1000403, 0x1000403, 0x1000403, 0x1000403);
+    CHECK_EQ_32X4(vpadal_s32, 0x4040403, 0x1010100, 0x4040403, 0x1010100);
+
+    CHECK_EQ_32X4(vpadal_u8, 0x2030203, 0x2030203, 0x2030203, 0x2030203);
+    CHECK_EQ_32X4(vpadal_u16, 0x1020403, 0x1020403, 0x1020403, 0x1020403);
+    CHECK_EQ_32X4(vpadal_u32, 0x4040403, 0x1010102, 0x4040403, 0x1010102);
 
     CHECK_EQ_32X4(vpaddl_s8, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02);
     CHECK_EQ_32X4(vpaddl_s16, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302);
@@ -3285,8 +3336,8 @@ TEST(ARMv8_vsel) {
     __ vsel(vc, s0, s1, s2);
     __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
 
-    __ vmov(d1, Double(kResultPass));
-    __ vmov(d2, Double(kResultFail));
+    __ vmov(d1, base::Double(kResultPass));
+    __ vmov(d2, base::Double(kResultFail));
 
     __ vsel(eq, d0, d1, d2);
     __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));

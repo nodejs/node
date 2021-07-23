@@ -9,6 +9,7 @@
 #include "src/codegen/external-reference-encoder.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate-inl.h"
+#include "src/snapshot/embedded/embedded-data.h"
 
 namespace v8 {
 namespace internal {
@@ -24,6 +25,19 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
   }
 }
 
+Address TurboAssemblerBase::BuiltinEntry(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  if (isolate_ != nullptr) {
+    Address entry =
+        isolate_->builtin_entry_table()[static_cast<int32_t>(builtin)];
+    DCHECK_EQ(entry, EmbeddedData::FromBlob(isolate_).InstructionStartOfBuiltin(
+                         builtin));
+    return entry;
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.InstructionStartOfBuiltin(builtin);
+}
+
 void TurboAssemblerBase::IndirectLoadConstant(Register destination,
                                               Handle<HeapObject> object) {
   CHECK(root_array_available_);
@@ -31,21 +45,19 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
   // Before falling back to the (fairly slow) lookup from the constants table,
   // check if any of the fast paths can be applied.
 
-  int builtin_index;
+  Builtin builtin;
   RootIndex root_index;
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
     // Roots are loaded relative to the root register.
     LoadRoot(destination, root_index);
-  } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
+  } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin)) {
     // Similar to roots, builtins may be loaded from the builtins table.
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForBuiltinIndex(builtin_index));
+    LoadRootRelative(destination, RootRegisterOffsetForBuiltin(builtin));
   } else if (object.is_identical_to(code_object_) &&
-             Builtins::IsBuiltinId(maybe_builtin_index_)) {
+             Builtins::IsBuiltinId(maybe_builtin_)) {
     // The self-reference loaded through Codevalue() may also be a builtin
     // and thus viable for a fast load.
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
+    LoadRootRelative(destination, RootRegisterOffsetForBuiltin(maybe_builtin_));
   } else {
     CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
     // Ensure the given object is in the builtins constants table and fetch its
@@ -84,9 +96,8 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
-    int builtin_index) {
-  return IsolateData::builtin_slot_offset(builtin_index);
+int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
+  return IsolateData::builtin_slot_offset(builtin);
 }
 
 // static

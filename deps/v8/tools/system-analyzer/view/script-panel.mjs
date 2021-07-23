@@ -1,17 +1,21 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {groupBy} from '../helper.mjs';
+import {defer, groupBy} from '../helper.mjs';
 import {App} from '../index.mjs'
 
 import {SelectRelatedEvent, ToolTipEvent} from './events.mjs';
 import {CollapsableElement, CSSColor, delay, DOM, formatBytes, gradientStopsFromGroups} from './helper.mjs';
 
+// A source mapping proxy for source maps that don't have CORS headers.
+// TODO(leszeks): Make this configurable.
+const sourceMapFetchPrefix = 'http://localhost:8080/';
+
 DOM.defineCustomElement('view/script-panel',
                         (templateText) =>
                             class SourcePanel extends CollapsableElement {
   _selectedSourcePositions = [];
-  _sourcePositionsToMarkNodes = [];
+  _sourcePositionsToMarkNodesPromise = Promise.resolve([]);
   _scripts = [];
   _script;
 
@@ -34,8 +38,13 @@ DOM.defineCustomElement('view/script-panel',
   set script(script) {
     if (this._script === script) return;
     this._script = script;
-    this._renderSourcePanel();
-    this._updateScriptDropdownSelection();
+    script.ensureSourceMapCalculated(sourceMapFetchPrefix);
+    this._sourcePositionsToMarkNodesPromise = defer();
+    this.requestUpdate();
+  }
+
+  set focusedSourcePositions(sourcePositions) {
+    this.selectedSourcePositions = sourcePositions;
   }
 
   set selectedSourcePositions(sourcePositions) {
@@ -43,10 +52,6 @@ DOM.defineCustomElement('view/script-panel',
     // TODO: highlight multiple scripts
     this.script = sourcePositions[0]?.script;
     this._focusSelectedMarkers();
-  }
-
-  set focusedSourcePositions(sourcePositions) {
-    this.selectedSourcePositions = sourcePositions;
   }
 
   set scripts(scripts) {
@@ -58,8 +63,13 @@ DOM.defineCustomElement('view/script-panel',
     return this.$('#script-dropdown');
   }
 
+  _update() {
+    this._renderSourcePanel();
+    this._updateScriptDropdownSelection();
+  }
+
   _initializeScriptDropdown() {
-    this._scripts.sort((a, b) => a.name.localeCompare(b.name));
+    this._scripts.sort((a, b) => a.name?.localeCompare(b.name) ?? 0);
     let select = this.scriptDropdown;
     select.options.length = 0;
     for (const script of this._scripts) {
@@ -70,6 +80,7 @@ DOM.defineCustomElement('view/script-panel',
       select.add(option);
     }
   }
+
   _updateScriptDropdownSelection() {
     this.scriptDropdown.selectedIndex =
         this._script ? this._scripts.indexOf(this._script) : -1;
@@ -77,15 +88,19 @@ DOM.defineCustomElement('view/script-panel',
 
   async _renderSourcePanel() {
     let scriptNode;
-    if (this._script) {
+    const script = this._script;
+    if (script) {
       await delay(1);
+      if (script != this._script) return;
       const builder = new LineBuilder(this, this._script);
-      scriptNode = builder.createScriptNode();
-      this._sourcePositionsToMarkNodes = builder.sourcePositionToMarkers;
+      scriptNode = await builder.createScriptNode(this._script.startLine);
+      if (script != this._script) return;
+      this._sourcePositionsToMarkNodesPromise.resolve(
+          builder.sourcePositionToMarkers);
     } else {
       scriptNode = DOM.div();
       this._selectedMarkNodes = undefined;
-      this._sourcePositionsToMarkNodes = new Map();
+      this._sourcePositionsToMarkNodesPromise.resolve(new Map());
     }
     const oldScriptNode = this.script.childNodes[1];
     this.script.replaceChild(scriptNode, oldScriptNode);
@@ -93,22 +108,24 @@ DOM.defineCustomElement('view/script-panel',
 
   async _focusSelectedMarkers() {
     await delay(100);
+    const sourcePositionsToMarkNodes =
+        await this._sourcePositionsToMarkNodesPromise;
     // Remove all marked nodes.
-    for (let markNode of this._sourcePositionsToMarkNodes.values()) {
+    for (let markNode of sourcePositionsToMarkNodes.values()) {
       markNode.className = '';
     }
     for (let sourcePosition of this._selectedSourcePositions) {
       if (sourcePosition.script !== this._script) continue;
-      this._sourcePositionsToMarkNodes.get(sourcePosition).className = 'marked';
+      sourcePositionsToMarkNodes.get(sourcePosition).className = 'marked';
     }
-    this._scrollToFirstSourcePosition()
+    this._scrollToFirstSourcePosition(sourcePositionsToMarkNodes)
   }
 
-  _scrollToFirstSourcePosition() {
+  _scrollToFirstSourcePosition(sourcePositionsToMarkNodes) {
     const sourcePosition = this._selectedSourcePositions.find(
         each => each.script === this._script);
     if (!sourcePosition) return;
-    const markNode = this._sourcePositionsToMarkNodes.get(sourcePosition);
+    const markNode = sourcePositionsToMarkNodes.get(sourcePosition);
     markNode.scrollIntoView(
         {behavior: 'auto', block: 'center', inline: 'center'});
   }
@@ -130,19 +147,59 @@ DOM.defineCustomElement('view/script-panel',
   }
 
   handleSourcePositionMouseOver(e) {
-    const entries = e.target.sourcePosition.entries;
+    const sourcePosition = e.target.sourcePosition;
+    const entries = sourcePosition.entries;
     let text = groupBy(entries, each => each.constructor, true)
                    .map(group => {
-                     let text = `${group.key.name}: ${group.count}\n`
+                     let text = `${group.key.name}: ${group.length}\n`
                      text += groupBy(group.entries, each => each.type, true)
                                  .map(group => {
-                                   return `  - ${group.key}: ${group.count}`;
+                                   return `  - ${group.key}: ${group.length}`;
                                  })
                                  .join('\n');
                      return text;
                    })
                    .join('\n');
-    this.dispatchEvent(new ToolTipEvent(text, e.target));
+
+    let sourceMapContent;
+    switch (this._script.sourceMapState) {
+      case 'loaded': {
+        const originalPosition = sourcePosition.originalPosition;
+        if (originalPosition.source === null) {
+          sourceMapContent =
+              DOM.element('i', {textContent: 'no source mapping for location'});
+        } else {
+          sourceMapContent = DOM.element('a', {
+            href: `${originalPosition.source}`,
+            target: '_blank',
+            textContent: `${originalPosition.source}:${originalPosition.line}:${
+                originalPosition.column}`
+          });
+        }
+        break;
+      }
+      case 'loading':
+        sourceMapContent =
+            DOM.element('i', {textContent: 'source map still loading...'});
+        break;
+      case 'failed':
+        sourceMapContent =
+            DOM.element('i', {textContent: 'source map failed to load'});
+        break;
+      case 'none':
+        sourceMapContent = DOM.element('i', {textContent: 'no source map'});
+        break;
+      default:
+        break;
+    }
+
+    const toolTipContent = DOM.div({
+      children: [
+        DOM.element('pre', {className: 'textContent', textContent: text}),
+        sourceMapContent
+      ]
+    });
+    this.dispatchEvent(new ToolTipEvent(toolTipContent, e.target));
   }
 });
 
@@ -180,9 +237,9 @@ class SourcePositionIterator {
   }
 }
 
-function* lineIterator(source) {
+function* lineIterator(source, startLine) {
   let current = 0;
-  let line = 1;
+  let line = startLine;
   while (current < source.length) {
     const next = source.indexOf('\n', current);
     if (next === -1) break;
@@ -209,37 +266,42 @@ class LineBuilder {
   _script;
   _clickHandler;
   _mouseoverHandler;
-  _sourcePositions;
   _sourcePositionToMarkers = new Map();
 
   constructor(panel, script) {
     this._script = script;
     this._clickHandler = panel.handleSourcePositionClick.bind(panel);
     this._mouseoverHandler = panel.handleSourcePositionMouseOver.bind(panel);
-    // TODO: sort on script finalization.
-    script.sourcePositions.sort((a, b) => {
-      if (a.line === b.line) return a.column - b.column;
-      return a.line - b.line;
-    });
-    this._sourcePositions = new SourcePositionIterator(script.sourcePositions);
   }
 
   get sourcePositionToMarkers() {
     return this._sourcePositionToMarkers;
   }
 
-  createScriptNode() {
+  async createScriptNode(startLine) {
     const scriptNode = DOM.div('scriptNode');
-    for (let [lineIndex, line] of lineIterator(this._script.source)) {
-      scriptNode.appendChild(this._createLineNode(lineIndex, line));
+
+    // TODO: sort on script finalization.
+    this._script.sourcePositions.sort((a, b) => {
+      if (a.line === b.line) return a.column - b.column;
+      return a.line - b.line;
+    });
+
+    const sourcePositionsIterator =
+        new SourcePositionIterator(this._script.sourcePositions);
+    scriptNode.style.counterReset = `sourceLineCounter ${startLine - 1}`;
+    for (let [lineIndex, line] of lineIterator(
+             this._script.source, startLine)) {
+      scriptNode.appendChild(
+          this._createLineNode(sourcePositionsIterator, lineIndex, line));
     }
     return scriptNode;
   }
 
-  _createLineNode(lineIndex, line) {
+  _createLineNode(sourcePositionsIterator, lineIndex, line) {
     const lineNode = DOM.span();
     let columnIndex = 0;
-    for (const sourcePosition of this._sourcePositions.forLine(lineIndex)) {
+    for (const sourcePosition of sourcePositionsIterator.forLine(lineIndex)) {
       const nextColumnIndex = sourcePosition.column - 1;
       lineNode.appendChild(document.createTextNode(
           line.substring(columnIndex, nextColumnIndex)));
@@ -263,10 +325,14 @@ class LineBuilder {
     marker.onmouseover = this._mouseoverHandler;
 
     const entries = sourcePosition.entries;
-    const stops = gradientStopsFromGroups(
-        entries.length, '%', groupBy(entries, entry => entry.constructor),
-        type => LineBuilder.colorMap.get(type));
-    marker.style.backgroundImage = `linear-gradient(0deg,${stops.join(',')})`
+    const groups = groupBy(entries, entry => entry.constructor);
+    if (groups.length > 1) {
+      const stops = gradientStopsFromGroups(
+          entries.length, '%', groups, type => LineBuilder.colorMap.get(type));
+      marker.style.backgroundImage = `linear-gradient(0deg,${stops.join(',')})`
+    } else {
+      marker.style.backgroundColor = LineBuilder.colorMap.get(groups[0].key)
+    }
 
     return marker;
   }

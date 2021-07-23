@@ -2146,9 +2146,9 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   FlagsContinuation* cont) {
   if (cont->IsSelect()) {
     Arm64OperandGenerator g(selector);
-    InstructionOperand inputs[] = { left, right,
-                                    g.UseRegister(cont->true_value()),
-                                    g.UseRegister(cont->false_value()) };
+    InstructionOperand inputs[] = {left, right,
+                                   g.UseRegister(cont->true_value()),
+                                   g.UseRegister(cont->false_value())};
     selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
   } else {
     selector->EmitWithContinuation(opcode, left, right, cont);
@@ -3563,7 +3563,7 @@ void InstructionSelector::VisitS128Const(Node* node) {
   static const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   STATIC_ASSERT(sizeof(val) == kSimd128Size);
-  base::Memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   InstructionOperand dst = g.DefineAsRegister(node);
@@ -3721,7 +3721,7 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
        arraysize(temps), temps);
 }
 
-#define VISIT_SIMD_ADD(Type)                                                   \
+#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                           \
   void InstructionSelector::Visit##Type##Add(Node* node) {                     \
     Arm64OperandGenerator g(this);                                             \
     Node* left = node->InputAt(0);                                             \
@@ -3739,11 +3739,47 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
            g.UseRegister(right->InputAt(1)));                                  \
       return;                                                                  \
     }                                                                          \
+    /* Select Sadalp(x, y) for Add(x, ExtAddPairwiseS(y)). */                  \
+    if (right->opcode() ==                                                     \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S &&              \
+        CanCover(node, right)) {                                               \
+      Emit(kArm64Sadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                     \
+           g.UseRegister(right->InputAt(0)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Sadalp(y, x) for Add(ExtAddPairwiseS(x), y). */                  \
+    if (left->opcode() ==                                                      \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S &&              \
+        CanCover(node, left)) {                                                \
+      Emit(kArm64Sadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(right),                    \
+           g.UseRegister(left->InputAt(0)));                                   \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Uadalp(x, y) for Add(x, ExtAddPairwiseU(y)). */                  \
+    if (right->opcode() ==                                                     \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, right)) {                                               \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                     \
+           g.UseRegister(right->InputAt(0)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Uadalp(y, x) for Add(ExtAddPairwiseU(x), y). */                  \
+    if (left->opcode() ==                                                      \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, left)) {                                                \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(right),                    \
+           g.UseRegister(left->InputAt(0)));                                   \
+      return;                                                                  \
+    }                                                                          \
     VisitRRR(this, kArm64##Type##Add, node);                                   \
   }
 
-VISIT_SIMD_ADD(I32x4)
-VISIT_SIMD_ADD(I16x8)
+VISIT_SIMD_ADD(I32x4, I16x8, 32)
+VISIT_SIMD_ADD(I16x8, I8x16, 16)
 #undef VISIT_SIMD_ADD
 
 #define VISIT_SIMD_SUB(Type)                                                  \

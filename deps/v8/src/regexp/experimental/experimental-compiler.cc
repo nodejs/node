@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-compiler.h"
 
+#include "src/base/strings.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -14,7 +15,7 @@ namespace {
 
 // TODO(mbid, v8:10765): Currently the experimental engine doesn't support
 // UTF-16, but this shouldn't be too hard to implement.
-constexpr uc32 kMaxSupportedCodepoint = 0xFFFFu;
+constexpr base::uc32 kMaxSupportedCodepoint = 0xFFFFu;
 
 class CanBeHandledVisitor final : private RegExpVisitor {
   // Visitor to implement `ExperimentalRegExp::CanBeHandled`.
@@ -229,7 +230,7 @@ class BytecodeAssembler {
     code_.Add(RegExpInstruction::ClearRegister(register_index), zone_);
   }
 
-  void ConsumeRange(uc16 from, uc16 to) {
+  void ConsumeRange(base::uc16 from, base::uc16 to) {
     code_.Add(RegExpInstruction::ConsumeRange(from, to), zone_);
   }
 
@@ -402,16 +403,18 @@ class CompileVisitor : private RegExpVisitor {
 
     CompileDisjunction(ranges->length(), [&](int i) {
       // We don't support utf16 for now, so only ranges that can be specified
-      // by (complements of) ranges with uc16 bounds.
-      STATIC_ASSERT(kMaxSupportedCodepoint <= std::numeric_limits<uc16>::max());
+      // by (complements of) ranges with base::uc16 bounds.
+      STATIC_ASSERT(kMaxSupportedCodepoint <=
+                    std::numeric_limits<base::uc16>::max());
 
-      uc32 from = (*ranges)[i].from();
+      base::uc32 from = (*ranges)[i].from();
       DCHECK_LE(from, kMaxSupportedCodepoint);
-      uc16 from_uc16 = static_cast<uc16>(from);
+      base::uc16 from_uc16 = static_cast<base::uc16>(from);
 
-      uc32 to = (*ranges)[i].to();
+      base::uc32 to = (*ranges)[i].to();
       DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == String::kMaxCodePoint);
-      uc16 to_uc16 = static_cast<uc16>(std::min(to, kMaxSupportedCodepoint));
+      base::uc16 to_uc16 =
+          static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));
 
       assembler_.ConsumeRange(from_uc16, to_uc16);
     });
@@ -419,7 +422,7 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitAtom(RegExpAtom* node, void*) override {
-    for (uc16 c : node->data()) {
+    for (base::uc16 c : node->data()) {
       assembler_.ConsumeRange(c, c);
     }
     return nullptr;

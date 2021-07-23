@@ -66,7 +66,8 @@ void RunInStore(Store* store, ZoneBuffer* wire_bytes, int iterations) {
 TEST_F(WasmCapiTest, InstanceFinalization) {
   // Add a dummy function: f(x) { return x; }
   byte code[] = {WASM_RETURN1(WASM_LOCAL_GET(0))};
-  AddExportedFunction(CStrVector("f"), code, sizeof(code), wasm_i_i_sig());
+  AddExportedFunction(base::CStrVector("f"), code, sizeof(code),
+                      wasm_i_i_sig());
   Compile();
   g_instances_finalized = 0;
   g_functions_finalized = 0;
@@ -117,8 +118,9 @@ void FinalizeHostData(void* data) {
 }  // namespace
 
 TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
-  uint32_t func_index = builder()->AddImport(CStrVector("f"), wasm_i_i_sig());
-  builder()->ExportImportedFunction(CStrVector("f"), func_index);
+  uint32_t func_index =
+      builder()->AddImport(base::CStrVector("f"), wasm_i_i_sig());
+  builder()->ExportImportedFunction(base::CStrVector("f"), func_index);
   Compile();
   own<Instance> instance;
   void* kHostData = reinterpret_cast<void*>(1234);

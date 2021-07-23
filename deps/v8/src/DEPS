@@ -5,7 +5,7 @@ include_rules = [
   "+src/asmjs/asm-js.h",
   "-src/baseline",
   "+src/baseline/baseline.h",
-  "+src/baseline/baseline-osr-inl.h",
+  "+src/baseline/baseline-batch-compiler.h",
   "+src/baseline/bytecode-offset-iterator.h",
   "-src/bigint",
   "+src/bigint/bigint.h",
@@ -71,6 +71,9 @@ specific_include_rules = {
     "+include/libplatform/libplatform.h",
     "+include/libplatform/v8-tracing.h",
     "+perfetto/tracing.h"
+  ],
+  "d8-platforms\.cc": [
+    "+include/libplatform/libplatform.h",
   ],
   "builtins-trace\.cc": [
     "+protos/perfetto",

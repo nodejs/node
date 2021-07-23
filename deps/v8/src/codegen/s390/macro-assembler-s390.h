@@ -77,16 +77,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void NearestIntF32(DoubleRegister dst, DoubleRegister src);
   void NearestIntF64(DoubleRegister dst, DoubleRegister src);
 
-  void LoadFromConstantsTable(Register destination,
-                              int constant_index) override;
-  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
-  void LoadRootRelative(Register destination, int32_t offset) override;
+  void LoadFromConstantsTable(Register destination, int constant_index) final;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
+  void LoadRootRelative(Register destination, int32_t offset) final;
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(const ExternalReference& reference) override;
+  void Jump(const ExternalReference& reference);
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     TestIfSmi(value);
@@ -104,7 +103,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+  void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
@@ -123,12 +122,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void LoadCodeObjectEntry(Register destination, Register code_object) override;
-  void CallCodeObject(Register code_object) override;
+  void LoadCodeObjectEntry(Register destination, Register code_object);
+  void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
-                      JumpMode jump_mode = JumpMode::kJump) override;
+                      JumpMode jump_mode = JumpMode::kJump);
 
-  void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltinByIndex(Register builtin_index);
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
@@ -153,17 +152,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void BranchRelativeOnIdxHighP(Register dst, Register inc, Label* L);
 
-  void SaveRegisters(RegList registers);
-  void RestoreRegisters(RegList registers);
+  void MaybeSaveRegisters(RegList registers);
+  void MaybeRestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
-  void CallEphemeronKeyBarrier(Register object, Register address,
+  void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStubSaveRegisters(
+      Register object, Register slot_address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+  void CallRecordWriteStub(
+      Register object, Register slot_address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
@@ -173,6 +175,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void MultiPushV128(RegList dregs, Register location = sp);
   void MultiPopV128(RegList dregs, Register location = sp);
+
+  void MultiPushF64OrV128(RegList dregs, Register location = sp);
+  void MultiPopF64OrV128(RegList dregs, Register location = sp);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -851,8 +856,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
 
-  void Trap() override;
-  void DebugBreak() override;
+  void Trap();
+  void DebugBreak();
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
@@ -1070,11 +1075,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
-
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
@@ -1196,9 +1196,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // StatsCounter support
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
-                        Register scratch2);
+                        Register scratch2) {
+    if (!FLAG_native_code_counters) return;
+    EmitIncrementCounter(counter, value, scratch1, scratch2);
+  }
+  void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch1,
+                            Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
-                        Register scratch2);
+                        Register scratch2) {
+    if (!FLAG_native_code_counters) return;
+    EmitDecrementCounter(counter, value, scratch1, scratch2);
+  }
+  void EmitDecrementCounter(StatsCounter* counter, int value, Register scratch1,
+                            Register scratch2);
 
   // ---------------------------------------------------------------------------
   // Stack limit utilities
@@ -1352,7 +1362,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(
-      Register object, int offset, Register value, Register scratch,
+      Register object, int offset, Register value, Register slot_address,
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
       SmiCheck smi_check = SmiCheck::kInline);
@@ -1361,7 +1371,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
   void RecordWrite(
-      Register object, Register address, Register value,
+      Register object, Register slot_address, Register value,
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
       SmiCheck smi_check = SmiCheck::kInline);

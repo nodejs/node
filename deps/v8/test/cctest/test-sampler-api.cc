@@ -23,10 +23,10 @@ class Sample {
   const_iterator end() const { return &data_[data_.length()]; }
 
   int size() const { return data_.length(); }
-  v8::internal::Vector<void*>& data() { return data_; }
+  v8::base::Vector<void*>& data() { return data_; }
 
  private:
-  v8::internal::EmbeddedVector<void*, kFramesLimit> data_;
+  v8::base::EmbeddedVector<void*, kFramesLimit> data_;
 };
 
 

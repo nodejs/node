@@ -3219,42 +3219,22 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
 
 int32_t Simulator::FPToInt32(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kWMaxInt) {
-    return kWMaxInt;
-  } else if (value < kWMinInt) {
-    return kWMinInt;
-  }
-  return std::isnan(value) ? 0 : static_cast<int32_t>(value);
+  return base::saturated_cast<int32_t>(value);
 }
 
 int64_t Simulator::FPToInt64(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kXMaxInt) {
-    return kXMaxInt;
-  } else if (value < kXMinInt) {
-    return kXMinInt;
-  }
-  return std::isnan(value) ? 0 : static_cast<int64_t>(value);
+  return base::saturated_cast<int64_t>(value);
 }
 
 uint32_t Simulator::FPToUInt32(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kWMaxUInt) {
-    return kWMaxUInt;
-  } else if (value < 0.0) {
-    return 0;
-  }
-  return std::isnan(value) ? 0 : static_cast<uint32_t>(value);
+  return base::saturated_cast<uint32_t>(value);
 }
 
 uint64_t Simulator::FPToUInt64(double value, FPRounding rmode) {
   value = FPRoundInt(value, rmode);
-  if (value >= kXMaxUInt) {
-    return kXMaxUInt;
-  } else if (value < 0.0) {
-    return 0;
-  }
-  return std::isnan(value) ? 0 : static_cast<uint64_t>(value);
+  return base::saturated_cast<uint64_t>(value);
 }
 
 #define DEFINE_NEON_FP_VECTOR_OP(FN, OP, PROCNAN)                      \

@@ -4,7 +4,7 @@
 
 // Flags: --no-enable-avx
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Carefully hand-crafted test case to exercie a codegen bug in Liftoff.  In
 // i64x2.mul, non-AVX case, we will overwrite rhs if dst == rhs. The intention

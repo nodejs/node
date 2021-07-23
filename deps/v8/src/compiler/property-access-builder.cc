@@ -4,17 +4,19 @@
 
 #include "src/compiler/property-access-builder.h"
 
+#include "src/base/optional.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects/heap-number.h"
-#include "src/objects/lookup.h"
-
 #include "src/execution/isolate-inl.h"
 #include "src/objects/field-index-inl.h"
+#include "src/objects/heap-number.h"
+#include "src/objects/internal-index.h"
+#include "src/objects/lookup.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -127,7 +129,7 @@ Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* lookup_start_object) {
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    return jsgraph()->Constant(ObjectRef(broker(), holder));
+    return jsgraph()->Constant(MakeRef(broker(), holder));
   }
   return lookup_start_object;
 }
@@ -148,15 +150,17 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
   }
 }
 
-Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
+base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
     PropertyAccessInfo const& access_info) {
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
 
   JSObjectRef holder =
       MakeRef(broker(), access_info.holder().ToHandleChecked());
+  InternalIndex index = access_info.dictionary_index();
   base::Optional<ObjectRef> value =
-      holder.GetOwnDictionaryProperty(access_info.dictionary_index());
+      holder.GetOwnDictionaryProperty(index, dependencies());
+  if (!value) return {};
 
   for (Handle<Map> map : access_info.lookup_start_object_maps()) {
     // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
@@ -168,7 +172,7 @@ Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
           Map::GetConstructorFunction(
               *map, *broker()->target_native_context().object())
               .value();
-      map = handle(constructor.initial_map(), isolate());
+      map = MakeRef(broker(), constructor.initial_map()).object();
       DCHECK(map->IsJSObjectMap());
     }
     dependencies()->DependOnConstantInDictionaryPrototypeChain(
@@ -209,7 +213,8 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
 
   JSObjectRef holder_ref = MakeRef(broker(), holder);
   base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
-      access_info.field_representation(), access_info.field_index());
+      access_info.field_representation(), access_info.field_index(),
+      dependencies());
   if (!value.has_value()) {
     return nullptr;
   }

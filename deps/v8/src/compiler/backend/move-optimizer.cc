@@ -76,7 +76,6 @@ class OperandSet {
           break;
         default:
           UNREACHABLE();
-          break;
       }
       const RegisterConfiguration* config = RegisterConfiguration::Default();
       int base = -1;

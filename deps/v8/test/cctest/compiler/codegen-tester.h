@@ -82,7 +82,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->ExportForTest();
       auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(), kind_);
+      OptimizedCompilationInfo info(base::ArrayVector("testing"), main_zone(),
+                                    kind_);
       code_ = Pipeline::GenerateCodeForTesting(
           &info, main_isolate(), call_descriptor, graph,
           AssemblerOptions::Default(main_isolate()), schedule);

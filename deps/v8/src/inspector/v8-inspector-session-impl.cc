@@ -496,8 +496,8 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 }
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
-    StringView occassion) {
-  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occassion));
+    StringView occasion) {
+  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
 
 }  // namespace v8_inspector

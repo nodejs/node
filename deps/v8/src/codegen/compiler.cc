@@ -43,7 +43,9 @@
 #include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/logging/log-inl.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
@@ -628,7 +630,6 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
   DCHECK_EQ(shared_info.language_mode(), literal->language_mode());
 
   shared_info.set_has_duplicate_parameters(literal->has_duplicate_parameters());
-  shared_info.set_is_oneshot_iife(literal->is_oneshot_iife());
   shared_info.UpdateAndFinalizeExpectedNofPropertiesFromEstimate(literal);
   if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info.DisableOptimization(literal->dont_optimize_reason());
@@ -640,57 +641,6 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
       literal->has_static_private_methods_or_accessors());
 
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
-}
-
-bool CompileSharedWithBaseline(Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared,
-                               Compiler::ClearExceptionFlag flag,
-                               IsCompiledScope* is_compiled_scope) {
-  // We shouldn't be passing uncompiled functions into this function.
-  DCHECK(is_compiled_scope->is_compiled());
-
-  // Early return for already baseline-compiled functions.
-  if (shared->HasBaselineData()) return true;
-
-  // Check if we actually can compile with baseline.
-  if (!CanCompileWithBaseline(isolate, *shared)) return false;
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    if (flag == Compiler::KEEP_EXCEPTION) {
-      isolate->StackOverflow();
-    }
-    return false;
-  }
-
-  CompilerTracer::TraceStartBaselineCompile(isolate, shared);
-  Handle<Code> code;
-  base::TimeDelta time_taken;
-  {
-    ScopedTimer timer(&time_taken);
-    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
-      // TODO(leszeks): This can only fail because of an OOM. Do we want to
-      // report these somehow, or silently ignore them?
-      return false;
-    }
-
-    Handle<HeapObject> function_data =
-        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
-    Handle<BaselineData> baseline_data =
-        isolate->factory()->NewBaselineData(code, function_data);
-    shared->set_baseline_data(*baseline_data);
-  }
-  double time_taken_ms = time_taken.InMillisecondsF();
-
-  CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
-
-  if (shared->script().IsScript()) {
-    Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG, shared,
-        handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
-  }
-  return true;
 }
 
 // Finalize a single compilation job. This function can return
@@ -1362,8 +1312,8 @@ void CompileAllWithBaseline(Isolate* isolate,
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
     if (!CanCompileWithBaseline(isolate, *shared_info)) continue;
-    CompileSharedWithBaseline(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
-                              &is_compiled_scope);
+    Compiler::CompileSharedWithBaseline(
+        isolate, shared_info, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
   }
 }
 
@@ -1533,7 +1483,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
                                              Isolate* isolate, ScriptType type)
     : flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(FLAG_use_strict),
-          REPLMode::kNo, type)),
+          REPLMode::kNo, type, FLAG_lazy_streaming)),
       compile_state_(isolate),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
       isolate_for_local_isolate_(isolate),
@@ -1659,7 +1609,7 @@ void BackgroundCompileTask::Run() {
   // Save the language mode.
   language_mode_ = info_->language_mode();
 
-  if (!FLAG_finalize_streaming_on_background || info_->flags().is_module()) {
+  if (!FLAG_finalize_streaming_on_background) {
     if (info_->literal() != nullptr) {
       CompileOnBackgroundThread(info_.get(), compile_state_.allocator(),
                                 &compilation_jobs_);
@@ -1773,9 +1723,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
-  flags.set_is_lazy_compile(true);
   flags.set_collect_source_positions(true);
-  flags.set_allow_natives_syntax(FLAG_allow_natives_syntax);
 
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
@@ -1850,7 +1798,6 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
-  flags.set_is_lazy_compile(true);
 
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
@@ -1976,6 +1923,63 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
+  return true;
+}
+
+// static
+bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
+                                         Handle<SharedFunctionInfo> shared,
+                                         Compiler::ClearExceptionFlag flag,
+                                         IsCompiledScope* is_compiled_scope) {
+  // We shouldn't be passing uncompiled functions into this function.
+  DCHECK(is_compiled_scope->is_compiled());
+
+  // Early return for already baseline-compiled functions.
+  if (shared->HasBaselineData()) return true;
+
+  // Check if we actually can compile with baseline.
+  if (!CanCompileWithBaseline(isolate, *shared)) return false;
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    if (flag == Compiler::KEEP_EXCEPTION) {
+      isolate->StackOverflow();
+    }
+    return false;
+  }
+
+  CompilerTracer::TraceStartBaselineCompile(isolate, shared);
+  Handle<Code> code;
+  base::TimeDelta time_taken;
+  {
+    ScopedTimer timer(&time_taken);
+    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
+      // TODO(leszeks): This can only fail because of an OOM. Do we want to
+      // report these somehow, or silently ignore them?
+      return false;
+    }
+
+    Handle<HeapObject> function_data =
+        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
+    Handle<BaselineData> baseline_data =
+        isolate->factory()->NewBaselineData(code, function_data);
+    shared->set_baseline_data(*baseline_data);
+    if (V8_LIKELY(FLAG_use_osr)) {
+      // Arm back edges for OSR
+      shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
+          AbstractCode::kMaxLoopNestingMarker);
+    }
+  }
+  double time_taken_ms = time_taken.InMillisecondsF();
+
+  CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
+
+  if (shared->script().IsScript()) {
+    Compiler::LogFunctionCompilation(
+        isolate, CodeEventListener::FUNCTION_TAG, shared,
+        handle(Script::cast(shared->script()), isolate),
+        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
+  }
   return true;
 }
 
@@ -2142,7 +2146,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
-        isolate, true, language_mode, REPLMode::kNo);
+        isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
+        FLAG_lazy_eval);
     flags.set_is_eval(true);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
@@ -2873,7 +2878,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
               isolate, natives == NOT_NATIVES_CODE, language_mode,
               script_details.repl_mode,
               origin_options.IsModule() ? ScriptType::kModule
-                                        : ScriptType::kClassic);
+                                        : ScriptType::kClassic,
+              FLAG_lazy);
 
       flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
 
@@ -2941,7 +2947,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   IsCompiledScope is_compiled_scope;
   if (!maybe_result.ToHandle(&wrapped)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
-        isolate, true, language_mode, script_details.repl_mode);
+        isolate, true, language_mode, script_details.repl_mode,
+        ScriptType::kClassic, FLAG_lazy);
     flags.set_is_eval(true);  // Use an eval scope as declaration scope.
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
     // TODO(delphick): Remove this and instead make the wrapped and wrapper
@@ -3027,7 +3034,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     DCHECK_EQ(task->flags().is_module(), origin_options.IsModule());
 
     Handle<Script> script;
-    if (FLAG_finalize_streaming_on_background && !origin_options.IsModule()) {
+    if (FLAG_finalize_streaming_on_background) {
       RCS_SCOPE(isolate,
                 RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),

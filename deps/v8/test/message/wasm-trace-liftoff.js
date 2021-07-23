@@ -4,7 +4,7 @@
 
 // Flags: --trace-wasm --no-wasm-tier-up --liftoff --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 let kRet23Function = builder.addFunction('ret_23', kSig_i_v)

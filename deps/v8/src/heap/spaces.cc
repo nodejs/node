@@ -246,9 +246,15 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
+void Space::PauseAllocationObservers() {
+  allocation_observers_paused_depth_++;
+  if (allocation_observers_paused_depth_ == 1) allocation_counter_.Pause();
+}
 
-void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
+void Space::ResumeAllocationObservers() {
+  allocation_observers_paused_depth_--;
+  if (allocation_observers_paused_depth_ == 0) allocation_counter_.Resume();
+}
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {

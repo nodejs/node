@@ -5,6 +5,7 @@
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
 #include "include/v8-inspector.h"
+#include "include/v8-platform.h"
 #include "include/v8-profiler.h"
 #include "include/v8-version.h"
 #include "src/base/platform/mutex.h"

@@ -283,7 +283,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (tasm()->options().inline_offheap_trampolines) {
-      __ CallBuiltin(Builtins::kDoubleToI);
+      __ CallBuiltin(Builtin::kDoubleToI);
     } else {
       __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
@@ -317,6 +317,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
+    DCHECK(!AreAliased(object, scratch0, scratch1));
+    DCHECK(!AreAliased(value, scratch0, scratch1));
   }
 
   void Generate() final {
@@ -337,12 +339,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                             save_fp_mode, wasm::WasmCode::kRecordWrite);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
+                                          remembered_set_action, save_fp_mode,
+                                          StubCallMode::kCallWasmRuntimeStub);
     } else {
 #endif  // V8_ENABLE_WEBASSEMBLY
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                             save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
+                                          remembered_set_action, save_fp_mode);
     }
   }
 
@@ -925,9 +928,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(
-            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
-            RelocInfo::CODE_TARGET);
+        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSAAssert),
+                RelocInfo::CODE_TARGET);
       }
       __ int3();
       break;
@@ -4604,9 +4606,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
-  // We might need ecx and edx for scratch.
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & edx.bit());
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & ecx.bit());
   IA32OperandConverter g(this, nullptr);
   int parameter_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
 
@@ -4626,9 +4625,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // If {parameter_slots} == 0, it means it is a builtin with
   // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
   // itself.
-  const bool drop_jsargs = frame_access_state()->has_frame() &&
-                           call_descriptor->IsJSFunctionCall() &&
-                           parameter_slots != 0;
+
+  const bool drop_jsargs = parameter_slots != 0 &&
+                           frame_access_state()->has_frame() &&
+                           call_descriptor->IsJSFunctionCall();
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
@@ -4646,6 +4646,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     if (drop_jsargs) {
       // Get the actual argument count.
       __ mov(argc_reg, Operand(ebp, StandardFrameConstants::kArgCOffset));
+      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
     }
     AssembleDeconstructFrame();
   }
@@ -4659,6 +4660,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Label mismatch_return;
     Register scratch_reg = edx;
     DCHECK_NE(argc_reg, scratch_reg);
+    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
     __ cmp(argc_reg, Immediate(parameter_slots_without_receiver));
     __ j(greater, &mismatch_return, Label::kNear);
     __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
@@ -4670,14 +4673,24 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   } else if (additional_pop_count->IsImmediate()) {
-    Register scratch_reg = ecx;
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
-    CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
-    __ Ret(static_cast<int>(pop_size), scratch_reg);
+    if (is_uint16(pop_size)) {
+      // Avoid the additional scratch register, it might clobber the
+      // CalleeSavedRegisters.
+      __ ret(static_cast<int>(pop_size));
+    } else {
+      Register scratch_reg = ecx;
+      DCHECK_EQ(0u,
+                call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
+      CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
+      __ Ret(static_cast<int>(pop_size), scratch_reg);
+    }
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     Register scratch_reg = pop_reg == ecx ? edx : ecx;
+    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
+    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & pop_reg.bit());
     int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
     __ lea(esp, Operand(esp, pop_reg, times_system_pointer_size,

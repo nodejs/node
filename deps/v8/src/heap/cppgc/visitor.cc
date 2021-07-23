@@ -55,7 +55,7 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
 
   if (!page) return;
 
-  DCHECK_EQ(&heap_, page->heap());
+  DCHECK_EQ(&heap_, &page->heap());
 
   auto* header = page->TryObjectHeaderFromInnerAddress(
       const_cast<Address>(reinterpret_cast<ConstAddress>(address)));

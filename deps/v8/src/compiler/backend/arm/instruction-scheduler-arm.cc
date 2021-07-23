@@ -106,6 +106,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVmovF64U32U32:
     case kArmVmovU32U32F64:
     case kArmVcnt:
+    case kArmVpadal:
     case kArmVpaddl:
     case kArmFloat32Max:
     case kArmFloat64Max:

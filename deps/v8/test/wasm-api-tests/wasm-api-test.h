@@ -71,7 +71,7 @@ class WasmCapiTest : public ::testing::Test {
     exports_ = instance_->exports();
   }
 
-  void AddExportedFunction(Vector<const char> name, byte code[],
+  void AddExportedFunction(base::Vector<const char> name, byte code[],
                            size_t code_size, FunctionSig* sig) {
     WasmFunctionBuilder* fun = builder()->AddFunction(sig);
     fun->EmitCode(code, static_cast<uint32_t>(code_size));

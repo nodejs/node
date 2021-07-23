@@ -16,7 +16,7 @@ WASM_EXEC_TEST(TryCatchThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -41,7 +41,7 @@ WASM_EXEC_TEST(TryCatchThrowWithValue) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_i());
+  byte except = r.builder().AddException(sigs.v_i());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -67,8 +67,8 @@ WASM_EXEC_TEST(TryMultiCatchThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except1 = r.builder().AddException(sigs.v_v());
-  uint32_t except2 = r.builder().AddException(sigs.v_v());
+  byte except1 = r.builder().AddException(sigs.v_v());
+  byte except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -99,7 +99,7 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -123,8 +123,8 @@ WASM_EXEC_TEST(TryCatchCatchAllThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except1 = r.builder().AddException(sigs.v_v());
-  uint32_t except2 = r.builder().AddException(sigs.v_v());
+  byte except1 = r.builder().AddException(sigs.v_v());
+  byte except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -155,8 +155,8 @@ WASM_EXEC_TEST(TryImplicitRethrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except1 = r.builder().AddException(sigs.v_v());
-  uint32_t except2 = r.builder().AddException(sigs.v_v());
+  byte except1 = r.builder().AddException(sigs.v_v());
+  byte except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -186,7 +186,7 @@ WASM_EXEC_TEST(TryDelegate) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -211,35 +211,20 @@ WASM_EXEC_TEST(TryDelegate) {
   }
 }
 
-WASM_EXEC_TEST(TryUnwind) {
+WASM_EXEC_TEST(TestCatchlessTry) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
-  constexpr uint32_t kResult0 = 23;
-  constexpr uint32_t kResult1 = 42;
-
-  // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_TRY_UNWIND_T(
-                   kWasmI32,
-                   WASM_TRY_DELEGATE_T(
-                       kWasmI32,
-                       WASM_STMTS(WASM_I32V(kResult1),
-                                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                          WASM_THROW(except))),
-                       0),
-                   kExprNop),
-               WASM_I32V(kResult0), except));
-
+  WasmRunner<uint32_t> r(execution_tier);
+  byte except = r.builder().AddException(sigs.v_i());
+  BUILD(r,
+        WASM_TRY_CATCH_T(
+            kWasmI32,
+            WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+            WASM_NOP, except));
   if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
+    r.CheckCallViaJS(0);
   } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
+    CHECK_EQ(0, r.CallInterpreter());
   }
 }
 
@@ -247,8 +232,8 @@ WASM_EXEC_TEST(TryCatchRethrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except1 = r.builder().AddException(sigs.v_v());
-  uint32_t except2 = r.builder().AddException(sigs.v_v());
+  byte except1 = r.builder().AddException(sigs.v_v());
+  byte except2 = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kUnreachable = 51;
@@ -282,7 +267,7 @@ WASM_EXEC_TEST(TryDelegateToCaller) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -313,7 +298,7 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -346,7 +331,7 @@ WASM_EXEC_TEST(TryCatchAllCallDirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -379,7 +364,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -421,7 +406,7 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_v());
+  byte except = r.builder().AddException(sigs.v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -531,6 +516,10 @@ void TestTrapNotCaught(byte* code, size_t code_size,
   constexpr uint32_t kResultSuccess = 23;
   constexpr uint32_t kResultCaught = 47;
 
+  // Add an indirect function table.
+  const int kTableSize = 2;
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+
   // Build a trapping helper function.
   WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
   trap_func.Build(code, code + code_size);
@@ -574,6 +563,17 @@ WASM_EXEC_TEST(TryCatchTrapRemByZero) {
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
+WASM_EXEC_TEST(TryCatchTrapTableFill) {
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
+  int table_index = 0;
+  int length = 10;  // OOB.
+  int start = 10;   // OOB.
+  byte code[] = {WASM_TABLE_FILL(table_index, WASM_I32V(length),
+                                 WASM_REF_NULL(kFuncRefCode), WASM_I32V(start)),
+                 WASM_I32V_1(42)};
+  TestTrapNotCaught(code, arraysize(code), execution_tier);
+}
+
 namespace {
 // TODO(cleanup): Define in cctest.h and re-use where appropriate.
 class IsolateScope {
@@ -608,20 +608,22 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   LocalContext context(isolate_scope.isolate());
 
   WasmRunner<uint32_t> r(execution_tier, nullptr, "main",
-                         kRuntimeExceptionSupport, isolate_scope.i_isolate());
+                         kRuntimeExceptionSupport, kMemory32,
+                         isolate_scope.i_isolate());
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());
-  byte stack_overflow_code[] = {kExprCallFunction,
-                                stack_overflow.function_index()};
+  byte stack_overflow_code[] = {
+      kExprCallFunction, static_cast<byte>(stack_overflow.function_index())};
   stack_overflow.Build(stack_overflow_code,
                        stack_overflow_code + arraysize(stack_overflow_code));
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_ALL_T(kWasmI32,
-                                WASM_STMTS(WASM_I32V(1), kExprCallFunction,
-                                           stack_overflow.function_index()),
-                                WASM_STMTS(WASM_I32V(1))));
+  BUILD(r, WASM_TRY_CATCH_ALL_T(
+               kWasmI32,
+               WASM_STMTS(WASM_I32V(1), kExprCallFunction,
+                          static_cast<byte>(stack_overflow.function_index())),
+               WASM_STMTS(WASM_I32V(1))));
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -672,18 +674,17 @@ TEST(Regress1186795) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  uint32_t except = r.builder().AddException(sigs.v_i());
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                   WASM_TRY_UNWIND_T(
-                       kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except)),
-                       WASM_I32V(0)),
-                   WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
-                   WASM_DROP, WASM_DROP),
-               WASM_NOP, except));
+  byte except = r.builder().AddException(sigs.v_i());
+  BUILD(r,
+        WASM_TRY_CATCH_T(
+            kWasmI32,
+            WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                       WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                       WASM_TRY_T(kWasmI32,
+                                  WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+                       WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+                       WASM_DROP, WASM_DROP),
+            WASM_NOP, except));
   CHECK_EQ(0, r.CallInterpreter());
 }
 
@@ -692,11 +693,30 @@ TEST(Regress1197408) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
       TestExecutionTier::kInterpreter);
-  int sig_id = r.builder().AddSignature(sigs.i_iii());
+  byte sig_id = r.builder().AddSignature(sigs.i_iii());
   BUILD(r, WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
                       sig_id, kExprTry, sig_id, kExprCallFunction, 0,
                       kExprDelegate, 0, kExprDelegate, 0));
   CHECK_EQ(0, r.CallInterpreter(0, 0, 0));
+}
+
+TEST(Regress1212396) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  byte except = r.builder().AddException(sigs.v_v());
+  BUILD(r, kExprTry, kVoidCode, kExprTry, kVoidCode, kExprI32Const, 0,
+        kExprThrow, except, kExprDelegate, 0, kExprCatch, except, kExprEnd,
+        kExprI32Const, 42);
+  CHECK_EQ(42, r.CallInterpreter());
+}
+
+TEST(Regress1219746) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  BUILD(r, kExprTry, kVoidCode, kExprI32Const, 0, kExprEnd);
+  CHECK_EQ(0, r.CallInterpreter());
 }
 
 }  // namespace test_run_wasm_exceptions

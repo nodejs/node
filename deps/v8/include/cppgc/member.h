@@ -226,20 +226,20 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
           typename CheckingPolicy1, typename T2, typename WeaknessTag2,
           typename WriteBarrierPolicy2, typename CheckingPolicy2>
-bool operator==(
-    BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1> member1,
-    BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>
-        member2) {
+bool operator==(const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1,
+                                  CheckingPolicy1>& member1,
+                const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2,
+                                  CheckingPolicy2>& member2) {
   return member1.Get() == member2.Get();
 }
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
           typename CheckingPolicy1, typename T2, typename WeaknessTag2,
           typename WriteBarrierPolicy2, typename CheckingPolicy2>
-bool operator!=(
-    BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1> member1,
-    BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>
-        member2) {
+bool operator!=(const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1,
+                                  CheckingPolicy1>& member1,
+                const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2,
+                                  CheckingPolicy2>& member2) {
   return !(member1 == member2);
 }
 

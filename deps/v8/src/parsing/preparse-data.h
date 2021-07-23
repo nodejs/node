@@ -7,11 +7,11 @@
 
 #include <memory>
 
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/scoped-list.h"
-#include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 
@@ -168,7 +168,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
       };
       // Once the data is finalized, it lives in a Zone, this implies
       // is_finalized_ == true.
-      Vector<uint8_t> zone_byte_data_;
+      base::Vector<uint8_t> zone_byte_data_;
     };
     uint8_t free_quarters_in_last_byte_;
 
@@ -228,7 +228,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   ByteData byte_data_;
   union {
     ScopedPtrList<PreparseDataBuilder> children_buffer_;
-    Vector<PreparseDataBuilder*> children_;
+    base::Vector<PreparseDataBuilder*> children_;
   };
 
   DeclarationScope* function_scope_;

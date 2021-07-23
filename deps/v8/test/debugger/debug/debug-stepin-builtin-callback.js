@@ -37,7 +37,7 @@ function array_listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       print(event_data.sourceLineText(), breaks);
       assertTrue(event_data.sourceLineText().indexOf(`B${breaks++}`) > 0);
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
     }
   } catch (e) {
     print(e);

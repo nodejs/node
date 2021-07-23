@@ -454,6 +454,10 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
                                                  Handle<ArrayList> array,
                                                  Handle<Object> obj1,
                                                  Handle<Object> obj2);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
+                                                 Handle<ArrayList> array,
+                                                 Handle<Object> obj1, Smi obj2,
+                                                 Smi obj3, Smi obj4);
   static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which
@@ -471,6 +475,8 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   // If you need to grow the ArrayList, use the static Add() methods instead.
   inline void Set(int index, Object obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline void Set(int index, Smi obj);
 
   // Set the element at index to undefined. This does not change the Length().
   inline void Clear(int index, Object undefined);

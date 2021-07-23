@@ -20,8 +20,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// This constant is defined in the Wasm JS API spec and as such only
-// concern JS embeddings.
+// This constant limits the amount of *declared* memory. At runtime, memory can
+// only grow up to kV8MaxWasmMemoryPages.
 constexpr size_t kSpecMaxMemoryPages = 65536;
 
 // The following limits are imposed by V8 on WebAssembly modules.
@@ -35,9 +35,13 @@ constexpr size_t kV8MaxWasmExceptions = 1000000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
 // This indicates the maximum memory size our implementation supports.
-// Don't use this limit directly; use {max_mem_pages()} instead to take the
+// Do not use this limit directly; use {max_mem_pages()} instead to take the
 // spec'ed limit as well as command line flag into account.
-constexpr size_t kV8MaxWasmMemoryPages = 65536;  // = 4 GiB
+// Also, do not use this limit to validate declared memory, use
+// kSpecMaxMemoryPages for that.
+constexpr size_t kV8MaxWasmMemoryPages = kSystemPointerSize == 4
+                                             ? 32768   // = 2 GiB
+                                             : 65536;  // = 4 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7654321;
@@ -57,6 +61,7 @@ constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
 // Maximum supported by implementation: ((1<<27)-3).
 // Reason: total object size in bytes must fit into a Smi, for filler objects.
 constexpr size_t kV8MaxWasmArrayLength = 1u << 26;
+constexpr size_t kV8MaxWasmArrayInitLength = 999;
 
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");
@@ -68,16 +73,20 @@ constexpr uint64_t kWasmMaxHeapOffset =
         std::numeric_limits<uint32_t>::max())  // maximum base value
     + std::numeric_limits<uint32_t>::max();    // maximum index value
 
-// Defined in wasm-engine.cc.
+// The following functions are defined in wasm-engine.cc.
+
+// Maximum number of pages we can allocate. This might be lower than the number
+// of pages that can be declared (e.g. as maximum): kSpecMaxMemoryPages.
 // TODO(wasm): Make this size_t for wasm64. Currently the --wasm-max-mem-pages
 // flag is only uint32_t.
 V8_EXPORT_PRIVATE uint32_t max_mem_pages();
-uint32_t max_table_init_entries();
-size_t max_module_size();
 
 inline uint64_t max_mem_bytes() {
   return uint64_t{max_mem_pages()} * kWasmPageSize;
 }
+
+uint32_t max_table_init_entries();
+size_t max_module_size();
 
 }  // namespace wasm
 }  // namespace internal

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/osr-optimized-code-cache.h"
+
 #include "src/execution/isolate-inl.h"
 #include "src/objects/code.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
-
-#include "src/objects/osr-optimized-code-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -114,9 +114,10 @@ void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
     HeapObject heap_object;
     if (!code_entry->GetHeapObject(&heap_object)) continue;
 
-    DCHECK(heap_object.IsCode());
-    DCHECK(Code::cast(heap_object).is_optimized_code());
-    if (!Code::cast(heap_object).marked_for_deoptimization()) continue;
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
+    Code code = FromCodeT(CodeT::cast(heap_object));
+    DCHECK(code.is_optimized_code());
+    if (!code.marked_for_deoptimization()) continue;
 
     ClearEntry(index, isolate);
   }
@@ -145,7 +146,8 @@ Code OSROptimizedCodeCache::GetCodeFromEntry(int index) {
   HeapObject code_entry;
   Get(index + OSRCodeCacheConstants::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  return code_entry.is_null() ? Code() : Code::cast(code_entry);
+  if (code_entry.is_null()) return Code();
+  return FromCodeT(CodeT::cast(code_entry));
 }
 
 SharedFunctionInfo OSROptimizedCodeCache::GetSFIFromEntry(int index) {
@@ -192,8 +194,9 @@ void OSROptimizedCodeCache::InitializeEntry(int entry,
                                             BytecodeOffset osr_offset) {
   Set(entry + OSRCodeCacheConstants::kSharedOffset,
       HeapObjectReference::Weak(shared));
-  Set(entry + OSRCodeCacheConstants::kCachedCodeOffset,
-      HeapObjectReference::Weak(code));
+  HeapObjectReference weak_code_entry =
+      HeapObjectReference::Weak(ToCodeT(code));
+  Set(entry + OSRCodeCacheConstants::kCachedCodeOffset, weak_code_entry);
   Set(entry + OSRCodeCacheConstants::kOsrIdOffset,
       MaybeObject::FromSmi(Smi::FromInt(osr_offset.ToInt())));
 }

@@ -97,6 +97,18 @@ def GuessOS():
     return None
 
 
+# Check if Vector Enhancement Facility 1 is available on the
+# host S390 machine. This facility is required for supporting Simd on V8.
+def IsS390SimdSupported():
+  import subprocess
+  cpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True)
+  cpuinfo_list = cpuinfo.strip().decode("utf-8").splitlines()
+  facilities = "".join(x for x in cpuinfo_list if x.startswith("facilities"))
+  facilities_list = facilities.split(" ")
+  # Having bit 135 set indicates VEF1 is available.
+  return "135" in facilities_list
+
+
 # Returns power processor version, taking compatibility mode into account.
 # (Power9 running in Power8 compatibility mode returns 8)
 # Only useful if arch is ppc64

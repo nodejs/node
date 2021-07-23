@@ -97,7 +97,13 @@
     },
     'regexp': {
       'filepath': 'src/.*regexp',
-    }
+    },
+    'bazel': {
+      'filepath': 'BUILD.gn' \
+                  '|BUILD.bazel' \
+                  '|WORKSPACE' \
+                  '|bazel/'
+    },
   },
 
   'WATCHLISTS': {
@@ -155,6 +161,9 @@
     'regexp': [
       'jgruber+watch@chromium.org',
       'pthier+watch@chromium.org'
+    ],
+    'bazel' : [
+      'victorgomes+watch@chromium.org'
     ],
   },
 }

@@ -24,18 +24,18 @@ Debug.setListener(listener);
 var late_resolve;
 
 function g() {
-  return new Promise(  // B2 StepIn
+  return new Promise(  // B2 StepInto
     function(res, rej) {
-      late_resolve = res;  // B3 StepIn
-    }                      // B4 StepIn
-  );                       // B5 StepIn
+      late_resolve = res;  // B3 StepInto
+    }                      // B4 StepInto
+  );                       // B5 StepInto
 }
 
 async function f() {
   var a = 1;
-  debugger;            // B0 StepNext
+  debugger;            // B0 StepOver
   a +=
-       await           // B1 StepIn
+       await           // B1 StepInto
              g();
   return a;            // B6 Continue
 }

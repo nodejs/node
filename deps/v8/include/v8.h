@@ -50,6 +50,7 @@ class CFunction;
 class CallHandlerHelper;
 class Context;
 class CppHeap;
+class CTypeInfo;
 class Data;
 class Date;
 class EscapableHandleScope;
@@ -885,6 +886,8 @@ class TracedReferenceBase {
         std::memory_order_relaxed);
   }
 
+  V8_EXPORT void CheckValue() const;
+
   // val_ points to a GlobalHandles node.
   internal::Address* val_ = nullptr;
 
@@ -926,8 +929,18 @@ class BasicTracedReference : public TracedReferenceBase {
         const_cast<BasicTracedReference<T>&>(*this));
   }
 
-  T* operator->() const { return reinterpret_cast<T*>(val_); }
-  T* operator*() const { return reinterpret_cast<T*>(val_); }
+  T* operator->() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
+  T* operator*() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
 
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };
@@ -4425,6 +4438,7 @@ class V8_EXPORT Array : public Object {
   static Local<Array> New(Isolate* isolate, Local<Value>* elements,
                           size_t length);
   V8_INLINE static Array* Cast(Value* obj);
+
  private:
   Array();
   static void CheckCast(Value* obj);
@@ -4899,6 +4913,12 @@ class V8_EXPORT Promise : public Object {
    * Marks this promise as handled to avoid reporting unhandled rejections.
    */
   void MarkAsHandled();
+
+  /**
+   * Marks this promise as silent to prevent pausing the debugger when the
+   * promise is rejected.
+   */
+  void MarkAsSilent();
 
   V8_INLINE static Promise* Cast(Value* obj);
 
@@ -6073,7 +6093,8 @@ class V8_EXPORT Template : public Data {
            PropertyAttribute attributes = None);
   void SetPrivate(Local<Private> name, Local<Data> value,
                   PropertyAttribute attributes = None);
-  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
+                     PropertyAttribute attributes = None);
 
   void SetAccessorProperty(
      Local<Name> name,
@@ -6503,7 +6524,9 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr);
+      const CFunction* c_function = nullptr, uint8_t instance_type = 0,
+      uint8_t allowed_receiver_range_start = 0,
+      uint8_t allowed_receiver_range_end = 0);
 
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
@@ -8547,7 +8570,7 @@ class V8_EXPORT Isolate {
     kDateToLocaleTimeString = 68,
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
-    kOptimizedFunctionWithOneShotBytecode = 71,
+    kOptimizedFunctionWithOneShotBytecode = 71,  // Unused.
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
     kDateGetTimezoneOffset = 74,  // Unused.
@@ -8650,6 +8673,14 @@ class V8_EXPORT Isolate {
   static Isolate* GetCurrent();
 
   /**
+   * Returns the entered isolate for the current thread or NULL in
+   * case there is no current isolate.
+   *
+   * No checks are performed by this method.
+   */
+  static Isolate* TryGetCurrent();
+
+  /**
    * Clears the set of objects held strongly by the heap. This set of
    * objects are originally built when a WeakRef is created or
    * successfully dereferenced.
@@ -8714,6 +8745,13 @@ class V8_EXPORT Isolate {
    * the isolate is executing long running JavaScript code.
    */
   void MemoryPressureNotification(MemoryPressureLevel level);
+
+  /**
+   * Drop non-essential caches. Should only be called from testing code.
+   * The method can potentially block for a long time and does not necessarily
+   * trigger GC.
+   */
+  void ClearCachesForTesting();
 
   /**
    * Methods below this point require holding a lock (using Locker) in
@@ -11585,10 +11623,11 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
-void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
+void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+                   PropertyAttribute attributes) {
   Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
-      value);
+      value, attributes);
 }
 
 FunctionTemplate* FunctionTemplate::Cast(Data* data) {

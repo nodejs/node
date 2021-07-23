@@ -544,7 +544,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Sub: {
       Float64BinopMatcher m(node);
       if (allow_signalling_nan_ && m.right().Is(0) &&
-          (Double(m.right().ResolvedValue()).Sign() > 0)) {
+          (base::Double(m.right().ResolvedValue()).Sign() > 0)) {
         return Replace(m.left().node());  // x - 0 => x
       }
       if (m.right().IsNaN()) {  // x - NaN => NaN

@@ -49,8 +49,8 @@ static void CheckVersion(int major, int minor, int build, int patch,
                          const char* embedder, bool candidate,
                          const char* expected_version_string,
                          const char* expected_generic_soname) {
-  static v8::internal::EmbeddedVector<char, 128> version_str;
-  static v8::internal::EmbeddedVector<char, 128> soname_str;
+  static v8::base::EmbeddedVector<char, 128> version_str;
+  static v8::base::EmbeddedVector<char, 128> soname_str;
 
   // Test version without specific SONAME.
   SetVersion(major, minor, build, patch, embedder, candidate, "");

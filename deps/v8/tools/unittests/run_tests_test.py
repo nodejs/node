@@ -177,10 +177,23 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('sweet/bananas default: pass', result.stdout, result)
+      self.assertIn('sweet/bananas default: PASS', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
+      self.assertEqual(0, result.returncode, result)
+
+  def testPassHeavy(self):
+    """Test running with some tests marked heavy."""
+    with temp_base(baseroot='testroot3') as basedir:
+      result = run_tests(
+          basedir,
+          '--progress=verbose',
+          '--variants=nooptimization',
+          '-j2',
+          'sweet',
+      )
+      self.assertIn('7 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testShardedProc(self):
@@ -315,8 +328,10 @@ class SystemTest(unittest.TestCase):
           'sweet',
           infra_staging=False,
       )
-      self.assertIn('sweet/bananaflakes default: pass', result.stdout, result)
-      self.assertIn('All tests succeeded', result.stdout, result)
+      self.assertIn('sweet/bananaflakes default: FAIL PASS', result.stdout, result)
+      self.assertIn('=== sweet/bananaflakes (flaky) ===', result.stdout, result)
+      self.assertIn('1 tests failed', result.stdout, result)
+      self.assertIn('1 tests were flaky', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
       self.check_cleaned_json_output(
@@ -618,7 +633,7 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('sweet/mangoes default: pass', result.stdout, result)
+      self.assertIn('sweet/mangoes default: PASS', result.stdout, result)
       self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
       self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)

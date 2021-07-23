@@ -7,8 +7,8 @@
 #include "json_platform.h"
 
 #include <cmath>
+#include "../../../src/base/vector.h"
 #include "../../../src/numbers/conversions.h"
-#include "../../../src/utils/vector.h"
 
 namespace v8_crdtp {
 namespace json {
@@ -22,7 +22,7 @@ bool StrToD(const char* str, double* result) {
 
 // Prints |value| in a format suitable for JSON.
 std::string DToStr(double value) {
-  v8::internal::ScopedVector<char> buffer(
+  v8::base::ScopedVector<char> buffer(
       v8::internal::kDoubleToCStringMinBufferSize);
   const char* str = v8::internal::DoubleToCString(value, buffer);
   return (str == nullptr) ? "" : std::string(str);

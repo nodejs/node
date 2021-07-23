@@ -22,6 +22,7 @@ class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
+class IgnitionStatisticsTester;
 class Isolate;
 class LocalIsolate;
 class ParseInfo;
@@ -95,8 +96,11 @@ class Interpreter {
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
+  friend class v8::internal::IgnitionStatisticsTester;
 
-  uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
+  V8_EXPORT_PRIVATE void InitDispatchCounters();
+  V8_EXPORT_PRIVATE uintptr_t GetDispatchCounter(Bytecode from,
+                                                 Bytecode to) const;
 
   // Get dispatch table index of bytecode.
   static size_t GetDispatchTableIndex(Bytecode bytecode,
@@ -111,6 +115,12 @@ class Interpreter {
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
   Address interpreter_entry_trampoline_instruction_start_;
 };
+
+#ifdef V8_IGNITION_DISPATCH_COUNTING
+#define V8_IGNITION_DISPATCH_COUNTING_BOOL true
+#else
+#define V8_IGNITION_DISPATCH_COUNTING_BOOL false
+#endif
 
 }  // namespace interpreter
 }  // namespace internal

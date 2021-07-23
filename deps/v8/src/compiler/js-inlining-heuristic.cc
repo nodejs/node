@@ -150,7 +150,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
-  if (total_inlined_bytecode_size_ >= FLAG_max_inlined_bytecode_size_absolute) {
+  if (total_inlined_bytecode_size_ >= max_inlined_bytecode_size_absolute_) {
     return NoChange();
   }
 
@@ -277,7 +277,7 @@ void JSInliningHeuristic::Finalize() {
         candidate.total_size * FLAG_reserve_inline_budget_scale_factor;
     int total_size =
         total_inlined_bytecode_size_ + static_cast<int>(size_of_candidate);
-    if (total_size > FLAG_max_inlined_bytecode_size_cumulative) {
+    if (total_size > max_inlined_bytecode_size_cumulative_) {
       // Try if any smaller functions are available to inline.
       continue;
     }
@@ -746,11 +746,11 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
 
   // Inline the individual, cloned call sites.
   for (int i = 0; i < num_calls && total_inlined_bytecode_size_ <
-                                       FLAG_max_inlined_bytecode_size_absolute;
+                                       max_inlined_bytecode_size_absolute_;
        ++i) {
     if (candidate.can_inline_function[i] &&
         (small_function || total_inlined_bytecode_size_ <
-                               FLAG_max_inlined_bytecode_size_cumulative)) {
+                               max_inlined_bytecode_size_cumulative_)) {
       Node* node = calls[i];
       Reduction const reduction = inliner_.ReduceJSCall(node);
       if (reduction.Changed()) {
@@ -825,6 +825,13 @@ CommonOperatorBuilder* JSInliningHeuristic::common() const {
 
 SimplifiedOperatorBuilder* JSInliningHeuristic::simplified() const {
   return jsgraph()->simplified();
+}
+
+int JSInliningHeuristic::ScaleInliningSize(int value, JSHeapBroker* broker) {
+  if (broker->is_turboprop()) {
+    value = value / FLAG_turboprop_inline_scaling_factor;
+  }
+  return value;
 }
 
 #undef TRACE

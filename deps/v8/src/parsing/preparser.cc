@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
-#include "src/parsing/preparser.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"

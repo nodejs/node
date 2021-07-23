@@ -79,6 +79,9 @@ declare_args() {
   # Sets -dENABLE_VTUNE_TRACEMARK.
   v8_enable_vtunetracemark = false
 
+  # Sets -dENABLE_HUGEPAGE
+  v8_enable_hugepage = false
+
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = is_debug
 
@@ -150,6 +153,15 @@ declare_args() {
   # v8_enable_concurrent_marking_state. See the default setting code below.
   v8_enable_concurrent_marking = true
 
+  # Sets -dV8_IGNITION_DISPATCH_COUNTING.
+  # Enables counting frequencies of bytecode dispatches. After building in this
+  # configuration, subsequent runs of d8 can output frequencies for each pair
+  # of (current, next) bytecode instructions executed if you specify
+  # --trace-ignition-dispatches-output-file, or can generate a JS object with
+  # those frequencies if you run with --expose-ignition-statistics and call the
+  # extension function getIgnitionDispatchCounters().
+  v8_enable_ignition_dispatch_counting = false
+
   # Runs mksnapshot with --turbo-profiling. After building in this
   # configuration, any subsequent run of d8 will output information about usage
   # of basic blocks in builtins.
@@ -184,6 +196,11 @@ declare_args() {
   # Sets -dV8_SHORT_BUILTIN_CALLS
   v8_enable_short_builtin_calls = ""
 
+  # Enable support for external code range relative to the pointer compression
+  # cage.
+  # Sets -dV8_EXTERNAL_CODE_SPACE
+  v8_enable_external_code_space = ""
+
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -213,11 +230,8 @@ declare_args() {
 
   # Enable mitigations for executing untrusted code.
   # Disabled by default on ia32 due to conflicting requirements with embedded
-  # builtins. Enabled by default on Android since it doesn't support
-  # site-isolation in Chrome and on simulator builds which test code generation
-  # on these platforms.
-  v8_untrusted_code_mitigations =
-      v8_current_cpu != "x86" && (is_android || target_is_simulator)
+  # builtins.
+  v8_untrusted_code_mitigations = false
 
   # Enable minor mark compact.
   v8_enable_minor_mc = true
@@ -283,6 +297,10 @@ declare_args() {
   # TODO(v8:11785): Enable by default when running with the verifier.
   cppgc_enable_verify_live_bytes = false
 
+  # Enable assignment checks for Members/Persistents during prefinalizer invocations.
+  # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
+  cppgc_enable_check_assignments_in_prefinalizers = false
+
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
@@ -317,6 +335,13 @@ declare_args() {
 
   # Allow for JS promise hooks (instead of just C++).
   v8_allow_javascript_in_promise_hooks = false
+
+  # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
+  # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
+  v8_enable_allocation_folding = true
+
+  # Enable global allocation site tracking.
+  v8_allocation_site_tracking = true
 }
 
 # Derived defaults.
@@ -371,6 +396,9 @@ if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
       v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
 }
+if (v8_enable_external_code_space == "") {
+  v8_enable_external_code_space = false
+}
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
 }
@@ -386,6 +414,10 @@ if (v8_enable_third_party_heap) {
   v8_enable_shared_ro_heap = false
   v8_enable_pointer_compression = false
   v8_enable_pointer_compression_shared_cage = false
+  v8_enable_allocation_folding = false
+}
+if (v8_enable_single_generation) {
+  v8_allocation_site_tracking = false
 }
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")
@@ -448,13 +480,17 @@ assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
+assert(!v8_enable_heap_sandbox || !v8_enable_external_code_space,
+       "V8 Heap Sandbox is not compatible with external code space YET")
+
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
     "Can't share a pointer compression cage if pointers aren't compressed")
 
-assert(!v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
-           v8_current_cpu == "arm64",
-       "Sharing a pointer compression cage is only supported on x64 and arm64")
+assert(
+    !v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
+        v8_current_cpu == "arm64" || v8_current_cpu == "riscv64",
+    "Sharing a pointer compression cage is only supported on x64,arm64 and riscv64")
 
 assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
@@ -605,6 +641,7 @@ external_v8_defines = [
   "V8_NO_ARGUMENTS_ADAPTOR",
   "V8_USE_PERFETTO",
   "V8_MAP_PACKING",
+  "V8_IS_TSAN",
 ]
 
 enabled_external_v8_defines = []
@@ -640,6 +677,9 @@ if (v8_use_perfetto) {
 }
 if (v8_enable_map_packing) {
   enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
+}
+if (is_tsan) {
+  enabled_external_v8_defines += [ "V8_IS_TSAN" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -711,6 +751,10 @@ config("features") {
     defines += [ "CPPGC_VERIFY_LIVE_BYTES" ]
   }
 
+  if (cppgc_enable_check_assignments_in_prefinalizers) {
+    defines += [ "CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS" ]
+  }
+
   if (v8_embedder_string != "") {
     defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]
   }
@@ -742,6 +786,9 @@ config("features") {
   }
   if (v8_enable_vtunetracemark) {
     defines += [ "ENABLE_VTUNE_TRACEMARK" ]
+  }
+  if (v8_enable_hugepage) {
+    defines += [ "ENABLE_HUGEPAGE" ]
   }
   if (v8_enable_minor_mc) {
     defines += [ "ENABLE_MINOR_MC" ]
@@ -805,6 +852,9 @@ config("features") {
   if (v8_enable_atomic_marking_state) {
     defines += [ "V8_ATOMIC_MARKING_STATE" ]
   }
+  if (v8_enable_ignition_dispatch_counting) {
+    defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
+  }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
@@ -841,6 +891,9 @@ config("features") {
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
+  if (v8_enable_external_code_space) {
+    defines += [ "V8_EXTERNAL_CODE_SPACE" ]
+  }
   if (v8_enable_swiss_name_dictionary) {
     defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
   }
@@ -858,6 +911,12 @@ config("features") {
   }
   if (v8_allow_javascript_in_promise_hooks) {
     defines += [ "V8_ALLOW_JAVASCRIPT_IN_PROMISE_HOOKS" ]
+  }
+  if (v8_enable_allocation_folding) {
+    defines += [ "V8_ALLOCATION_FOLDING" ]
+  }
+  if (v8_allocation_site_tracking) {
+    defines += [ "V8_ALLOCATION_SITE_TRACKING" ]
   }
 }
 
@@ -2350,8 +2409,8 @@ v8_header_set("v8_internal_headers") {
     "src/ast/variables.h",
     "src/baseline/baseline-assembler-inl.h",
     "src/baseline/baseline-assembler.h",
+    "src/baseline/baseline-batch-compiler.h",
     "src/baseline/baseline-compiler.h",
-    "src/baseline/baseline-osr-inl.h",
     "src/baseline/baseline.h",
     "src/baseline/bytecode-offset-iterator.h",
     "src/builtins/accessors.h",
@@ -2458,6 +2517,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/effect-control-linearizer.h",
     "src/compiler/escape-analysis-reducer.h",
     "src/compiler/escape-analysis.h",
+    "src/compiler/fast-api-calls.h",
     "src/compiler/feedback-source.h",
     "src/compiler/frame-states.h",
     "src/compiler/frame.h",
@@ -2753,21 +2813,13 @@ v8_header_set("v8_internal_headers") {
     "src/logging/log-utils.h",
     "src/logging/log.h",
     "src/logging/metrics.h",
+    "src/logging/runtime-call-stats-scope.h",
     "src/logging/runtime-call-stats.h",
     "src/logging/tracing-flags.h",
-    "src/numbers/bignum-dtoa.h",
-    "src/numbers/bignum.h",
-    "src/numbers/cached-powers.h",
     "src/numbers/conversions-inl.h",
     "src/numbers/conversions.h",
-    "src/numbers/diy-fp.h",
-    "src/numbers/double.h",
-    "src/numbers/dtoa.h",
-    "src/numbers/fast-dtoa.h",
-    "src/numbers/fixed-dtoa.h",
     "src/numbers/hash-seed-inl.h",
     "src/numbers/math-random.h",
-    "src/numbers/strtod.h",
     "src/objects/all-objects-inl.h",
     "src/objects/allocation-site-inl.h",
     "src/objects/allocation-site-scopes-inl.h",
@@ -2879,6 +2931,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/object-list-macros.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/object-type.h",
     "src/objects/objects-body-descriptors-inl.h",
     "src/objects/objects-body-descriptors.h",
     "src/objects/objects-inl.h",
@@ -3057,8 +3110,6 @@ v8_header_set("v8_internal_headers") {
     "src/tracing/trace-event.h",
     "src/tracing/traced-value.h",
     "src/tracing/tracing-category-observer.h",
-    "src/trap-handler/trap-handler-internal.h",
-    "src/trap-handler/trap-handler.h",
     "src/utils/address-map.h",
     "src/utils/allocation.h",
     "src/utils/bit-vector.h",
@@ -3073,7 +3124,6 @@ v8_header_set("v8_internal_headers") {
     "src/utils/scoped-list.h",
     "src/utils/utils-inl.h",
     "src/utils/utils.h",
-    "src/utils/vector.h",
     "src/utils/version.h",
     "src/zone/accounting-allocator.h",
     "src/zone/compressed-zone-ptr.h",
@@ -3106,6 +3156,8 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/wasm-compiler.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
+      "src/trap-handler/trap-handler-internal.h",
+      "src/trap-handler/trap-handler.h",
       "src/wasm/baseline/liftoff-assembler-defs.h",
       "src/wasm/baseline/liftoff-assembler.h",
       "src/wasm/baseline/liftoff-compiler.h",
@@ -3117,6 +3169,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/function-body-decoder.h",
       "src/wasm/function-compiler.h",
       "src/wasm/graph-builder-interface.h",
+      "src/wasm/init-expr-interface.h",
       "src/wasm/jump-table-assembler.h",
       "src/wasm/leb-helper.h",
       "src/wasm/local-decl-encoder.h",
@@ -3154,6 +3207,12 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-value.h",
     ]
+  }
+
+  if (!v8_enable_third_party_heap) {
+    sources += filter_include(v8_third_party_heap_files, [ "*.h" ])
+  } else {
+    sources += [ "src/heap/third-party/heap-api.h" ]
   }
 
   if (v8_enable_i18n_support) {
@@ -3248,16 +3307,19 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ]
 
-    # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
-    # based on Darwin and thus POSIX-compliant to a similar degree.
-    if (is_linux || is_chromeos || is_mac || is_ios || target_os == "freebsd") {
-      sources += [ "src/trap-handler/handler-inside-posix.h" ]
-    }
     if (is_win) {
-      sources += [
-        "src/diagnostics/unwinding-info-win64.h",
-        "src/trap-handler/handler-inside-win.h",
-      ]
+      sources += [ "src/diagnostics/unwinding-info-win64.h" ]
+    }
+
+    if (v8_enable_webassembly) {
+      # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
+      # based on Darwin and thus POSIX-compliant to a similar degree.
+      if (is_linux || is_chromeos || is_mac || is_ios ||
+          target_os == "freebsd") {
+        sources += [ "src/trap-handler/handler-inside-posix.h" ]
+      } else if (is_win) {
+        sources += [ "src/trap-handler/handler-inside-win.h" ]
+      }
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
@@ -3302,7 +3364,7 @@ v8_header_set("v8_internal_headers") {
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
-    if (current_cpu == "arm64" && is_mac) {
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
       sources += [ "src/trap-handler/handler-inside-posix.h" ]
     }
     if (is_win) {
@@ -3456,6 +3518,7 @@ v8_compiler_sources = [
   "src/compiler/effect-control-linearizer.cc",
   "src/compiler/escape-analysis-reducer.cc",
   "src/compiler/escape-analysis.cc",
+  "src/compiler/fast-api-calls.cc",
   "src/compiler/feedback-source.cc",
   "src/compiler/frame-states.cc",
   "src/compiler/frame.cc",
@@ -3630,6 +3693,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/ast/scopes.cc",
     "src/ast/source-range-ast-visitor.cc",
     "src/ast/variables.cc",
+    "src/baseline/baseline-batch-compiler.cc",
     "src/baseline/baseline-compiler.cc",
     "src/baseline/baseline.cc",
     "src/baseline/bytecode-offset-iterator.cc",
@@ -3845,16 +3909,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/metrics.cc",
     "src/logging/runtime-call-stats.cc",
     "src/logging/tracing-flags.cc",
-    "src/numbers/bignum-dtoa.cc",
-    "src/numbers/bignum.cc",
-    "src/numbers/cached-powers.cc",
     "src/numbers/conversions.cc",
-    "src/numbers/diy-fp.cc",
-    "src/numbers/dtoa.cc",
-    "src/numbers/fast-dtoa.cc",
-    "src/numbers/fixed-dtoa.cc",
     "src/numbers/math-random.cc",
-    "src/numbers/strtod.cc",
     "src/objects/backing-store.cc",
     "src/objects/bigint.cc",
     "src/objects/code-kind.cc",
@@ -3892,6 +3948,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/map-updater.cc",
     "src/objects/map.cc",
     "src/objects/module.cc",
+    "src/objects/object-type.cc",
     "src/objects/objects.cc",
     "src/objects/ordered-hash-table.cc",
     "src/objects/osr-optimized-code-cache.cc",
@@ -3908,6 +3965,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/synthetic-module.cc",
     "src/objects/tagged-impl.cc",
     "src/objects/template-objects.cc",
+    "src/objects/templates.cc",
     "src/objects/transitions.cc",
     "src/objects/type-hints.cc",
     "src/objects/value-serializer.cc",
@@ -4021,9 +4079,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",
-    "src/trap-handler/handler-inside.cc",
-    "src/trap-handler/handler-outside.cc",
-    "src/trap-handler/handler-shared.cc",
     "src/utils/address-map.cc",
     "src/utils/allocation.cc",
     "src/utils/bit-vector.cc",
@@ -4050,11 +4105,16 @@ v8_source_set("v8_base_without_compiler") {
       "src/debug/debug-wasm-objects.cc",
       "src/runtime/runtime-test-wasm.cc",
       "src/runtime/runtime-wasm.cc",
+      "src/trap-handler/handler-inside.cc",
+      "src/trap-handler/handler-outside.cc",
+      "src/trap-handler/handler-shared.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
+      "src/wasm/code-space-access.cc",
       "src/wasm/function-body-decoder.cc",
       "src/wasm/function-compiler.cc",
       "src/wasm/graph-builder-interface.cc",
+      "src/wasm/init-expr-interface.cc",
       "src/wasm/jump-table-assembler.cc",
       "src/wasm/local-decl-encoder.cc",
       "src/wasm/memory-protection-key.cc",
@@ -4088,12 +4148,9 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_third_party_heap) {
-    sources += v8_third_party_heap_files
+    sources += filter_exclude(v8_third_party_heap_files, [ "*.h" ])
   } else {
-    sources += [
-      "src/heap/third-party/heap-api-stub.cc",
-      "src/heap/third-party/heap-api.h",
-    ]
+    sources += [ "src/heap/third-party/heap-api-stub.cc" ]
   }
 
   if (v8_enable_conservative_stack_scanning) {
@@ -4146,20 +4203,25 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
     ]
 
-    # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
-    # based on Darwin and thus POSIX-compliant to a similar degree.
-    if (is_linux || is_chromeos || is_mac || is_ios || target_os == "freebsd") {
-      sources += [
-        "src/trap-handler/handler-inside-posix.cc",
-        "src/trap-handler/handler-outside-posix.cc",
-      ]
-    }
     if (is_win) {
-      sources += [
-        "src/diagnostics/unwinding-info-win64.cc",
-        "src/trap-handler/handler-inside-win.cc",
-        "src/trap-handler/handler-outside-win.cc",
-      ]
+      sources += [ "src/diagnostics/unwinding-info-win64.cc" ]
+    }
+
+    if (v8_enable_webassembly) {
+      # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
+      # based on Darwin and thus POSIX-compliant to a similar degree.
+      if (is_linux || is_chromeos || is_mac || is_ios ||
+          target_os == "freebsd") {
+        sources += [
+          "src/trap-handler/handler-inside-posix.cc",
+          "src/trap-handler/handler-outside-posix.cc",
+        ]
+      } else if (is_win) {
+        sources += [
+          "src/trap-handler/handler-inside-win.cc",
+          "src/trap-handler/handler-outside-win.cc",
+        ]
+      }
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
@@ -4203,7 +4265,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm64/simulator-logic-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
     ]
-    if (current_cpu == "arm64" && is_mac) {
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
       sources += [
         "src/trap-handler/handler-inside-posix.cc",
         "src/trap-handler/handler-outside-posix.cc",
@@ -4447,6 +4509,8 @@ v8_source_set("torque_base") {
     "src/torque/class-debug-reader-generator.cc",
     "src/torque/constants.h",
     "src/torque/contextual.h",
+    "src/torque/cpp-builder.cc",
+    "src/torque/cpp-builder.h",
     "src/torque/csa-generator.cc",
     "src/torque/csa-generator.h",
     "src/torque/declarable.cc",
@@ -4597,6 +4661,23 @@ v8_component("v8_libbase") {
     "src/base/logging.h",
     "src/base/macros.h",
     "src/base/memory.h",
+    "src/base/numbers/bignum-dtoa.cc",
+    "src/base/numbers/bignum-dtoa.h",
+    "src/base/numbers/bignum.cc",
+    "src/base/numbers/bignum.h",
+    "src/base/numbers/cached-powers.cc",
+    "src/base/numbers/cached-powers.h",
+    "src/base/numbers/diy-fp.cc",
+    "src/base/numbers/diy-fp.h",
+    "src/base/numbers/double.h",
+    "src/base/numbers/dtoa.cc",
+    "src/base/numbers/dtoa.h",
+    "src/base/numbers/fast-dtoa.cc",
+    "src/base/numbers/fast-dtoa.h",
+    "src/base/numbers/fixed-dtoa.cc",
+    "src/base/numbers/fixed-dtoa.h",
+    "src/base/numbers/strtod.cc",
+    "src/base/numbers/strtod.h",
     "src/base/once.cc",
     "src/base/once.h",
     "src/base/optional.h",
@@ -4626,6 +4707,8 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
     "src/base/small-vector.h",
+    "src/base/strings.cc",
+    "src/base/strings.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
     "src/base/template-utils.h",
@@ -4633,6 +4716,7 @@ v8_component("v8_libbase") {
     "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
+    "src/base/vector.h",
     "src/base/vlq-base64.cc",
     "src/base/vlq-base64.h",
     "src/base/vlq.h",
@@ -4869,10 +4953,26 @@ v8_source_set("v8_bigint") {
     "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
     "src/bigint/digit-arithmetic.h",
+    "src/bigint/div-burnikel.cc",
+    "src/bigint/div-helpers.cc",
+    "src/bigint/div-helpers.h",
+    "src/bigint/div-schoolbook.cc",
+    "src/bigint/mul-karatsuba.cc",
     "src/bigint/mul-schoolbook.cc",
+    "src/bigint/tostring.cc",
+    "src/bigint/util.h",
     "src/bigint/vector-arithmetic.cc",
     "src/bigint/vector-arithmetic.h",
   ]
+
+  if (v8_advanced_bigint_algorithms) {
+    sources += [
+      "src/bigint/mul-fft.cc",
+      "src/bigint/mul-toom.cc",
+    ]
+
+    defines = [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
+  }
 
   configs = [ ":internal_config" ]
 }
@@ -4962,6 +5062,10 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/process-heap-statistics.h",
     "include/cppgc/sentinel-pointer.h",
     "include/cppgc/source-location.h",
+
+    # TODO(v8:11952): Remove the testing header here once depending on both,
+    # //v8:v8 and //v8:v8_for_testing does not result in ODR violations.
+    "include/cppgc/testing.h",
     "include/cppgc/trace-trait.h",
     "include/cppgc/type-traits.h",
     "include/cppgc/visitor.h",
@@ -5058,6 +5162,10 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/sweeper.cc",
     "src/heap/cppgc/sweeper.h",
     "src/heap/cppgc/task-handle.h",
+
+    # TODO(v8:11952): Remove the testing header here once depending on both,
+    # //v8:v8 and //v8:v8_for_testing does not result in ODR violations.
+    "src/heap/cppgc/testing.cc",
     "src/heap/cppgc/trace-event.h",
     "src/heap/cppgc/trace-trait.cc",
     "src/heap/cppgc/virtual-memory.cc",
@@ -5092,22 +5200,6 @@ v8_source_set("cppgc_base") {
   } else {
     public_deps += [ ":v8_tracing" ]
   }
-}
-
-v8_source_set("cppgc_base_for_testing") {
-  visibility = [ ":*" ]
-
-  sources = [
-    "include/cppgc/testing.h",
-    "src/heap/cppgc/testing.cc",
-  ]
-
-  configs = [
-    ":internal_config",
-    ":cppgc_base_config",
-  ]
-
-  public_deps = [ ":cppgc_base" ]
 }
 
 if (v8_check_header_includes) {
@@ -5491,7 +5583,6 @@ if (is_component_build) {
     sources = [ "src/utils/v8dll-main.cc" ]
 
     public_deps = [
-      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5520,10 +5611,7 @@ if (is_component_build) {
     v8_component("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [
-        ":cppgc_base",
-        ":cppgc_base_for_testing",
-      ]
+      public_deps = [ ":cppgc_base" ]
 
       configs = []
       public_configs = [ ":external_config" ]
@@ -5552,7 +5640,6 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
-      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5577,10 +5664,7 @@ if (is_component_build) {
     group("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [
-        ":cppgc_base",
-        ":cppgc_base_for_testing",
-      ]
+      public_deps = [ ":cppgc_base" ]
 
       public_configs = [ ":external_config" ]
     }

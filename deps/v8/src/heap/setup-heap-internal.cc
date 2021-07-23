@@ -54,11 +54,11 @@ namespace internal {
 namespace {
 
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name builtin_id, int len,
+    Isolate* isolate, Builtin builtin, int len,
     FunctionKind kind = FunctionKind::kNormalFunction) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin_id, kind);
+          isolate->factory()->empty_string(), builtin, kind);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -502,6 +502,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
+    IF_WASM(ALLOCATE_MAP, WASM_CAPI_FUNCTION_DATA_TYPE,
+            WasmCapiFunctionData::kSize, wasm_capi_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,
             WasmExportedFunctionData::kSize, wasm_exported_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
@@ -889,14 +891,22 @@ void Heap::CreateInitialObjects() {
   set_off_heap_trampoline_relocation_info(
       *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));
 
-  set_trampoline_trivial_code_data_container(
-      *isolate()->factory()->NewCodeDataContainer(0,
-                                                  AllocationType::kReadOnly));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // These roots will not be used.
+    HeapObject no_container = *isolate()->factory()->undefined_value();
+    set_trampoline_trivial_code_data_container(no_container);
+    set_trampoline_promise_rejection_code_data_container(no_container);
 
-  set_trampoline_promise_rejection_code_data_container(
-      *isolate()->factory()->NewCodeDataContainer(
-          Code::IsPromiseRejectionField::encode(true),
-          AllocationType::kReadOnly));
+  } else {
+    set_trampoline_trivial_code_data_container(
+        *isolate()->factory()->NewCodeDataContainer(0,
+                                                    AllocationType::kReadOnly));
+
+    set_trampoline_promise_rejection_code_data_container(
+        *isolate()->factory()->NewCodeDataContainer(
+            Code::IsPromiseRejectionField::encode(true),
+            AllocationType::kReadOnly));
+  }
 
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->EnsureHash();
@@ -916,52 +926,52 @@ void Heap::CreateInitialObjects() {
   // Async functions:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncFunctionAwaitRejectClosure, 1);
+        isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
     set_async_function_await_reject_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncFunctionAwaitResolveClosure, 1);
+        isolate(), Builtin::kAsyncFunctionAwaitResolveClosure, 1);
     set_async_function_await_resolve_shared_fun(*info);
   }
 
   // Async generators:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorAwaitResolveClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
     set_async_generator_await_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorAwaitRejectClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorAwaitRejectClosure, 1);
     set_async_generator_await_reject_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorYieldResolveClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorYieldResolveClosure, 1);
     set_async_generator_yield_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorReturnResolveClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorReturnResolveClosure, 1);
     set_async_generator_return_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorReturnClosedResolveClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorReturnClosedResolveClosure, 1);
     set_async_generator_return_closed_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtins::kAsyncGeneratorReturnClosedRejectClosure, 1);
+        isolate(), Builtin::kAsyncGeneratorReturnClosedRejectClosure, 1);
     set_async_generator_return_closed_reject_shared_fun(*info);
   }
 
   // AsyncIterator:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncIteratorValueUnwrap, 1);
+        isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
   // Promises:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseCapabilityDefaultResolve, 1,
+        isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
         FunctionKind::kConciseMethod);
     info->set_native(true);
     info->set_function_map_index(
@@ -969,62 +979,62 @@ void Heap::CreateInitialObjects() {
     set_promise_capability_default_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(isolate_,
-                                    Builtins::kPromiseCapabilityDefaultReject,
-                                    1, FunctionKind::kConciseMethod);
+                                    Builtin::kPromiseCapabilityDefaultReject, 1,
+                                    FunctionKind::kConciseMethod);
     info->set_native(true);
     info->set_function_map_index(
         Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
     set_promise_capability_default_reject_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseGetCapabilitiesExecutor, 2);
+        isolate_, Builtin::kPromiseGetCapabilitiesExecutor, 2);
     set_promise_get_capabilities_executor_shared_fun(*info);
   }
 
   // Promises / finally:
   {
     Handle<SharedFunctionInfo> info =
-        CreateSharedFunctionInfo(isolate(), Builtins::kPromiseThenFinally, 1);
+        CreateSharedFunctionInfo(isolate(), Builtin::kPromiseThenFinally, 1);
     info->set_native(true);
     set_promise_then_finally_shared_fun(*info);
 
     info =
-        CreateSharedFunctionInfo(isolate(), Builtins::kPromiseCatchFinally, 1);
+        CreateSharedFunctionInfo(isolate(), Builtin::kPromiseCatchFinally, 1);
     info->set_native(true);
     set_promise_catch_finally_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(isolate(),
-                                    Builtins::kPromiseValueThunkFinally, 0);
+                                    Builtin::kPromiseValueThunkFinally, 0);
     set_promise_value_thunk_finally_shared_fun(*info);
 
-    info = CreateSharedFunctionInfo(isolate(), Builtins::kPromiseThrowerFinally,
-                                    0);
+    info =
+        CreateSharedFunctionInfo(isolate(), Builtin::kPromiseThrowerFinally, 0);
     set_promise_thrower_finally_shared_fun(*info);
   }
 
   // Promise combinators:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAllResolveElementClosure, 1);
+        isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
     set_promise_all_resolve_element_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAllSettledResolveElementClosure, 1);
+        isolate_, Builtin::kPromiseAllSettledResolveElementClosure, 1);
     set_promise_all_settled_resolve_element_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAllSettledRejectElementClosure, 1);
+        isolate_, Builtin::kPromiseAllSettledRejectElementClosure, 1);
     set_promise_all_settled_reject_element_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAnyRejectElementClosure, 1);
+        isolate_, Builtin::kPromiseAnyRejectElementClosure, 1);
     set_promise_any_reject_element_shared_fun(*info);
   }
 
   // ProxyRevoke:
   {
     Handle<SharedFunctionInfo> info =
-        CreateSharedFunctionInfo(isolate_, Builtins::kProxyRevoke, 0);
+        CreateSharedFunctionInfo(isolate_, Builtin::kProxyRevoke, 0);
     set_proxy_revoke_shared_fun(*info);
   }
 }

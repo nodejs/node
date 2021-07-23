@@ -12,6 +12,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -44,6 +45,13 @@ const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
 
 // static
 void BasePage::Destroy(BasePage* page) {
+  if (page->discarded_memory()) {
+    page->space()
+        .raw_heap()
+        ->heap()
+        ->stats_collector()
+        ->DecrementDiscardedMemory(page->discarded_memory());
+  }
   if (page->is_large()) {
     LargePage::Destroy(LargePage::From(page));
   } else {
@@ -92,7 +100,7 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
       return nullptr;
     // Check that the space has no linear allocation buffer.
     DCHECK(!NormalPageSpace::From(normal_page->space())
-                ->linear_allocation_buffer()
+                .linear_allocation_buffer()
                 .size());
   }
 
@@ -104,38 +112,54 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
   return header;
 }
 
-BasePage::BasePage(HeapBase* heap, BaseSpace* space, PageType type)
+BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
     : heap_(heap), space_(space), type_(type) {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
-  DCHECK_EQ(&heap_->raw_heap(), space_->raw_heap());
+  DCHECK_EQ(&heap_.raw_heap(), space_.raw_heap());
 }
 
 // static
-NormalPage* NormalPage::Create(PageBackend* page_backend,
-                               NormalPageSpace* space) {
-  DCHECK_NOT_NULL(page_backend);
-  DCHECK_NOT_NULL(space);
-  void* memory = page_backend->AllocateNormalPageMemory(space->index());
-  auto* normal_page = new (memory) NormalPage(space->raw_heap()->heap(), space);
+NormalPage* NormalPage::Create(PageBackend& page_backend,
+                               NormalPageSpace& space) {
+  void* memory = page_backend.AllocateNormalPageMemory(space.index());
+  auto* normal_page = new (memory) NormalPage(*space.raw_heap()->heap(), space);
   normal_page->SynchronizedStore();
-  normal_page->heap()->stats_collector()->NotifyAllocatedMemory(kPageSize);
+  normal_page->heap().stats_collector()->NotifyAllocatedMemory(kPageSize);
+  // Memory is zero initialized as
+  // a) memory retrieved from the OS is zeroed;
+  // b) memory retrieved from the page pool was swept and thus is zeroed except
+  //    for the first header which will anyways serve as header again.
+  //
+  // The following is a subset of SetMemoryInaccessible() to establish the
+  // invariant that memory is in the same state as it would be after sweeping.
+  // This allows to return newly allocated pages to go into that LAB and back
+  // into the free list.
+  Address begin = normal_page->PayloadStart() + sizeof(HeapObjectHeader);
+  const size_t size = normal_page->PayloadSize() - sizeof(HeapObjectHeader);
+#if defined(V8_USE_MEMORY_SANITIZER)
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(begin, size);
+#elif defined(V8_USE_ADDRESS_SANITIZER)
+  ASAN_POISON_MEMORY_REGION(begin, size);
+#elif DEBUG
+  cppgc::internal::ZapMemory(begin, size);
+#endif  // Release builds.
+  CheckMemoryIsInaccessible(begin, size);
   return normal_page;
 }
 
 // static
 void NormalPage::Destroy(NormalPage* page) {
   DCHECK(page);
-  BaseSpace* space = page->space();
-  DCHECK_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  const BaseSpace& space = page->space();
+  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   page->~NormalPage();
-  PageBackend* backend = page->heap()->page_backend();
-  page->heap()->stats_collector()->NotifyFreedMemory(kPageSize);
-  backend->FreeNormalPageMemory(space->index(),
-                                reinterpret_cast<Address>(page));
+  PageBackend* backend = page->heap().page_backend();
+  page->heap().stats_collector()->NotifyFreedMemory(kPageSize);
+  backend->FreeNormalPageMemory(space.index(), reinterpret_cast<Address>(page));
 }
 
-NormalPage::NormalPage(HeapBase* heap, BaseSpace* space)
+NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
     : BasePage(heap, space, PageType::kNormal),
       object_start_bitmap_(PayloadStart()) {
   DCHECK_LT(kLargeObjectSizeThreshold,
@@ -145,13 +169,13 @@ NormalPage::NormalPage(HeapBase* heap, BaseSpace* space)
 NormalPage::~NormalPage() = default;
 
 NormalPage::iterator NormalPage::begin() {
-  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
   return iterator(reinterpret_cast<HeapObjectHeader*>(PayloadStart()),
                   lab.start(), lab.size());
 }
 
 NormalPage::const_iterator NormalPage::begin() const {
-  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
   return const_iterator(
       reinterpret_cast<const HeapObjectHeader*>(PayloadStart()), lab.start(),
       lab.size());
@@ -179,7 +203,7 @@ size_t NormalPage::PayloadSize() {
   return kPageSize - 2 * kGuardPageSize - header_size;
 }
 
-LargePage::LargePage(HeapBase* heap, BaseSpace* space, size_t size)
+LargePage::LargePage(HeapBase& heap, BaseSpace& space, size_t size)
     : BasePage(heap, space, PageType::kLarge), payload_size_(size) {}
 
 LargePage::~LargePage() = default;
@@ -192,19 +216,17 @@ size_t LargePage::AllocationSize(size_t payload_size) {
 }
 
 // static
-LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
+LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
                              size_t size) {
-  DCHECK_NOT_NULL(page_backend);
-  DCHECK_NOT_NULL(space);
   DCHECK_LE(kLargeObjectSizeThreshold, size);
 
   const size_t allocation_size = AllocationSize(size);
 
-  auto* heap = space->raw_heap()->heap();
-  void* memory = page_backend->AllocateLargePageMemory(allocation_size);
-  LargePage* page = new (memory) LargePage(heap, space, size);
+  auto* heap = space.raw_heap()->heap();
+  void* memory = page_backend.AllocateLargePageMemory(allocation_size);
+  LargePage* page = new (memory) LargePage(*heap, space, size);
   page->SynchronizedStore();
-  page->heap()->stats_collector()->NotifyAllocatedMemory(allocation_size);
+  page->heap().stats_collector()->NotifyAllocatedMemory(allocation_size);
   return page;
 }
 
@@ -212,12 +234,12 @@ LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
 void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
 #if DEBUG
-  BaseSpace* space = page->space();
-  DCHECK_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  const BaseSpace& space = page->space();
+  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
 #endif
   page->~LargePage();
-  PageBackend* backend = page->heap()->page_backend();
-  page->heap()->stats_collector()->NotifyFreedMemory(
+  PageBackend* backend = page->heap().page_backend();
+  page->heap().stats_collector()->NotifyFreedMemory(
       AllocationSize(page->PayloadSize()));
   backend->FreeLargePageMemory(reinterpret_cast<Address>(page));
 }

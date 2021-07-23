@@ -260,11 +260,11 @@ class ConcurrentMarkingVisitor final
 
   template <typename T>
   int VisitFullyWithSnapshot(Map map, T object) {
-    if (!ShouldVisit(object)) return 0;
     using TBodyDescriptor = typename T::BodyDescriptor;
     int size = TBodyDescriptor::SizeOf(map, object);
     const SlotSnapshot& snapshot =
         MakeSlotSnapshot<T, TBodyDescriptor>(map, object, size);
+    if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
     return size;
   }

@@ -4,10 +4,12 @@
 
 #include "src/diagnostics/system-jit-win.h"
 
+#include "src/api/api-inl.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/diagnostics/system-jit-metadata-win.h"
 #include "src/libplatform/tracing/recorder.h"
+#include "src/objects/shared-function-info.h"
 
 #if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 #error "This file is only compiled if v8_enable_system_instrumentation"
@@ -28,6 +30,20 @@ TRACELOGGING_DEFINE_PROVIDER(g_v8Provider, "V8.js", (V8_ETW_GUID));
 using ScriptMapType = std::unordered_set<int>;
 static base::LazyInstance<ScriptMapType>::type script_map =
     LAZY_INSTANCE_INITIALIZER;
+
+// TODO(v8/11911): UnboundScript::GetLineNumber should be replaced
+SharedFunctionInfo GetSharedFunctionInfo(const JitCodeEvent* event) {
+  return event->script.IsEmpty() ? SharedFunctionInfo()
+                                 : *Utils::OpenHandle(*event->script);
+}
+
+int GetScriptLineNumber(const JitCodeEvent* event) {
+  auto sfi = GetSharedFunctionInfo(event);
+  return sfi.is_null()
+             ? -1  // invalid sentinel number
+             : Script::cast(sfi.script()).GetLineNumber(sfi.StartPosition()) +
+                   1;
+}
 
 void Register() {
   DCHECK(!TraceLoggingProviderEnabled(g_v8Provider, 0, 0));
@@ -54,7 +70,7 @@ void EventHandler(const JitCodeEvent* event) {
       static_cast<int>(method_name.size()));
 
   v8::Isolate* script_context = event->isolate;
-  auto script = event->script;
+  v8::Local<v8::UnboundScript> script = event->script;
   int script_id = 0;
   if (!script.IsEmpty()) {
     // if the first time seeing this source file, log the SourceLoad event
@@ -62,7 +78,7 @@ void EventHandler(const JitCodeEvent* event) {
     if (script_map.Pointer()->find(script_id) == script_map.Pointer()->end()) {
       script_map.Pointer()->insert(script_id);
 
-      auto script_name = script->GetScriptName();
+      v8::Local<v8::Value> script_name = script->GetScriptName();
       std::wstring wstr_name(0, L'\0');
       if (script_name->IsString()) {
         auto v8str_name = script_name.As<v8::String>();
@@ -103,7 +119,8 @@ void EventHandler(const JitCodeEvent* event) {
                (uint32_t)0,  // MethodId
                (uint16_t)0,  // MethodFlags
                (uint16_t)0,  // MethodAddressRangeId
-               (uint64_t)script_id, (uint32_t)0, (uint32_t)0,  // Line & Column
+               (uint64_t)script_id, (uint32_t)GetScriptLineNumber(event),
+               (uint32_t)0,  // Line & Column
                method_name);
 }
 

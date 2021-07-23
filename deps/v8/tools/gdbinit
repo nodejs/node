@@ -31,7 +31,11 @@ end
 
 # Print Code objects containing given PC.
 define jco
-call (void) _v8_internal_Print_Code((void*)($arg0))
+  if $argc == 0
+    call (void) _v8_internal_Print_Code((void*)($pc))
+  else
+    call (void) _v8_internal_Print_Code((void*)($arg0))
+  end
 end
 document jco
 Print a v8 Code object from an internal code address

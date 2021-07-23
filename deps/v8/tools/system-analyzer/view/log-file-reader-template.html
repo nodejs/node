@@ -14,15 +14,14 @@ found in the LICENSE file. -->
     transition: all 0.5s ease-in-out;
     background-color: var(--surface-color);
   }
-  
+
   #fileReader:hover {
     background-color: var(--primary-color);
     color: var(--on-primary-color);
   }
 
   .done #fileReader{
-    height: 20px;
-    line-height: 20px;
+    display: none;
   }
 
   .fail #fileReader {
@@ -51,6 +50,7 @@ found in the LICENSE file. -->
     height: 100%;
     background-color: var(--file-reader-background-color);
   }
+
   #spinner {
     position: absolute;
     width: 100px;
@@ -62,6 +62,10 @@ found in the LICENSE file. -->
     border-top: 30px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s ease-in-out infinite;
+  }
+
+  #label {
+    user-select: none;
   }
 
   @keyframes spin {

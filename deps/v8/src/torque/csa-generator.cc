@@ -115,7 +115,7 @@ void CSAGenerator::EmitInstruction(
     const PushBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
   const std::string str =
-      "ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtins::k" +
+      "ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtin::k" +
       instruction.external_name + "))";
   stack->Push(str);
   SetDefinitionVariable(instruction.GetValueDefinition(), str);
@@ -524,7 +524,7 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
   std::vector<const Type*> result_types =
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
-    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
+    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
           << instruction.builtin->ExternalName();
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the TailCallBuiltin signature.
@@ -574,7 +574,7 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     }
     out() << "    " << lhs_name << " = ";
     out() << "ca_.CallStub<" << lhs_type
-          << ">(Builtins::CallableFor(ca_.isolate(), Builtins::k"
+          << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
           << instruction.builtin->ExternalName() << ")";
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.

@@ -4,8 +4,8 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --experimental-wasm-simd --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 (function TestThrowS128Default() {
   print(arguments.callee.name);

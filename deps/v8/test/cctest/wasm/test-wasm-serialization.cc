@@ -43,7 +43,7 @@ class WasmSerializationTest {
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     byte code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
     f->EmitCode(code, sizeof(code));
-    builder->AddExport(CStrVector(kFunctionName), f);
+    builder->AddExport(base::CStrVector(kFunctionName), f);
 
     builder->WriteTo(buffer);
   }
@@ -62,10 +62,10 @@ class WasmSerializationTest {
   }
 
   MaybeHandle<WasmModuleObject> Deserialize(
-      Vector<const char> source_url = {}) {
+      base::Vector<const char> source_url = {}) {
     return DeserializeNativeModule(CcTest::i_isolate(),
-                                   VectorOf(serialized_bytes_),
-                                   VectorOf(wire_bytes_), source_url);
+                                   base::VectorOf(serialized_bytes_),
+                                   base::VectorOf(wire_bytes_), source_url);
   }
 
   void DeserializeAndRun() {
@@ -74,7 +74,7 @@ class WasmSerializationTest {
     CHECK(Deserialize().ToHandle(&module_object));
     {
       DisallowGarbageCollection assume_no_gc;
-      Vector<const byte> deserialized_module_wire_bytes =
+      base::Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
       CHECK_EQ(memcmp(deserialized_module_wire_bytes.begin(),
@@ -82,8 +82,7 @@ class WasmSerializationTest {
                0);
     }
     Handle<WasmInstanceObject> instance =
-        CcTest::i_isolate()
-            ->wasm_engine()
+        GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
@@ -131,7 +130,7 @@ class WasmSerializationTest {
 
       auto enabled_features = WasmFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
-          serialization_isolate->wasm_engine()->SyncCompile(
+          GetWasmEngine()->SyncCompile(
               serialization_isolate, enabled_features, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
@@ -204,7 +203,7 @@ TEST(DeserializeWithSourceUrl) {
     HandleScope scope(CcTest::i_isolate());
     const std::string url = "http://example.com/example.wasm";
     Handle<WasmModuleObject> module_object;
-    CHECK(test.Deserialize(VectorOf(url)).ToHandle(&module_object));
+    CHECK(test.Deserialize(base::VectorOf(url)).ToHandle(&module_object));
     String url_str = String::cast(module_object->script().name());
     CHECK_EQ(url, url_str.ToCString().get());
   }
@@ -277,7 +276,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
-        from_i_isolate->wasm_engine()->SyncCompile(
+        GetWasmEngine()->SyncCompile(
             from_i_isolate, enabled_features, &thrower,
             ModuleWireBytes(buffer.begin(), buffer.end()));
     Handle<WasmModuleObject> module_object =
@@ -325,7 +324,7 @@ TEST(TierDownAfterDeserialization) {
   CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
-  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
 
   auto* liftoff_code = native_module->GetCode(0);
   CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());

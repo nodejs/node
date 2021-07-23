@@ -226,8 +226,6 @@ class FeedbackVector
   inline bool has_optimization_marker() const;
   inline OptimizationMarker optimization_marker() const;
   inline OptimizationTier optimization_tier() const;
-  inline int global_ticks_at_last_runtime_profiler_interrupt() const;
-  inline void set_global_ticks_at_last_runtime_profiler_interrupt(int ticks);
   void ClearOptimizedCode(FeedbackCell feedback_cell);
   void EvictOptimizedCodeMarkedForDeoptimization(FeedbackCell feedback_cell,
                                                  SharedFunctionInfo shared,
@@ -522,7 +520,7 @@ class FeedbackMetadata : public HeapObject {
   DECL_INT32_ACCESSORS(create_closure_slot_count)
 
   // Get slot_count using an acquire load.
-  inline int32_t synchronized_slot_count() const;
+  inline int32_t slot_count(AcquireLoadTag) const;
 
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackSlotKind kind);

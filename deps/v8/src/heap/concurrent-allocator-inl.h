@@ -10,6 +10,7 @@
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/local-heap.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"

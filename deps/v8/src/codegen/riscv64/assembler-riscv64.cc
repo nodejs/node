@@ -207,7 +207,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(t3.bit() | t5.bit()),
+      scratch_register_list_(t3.bit() | t5.bit() | s10.bit()),
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -302,10 +302,17 @@ bool Assembler::IsBranch(Instr instr) {
   return (instr & kBaseOpcodeMask) == BRANCH;
 }
 
+bool Assembler::IsCBranch(Instr instr) {
+  int Op = instr & kRvcOpcodeMask;
+  return Op == RO_C_BNEZ || Op == RO_C_BEQZ;
+}
+
 bool Assembler::IsJump(Instr instr) {
   int Op = instr & kBaseOpcodeMask;
   return Op == JAL || Op == JALR;
 }
+
+bool Assembler::IsNop(Instr instr) { return instr == kNopByte; }
 
 bool Assembler::IsJal(Instr instr) { return (instr & kBaseOpcodeMask) == JAL; }
 
@@ -413,6 +420,12 @@ int Assembler::target_at(int pos, bool is_internal) {
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
     } break;
+    case RO_C_BNEZ:
+    case RO_C_BEQZ: {
+      int32_t offset = instruction->RvcImm8BValue();
+      if (offset == kEndOfJumpChain) return kEndOfChain;
+      return pos + offset;
+    } break;
     default: {
       if (instr == kEndOfJumpChain) {
         return kEndOfChain;
@@ -461,7 +474,7 @@ static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
   instr &= ~kImm12Mask;
   int32_t imm12 = offset << kImm12Shift;
   DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
-  DCHECK(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)) == offset);
+  DCHECK_EQ(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)), offset);
   return instr | (imm12 & kImm12Mask);
 }
 
@@ -496,7 +509,24 @@ static inline ShortInstr SetCJalOffset(int32_t pos, int32_t target_pos,
   return instr | (imm11 & kImm11Mask);
 }
 
-void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
+static inline Instr SetCBranchOffset(int32_t pos, int32_t target_pos,
+                                     Instr instr) {
+  DCHECK(Assembler::IsCBranch(instr));
+  int32_t imm = target_pos - pos;
+  DCHECK_EQ(imm & 1, 0);
+  DCHECK(is_intn(imm, Assembler::kCBranchOffsetBits));
+
+  instr &= ~kRvcBImm8Mask;
+  int32_t imm8 = ((imm & 0x20) >> 5) | ((imm & 0x6)) | ((imm & 0xc0) >> 3) |
+                 ((imm & 0x18) << 2) | ((imm & 0x100) >> 1);
+  imm8 = ((imm8 & 0x1f) << 2) | ((imm8 & 0xe0) << 5);
+  DCHECK(Assembler::IsCBranch(instr | imm8 & kRvcBImm8Mask));
+
+  return instr | (imm8 & kRvcBImm8Mask);
+}
+
+void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
+                              bool trampoline) {
   if (is_internal) {
     uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
     *reinterpret_cast<uint64_t*>(buffer_start_ + pos) = imm;
@@ -515,6 +545,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_at_put(pos, instr);
     } break;
     case JAL: {
+      DCHECK(IsJal(instr));
       instr = SetJalOffset(pos, target_pos, instr);
       instr_at_put(pos, instr);
     } break;
@@ -529,23 +560,38 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       int64_t offset = target_pos - pos;
-      DCHECK(is_int32(offset));
+      if (is_int21(offset) && IsJalr(instr_I) && trampoline) {
+        DCHECK(is_int21(offset) && ((offset & 1) == 0));
+        Instr instr = JAL;
+        instr = SetJalOffset(pos, target_pos, instr);
+        DCHECK(IsJal(instr));
+        DCHECK(JumpOffset(instr) == offset);
+        instr_at_put(pos, instr);
+        instr_at_put(pos + 4, kNopByte);
+      } else {
+        DCHECK(is_int32(offset));
 
-      int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-      int32_t Lo12 = (int32_t)offset << 20 >> 20;
+        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+        int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-      instr_auipc =
-          (instr_auipc & ~kImm31_12Mask) | ((Hi20 & kImm19_0Mask) << 12);
-      instr_at_put(pos, instr_auipc);
+        instr_auipc =
+            (instr_auipc & ~kImm31_12Mask) | ((Hi20 & kImm19_0Mask) << 12);
+        instr_at_put(pos, instr_auipc);
 
-      const int kImm31_20Mask = ((1 << 12) - 1) << 20;
-      const int kImm11_0Mask = ((1 << 12) - 1);
-      instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
-      instr_at_put(pos + 4, instr_I);
+        const int kImm31_20Mask = ((1 << 12) - 1) << 20;
+        const int kImm11_0Mask = ((1 << 12) - 1);
+        instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
+        instr_at_put(pos + 4, instr_I);
+      }
     } break;
     case RO_C_J: {
       ShortInstr short_instr = SetCJalOffset(pos, target_pos, instr);
       instr_at_put(pos, short_instr);
+    } break;
+    case RO_C_BNEZ:
+    case RO_C_BEQZ: {
+      instr = SetCBranchOffset(pos, target_pos, instr);
+      instr_at_put(pos, instr);
     } break;
     default: {
       // Emitted label constant, not part of a branch.
@@ -611,7 +657,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false);
+          target_at_put(fixup_pos, trampoline_pos, false, true);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -623,7 +669,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false);
+          target_at_put(fixup_pos, trampoline_pos, false, true);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -701,8 +747,10 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
   DCHECK(reinterpret_cast<Instruction*>(&instr_I)->InstructionType() ==
          InstructionBase::kIType);
   DCHECK(IsAuipc(auipc));
+  DCHECK_EQ((auipc & kRdFieldMask) >> kRdShift,
+            (instr_I & kRs1FieldMask) >> kRs1Shift);
   int32_t imm_auipc = AuipcOffset(auipc);
-  int32_t imm12 = (instr_I & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr_I & kImm12Mask) >> 20;
   int32_t offset = imm12 + imm_auipc;
   return offset;
 }
@@ -723,19 +771,19 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
 
 int Assembler::LdOffset(Instr instr) {
   DCHECK(IsLd(instr));
-  int32_t imm12 = (instr & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
   return imm12;
 }
 
 int Assembler::JalrOffset(Instr instr) {
   DCHECK(IsJalr(instr));
-  int32_t imm12 = (instr & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
   return imm12;
 }
 
 int Assembler::AuipcOffset(Instr instr) {
   DCHECK(IsAuipc(instr));
-  int32_t imm20 = instr & kImm20Mask;
+  int32_t imm20 = static_cast<int32_t>(instr & kImm20Mask);
   return imm20;
 }
 // We have to use a temporary register for things that can be relocated even
@@ -750,7 +798,7 @@ void Assembler::disassembleInstr(Instr instr) {
   if (!FLAG_riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> disasm_buffer;
+  base::EmbeddedVector<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, reinterpret_cast<byte*>(&instr));
   DEBUG_PRINTF("%s\n", disasm_buffer.begin());
@@ -1068,6 +1116,24 @@ void Assembler::GenInstrCS(uint8_t funct3, Opcode opcode, FPURegister rs2,
   emit(instr);
 }
 
+void Assembler::GenInstrCB(uint8_t funct3, Opcode opcode, Register rs1,
+                           uint8_t uimm8) {
+  DCHECK(is_uint3(funct3) && is_uint8(uimm8));
+  ShortInstr instr = opcode | ((uimm8 & 0x1f) << 2) | ((uimm8 & 0xe0) << 5) |
+                     ((rs1.code() & 0x7) << kRvcRs1sShift) |
+                     (funct3 << kRvcFunct3Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrCBA(uint8_t funct3, uint8_t funct2, Opcode opcode,
+                            Register rs1, uint8_t uimm6) {
+  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_uint6(uimm6));
+  ShortInstr instr = opcode | ((uimm6 & 0x1f) << 2) | ((uimm6 & 0x20) << 7) |
+                     ((rs1.code() & 0x7) << kRvcRs1sShift) |
+                     (funct3 << kRvcFunct3Shift) | (funct2 << 10);
+  emit(instr);
+}
+
 // ----- Instruction class templates match those in the compiler
 
 void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
@@ -1277,7 +1343,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       DCHECK_EQ(imm18 & 3, 0);
       int32_t imm16 = imm18 >> 2;
       DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, (imm16 & kImm16Mask));
+      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
     } else {
       target_pos = kEndOfJumpChain;
       instr_at_put(at_offset, target_pos);
@@ -2200,6 +2266,37 @@ void Assembler::c_j(int16_t imm12) {
   BlockTrampolinePoolFor(1);
 }
 
+// CB Instructions
+
+void Assembler::c_bnez(Register rs1, int16_t imm9) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int9(imm9));
+  uint8_t uimm8 = ((imm9 & 0x20) >> 5) | ((imm9 & 0x6)) | ((imm9 & 0xc0) >> 3) |
+                  ((imm9 & 0x18) << 2) | ((imm9 & 0x100) >> 1);
+  GenInstrCB(0b111, C1, rs1, uimm8);
+}
+
+void Assembler::c_beqz(Register rs1, int16_t imm9) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int9(imm9));
+  uint8_t uimm8 = ((imm9 & 0x20) >> 5) | ((imm9 & 0x6)) | ((imm9 & 0xc0) >> 3) |
+                  ((imm9 & 0x18) << 2) | ((imm9 & 0x100) >> 1);
+  GenInstrCB(0b110, C1, rs1, uimm8);
+}
+
+void Assembler::c_srli(Register rs1, uint8_t uimm6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
+  GenInstrCBA(0b100, 0b00, C1, rs1, uimm6);
+}
+
+void Assembler::c_srai(Register rs1, uint8_t uimm6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
+  GenInstrCBA(0b100, 0b01, C1, rs1, uimm6);
+}
+
+void Assembler::c_andi(Register rs1, uint8_t uimm6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
+  GenInstrCBA(0b100, 0b10, C1, rs1, uimm6);
+}
+
 // Privileged
 
 void Assembler::uret() {
@@ -2512,7 +2609,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   // Pointers are 48 bits
   // 6 fixed instructions are generated
   DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-  int64_t a6 = imm & 0x3f;                      // bits 0:6. 6 bits
+  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
   int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
   int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
@@ -2692,8 +2789,9 @@ void Assembler::GrowBuffer() {
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate runtime entries.
-  Vector<byte> instructions{buffer_start_, pc_offset()};
-  Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+  base::Vector<byte> instructions{buffer_start_,
+                                  static_cast<size_t>(pc_offset())};
+  base::Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
   for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE) {

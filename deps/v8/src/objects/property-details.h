@@ -91,7 +91,18 @@ enum class PropertyConstness { kMutable = 0, kConst = 1 };
 
 class Representation {
  public:
-  enum Kind { kNone, kSmi, kDouble, kHeapObject, kTagged, kNumRepresentations };
+  enum Kind {
+    kNone,
+    kSmi,
+    kDouble,
+    kHeapObject,
+    kTagged,
+    // This representation is used for WasmObject fields and basically means
+    // that the actual field type information must be taken from the Wasm RTT
+    // associated with the map.
+    kWasmValue,
+    kNumRepresentations
+  };
 
   Representation() : kind_(kNone) {}
 
@@ -100,6 +111,7 @@ class Representation {
   static Representation Smi() { return Representation(kSmi); }
   static Representation Double() { return Representation(kDouble); }
   static Representation HeapObject() { return Representation(kHeapObject); }
+  static Representation WasmValue() { return Representation(kWasmValue); }
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
@@ -120,7 +132,12 @@ class Representation {
   bool MightCauseMapDeprecation() const {
     // HeapObject to tagged representation change can be done in-place.
     // Boxed double to tagged transition is always done in-place.
-    if (IsTagged() || IsHeapObject() || IsDouble()) return false;
+    // Note that WasmValue is not supposed to be changed at all (the only
+    // representation it fits into is WasmValue), so for the sake of predicate
+    // correctness we treat it as in-place "changeable".
+    if (IsTagged() || IsHeapObject() || IsDouble() || IsWasmValue()) {
+      return false;
+    }
     // None to double and smi to double representation changes require
     // deprecation, because doubles might require box allocation, see
     // CanBeInPlaceChangedTo().
@@ -130,6 +147,7 @@ class Representation {
 
   bool CanBeInPlaceChangedTo(const Representation& other) const {
     if (Equals(other)) return true;
+    if (IsWasmValue() || other.IsWasmValue()) return false;
     // If it's just a representation generalization case (i.e. property kind and
     // attributes stays unchanged) it's fine to transition from None to anything
     // but double without any modification to the object, because the default
@@ -145,10 +163,12 @@ class Representation {
   // changed to in-place. If an in-place representation change is not allowed,
   // then this will return the current representation.
   Representation MostGenericInPlaceChange() const {
+    if (IsWasmValue()) return Representation::WasmValue();
     return Representation::Tagged();
   }
 
   bool is_more_general_than(const Representation& other) const {
+    if (IsWasmValue()) return false;
     if (IsHeapObject()) return other.IsNone();
     return kind_ > other.kind_;
   }
@@ -172,6 +192,7 @@ class Representation {
 
   Kind kind() const { return static_cast<Kind>(kind_); }
   bool IsNone() const { return kind_ == kNone; }
+  bool IsWasmValue() const { return kind_ == kWasmValue; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
   bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
@@ -190,6 +211,8 @@ class Representation {
         return "d";
       case kHeapObject:
         return "h";
+      case kWasmValue:
+        return "w";
     }
     UNREACHABLE();
   }
@@ -491,6 +514,8 @@ inline PropertyConstness GeneralizeConstness(PropertyConstness a,
   return a == PropertyConstness::kMutable ? PropertyConstness::kMutable : b;
 }
 
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const Representation& representation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const PropertyAttributes& attributes);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

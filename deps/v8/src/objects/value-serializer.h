@@ -11,10 +11,11 @@
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -105,8 +106,8 @@ class ValueSerializer {
   void WriteVarint(T value);
   template <typename T>
   void WriteZigZag(T value);
-  void WriteOneByteString(Vector<const uint8_t> chars);
-  void WriteTwoByteString(Vector<const uc16> chars);
+  void WriteOneByteString(base::Vector<const uint8_t> chars);
+  void WriteTwoByteString(base::Vector<const base::uc16> chars);
   void WriteBigIntContents(BigInt bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
@@ -182,7 +183,7 @@ class ValueSerializer {
  */
 class ValueDeserializer {
  public:
-  ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
+  ValueDeserializer(Isolate* isolate, base::Vector<const uint8_t> data,
                     v8::ValueDeserializer::Delegate* delegate);
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
   ~ValueDeserializer();
@@ -244,7 +245,8 @@ class ValueDeserializer {
   template <typename T>
   Maybe<T> ReadZigZag() V8_WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() V8_WARN_UNUSED_RESULT;
-  Maybe<Vector<const uint8_t>> ReadRawBytes(int size) V8_WARN_UNUSED_RESULT;
+  Maybe<base::Vector<const uint8_t>> ReadRawBytes(int size)
+      V8_WARN_UNUSED_RESULT;
 
   // Reads a string if it matches the one provided.
   // Returns true if this was the case. Otherwise, nothing is consumed.

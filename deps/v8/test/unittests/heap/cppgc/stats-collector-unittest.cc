@@ -18,8 +18,9 @@ constexpr size_t kMinReportedSize = StatsCollector::kAllocationThresholdBytes;
 
 class StatsCollectorTest : public ::testing::Test {
  public:
-  StatsCollectorTest()
-      : stats(nullptr /* metric_recorder */, nullptr /* platform */) {}
+  static constexpr Platform* kNoPlatform = nullptr;
+
+  StatsCollectorTest() : stats(kNoPlatform) {}
 
   void FakeAllocate(size_t bytes) {
     stats.NotifyAllocation(bytes);
@@ -233,6 +234,34 @@ TEST_F(StatsCollectorTest, AllocatedMemorySize) {
   EXPECT_EQ(1024u, stats.allocated_memory_size());
   stats.NotifyFreedMemory(1024);
   EXPECT_EQ(0u, stats.allocated_memory_size());
+}
+
+TEST_F(StatsCollectorTest, DiscardedMemorySize) {
+  EXPECT_EQ(0u, stats.discarded_memory_size());
+  stats.IncrementDiscardedMemory(1024);
+  EXPECT_EQ(1024u, stats.discarded_memory_size());
+  stats.DecrementDiscardedMemory(1024);
+  EXPECT_EQ(0u, stats.discarded_memory_size());
+}
+
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithoutDiscarded) {
+  EXPECT_EQ(0u, stats.resident_memory_size());
+  stats.NotifyAllocatedMemory(1024);
+  EXPECT_EQ(1024u, stats.resident_memory_size());
+  stats.NotifyFreedMemory(1024);
+  EXPECT_EQ(0u, stats.resident_memory_size());
+}
+
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithDiscarded) {
+  EXPECT_EQ(0u, stats.resident_memory_size());
+  stats.NotifyAllocatedMemory(8192);
+  EXPECT_EQ(8192u, stats.resident_memory_size());
+  stats.IncrementDiscardedMemory(4096);
+  EXPECT_EQ(4096u, stats.resident_memory_size());
+  stats.DecrementDiscardedMemory(4096);
+  EXPECT_EQ(8192u, stats.resident_memory_size());
+  stats.NotifyFreedMemory(8192);
+  EXPECT_EQ(0u, stats.resident_memory_size());
 }
 
 }  // namespace internal

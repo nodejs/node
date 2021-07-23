@@ -87,6 +87,10 @@ declare_args() {
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
+
+  # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
+  # depending on platform. Disabled on Android to save binary size.
+  v8_advanced_bigint_algorithms = !is_android
 }
 
 if (v8_use_external_startup_data == "") {

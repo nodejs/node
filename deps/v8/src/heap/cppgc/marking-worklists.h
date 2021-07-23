@@ -84,6 +84,8 @@ class MarkingWorklists {
   using EphemeronPairsWorklist =
       heap::base::Worklist<EphemeronPairItem, 64 /* local entries */>;
   using WeakContainersWorklist = ExternalMarkingWorklist;
+  using RetraceMarkedObjectsWorklist =
+      heap::base::Worklist<HeapObjectHeader*, 16 /* local entries */>;
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
@@ -111,6 +113,9 @@ class MarkingWorklists {
   WeakContainersWorklist* weak_containers_worklist() {
     return &weak_containers_worklist_;
   }
+  RetraceMarkedObjectsWorklist* retrace_marked_objects_worklist() {
+    return &retrace_marked_objects_worklist_;
+  }
 
   void ClearForTesting();
 
@@ -125,6 +130,7 @@ class MarkingWorklists {
   EphemeronPairsWorklist discovered_ephemeron_pairs_worklist_;
   EphemeronPairsWorklist ephemeron_pairs_for_processing_worklist_;
   WeakContainersWorklist weak_containers_worklist_;
+  RetraceMarkedObjectsWorklist retrace_marked_objects_worklist_;
 };
 
 template <>

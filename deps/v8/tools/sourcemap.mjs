@@ -326,7 +326,7 @@ WebInspector.SourceMap.prototype = {
         } while (digit & this._VLQ_CONTINUATION_MASK);
 
         // Fix the sign.
-        const negative = result & 1;
+        const negate = result & 1;
         // Use unsigned right shift, so that the 32nd bit is properly shifted
         // to the 31st, and the 32nd becomes unset.
         result >>>= 1;

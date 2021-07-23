@@ -50,7 +50,7 @@ WASM_EXEC_TEST(MemoryInit) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -86,7 +86,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBoundsData) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -107,7 +107,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[kWasmPageSize] = {};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -315,7 +315,7 @@ WASM_EXEC_TEST(DataDropTwice) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0), kExprI32Const, 0);
 
   CHECK_EQ(0, r.Call());
@@ -326,7 +326,7 @@ WASM_EXEC_TEST(DataDropThenMemoryInit) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0),
         WASM_MEMORY_INIT(0, WASM_I32V_1(0), WASM_I32V_1(1), WASM_I32V_1(2)),
         kExprI32Const, 0);
@@ -447,19 +447,19 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
 
   // Test actual writes.
   r.CheckCallViaJS(0, 0, 0, 1);
-  CheckTableCall(isolate, table, &r, call_index, 0, null, null, null, null);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, null, null, null, null);
   r.CheckCallViaJS(0, 0, 0, 2);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, null, null, null);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, null, null, null);
   r.CheckCallViaJS(0, 0, 0, 3);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, null, null);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, null, null);
   r.CheckCallViaJS(0, 3, 0, 2);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 0, 1);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 0.0, 1.0);
   r.CheckCallViaJS(0, 3, 1, 2);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 1, 2);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 1.0, 2.0);
   r.CheckCallViaJS(0, 3, 2, 2);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 2, 3);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 2.0, 3.0);
   r.CheckCallViaJS(0, 3, 3, 2);
-  CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 3, 4);
+  CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 3.0, 4.0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableInitElems0) {
@@ -670,21 +670,21 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
              isolate);
 
   if (table_dst == table_src) {
-    CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 0, 1, 1);
-    CheckTableCall(isolate, table, &r, call_index, 1, 1, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 1.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 0, 1, 2);
-    CheckTableCall(isolate, table, &r, call_index, 1, 2, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 2.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 3, 0, 2);
-    CheckTableCall(isolate, table, &r, call_index, 1, 2, 2, 1, 2);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 2.0, 2.0, 1.0, 2.0);
   } else {
-    CheckTableCall(isolate, table, &r, call_index, 0, 1, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 0.0, 1.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 0, 1, 1);
-    CheckTableCall(isolate, table, &r, call_index, 1, 1, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 1.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 0, 1, 2);
-    CheckTableCall(isolate, table, &r, call_index, 1, 2, 2, 3, 4);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 2.0, 2.0, 3.0, 4.0);
     r.CheckCallViaJS(0, 3, 0, 2);
-    CheckTableCall(isolate, table, &r, call_index, 1, 2, 2, 0, 1);
+    CheckTableCall(isolate, table, &r, call_index, 1.0, 2.0, 2.0, 0.0, 1.0);
   }
 }
 

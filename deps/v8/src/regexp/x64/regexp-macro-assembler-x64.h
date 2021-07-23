@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 #define V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
+#include "src/base/strings.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -28,8 +29,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void CheckCharacter(uint32_t c, Label* on_equal) override;
   void CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                               Label* on_equal) override;
-  void CheckCharacterGT(uc16 limit, Label* on_greater) override;
-  void CheckCharacterLT(uc16 limit, Label* on_less) override;
+  void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
@@ -42,17 +43,19 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void CheckNotCharacter(uint32_t c, Label* on_not_equal) override;
   void CheckNotCharacterAfterAnd(uint32_t c, uint32_t mask,
                                  Label* on_not_equal) override;
-  void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
+  void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                      base::uc16 mask,
                                       Label* on_not_equal) override;
-  void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range) override;
-  void CheckCharacterNotInRange(uc16 from, uc16 to,
+  void CheckCharacterInRange(base::uc16 from, base::uc16 to,
+                             Label* on_in_range) override;
+  void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) override;
+  bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match) override;
   void Fail() override;
   Handle<HeapObject> GetCode(Handle<String> source) override;
   void GoTo(Label* label) override;

@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation --allow-natives-syntax --expose-gc
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function SerializeUncompiledModule() {
   print(arguments.callee.name);

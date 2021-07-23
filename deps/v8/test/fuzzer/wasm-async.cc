@@ -76,7 +76,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   bool done = false;
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   constexpr const char* kAPIMethodName = "WasmAsyncFuzzer.compile";
-  i_isolate->wasm_engine()->AsyncCompile(
+  GetWasmEngine()->AsyncCompile(
       i_isolate, enabled_features,
       std::make_shared<AsyncFuzzerResolver>(i_isolate, &done),
       ModuleWireBytes(data, data + size), false, kAPIMethodName);

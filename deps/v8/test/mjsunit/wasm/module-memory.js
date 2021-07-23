@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax --wasm-loop-unrolling
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kMemSize = 65536;
 

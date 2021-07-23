@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('../base.js');
+d8.file.execute('../base.js');
 
-load('serialize.js');
-load('capture.js');
+d8.file.execute('serialize.js');
+d8.file.execute('capture.js');
 
 function PrintResult(name, result) {
   print(name + '-StackTrace(Score): ' + result);

@@ -17,7 +17,7 @@
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {
@@ -87,8 +87,8 @@ class DebugSideTable {
     // Stack height, including locals.
     int stack_height() const { return stack_height_; }
 
-    Vector<const Value> changed_values() const {
-      return VectorOf(changed_values_);
+    base::Vector<const Value> changed_values() const {
+      return base::VectorOf(changed_values_);
     }
 
     const Value* FindChangedValue(int stack_index) const {
@@ -217,7 +217,7 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  void RemoveDebugSideTables(Vector<WasmCode* const>);
+  void RemoveDebugSideTables(base::Vector<WasmCode* const>);
 
   // Return the debug side table for the given code object, but only if it has
   // already been created. This will never trigger generation of the table.

@@ -18,15 +18,13 @@ from . import util
 from ..local import junit_output
 
 
-def print_failure_header(test):
+def print_failure_header(test, is_flaky=False):
+  text = [str(test)]
   if test.output_proc.negative:
-    negative_marker = '[negative] '
-  else:
-    negative_marker = ''
-  print("=== %(label)s %(negative)s===" % {
-    'label': test,
-    'negative': negative_marker,
-  })
+    text.append('[negative]')
+  if is_flaky:
+    text.append('(flaky)')
+  print('=== %s ===' % ' '.join(text))
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -75,13 +73,18 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
-      self._failed.append((test, result))
+      self._failed.append((test, result, False))
+    elif result.is_rerun:
+      # Print only the first result of a flaky failure that was rerun.
+      self._failed.append((test, result.results[0], True))
 
   def finished(self):
     crashed = 0
+    flaky = 0
     print()
-    for test, result in self._failed:
-      print_failure_header(test)
+    for test, result, is_flaky in self._failed:
+      flaky += int(is_flaky)
+      print_failure_header(test, is_flaky=is_flaky)
       if result.output.stderr:
         print("--- stderr ---")
         print(result.output.stderr.strip())
@@ -102,9 +105,11 @@ class SimpleProgressIndicator(ProgressIndicator):
     else:
       print()
       print("===")
-      print("=== %i tests failed" % len(self._failed))
+      print("=== %d tests failed" % len(self._failed))
+      if flaky > 0:
+        print("=== %d tests were flaky" % flaky)
       if crashed > 0:
-        print("=== %i tests CRASHED" % crashed)
+        print("=== %d tests CRASHED" % crashed)
       print("===")
 
 
@@ -130,6 +135,17 @@ class StreamProgressIndicator(ProgressIndicator):
     print('%s: %ss' % (prefix, test))
     sys.stdout.flush()
 
+
+def format_result_status(result):
+  if result.has_unexpected_output:
+    if result.output.HasCrashed():
+      return 'CRASH'
+    else:
+      return 'FAIL'
+  else:
+    return 'PASS'
+
+
 class VerboseProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
     super(VerboseProgressIndicator, self).__init__()
@@ -142,13 +158,10 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def _message(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
-    if result.has_unexpected_output:
-      if result.output.HasCrashed():
-        outcome = 'CRASH'
-      else:
-        outcome = 'FAIL'
+    if result.is_rerun:
+      outcome = ' '.join(format_result_status(r) for r in result.results)
     else:
-      outcome = 'pass'
+      outcome = format_result_status(result)
     return '%s %s: %s' % (
       test, test.variant or 'default', outcome)
 

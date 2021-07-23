@@ -198,7 +198,7 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
         CSA_ASSERT(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         OverwriteFeedback(&var_feedback, BinaryOperationFeedback::kAny);
-        var_value = CallBuiltin(Builtins::kNonNumberToNumeric, context,
+        var_value = CallBuiltin(Builtin::kNonNumberToNumeric, context,
                                 value_heap_object);
         Goto(&start);
       }

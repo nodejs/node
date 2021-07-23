@@ -16,7 +16,7 @@ ALL_VARIANT_FLAGS = {
   "concurrent_inlining":  [["--concurrent-inlining"]],
   "jitless": [["--jitless"]],
   "sparkplug": [["--sparkplug"]],
-  "always_sparkplug": [[ "--always-sparkplug" ]],
+  "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -30,7 +30,8 @@ ALL_VARIANT_FLAGS = {
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions",
               "--no-wasm-generic-wrapper"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
-  "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
+  "stress_concurrent_inlining": [["--stress-concurrent-inlining",
+                                  "--concurrent-inlining"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
@@ -40,7 +41,7 @@ ALL_VARIANT_FLAGS = {
   "trusted": [["--no-untrusted-code-mitigations"]],
   "no_wasm_traps": [["--no-wasm-trap-handler"]],
   "turboprop": [["--turboprop"]],
-  "turboprop_as_toptier": [["--turboprop-as-toptier"]],
+  "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
   "top_level_await": [["--harmony-top-level-await"]],
@@ -51,33 +52,26 @@ ALL_VARIANT_FLAGS = {
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
-  "assert_types": ["--no-assert-types"],
   "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
               "--validate-asm", "--sparkplug", "--always-sparkplug"],
-  "no_wasm_traps": ["--wasm-trap-handler"],
-  "nooptimization": ["--opt", "--always-opt", "--no-liftoff",
-                     "--wasm-tier-up"],
+  "nooptimization": ["--always-opt"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
-  "stress_concurrent_inlining": ["--single-threaded", "--predictable",
-                                 "--no-concurrent-inlining"],
-  "concurrent_inlining": ["--no-concurrent-inlining"],
-  "stress_incremental_marking": ["--no-stress-incremental-marking"],
-  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
-  "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff",
+  "stress_concurrent_inlining": ["--single-threaded", "--predictable"],
+  # The fast API tests initialize an embedder object that never needs to be
+  # serialized to the snapshot, so we don't have a
+  # SerializeInternalFieldsCallback for it, so they are incompatible with
+  # stress_snapshot.
+  "stress_snapshot": [["--turbo-fast-api-calls"]],
+  "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
-             "--wasm-generic-wrapper"],
-  "sparkplug": ["--jitless", "--no-sparkplug" ],
-  "always_sparkplug": ["--jitless", "--no-sparkplug", "--no-always-sparkplug"],
-  "turboprop": ["--interrupt-budget=*", "--no-turboprop"],
-  "turboprop_as_toptier": ["--interrupt-budget=*", "--no-turboprop",
-                           "--no-turboprop-as-toptier"],
+             "--liftoff-only"],
+  "sparkplug": ["--jitless"],
+  "always_sparkplug": ["--jitless"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
                       "--cache=none"],
-  "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
-  "experimental_regexp": ["--no-enable-experimental-regexp-engine",
-                          "--no-default-to-experimental-regexp-engine"],
+  "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
   # There is a negative implication: --perf-prof disables
   # --wasm-write-protect-code-memory.
   "wasm_write_protect_code": ["--perf-prof"],
@@ -89,12 +83,13 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
-  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"]
+  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
+                "--stress-concurrent-inlining"]
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-  "predictable": ["--liftoff", "--parallel-compile-tasks",
+  "predictable": ["--parallel-compile-tasks",
                   "--concurrent-recompilation",
-                  "--wasm-num-compilation-tasks=*",
-                  "--stress-concurrent-allocation"],
+                  "--stress-concurrent-allocation",
+                  "--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
@@ -103,20 +98,13 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
-  "--concurrent-inlining":
-        INCOMPATIBLE_FLAGS_PER_VARIANT["concurrent_inlining"],
-  "--concurrent-recompilation": ["--no-concurrent-recompilation", "--predictable"],
-  "--enable-armv8": ["--no-enable-armv8"],
+  "--concurrent-recompilation": ["--predictable"],
   "--gc-interval=*": ["--gc-interval=*"],
-  "--no-enable-sse3": ["--enable-sse3"],
-  "--no-enable-ssse3": ["--enable-ssse3"],
-  "--no-enable-sse4-1": ["--enable-sse4-1"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
-  "--stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+  "--stress_concurrent_allocation":
+        INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_allocation"],
   "--stress-concurrent-inlining":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_inlining"],
-  "--stress-flush-bytecode": ["--no-stress-flush-bytecode"],
-  "--stress-incremental-marking": INCOMPATIBLE_FLAGS_PER_VARIANT["stress_incremental_marking"],
 }
 
 SLOW_VARIANTS = set([

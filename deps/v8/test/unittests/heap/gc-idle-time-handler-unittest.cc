@@ -57,7 +57,7 @@ TEST(GCIdleTimeHandler, EstimateMarkingStepSizeNonZero) {
 
 TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow1) {
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      10, std::numeric_limits<size_t>::max());
+      10, static_cast<double>(std::numeric_limits<size_t>::max()));
   EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
             step_size);
 }
@@ -65,7 +65,7 @@ TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow1) {
 
 TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow2) {
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      std::numeric_limits<size_t>::max(), 10);
+      static_cast<double>(std::numeric_limits<size_t>::max()), 10);
   EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
             step_size);
 }

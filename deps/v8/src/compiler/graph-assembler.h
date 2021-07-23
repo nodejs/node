@@ -349,7 +349,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   Node* DynamicCheckMapsWithDeoptUnless(Node* condition, Node* slot_index,
                                         Node* map, Node* handler,
-                                        Node* frame_state);
+                                        Node* feedback_vector,
+                                        FrameState frame_state);
   TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,
                      Node** inputs);
   TNode<Object> Call(const Operator* op, int inputs_size, Node** inputs);
@@ -908,6 +909,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Number> PlainPrimitiveToNumber(TNode<Object> value);
   TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Boolean> NumberEqual(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Boolean> NumberLessThanOrEqual(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberAdd(TNode<Number> lhs, TNode<Number> rhs);

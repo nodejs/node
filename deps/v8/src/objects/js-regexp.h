@@ -115,6 +115,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline int MaxRegisterCount() const;
   inline Flags GetFlags();
   inline String Pattern();
+  inline String EscapedPattern();
   inline Object CaptureNameMap();
   inline Object DataAt(int index) const;
   // Set implementation data after the object has been prepared.

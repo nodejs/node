@@ -36,7 +36,7 @@ void RunI8x16UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     r.Call(x);
     int8_t expected = expected_op(x);
     for (int i = 0; i < 16; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -62,7 +62,7 @@ void RunI8x16BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       T expected = expected_op(x, y);
       for (int i = 0; i < 16; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -100,8 +100,8 @@ void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x);
       int8_t expected = expected_op(x, shift);
       for (int i = 0; i < 16; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g_imm[i]));
-        CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g_mem[i]));
+        CHECK_EQ(expected, LANE(g_imm, i));
+        CHECK_EQ(expected, LANE(g_mem, i));
       }
     }
   }
@@ -144,7 +144,7 @@ void RunI16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     r.Call(x);
     int16_t expected = expected_op(x);
     for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -170,7 +170,7 @@ void RunI16x8BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       T expected = expected_op(x, y);
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -207,8 +207,8 @@ void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x);
       int16_t expected = expected_op(x, shift);
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g_imm[i]));
-        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g_mem[i]));
+        CHECK_EQ(expected, LANE(g_imm, i));
+        CHECK_EQ(expected, LANE(g_mem, i));
       }
     }
   }
@@ -251,7 +251,7 @@ void RunI32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     r.Call(x);
     int32_t expected = expected_op(x);
     for (int i = 0; i < 4; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -276,7 +276,7 @@ void RunI32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       int32_t expected = expected_op(x, y);
       for (int i = 0; i < 4; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -307,8 +307,8 @@ void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x);
       int32_t expected = expected_op(x, shift);
       for (int i = 0; i < 4; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g_imm[i]));
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g_mem[i]));
+        CHECK_EQ(expected, LANE(g_imm, i));
+        CHECK_EQ(expected, LANE(g_mem, i));
       }
     }
   }
@@ -330,7 +330,7 @@ void RunI64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     r.Call(x);
     int64_t expected = expected_op(x);
     for (int i = 0; i < 2; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -355,7 +355,7 @@ void RunI64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       int64_t expected = expected_op(x, y);
       for (int i = 0; i < 2; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -386,8 +386,8 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x);
       int64_t expected = expected_op(x, shift);
       for (int i = 0; i < 2; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g_imm[i]));
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g_mem[i]));
+        CHECK_EQ(expected, LANE(g_imm, i));
+        CHECK_EQ(expected, LANE(g_mem, i));
       }
     }
   }
@@ -470,7 +470,7 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x, x, expected, actual, exact);
     }
   }
@@ -484,7 +484,7 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x, x, expected, actual, exact);
     }
   }
@@ -513,7 +513,7 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
       for (int i = 0; i < 4; i++) {
-        float actual = ReadLittleEndianValue<float>(&g[i]);
+        float actual = g[i];
         CheckFloatResult(x, y, expected, actual, true /* exact */);
       }
     }
@@ -529,7 +529,7 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
       for (int i = 0; i < 4; i++) {
-        float actual = ReadLittleEndianValue<float>(&g[i]);
+        float actual = LANE(g, i);
         CheckFloatResult(x, y, expected, actual, true /* exact */);
       }
     }
@@ -560,7 +560,7 @@ void RunF32x4CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       int32_t expected = expected_op(x, y);
       for (int i = 0; i < 4; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -643,7 +643,7 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x, x, expected, actual, exact);
     }
   }
@@ -657,7 +657,7 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x, x, expected, actual, exact);
     }
   }
@@ -686,7 +686,7 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
       for (int i = 0; i < 2; i++) {
-        double actual = ReadLittleEndianValue<double>(&g[i]);
+        double actual = LANE(g, i);
         CheckDoubleResult(x, y, expected, actual, true /* exact */);
       }
     }
@@ -701,7 +701,7 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       if (!PlatformCanRepresent(expected)) continue;
       r.Call(x, y);
       for (int i = 0; i < 2; i++) {
-        double actual = ReadLittleEndianValue<double>(&g[i]);
+        double actual = LANE(g, i);
         CheckDoubleResult(x, y, expected, actual, true /* exact */);
       }
     }
@@ -737,8 +737,8 @@ void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       int64_t expected0 = expected_op(x, y);
       int64_t expected1 = expected_op(y, y);
-      CHECK_EQ(expected0, ReadLittleEndianValue<int64_t>(&g[0]));
-      CHECK_EQ(expected1, ReadLittleEndianValue<int64_t>(&g[1]));
+      CHECK_EQ(expected0, LANE(g, 0));
+      CHECK_EQ(expected1, LANE(g, 1));
     }
   }
 }

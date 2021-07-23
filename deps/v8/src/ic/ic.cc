@@ -10,7 +10,6 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"
-#include "src/codegen/code-factory.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
@@ -31,6 +30,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/megadom-handler.h"
@@ -42,6 +42,10 @@
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/struct-types.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -141,8 +145,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (function.ActiveTierIsIgnition()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
   } else {
-    code_offset =
-        static_cast<int>(frame->pc() - function.code().InstructionStart());
+    code_offset = static_cast<int>(frame->pc() - function.code_entry_point());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(
       function, function.abstract_code(isolate_), code_offset);
@@ -429,7 +432,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
   update_lookup_start_object_map(object);
 
-  LookupIterator::Key key(isolate(), name);
+  PropertyKey key(isolate(), name);
   LookupIterator it = LookupIterator(isolate(), receiver, key, object);
 
   // Named lookup in the object.
@@ -501,7 +504,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
     Handle<ScriptContextTable> script_contexts(
         global->native_context().script_context_table(), isolate());
 
-    ScriptContextTable::LookupResult lookup_result;
+    VariableLookupResult lookup_result;
     if (ScriptContextTable::Lookup(isolate(), *script_contexts, *str_name,
                                    &lookup_result)) {
       Handle<Context> script_context = ScriptContextTable::GetContext(
@@ -831,6 +834,73 @@ void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
   }
 }
 
+namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+
+inline WasmValueType GetWasmValueType(wasm::ValueType type) {
+#define TYPE_CASE(Name) \
+  case wasm::k##Name:   \
+    return WasmValueType::k##Name;
+
+  switch (type.kind()) {
+    TYPE_CASE(I8)
+    TYPE_CASE(I16)
+    TYPE_CASE(I32)
+    TYPE_CASE(I64)
+    TYPE_CASE(F32)
+    TYPE_CASE(F64)
+    TYPE_CASE(S128)
+    TYPE_CASE(Ref)
+    TYPE_CASE(OptRef)
+
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // Rtt values are not supposed to be made available to JavaScript side.
+      UNREACHABLE();
+
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+#undef TYPE_CASE
+}
+
+Handle<Smi> MakeLoadWasmStructFieldHandler(Isolate* isolate,
+                                           Handle<JSReceiver> holder,
+                                           LookupIterator* lookup) {
+  DCHECK(holder->IsWasmObject(isolate));
+  WasmValueType type;
+  int field_offset;
+  if (holder->IsWasmArray(isolate)) {
+    // The only named property that WasmArray has is length.
+    DCHECK_EQ(0, lookup->property_details().field_index());
+    DCHECK_EQ(*isolate->factory()->length_string(), *lookup->name());
+    type = WasmValueType::kU32;
+    field_offset = WasmArray::kLengthOffset;
+  } else {
+    wasm::StructType* struct_type = Handle<WasmStruct>::cast(holder)->type();
+    int field_index = lookup->property_details().field_index();
+    type = GetWasmValueType(struct_type->field(field_index));
+    field_offset =
+        WasmStruct::kHeaderSize + struct_type->field_offset(field_index);
+
+    const size_t kMaxWasmFieldOffset =
+        WasmStruct::kHeaderSize + wasm::StructType::kMaxFieldOffset;
+    static_assert(kMaxWasmFieldOffset <= LoadHandler::WasmFieldOffsetBits::kMax,
+                  "Bigger numbers of struct fields require different approach");
+  }
+  return LoadHandler::LoadWasmStructField(isolate, type, field_offset);
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
+Handle<Object> IC::CodeHandler(Builtin builtin) {
+  return MakeCodeHandler(isolate(), builtin);
+}
+
 Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
@@ -843,13 +913,13 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
     if (lookup_start_object->IsString() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
-      return BUILTIN_CODE(isolate(), LoadIC_StringLength);
+      return CodeHandler(Builtin::kLoadIC_StringLength);
     }
 
     if (lookup_start_object->IsStringWrapper() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
-      return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
+      return CodeHandler(Builtin::kLoadIC_StringWrapperLength);
     }
 
     // Use specialized code for getting prototype of functions.
@@ -858,20 +928,17 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         !JSFunction::cast(*lookup_start_object)
              .PrototypeRequiresRuntimeLookup()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
-      return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);
+      return CodeHandler(Builtin::kLoadIC_FunctionPrototype);
     }
   }
 
   Handle<Map> map = lookup_start_object_map();
-  Handle<JSObject> holder;
-  bool holder_is_lookup_start_object;
-  if (lookup->state() != LookupIterator::JSPROXY) {
-    holder = lookup->GetHolder<JSObject>();
-    holder_is_lookup_start_object = lookup_start_object.is_identical_to(holder);
-  }
+  bool holder_is_lookup_start_object =
+      lookup_start_object.is_identical_to(lookup->GetHolder<JSReceiver>());
 
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
+      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
 
       if (holder->GetNamedInterceptor().non_masking()) {
@@ -896,6 +963,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::ACCESSOR: {
+      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       // Use simple field loads for some well-known callback properties.
       // The method will only return true for absolute truths based on the
       // lookup start object maps.
@@ -929,6 +997,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
         Handle<Object> getter(accessor_pair->getter(), isolate());
         if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
+          // TODO(jgruber): Update counter name.
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return LoadHandler::LoadSlow(isolate());
         }
@@ -1024,10 +1093,11 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::DATA: {
+      Handle<JSReceiver> holder = lookup->GetHolder<JSReceiver>();
       DCHECK_EQ(kData, lookup->property_details().kind());
       Handle<Smi> smi_handler;
       if (lookup->is_dictionary_holder()) {
-        if (holder->IsJSGlobalObject()) {
+        if (holder->IsJSGlobalObject(isolate())) {
           // TODO(verwaest): Also supporting the global object as receiver is a
           // workaround for code that leaks the global object.
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalDH);
@@ -1041,12 +1111,29 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         if (holder_is_lookup_start_object) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
       } else if (lookup->IsElement(*holder)) {
+#if V8_ENABLE_WEBASSEMBLY
+        if (holder_is_lookup_start_object && holder->IsWasmStruct()) {
+          // TODO(ishell): Consider supporting indexed access to WasmStruct
+          // fields.
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+          return LoadHandler::LoadNonExistent(isolate());
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
         return LoadHandler::LoadSlow(isolate());
       } else {
         DCHECK_EQ(kField, lookup->property_details().location());
-        FieldIndex field = lookup->GetFieldIndex();
-        smi_handler = LoadHandler::LoadField(isolate(), field);
+#if V8_ENABLE_WEBASSEMBLY
+        if (V8_UNLIKELY(holder->IsWasmObject(isolate()))) {
+          smi_handler =
+              MakeLoadWasmStructFieldHandler(isolate(), holder, lookup);
+        } else  // NOLINT(readability/braces)
+#endif          // V8_ENABLE_WEBASSEMBLY
+        {
+          DCHECK(holder->IsJSObject(isolate()));
+          FieldIndex field = lookup->GetFieldIndex();
+          smi_handler = LoadHandler::LoadField(isolate(), field);
+        }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (holder_is_lookup_start_object) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
@@ -1085,14 +1172,12 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadIntegerIndexedExoticDH);
       return LoadHandler::LoadNonExistent(isolate());
+
     case LookupIterator::JSPROXY: {
-      Handle<JSProxy> holder_proxy = lookup->GetHolder<JSProxy>();
-      bool holder_proxy_is_lookup_start_object =
-          lookup->lookup_start_object().is_identical_to(holder_proxy);
       Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
-      if (holder_proxy_is_lookup_start_object) {
-        return smi_handler;
-      }
+      if (holder_is_lookup_start_object) return smi_handler;
+
+      Handle<JSProxy> holder_proxy = lookup->GetHolder<JSProxy>();
       return LoadHandler::LoadFromPrototype(isolate(), map, holder_proxy,
                                             smi_handler);
     }
@@ -1143,13 +1228,18 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   // monomorphic. If this optimistic assumption is not true, the IC will
   // miss again and it will become polymorphic and support both the
   // untransitioned and transitioned maps.
-  if (state() == MONOMORPHIC && !receiver->IsString() &&
-      !receiver->IsJSProxy() &&
-      IsMoreGeneralElementsKindTransition(
-          target_receiver_maps.at(0)->elements_kind(),
-          Handle<JSObject>::cast(receiver)->GetElementsKind())) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
-    return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+  if (state() == MONOMORPHIC) {
+    if ((receiver->IsJSObject() &&
+         IsMoreGeneralElementsKindTransition(
+             target_receiver_maps.at(0)->elements_kind(),
+             Handle<JSObject>::cast(receiver)->GetElementsKind()))
+#ifdef V8_ENABLE_WEBASSEMBLY
+        || receiver->IsWasmObject()
+#endif
+    ) {
+      Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
+      return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+    }
   }
 
   DCHECK(state() != GENERIC);
@@ -1233,8 +1323,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
       !receiver_map->GetIndexedInterceptor().non_masking()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
-                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
+    return IsAnyHas() ? CodeHandler(Builtin::kHasIndexedInterceptorIC)
+                      : CodeHandler(Builtin::kLoadIndexedInterceptorIC);
   }
 
   InstanceType instance_type = receiver_map->instance_type();
@@ -1250,13 +1340,20 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (instance_type == JS_PROXY_TYPE) {
     return LoadHandler::LoadProxy(isolate());
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (InstanceTypeChecker::IsWasmObject(instance_type)) {
+    // TODO(jgruber): Update counter name.
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
+    return LoadHandler::LoadSlow(isolate());
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (IsSloppyArgumentsElementsKind(elements_kind)) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    return IsAnyHas() ? BUILTIN_CODE(isolate(), KeyedHasIC_SloppyArguments)
-                      : BUILTIN_CODE(isolate(), KeyedLoadIC_SloppyArguments);
+    return IsAnyHas() ? CodeHandler(Builtin::kKeyedHasIC_SloppyArguments)
+                      : CodeHandler(Builtin::kKeyedLoadIC_SloppyArguments);
   }
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
@@ -1562,7 +1659,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   Handle<ScriptContextTable> script_contexts(
       global->native_context().script_context_table(), isolate());
 
-  ScriptContextTable::LookupResult lookup_result;
+  VariableLookupResult lookup_result;
   if (ScriptContextTable::Lookup(isolate(), *script_contexts, *str_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
@@ -1612,7 +1709,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
-    LookupIterator::Key key(isolate(), name);
+    PropertyKey key(isolate(), name);
     LookupIterator it(isolate(), object, key);
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     return value;
@@ -1629,11 +1726,12 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       SetCache(name, StoreHandler::StoreSlow(isolate()));
       TraceIC("StoreIC", name);
     }
-    return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
+    return TypeError(MessageTemplate::kNonObjectPropertyStoreWithProperty, name,
+                     object);
   }
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
-  LookupIterator::Key key(isolate(), name);
+  PropertyKey key(isolate(), name);
   LookupIterator it(isolate(), object, key);
 
   if (name->IsPrivate()) {
@@ -2078,15 +2176,14 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    code =
-        CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
+    code = CodeHandler(StoreHandler::StoreSloppyArgumentsBuiltin(store_mode));
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
              receiver_map->has_nonextensible_elements() ||
-             receiver_map->has_typed_array_elements()) {
+             receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
-    if (receiver_map->has_typed_array_elements()) {
+    code = CodeHandler(StoreHandler::StoreFastElementBuiltin(store_mode));
+    if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
       return code;
     }
   } else if (IsStoreInArrayLiteralICKind(kind())) {
@@ -2097,9 +2194,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
-           receiver_map->has_frozen_elements() ||
-           receiver_map->has_rab_gsab_typed_array_elements());
-    // TODO(v8:11111): Add fast paths for RAB / GSAB.
+           receiver_map->has_frozen_elements());
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
@@ -2205,7 +2300,8 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, size_t index) {
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
-  if (receiver->map().has_typed_array_elements() && oob_access) {
+  if (receiver->map().has_typed_array_or_rab_gsab_typed_array_elements() &&
+      oob_access) {
     return STORE_IGNORE_OUT_OF_BOUNDS;
   }
   return receiver->elements().IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;
@@ -2341,7 +2437,7 @@ namespace {
 void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
                      Handle<Object> index, Handle<Object> value) {
   DCHECK(index->IsNumber());
-  LookupIterator::Key key(isolate, index);
+  PropertyKey key(isolate, index);
   LookupIterator it(isolate, array, key, LookupIterator::OWN);
 
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -2627,7 +2723,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   Handle<ScriptContextTable> script_contexts(
       native_context->script_context_table(), isolate);
 
-  ScriptContextTable::LookupResult lookup_result;
+  VariableLookupResult lookup_result;
   if (ScriptContextTable::Lookup(isolate, *script_contexts, *name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(

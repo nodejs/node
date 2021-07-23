@@ -10,14 +10,18 @@
 #include "src/codegen/code-desc.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/utils/utils.h"
 
@@ -180,14 +184,26 @@ INT_ACCESSORS(Code, raw_metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
-#define CODE_ACCESSORS(name, type, offset)           \
-  ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+#define CODE_ACCESSORS(name, type, offset)            \
+  ACCESSORS_CHECKED2(Code, name, type, offset,        \
+                     !ObjectInYoungGeneration(value), \
                      !ObjectInYoungGeneration(value))
-#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)           \
-  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+#define CODE_ACCESSORS_CHECKED(name, type, offset, condition)        \
+  ACCESSORS_CHECKED2(Code, name, type, offset,                       \
+                     !ObjectInYoungGeneration(value) && (condition), \
+                     !ObjectInYoungGeneration(value) && (condition))
+#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)            \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset,        \
+                                     !ObjectInYoungGeneration(value), \
                                      !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+RELEASE_ACQUIRE_CODE_ACCESSORS(relocation_info, ByteArray,
+                               kRelocationInfoOffset)
+CODE_ACCESSORS_CHECKED(relocation_info_or_undefined, HeapObject,
+                       kRelocationInfoOffset,
+                       value.IsUndefined() || value.IsByteArray())
+
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 #define IS_BASELINE() (kind() == CodeKind::BASELINE)
 ACCESSORS_CHECKED2(Code, source_position_table, ByteArray, kPositionTableOffset,
@@ -201,7 +217,53 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
 RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                                kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
+#undef CODE_ACCESSORS_CHECKED
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS
+
+CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  HeapObject object =
+      TaggedField<HeapObject, kCodeDataContainerOffset>::Acquire_Load(cage_base,
+                                                                      *this);
+  DCHECK(!ObjectInYoungGeneration(object));
+  CodeDataContainer code_data_container =
+      ForwardingAddress(CodeDataContainer::unchecked_cast(object));
+  return code_data_container;
+}
+
+// Helper functions for converting Code objects to CodeDataContainer and back
+// when V8_EXTERNAL_CODE_SPACE is enabled.
+inline CodeT ToCodeT(Code code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code_data_container(kAcquireLoad);
+#else
+  return code;
+#endif
+}
+
+inline Code FromCodeT(CodeT code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code();
+#else
+  return code;
+#endif
+}
+
+inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code(kRelaxedLoad);
+#else
+  return code;
+#endif
+}
+
+inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code;
+#else
+  return code.code_data_container(kAcquireLoad);
+#endif
+}
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
@@ -328,6 +390,12 @@ ByteArray Code::unchecked_relocation_info() const {
       TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
 }
 
+HeapObject Code::synchronized_unchecked_relocation_info_or_undefined() const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
+                                                                      *this);
+}
+
 byte* Code::relocation_start() const {
   return unchecked_relocation_info().GetDataStartAddress();
 }
@@ -447,30 +515,27 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
 inline bool Code::is_interpreter_trampoline_builtin() const {
   // Check for kNoBuiltinId first to abort early when the current Code object
   // is not a builtin.
-  const int index = builtin_index();
-  return index != Builtins::kNoBuiltinId &&
-         (index == Builtins::kInterpreterEntryTrampoline ||
-          index == Builtins::kInterpreterEnterAtBytecode ||
-          index == Builtins::kInterpreterEnterAtNextBytecode);
+  return builtin_id() != Builtin::kNoBuiltinId &&
+         (builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+          builtin_id() == Builtin::kInterpreterEnterAtBytecode ||
+          builtin_id() == Builtin::kInterpreterEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_trampoline_builtin() const {
-  const int index = builtin_index();
-  return index != Builtins::kNoBuiltinId &&
-         (index == Builtins::kBaselineOutOfLinePrologue ||
-          index == Builtins::kBaselineEnterAtBytecode ||
-          index == Builtins::kBaselineEnterAtNextBytecode);
+  return builtin_id() != Builtin::kNoBuiltinId &&
+         (builtin_id() == Builtin::kBaselineOutOfLinePrologue ||
+          builtin_id() == Builtin::kBaselineEnterAtBytecode ||
+          builtin_id() == Builtin::kBaselineEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_leave_frame_builtin() const {
-  return builtin_index() == Builtins::kBaselineLeaveFrame;
+  return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
 inline bool Code::checks_optimization_marker() const {
-  bool checks_marker =
-      (builtin_index() == Builtins::kCompileLazy ||
-       builtin_index() == Builtins::kInterpreterEntryTrampoline ||
-       CodeKindCanTierUp(kind()));
+  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
+                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                        CodeKindCanTierUp(kind()));
   return checks_marker ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
@@ -538,20 +603,20 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   return HandlerTable::UNCAUGHT;
 }
 
-int Code::builtin_index() const {
+Builtin Code::builtin_id() const {
   int index = RELAXED_READ_INT_FIELD(*this, kBuiltinIndexOffset);
-  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
-  return index;
+  DCHECK(index == static_cast<int>(Builtin::kNoBuiltinId) ||
+         Builtins::IsBuiltinId(index));
+  return static_cast<Builtin>(index);
 }
 
-void Code::set_builtin_index(int index) {
-  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
-  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
+void Code::set_builtin_id(Builtin builtin) {
+  DCHECK(builtin == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(builtin));
+  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset,
+                          static_cast<int>(builtin));
 }
 
-bool Code::is_builtin() const {
-  return builtin_index() != Builtins::kNoBuiltinId;
-}
+bool Code::is_builtin() const { return builtin_id() != Builtin::kNoBuiltinId; }
 
 unsigned Code::inlined_bytecode_size() const {
   unsigned size = RELAXED_READ_UINT_FIELD(*this, kInlinedBytecodeSizeOffset);
@@ -726,8 +791,8 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
 }
 
 bool Code::IsExecutable() {
-  return !Builtins::IsBuiltinId(builtin_index()) || !is_off_heap_trampoline() ||
-         Builtins::CodeObjectIsExecutable(builtin_index());
+  return !Builtins::IsBuiltinId(builtin_id()) || !is_off_heap_trampoline() ||
+         Builtins::CodeObjectIsExecutable(builtin_id());
 }
 
 // This field has to have relaxed atomic accessors because it is accessed in the
@@ -736,7 +801,57 @@ STATIC_ASSERT(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
               kInt32Size);
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
+ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
+                  V8_EXTERNAL_CODE_SPACE_BOOL)
+RELAXED_ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
+                          V8_EXTERNAL_CODE_SPACE_BOOL)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
+
+void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  InitExternalPointerField(kCodeEntryPointOffset, isolate);
+}
+
+DEF_GETTER(CodeDataContainer, code, Code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return Code::cast(raw_code(cage_base));
+}
+
+DEF_RELAXED_GETTER(CodeDataContainer, code, Code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return Code::cast(raw_code(cage_base, kRelaxedLoad));
+}
+
+DEF_GETTER(CodeDataContainer, code_entry_point, Address) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  return ReadExternalPointerField(kCodeEntryPointOffset, isolate,
+                                  kCodeEntryPointTag);
+}
+
+void CodeDataContainer::set_code_entry_point(Isolate* isolate, Address value) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  WriteExternalPointerField(kCodeEntryPointOffset, isolate, value,
+                            kCodeEntryPointTag);
+}
+
+void CodeDataContainer::SetCodeAndEntryPoint(Isolate* isolate_for_sandbox,
+                                             Code code, WriteBarrierMode mode) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  set_raw_code(code, mode);
+  set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
+}
+
+void CodeDataContainer::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
+                                             Code code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  DCHECK_EQ(raw_code(), code);
+  set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
+}
+
+Address CodeDataContainer::InstructionStart() const {
+  return code_entry_point();
+}
 
 void CodeDataContainer::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,

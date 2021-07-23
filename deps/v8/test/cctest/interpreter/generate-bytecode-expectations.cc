@@ -44,7 +44,6 @@ class ProgramOptions final {
         module_(false),
         top_level_(false),
         print_callee_(false),
-        oneshot_opt_(false),
         async_iteration_(false),
         top_level_await_(false),
         verbose_(false) {}
@@ -67,7 +66,6 @@ class ProgramOptions final {
   bool module() const { return module_; }
   bool top_level() const { return top_level_; }
   bool print_callee() const { return print_callee_; }
-  bool oneshot_opt() const { return oneshot_opt_; }
   bool async_iteration() const { return async_iteration_; }
   bool top_level_await() const { return top_level_await_; }
   bool verbose() const { return verbose_; }
@@ -87,7 +85,6 @@ class ProgramOptions final {
   bool module_;
   bool top_level_;
   bool print_callee_;
-  bool oneshot_opt_;
   bool async_iteration_;
   bool top_level_await_;
   bool verbose_;
@@ -190,8 +187,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.top_level_ = true;
     } else if (strcmp(argv[i], "--print-callee") == 0) {
       options.print_callee_ = true;
-    } else if (strcmp(argv[i], "--disable-oneshot-opt") == 0) {
-      options.oneshot_opt_ = false;
     } else if (strcmp(argv[i], "--async-iteration") == 0) {
       options.async_iteration_ = true;
     } else if (strcmp(argv[i], "--harmony-top-level-await") == 0) {
@@ -294,7 +289,6 @@ bool ProgramOptions::Validate() const {
 void ProgramOptions::UpdateFromHeader(std::istream* stream) {
   std::string line;
   const char* kPrintCallee = "print callee: ";
-  const char* kOneshotOpt = "oneshot opt: ";
 
   // Skip to the beginning of the options header
   while (std::getline(*stream, line)) {
@@ -312,8 +306,6 @@ void ProgramOptions::UpdateFromHeader(std::istream* stream) {
       top_level_ = ParseBoolean(line.c_str() + 11);
     } else if (line.compare(0, strlen(kPrintCallee), kPrintCallee) == 0) {
       print_callee_ = ParseBoolean(line.c_str() + strlen(kPrintCallee));
-    } else if (line.compare(0, strlen(kOneshotOpt), kOneshotOpt) == 0) {
-      oneshot_opt_ = ParseBoolean(line.c_str() + strlen(kOneshotOpt));
     } else if (line.compare(0, 17, "async iteration: ") == 0) {
       async_iteration_ = ParseBoolean(line.c_str() + 17);
     } else if (line.compare(0, 17, "top level await: ") == 0) {
@@ -339,7 +331,6 @@ void ProgramOptions::PrintHeader(std::ostream* stream) const {
   if (module_) *stream << "\nmodule: yes";
   if (top_level_) *stream << "\ntop level: yes";
   if (print_callee_) *stream << "\nprint callee: yes";
-  if (oneshot_opt_) *stream << "\noneshot opt: yes";
   if (async_iteration_) *stream << "\nasync iteration: yes";
   if (top_level_await_) *stream << "\ntop level await: yes";
 
@@ -445,7 +436,6 @@ void GenerateExpectationsFile(std::ostream* stream,
   printer.set_module(options.module());
   printer.set_top_level(options.top_level());
   printer.set_print_callee(options.print_callee());
-  printer.set_oneshot_opt(options.oneshot_opt());
   if (!options.test_function_name().empty()) {
     printer.set_test_function_name(options.test_function_name());
   }
@@ -511,7 +501,6 @@ void PrintUsage(const char* exec_path) {
          "  --rebaseline  Rebaseline input snippet file.\n"
          "  --check-baseline   Checks the current baseline is valid.\n"
          "  --no-wrap     Do not wrap the snippet in a function.\n"
-         "  --disable-oneshot-opt     Disable Oneshot Optimization.\n"
          "  --print-callee     Print bytecode of callee, function should "
          "return arguments.callee.\n"
          "  --module      Compile as JavaScript module.\n"

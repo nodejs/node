@@ -7,6 +7,8 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/ic/handler-configuration.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -54,15 +56,15 @@ TEST(WeakReferencesBasic) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(code->IsCode());
 
-    lh->set_data1(HeapObjectReference::Weak(*code));
+    lh->set_data1(HeapObjectReference::Weak(ToCodeT(*code)));
     HeapObject code_heap_object;
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    CHECK_EQ(ToCodeT(*code), code_heap_object);
 
     CcTest::CollectAllGarbage();
 
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    CHECK_EQ(ToCodeT(*code), code_heap_object);
   }  // code will go out of scope.
 
   CcTest::CollectAllGarbage();

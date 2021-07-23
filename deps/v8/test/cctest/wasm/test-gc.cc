@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
+#include "src/base/vector.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-arguments.h"
@@ -69,7 +69,7 @@ class WasmGCTester {
                               std::initializer_list<byte> code) {
     WasmFunctionBuilder* fun = builder_.AddFunction(sig);
     fun->EmitCode(code.begin(), static_cast<uint32_t>(code.size()));
-    builder_.AddExport(CStrVector(name), fun);
+    builder_.AddExport(base::CStrVector(name), fun);
   }
 
   MaybeHandle<Object> CallExportedFunction(const char* name, int argc,
@@ -111,42 +111,25 @@ class WasmGCTester {
     instance_ = maybe_instance.ToHandleChecked();
   }
 
-  void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
-                        CWasmArgumentsPacker* packer) {
-    WasmCodeRefScope scope;
-    NativeModule* native_module = instance_->module_object().native_module();
-    WasmCode* code = native_module->GetCode(function_index);
-    Address wasm_call_target = code->instruction_start();
-    Handle<Object> object_ref = instance_;
-    Handle<Code> c_wasm_entry =
-        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
-    Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
-                        packer->argv());
-  }
-
   void CheckResult(uint32_t function_index, int32_t expected) {
-    FunctionSig* sig = sigs.i_v();
+    const FunctionSig* sig = sigs.i_v();
     DCHECK(*sig == *instance_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
-    packer.Reset();
-    CHECK_EQ(expected, packer.Pop<int32_t>());
+    CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected, int32_t arg) {
-    FunctionSig* sig = sigs.i_i();
+    const FunctionSig* sig = sigs.i_i();
     DCHECK(*sig == *instance_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
-    packer.Reset();
-    CHECK_EQ(expected, packer.Pop<int32_t>());
+    CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index) {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 0);
+    DCHECK_EQ(sig->return_count(), 1);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_pending_exception());
@@ -154,22 +137,34 @@ class WasmGCTester {
     return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
   }
 
-  void CheckHasThrown(uint32_t function_index) {
+  MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
-    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
-  }
-
-  void CheckHasThrown(uint32_t function_index, int32_t arg) {
-    FunctionSig* sig = sigs.i_i();
-    DCHECK(*sig == *instance_->module()->functions[function_index].sig);
+    DCHECK_EQ(sig->parameter_count(), 1);
+    DCHECK_EQ(sig->return_count(), 1);
+    DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
+    CHECK(!isolate_->has_pending_exception());
+    packer.Reset();
+    return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
+  }
+
+  void CheckHasThrown(uint32_t function_index, const char* expected = "") {
+    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 0);
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
+    CheckHasThrownImpl(function_index, sig, &packer, expected);
+  }
+
+  void CheckHasThrown(uint32_t function_index, int32_t arg,
+                      const char* expected = "") {
+    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 1);
+    DCHECK(sig->parameters()[0] == kWasmI32);
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
+    packer.Push(arg);
+    CheckHasThrownImpl(function_index, sig, &packer, expected);
   }
 
   Handle<WasmInstanceObject> instance() { return instance_; }
@@ -186,6 +181,46 @@ class WasmGCTester {
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
   const FlagScope<bool> flag_tierup;
+
+  void CheckResultImpl(uint32_t function_index, const FunctionSig* sig,
+                       CWasmArgumentsPacker* packer, int32_t expected) {
+    CallFunctionImpl(function_index, sig, packer);
+    if (isolate_->has_pending_exception()) {
+      Handle<String> message =
+          ErrorUtils::ToString(isolate_,
+                               handle(isolate_->pending_exception(), isolate_))
+              .ToHandleChecked();
+      FATAL("%s", message->ToCString().get());
+    }
+    packer->Reset();
+    CHECK_EQ(expected, packer->Pop<int32_t>());
+  }
+
+  void CheckHasThrownImpl(uint32_t function_index, const FunctionSig* sig,
+                          CWasmArgumentsPacker* packer, const char* expected) {
+    CallFunctionImpl(function_index, sig, packer);
+    CHECK(isolate_->has_pending_exception());
+    Handle<String> message =
+        ErrorUtils::ToString(isolate_,
+                             handle(isolate_->pending_exception(), isolate_))
+            .ToHandleChecked();
+    std::string message_str(message->ToCString().get());
+    CHECK_NE(message_str.find(expected), std::string::npos);
+    isolate_->clear_pending_exception();
+  }
+
+  void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
+                        CWasmArgumentsPacker* packer) {
+    WasmCodeRefScope scope;
+    NativeModule* native_module = instance_->module_object().native_module();
+    WasmCode* code = native_module->GetCode(function_index);
+    Address wasm_call_target = code->instruction_start();
+    Handle<Object> object_ref = instance_;
+    Handle<CodeT> c_wasm_entry =
+        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
+    Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
+                        packer->argv());
+  }
 
   v8::internal::AccountingAllocator allocator;
   Zone zone_;
@@ -464,9 +499,9 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
   const byte type1 =
       tester.DefineStruct({F(kWasmI64, true), F(kWasmI32, true)});
 
-  const byte field0 = 5;
-  const byte field1 = 25;
-  const byte null_value = 45;
+  const int field0_value = 5;
+  const int field1_value = 25;
+  const int null_value = 45;
 
   //  local_0 = value;
   //  if (!(local_0 instanceof type0)) goto block1;
@@ -486,14 +521,15 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
           WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),                \
       WASM_I32V(null_value), kExprEnd
 
-  const byte kBranchTaken = tester.DefineFunction(
-      tester.sigs.i_v(), {kDataRefNull},
-      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(
-          type1, WASM_I64V(10), WASM_I32V(field1), WASM_RTT_CANON(type1)))});
+  const byte kBranchTaken =
+      tester.DefineFunction(tester.sigs.i_v(), {kDataRefNull},
+                            {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(
+                                type1, WASM_I64V(10), WASM_I32V(field1_value),
+                                WASM_RTT_CANON(type1)))});
 
   const byte kBranchNotTaken = tester.DefineFunction(
       tester.sigs.i_v(), {kDataRefNull},
-      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(type0, WASM_I32V(field0),
+      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(type0, WASM_I32V(field0_value),
                                               WASM_RTT_CANON(type0)))});
 
   const byte kNull = tester.DefineFunction(
@@ -501,15 +537,16 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
 
   const byte kUnrelatedTypes = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::Ref(type1, kNullable)},
-      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(
-          type1, WASM_I64V(10), WASM_I32V(field1), WASM_RTT_CANON(type1)))});
+      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(type1, WASM_I64V(10),
+                                              WASM_I32V(field1_value),
+                                              WASM_RTT_CANON(type1)))});
 #undef FUNCTION_BODY
 
   tester.CompileModule();
-  tester.CheckResult(kBranchTaken, field1);
-  tester.CheckResult(kBranchNotTaken, field0);
+  tester.CheckResult(kBranchTaken, field1_value);
+  tester.CheckResult(kBranchNotTaken, field0_value);
   tester.CheckResult(kNull, null_value);
-  tester.CheckResult(kUnrelatedTypes, field1);
+  tester.CheckResult(kUnrelatedTypes, field1_value);
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRefEq) {
@@ -793,7 +830,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   CHECK(Handle<WasmArray>::cast(large_result)->Size() >
         kMaxRegularHeapObjectSize);
 
-  tester.CheckHasThrown(kAllocateTooLarge);
+  tester.CheckHasThrown(kAllocateTooLarge, "requested new array is too large");
 }
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
@@ -836,7 +873,7 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
   const byte array_index = tester.DefineArray(kWasmI16, true);
   ValueType array_type = optref(array_index);
 
-  int32_t expected_outputs[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
+  int32_t array_elements[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
 
   const byte param_index = 0;
   const byte local_index = 1;
@@ -844,26 +881,194 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
       tester.sigs.i_i(), {array_type},
       {WASM_LOCAL_SET(
            local_index,
-           WASM_ARRAY_NEW_WITH_RTT(array_index, WASM_I32V(0x12345678),
+           WASM_ARRAY_NEW_WITH_RTT(array_index, WASM_I32V(array_elements[0]),
                                    WASM_I32V(4), WASM_RTT_CANON(array_index))),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(1),
-                      WASM_I32V(10)),
+                      WASM_I32V(array_elements[1])),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(2),
-                      WASM_I32V(0xFEDC)),
+                      WASM_I32V(array_elements[2])),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(3),
-                      WASM_I32V(0xFF1234)),
+                      WASM_I32V(array_elements[3])),
        WASM_ARRAY_GET_S(array_index, WASM_LOCAL_GET(local_index),
                         WASM_LOCAL_GET(param_index)),
        kExprEnd});
 
   tester.CompileModule();
   // Exactly the 2 lsb's should be stored by array.new.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[0]), 0);
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[1]), 1);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[0]), 0);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[1]), 1);
   // Sign should be extended.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[2]), 2);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[2]), 2);
   // Exactly the 2 lsb's should be stored by array.set.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[3]), 3);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[3]), 3);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
+  FLAG_SCOPE(experimental_wasm_gc_experiments);
+  WasmGCTester tester(execution_tier);
+  const byte array32_index = tester.DefineArray(kWasmI32, true);
+  const byte array16_index = tester.DefineArray(kWasmI16, true);
+  const byte arrayref_index = tester.DefineArray(optref(array32_index), true);
+
+  // Copies i32 ranges: local1[0..3] to local2[6..9].
+  const byte kCopyI32 = tester.DefineFunction(
+      tester.sigs.i_i(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_I32V(0)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_I32V(1)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_I32V(2)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_I32V(3)),
+       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(array32_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies i16 ranges: local1[0..3] to local2[6..9].
+  const byte kCopyI16 = tester.DefineFunction(
+      tester.sigs.i_i(), {optref(array16_index), optref(array16_index)},
+      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array16_index))),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_I32V(0)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_I32V(1)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_I32V(2)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_I32V(3)),
+       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array16_index))),
+       WASM_ARRAY_COPY(array16_index, array16_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET_S(array16_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies reference ranges: local1[0..3] to local2[6..9].
+  const byte kCopyRef = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
+      {optref(arrayref_index), optref(arrayref_index)},
+      {WASM_LOCAL_SET(1,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(6),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(7),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(8),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(9),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(2,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(arrayref_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies overlapping reference ranges: local1[0..3] to local1[2..5].
+  const byte kCopyRefOverlapping = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
+      {optref(arrayref_index)},
+      {WASM_LOCAL_SET(1,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(2),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(3),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(4),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(5),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(2), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(arrayref_index, WASM_LOCAL_GET(1), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  const byte kOobSource = tester.DefineFunction(
+      tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(8),
+                       WASM_I32V(4)),
+       kExprEnd});
+
+  const byte kOobDestination = tester.DefineFunction(
+      tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(3),
+                       WASM_I32V(5)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kCopyI32, 0, 5);
+  tester.CheckResult(kCopyI32, 0, 6);
+  tester.CheckResult(kCopyI32, 1, 7);
+  tester.CheckResult(kCopyI32, 2, 8);
+  tester.CheckResult(kCopyI32, 3, 9);
+
+  tester.CheckResult(kCopyI16, 0, 5);
+  tester.CheckResult(kCopyI16, 0, 6);
+  tester.CheckResult(kCopyI16, 1, 7);
+  tester.CheckResult(kCopyI16, 2, 8);
+  tester.CheckResult(kCopyI16, 3, 9);
+
+  {
+    Handle<Object> result5 =
+        tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
+    CHECK(result5->IsNull());
+    for (int i = 6; i <= 9; i++) {
+      Handle<Object> res =
+          tester.GetResultObject(kCopyRef, i).ToHandleChecked();
+      CHECK(res->IsWasmArray());
+      CHECK_EQ(Handle<WasmArray>::cast(res)->length(),
+               static_cast<uint32_t>(i));
+    }
+  }
+  CHECK(tester.GetResultObject(kCopyRefOverlapping, 6)
+            .ToHandleChecked()
+            ->IsNull());
+  Handle<Object> res0 =
+      tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
+  CHECK(res0->IsWasmArray());
+  CHECK_EQ(Handle<WasmArray>::cast(res0)->length(), static_cast<uint32_t>(2));
+  for (int i = 2; i <= 5; i++) {
+    Handle<Object> res =
+        tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
+    CHECK(res->IsWasmArray());
+    CHECK_EQ(Handle<WasmArray>::cast(res)->length(), static_cast<uint32_t>(i));
+  }
+
+  tester.CheckHasThrown(kOobSource);
+  tester.CheckHasThrown(kOobDestination);
 }
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {
@@ -977,6 +1182,35 @@ WASM_COMPILED_EXEC_TEST(BasicRtt) {
   CHECK_EQ(Handle<WasmStruct>::cast(s)->map(), *map);
 
   tester.CheckResult(kRefCast, 43);
+}
+
+WASM_COMPILED_EXEC_TEST(RttFreshSub) {
+  WasmGCTester tester(execution_tier);
+  FlagScope<bool> flag_gc_experiments(&FLAG_experimental_wasm_gc_experiments,
+                                      true);
+  const byte kType = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  HeapType::Representation type_repr =
+      static_cast<HeapType::Representation>(kType);
+
+  const byte kRtt = tester.AddGlobal(
+      ValueType::Rtt(kType, 1), false,
+      WasmInitExpr::RttFreshSub(type_repr, WasmInitExpr::RttCanon(type_repr)));
+
+  // A struct allocated with a fresh RTT does not match other fresh RTTs
+  // created for the same type.
+  const byte kRefTest = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(kType)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_WITH_RTT(
+                             kType, WASM_I32V(11),
+                             WASM_RTT_FRESH_SUB(kType, WASM_RTT_CANON(kType)))),
+       WASM_I32_ADD(
+           WASM_REF_TEST(WASM_LOCAL_GET(0),
+                         WASM_RTT_FRESH_SUB(kType, WASM_RTT_CANON(kType))),
+           WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_GLOBAL_GET(kRtt))),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(kRefTest, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
@@ -1397,13 +1631,13 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
 // If the branch is not taken, we return 0. If it is taken, then the respective
 // type check should succeed, and we return 1.
-#define BR_ON(TYPE, type, value)                                      \
-  tester.DefineFunction(                                              \
-      tester.sigs.i_v(), {kWasmAnyRef},                               \
-      {WASM_LOCAL_SET(0, WASM_SEQ(value)),                            \
-       WASM_REF_IS_##TYPE(WASM_BLOCK_R(                               \
-           kWasm##type##Ref, WASM_BR_ON_##TYPE(0, WASM_LOCAL_GET(0)), \
-           WASM_RETURN(WASM_I32V(0)))),                               \
+#define BR_ON(TYPE, type, value)                                            \
+  tester.DefineFunction(                                                    \
+      tester.sigs.i_v(), {kWasmAnyRef},                                     \
+      {WASM_LOCAL_SET(0, WASM_SEQ(value)),                                  \
+       WASM_REF_IS_##TYPE(WASM_BLOCK_R(kWasm##type##Ref, WASM_LOCAL_GET(0), \
+                                       WASM_BR_ON_##TYPE(0),                \
+                                       WASM_RETURN(WASM_I32V(0)))),         \
        kExprEnd})
 
   byte kBrOnDataTaken =
@@ -1420,34 +1654,71 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
                                    WASM_RTT_CANON(array_index)));
 #undef BR_ON
 
+// If the branch is not taken, we return 1. If it is taken, then the respective
+// type check should fail, and we return 0.
+#define BR_ON_NON(TYPE, type, value)                                   \
+  tester.DefineFunction(                                               \
+      tester.sigs.i_v(), {kWasmAnyRef},                                \
+      {WASM_LOCAL_SET(0, WASM_SEQ(value)),                             \
+       WASM_REF_IS_##TYPE(WASM_BLOCK_R(kWasmAnyRef, WASM_LOCAL_GET(0), \
+                                       WASM_BR_ON_NON_##TYPE(0),       \
+                                       WASM_RETURN(WASM_I32V(1)))),    \
+       kExprEnd})
+
+  byte kBrOnNonDataNotTaken =
+      BR_ON_NON(DATA, Data,
+                WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
+                                       WASM_RTT_CANON(array_index)));
+  byte kBrOnNonDataTaken = BR_ON_NON(DATA, Data, WASM_REF_FUNC(function_index));
+  byte kBrOnNonFuncNotTaken =
+      BR_ON_NON(FUNC, Func, WASM_REF_FUNC(function_index));
+  byte kBrOnNonFuncTaken = BR_ON_NON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
+  byte kBrOnNonI31NotTaken = BR_ON_NON(I31, I31, WASM_I31_NEW(WASM_I32V(42)));
+  byte kBrOnNonI31Taken =
+      BR_ON_NON(I31, I31,
+                WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
+                                       WASM_RTT_CANON(array_index)));
+#undef BR_ON_NON
+
   tester.CompileModule();
 
   tester.CheckResult(kDataCheckNull, 0);
+  tester.CheckResult(kFuncCheckNull, 0);
+  tester.CheckResult(kI31CheckNull, 0);
+
   tester.CheckHasThrown(kDataCastNull);
+  tester.CheckHasThrown(kFuncCastNull);
+  tester.CheckHasThrown(kI31CastNull);
+
   tester.CheckResult(kDataCheckSuccess, 1);
+  tester.CheckResult(kFuncCheckSuccess, 1);
+  tester.CheckResult(kI31CheckSuccess, 1);
+
   tester.CheckResult(kDataCheckFailure, 0);
+  tester.CheckResult(kFuncCheckFailure, 0);
+  tester.CheckResult(kI31CheckFailure, 0);
+
   tester.CheckResult(kDataCastSuccess, 1);
+  tester.CheckResult(kFuncCastSuccess, 1);
+  tester.CheckResult(kI31CastSuccess, 1);
+
   tester.CheckHasThrown(kDataCastFailure);
+  tester.CheckHasThrown(kFuncCastFailure);
+  tester.CheckHasThrown(kI31CastFailure);
+
   tester.CheckResult(kBrOnDataTaken, 1);
   tester.CheckResult(kBrOnDataNotTaken, 0);
-
-  tester.CheckResult(kFuncCheckNull, 0);
-  tester.CheckHasThrown(kFuncCastNull);
-  tester.CheckResult(kFuncCheckSuccess, 1);
-  tester.CheckResult(kFuncCheckFailure, 0);
-  tester.CheckResult(kFuncCastSuccess, 1);
-  tester.CheckHasThrown(kFuncCastFailure);
   tester.CheckResult(kBrOnFuncTaken, 1);
   tester.CheckResult(kBrOnFuncNotTaken, 0);
-
-  tester.CheckResult(kI31CheckNull, 0);
-  tester.CheckHasThrown(kI31CastNull);
-  tester.CheckResult(kI31CheckSuccess, 1);
-  tester.CheckResult(kI31CheckFailure, 0);
-  tester.CheckResult(kI31CastSuccess, 1);
-  tester.CheckHasThrown(kI31CastFailure);
   tester.CheckResult(kBrOnI31Taken, 1);
   tester.CheckResult(kBrOnI31NotTaken, 0);
+
+  tester.CheckResult(kBrOnNonDataTaken, 0);
+  tester.CheckResult(kBrOnNonDataNotTaken, 1);
+  tester.CheckResult(kBrOnNonFuncTaken, 0);
+  tester.CheckResult(kBrOnNonFuncNotTaken, 1);
+  tester.CheckResult(kBrOnNonI31Taken, 0);
+  tester.CheckResult(kBrOnNonI31NotTaken, 1);
 }
 
 WASM_COMPILED_EXEC_TEST(BasicI31) {

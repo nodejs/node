@@ -841,13 +841,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyNoFeedback(
-    Register object, const AstRawString* name) {
-  size_t name_index = GetConstantPoolEntry(name);
-  OutputLdaNamedPropertyNoFeedback(object, name_index);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot) {
   OutputLdaKeyedProperty(object, feedback_slot);
@@ -902,14 +895,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
   return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedPropertyNoFeedback(
-    Register object, const AstRawString* name, LanguageMode language_mode) {
-  size_t name_index = GetConstantPoolEntry(name);
-  OutputStaNamedPropertyNoFeedback(object, name_index,
-                                   static_cast<uint8_t>(language_mode));
-  return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
@@ -1444,12 +1429,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallAnyReceiver(Register callable,
                                                             RegisterList args,
                                                             int feedback_slot) {
   OutputCallAnyReceiver(callable, args, args.register_count(), feedback_slot);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CallNoFeedback(Register callable,
-                                                           RegisterList args) {
-  OutputCallNoFeedback(callable, args, args.register_count());
   return *this;
 }
 

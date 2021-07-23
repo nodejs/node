@@ -30,7 +30,7 @@ static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
@@ -107,8 +107,8 @@ TEST(TestLinkageStubCall) {
   // TODO(bbudge) Add tests for FP registers.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+  Callable callable = Builtins::CallableFor(isolate, Builtin::kToNumber);
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
@@ -129,8 +129,8 @@ TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
-      Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+      Builtins::CallableFor(isolate, Builtin::kWasmFloat64ToNumber);
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,

@@ -601,6 +601,12 @@ TNode<Boolean> JSGraphAssembler::ReferenceEqual(TNode<Object> lhs,
       graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
 }
 
+TNode<Boolean> JSGraphAssembler::NumberEqual(TNode<Number> lhs,
+                                             TNode<Number> rhs) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->NumberEqual(), lhs, rhs));
+}
+
 TNode<Number> JSGraphAssembler::NumberMin(TNode<Number> lhs,
                                           TNode<Number> rhs) {
   return AddNode<Number>(graph()->NewNode(simplified()->NumberMin(), lhs, rhs));
@@ -859,10 +865,13 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
 Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
                                                       Node* slot_index,
                                                       Node* value, Node* map,
-                                                      Node* frame_state) {
-  return AddNode(graph()->NewNode(common()->DynamicCheckMapsWithDeoptUnless(),
-                                  condition, slot_index, value, map,
-                                  frame_state, effect(), control()));
+                                                      Node* feedback_vector,
+                                                      FrameState frame_state) {
+  return AddNode(graph()->NewNode(
+      common()->DynamicCheckMapsWithDeoptUnless(
+          frame_state.outer_frame_state()->opcode() == IrOpcode::kFrameState),
+      condition, slot_index, value, map, feedback_vector, frame_state, effect(),
+      control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
@@ -1062,7 +1071,7 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
 Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kPlainPrimitiveToNumber);
+        Builtins::CallableFor(isolate(), Builtin::kPlainPrimitiveToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 builder.addFunction('sub', kSig_i_ii)
@@ -39,7 +39,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.functionName() == '$sub');
       wasm_break_count++;
     }
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     exception = e;
     print(e);

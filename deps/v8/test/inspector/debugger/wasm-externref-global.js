@@ -67,11 +67,14 @@ InspectorTest.runAsyncTestSuite([
         if (prop.name != 'globals') continue;
         let subProps = (await Protocol.Runtime.getProperties({
                             objectId: prop.value.objectId
+                          })).result.result[0];
+        let subsubProps = (await Protocol.Runtime.getProperties({
+                            objectId: subProps.value.objectId
                           })).result.result;
         let values =
-            subProps.map((value) => `"${value.name}": ${value.value.value}`)
+            subsubProps.map((value) => `"${value.name}": ${value.value.value}`)
                 .join(', ');
-        InspectorTest.log(`   ${prop.name}: {${values}}`);
+        InspectorTest.log(`   ${prop.name}: {"name": ${subProps.name}, ${values}}`);
       }
     }
   }

@@ -6,7 +6,7 @@
 
 'use strict';
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function testErrorPositionAsyncOnly(bytes, pos, message) {
   let buffer = bytes.trunc_buffer();
@@ -62,7 +62,7 @@ function testErrorPosition(bytes, pos, message) {
   bytes.emit_u8(kTypeSectionCode);
   bytes.emit_u32v(0xffffff23);
   let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'maximum function size');
+  testErrorPositionAsyncOnly(bytes, pos, 'section length');
 })();
 
 (function testFunctionsCountInvalidVarint() {
@@ -110,7 +110,7 @@ function testErrorPosition(bytes, pos, message) {
   bytes.emit_u32v(0xffffff23);
 
   let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'maximum function size');
+  testErrorPositionAsyncOnly(bytes, pos, 'functions count');
 })();
 
 (function testFunctionsCountDoesNotMatch() {
@@ -163,7 +163,7 @@ function testErrorPosition(bytes, pos, message) {
   bytes.emit_bytes([0x80, 0x80, 0x80, 0x80, 0x80, 0x00]);
 
   let pos = bytes.length - 1 - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'expected body size');
+  testErrorPositionAsyncOnly(bytes, pos, 'function body size');
 })();
 
 (function testBodySizeTooBig() {
@@ -192,7 +192,7 @@ function testErrorPosition(bytes, pos, message) {
   bytes.emit_u32v(0xffffff23);
 
   let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'maximum function size');
+  testErrorPositionAsyncOnly(bytes, pos, 'function body size');
 })();
 
 (function testBodySizeDoesNotFit() {

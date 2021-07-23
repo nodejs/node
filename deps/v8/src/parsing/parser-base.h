@@ -6,6 +6,7 @@
 #define V8_PARSING_PARSER_BASE_H_
 
 #include <stdint.h>
+
 #include <utility>
 #include <vector>
 
@@ -18,8 +19,8 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/function-kind.h"
 #include "src/parsing/expression-scope.h"
 #include "src/parsing/func-name-inferrer.h"
@@ -240,14 +241,13 @@ class ParserBase {
   const Impl* impl() const { return static_cast<const Impl*>(this); }
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
-             v8::Extension* extension, AstValueFactory* ast_value_factory,
+             AstValueFactory* ast_value_factory,
              PendingCompilationErrorHandler* pending_error_handler,
              RuntimeCallStats* runtime_call_stats, Logger* logger,
              UnoptimizedCompileFlags flags, bool parsing_on_main_thread)
       : scope_(nullptr),
         original_scope_(nullptr),
         function_state_(nullptr),
-        extension_(extension),
         fni_(ast_value_factory),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory, zone),
@@ -594,7 +594,6 @@ class ParserBase {
           instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
           has_seen_constructor(false),
-          has_name_static_property(false),
           has_static_computed_names(false),
           has_static_elements(false),
           has_static_private_methods(false),
@@ -614,7 +613,6 @@ class ParserBase {
     FunctionLiteralT constructor;
 
     bool has_seen_constructor;
-    bool has_name_static_property;
     bool has_static_computed_names;
     bool has_static_elements;
     bool has_static_private_methods;
@@ -1540,7 +1538,6 @@ class ParserBase {
   Scope* object_literal_scope_ = nullptr;
   Scope* original_scope_;  // The top scope for the current parsing item.
   FunctionState* function_state_;  // Function state stack.
-  v8::Extension* extension_;
   FuncNameInferrer fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
@@ -1949,7 +1946,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseTemplateLiteral(impl()->NullExpression(), beg_pos, false);
 
     case Token::MOD:
-      if (flags().allow_natives_syntax() || extension_ != nullptr) {
+      if (flags().allow_natives_syntax() || impl()->ParsingExtension()) {
         return ParseV8Intrinsic();
       }
       break;
@@ -2313,11 +2310,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     }
   } else {
     name_expression = ParseProperty(prop_info);
-  }
-
-  if (!class_info->has_name_static_property && prop_info->is_static &&
-      impl()->IsName(prop_info->name)) {
-    class_info->has_name_static_property = true;
   }
 
   switch (prop_info->kind) {
@@ -3461,11 +3453,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
           // function literal eagerly, we can also compile it eagerly.
           if (result->IsFunctionLiteral()) {
             result->AsFunctionLiteral()->SetShouldEagerCompile();
-            if (scope()->is_script_scope()) {
-              // A non-top-level iife is likely to be executed multiple times
-              // and so shouldn`t be optimized as one-shot.
-              result->AsFunctionLiteral()->mark_as_oneshot_iife();
-            }
           }
         }
         bool has_spread;
@@ -5414,10 +5401,10 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
     }
   }
 
-  // If we have an extension, we allow a native function declaration.
-  // A native function declaration starts with "native function" with
-  // no line-terminator between the two words.
-  if (extension_ != nullptr && peek() == Token::FUNCTION &&
+  // We allow a native function declaration if we're parsing the source for an
+  // extension. A native function declaration starts with "native function"
+  // with no line-terminator between the two words.
+  if (impl()->ParsingExtension() && peek() == Token::FUNCTION &&
       !scanner()->HasLineTerminatorBeforeNext() && impl()->IsNative(expr) &&
       !scanner()->literal_contains_escapes()) {
     return ParseNativeDeclaration();

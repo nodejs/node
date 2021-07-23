@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-type-reflection --experimental-wasm-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Test1() {
   var exporting_instance = (function () {

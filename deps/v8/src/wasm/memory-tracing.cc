@@ -7,8 +7,8 @@
 #include <cinttypes>
 
 #include "src/base/memory.h"
-#include "src/utils/utils.h"
-#include "src/utils/vector.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -17,15 +17,15 @@ namespace wasm {
 void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
                           const MemoryTracingInfo* info, int func_index,
                           int position, uint8_t* mem_start) {
-  EmbeddedVector<char, 91> value;
+  base::EmbeddedVector<char, 91> value;
   auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
   Address address = reinterpret_cast<Address>(mem_start) + info->offset;
   switch (mem_rep) {
-#define TRACE_TYPE(rep, str, format, ctype1, ctype2)        \
-  case MachineRepresentation::rep:                          \
-    SNPrintF(value, str ":" format,                         \
-             base::ReadLittleEndianValue<ctype1>(address),  \
-             base::ReadLittleEndianValue<ctype2>(address)); \
+#define TRACE_TYPE(rep, str, format, ctype1, ctype2)              \
+  case MachineRepresentation::rep:                                \
+    base::SNPrintF(value, str ":" format,                         \
+                   base::ReadLittleEndianValue<ctype1>(address),  \
+                   base::ReadLittleEndianValue<ctype2>(address)); \
     break;
     TRACE_TYPE(kWord8, " i8", "%d / %02x", uint8_t, uint8_t)
     TRACE_TYPE(kWord16, "i16", "%d / %04x", uint16_t, uint16_t)

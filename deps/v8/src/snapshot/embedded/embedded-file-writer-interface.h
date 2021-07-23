@@ -45,7 +45,7 @@ class EmbeddedFileWriterInterface {
 
 #if defined(V8_OS_WIN64)
   virtual void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) = 0;
 #endif  // V8_OS_WIN64
 };

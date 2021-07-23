@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation --allow-natives-syntax
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function importFromOtherInstance() {
   print(arguments.callee.name);

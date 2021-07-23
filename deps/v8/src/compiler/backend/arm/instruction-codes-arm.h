@@ -113,6 +113,7 @@ namespace compiler {
   V(ArmVld1S128)                   \
   V(ArmVst1S128)                   \
   V(ArmVcnt)                       \
+  V(ArmVpadal)                     \
   V(ArmVpaddl)                     \
   V(ArmFloat32Max)                 \
   V(ArmFloat64Max)                 \

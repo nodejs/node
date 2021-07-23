@@ -1208,7 +1208,7 @@ void InterpreterAssembler::DispatchToBytecodeWithOptionalStarLookahead(
 
 void InterpreterAssembler::DispatchToBytecode(
     TNode<WordT> target_bytecode, TNode<IntPtrT> new_bytecode_offset) {
-  if (FLAG_trace_ignition_dispatches) {
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
     TraceBytecodeDispatch(target_bytecode);
   }
 
@@ -1241,7 +1241,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   TNode<IntPtrT> next_bytecode_offset = Advance(1);
   TNode<WordT> next_bytecode = LoadBytecode(next_bytecode_offset);
 
-  if (FLAG_trace_ignition_dispatches) {
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
     TraceBytecodeDispatch(next_bytecode);
   }
 
@@ -1551,9 +1551,9 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   BIND(&if_objectisother);
   {
-    auto builtin = Builtins::kNonNumberToNumber;
+    auto builtin = Builtin::kNonNumberToNumber;
     if (mode == Object::Conversion::kToNumeric) {
-      builtin = Builtins::kNonNumberToNumeric;
+      builtin = Builtin::kNonNumberToNumeric;
       // Special case for collecting BigInt feedback.
       Label not_bigint(this);
       GotoIfNot(IsBigInt(CAST(object)), &not_bigint);

@@ -77,10 +77,9 @@ bool SetPermissionsAndMemoryProtectionKey(
     PageAllocator* page_allocator, base::AddressRegion region,
     PageAllocator::Permission page_permissions, int key);
 
-// Set the key's permissions and return whether this was successful.
-// Returns false on platforms without PKU support or when the operation failed,
-// e.g., because the key was invalid.
-bool SetPermissionsForMemoryProtectionKey(
+// Set the key's permissions. {key} must be valid, i.e. not
+// {kNoMemoryProtectionKey}.
+void SetPermissionsForMemoryProtectionKey(
     int key, MemoryProtectionKeyPermission permissions);
 
 }  // namespace wasm

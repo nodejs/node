@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <atomic>
+
 #include "src/api/api-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
@@ -15,7 +17,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -66,7 +67,7 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
 }
 
 void ExportAsMain(WasmFunctionBuilder* f) {
-  f->builder()->AddExport(CStrVector("main"), f);
+  f->builder()->AddExport(base::CStrVector("main"), f);
 }
 
 #define EMIT_CODE_WITH_END(f, code)  \
@@ -133,9 +134,8 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK(compilation_state->baseline_compilation_finished());
 
     // Instantiate and invoke function.
-    MaybeHandle<WasmInstanceObject> instance =
-        isolate->wasm_engine()->SyncInstantiate(
-            isolate, &thrower, module.ToHandleChecked(), {}, {});
+    MaybeHandle<WasmInstanceObject> instance = GetWasmEngine()->SyncInstantiate(
+        isolate, &thrower, module.ToHandleChecked(), {}, {});
     CHECK(!instance.is_null());
     int32_t result = testing::CallWasmFunctionForTesting(
         isolate, instance.ToHandleChecked(), "main", 0, nullptr);
@@ -499,7 +499,7 @@ TEST(MemoryGrowZero) {
 
 class InterruptThread : public v8::base::Thread {
  public:
-  explicit InterruptThread(Isolate* isolate, int32_t* memory)
+  explicit InterruptThread(Isolate* isolate, std::atomic<int32_t>* memory)
       : Thread(Options("TestInterruptLoop")),
         isolate_(isolate),
         memory_(memory) {}
@@ -515,14 +515,14 @@ class InterruptThread : public v8::base::Thread {
     // Wait for the main thread to write the signal value.
     int32_t val = 0;
     do {
-      val = memory_[0];
+      val = memory_[0].load(std::memory_order_relaxed);
       val = ReadLittleEndianValue<int32_t>(reinterpret_cast<Address>(&val));
     } while (val != signal_value_);
-    isolate_->RequestInterrupt(&OnInterrupt, const_cast<int32_t*>(memory_));
+    isolate_->RequestInterrupt(&OnInterrupt, memory_);
   }
 
   Isolate* isolate_;
-  volatile int32_t* memory_;
+  std::atomic<int32_t>* memory_;
   static const int32_t interrupt_location_ = 10;
   static const int32_t interrupt_value_ = 154;
   static const int32_t signal_value_ = 1221;
@@ -576,7 +576,8 @@ TEST(TestInterruptLoop) {
 
     Handle<JSArrayBuffer> memory(instance->memory_object().array_buffer(),
                                  isolate);
-    int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
+    std::atomic<int32_t>* memory_array =
+        reinterpret_cast<std::atomic<int32_t>*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
     CHECK(thread.Start());

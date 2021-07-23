@@ -57,6 +57,8 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-match-indices',
   'error-cause': '--harmony-error-cause',
   'import-assertions': '--harmony-import-assertions',
+  # https://github.com/tc39/test262/pull/2995
+  'Object.hasOwn': '--harmony-object-has-own',
 }
 
 SKIPPED_FEATURES = set([])

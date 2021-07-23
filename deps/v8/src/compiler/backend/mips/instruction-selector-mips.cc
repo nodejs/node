@@ -275,8 +275,7 @@ void InstructionSelector::VisitStackSlot(Node* node) {
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
-       sequence()->AddImmediate(Constant(slot)),
-       sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {

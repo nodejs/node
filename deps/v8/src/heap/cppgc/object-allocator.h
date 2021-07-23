@@ -18,6 +18,10 @@
 
 namespace cppgc {
 
+namespace internal {
+class ObjectAllocator;
+}  // namespace internal
+
 class V8_EXPORT AllocationHandle {
  private:
   AllocationHandle() = default;
@@ -53,11 +57,11 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
 
-  inline void* AllocateObjectOnSpace(NormalPageSpace* space, size_t size,
+  inline void* AllocateObjectOnSpace(NormalPageSpace& space, size_t size,
                                      GCInfoIndex gcinfo);
-  void* OutOfLineAllocate(NormalPageSpace*, size_t, GCInfoIndex);
-  void* OutOfLineAllocateImpl(NormalPageSpace*, size_t, GCInfoIndex);
-  void* AllocateFromFreeList(NormalPageSpace*, size_t, GCInfoIndex);
+  void* OutOfLineAllocate(NormalPageSpace&, size_t, GCInfoIndex);
+  void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, GCInfoIndex);
+  void* AllocateFromFreeList(NormalPageSpace&, size_t, GCInfoIndex);
 
   RawHeap* raw_heap_;
   PageBackend* page_backend_;
@@ -70,7 +74,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
-  return AllocateObjectOnSpace(NormalPageSpace::From(raw_heap_->Space(type)),
+  return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_->Space(type)),
                                allocation_size, gcinfo);
 }
 
@@ -80,7 +84,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(
-      NormalPageSpace::From(raw_heap_->CustomSpace(space_index)),
+      NormalPageSpace::From(*raw_heap_->CustomSpace(space_index)),
       allocation_size, gcinfo);
 }
 
@@ -97,12 +101,12 @@ RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
   return RawHeap::RegularSpaceType::kNormal4;
 }
 
-void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
+void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
                                              size_t size, GCInfoIndex gcinfo) {
   DCHECK_LT(0u, gcinfo);
 
   NormalPageSpace::LinearAllocationBuffer& current_lab =
-      space->linear_allocation_buffer();
+      space.linear_allocation_buffer();
   if (current_lab.size() < size) {
     return OutOfLineAllocate(space, size, gcinfo);
   }

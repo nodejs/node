@@ -4,7 +4,7 @@
 
 // Flags: --no-stress-opt
 
-load("test/mjsunit/mjsunit.js");
+d8.file.execute("test/mjsunit/mjsunit.js");
 
 let obj = {f: 1254};
 

@@ -1084,6 +1084,19 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
   S390OperandGenerator g(this);
+  NodeMatcher input(node->InputAt(0));
+  if (CanCover(node, input.node()) && input.IsLoad()) {
+    LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
+    if (load_rep.representation() == MachineRepresentation::kWord64) {
+      Node* base = input.node()->InputAt(0);
+      Node* offset = input.node()->InputAt(1);
+      Emit(kS390_LoadReverse64 | AddressingModeField::encode(kMode_MRR),
+           // TODO(miladfarca): one of the base and offset can be imm.
+           g.DefineAsRegister(node), g.UseRegister(base),
+           g.UseRegister(offset));
+      return;
+    }
+  }
   Emit(kS390_LoadReverse64RR, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
@@ -1310,6 +1323,10 @@ static inline bool TryMatchDoubleConstructFromInsert(
   V(Float64, Float64RoundTruncate, kS390_TruncateDouble, OperandMode::kNone,   \
     null)                                                                      \
   V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
+    null)                                                                      \
+  V(Float32, Float32RoundTiesEven, kS390_FloatNearestInt, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, Float64RoundTiesEven, kS390_DoubleNearestInt, OperandMode::kNone, \
     null)                                                                      \
   V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
   V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)            \
@@ -1555,14 +1572,6 @@ void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
   Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
        g.UseFixed(node->InputAt(1), d2))
       ->MarkAsCall();
-}
-
-void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  UNREACHABLE();
-}
-
-void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  UNREACHABLE();
 }
 
 static bool CompareLogical(FlagsContinuation* cont) {
@@ -2413,6 +2422,8 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F64x2Le)               \
   V(F64x2Min)              \
   V(F64x2Max)              \
+  V(F64x2Pmin)             \
+  V(F64x2Pmax)             \
   V(F32x4Add)              \
   V(F32x4Sub)              \
   V(F32x4Mul)              \
@@ -2423,6 +2434,8 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F32x4Div)              \
   V(F32x4Min)              \
   V(F32x4Max)              \
+  V(F32x4Pmin)             \
+  V(F32x4Pmax)             \
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Mul)              \
@@ -2431,10 +2444,12 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2ExtMulHighI32x4S) \
   V(I64x2ExtMulLowI32x4U)  \
   V(I64x2ExtMulHighI32x4U) \
-  V(I16x8Q15MulRSatS)      \
   V(I64x2Ne)               \
   V(I64x2GtS)              \
   V(I64x2GeS)              \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
@@ -2448,11 +2463,13 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I32x4GeS)              \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
-  V(I32x4DotI16x8S)        \
   V(I32x4ExtMulLowI16x8S)  \
   V(I32x4ExtMulHighI16x8S) \
   V(I32x4ExtMulLowI16x8U)  \
   V(I32x4ExtMulHighI16x8U) \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -2467,16 +2484,14 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8GtU)              \
   V(I16x8GeU)              \
   V(I16x8SConvertI32x4)    \
-  V(I16x8UConvertI32x4)    \
-  V(I16x8AddSatS)          \
-  V(I16x8SubSatS)          \
-  V(I16x8AddSatU)          \
-  V(I16x8SubSatU)          \
   V(I16x8RoundingAverageU) \
   V(I16x8ExtMulLowI8x16S)  \
   V(I16x8ExtMulHighI8x16S) \
   V(I16x8ExtMulLowI8x16U)  \
   V(I16x8ExtMulHighI8x16U) \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2490,102 +2505,100 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16GtU)              \
   V(I8x16GeU)              \
   V(I8x16SConvertI16x8)    \
-  V(I8x16UConvertI16x8)    \
-  V(I8x16AddSatS)          \
-  V(I8x16SubSatS)          \
-  V(I8x16AddSatU)          \
-  V(I8x16SubSatU)          \
   V(I8x16RoundingAverageU) \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)             \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
   V(S128AndNot)
 
-#define SIMD_UNOP_LIST(V)      \
-  V(F64x2Abs)                  \
-  V(F64x2Neg)                  \
-  V(F64x2Sqrt)                 \
-  V(F64x2Ceil)                 \
-  V(F64x2Floor)                \
-  V(F64x2Trunc)                \
-  V(F64x2NearestInt)           \
-  V(F64x2ConvertLowI32x4S)     \
-  V(F64x2ConvertLowI32x4U)     \
-  V(F64x2PromoteLowF32x4)      \
-  V(F32x4Abs)                  \
-  V(F32x4Neg)                  \
-  V(F32x4RecipApprox)          \
-  V(F32x4RecipSqrtApprox)      \
-  V(F32x4Sqrt)                 \
-  V(F32x4Ceil)                 \
-  V(F32x4Floor)                \
-  V(F32x4Trunc)                \
-  V(F32x4NearestInt)           \
-  V(F32x4DemoteF64x2Zero)      \
-  V(I64x2Neg)                  \
-  V(I64x2SConvertI32x4Low)     \
-  V(I64x2SConvertI32x4High)    \
-  V(I64x2UConvertI32x4Low)     \
-  V(I64x2UConvertI32x4High)    \
-  V(I64x2Abs)                  \
-  V(I32x4Neg)                  \
-  V(I32x4Abs)                  \
-  V(I32x4SConvertI16x8Low)     \
-  V(I32x4SConvertI16x8High)    \
-  V(I32x4UConvertI16x8Low)     \
-  V(I32x4UConvertI16x8High)    \
-  V(I32x4TruncSatF64x2SZero)   \
-  V(I32x4TruncSatF64x2UZero)   \
-  V(I32x4ExtAddPairwiseI16x8S) \
-  V(I32x4ExtAddPairwiseI16x8U) \
-  V(I16x8Neg)                  \
-  V(I16x8Abs)                  \
-  V(I16x8SConvertI8x16Low)     \
-  V(I16x8SConvertI8x16High)    \
-  V(I16x8UConvertI8x16Low)     \
-  V(I16x8UConvertI8x16High)    \
-  V(I16x8ExtAddPairwiseI8x16S) \
-  V(I16x8ExtAddPairwiseI8x16U) \
-  V(I8x16Neg)                  \
-  V(I8x16Abs)                  \
-  V(I8x16Popcnt)               \
-  V(S128Not)
+#define SIMD_BINOP_UNIQUE_REGISTER_LIST(V) \
+  V(I32x4DotI16x8S)                        \
+  V(I16x8AddSatS)                          \
+  V(I16x8SubSatS)                          \
+  V(I16x8AddSatU)                          \
+  V(I16x8SubSatU)                          \
+  V(I16x8Q15MulRSatS)                      \
+  V(I16x8UConvertI32x4)                    \
+  V(I8x16AddSatS)                          \
+  V(I8x16SubSatS)                          \
+  V(I8x16AddSatU)                          \
+  V(I8x16SubSatU)                          \
+  V(I8x16Swizzle)                          \
+  V(I8x16UConvertI16x8)
 
-#define SIMD_SHIFT_LIST(V) \
-  V(I64x2Shl)              \
-  V(I64x2ShrS)             \
-  V(I64x2ShrU)             \
-  V(I32x4Shl)              \
-  V(I32x4ShrS)             \
-  V(I32x4ShrU)             \
-  V(I16x8Shl)              \
-  V(I16x8ShrS)             \
-  V(I16x8ShrU)             \
-  V(I8x16Shl)              \
-  V(I8x16ShrS)             \
-  V(I8x16ShrU)
+#define SIMD_UNOP_LIST(V)    \
+  V(F64x2Abs)                \
+  V(F64x2Neg)                \
+  V(F64x2Sqrt)               \
+  V(F64x2Ceil)               \
+  V(F64x2Floor)              \
+  V(F64x2Trunc)              \
+  V(F64x2NearestInt)         \
+  V(F64x2ConvertLowI32x4S)   \
+  V(F64x2ConvertLowI32x4U)   \
+  V(F64x2PromoteLowF32x4)    \
+  V(F64x2Splat)              \
+  V(F32x4Abs)                \
+  V(F32x4Neg)                \
+  V(F32x4RecipApprox)        \
+  V(F32x4RecipSqrtApprox)    \
+  V(F32x4Sqrt)               \
+  V(F32x4Ceil)               \
+  V(F32x4Floor)              \
+  V(F32x4Trunc)              \
+  V(F32x4NearestInt)         \
+  V(F32x4DemoteF64x2Zero)    \
+  V(F32x4SConvertI32x4)      \
+  V(F32x4UConvertI32x4)      \
+  V(F32x4Splat)              \
+  V(I64x2Neg)                \
+  V(I64x2SConvertI32x4Low)   \
+  V(I64x2SConvertI32x4High)  \
+  V(I64x2UConvertI32x4Low)   \
+  V(I64x2UConvertI32x4High)  \
+  V(I64x2Abs)                \
+  V(I64x2BitMask)            \
+  V(I64x2Splat)              \
+  V(I64x2AllTrue)            \
+  V(I32x4Neg)                \
+  V(I32x4Abs)                \
+  V(I32x4SConvertI16x8Low)   \
+  V(I32x4SConvertI16x8High)  \
+  V(I32x4UConvertI16x8Low)   \
+  V(I32x4UConvertI16x8High)  \
+  V(I32x4TruncSatF64x2SZero) \
+  V(I32x4TruncSatF64x2UZero) \
+  V(I32x4BitMask)            \
+  V(I32x4Splat)              \
+  V(I32x4AllTrue)            \
+  V(I16x8Neg)                \
+  V(I16x8Abs)                \
+  V(I16x8SConvertI8x16Low)   \
+  V(I16x8SConvertI8x16High)  \
+  V(I16x8UConvertI8x16Low)   \
+  V(I16x8UConvertI8x16High)  \
+  V(I16x8BitMask)            \
+  V(I16x8Splat)              \
+  V(I16x8AllTrue)            \
+  V(I8x16Neg)                \
+  V(I8x16Abs)                \
+  V(I8x16Popcnt)             \
+  V(I8x16BitMask)            \
+  V(I8x16Splat)              \
+  V(I8x16AllTrue)            \
+  V(S128Not)                 \
+  V(V128AnyTrue)
 
-#define SIMD_BOOL_LIST(V) \
-  V(V128AnyTrue)          \
-  V(I64x2AllTrue)         \
-  V(I32x4AllTrue)         \
-  V(I16x8AllTrue)         \
-  V(I8x16AllTrue)
-
-#define SIMD_CONVERSION_LIST(V) \
-  V(I32x4SConvertF32x4)         \
-  V(I32x4UConvertF32x4)         \
-  V(F32x4SConvertI32x4)         \
-  V(F32x4UConvertI32x4)
-
-#define SIMD_VISIT_SPLAT(Type)                               \
-  void InstructionSelector::Visit##Type##Splat(Node* node) { \
-    S390OperandGenerator g(this);                            \
-    Emit(kS390_##Type##Splat, g.DefineAsRegister(node),      \
-         g.UseRegister(node->InputAt(0)));                   \
-  }
-SIMD_TYPES(SIMD_VISIT_SPLAT)
-#undef SIMD_VISIT_SPLAT
+#define SIMD_UNOP_UNIQUE_REGISTER_LIST(V) \
+  V(I32x4SConvertF32x4)                   \
+  V(I32x4UConvertF32x4)                   \
+  V(I32x4ExtAddPairwiseI16x8S)            \
+  V(I32x4ExtAddPairwiseI16x8U)            \
+  V(I16x8ExtAddPairwiseI8x16S)            \
+  V(I16x8ExtAddPairwiseI8x16U)
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
@@ -2615,7 +2628,17 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_BINOP(Opcode)                                          \
+#define SIMD_VISIT_BINOP(Opcode)                                            \
+  void InstructionSelector::Visit##Opcode(Node* node) {                     \
+    S390OperandGenerator g(this);                                           \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),                          \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+  }
+SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
+#undef SIMD_VISIT_BINOP
+#undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_BINOP_UNIQUE_REGISTER(Opcode)                          \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
     S390OperandGenerator g(this);                                         \
     InstructionOperand temps[] = {g.TempSimd128Register(),                \
@@ -2624,91 +2647,43 @@ SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
          g.UseUniqueRegister(node->InputAt(0)),                           \
          g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
   }
-SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
-#undef SIMD_VISIT_BINOP
-#undef SIMD_BINOP_LIST
+SIMD_BINOP_UNIQUE_REGISTER_LIST(SIMD_VISIT_BINOP_UNIQUE_REGISTER)
+#undef SIMD_VISIT_BINOP_UNIQUE_REGISTER
+#undef SIMD_BINOP_UNIQUE_REGISTER_LIST
 
-#define SIMD_VISIT_UNOP(Opcode)                                     \
-  void InstructionSelector::Visit##Opcode(Node* node) {             \
-    S390OperandGenerator g(this);                                   \
-    InstructionOperand temps[] = {g.TempSimd128Register()};         \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                  \
-         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
+#define SIMD_VISIT_UNOP(Opcode)                         \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)));              \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT(Opcode)                        \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    S390OperandGenerator g(this);                       \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
-         g.UseUniqueRegister(node->InputAt(0)),         \
-         g.UseUniqueRegister(node->InputAt(1)));        \
-  }
-SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
-#undef SIMD_VISIT_SHIFT
-#undef SIMD_SHIFT_LIST
-
-#define SIMD_VISIT_BOOL(Opcode)                                           \
+#define SIMD_VISIT_UNOP_UNIQUE_REGISTER(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
     S390OperandGenerator g(this);                                         \
-    InstructionOperand temps[] = {g.TempRegister()};                      \
+    InstructionOperand temps[] = {g.TempSimd128Register()};               \
     Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
          g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
-SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
-#undef SIMD_VISIT_BOOL
-#undef SIMD_BOOL_LIST
+SIMD_UNOP_UNIQUE_REGISTER_LIST(SIMD_VISIT_UNOP_UNIQUE_REGISTER)
+#undef SIMD_VISIT_UNOP_UNIQUE_REGISTER
+#undef SIMD_UNOP_UNIQUE_REGISTER_LIST
 
-#define SIMD_VISIT_CONVERSION(Opcode)                               \
-  void InstructionSelector::Visit##Opcode(Node* node) {             \
-    S390OperandGenerator g(this);                                   \
-    InstructionOperand temps[] = {g.TempSimd128Register()};         \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                  \
-         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
-  }
-SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
-#undef SIMD_VISIT_CONVERSION
-#undef SIMD_CONVERSION_LIST
-
-#define SIMD_VISIT_QFMOP(Opcode)                        \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    S390OperandGenerator g(this);                       \
-    Emit(kS390_##Opcode, g.DefineSameAsFirst(node),     \
-         g.UseUniqueRegister(node->InputAt(0)),         \
-         g.UseUniqueRegister(node->InputAt(1)),         \
-         g.UseRegister(node->InputAt(2)));              \
+#define SIMD_VISIT_QFMOP(Opcode)                                           \
+  void InstructionSelector::Visit##Opcode(Node* node) {                    \
+    S390OperandGenerator g(this);                                          \
+    Emit(kS390_##Opcode, g.DefineSameAsFirst(node),                        \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+         g.UseRegister(node->InputAt(2)));                                 \
   }
 SIMD_VISIT_QFMOP(F64x2Qfma)
 SIMD_VISIT_QFMOP(F64x2Qfms)
 SIMD_VISIT_QFMOP(F32x4Qfma)
 SIMD_VISIT_QFMOP(F32x4Qfms)
 #undef SIMD_VISIT_QFMOP
-
-#define SIMD_VISIT_BITMASK(Opcode)                      \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    S390OperandGenerator g(this);                       \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
-         g.UseUniqueRegister(node->InputAt(0)));        \
-  }
-SIMD_VISIT_BITMASK(I8x16BitMask)
-SIMD_VISIT_BITMASK(I16x8BitMask)
-SIMD_VISIT_BITMASK(I32x4BitMask)
-SIMD_VISIT_BITMASK(I64x2BitMask)
-#undef SIMD_VISIT_BITMASK
-
-#define SIMD_VISIT_PMIN_MAX(Type)                                           \
-  void InstructionSelector::Visit##Type(Node* node) {                       \
-    S390OperandGenerator g(this);                                           \
-    Emit(kS390_##Type, g.DefineAsRegister(node),                            \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
-  }
-SIMD_VISIT_PMIN_MAX(F64x2Pmin)
-SIMD_VISIT_PMIN_MAX(F32x4Pmin)
-SIMD_VISIT_PMIN_MAX(F64x2Pmax)
-SIMD_VISIT_PMIN_MAX(F32x4Pmax)
-#undef SIMD_VISIT_PMIN_MAX
 #undef SIMD_TYPES
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2729,8 +2704,8 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
                                ? max_index - current_index
                                : total_lane_count - current_index + max_index);
   }
-  Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node),
-       g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
+  Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+       g.UseRegister(input1),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
@@ -2740,18 +2715,22 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
 void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void InstructionSelector::VisitI8x16Swizzle(Node* node) {
-  S390OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+// This is a replica of SimdShuffle::Pack4Lanes. However, above function will
+// not be available on builds with webassembly disabled, hence we need to have
+// it declared locally as it is used on other visitors such as S128Const.
+static int32_t Pack4Lanes(const uint8_t* shuffle) {
+  int32_t result = 0;
+  for (int i = 3; i >= 0; --i) {
+    result <<= 8;
+    result |= shuffle[i];
+  }
+  return result;
 }
 
 void InstructionSelector::VisitS128Const(Node* node) {
   S390OperandGenerator g(this);
   uint32_t val[kSimd128Size / sizeof(uint32_t)];
-  base::Memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants.
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -2764,15 +2743,11 @@ void InstructionSelector::VisitS128Const(Node* node) {
   } else {
     // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
     // Which in this case is ineffective on LE.
-    Emit(kS390_S128Const, g.DefineAsRegister(node),
-         g.UseImmediate(
-             wasm::SimdShuffle::Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 4)),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 8)),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 12)));
+    Emit(kS390_S128Const, dst,
+         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]))),
+         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 4)),
+         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 8)),
+         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 12)));
   }
 }
 
@@ -2867,6 +2842,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundUp |
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTruncate |
+         MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kInt32AbsWithOverflow |

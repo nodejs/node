@@ -18,8 +18,8 @@ class Heap;
 class LocalHeap;
 class RootVisitor;
 
-// Used to bring all background threads with heap access to a safepoint such
-// that e.g. a garbage collection can be performed.
+// Used to bring all threads with heap access to a safepoint such that e.g. a
+// garbage collection can be performed.
 class GlobalSafepoint {
  public:
   explicit GlobalSafepoint(Heap* heap);
@@ -74,8 +74,10 @@ class GlobalSafepoint {
     void NotifyPark();
   };
 
-  void EnterSafepointScope();
-  void LeaveSafepointScope();
+  enum class StopMainThread { kYes, kNo };
+
+  void EnterSafepointScope(StopMainThread stop_main_thread);
+  void LeaveSafepointScope(StopMainThread stop_main_thread);
 
   template <typename Callback>
   void AddLocalHeap(LocalHeap* local_heap, Callback callback) {
@@ -116,9 +118,10 @@ class GlobalSafepoint {
 
   int active_safepoint_scopes_;
 
-  friend class SafepointScope;
+  friend class Heap;
   friend class LocalHeap;
   friend class PersistentHandles;
+  friend class SafepointScope;
 };
 
 class V8_NODISCARD SafepointScope {

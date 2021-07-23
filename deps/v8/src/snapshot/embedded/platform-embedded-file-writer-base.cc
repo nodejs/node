@@ -60,11 +60,11 @@ int PlatformEmbeddedFileWriterBase::WriteByteChunk(const uint8_t* data) {
       break;
     case 16:
 #ifdef V8_TARGET_BIG_ENDIAN
-      base::Memcpy(&high, data, kHalfSize);
-      base::Memcpy(&low, data + kHalfSize, kHalfSize);
+      memcpy(&high, data, kHalfSize);
+      memcpy(&low, data + kHalfSize, kHalfSize);
 #else
-      base::Memcpy(&high, data + kHalfSize, kHalfSize);
-      base::Memcpy(&low, data, kHalfSize);
+      memcpy(&high, data + kHalfSize, kHalfSize);
+      memcpy(&low, data, kHalfSize);
 #endif  // V8_TARGET_BIG_ENDIAN
       break;
     default:
@@ -141,6 +141,8 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
     return EmbeddedTargetOs::kMac;
   } else if (string == "win") {
     return EmbeddedTargetOs::kWin;
+  } else if (string == "starboard") {
+    return EmbeddedTargetOs::kStarboard;
   } else {
     return EmbeddedTargetOs::kGeneric;
   }
@@ -152,6 +154,27 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
     const char* target_arch, const char* target_os) {
   auto embedded_target_arch = ToEmbeddedTargetArch(target_arch);
   auto embedded_target_os = ToEmbeddedTargetOs(target_os);
+
+  if (embedded_target_os == EmbeddedTargetOs::kStarboard) {
+    // target OS is "Starboard" for all starboard build so we need to
+    // use host OS macros to decide which writer to use.
+    // Cobalt also has Windows-based Posix target platform,
+    // in which case generic writer should be used.
+    switch (DefaultEmbeddedTargetOs()) {
+      case EmbeddedTargetOs::kMac:
+#if defined(V8_TARGET_OS_WIN)
+      case EmbeddedTargetOs::kWin:
+        // V8_TARGET_OS_WIN is used to enable WINDOWS-specific assembly code,
+        // for windows-hosted non-windows targets, we should still fallback to
+        // the generic writer.
+#endif
+        embedded_target_os = DefaultEmbeddedTargetOs();
+        break;
+      default:
+        // In the block below, we will use WriterGeneric for other cases.
+        break;
+    }
+  }
 
   if (embedded_target_os == EmbeddedTargetOs::kAIX) {
     return std::make_unique<PlatformEmbeddedFileWriterAIX>(embedded_target_arch,

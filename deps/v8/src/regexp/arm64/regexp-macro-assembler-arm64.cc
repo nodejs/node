@@ -231,8 +231,7 @@ void RegExpMacroAssemblerARM64::CheckCharacter(uint32_t c, Label* on_equal) {
   CompareAndBranchOrBacktrack(current_character(), c, eq, on_equal);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckCharacterGT(uc16 limit,
+void RegExpMacroAssemblerARM64::CheckCharacterGT(base::uc16 limit,
                                                  Label* on_greater) {
   CompareAndBranchOrBacktrack(current_character(), limit, hi, on_greater);
 }
@@ -253,16 +252,14 @@ void RegExpMacroAssemblerARM64::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(ne, on_not_at_start);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerARM64::CheckCharacterLT(base::uc16 limit,
+                                                 Label* on_less) {
   CompareAndBranchOrBacktrack(current_character(), limit, lo, on_less);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
-                                              int cp_offset,
-                                              Label* on_failure,
-                                              bool check_end_of_string) {
+void RegExpMacroAssemblerARM64::CheckCharacters(
+    base::Vector<const base::uc16> str, int cp_offset, Label* on_failure,
+    bool check_end_of_string) {
   // This method is only ever called from the cctests.
 
   if (check_end_of_string) {
@@ -289,7 +286,6 @@ void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
     CompareAndBranchOrBacktrack(w10, str[i], ne, on_failure);
   }
 }
-
 
 void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
   __ Ldr(w10, MemOperand(backtrack_stackpointer()));
@@ -559,38 +555,28 @@ void RegExpMacroAssemblerARM64::CheckNotCharacterAfterAnd(unsigned c,
   CompareAndBranchOrBacktrack(w10, c, ne, on_not_equal);
 }
 
-
 void RegExpMacroAssemblerARM64::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Sub(w10, current_character(), minus);
   __ And(w10, w10, mask);
   CompareAndBranchOrBacktrack(w10, c, ne, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerARM64::CheckCharacterInRange(base::uc16 from,
+                                                      base::uc16 to,
+                                                      Label* on_in_range) {
   __ Sub(w10, current_character(), from);
   // Unsigned lower-or-same condition.
   CompareAndBranchOrBacktrack(w10, to - from, ls, on_in_range);
 }
 
-
 void RegExpMacroAssemblerARM64::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+    base::uc16 from, base::uc16 to, Label* on_not_in_range) {
   __ Sub(w10, current_character(), from);
   // Unsigned higher condition.
   CompareAndBranchOrBacktrack(w10, to - from, hi, on_not_in_range);
 }
-
 
 void RegExpMacroAssemblerARM64::CheckBitInTable(
     Handle<ByteArray> table,
@@ -606,8 +592,7 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
   CompareAndBranchOrBacktrack(w11, 0, ne, on_bit_set);
 }
 
-
-bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(base::uc16 type,
                                                            Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
@@ -709,7 +694,6 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     return false;
   }
 }
-
 
 void RegExpMacroAssemblerARM64::Fail() {
   __ Mov(w0, FAILURE);
@@ -1018,8 +1002,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
         // Advance current position after a zero-length match.
         Label advance;
         __ bind(&advance);
-        __ Add(current_input_offset(),
-               current_input_offset(),
+        __ Add(current_input_offset(), current_input_offset(),
                Operand((mode_ == UC16) ? 2 : 1));
         if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
@@ -1407,7 +1390,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  __ CallBuiltin(Builtins::kDirectCEntry);
+  __ CallBuiltin(Builtin::kDirectCEntry);
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kSystemPointerSize);

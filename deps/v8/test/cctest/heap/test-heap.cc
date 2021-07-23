@@ -30,6 +30,7 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -159,13 +160,13 @@ static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
   CHECK(obj.IsOddball());
   Handle<Object> handle(obj, isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 
@@ -174,7 +175,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(number->IsNumber());
   Handle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
-  CHECK(String::cast(*print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
@@ -433,7 +434,7 @@ TEST(GarbageCollection) {
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
   Handle<String> s = isolate->factory()
-                         ->NewStringFromUtf8(CStrVector(string))
+                         ->NewStringFromUtf8(base::CStrVector(string))
                          .ToHandleChecked();
   CHECK_EQ(strlen(string), s->length());
   for (int index = 0; index < s->length(); index++) {
@@ -729,15 +730,15 @@ static void CheckInternalizedStrings(const char** strings) {
        string = *strings++) {
     HandleScope scope(isolate);
     Handle<String> a =
-        isolate->factory()->InternalizeUtf8String(CStrVector(string));
+        isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     // InternalizeUtf8String may return a failure if a GC is needed.
     CHECK(a->IsInternalizedString());
     Handle<String> b = factory->InternalizeUtf8String(string);
     CHECK_EQ(*b, *a);
-    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
-    b = isolate->factory()->InternalizeUtf8String(CStrVector(string));
+    CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
+    b = isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     CHECK_EQ(*b, *a);
-    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
+    CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
   }
 }
 
@@ -1018,18 +1019,20 @@ TEST(StringAllocation) {
       non_one_byte[3 * i + 2] = chars[2];
     }
     Handle<String> non_one_byte_sym = factory->InternalizeUtf8String(
-        Vector<const char>(non_one_byte, 3 * length));
+        base::Vector<const char>(non_one_byte, 3 * length));
     CHECK_EQ(length, non_one_byte_sym->length());
     Handle<String> one_byte_sym =
-        factory->InternalizeString(OneByteVector(one_byte, length));
+        factory->InternalizeString(base::OneByteVector(one_byte, length));
     CHECK_EQ(length, one_byte_sym->length());
     CHECK(one_byte_sym->HasHashCode());
     Handle<String> non_one_byte_str =
-        factory->NewStringFromUtf8(Vector<const char>(non_one_byte, 3 * length))
+        factory
+            ->NewStringFromUtf8(
+                base::Vector<const char>(non_one_byte, 3 * length))
             .ToHandleChecked();
     CHECK_EQ(length, non_one_byte_str->length());
     Handle<String> one_byte_str =
-        factory->NewStringFromUtf8(Vector<const char>(one_byte, length))
+        factory->NewStringFromUtf8(base::Vector<const char>(one_byte, length))
             .ToHandleChecked();
     CHECK_EQ(length, one_byte_str->length());
     DeleteArray(non_one_byte);
@@ -1528,14 +1531,14 @@ TEST(CompilationCacheCachingBehavior) {
 
 static void OptimizeEmptyFunction(const char* name) {
   HandleScope scope(CcTest::i_isolate());
-  EmbeddedVector<char, 256> source;
-  SNPrintF(source,
-           "function %s() { return 0; }"
-           "%%PrepareFunctionForOptimization(%s);"
-           "%s(); %s();"
-           "%%OptimizeFunctionOnNextCall(%s);"
-           "%s();",
-           name, name, name, name, name, name);
+  base::EmbeddedVector<char, 256> source;
+  base::SNPrintF(source,
+                 "function %s() { return 0; }"
+                 "%%PrepareFunctionForOptimization(%s);"
+                 "%s(); %s();"
+                 "%%OptimizeFunctionOnNextCall(%s);"
+                 "%s();",
+                 name, name, name, name, name, name);
   CompileRun(source.begin());
 }
 
@@ -2509,22 +2512,22 @@ TEST(OptimizedPretenuringAllocationFolding) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array();"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [[{}], [1.1]];"
-              "  }"
-              "  return elements[number_elements-1]"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array();"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [[{}], [1.1]];"
+                 "  }"
+                 "  return elements[number_elements-1]"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2560,22 +2563,22 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [{}, {}, {}];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [{}, {}, {}];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2600,23 +2603,23 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   // Keep the nested literal alive while its root is freed
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "let number_elements = %d;"
-              "let elements = new Array(number_elements);"
-              "function f() {"
-              "  for (let i = 0; i < number_elements; i++) {"
-              "     let l =  {a: {c: 2.2, d: {e: 3.3}}, b: 1.1}; "
-              "    elements[i] = l.a;"
-              "  }"
-              "  return elements[number_elements-1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "let number_elements = %d;"
+                 "let elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (let i = 0; i < number_elements; i++) {"
+                 "     let l =  {a: {c: 2.2, d: {e: 3.3}}, b: 1.1}; "
+                 "    elements[i] = l.a;"
+                 "  }"
+                 "  return elements[number_elements-1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2640,22 +2643,22 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2687,22 +2690,22 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = {a: 1.1, b: 2.2};"
-              "  }"
-              "  return elements[i - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = {a: 1.1, b: 2.2};"
+                 "  }"
+                 "  return elements[i - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2726,22 +2729,22 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [1.1, 2.2, 3.3];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [1.1, 2.2, 3.3];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2764,22 +2767,22 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2814,22 +2817,22 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2864,22 +2867,22 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();",
-              kPretenureCreationCount);
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc();"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 
@@ -2960,8 +2963,8 @@ TEST(Regress1465) {
   {
     AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
     for (int i = 0; i < transitions_count; i++) {
-      EmbeddedVector<char, 64> buffer;
-      SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+      base::EmbeddedVector<char, 64> buffer;
+      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
       CompileRun(buffer.begin());
     }
     CompileRun("var root = new F;");
@@ -2998,8 +3001,8 @@ static i::Handle<JSObject> GetByName(const char* name) {
 static void AddTransitions(int transitions_count) {
   AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
   for (int i = 0; i < transitions_count; i++) {
-    EmbeddedVector<char, 64> buffer;
-    SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+    base::EmbeddedVector<char, 64> buffer;
+    base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
     CompileRun(buffer.begin());
   }
 }
@@ -3477,11 +3480,6 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
 
 
 UNINITIALIZED_TEST(ReleaseStackTraceData) {
-  if (FLAG_always_opt) {
-    // TODO(ulan): Remove this once the memory leak via code_next_link is fixed.
-    // See: https://codereview.chromium.org/181833004/
-    return;
-  }
 #ifndef V8_LITE_MODE
   // ICs retain objects.
   FLAG_use_ic = false;
@@ -3954,7 +3952,7 @@ static int SlimAllocationSiteCount(Heap* heap) {
 }
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  if (FLAG_always_opt || !FLAG_opt) return;
+  if (FLAG_always_opt || !FLAG_opt || !V8_ALLOCATION_SITE_TRACKING_BOOL) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4000,8 +3998,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency.count());
       CHECK(dependency.object_at(0)->IsWeak());
-      Code function_bar =
-          Code::cast(dependency.object_at(0)->GetHeapObjectAssumeWeak());
+      Code function_bar = FromCodeT(
+          CodeT::cast(dependency.object_at(0)->GetHeapObjectAssumeWeak()));
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency.next_link();
       dependency_group_count++;
@@ -4121,94 +4119,6 @@ TEST(AllocationSiteCreation) {
 
   // No new AllocationSites created on the second invocation.
   CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
-}
-
-TEST(AllocationSiteCreationForIIFE) {
-  // No feedback vectors and hence no allocation sites.
-  // TODO(mythria): Once lazy feedback allocation is enabled by default
-  // re-evaluate if we need any of these tests.
-  if (FLAG_lite_mode || FLAG_lazy_feedback_allocation) return;
-  FLAG_always_opt = false;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-  i::FLAG_enable_one_shot_optimization = true;
-
-  // No allocation sites within IIFE/top-level
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            (function f4() {
-                              return [ 0, [ 1, 1.1, 1.2,], 1.5, [2.1, 2.2], 3 ];
-                            })();
-                            )",
-                           0, 0);
-
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            l = [ 1, 2, 3, 4];
-                            )",
-                           0, 0);
-
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            a = [];
-                            )",
-                           0, 0);
-
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            (function f4() {
-                              return [];
-                            })();
-                            )",
-                           0, 0);
-
-  // No allocation sites for literals in an iife/top level code even if it has
-  // array subliterals
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            (function f10() {
-                              return {a: [1], b: [2]};
-                            })();
-                            )",
-                           0, 0);
-
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            l = {
-                              a: 1,
-                              b: {
-                                c: [5],
-                              }
-                            };
-                            )",
-                           0, 0);
-
-  // Eagerly create allocation sites for literals within a loop of iife or
-  // top-level code
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            (function f11() {
-                              while(true) {
-                                return {a: [1], b: [2]};
-                              }
-                            })();
-                            )",
-                           1, 2);
-
-  CheckNumberOfAllocations(heap,
-                           R"(
-                            for (i = 0; i < 1; ++i) {
-                              l = {
-                                a: 1,
-                                b: {
-                                  c: [5],
-                                }
-                              };
-                            }
-                            )",
-                           1, 1);
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {
@@ -4410,14 +4320,14 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
 static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
                                                 const char* name) {
-  EmbeddedVector<char, 256> source;
-  SNPrintF(source,
-           "function %s() { return 0; }"
-           "%%PrepareFunctionForOptimization(%s);"
-           "%s(); %s();"
-           "%%OptimizeFunctionOnNextCall(%s);"
-           "%s();",
-           name, name, name, name, name, name);
+  base::EmbeddedVector<char, 256> source;
+  base::SNPrintF(source,
+                 "function %s() { return 0; }"
+                 "%%PrepareFunctionForOptimization(%s);"
+                 "%s(); %s();"
+                 "%%OptimizeFunctionOnNextCall(%s);"
+                 "%s();",
+                 name, name, name, name, name, name);
   CompileRun(source.begin());
   i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -4429,9 +4339,9 @@ static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
 
 static int GetCodeChainLength(Code code) {
   int result = 0;
-  while (code.next_code_link().IsCode()) {
+  while (code.next_code_link().IsCodeT()) {
     result++;
-    code = Code::cast(code.next_code_link());
+    code = FromCodeT(CodeT::cast(code.next_code_link()));
   }
   return result;
 }
@@ -4455,7 +4365,7 @@ TEST(NextCodeLinkIsWeak) {
         OptimizeDummyFunction(CcTest::isolate(), "mortal");
     Handle<JSFunction> immortal =
         OptimizeDummyFunction(CcTest::isolate(), "immortal");
-    CHECK_EQ(immortal->code().next_code_link(), mortal->code());
+    CHECK_EQ(immortal->code().next_code_link(), ToCodeT(mortal->code()));
     code_chain_length_before = GetCodeChainLength(immortal->code());
     // Keep the immortal code and let the mortal code die.
     code = scope.CloseAndEscape(Handle<Code>(immortal->code(), isolate));
@@ -4483,7 +4393,7 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
         OptimizeDummyFunction(CcTest::isolate(), "mortal1");
     Handle<JSFunction> mortal2 =
         OptimizeDummyFunction(CcTest::isolate(), "mortal2");
-    CHECK_EQ(mortal2->code().next_code_link(), mortal1->code());
+    CHECK_EQ(mortal2->code().next_code_link(), ToCodeT(mortal1->code()));
     code_data_container = scope.CloseAndEscape(Handle<CodeDataContainer>(
         mortal2->code().code_data_container(kAcquireLoad), isolate));
     CompileRun("mortal1 = null; mortal2 = null;");
@@ -4525,7 +4435,8 @@ TEST(NextCodeLinkIsWeak2) {
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
   CcTest::CollectAllAvailableGarbage();
-  Handle<Context> context(Context::cast(heap->native_contexts_list()), isolate);
+  Handle<NativeContext> context(
+      NativeContext::cast(heap->native_contexts_list()), isolate);
   Handle<Code> new_head;
   Handle<Object> old_head(context->get(Context::OPTIMIZED_CODE_LIST), isolate);
   {
@@ -4533,8 +4444,8 @@ TEST(NextCodeLinkIsWeak2) {
     Handle<Code> immortal = DummyOptimizedCode(isolate);
     Handle<Code> mortal = DummyOptimizedCode(isolate);
     mortal->set_next_code_link(*old_head);
-    immortal->set_next_code_link(*mortal);
-    context->set(Context::OPTIMIZED_CODE_LIST, *immortal);
+    immortal->set_next_code_link(ToCodeT(*mortal));
+    context->SetOptimizedCodeListHead(ToCodeT(*immortal));
     new_head = scope.CloseAndEscape(immortal);
   }
   CcTest::CollectAllAvailableGarbage();
@@ -7216,7 +7127,7 @@ class TestAllocationTracker : public HeapObjectAllocationTracker {
 HEAP_TEST(CodeLargeObjectSpace) {
   Heap* heap = CcTest::heap();
   int size_in_bytes =
-      Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
+      heap->MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
@@ -7250,7 +7161,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   // Allocate a regular code object.
   {
     int size_in_bytes =
-        Heap::MaxRegularHeapObjectSize(AllocationType::kCode) - kTaggedSize;
+        heap->MaxRegularHeapObjectSize(AllocationType::kCode) - kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
@@ -7272,7 +7183,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   // Allocate a large code object.
   {
     int size_in_bytes =
-        Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
+        heap->MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 

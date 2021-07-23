@@ -337,6 +337,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case WITH_CONTEXT_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
+    case CODE_DATA_CONTAINER_TYPE:
     case PROPERTY_CELL_TYPE:
     case SOURCE_TEXT_MODULE_TYPE:
     case SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE:

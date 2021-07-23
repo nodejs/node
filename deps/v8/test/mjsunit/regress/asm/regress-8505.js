@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --wasm-math-intrinsics  --validate-asm --allow-natives-syntax
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function verbose(args) {
   // print(...args);

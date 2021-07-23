@@ -24,7 +24,7 @@ class CodeAssemblerTester {
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
         state_(isolate, &zone_, descriptor, CodeKind::FOR_TESTING, name,
-               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
+               PoisoningMitigationLevel::kDontPoison, Builtin::kNoBuiltinId) {}
 
   // Test generating code for a stub. Assumes VoidDescriptor call interface.
   explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
@@ -48,7 +48,7 @@ class CodeAssemblerTester {
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
         state_(isolate, &zone_, call_descriptor, CodeKind::FOR_TESTING, name,
-               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
+               PoisoningMitigationLevel::kDontPoison, Builtin::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }
 

@@ -33,7 +33,8 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
           .IsNothing()) {
     // TODO(victorgomes): EffectControlLinearizer::LowerTransitionElementsKind
     // does not handle exceptions.
-    FATAL("Fatal JavaScript invalid array size");
+    FATAL(
+        "Fatal JavaScript invalid size error when transitioning elements kind");
     UNREACHABLE();
   }
   return *object;
@@ -312,7 +313,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      LookupIterator::Key key(isolate, static_cast<double>(index));
+      PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
@@ -373,7 +374,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     if (fp > len) return Smi::FromInt(-1);
     if (V8_LIKELY(fp >=
                   static_cast<double>(std::numeric_limits<int64_t>::min()))) {
-      DCHECK(fp < std::numeric_limits<int64_t>::max());
+      DCHECK(fp < static_cast<double>(std::numeric_limits<int64_t>::max()));
       start_from = static_cast<int64_t>(fp);
     } else {
       start_from = std::numeric_limits<int64_t>::min();
@@ -409,7 +410,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      LookupIterator::Key key(isolate, static_cast<double>(index));
+      PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);
       Maybe<bool> present = JSReceiver::HasProperty(&it);
       MAYBE_RETURN(present, ReadOnlyRoots(isolate).exception());

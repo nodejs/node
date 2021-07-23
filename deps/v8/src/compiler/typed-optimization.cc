@@ -34,7 +34,6 @@ TypedOptimization::TypedOptimization(Editor* editor,
 TypedOptimization::~TypedOptimization() = default;
 
 Reduction TypedOptimization::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kConvertReceiver:
       return ReduceConvertReceiver(node);
@@ -92,6 +91,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceSpeculativeNumberAdd(node);
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberPow:
     case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kSpeculativeNumberModulus:
       return ReduceSpeculativeNumberBinop(node);
@@ -680,29 +680,23 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   Type const type = NodeProperties::GetType(input);
   Factory* const f = factory();
   if (type.Is(Type::Boolean())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->boolean_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->boolean_string())));
   } else if (type.Is(Type::Number())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->number_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->number_string())));
   } else if (type.Is(Type::String())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->string_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->string_string())));
   } else if (type.Is(Type::BigInt())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->bigint_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->bigint_string())));
   } else if (type.Is(Type::Symbol())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->symbol_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->symbol_string())));
   } else if (type.Is(Type::OtherUndetectableOrUndefined())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->undefined_string())));
+        jsgraph()->Constant(MakeRef(broker(), f->undefined_string())));
   } else if (type.Is(Type::NonCallableOrNull())) {
-    return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->object_string())));
+    return Replace(jsgraph()->Constant(MakeRef(broker(), f->object_string())));
   } else if (type.Is(Type::Function())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(broker(), f->function_string())));
+        jsgraph()->Constant(MakeRef(broker(), f->function_string())));
   }
   return NoChange();
 }
@@ -776,6 +770,8 @@ const Operator* NumberOpFromSpeculativeNumberOp(
       return simplified->NumberSubtract();
     case IrOpcode::kSpeculativeNumberMultiply:
       return simplified->NumberMultiply();
+    case IrOpcode::kSpeculativeNumberPow:
+      return simplified->NumberPow();
     case IrOpcode::kSpeculativeNumberDivide:
       return simplified->NumberDivide();
     case IrOpcode::kSpeculativeNumberModulus:

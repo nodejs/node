@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 template <typename Char>
-bool DateParser::Parse(Isolate* isolate, Vector<Char> str, double* out) {
+bool DateParser::Parse(Isolate* isolate, base::Vector<Char> str, double* out) {
   InputReader<Char> in(str);
   DateStringTokenizer<Char> scanner(&in);
   TimeZoneComposer tz;

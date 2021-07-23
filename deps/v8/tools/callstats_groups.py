@@ -19,4 +19,5 @@ RUNTIME_CALL_STATS_GROUPS = [
     ('Group-GC-Background', re.compile(".*GC.*BACKGROUND.*")),
     ('Group-GC', re.compile("GC_.*|AllocateInTargetSpace")),
     ('Group-JavaScript', re.compile("JS_Execution")),
+    ('Group-WebSnapshot', re.compile("WebSnapshot.*")),
     ('Group-Runtime', re.compile(".*"))]

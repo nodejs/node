@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
@@ -18,7 +19,6 @@
 #include "src/objects/objects.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 
@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       : OptimizedCompilationInfo(zone, isolate, shared, closure, code_kind,
                                  BytecodeOffset::None(), nullptr) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
-  OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
+  OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
 
   OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
@@ -131,8 +131,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   CodeKind code_kind() const { return code_kind_; }
-  int32_t builtin_index() const { return builtin_index_; }
-  void set_builtin_index(int32_t index) { builtin_index_ = index; }
+  Builtin builtin() const { return builtin_; }
+  void set_builtin(Builtin builtin) { builtin_ = builtin; }
   BytecodeOffset osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   void SetNodeObserver(compiler::NodeObserver* observer) {
@@ -273,7 +273,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       PoisoningMitigationLevel::kDontPoison;
 
   const CodeKind code_kind_;
-  int32_t builtin_index_ = -1;
+  Builtin builtin_ = Builtin::kNoBuiltinId;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't
   // get flushed while we are optimizing the code.
@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   const int optimization_id_;
   unsigned inlined_bytecode_size_ = 0;
 
-  Vector<const char> debug_name_;
+  base::Vector<const char> debug_name_;
   std::unique_ptr<char[]> trace_turbo_filename_;
 
   TickCounter tick_counter_;

@@ -23,44 +23,6 @@ found in the LICENSE file. -->
   </script>
   <link rel="stylesheet" type="text/css" href="./index.css">
   <style>
-    .theme-switch {
-      display: inline-block;
-      height: 16px;
-      position: relative;
-      width: 38px;
-      vertical-align: middle;
-    }
-
-    .theme-switch input {
-      display: none;
-    }
-
-    .slider {
-      background-color: var(--primary-color);
-      bottom: 0;
-      cursor: pointer;
-      left: 0;
-      position: absolute;
-      right: 0;
-      top: 0;
-      border-radius: 34px;
-    }
-
-    .slider:before {
-      background-color: var(--surface-color);
-      position: absolute;
-      height: 10px;
-      width: 10px;
-      bottom: 3px;
-      content: "";
-      left: 4px;
-      border-radius: 50%;
-    }
-
-    input:checked+.slider:before {
-      transform: translateX(20px);
-    }
-
     #container.initial {
       display: none;
     }
@@ -93,7 +55,9 @@ found in the LICENSE file. -->
 
   <section id="container" class="initial">
     <timeline-panel id="timeline-panel">
-      <timeline-track id="map-track" title="Map"></timeline-track>
+      <timeline-track-tick id="tick-track" title="Samples"></timeline-track-tick>
+      <timeline-track-timer id="timer-track" title="Timers"></timeline-track-timer>
+      <timeline-track-map id="map-track" title="Map"></timeline-track-map>
       <timeline-track id="ic-track" title="IC"></timeline-track>
       <timeline-track id="deopt-track" title="Deopt"></timeline-track>
       <timeline-track id="code-track" title="Code"></timeline-track>
@@ -101,6 +65,8 @@ found in the LICENSE file. -->
     </timeline-panel>
 
     <div class="panels">
+      <script-panel id="script-panel"></script-panel>
+      <code-panel id="code-panel"></code-panel>
       <map-panel id="map-panel"></map-panel>
       <list-panel id="ic-list" title="IC List">
         <div class="legend">
@@ -127,23 +93,10 @@ found in the LICENSE file. -->
       <list-panel id="deopt-list" title="Deopt Events"></list-panel>
       <list-panel id="code-list" title="Code Events"></list-panel>
       <list-panel id="api-list" title="API Events"></list-panel>
-      <script-panel id="script-panel"></script-panel>
-      <code-panel id="code-panel"></code-panel>
     </div>
   </section>
 
   <div class="panels">
-    <section id="settings" class="panel">
-      <h2>Settings</h2>
-      <div class="panelBody">
-        <span>Theme:</span>
-        <label class="theme-switch" for="theme-switch-input">
-          <input type="checkbox" id="theme-switch-input" >
-          <div class="slider"></div>
-        </label>
-      </div>
-    </section>
-
     <section id="instructions" class="panel">
       <h2>Instructions</h2>
       <div class="panelBody">
@@ -179,10 +132,10 @@ found in the LICENSE file. -->
             </a>
           </dt>
           <dd>
-              Log<a href="https://v8.dev/blog/fast-properties">Maps</a>
+              Log <a href="https://v8.dev/blog/fast-properties">Maps</a>
           </dd>
           <dt>
-            <a href="https://source.chromium.org/search?q=FLAG_trace_ic">
+            <a href="https://source.chromium.org/search?q=FLAG_log_ic">
               <code>--log-ic</code>
             </a>
           </dt>
@@ -213,6 +166,12 @@ found in the LICENSE file. -->
             </a>
           </dt>
           <dd>Log various API uses.</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_prof">
+              <code>--prof</code>
+            </a>
+          </dt>
+          <dd>Log ticks from the sampling profiler.</dd>
         </dl>
 
         <h3>Keyboard Shortcuts for Navigation</h3>
