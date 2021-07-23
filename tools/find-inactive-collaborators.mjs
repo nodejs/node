@@ -79,6 +79,9 @@ async function getCollaboratorsFromReadme() {
       const mailmap = await runGitCommand(
         `git check-mailmap '${name} <${email}>'`
       );
+      if (mailmap !== `${name} <${email}>`) {
+        console.log(`README entry for Collaborator does not match mailmap:\n  ${name} <${email}> => ${mailmap}`);
+      }
       returnedArray.push({
         name,
         email,
