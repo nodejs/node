@@ -3,6 +3,7 @@
 
 #include "env-inl.h"
 #include "node_binding.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 
 #include <errno.h>
@@ -698,6 +699,16 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "disable Object.prototype.__proto__",
             &PerProcessOptions::disable_proto,
             kAllowedInEnvironment);
+  AddOption("--snapshot-main",
+            "Path to the entry point file used to build user snapshot",
+            &PerProcessOptions::snapshot_main,
+            kDisallowedInEnvironment);
+  AddOption("--snapshot-blob",
+            "Path to the snapshot blob that's either the result of snapshot"
+            "building, or the blob that is used to restore the application "
+            "state",
+            &PerProcessOptions::snapshot_blob,
+            kAllowedInEnvironment);
 
   // 12.x renamed this inadvertently, so alias it for consistency within the
   // release line, while using the original name for consistency with older
@@ -1081,6 +1092,10 @@ void Initialize(Local<Object> target,
       .Check();
 }
 
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetOptions);
+}
+
 }  // namespace options_parser
 
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options) {
@@ -1144,6 +1159,9 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
   }
   return env_argv;
 }
+
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(options, node::options_parser::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(options,
+                               node::options_parser::RegisterExternalReferences)

@@ -166,6 +166,7 @@ class NativeSymbolDebuggingContext {
 // but still aborts the process.
 void CheckedUvLoopClose(uv_loop_t* loop);
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
+void PrintLibuvHandleInformation(Environment* env);
 
 namespace per_process {
 extern EnabledDebugList enabled_debug_list;
