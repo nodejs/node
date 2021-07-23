@@ -159,9 +159,9 @@ class IsolateData final {
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
   V(kFastApiCallTargetOffset, kSystemPointerSize)                             \
-  V(kCageBaseOffset, kSystemPointerSize)                                      \
   V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
+  V(kCageBaseOffset, kSystemPointerSize)                                      \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
   V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
@@ -198,13 +198,13 @@ class IsolateData final {
   Address fast_c_call_caller_pc_ = kNullAddress;
   Address fast_api_call_target_ = kNullAddress;
 
-  Address cage_base_ = kNullAddress;
-
   // Fields related to the system and JS stack. In particular, this contains
   // the stack limit used by stack checks in generated code.
   StackGuard stack_guard_;
 
   RootsTable roots_;
+
+  Address cage_base_ = kNullAddress;
 
   ExternalReferenceTable external_reference_table_;
 

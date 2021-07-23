@@ -229,10 +229,8 @@ class Internals {
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
-  static const int kIsolateCageBaseOffset =
-      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateStackGuardOffset =
-      kIsolateCageBaseOffset + kApiSystemPointerSize;
+      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
       kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
 
