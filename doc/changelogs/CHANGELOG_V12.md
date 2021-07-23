@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.4">12.22.4</a><br/>
 <a href="#12.22.3">12.22.3</a><br/>
 <a href="#12.22.2">12.22.2</a><br/>
 <a href="#12.22.1">12.22.1</a><br/>
@@ -76,6 +77,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.4"></a>
+## 2021-07-29, Version 12.22.4 'Erbium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+* **CVE-2021-22930**: Use after free on close http2 on stream canceling (High)
+  * Node.js is vulnerable to a use after free attack where an attacker might be able to exploit the memory corruption, to change process behavior. You can read more about it in https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22930
+
+### Commits
+
+* [[`499e56babe`](https://github.com/nodejs/node/commit/499e56babe)] - **build**: fix label-pr workflow (Michaël Zasso) [#38399](https://github.com/nodejs/node/pull/38399)
+* [[`98ac3c4108`](https://github.com/nodejs/node/commit/98ac3c4108)] - **build**: label PRs with GitHub Action instead of nodejs-github-bot (Phillip Johnsen) [#38301](https://github.com/nodejs/node/pull/38301)
+* [[`ddc8dde150`](https://github.com/nodejs/node/commit/ddc8dde150)] - **deps**: upgrade npm to 6.14.14 (Darcy Clarke) [#39553](https://github.com/nodejs/node/pull/39553)
+* [[`e11a862eed`](https://github.com/nodejs/node/commit/e11a862eed)] - **deps**: update to c-ares 1.17.1 (Danny Sonnenschein) [#36207](https://github.com/nodejs/node/pull/36207)
+* [[`39e9cd540f`](https://github.com/nodejs/node/commit/39e9cd540f)] - **deps**: restore minimum ICU version to 65 (Richard Lau) [#39068](https://github.com/nodejs/node/pull/39068)
+* [[`e459c79b02`](https://github.com/nodejs/node/commit/e459c79b02)] - **deps**: V8: cherry-pick 035c305ce776 (Michaël Zasso) [#38497](https://github.com/nodejs/node/pull/38497)
+* [[`b3c698a5d8`](https://github.com/nodejs/node/commit/b3c698a5d8)] - **deps**: update to cjs-module-lexer@1.2.1 (Guy Bedford) [#38450](https://github.com/nodejs/node/pull/38450)
+* [[`7d5a2f9588`](https://github.com/nodejs/node/commit/7d5a2f9588)] - **deps**: update to cjs-module-lexer@1.1.1 (Guy Bedford) [#37992](https://github.com/nodejs/node/pull/37992)
+* [[`906b43e586`](https://github.com/nodejs/node/commit/906b43e586)] - **deps**: V8: update build dependencies (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`15b91fa3fa`](https://github.com/nodejs/node/commit/15b91fa3fa)] - **deps**: V8: backport 895949419186 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`8046daf09f`](https://github.com/nodejs/node/commit/8046daf09f)] - **deps**: V8: cherry-pick 0b3a4ecf7083 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`f4377b13a6`](https://github.com/nodejs/node/commit/f4377b13a6)] - **deps**: V8: cherry-pick 7c182bd65f42 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`add7b5b4c2`](https://github.com/nodejs/node/commit/add7b5b4c2)] - **deps**: V8: cherry-pick cc641f6be756 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`a73275f056`](https://github.com/nodejs/node/commit/a73275f056)] - **deps**: V8: cherry-pick 7b3332844212 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`492b0d6b37`](https://github.com/nodejs/node/commit/492b0d6b37)] - **deps**: V8: cherry-pick e6f62a41f5ee (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`2b54156260`](https://github.com/nodejs/node/commit/2b54156260)] - **deps**: V8: cherry-pick 92e6d3317082 (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`bbceab4d91`](https://github.com/nodejs/node/commit/bbceab4d91)] - **deps**: V8: backport 1b1eda0876aa (Michaël Zasso) [#39245](https://github.com/nodejs/node/pull/39245)
+* [[`93a1a3c5ae`](https://github.com/nodejs/node/commit/93a1a3c5ae)] - **deps**: V8: cherry-pick 530080c44af2 (Milad Fa) [#38509](https://github.com/nodejs/node/pull/38509)
+* [[`b263f2585a`](https://github.com/nodejs/node/commit/b263f2585a)] - **http2**: on receiving rst\_stream with cancel code add it to pending list (Akshay K) [#39423](https://github.com/nodejs/node/pull/39423)
+* [[`3e4bc1b0d3`](https://github.com/nodejs/node/commit/3e4bc1b0d3)] - **module**: fix legacy `node` specifier resolution to resolve `"main"` field (Antoine du Hamel) [#38979](https://github.com/nodejs/node/pull/38979)
+* [[`f552c45676`](https://github.com/nodejs/node/commit/f552c45676)] - **src**: move CHECK in AddIsolateFinishedCallback (Fedor Indutny) [#38010](https://github.com/nodejs/node/pull/38010)
+* [[`30ce0e66ae`](https://github.com/nodejs/node/commit/30ce0e66ae)] - **src**: update cares\_wrap OpenBSD defines (Anna Henningsen) [#38670](https://github.com/nodejs/node/pull/38670)
 
 <a id="12.22.3"></a>
 ## 2021-07-05, Version 12.22.3 'Erbium' (LTS), @richardlau
