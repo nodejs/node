@@ -76,8 +76,8 @@ module.exports = {
 
         fixable: "code",
         messages: {
-            replaced: "Assignment can be replaced with operator assignment.",
-            unexpected: "Unexpected operator assignment shorthand."
+            replaced: "Assignment (=) can be replaced with operator assignment ({{operator}}=).",
+            unexpected: "Unexpected operator assignment ({{operator}}=) shorthand."
         }
     },
 
@@ -113,6 +113,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "replaced",
+                        data: { operator },
                         fix(fixer) {
                             if (canBeFixed(left) && canBeFixed(expr.left)) {
                                 const equalsToken = getOperatorToken(node);
@@ -139,7 +140,8 @@ module.exports = {
                      */
                     context.report({
                         node,
-                        messageId: "replaced"
+                        messageId: "replaced",
+                        data: { operator }
                     });
                 }
             }
@@ -155,6 +157,7 @@ module.exports = {
                 context.report({
                     node,
                     messageId: "unexpected",
+                    data: { operator: node.operator },
                     fix(fixer) {
                         if (canBeFixed(node.left)) {
                             const firstToken = sourceCode.getFirstToken(node);
