@@ -657,6 +657,7 @@ class ArrayBufferOrViewContents {
   }
 
   inline size_t size() const { return length_; }
+  inline size_t offset() const { return offset_; }
 
   // In most cases, input buffer sizes passed in to openssl need to
   // be limited to <= INT_MAX. This utility method helps us check.
@@ -689,6 +690,10 @@ class ArrayBufferOrViewContents {
     len = std::min(len, size());
     if (len > 0 && data() != nullptr)
       memcpy(dest, data(), len);
+  }
+
+  inline const std::shared_ptr<v8::BackingStore>& store() const {
+    return store_;
   }
 
  private:

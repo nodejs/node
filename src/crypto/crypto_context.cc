@@ -273,6 +273,7 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "setSigalgs", SetSigalgs);
     env->SetProtoMethod(tmpl, "setECDHCurve", SetECDHCurve);
     env->SetProtoMethod(tmpl, "setDHParam", SetDHParam);
+    env->SetProtoMethod(tmpl, "setGroups", SetGroupsParam);
     env->SetProtoMethod(tmpl, "setMaxProto", SetMaxProto);
     env->SetProtoMethod(tmpl, "setMinProto", SetMinProto);
     env->SetProtoMethod(tmpl, "getMaxProto", GetMaxProto);
@@ -807,6 +808,17 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
+}
+
+void SecureContext::SetGroupsParam(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  Environment* env = sc->env();
+  ClearErrorOnReturn clear_error_on_return;
+  Utf8Value groups(env->isolate(), args[0]);
+
+  if (!groups.length() || !SetGroups(sc, *groups))
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Error setting groups");
 }
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {

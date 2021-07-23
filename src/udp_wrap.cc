@@ -622,11 +622,13 @@ AsyncWrap* UDPWrap::GetAsyncWrap() {
 }
 
 SocketAddress UDPWrap::GetPeerName() {
-  return SocketAddress::FromPeerName(handle_);
+  std::shared_ptr<SocketAddress> addr = SocketAddress::FromPeerName(handle_);
+  return addr ? *(addr.get()) : SocketAddress();
 }
 
 SocketAddress UDPWrap::GetSockName() {
-  return SocketAddress::FromSockName(handle_);
+  std::shared_ptr<SocketAddress> addr = SocketAddress::FromSockName(handle_);
+  return addr ? *(addr.get()) : SocketAddress();
 }
 
 void UDPWrapBase::RecvStart(const FunctionCallbackInfo<Value>& args) {

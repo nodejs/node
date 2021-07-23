@@ -55,6 +55,7 @@ class Environment;
   V(LAST_MODIFIED, "last-modified")                                           \
   V(LINK, "link")                                                             \
   V(LOCATION, "location")                                                     \
+  V(PRIORITY, "priority")                                                     \
   V(RANGE, "range")                                                           \
   V(REFERER, "referer")                                                       \
   V(SERVER, "server")                                                         \
