@@ -3502,6 +3502,24 @@ Truncates the file. No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
+```mjs
+import { truncate } from 'fs';
+// Assuming that 'path/file.txt' is a regular file.
+truncate('path/file.txt', (err) => {
+  if (err) throw err;
+  console.log('path/file.txt was truncated');
+});
+```
+
+```cjs
+const { truncate } = require('fs');
+// Assuming that 'path/file.txt' is a regular file.
+truncate('path/file.txt', (err) => {
+  if (err) throw err;
+  console.log('path/file.txt was truncated');
+});
+```
+
 Passing a file descriptor is deprecated and may result in an error being thrown
 in the future.
 
