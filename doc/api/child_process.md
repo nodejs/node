@@ -889,7 +889,8 @@ changes:
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
-  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+  * `stdio` {string|Array} Child's stdio configuration.
+    See [`child_process.spawn()`][]'s [`stdio`][]. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
@@ -930,6 +931,34 @@ If the process times out or has a non-zero exit code, this method will throw an
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
+```js
+const { execFileSync } = require('child_process');
+
+try {
+  const stdout = execFileSync('my-script.sh', ['my-arg'], {
+    // Capture stdout and stderr from child process. Overrides the
+    // default behavior of streaming child stderr to the parent stderr
+    stdio: 'pipe',
+
+    // Use utf8 encoding for stdio pipes
+    encoding: 'utf8'
+  });
+
+  console.log(stdout);
+} catch (err) {
+  if (err.code) {
+    // Spawning child process failed
+    console.error(err.code);
+  } else {
+    // Child was spawned but exited with non-zero exit code
+    // Error contains any stdout and stderr from the child
+    const { stdout, stderr } = err;
+
+    console.error({ stdout, stderr });
+  }
+}
+```
+
 ### `child_process.execSync(command[, options])`
 <!-- YAML
 added: v0.11.12
@@ -956,7 +985,8 @@ changes:
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
-  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+  * `stdio` {string|Array} Child's stdio configuration.
+    See [`child_process.spawn()`][]'s [`stdio`][]. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
@@ -1032,6 +1062,7 @@ changes:
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
+    See [`child_process.spawn()`][]'s [`stdio`][].
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
