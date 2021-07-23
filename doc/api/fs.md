@@ -685,6 +685,33 @@ added: v10.0.0
 
 Changes the ownership of a file.
 
+### `fsPromises.copy(src, dest[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `src` {string|Buffer|URL} source path to copy.
+* `dest` {string|Buffer|URL} destination path to copy to.
+* `options` {Object|Function}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `false`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+* Returns: {Promise} Fulfills with `undefined` upon success.
+
+Asynchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+If a function is provided for `options`, it will be used as the `filter`
+parameter.
+
 ### `fsPromises.copyFile(src, dest[, mode])`
 <!-- YAML
 added: v10.0.0
@@ -1797,6 +1824,33 @@ Calling `fs.close()` on any file descriptor (`fd`) that is currently in use
 through any other `fs` operation may lead to undefined behavior.
 
 See the POSIX close(2) documentation for more detail.
+
+### `fs.copy(src, dest[, options], callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `src` {string|Buffer|URL} source path to copy.
+* `dest` {string|Buffer|URL} destination path to copy to.
+* `options` {Object|Function}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `false`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+* `callback` {Function}
+
+Asynchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+If a function is provided for `options`, it will be used as the `filter`
+parameter.
 
 ### `fs.copyFile(src, dest[, mode], callback)`
 <!-- YAML
@@ -4258,6 +4312,32 @@ Calling `fs.closeSync()` on any file descriptor (`fd`) that is currently in use
 through any other `fs` operation may lead to undefined behavior.
 
 See the POSIX close(2) documentation for more detail.
+
+### `fs.copy(src, dest[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `src` {string|Buffer|URL} source path to copy.
+* `dest` {string|Buffer|URL} destination path to copy to.
+* `options` {Object|Function}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `false`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+
+Synchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+If a function is provided for `options`, it will be used as the `filter`
+parameter.
 
 ### `fs.copyFileSync(src, dest[, mode])`
 <!-- YAML
