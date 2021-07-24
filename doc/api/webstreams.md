@@ -33,6 +33,9 @@ There are three primary types of objects
 * `WritableStream` - Represents a destination for streaming data.
 * `TransformStream` - Represents an algorithm for transforming streaming data.
 
+Additionally, this module includes the utility functions
+[`pipeline()`](#pipeline), [`finished()`](#finished), and [`addAbortSignal()`](#addabortsignal).
+
 ### Example `ReadableStream`
 
 This example creates a simple `ReadableStream` that pushes the current
