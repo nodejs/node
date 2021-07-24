@@ -2,6 +2,9 @@ name: "Commit messages adheres to guidelines at https://goo.gl/p2fr5Q"
 
 on: [pull_request]
 
+env:
+  NODE_VERSION: 14.x
+
 jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
@@ -10,10 +13,10 @@ jobs:
         with:
           # Last 100 commits should be enough for a PR
           fetch-depth: 100
-      - name: Use Node.js 12
+      - name: Install Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: 12.x
+          node-version: ${{ env.NODE_VERSION }}
       - name: Validate commit messages
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
