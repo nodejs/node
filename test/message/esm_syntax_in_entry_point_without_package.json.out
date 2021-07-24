@@ -1,0 +1,3 @@
+(node:*) Warning: To load an ES module, set "type": "module" in the package.json or use the .mjs extension.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:*) Warning: No package.json detected, attempting to load "*/test/message/esm_syntax_in_entry_point_without_package.json.js" with CommonJS support disabled.
