@@ -374,14 +374,14 @@ net.createServer((conn) => {}).listen(8080);
 
 ```cjs
 const { createHook, executionAsyncId } = require('async_hooks');
-const { fd } = require('process').stdout;
+const { stdout } = require('process');
 const net = require('net');
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
     const eid = executionAsyncId();
     fs.writeSync(
-      fd,
+      stdout.fd,
       `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
   }
 }).enable();
