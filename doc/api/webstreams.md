@@ -34,7 +34,7 @@ There are three primary types of objects
 * `TransformStream` - Represents an algorithm for transforming streaming data.
 
 Additionally, this module includes the utility functions
-[`pipeline()`](#pipeline), [`finished()`](#finished), and [`addAbortSignal()`](#addabortsignal).
+`pipeline()`, `finished()`, and `addAbortSignal()`.
 
 ### Example `ReadableStream`
 
@@ -1270,6 +1270,135 @@ added: REPLACEME
 -->
 
 * Type: {WritableStream}
+### `webstream.finished(stream, callback)`
+
+* `stream` {Stream} A ReadableStream, WritableStream, or TransformStream.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+* Returns: {Function} A cleanup function which removes all callbacks with
+  the given stream.
+
+A function to get notified when a stream is no longer readable, writable
+or has experienced an error or a premature close event.
+
+```js
+const { finished, ReadableStream } = require('stream/web');
+
+const rs = new ReadableStream();
+
+finished(rs, (err) => {
+  // This will be called when the stream finishes
+  if (err) {
+    console.error('Stream failed.', err);
+  } else {
+    console.log('Stream is done reading.');
+  }
+});
+```
+The `finished` API also provides promise version:
+
+```js
+const { finished, ReadableStream } = require('stream/web/promises');
+
+const rs = new ReadableStream();
+
+async function run() {
+  await finished(rs);
+  console.log('Stream is done reading.');
+}
+
+run().catch(console.error);
+```
+
+Unlike `stream.finished()`, `webstream.finished()` does not
+leaves dangling event listeners after `callback` has been invoked.
+However, to unify the behaviour of the two functions, a cleanup
+function is returned by `webstream.finished()`. This cleanup
+function removes **all** registered callbacks from the stream.
+
+```js
+const removeCallbacks = finished(rs, callback);
+removeCallbacks(); // Callback will no longer call on finish
+```
+
+### `webstream.pipeline(source[, ...transforms], destination, callback)`
+### `webstream.pipeline(streams, callback)`
+
+* `streams` {Stream[]}
+* `source` {Stream}
+* `...transforms` {Stream}
+* `destination` {Stream}
+* `callback` {Function} Called when the pipeline is fully done.
+  * `err` {Error}
+  * `val` Resolved value of `Promise` returned by `destination`.
+
+A module method to pipe between streams, forwarding errors and
+properly cleaning up and provide a callback when the pipeline is complete.
+
+```js
+const { pipeline } = require('stream/web');
+
+// Use the pipeline API to easily pipe a series of streams
+// together and get notified when the pipeline is fully done.
+
+pipeline(
+  new ReadableStream(),
+  new TransformStream(),
+  new WritableStream(),
+  (err) => {
+    if (err) {
+      console.error('Pipeline failed.', err);
+    } else {
+      console.log('Pipeline succeeded.');
+    }
+  }
+);
+```
+
+The `pipeline` API also provides a promise version.
+
+```js
+const {
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+} = require('stream/web');
+const { pipeline } = require('stream/web/promises');
+
+async function run() {
+  await pipeline(
+    new ReadableStream(),
+    new TransformStream(),
+    new WritableStream(),
+  );
+  console.log('Pipeline succeeded.');
+}
+
+run().catch(console.error);
+```
+
+### `webstream.addAbortSignal(signal, stream)`
+* `signal` {AbortSignal} A signal representing possible cancellation
+* `stream` {Stream} a stream to attach a signal to
+
+Attaches an AbortSignal to a readable or writeable stream. This lets code
+control stream destruction using an `AbortController`.
+
+Calling `abort` on the `AbortController` corresponding to the passed
+`AbortSignal` will abort the stream using the most appropriate functionality
+for the stream.
+
+```js
+const { ReadableStream, addAbortSignal } = require('stream/web');
+
+const controller = new AbortController();
+addAbortSignal(
+  controller.signal,
+  new ReadableStream(),
+);
+// Later, abort the operation closing the stream
+controller.abort();
+```
 
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/

@@ -1,14 +1,13 @@
-'use strict'
+'use strict';
 
-const { 
-  ReadableStream, 
-  WritableStream, 
-  TransformStream, 
-  finished: noPromiseFinished,
-} = require("stream/web");
-const { pipeline } = require('stream/web/promises');
-const { finished } = require('stream/web/promises');
 const common = require('../common');
+const {
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  finished: noPromiseFinished,
+} = require('stream/web');
+const { pipeline, finished } = require('stream/web/promises');
 const assert = require('assert');
 
 class Sink {
@@ -69,12 +68,12 @@ class Sink {
   let finished = false;
   noPromiseFinished(ws, () => {
     finished = true;
-  })
+  });
 
   pipeline(rs, ts, ws).then(common.mustCall(() => {
     assert.ok(finished);
     assert.strictEqual(sink.chunks.toString(), 'hello');
   }));
-  
+
 
 }

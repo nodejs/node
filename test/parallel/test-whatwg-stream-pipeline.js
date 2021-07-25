@@ -1,13 +1,12 @@
-'use strict'
+'use strict';
 
-const { 
-  ReadableStream, 
-  WritableStream, 
-  TransformStream, 
-  pipeline,
-  finished,
-} = require("stream/web");
 const common = require('../common');
+const {
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  pipeline,
+} = require('stream/web');
 const assert = require('assert');
 
 class Sink {
@@ -56,7 +55,7 @@ class Sink {
     pipeline(ws, rs, () => {});
   }, /ERR_INVALID_ARG_TYPE/);
 }
-  
+
 {
   const rs = new ReadableStream();
   const ws1 = new WritableStream();
@@ -82,7 +81,7 @@ class Sink {
       controller.close();
     },
   });
-  
+
   pipeline(rs, ws, common.mustCall());
 }
 
@@ -127,7 +126,7 @@ class Sink {
 
   pipeline(rs, ws, common.mustCall(() => {
     assert.strictEqual(
-      sink.chunks.toString(), 
+      sink.chunks.toString(),
       'hello'
     );
   }));
@@ -151,7 +150,7 @@ class Sink {
 
   pipeline(rs, ts, ws, common.mustCall(() => {
     assert.strictEqual(
-      sink.chunks.toString(), 
+      sink.chunks.toString(),
       'hello'
     );
   }));

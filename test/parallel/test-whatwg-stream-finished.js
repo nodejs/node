@@ -6,7 +6,6 @@ const {
   WritableStream,
   TransformStream,
   finished,
-  CountQueuingStrategy,
 } = require('stream/web');
 const { Readable } = require('stream');
 const assert = require('assert');
@@ -43,11 +42,11 @@ const assert = require('assert');
   const rs = new ReadableStream();
   const ws = new WritableStream();
   const ts = new TransformStream();
-  assert.doesNotThrow(() => {
-    finished(rs);
-    finished(ws);
-    finished(ts);
-  });
+
+  // No errors should be thrown
+  finished(rs);
+  finished(ws);
+  finished(ts);
 }
 
 /* ReadableStreams */
@@ -59,6 +58,25 @@ const assert = require('assert');
 
   rs.cancel();
 }
+
+{
+  let c;
+  const rs = new ReadableStream({
+    start(controller) {
+      c = controller;
+    },
+  });
+
+  const testErr = new Error('MESSAGE');
+
+  finished(rs, (err) => {
+    common.mustCall()();
+    assert.strictEqual(err, testErr);
+  });
+
+  c.error(testErr);
+}
+
 
 {
   const rs = new ReadableStream();
@@ -99,6 +117,16 @@ const assert = require('assert');
   readEntireStream(rs).then(common.mustCall());
 }
 
+{
+  const rs = new ReadableStream();
+
+  finished(rs, common.mustNotCall());
+  const removeCallbacks = finished(rs, common.mustNotCall());
+  removeCallbacks();
+
+  rs.cancel();
+}
+
 /* WritableStreams */
 
 {
@@ -107,6 +135,24 @@ const assert = require('assert');
   finished(ws, common.mustSucceed());
 
   ws.close();
+}
+
+{
+  let c;
+  const ws = new WritableStream({
+    start(controller) {
+      c = controller;
+    },
+  });
+
+  const testErr = new Error('MESSAGE');
+
+  finished(ws, (err) => {
+    common.mustCall()();
+    assert.strictEqual(err, testErr);
+  });
+
+  c.error(testErr);
 }
 
 {
@@ -143,6 +189,24 @@ const assert = require('assert');
   finished(ts, common.mustSucceed());
 
   ts.readable.cancel();
+}
+
+{
+  let c;
+  const ts = new WritableStream({
+    start(controller) {
+      c = controller;
+    },
+  });
+
+  const testErr = new Error('MESSAGE');
+
+  finished(ts, (err) => {
+    common.mustCall()();
+    assert.strictEqual(err, testErr);
+  });
+
+  c.error(testErr);
 }
 
 {

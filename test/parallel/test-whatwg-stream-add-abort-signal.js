@@ -2,13 +2,13 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { 
-  addAbortSignal, 
-  ReadableStream, 
-  WritableStream, 
-  TransformStream, 
+const {
+  addAbortSignal,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
   finished,
-} = require("stream/web");
+} = require('stream/web');
 
 {
   assert.throws(() => {
@@ -23,13 +23,13 @@ const {
 
 {
   const rs = new ReadableStream();
-  const ac = new AbortController()
+  const ac = new AbortController();
   assert.deepStrictEqual(rs, addAbortSignal(ac.signal, rs));
 }
 
 {
   const rs = new ReadableStream();
-  finished(rs, common.mustSucceed())
+  finished(rs, (err) => { common.mustSucceed()(); });
 
   const ac = new AbortController();
   addAbortSignal(ac.signal, rs);
@@ -39,21 +39,20 @@ const {
 
 {
   const ws = new WritableStream();
-  finished(ws, common.mustSucceed())
+  finished(ws, (err) => { common.mustSucceed()(); });
 
   const ac = new AbortController();
   addAbortSignal(ac.signal, ws);
 
   ac.abort();
 }
-  
+
 {
   const ts = new TransformStream();
-  finished(ts, common.mustSucceed())
+  finished(ts, (err) => { common.mustSucceed()(); });
 
   const ac = new AbortController();
   addAbortSignal(ac.signal, ts);
 
   ac.abort();
 }
-  
