@@ -814,6 +814,8 @@ added: v0.9.4
 
 <!--type=class-->
 
+`Readable` implements the body mixin API from the [fetch specification][].
+
 ##### Event: `'close'`
 <!-- YAML
 added: v0.9.4
@@ -986,6 +988,44 @@ added: v0.9.4
 The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
 called and `readableFlowing` is not `true`.
 
+##### `readable.arrayBuffer()`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {Promise}
+
+Returns a promise resolving to the full content as an array buffer.
+
+##### `readable.blob()`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {Promise}
+
+Returns a promise resolving to the full content read as
+Blob.
+
+##### `readable.body`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {ReadableStream}
+
+Returns a `ReadableStream`.
+
+##### `readable.bodyUsed`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {Boolean}
+
+Returns true if stream has emitted `'data'`, `'end'`, `'error'` or
+`'close'`.
+
 ##### `readable.destroy([error])`
 <!-- YAML
 added: v8.0.0
@@ -1039,6 +1079,16 @@ readable.isPaused(); // === true
 readable.resume();
 readable.isPaused(); // === false
 ```
+
+##### `readable.json()`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {Promise}
+
+Returns a promise resolving to the full content read as
+utf8 string and parsed to JSON object.
 
 ##### `readable.pause()`
 <!-- YAML
@@ -1340,6 +1390,16 @@ readable.on('data', (chunk) => {
   console.log('Got %d characters of string data:', chunk.length);
 });
 ```
+
+##### `readable.text()`
+<!--- YAML>
+added: REPLACEME
+--->
+
+* Returns: {Promise}
+
+Returns a promise resolving to the full content read as
+utf8 string.
 
 ##### `readable.unpipe([destination])`
 <!-- YAML
@@ -3503,6 +3563,7 @@ contain multi-byte characters.
 [child process stdin]: child_process.md#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.md#child_process_subprocess_stdout
 [crypto]: crypto.md
+[fetch specification]: https://fetch.spec.whatwg.org/#body-mixin
 [fs read streams]: fs.md#fs_class_fs_readstream
 [fs write streams]: fs.md#fs_class_fs_writestream
 [http-incoming-message]: http.md#http_class_http_incomingmessage
