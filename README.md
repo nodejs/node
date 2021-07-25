@@ -416,7 +416,7 @@ For information about the governance of the Node.js project, see
 * [ryzokuken](https://github.com/ryzokuken) -
 **Ujjwal Sharma** &lt;ryzokuken@disroot.org&gt; (he/him)
 * [saghul](https://github.com/saghul) -
-**Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
+**Saúl Ibarra Corretgé** &lt;s@saghul.net&gt;
 * [santigimeno](https://github.com/santigimeno) -
 **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
 * [seishun](https://github.com/seishun) -
