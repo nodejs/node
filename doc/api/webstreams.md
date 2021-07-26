@@ -1120,19 +1120,19 @@ added: v16.5.0
 
 ### Class: `TextEncoderStream`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 #### `new TextEncoderStream()`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 Creates a new `TextEncoderStream` instance.
 
 #### `textEncoderStream.encoding`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {string}
@@ -1141,26 +1141,26 @@ The encoding supported by the `TextEncoderStream` instance.
 
 #### `textEncoderStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {ReadableStream}
 
 #### `textEncoderStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {WritableStream}
 
 ### Class: `TextDecoderStream`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 #### `new TextDecoderStream([encoding[, options]])`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
@@ -1176,7 +1176,7 @@ Creates a new `TextDecoderStream` instance.
 
 #### `textDecoderStream.encoding`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {string}
@@ -1185,7 +1185,7 @@ The encoding supported by the `TextDecoderStream` instance.
 
 #### `textDecoderStream.fatal`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {boolean}
@@ -1195,7 +1195,7 @@ thrown.
 
 #### `textDecoderStream.ignoreBOM`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {boolean}
@@ -1205,14 +1205,14 @@ mark.
 
 #### `textDecoderStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {ReadableStream}
 
 #### `textDecoderStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 * Type: {WritableStream}
