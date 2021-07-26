@@ -27,11 +27,11 @@ const {
   const writer = writable.getWriter();
 
   assert.rejects(reader.closed, {
-    code: 'ERR_STREAM_PREMATURE_CLOSE',
+    code: 'ABORT_ERR',
   });
 
   assert.rejects(writer.closed, {
-    code: 'ERR_STREAM_PREMATURE_CLOSE',
+    code: 'ABORT_ERR',
   });
 
   duplex.destroy();
@@ -165,7 +165,7 @@ const {
 
   reader.closed.then(common.mustCall());
   assert.rejects(writer.closed, {
-    code: 'ERR_STREAM_PREMATURE_CLOSE',
+    code: 'ABORT_ERR',
   });
 
   duplex.end();

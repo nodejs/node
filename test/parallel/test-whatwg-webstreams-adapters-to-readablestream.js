@@ -59,7 +59,7 @@ const {
   const reader = readableStream.getReader();
 
   assert.rejects(reader.closed, {
-    code: 'ERR_STREAM_PREMATURE_CLOSE',
+    code: 'ABORT_ERR',
   });
 
   readable.on('end', common.mustNotCall());
