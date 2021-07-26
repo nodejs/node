@@ -168,7 +168,7 @@ For information about the governance of the Node.js project, see
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
 * [codebytere](https://github.com/codebytere) -
-**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
+**Shelley Vohr** &lt;shelley.vohr@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [danielleadams](https://github.com/danielleadams) -
@@ -288,7 +288,7 @@ For information about the governance of the Node.js project, see
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
 * [codebytere](https://github.com/codebytere) -
-**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
+**Shelley Vohr** &lt;shelley.vohr@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [danielleadams](https://github.com/danielleadams) -
