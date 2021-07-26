@@ -105,7 +105,6 @@ int uv_translate_sys_error(int sys_errno) {
     case ERROR_SYMLINK_NOT_SUPPORTED:       return UV_EINVAL;
     case WSAEINVAL:                         return UV_EINVAL;
     case WSAEPFNOSUPPORT:                   return UV_EINVAL;
-    case WSAESOCKTNOSUPPORT:                return UV_EINVAL;
     case ERROR_BEGINNING_OF_MEDIA:          return UV_EIO;
     case ERROR_BUS_RESET:                   return UV_EIO;
     case ERROR_CRC:                         return UV_EIO;
@@ -168,6 +167,7 @@ int uv_translate_sys_error(int sys_errno) {
     case ERROR_NOT_SAME_DEVICE:             return UV_EXDEV;
     case ERROR_INVALID_FUNCTION:            return UV_EISDIR;
     case ERROR_META_EXPANSION_TOO_LONG:     return UV_E2BIG;
+    case WSAESOCKTNOSUPPORT:                return UV_ESOCKTNOSUPPORT;
     default:                                return UV_UNKNOWN;
   }
 }

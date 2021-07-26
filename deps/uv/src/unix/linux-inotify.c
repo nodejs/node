@@ -178,7 +178,7 @@ static void uv__inotify_read(uv_loop_t* loop,
   /* needs to be large enough for sizeof(inotify_event) + strlen(path) */
   char buf[4096];
 
-  while (1) {
+  for (;;) {
     do
       size = read(loop->inotify_fd, buf, sizeof(buf));
     while (size == -1 && errno == EINTR);

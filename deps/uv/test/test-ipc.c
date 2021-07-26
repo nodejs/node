@@ -203,7 +203,7 @@ static void on_read(uv_stream_t* handle,
     /* Make sure that the expected data is correctly multiplexed. */
     ASSERT_MEM_EQ("hello\n", buf->base, nread);
 
-    outbuf = uv_buf_init("world\n", 6);
+    outbuf = uv_buf_init("foobar\n", 7);
     r = uv_write(&write_req, (uv_stream_t*)pipe, &outbuf, 1, NULL);
     ASSERT_EQ(r, 0);
 

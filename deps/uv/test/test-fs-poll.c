@@ -105,8 +105,8 @@ static void poll_cb(uv_fs_poll_t* handle,
 
   ASSERT(handle == &poll_handle);
   ASSERT(1 == uv_is_active((uv_handle_t*) handle));
-  ASSERT(prev != NULL);
-  ASSERT(curr != NULL);
+  ASSERT_NOT_NULL(prev);
+  ASSERT_NOT_NULL(curr);
 
   switch (poll_cb_called++) {
   case 0:

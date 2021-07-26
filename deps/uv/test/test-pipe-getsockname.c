@@ -96,7 +96,7 @@ TEST_IMPL(pipe_getsockname) {
   int r;
 
   loop = uv_default_loop();
-  ASSERT(loop != NULL);
+  ASSERT_NOT_NULL(loop);
 
   r = uv_pipe_init(loop, &pipe_server, 0);
   ASSERT(r == 0);

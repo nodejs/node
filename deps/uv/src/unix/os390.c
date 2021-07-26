@@ -28,6 +28,8 @@
 #include <builtins.h>
 #include <termios.h>
 #include <sys/msg.h>
+#include <sys/resource.h>
+#include "zos-base.h"
 #if defined(__clang__)
 #include "csrsic.h"
 #else
@@ -60,12 +62,6 @@
 
 /* Address of the rsm control and enumeration area. */
 #define CVTRCEP_OFFSET    0x490
-
-/*
-    Number of frames currently available to system.
-    Excluded are frames backing perm storage, frames offline, and bad frames.
-*/
-#define RCEPOOL_OFFSET    0x004
 
 /* Total number of frames currently on all available frame queues. */
 #define RCEAFC_OFFSET     0x088
@@ -144,102 +140,8 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 }
 
 
-/*
-    Get the exe path using the thread entry information
-    in the address space.
-*/
-static int getexe(const int pid, char* buf, size_t len) {
-  struct {
-    int pid;
-    int thid[2];
-    char accesspid;
-    char accessthid;
-    char asid[2];
-    char loginname[8];
-    char flag;
-    char len;
-  } Input_data;
-
-  union {
-    struct {
-      char gthb[4];
-      int pid;
-      int thid[2];
-      char accesspid;
-      char accessthid[3];
-      int lenused;
-      int offsetProcess;
-      int offsetConTTY;
-      int offsetPath;
-      int offsetCommand;
-      int offsetFileData;
-      int offsetThread;
-    } Output_data;
-    char buf[2048];
-  } Output_buf;
-
-  struct Output_path_type {
-    char gthe[4];
-    short int len;
-    char path[1024];
-  };
-
-  int Input_length;
-  int Output_length;
-  void* Input_address;
-  void* Output_address;
-  struct Output_path_type* Output_path;
-  int rv;
-  int rc;
-  int rsn;
-
-  Input_length = PGTH_LEN;
-  Output_length = sizeof(Output_buf);
-  Output_address = &Output_buf;
-  Input_address = &Input_data;
-  memset(&Input_data, 0, sizeof Input_data);
-  Input_data.flag |= PGTHAPATH;
-  Input_data.pid = pid;
-  Input_data.accesspid = PGTH_CURRENT;
-
-#ifdef _LP64
-  BPX4GTH(&Input_length,
-          &Input_address,
-          &Output_length,
-          &Output_address,
-          &rv,
-          &rc,
-          &rsn);
-#else
-  BPX1GTH(&Input_length,
-          &Input_address,
-          &Output_length,
-          &Output_address,
-          &rv,
-          &rc,
-          &rsn);
-#endif
-
-  if (rv == -1) {
-    errno = rc;
-    return -1;
-  }
-
-  /* Check highest byte to ensure data availability */
-  assert(((Output_buf.Output_data.offsetPath >>24) & 0xFF) == 'A');
-
-  /* Get the offset from the lowest 3 bytes */
-  Output_path = (struct Output_path_type*) ((char*) (&Output_buf) +
-      (Output_buf.Output_data.offsetPath & 0x00FFFFFF));
-
-  if (Output_path->len >= len) {
-    errno = ENOBUFS;
-    return -1;
-  }
-
-  uv__strscpy(buf, Output_path->path, len);
-
-  return 0;
+static int getexe(char* buf, size_t len) {
+  return uv__strscpy(buf, __getargv()[0], len);
 }
 
 
@@ -259,8 +161,7 @@ int uv_exepath(char* buffer, size_t* size) {
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
-  pid = getpid();
-  res = getexe(pid, args, sizeof(args));
+  res = getexe(args, sizeof(args));
   if (res < 0)
     return UV_EINVAL;
 
@@ -275,25 +176,25 @@ uint64_t uv_get_free_memory(void) {
   data_area_ptr rcep = {0};
   cvt.assign = *(data_area_ptr_assign_type*)(CVT_PTR);
   rcep.assign = *(data_area_ptr_assign_type*)(cvt.deref + CVTRCEP_OFFSET);
-  freeram = *((uint64_t*)(rcep.deref + RCEAFC_OFFSET)) * 4;
+  freeram = (uint64_t)*((uint32_t*)(rcep.deref + RCEAFC_OFFSET)) * 4096;
   return freeram;
 }
 
 
 uint64_t uv_get_total_memory(void) {
-  uint64_t totalram;
-
-  data_area_ptr cvt = {0};
-  data_area_ptr rcep = {0};
-  cvt.assign = *(data_area_ptr_assign_type*)(CVT_PTR);
-  rcep.assign = *(data_area_ptr_assign_type*)(cvt.deref + CVTRCEP_OFFSET);
-  totalram = *((uint64_t*)(rcep.deref + RCEPOOL_OFFSET)) * 4;
-  return totalram;
+  /* Use CVTRLSTG to get the size of actual real storage online at IPL in K. */
+  return (uint64_t)((int)((char *__ptr32 *__ptr32 *)0)[4][214]) * 1024;
 }
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+  struct rlimit rl;
+
+  /* RLIMIT_MEMLIMIT return value is in megabytes rather than bytes. */
+  if (getrlimit(RLIMIT_MEMLIMIT, &rl) == 0)
+    return rl.rlim_cur * 1024 * 1024;
+
+  return 0; /* There is no memory limit set. */
 }
 
 
@@ -733,6 +634,10 @@ static int os390_message_queue_handler(uv__os390_epoll* ep) {
     /* Some event that we are not interested in. */
     return 0;
 
+  /* `__rfim_utok` is treated as text when it should be treated as binary while
+   * running in ASCII mode, resulting in an unwanted autoconversion.
+   */
+  __a2e_l(msg.__rfim_utok, sizeof(msg.__rfim_utok));
   handle = *(uv_fs_event_t**)(msg.__rfim_utok);
   handle->cb(handle, uv__basename_r(handle->path), events, 0);
   return 1;
@@ -959,9 +864,6 @@ update_timeout:
   }
 }
 
-void uv__set_process_title(const char* title) {
-  /* do nothing */
-}
 
 int uv__io_fork(uv_loop_t* loop) {
   /*

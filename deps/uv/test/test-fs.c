@@ -343,7 +343,7 @@ static void statfs_cb(uv_fs_t* req) {
 
   ASSERT(req->fs_type == UV_FS_STATFS);
   ASSERT(req->result == 0);
-  ASSERT(req->ptr != NULL);
+  ASSERT_NOT_NULL(req->ptr);
   stats = req->ptr;
 
 #if defined(_WIN32) || defined(__sun) || defined(_AIX) || defined(__MVS__) || \
@@ -366,7 +366,7 @@ static void statfs_cb(uv_fs_t* req) {
   ASSERT(stats->f_ffree <= stats->f_files);
 #endif
   uv_fs_req_cleanup(req);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
   statfs_cb_count++;
 }
 
@@ -630,7 +630,7 @@ static void empty_scandir_cb(uv_fs_t* req) {
   ASSERT(req == &scandir_req);
   ASSERT(req->fs_type == UV_FS_SCANDIR);
   ASSERT(req->result == 0);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
   ASSERT(UV_EOF == uv_fs_scandir_next(req, &dent));
   uv_fs_req_cleanup(req);
   scandir_cb_count++;
@@ -642,7 +642,7 @@ static void non_existent_scandir_cb(uv_fs_t* req) {
   ASSERT(req == &scandir_req);
   ASSERT(req->fs_type == UV_FS_SCANDIR);
   ASSERT(req->result == UV_ENOENT);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
   ASSERT(UV_ENOENT == uv_fs_scandir_next(req, &dent));
   uv_fs_req_cleanup(req);
   scandir_cb_count++;
@@ -653,7 +653,7 @@ static void file_scandir_cb(uv_fs_t* req) {
   ASSERT(req == &scandir_req);
   ASSERT(req->fs_type == UV_FS_SCANDIR);
   ASSERT(req->result == UV_ENOTDIR);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
   uv_fs_req_cleanup(req);
   scandir_cb_count++;
 }
@@ -1453,7 +1453,8 @@ TEST_IMPL(fs_fstat) {
   ASSERT(s->st_mtim.tv_nsec == t.st_mtimespec.tv_nsec);
   ASSERT(s->st_ctim.tv_sec == t.st_ctimespec.tv_sec);
   ASSERT(s->st_ctim.tv_nsec == t.st_ctimespec.tv_nsec);
-#elif defined(_AIX)
+#elif defined(_AIX)    || \
+      defined(__MVS__)
   ASSERT(s->st_atim.tv_sec == t.st_atime);
   ASSERT(s->st_atim.tv_nsec == 0);
   ASSERT(s->st_mtim.tv_sec == t.st_mtime);
@@ -2011,12 +2012,12 @@ TEST_IMPL(fs_readlink) {
   ASSERT(0 == uv_fs_readlink(loop, &req, "no_such_file", dummy_cb));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(dummy_cb_count == 1);
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   ASSERT(req.result == UV_ENOENT);
   uv_fs_req_cleanup(&req);
 
   ASSERT(UV_ENOENT == uv_fs_readlink(NULL, &req, "no_such_file", NULL));
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   ASSERT(req.result == UV_ENOENT);
   uv_fs_req_cleanup(&req);
 
@@ -2032,7 +2033,7 @@ TEST_IMPL(fs_realpath) {
   ASSERT(0 == uv_fs_realpath(loop, &req, "no_such_file", dummy_cb));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(dummy_cb_count == 1);
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
 #ifdef _WIN32
   /*
    * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
@@ -2046,7 +2047,7 @@ TEST_IMPL(fs_realpath) {
   uv_fs_req_cleanup(&req);
 
   ASSERT(UV_ENOENT == uv_fs_realpath(NULL, &req, "no_such_file", NULL));
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   ASSERT(req.result == UV_ENOENT);
   uv_fs_req_cleanup(&req);
 
@@ -2843,7 +2844,7 @@ TEST_IMPL(fs_scandir_empty_dir) {
   r = uv_fs_scandir(NULL, &req, path, 0, NULL);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   ASSERT(UV_EOF == uv_fs_scandir_next(&req, &dent));
   uv_fs_req_cleanup(&req);
 
@@ -2880,7 +2881,7 @@ TEST_IMPL(fs_scandir_non_existent_dir) {
   r = uv_fs_scandir(NULL, &req, path, 0, NULL);
   ASSERT(r == UV_ENOENT);
   ASSERT(req.result == UV_ENOENT);
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   ASSERT(UV_ENOENT == uv_fs_scandir_next(&req, &dent));
   uv_fs_req_cleanup(&req);
 
@@ -2932,7 +2933,7 @@ TEST_IMPL(fs_open_dir) {
   r = uv_fs_open(NULL, &req, path, O_RDONLY, 0, NULL);
   ASSERT(r >= 0);
   ASSERT(req.result >= 0);
-  ASSERT(req.ptr == NULL);
+  ASSERT_NULL(req.ptr);
   file = r;
   uv_fs_req_cleanup(&req);
 
@@ -3332,7 +3333,7 @@ static void fs_write_alotof_bufs(int add_flags) {
   loop = uv_default_loop();
 
   iovs = malloc(sizeof(*iovs) * iovcount);
-  ASSERT(iovs != NULL);
+  ASSERT_NOT_NULL(iovs);
   iovmax = uv_test_getiovmax();
 
   r = uv_fs_open(NULL,
@@ -3361,7 +3362,7 @@ static void fs_write_alotof_bufs(int add_flags) {
 
   /* Read the strings back to separate buffers. */
   buffer = malloc(sizeof(test_buf) * iovcount);
-  ASSERT(buffer != NULL);
+  ASSERT_NOT_NULL(buffer);
 
   for (index = 0; index < iovcount; ++index)
     iovs[index] = uv_buf_init(buffer + index * sizeof(test_buf),
@@ -3444,7 +3445,7 @@ static void fs_write_alotof_bufs_with_offset(int add_flags) {
   loop = uv_default_loop();
 
   iovs = malloc(sizeof(*iovs) * iovcount);
-  ASSERT(iovs != NULL);
+  ASSERT_NOT_NULL(iovs);
   iovmax = uv_test_getiovmax();
 
   r = uv_fs_open(NULL,
@@ -3480,7 +3481,7 @@ static void fs_write_alotof_bufs_with_offset(int add_flags) {
 
   /* Read the strings back to separate buffers. */
   buffer = malloc(sizeof(test_buf) * iovcount);
-  ASSERT(buffer != NULL);
+  ASSERT_NOT_NULL(buffer);
 
   for (index = 0; index < iovcount; ++index)
     iovs[index] = uv_buf_init(buffer + index * sizeof(test_buf),
@@ -3676,16 +3677,16 @@ static void test_fs_partial(int doread) {
   iovcount = 54321;
 
   iovs = malloc(sizeof(*iovs) * iovcount);
-  ASSERT(iovs != NULL);
+  ASSERT_NOT_NULL(iovs);
 
   ctx.pid = pthread_self();
   ctx.doread = doread;
   ctx.interval = 1000;
   ctx.size = sizeof(test_buf) * iovcount;
   ctx.data = malloc(ctx.size);
-  ASSERT(ctx.data != NULL);
+  ASSERT_NOT_NULL(ctx.data);
   buffer = malloc(ctx.size);
-  ASSERT(buffer != NULL);
+  ASSERT_NOT_NULL(buffer);
 
   for (index = 0; index < iovcount; ++index)
     iovs[index] = uv_buf_init(buffer + index * sizeof(test_buf), sizeof(test_buf));
@@ -3773,15 +3774,15 @@ TEST_IMPL(fs_read_write_null_arguments) {
   /* Validate some memory management on failed input validation before sending
      fs work to the thread pool. */
   ASSERT(r == UV_EINVAL);
-  ASSERT(write_req.path == NULL);
-  ASSERT(write_req.ptr == NULL);
+  ASSERT_NULL(write_req.path);
+  ASSERT_NULL(write_req.ptr);
 #ifdef _WIN32
-  ASSERT(write_req.file.pathw == NULL);
-  ASSERT(write_req.fs.info.new_pathw == NULL);
-  ASSERT(write_req.fs.info.bufs == NULL);
+  ASSERT_NULL(write_req.file.pathw);
+  ASSERT_NULL(write_req.fs.info.new_pathw);
+  ASSERT_NULL(write_req.fs.info.bufs);
 #else
-  ASSERT(write_req.new_path == NULL);
-  ASSERT(write_req.bufs == NULL);
+  ASSERT_NULL(write_req.new_path);
+  ASSERT_NULL(write_req.bufs);
 #endif
   uv_fs_req_cleanup(&write_req);
 
