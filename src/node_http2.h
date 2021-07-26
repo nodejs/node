@@ -764,6 +764,22 @@ class Http2Session : public AsyncWrap,
     return (flags_ & SESSION_STATE_CLOSED) || session_ == nullptr;
   }
 
+
+  // The changes are backported and exposes APIs to check the
+  // status flag of `Http2Session`
+#define IS_FLAG(name, flag)                                                    \
+  bool is_##name() const { return flags_ & flag; }
+
+  IS_FLAG(in_scope, SESSION_STATE_HAS_SCOPE)
+  IS_FLAG(write_scheduled, SESSION_STATE_WRITE_SCHEDULED)
+  IS_FLAG(closing, SESSION_STATE_CLOSING)
+  IS_FLAG(sending, SESSION_STATE_SENDING)
+  IS_FLAG(write_in_progress, SESSION_STATE_WRITE_IN_PROGRESS)
+  IS_FLAG(reading_stopped, SESSION_STATE_READING_STOPPED)
+  IS_FLAG(receive_paused, SESSION_STATE_NGHTTP2_RECV_PAUSED)
+
+#undef IS_FLAG
+
   // Schedule a write if nghttp2 indicates it wants to write to the socket.
   void MaybeScheduleWrite();
 
