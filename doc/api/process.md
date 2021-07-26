@@ -3250,7 +3250,7 @@ This feature is not available in [`Worker`][] threads.
 
 ## `process.setSourceMapsEnabled(val)`
 <!-- YAML
-added: REPLACEME
+added: v16.6.0
 -->
 
 > Stability: 1 - Experimental
