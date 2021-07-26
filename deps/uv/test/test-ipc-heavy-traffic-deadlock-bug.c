@@ -66,7 +66,7 @@ static void do_write(uv_stream_t* handle) {
   int r;
 
   write_info = malloc(sizeof *write_info);
-  ASSERT(write_info != NULL);
+  ASSERT_NOT_NULL(write_info);
 
   for (i = 0; i < BUFFERS_PER_WRITE; i++) {
     memset(&write_info->buffers[i], BUFFER_CONTENT, BUFFER_SIZE);

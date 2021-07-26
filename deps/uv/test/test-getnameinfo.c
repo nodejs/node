@@ -38,10 +38,10 @@ static void getnameinfo_req(uv_getnameinfo_t* handle,
                             int status,
                             const char* hostname,
                             const char* service) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(status == 0);
-  ASSERT(hostname != NULL);
-  ASSERT(service != NULL);
+  ASSERT_NOT_NULL(hostname);
+  ASSERT_NOT_NULL(service);
 }
 
 
