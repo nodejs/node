@@ -498,6 +498,34 @@ TEST(async function test_resolveTxt(done) {
   checkWrap(req);
 });
 
+TEST(async function test_resolveTxt_ttl(done) {
+  function validateResult(result) {
+    assert.ok(result.length > 0);
+
+    for (const item of result) {
+      assert.strictEqual(typeof item, 'object');
+      assert.strictEqual(typeof item.ttl, 'number');
+      assert.strictEqual(typeof item.txt, 'string');
+      assert.ok(item.ttl >= 0);
+      assert.ok(item.txt.startsWith('v=spf1'));
+    }
+  }
+
+  validateResult(await dnsPromises.resolveTxt(addresses.TXT_HOST, {
+    ttl: true
+  }));
+
+  const req = dns.resolveTxt(addresses.TXT_HOST, {
+    ttl: true
+  }, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(function test_resolveTxt_failure(done) {
   dnsPromises.resolveTxt(addresses.NOT_FOUND)
     .then(common.mustNotCall())
