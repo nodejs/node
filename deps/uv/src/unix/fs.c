@@ -56,6 +56,10 @@
 # define HAVE_PREADV 0
 #endif
 
+#if defined(__linux__)
+# include "sys/utsname.h"
+#endif
+
 #if defined(__linux__) || defined(__sun)
 # include <sys/sendfile.h>
 # include <sys/sysmacros.h>
@@ -901,6 +905,50 @@ out:
 }
 
 
+#ifdef __linux__
+static unsigned uv__kernel_version(void) {
+  static unsigned cached_version;
+  struct utsname u;
+  unsigned version;
+  unsigned major;
+  unsigned minor;
+  unsigned patch;
+
+  version = uv__load_relaxed(&cached_version);
+  if (version != 0)
+    return version;
+
+  if (-1 == uname(&u))
+    return 0;
+
+  if (3 != sscanf(u.release, "%u.%u.%u", &major, &minor, &patch))
+    return 0;
+
+  version = major * 65536 + minor * 256 + patch;
+  uv__store_relaxed(&cached_version, version);
+
+  return version;
+}
+
+
+/* Pre-4.20 kernels have a bug where CephFS uses the RADOS copy-from command
+ * in copy_file_range() when it shouldn't. There is no workaround except to
+ * fall back to a regular copy.
+ */
+static int uv__is_buggy_cephfs(int fd) {
+  struct statfs s;
+
+  if (-1 == fstatfs(fd, &s))
+    return 0;
+
+  if (s.f_type != /* CephFS */ 0xC36400)
+    return 0;
+
+  return uv__kernel_version() < /* 4.20.0 */ 0x041400;
+}
+#endif  /* __linux__ */
+
+
 static ssize_t uv__fs_sendfile(uv_fs_t* req) {
   int in_fd;
   int out_fd;
@@ -917,15 +965,20 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
 #ifdef __linux__
     {
-      static int copy_file_range_support = 1;
+      static int no_copy_file_range_support;
 
-      if (copy_file_range_support) {
+      if (uv__load_relaxed(&no_copy_file_range_support) == 0) {
         r = uv__fs_copy_file_range(in_fd, &off, out_fd, NULL, req->bufsml[0].len, 0);
 
         if (r == -1 && errno == ENOSYS) {
           /* ENOSYS - it will never work */
           errno = 0;
-          copy_file_range_support = 0;
+          uv__store_relaxed(&no_copy_file_range_support, 1);
+        } else if (r == -1 && errno == EACCES && uv__is_buggy_cephfs(in_fd)) {
+          /* EACCES - pre-4.20 kernels have a bug where CephFS uses the RADOS
+                      copy-from command when it shouldn't */
+          errno = 0;
+          uv__store_relaxed(&no_copy_file_range_support, 1);
         } else if (r == -1 && (errno == ENOTSUP || errno == EXDEV)) {
           /* ENOTSUP - it could work on another file system type */
           /* EXDEV - it will not work when in_fd and out_fd are not on the same
@@ -1357,7 +1410,8 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_ctimensec;
   dst->st_flags = 0;
   dst->st_gen = 0;
-#elif !defined(_AIX) && (       \
+#elif !defined(_AIX) &&         \
+    !defined(__MVS__) && (      \
     defined(__DragonFly__)   || \
     defined(__FreeBSD__)     || \
     defined(__OpenBSD__)     || \

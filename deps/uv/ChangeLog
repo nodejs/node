@@ -1,3 +1,158 @@
+2021.07.21, Version 1.42.0 (Stable)
+
+Changes since version 1.41.0:
+
+* doc: fix code highlighting (Darshan Sen)
+
+* test: move to ASSERT_NULL and ASSERT_NOT_NULL test macros (tjarlama)
+
+* zos: build in ascii code page (Shuowang (Wayne) Zhang)
+
+* zos: don't use nanosecond timestamp fields (Shuowang (Wayne) Zhang)
+
+* zos: introduce zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use strnlen() from zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use nanosleep() from zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use __getargv() from zoslib to get exe path (Shuowang (Wayne) Zhang)
+
+* zos: treat __rfim_utok as binary (Shuowang (Wayne) Zhang)
+
+* zos: use execvpe() to set environ explictly (Shuowang (Wayne) Zhang)
+
+* zos: use custom proctitle implementation (Shuowang (Wayne) Zhang)
+
+* doc: add instructions for building on z/OS (Shuowang (Wayne) Zhang)
+
+* linux,udp: enable full ICMP error reporting (Ondřej Surý)
+
+* test: fix test-udp-send-unreachable (Ondřej Surý)
+
+* include: fix typo in documentation (Tobias Nießen)
+
+* chore: use for(;;) instead of while (Yash Ladha)
+
+* test: remove string + int warning on udp-pummel (Juan José Arboleda)
+
+* cmake: fix linker flags (Zhao Zhili)
+
+* test: fix stack-use-after-scope (Zhao Zhili)
+
+* unix: expose thread_stack_size() internally (Brandon Cheng)
+
+* darwin: use RLIMIT_STACK for fsevents pthread (Brandon Cheng)
+
+* darwin: abort on pthread_attr_init fail (Brandon Cheng)
+
+* benchmark: remove unreachable code (Matvii Hodovaniuk)
+
+* macos: fix memleaks in uv__get_cpu_speed (George Zhao)
+
+* Make Thread Sanitizer aware of file descriptor close in uv__close() (Ondřej
+  Surý)
+
+* darwin: fix iOS compilation and functionality (Hayden)
+
+* linux: work around copy_file_range() cephfs bug (Ben Noordhuis)
+
+* zos: implement uv_get_constrained_memory() (Shuowang (Wayne) Zhang)
+
+* zos: fix uv_get_free_memory() (Shuowang (Wayne) Zhang)
+
+* zos: use CVTRLSTG to get total memory accurately (Shuowang (Wayne) Zhang)
+
+* ibmi: Handle interface names longer than 10 chars (Kevin Adler)
+
+* docs: update read-the-docs version of sphinx (Jameson Nash)
+
+* unix: refactor uv_try_write (twosee)
+
+* linux-core: add proper divide by zero assert (yiyuaner)
+
+* misc: remove unnecessary _GNU_SOURCE macros (Darshan Sen)
+
+* test: log to stdout to conform TAP spec (bbara)
+
+* win,fs: fix C4090 warning with MSVC (SeverinLeonhardt)
+
+* build: some systems provide dlopen() in libc (Andy Fiddaman)
+
+* include: add EOVERFLOW status code mapping (Darshan Sen)
+
+* unix,fs: use uv__load_relaxed and uv__store_relaxed (Darshan Sen)
+
+* win: fix string encoding issue of uv_os_gethostname (Eagle Liang)
+
+* unix,process: add uv__write_errno helper function (Ricky Zhou)
+
+* Re-merge "unix,stream: clear read/write states on close/eof" (Jameson Nash)
+
+* unix,core: fix errno handling in uv__getpwuid_r (Darshan Sen)
+
+* errors: map ESOCKTNOSUPPORT errno (Ryan Liptak)
+
+* doc: uv_read_stop always succeeds (Simon Kissane)
+
+* inet: fix inconsistent return value of inet_ntop6 (twosee)
+
+* darwin: fix -Wsometimes-uninitialized warning (twosee)
+
+* stream: introduce uv_try_write2 function (twosee)
+
+* poll,win: UV_PRIORITIZED option should not assert (twosee)
+
+* src: DragonFlyBSD has mmsghdr struct too (David Carlier)
+
+* cleanup,win: Remove _WIN32 guards on threadpool (James M Snell)
+
+* freebsd: fix an incompatible pointer type warning (Darshan Sen)
+
+* core: Correct the conditionals for {cloexec,nonblock}_ioctl (Ali Mohammad
+  Pur)
+
+* win,tcp: make uv_close work more like unix (Jameson Nash)
+
+* doc: more accurate list of valid send_handle's (twosee)
+
+* win,tcp: translate system errors correctly (twosee)
+
+* unix: implement cpu_relax() on ppc64 (Ben Noordhuis)
+
+* docs: move list of project links under PR control (Jameson Nash)
+
+* test: wrong pointer arithmetic multiplier (Erkhes N)
+
+* doc: switch discussion forum to github (Jameson Nash)
+
+* idna: fix OOB read in punycode decoder (Ben Noordhuis)
+
+* build: make sure -fvisibility=hidden is set (Santiago Gimeno)
+
+* illumos: event ports to epoll (tjarlama)
+
+* illumos,tty: UV_TTY_MODE_IO waits for 4 bytes (Joshua M. Clulow)
+
+* doc: add vtjnash GPG ID (Jameson Nash)
+
+* linux: read CPU model information on ppc (Richard Lau)
+
+* darwin: fix uv_barrier race condition (Guilherme Íscaro)
+
+* unix,stream: fix loop hang after uv_shutdown (Jameson Nash)
+
+* doc,udp: note that suggested_size is 1 max-sized dgram (Ryan Liptak)
+
+* mingw: fix building for ARM/AArch64 (Martin Storsjö)
+
+* unix: strnlen is not available on Solaris 10 (Claes Nästén)
+
+* sunos: restore use of event ports (Andy Fiddaman)
+
+* sunos,cmake: use thread-safe errno (Andy Fiddaman)
+
+
 2021.02.14, Version 1.41.0 (Stable), 1dff88e5161cba5c59276d2070d2e304e4dcb242
 
 Changes since version 1.40.0:

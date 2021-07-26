@@ -71,7 +71,7 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
   write_cb_called++;
 }
@@ -103,7 +103,7 @@ BENCHMARK_IMPL(tcp_write_batch) {
   int r;
 
   write_reqs = malloc(sizeof(*write_reqs) * NUM_WRITE_REQS);
-  ASSERT(write_reqs != NULL);
+  ASSERT_NOT_NULL(write_reqs);
 
   /* Prepare the data to write out. */
   for (i = 0; i < NUM_WRITE_REQS; i++) {

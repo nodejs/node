@@ -37,7 +37,7 @@ static uv_timer_t huge_timer2;
 static void once_close_cb(uv_handle_t* handle) {
   printf("ONCE_CLOSE_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(0 == uv_is_active(handle));
 
   once_close_cb_called++;
@@ -47,7 +47,7 @@ static void once_close_cb(uv_handle_t* handle) {
 static void once_cb(uv_timer_t* handle) {
   printf("ONCE_CB %d\n", once_cb_called);
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(0 == uv_is_active((uv_handle_t*) handle));
 
   once_cb_called++;
@@ -62,7 +62,7 @@ static void once_cb(uv_timer_t* handle) {
 static void repeat_close_cb(uv_handle_t* handle) {
   printf("REPEAT_CLOSE_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   repeat_close_cb_called++;
 }
@@ -71,7 +71,7 @@ static void repeat_close_cb(uv_handle_t* handle) {
 static void repeat_cb(uv_timer_t* handle) {
   printf("REPEAT_CB\n");
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   ASSERT(1 == uv_is_active((uv_handle_t*) handle));
 
   repeat_cb_called++;

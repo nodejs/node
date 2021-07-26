@@ -236,12 +236,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-
-    if (!(handle->flags & UV_HANDLE_TCP_SOCKET_CLOSED)) {
-      closesocket(handle->socket);
-      handle->socket = INVALID_SOCKET;
-      handle->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
-    }
+    assert(handle->socket == INVALID_SOCKET);
 
     if (!(handle->flags & UV_HANDLE_CONNECTION) && handle->tcp.serv.accept_reqs) {
       if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
@@ -599,6 +594,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     }
   }
 
+  /* If this flag is set, we already made this listen call in xfer. */
   if (!(handle->flags & UV_HANDLE_SHARED_TCP_SOCKET) &&
       listen(handle->socket, backlog) == SOCKET_ERROR) {
     return WSAGetLastError();
@@ -769,7 +765,7 @@ static int uv__is_loopback(const struct sockaddr_storage* storage) {
 }
 
 // Check if Windows version is 10.0.16299 or later
-static int uv__is_fast_loopback_fail_supported() {
+static int uv__is_fast_loopback_fail_supported(void) {
   OSVERSIONINFOW os_info;
   if (!pRtlGetVersion)
     return 0;
@@ -1024,6 +1020,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
          */
         err = WSAECONNRESET;
       }
+      handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 
       handle->read_cb((uv_stream_t*)handle,
                       uv_translate_sys_error(err),
@@ -1105,6 +1102,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
              * Unix. */
             err = WSAECONNRESET;
           }
+          handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 
           handle->read_cb((uv_stream_t*)handle,
                           uv_translate_sys_error(err),
@@ -1158,9 +1156,14 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   handle->stream.conn.write_reqs_pending--;
-  if (handle->stream.conn.shutdown_req != NULL &&
-      handle->stream.conn.write_reqs_pending == 0) {
-    uv_want_endgame(loop, (uv_handle_t*)handle);
+  if (handle->stream.conn.write_reqs_pending == 0) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
+      closesocket(handle->socket);
+      handle->socket = INVALID_SOCKET;
+    }
+    if (handle->stream.conn.shutdown_req != NULL) {
+      uv_want_endgame(loop, (uv_handle_t*)handle);
+    }
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
@@ -1336,7 +1339,7 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
   if (handle->socket != INVALID_SOCKET) {
     err = uv__tcp_nodelay(handle, handle->socket, enable);
     if (err)
-      return err;
+      return uv_translate_sys_error(err);
   }
 
   if (enable) {
@@ -1355,7 +1358,7 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   if (handle->socket != INVALID_SOCKET) {
     err = uv__tcp_keepalive(handle, handle->socket, enable, delay);
     if (err)
-      return err;
+      return uv_translate_sys_error(err);
   }
 
   if (enable) {
@@ -1402,9 +1405,24 @@ int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
 }
 
 
-static int uv_tcp_try_cancel_io(uv_tcp_t* tcp) {
-  SOCKET socket = tcp->socket;
+static void uv_tcp_try_cancel_reqs(uv_tcp_t* tcp) {
+  SOCKET socket;
   int non_ifs_lsp;
+  int reading;
+  int writing;
+
+  socket = tcp->socket;
+  reading = tcp->flags & UV_HANDLE_READING;
+  writing = tcp->stream.conn.write_reqs_pending > 0;
+  if (!reading && !writing)
+    return;
+
+  /* TODO: in libuv v2, keep explicit track of write_reqs, so we can cancel
+   * them each explicitly with CancelIoEx (like unix). */
+  if (reading)
+    CancelIoEx((HANDLE) socket, &tcp->read_req.u.io.overlapped);
+  if (writing)
+    CancelIo((HANDLE) socket);
 
   /* Check if we have any non-IFS LSPs stacked on top of TCP */
   non_ifs_lsp = (tcp->flags & UV_HANDLE_IPV6) ? uv_tcp_non_ifs_lsp_ipv6 :
@@ -1424,71 +1442,41 @@ static int uv_tcp_try_cancel_io(uv_tcp_t* tcp) {
                  NULL,
                  NULL) != 0) {
       /* Failed. We can't do CancelIo. */
-      return -1;
+      return;
     }
   }
 
   assert(socket != 0 && socket != INVALID_SOCKET);
 
-  if (!CancelIo((HANDLE) socket)) {
-    return GetLastError();
+  if (socket != tcp->socket) {
+    if (reading)
+      CancelIoEx((HANDLE) socket, &tcp->read_req.u.io.overlapped);
+    if (writing)
+      CancelIo((HANDLE) socket);
   }
-
-  /* It worked. */
-  return 0;
 }
 
 
 void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
-  int close_socket = 1;
-
-  if (tcp->flags & UV_HANDLE_READ_PENDING) {
-    /* In order for winsock to do a graceful close there must not be any any
-     * pending reads, or the socket must be shut down for writing */
-    if (!(tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET)) {
-      /* Just do shutdown on non-shared sockets, which ensures graceful close. */
-      shutdown(tcp->socket, SD_SEND);
-
-    } else if (uv_tcp_try_cancel_io(tcp) == 0) {
-      /* In case of a shared socket, we try to cancel all outstanding I/O,. If
-       * that works, don't close the socket yet - wait for the read req to
-       * return and close the socket in uv_tcp_endgame. */
-      close_socket = 0;
-
-    } else {
-      /* When cancelling isn't possible - which could happen when an LSP is
-       * present on an old Windows version, we will have to close the socket
-       * with a read pending. That is not nice because trailing sent bytes may
-       * not make it to the other side. */
+  if (tcp->flags & UV_HANDLE_CONNECTION) {
+    uv_tcp_try_cancel_reqs(tcp);
+    if (tcp->flags & UV_HANDLE_READING) {
+      uv_read_stop((uv_stream_t*) tcp);
     }
-
-  } else if ((tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET) &&
-             tcp->tcp.serv.accept_reqs != NULL) {
-    /* Under normal circumstances closesocket() will ensure that all pending
-     * accept reqs are canceled. However, when the socket is shared the
-     * presence of another reference to the socket in another process will keep
-     * the accept reqs going, so we have to ensure that these are canceled. */
-    if (uv_tcp_try_cancel_io(tcp) != 0) {
-      /* When cancellation is not possible, there is another option: we can
-       * close the incoming sockets, which will also cancel the accept
-       * operations. However this is not cool because we might inadvertently
-       * close a socket that just accepted a new connection, which will cause
-       * the connection to be aborted. */
+  } else {
+    if (tcp->tcp.serv.accept_reqs != NULL) {
+      /* First close the incoming sockets to cancel the accept operations before
+       * we free their resources. */
       unsigned int i;
       for (i = 0; i < uv_simultaneous_server_accepts; i++) {
         uv_tcp_accept_t* req = &tcp->tcp.serv.accept_reqs[i];
-        if (req->accept_socket != INVALID_SOCKET &&
-            !HasOverlappedIoCompleted(&req->u.io.overlapped)) {
+        if (req->accept_socket != INVALID_SOCKET) {
           closesocket(req->accept_socket);
           req->accept_socket = INVALID_SOCKET;
         }
       }
     }
-  }
-
-  if (tcp->flags & UV_HANDLE_READING) {
-    tcp->flags &= ~UV_HANDLE_READING;
-    DECREASE_ACTIVE_COUNT(loop, tcp);
+    assert(!(tcp->flags & UV_HANDLE_READING));
   }
 
   if (tcp->flags & UV_HANDLE_LISTENING) {
@@ -1496,10 +1484,15 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     DECREASE_ACTIVE_COUNT(loop, tcp);
   }
 
-  if (close_socket) {
+  /* If any overlapped req failed to cancel, calling `closesocket` now would
+   * cause Win32 to send an RST packet. Try to avoid that for writes, if
+   * possibly applicable, by waiting to process the completion notifications
+   * first (which typically should be cancellations). There's not much we can
+   * do about canceled reads, which also will generate an RST packet. */
+  if (!(tcp->flags & UV_HANDLE_CONNECTION) ||
+      tcp->stream.conn.write_reqs_pending == 0) {
     closesocket(tcp->socket);
     tcp->socket = INVALID_SOCKET;
-    tcp->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
   }
 
   tcp->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);

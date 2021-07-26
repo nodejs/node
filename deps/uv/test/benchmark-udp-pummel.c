@@ -72,7 +72,7 @@ static void alloc_cb(uv_handle_t* handle,
 static void send_cb(uv_udp_send_t* req, int status) {
   struct sender_state* s;
 
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
 
   if (status != 0) {
     ASSERT(status == UV_ECANCELED);
@@ -127,7 +127,7 @@ static void recv_cb(uv_udp_t* handle,
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -179,11 +179,11 @@ static int pummel(unsigned int n_senders,
     uv_unref((uv_handle_t*)&s->udp_handle);
   }
 
-  bufs[0] = uv_buf_init(EXPECTED + 0,  10);
-  bufs[1] = uv_buf_init(EXPECTED + 10, 10);
-  bufs[2] = uv_buf_init(EXPECTED + 20, 10);
-  bufs[3] = uv_buf_init(EXPECTED + 30, 10);
-  bufs[4] = uv_buf_init(EXPECTED + 40, 5);
+  bufs[0] = uv_buf_init(&EXPECTED[0],  10);
+  bufs[1] = uv_buf_init(&EXPECTED[10], 10);
+  bufs[2] = uv_buf_init(&EXPECTED[20], 10);
+  bufs[3] = uv_buf_init(&EXPECTED[30], 10);
+  bufs[4] = uv_buf_init(&EXPECTED[40], 5);
 
   for (i = 0; i < n_senders; i++) {
     struct sender_state* s = senders + i;

@@ -642,7 +642,7 @@ int env_strncmp(const wchar_t* a, int na, const wchar_t* b) {
   assert(r==nb);
   B[nb] = L'\0';
 
-  while (1) {
+  for (;;) {
     wchar_t AA = *A++;
     wchar_t BB = *B++;
     if (AA < BB) {
