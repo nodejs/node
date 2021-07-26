@@ -163,6 +163,36 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  // Same event dispatched multiple times.
+  const event = new Event('foo');
+  const eventTarget1 = new EventTarget();
+  const eventTarget2 = new EventTarget();
+
+  eventTarget1.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget1);
+    deepStrictEqual(event.composedPath(), [eventTarget1]);
+  }));
+
+  eventTarget2.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget2);
+    deepStrictEqual(event.composedPath(), [eventTarget2]);
+  }));
+
+  eventTarget1.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget1);
+  deepStrictEqual(event.composedPath(), []);
+
+
+  eventTarget2.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget2);
+  deepStrictEqual(event.composedPath(), []);
+}
+
+{
   const eventTarget = new EventTarget();
   const event = new Event('foo', { cancelable: true });
   eventTarget.addEventListener('foo', (event) => event.preventDefault());
@@ -174,6 +204,15 @@ let asyncTest = Promise.resolve();
   const event = new Event('foo');
   const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
   eventTarget.addEventListener('foo', fn, false);
+  eventTarget.dispatchEvent(event);
+}
+
+{
+  // The `options` argument can be `null`.
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, null);
   eventTarget.dispatchEvent(event);
 }
 

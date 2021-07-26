@@ -740,6 +740,34 @@ Maybe<bool> ExportJWKEcKey(
     return Nothing<bool>();
   }
 
+  Local<String> crv_name;
+  const int nid = EC_GROUP_get_curve_name(group);
+  switch (nid) {
+    case NID_X9_62_prime256v1:
+      crv_name = OneByteString(env->isolate(), "P-256");
+      break;
+    case NID_secp256k1:
+      crv_name = OneByteString(env->isolate(), "secp256k1");
+      break;
+    case NID_secp384r1:
+      crv_name = OneByteString(env->isolate(), "P-384");
+      break;
+    case NID_secp521r1:
+      crv_name = OneByteString(env->isolate(), "P-521");
+      break;
+    default: {
+      THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
+          env, "Unsupported JWK EC curve: %s.", OBJ_nid2sn(nid));
+      return Nothing<bool>();
+    }
+  }
+  if (target->Set(
+      env->context(),
+      env->jwk_crv_string(),
+      crv_name).IsNothing()) {
+    return Nothing<bool>();
+  }
+
   if (key->GetKeyType() == kKeyTypePrivate) {
     const BIGNUM* pvt = EC_KEY_get0_private_key(ec);
     return SetEncodedValue(
