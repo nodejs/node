@@ -79,9 +79,10 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
    * Workaround for e.g. kqueue fds not supporting ioctls.
    */
   err = uv__nonblock(fd, 1);
+#if UV__NONBLOCK_IS_IOCTL
   if (err == UV_ENOTTY)
-    if (uv__nonblock == uv__nonblock_ioctl)
-      err = uv__nonblock_fcntl(fd, 1);
+    err = uv__nonblock_fcntl(fd, 1);
+#endif
 
   if (err)
     return err;

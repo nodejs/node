@@ -52,6 +52,7 @@
 
 #define TEST_PORT 9123
 #define TEST_PORT_2 9124
+#define TEST_PORT_3 9125
 
 #ifdef _WIN32
 # define TEST_PIPENAME "\\\\?\\pipe\\uv-test"

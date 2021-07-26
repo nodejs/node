@@ -22,9 +22,6 @@
 #ifndef UV_LINUX_SYSCALL_H_
 #define UV_LINUX_SYSCALL_H_
 
-#undef  _GNU_SOURCE
-#define _GNU_SOURCE
-
 #include <stdint.h>
 #include <signal.h>
 #include <sys/types.h>

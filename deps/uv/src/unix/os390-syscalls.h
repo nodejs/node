@@ -28,6 +28,7 @@
 #include <dirent.h>
 #include <poll.h>
 #include <pthread.h>
+#include "zos-base.h"
 
 #define EPOLL_CTL_ADD             1
 #define EPOLL_CTL_DEL             2
@@ -57,7 +58,6 @@ int epoll_wait(uv__os390_epoll* ep, struct epoll_event *events, int maxevents, i
 int epoll_file_close(int fd);
 
 /* utility functions */
-int nanosleep(const struct timespec* req, struct timespec* rem);
 int scandir(const char* maindir, struct dirent*** namelist,
             int (*filter)(const struct dirent *),
             int (*compar)(const struct dirent **,
