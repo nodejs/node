@@ -6,9 +6,9 @@ const assert = require('assert');
 // Flags: --expose-internals
 
 const {
-  Headers,
+  binarySearch,
   kHeadersList,
-  binarySearch
+  Headers,
 } = require('internal/fetch/headers');
 
 {
@@ -80,26 +80,6 @@ const {
     'test-name-2': 'test-value-2'
   });
   assert.strictEqual(headers[kHeadersList].length, 4);
-}
-
-{
-  // Init fails silently when initialized with BoxedPrimitives
-  [
-    new Number(),
-    new Boolean(),
-    new String(),
-  ].forEach((arg) => new Headers(arg));
-}
-
-{
-  // Init fails silently if function or primitive is passed
-  [
-    new Function(),
-    function() {},
-    1,
-    'test',
-    true,
-  ].forEach((arg) => new Headers(arg));
 }
 
 {
