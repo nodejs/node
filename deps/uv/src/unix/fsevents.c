@@ -595,8 +595,7 @@ out:
 static int uv__fsevents_loop_init(uv_loop_t* loop) {
   CFRunLoopSourceContext ctx;
   uv__cf_loop_state_t* state;
-  pthread_attr_t attr_storage;
-  pthread_attr_t* attr;
+  pthread_attr_t attr;
   int err;
 
   if (loop->cf_state != NULL)
@@ -641,25 +640,19 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
     goto fail_signal_source_create;
   }
 
-  /* In the unlikely event that pthread_attr_init() fails, create the thread
-   * with the default stack size. We'll use a little more address space but
-   * that in itself is not a fatal error.
-   */
-  attr = &attr_storage;
-  if (pthread_attr_init(attr))
-    attr = NULL;
+  if (pthread_attr_init(&attr))
+    abort();
 
-  if (attr != NULL)
-    if (pthread_attr_setstacksize(attr, 4 * PTHREAD_STACK_MIN))
-      abort();
+  if (pthread_attr_setstacksize(&attr, uv__thread_stack_size()))
+    abort();
 
   loop->cf_state = state;
 
   /* uv_thread_t is an alias for pthread_t. */
-  err = UV__ERR(pthread_create(&loop->cf_thread, attr, uv__cf_loop_runner, loop));
+  err = UV__ERR(pthread_create(&loop->cf_thread, &attr, uv__cf_loop_runner, loop));
 
-  if (attr != NULL)
-    pthread_attr_destroy(attr);
+  if (pthread_attr_destroy(&attr))
+    abort();
 
   if (err)
     goto fail_thread_create;

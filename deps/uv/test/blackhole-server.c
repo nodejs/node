@@ -47,7 +47,7 @@ static void connection_cb(uv_stream_t* stream, int status) {
   ASSERT(stream == (uv_stream_t*)&tcp_server);
 
   conn = malloc(sizeof *conn);
-  ASSERT(conn != NULL);
+  ASSERT_NOT_NULL(conn);
 
   r = uv_tcp_init(stream->loop, &conn->handle);
   ASSERT(r == 0);

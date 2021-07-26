@@ -533,7 +533,7 @@ API
 
     .. note::
         This function currently only returns a non-zero value on Linux, based
-        on cgroups if it is present.
+        on cgroups if it is present, and on z/OS based on RLIMIT_MEMLIMIT.
 
     .. versionadded:: 1.29.0
 

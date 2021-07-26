@@ -49,7 +49,7 @@ static void close_cb(uv_handle_t *handle) {
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == UV_EPIPE);
   free(buf);
   uv_close((uv_handle_t *) &pipe_hdl, close_cb);
@@ -76,7 +76,7 @@ TEST_IMPL(signal_pending_on_close) {
 
   /* Write data large enough so it needs loop iteration */
   buf = malloc(1<<24);
-  ASSERT(buf != NULL);
+  ASSERT_NOT_NULL(buf);
   memset(buf, '.', 1<<24);
   buffer = uv_buf_init(buf, 1<<24);
 

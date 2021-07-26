@@ -68,6 +68,8 @@ extern int snprintf(char*, size_t, const char*, ...);
 #define uv__store_relaxed(p, v) do *p = v; while (0)
 #endif
 
+#define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
+
 /* Handle flags. Some flags are specific to Windows or UNIX. */
 enum {
   /* Used by all handles. */
@@ -106,8 +108,7 @@ enum {
   UV_HANDLE_TCP_KEEPALIVE               = 0x02000000,
   UV_HANDLE_TCP_SINGLE_ACCEPT           = 0x04000000,
   UV_HANDLE_TCP_ACCEPT_STATE_CHANGING   = 0x08000000,
-  UV_HANDLE_TCP_SOCKET_CLOSED           = 0x10000000,
-  UV_HANDLE_SHARED_TCP_SOCKET           = 0x20000000,
+  UV_HANDLE_SHARED_TCP_SOCKET           = 0x10000000,
 
   /* Only used by uv_udp_t handles. */
   UV_HANDLE_UDP_PROCESSING              = 0x01000000,

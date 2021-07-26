@@ -280,7 +280,7 @@ static void on_connection(uv_stream_t* server, int status) {
   ASSERT(status == 0);
 
   handle = (dnshandle*) malloc(sizeof *handle);
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   /* initialize read buffer state */
   handle->state.prevbuf_ptr = 0;

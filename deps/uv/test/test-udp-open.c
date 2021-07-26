@@ -91,7 +91,7 @@ static void alloc_cb(uv_handle_t* handle,
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -109,13 +109,13 @@ static void recv_cb(uv_udp_t* handle,
 
   if (nread == 0) {
     /* Returning unused buffer. Don't count towards sv_recv_cb_called */
-    ASSERT(addr == NULL);
+    ASSERT_NULL(addr);
     return;
   }
 
   ASSERT(flags == 0);
 
-  ASSERT(addr != NULL);
+  ASSERT_NOT_NULL(addr);
   ASSERT(nread == 4);
   ASSERT(memcmp("PING", buf->base, nread) == 0);
 
@@ -127,7 +127,7 @@ static void recv_cb(uv_udp_t* handle,
 
 
 static void send_cb(uv_udp_send_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
 
   send_cb_called++;
@@ -138,7 +138,7 @@ static void send_cb(uv_udp_send_t* req, int status) {
 TEST_IMPL(udp_open) {
   struct sockaddr_in addr;
   uv_buf_t buf = uv_buf_init("PING", 4);
-  uv_udp_t client;
+  uv_udp_t client, client2;
   uv_os_sock_t sock;
   int r;
 
@@ -169,8 +169,6 @@ TEST_IMPL(udp_open) {
 
 #ifndef _WIN32
   {
-    uv_udp_t client2;
-
     r = uv_udp_init(uv_default_loop(), &client2);
     ASSERT(r == 0);
 
@@ -179,7 +177,9 @@ TEST_IMPL(udp_open) {
 
     uv_close((uv_handle_t*) &client2, NULL);
   }
-#endif  /* !_WIN32 */
+#else  /* _WIN32 */
+  (void)client2;
+#endif
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 

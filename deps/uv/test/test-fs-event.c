@@ -118,7 +118,7 @@ static void touch_file(const char* name) {
 }
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -337,7 +337,7 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
 static void timer_cb_close_handle(uv_timer_t* timer) {
   uv_handle_t* handle;
 
-  ASSERT(timer != NULL);
+  ASSERT_NOT_NULL(timer);
   handle = timer->data;
 
   uv_close((uv_handle_t*)timer, NULL);
@@ -758,7 +758,7 @@ TEST_IMPL(fs_event_watch_file_root_dir) {
   const char* sys_drive = getenv("SystemDrive");
   char path[] = "\\\\?\\X:\\bootsect.bak";
 
-  ASSERT(sys_drive != NULL);
+  ASSERT_NOT_NULL(sys_drive);
   strncpy(path + sizeof("\\\\?\\") - 1, sys_drive, 1);
 
   loop = uv_default_loop();
@@ -1072,7 +1072,7 @@ static void timer_cb_nop(uv_timer_t* handle) {
 }
 
 static void fs_event_error_report_close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 
   /* handle is allocated on-stack, no need to free it */

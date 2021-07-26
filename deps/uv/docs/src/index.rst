@@ -17,7 +17,7 @@ was primarily developed for use by `Node.js`_, but it's also used by `Luvit`_,
 .. _Luvit: https://luvit.io
 .. _Julia: https://julialang.org
 .. _pyuv: https://github.com/saghul/pyuv
-.. _others: https://github.com/libuv/libuv/wiki/Projects-that-use-libuv
+.. _others: https://github.com/libuv/libuv/blob/v1.x/LINKS.md
 
 
 Features

@@ -151,6 +151,11 @@ API
 
     This function is idempotent and may be safely called on a stopped stream.
 
+    This function will always succeed; hence, checking its return value is
+    unnecessary. A non-zero return indicates that finishing releasing resources
+    may be pending on the next input event on that TTY on Windows, and does not
+    indicate failure.
+
 .. c:function:: int uv_write(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb)
 
     Write data to stream. Buffers are written in order. Example:
@@ -188,8 +193,9 @@ API
     initialized with `ipc` == 1.
 
     .. note::
-        `send_handle` must be a TCP socket or pipe, which is a server or a connection (listening
-        or connected state). Bound sockets or pipes will be assumed to be servers.
+        `send_handle` must be a TCP, pipe and UDP handle on Unix, or a TCP
+        handle on Windows, which is a server or a connection (listening or
+        connected state). Bound sockets or pipes will be assumed to be servers.
 
 .. c:function:: int uv_try_write(uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs)
 
@@ -202,6 +208,16 @@ API
     * < 0: negative error code (``UV_EAGAIN`` is returned if no data can be sent
       immediately).
 
+.. c:function:: int uv_try_write2(uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle)
+
+    Same as :c:func:`uv_try_write` and extended write function for sending
+    handles over a pipe like c:func:`uv_write2`.
+
+    Try to send a handle is not supported on Windows,
+    where it returns ``UV_EAGAIN``.
+
+    .. versionadded:: 1.42.0
+    
 .. c:function:: int uv_is_readable(const uv_stream_t* handle)
 
     Returns 1 if the stream is readable, 0 otherwise.

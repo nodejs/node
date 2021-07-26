@@ -238,6 +238,7 @@
         [ 'OS=="linux"', {
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
+            'src/unix/epoll.c',
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
@@ -274,6 +275,7 @@
           'defines': [
             '__EXTENSIONS__',
             '_XOPEN_SOURCE=500',
+            '_REENTRANT',
           ],
           'link_settings': {
             'libraries': [

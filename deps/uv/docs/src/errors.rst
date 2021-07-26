@@ -251,6 +251,10 @@ Error constants
 
     operation not supported on socket
 
+.. c:macro:: UV_EOVERFLOW
+
+    value too large for defined data type
+
 .. c:macro:: UV_EPERM
 
     operation not permitted
@@ -330,6 +334,10 @@ Error constants
 .. c:macro:: UV_EILSEQ
 
     illegal byte sequence
+
+.. c:macro:: UV_ESOCKTNOSUPPORT
+
+    socket type not supported
 
 
 API

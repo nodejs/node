@@ -242,6 +242,24 @@ static void uv__tty_make_raw(struct termios* tio) {
   tio->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
   tio->c_cflag &= ~(CSIZE | PARENB);
   tio->c_cflag |= CS8;
+
+  /*
+   * By default, most software expects a pending read to block until at
+   * least one byte becomes available.  As per termio(7I), this requires
+   * setting the MIN and TIME parameters appropriately.
+   *
+   * As a somewhat unfortunate artifact of history, the MIN and TIME slots
+   * in the control character array overlap with the EOF and EOL slots used
+   * for canonical mode processing.  Because the EOF character needs to be
+   * the ASCII EOT value (aka Control-D), it has the byte value 4.  When
+   * switching to raw mode, this is interpreted as a MIN value of 4; i.e.,
+   * reads will block until at least four bytes have been input.
+   *
+   * Other platforms with a distinct MIN slot like Linux and FreeBSD appear
+   * to default to a MIN value of 1, so we'll force that value here:
+   */
+  tio->c_cc[VMIN] = 1;
+  tio->c_cc[VTIME] = 0;
 #else
   cfmakeraw(tio);
 #endif /* #ifdef __sun */

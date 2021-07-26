@@ -61,7 +61,7 @@ static void close_cb(uv_handle_t* handle) {
 static void cl_send_cb(uv_udp_send_t* req, int status) {
   int r;
 
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
   CHECK_HANDLE(req->handle);
   if (++cl_send_cb_called == 1) {
@@ -87,7 +87,7 @@ static void sv_recv_cb(uv_udp_t* handle,
                        unsigned flags) {
   if (nread > 0) {
     ASSERT(nread == 4);
-    ASSERT(addr != NULL);
+    ASSERT_NOT_NULL(addr);
     ASSERT(memcmp("EXIT", rcvbuf->base, nread) == 0);
     if (++sv_recv_cb_called == 4) {
       uv_close((uv_handle_t*) &server, close_cb);

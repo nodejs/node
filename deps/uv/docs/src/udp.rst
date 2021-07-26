@@ -54,6 +54,14 @@ Data types
              */
             UV_UDP_MMSG_FREE = 16,
             /*
+             * Indicates if IP_RECVERR/IPV6_RECVERR will be set when binding the handle.
+             * This sets IP_RECVERR for IPv4 and IPV6_RECVERR for IPv6 UDP sockets on
+             * Linux. This stops the Linux kernel from supressing some ICMP error messages
+             * and enables full ICMP error reporting for faster failover.
+             * This flag is no-op on platforms other than Linux.
+             */
+            UV_UDP_LINUX_RECVERR = 32,
+            /*
             * Indicates that recvmmsg should be used, if available.
             */
             UV_UDP_RECVMMSG = 256
@@ -178,7 +186,8 @@ API
         with the address and port to bind to.
 
     :param flags: Indicate how the socket will be bound,
-        ``UV_UDP_IPV6ONLY`` and ``UV_UDP_REUSEADDR`` are supported.
+        ``UV_UDP_IPV6ONLY``, ``UV_UDP_REUSEADDR``, and ``UV_UDP_RECVERR``
+        are supported.
 
     :returns: 0 on success, or an error code < 0 on failure.
 
@@ -394,6 +403,11 @@ API
     :param recv_cb: Callback to invoke with received data.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+    .. note::
+        When using :man:`recvmmsg(2)`, the number of messages received at a time is limited
+        by the number of max size dgrams that will fit into the buffer allocated in `alloc_cb`, and
+        `suggested_size` in `alloc_cb` for udp_recv is always set to the size of 1 max size dgram.
 
     .. versionchanged:: 1.35.0 added support for :man:`recvmmsg(2)` on supported platforms).
                         The use of this feature requires a buffer larger than
