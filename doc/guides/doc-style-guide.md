@@ -33,6 +33,11 @@ this guide.
 * Documents must start with a level-one heading.
 * Prefer affixing links (`[a link][]`) to inlining links
   (`[a link](http://example.com)`).
+* Don't use [non-breaking spcaes][] in headings.
+* Always use the appropriate closing punctuation for punctuation that has left/right variants.
+* Always use `-` as an mdash.
+* Do not link to dead URLs.
+* Do not leave sections empty.
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
 * For code blocks:
@@ -110,3 +115,4 @@ For topics not covered here, refer to the [Microsoft Writing Style Guide][].
 [info string]: https://github.github.com/gfm/#info-string
 [language]: https://github.com/highlightjs/highlight.js/blob/HEAD/SUPPORTED_LANGUAGES.md
 [plugin]: https://editorconfig.org/#download
+[non-breaking spaces]: https://en.wikipedia.org/wiki/Non-breaking_space
