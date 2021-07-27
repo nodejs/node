@@ -6,7 +6,7 @@ on:
     - cron: "0 0 * * *"
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
 
 jobs:
   build-lto:

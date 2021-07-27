@@ -10,7 +10,7 @@ on:
     - cron: "*/5 * * * *"
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
 
 jobs:
   startCI:
