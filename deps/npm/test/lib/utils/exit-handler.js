@@ -336,15 +336,14 @@ t.test('defaults to log error msg if stack is missing', (t) => {
   t.end()
 })
 
-t.test('exits cleanly when emitting exit event', (t) => {
-  t.plan(1)
+t.test('exits uncleanly when only emitting exit event', (t) => {
+  t.plan(2)
 
   npm.log.level = 'silent'
   process.emit('exit')
-  t.match(
-    npm.log.record.find(r => r.level === 'info'),
-    { prefix: 'ok', message: '' }
-  )
+  const logData = fs.readFileSync(logFile, 'utf8')
+  t.match(logData, 'Exit handler never called!')
+  t.match(process.exitCode, 1, 'exitCode coerced to 1')
   t.end()
 })
 

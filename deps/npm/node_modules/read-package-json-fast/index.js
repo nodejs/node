@@ -1,14 +1,55 @@
 const {promisify} = require('util')
 const fs = require('fs')
 const readFile = promisify(fs.readFile)
+const lstat = promisify(fs.lstat)
+const readdir = promisify(fs.readdir)
 const parse = require('json-parse-even-better-errors')
+
+const { resolve, dirname, join, relative } = require('path')
+
 const rpj = path => readFile(path, 'utf8')
-  .then(data => normalize(stripUnderscores(parse(data))))
+  .then(data => readBinDir(path, normalize(stripUnderscores(parse(data)))))
   .catch(er => {
     er.path = path
     throw er
   })
+
 const normalizePackageBin = require('npm-normalize-package-bin')
+
+// load the directories.bin folder as a 'bin' object
+const readBinDir = async (path, data) => {
+  if (data.bin)
+    return data
+
+  const m = data.directories && data.directories.bin
+  if (!m || typeof m !== 'string')
+    return data
+
+  // cut off any monkey business, like setting directories.bin
+  // to ../../../etc/passwd or /etc/passwd or something like that.
+  const root = dirname(path)
+  const dir = join('.', join('/', m))
+  data.bin = await walkBinDir(root, dir, {})
+  return data
+}
+
+const walkBinDir = async (root, dir, obj) => {
+  const entries = await readdir(resolve(root, dir)).catch(() => [])
+  for (const entry of entries) {
+    if (entry.charAt(0) === '.')
+      continue
+    const f = resolve(root, dir, entry)
+    // ignore stat errors, weird file types, symlinks, etc.
+    const st = await lstat(f).catch(() => null)
+    if (!st)
+      continue
+    else if (st.isFile())
+      obj[entry] = relative(root, f)
+    else if (st.isDirectory())
+      await walkBinDir(root, join(dir, entry), obj)
+  }
+  return obj
+}
 
 // do not preserve _fields set in files, they are sus
 const stripUnderscores = data => {

@@ -7,7 +7,7 @@ description: Remove a package from the registry
 ### Synopsis
 
 To learn more about how the npm registry treats unpublish, see our <a
-href="https://www.npmjs.com/policies/unpublish" target="_blank"
+href="https://docs.npmjs.com/policies/unpublish" target="_blank"
 rel="noopener noreferrer"> unpublish policies</a>
 
 #### Unpublishing a single version of a package

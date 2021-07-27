@@ -438,6 +438,9 @@ define('cidr', {
   flatten,
 })
 
+// This should never be directly used, the flattened value is the derived value
+// and is sent to other modules, and is also exposed as `npm.color` for use
+// inside npm itself.
 define('color', {
   default: !process.env.NO_COLOR || process.env.NO_COLOR === '0',
   usage: '--color|--no-color|--color always',

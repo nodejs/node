@@ -25,6 +25,7 @@ const LOG_WARN = []
 let PROGRESS_IGNORED = false
 const flatOptions = {
   npxCache: 'npx-cache-dir',
+  color: false,
   cache: 'cache-dir',
   legacyPeerDeps: false,
   package: [],
@@ -109,12 +110,13 @@ t.afterEach(() => {
   LOG_WARN.length = 0
   PROGRESS_IGNORED = false
   flatOptions.legacyPeerDeps = false
-  config.color = false
+  flatOptions.color = false
   config['script-shell'] = 'shell-cmd'
   config.package = []
   flatOptions.package = []
   config.call = ''
   config.yes = true
+  npm.color = false
   npm.localBin = 'local-bin'
   npm.globalBin = 'global-bin'
 })
@@ -268,7 +270,8 @@ t.test('npm exec <noargs>, run interactive shell', t => {
   t.test('print message with color when tty and not in CI', t => {
     CI_NAME = null
     process.stdin.isTTY = true
-    config.color = true
+    npm.color = true
+    flatOptions.color = true
 
     run(t, true, () => {
       t.strictSame(LOG_WARN, [])
@@ -1204,7 +1207,8 @@ t.test('workspaces', t => {
       })
     })
 
-    config.color = true
+    npm.color = true
+    flatOptions.color = true
     npm._mockOutputs.length = 0
     await new Promise((res, rej) => {
       exec.execWorkspaces([], ['a'], er => {

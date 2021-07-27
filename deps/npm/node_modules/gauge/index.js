@@ -188,7 +188,7 @@ Gauge.prototype.show = function (section, completed) {
 
 Gauge.prototype.pulse = function (subsection) {
   this._status.subsection = subsection || ''
-  this._status.spun ++
+  this._status.spun++
   if (this._disabled) return
   if (!this._showing) return
   this._requestRedraw()

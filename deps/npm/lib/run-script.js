@@ -137,7 +137,7 @@ class RunScript extends BaseCommand {
     path = path || this.npm.localPrefix
     const { scripts, name, _id } = await rpj(`${path}/package.json`)
     const pkgid = _id || name
-    const color = !!this.npm.color
+    const color = this.npm.color
 
     if (!scripts)
       return []
