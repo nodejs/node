@@ -243,34 +243,6 @@ be produced with a version string that does not have a trailing pre-release tag:
 #define NODE_VERSION_IS_RELEASE 1
 ```
 
-**Also consider whether to bump `NODE_MODULE_VERSION`**:
-
-This macro is used to signal an ABI version for native addons. It currently has
-two common uses in the community:
-
-* Determining what API to work against for compiling native addons, e.g.
-  [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for
-  much of what it wraps.
-* Determining the ABI for downloading pre-built binaries of native addons, e.g.
-  [node-pre-gyp](https://github.com/mapbox/node-pre-gyp) uses this value as
-  exposed via `process.versions.modules` to help determine the appropriate
-  binary to download at install-time.
-
-The general rule is to bump this version when there are _breaking ABI_ changes
-and also if there are non-trivial API changes. The rules are not yet strictly
-defined, so if in doubt, please confer with someone that will have a more
-informed perspective, such as a member of the NAN team.
-
-A registry of currently used `NODE_MODULE_VERSION` values is maintained at
-<https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
-When bumping `NODE_MODULE_VERSION`, you should choose a new value not listed
-in the registry. Also include a change to the registry in your commit to
-reflect the newly used value.
-
-It is current TSC policy to bump major version when ABI changes. If you
-see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC.
-Commits may need to be reverted or a major version bump may need to happen.
-
 ### 4. Update the changelog
 
 #### Step 1: Collect the formatted list of changes
@@ -837,6 +809,36 @@ changelog).
 Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
 that will need updating to include the new major release.
+
+### Update `NODE_MODULE_VERSION`
+
+This macro in `src/node_version.h` is used to signal an ABI version for native
+addons. It currently has two common uses in the community:
+
+* Determining what API to work against for compiling native addons, e.g.
+  [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for
+  much of what it wraps.
+* Determining the ABI for downloading pre-built binaries of native addons, e.g.
+  [node-pre-gyp](https://github.com/mapbox/node-pre-gyp) uses this value as
+  exposed via `process.versions.modules` to help determine the appropriate
+  binary to download at install-time.
+
+The general rule is to bump this version when there are _breaking ABI_ changes
+and also if there are non-trivial API changes. The rules are not yet strictly
+defined, so if in doubt, please confer with someone that will have a more
+informed perspective, such as a member of the NAN team.
+
+A registry of currently used `NODE_MODULE_VERSION` values is maintained at
+<https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
+When bumping `NODE_MODULE_VERSION`, you should choose a new value not listed
+in the registry. Also include a change to the registry in your commit to
+reflect the newly used value. Ensure that the release commit removes the
+`-pre` suffix for the major version being prepared.
+
+It is current TSC policy to bump major version when ABI changes. If you
+see a need to bump `NODE_MODULE_VERSION` outside of a majore release then
+you should consult the TSC. Commits may need to be reverted or a major
+version bump may need to happen.
 
 ### Test releases and release candidates
 
