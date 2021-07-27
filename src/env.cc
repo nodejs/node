@@ -80,9 +80,6 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
-#undef VY
-#undef VS
-#undef VP
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
     indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
@@ -93,9 +90,6 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
-#define VP(PropertyName, StringValue) V(Private, PropertyName)
-#define VY(PropertyName, StringValue) V(Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \

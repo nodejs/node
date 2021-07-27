@@ -580,9 +580,6 @@ class IsolateData : public MemoryRetainer {
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
-#undef VY
-#undef VS
-#undef VP
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   size_t max_young_gen_size = 1;
@@ -598,9 +595,6 @@ class IsolateData : public MemoryRetainer {
   void DeserializeProperties(const std::vector<size_t>* indexes);
   void CreateProperties();
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   v8::Eternal<TypeName> PropertyName ## _;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
