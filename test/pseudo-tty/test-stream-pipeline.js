@@ -4,7 +4,6 @@ const {
   Transform,
   pipeline,
 } = require('stream');
-const assert = require('assert');
 
 function createTransformStream(tf, context) {
   return new Transform({
