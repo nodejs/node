@@ -87,51 +87,32 @@ const net = require('net');
 }
 
 {
-	const w = new Writable({
-	  write (chunk, enc, cb) {
-	    cb()
-	  }
-	});
+  const w = new Writable({
+    write(chunk, enc, cb) {
+      cb();
+    }
+  });
 
-	function createTransformStream (tf, context) {
-	  return new Transform({
-	    readableObjectMode: true,
-	    writableObjectMode: true,
+  function createTransformStream(tf, context) {
+    return new Transform({
+      readableObjectMode: true,
+      writableObjectMode: true,
 
-	    transform (chunk, encoding, done) {
-	      tf(chunk, context, done);
-	    }
-	  });
-	}
+      transform(chunk, encoding, done) {
+        tf(chunk, context, done);
+      }
+    });
+  }
 
-	const ts = createTransformStream((chunk, _, done) => done(new Error('Artificial error')));
+  const ts = createTransformStream((chunk, _, done) => {
+    return done(new Error('Artificial error'));
+  });
 
-	pipeline(ts, w, common.mustCall((err) => {
-		assert.ok(err, 'should have an error');
-	}))
+  pipeline(ts, w, common.mustCall((err) => {
+    assert.ok(err, 'should have an error');
+  }));
 
-	ts.write('test')
-}
-
-{
-	function createTransformStream (tf, context) {
-	  return new Transform({
-	    readableObjectMode: true,
-	    writableObjectMode: true,
-
-	    transform (chunk, encoding, done) {
-	      tf(chunk, context, done);
-	    }
-	  })
-	}
-
-	const ts = createTransformStream((chunk, _, done) => done(new Error('Artificial error')));
-
-	pipeline(ts, process.stdout, common.mustCall((err) => {
-		assert.ok(err, 'should have an error');
-	}))
-
-	ts.write('test');
+  ts.write('test');
 }
 
 {
