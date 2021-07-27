@@ -3,7 +3,7 @@ name: "Commit messages adheres to guidelines at https://goo.gl/p2fr5Q"
 on: [pull_request]
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
 
 jobs:
   lint-commit-message:
