@@ -319,8 +319,6 @@ For information about the governance of the Node.js project, see
 **Gerhard Stöbich** &lt;deb2001-github@yahoo.de&gt;  (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
 **Gabriel Schulhof** &lt;gabrielschulhof@gmail.com&gt;
-* [gdams](https://github.com/gdams) -
-**George Adams** &lt;george.adams@microsoft.com&gt; (he/him)
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gengjiawen](https://github.com/gengjiawen) -
@@ -494,6 +492,8 @@ For information about the governance of the Node.js project, see
 **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
+* [gdams](https://github.com/gdams) -
+**George Adams** &lt;george.adams@microsoft.com&gt; (he/him)
 * [gibfahn](https://github.com/gibfahn) -
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [glentiki](https://github.com/glentiki) -
