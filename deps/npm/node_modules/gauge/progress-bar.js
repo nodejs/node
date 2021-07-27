@@ -27,7 +27,7 @@ function repeat (string, width) {
       result += string
     }
     n = Math.floor(n / 2)
-    /*eslint no-self-assign: 0*/
+    /* eslint no-self-assign: 0 */
     string += string
   } while (n && stringWidth(result) < width)
 
