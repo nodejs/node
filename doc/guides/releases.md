@@ -475,26 +475,6 @@ minutes which will prevent Jenkins from clearing the workspace to start a new
 one. This isn't a big deal, it's just a hassle because it'll result in another
 failed build if you start again!
 
-ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on
-release builds, I think it's because of the additional macro settings that go in
-to a release build that nullify previous builds. Also most of the release build
-machines are separate to the test build machines so they don't get any benefit
-from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7
-builder to complete and you should normally wait for this to finish. It is
-possible to rush a release out if you want and add additional builds later but
-we normally provide ARMv7 from initial promotion.
-
-You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer
-than the others. It is only necessary to have the main Linux (x64 and x86),
-macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers,
-and docs (both produced currently by an macOS worker). **If you promote builds
-_before_ ARM builds have finished, you must repeat the promotion step for the
-ARM builds when they are ready**. If the ARMv6 build failed for some reason you
-can use the
-[`iojs-release-arm6-only`](https://ci-release.nodejs.org/job/iojs+release-arm6-only/)
-build in the release CI to re-run the build only for ARMv6. When launching the
-build make sure to use the same commit hash as for the original release.
-
 ### 10. Test the build
 
 Jenkins collects the artifacts from the builds, allowing you to download and
@@ -677,11 +657,6 @@ SHASUMS256.txt.sig.
 **g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
 </details>
-
-If you didn't wait for ARM builds in the previous step before promoting the
-release, you should re-run `tools/release.sh` after the ARM builds have
-finished. That will move the ARM artifacts into the correct location. You will
-be prompted to re-sign `SHASUMS256.txt`.
 
 **It is possible to only sign a release by running `./tools/release.sh -s
 vX.Y.Z`.**
