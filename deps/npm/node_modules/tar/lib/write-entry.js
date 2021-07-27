@@ -26,6 +26,7 @@ const CLOSE = Symbol('close')
 const MODE = Symbol('mode')
 const warner = require('./warn-mixin.js')
 const winchars = require('./winchars.js')
+const stripAbsolutePath = require('./strip-absolute-path.js')
 
 const modeFix = require('./mode-fix.js')
 
@@ -54,12 +55,12 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)
 
-    if (!this.preservePaths && path.win32.isAbsolute(p)) {
-      // absolutes on posix are also absolutes on win32
-      // so we only need to test this one to get both
-      const parsed = path.win32.parse(p)
-      this.warn('stripping ' + parsed.root + ' from absolute path', p)
-      this.path = p.substr(parsed.root.length)
+    if (!this.preservePaths) {
+      const s = stripAbsolutePath(this.path)
+      if (s[0]) {
+        this.path = s[1]
+        this.warn('stripping ' + s[0] + ' from absolute path', p)
+      }
     }
 
     this.win32 = !!opt.win32 || process.platform === 'win32'
@@ -343,13 +344,15 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)
 
-    if (path.isAbsolute(this.path) && !this.preservePaths) {
-      const parsed = path.parse(this.path)
-      this.warn(
-        'stripping ' + parsed.root + ' from absolute path',
-        this.path
-      )
-      this.path = this.path.substr(parsed.root.length)
+    if (!this.preservePaths) {
+      const s = stripAbsolutePath(this.path)
+      if (s[0]) {
+        this.warn(
+          'stripping ' + s[0] + ' from absolute path',
+          this.path
+        )
+        this.path = s[1]
+      }
     }
 
     this.remain = readEntry.size
