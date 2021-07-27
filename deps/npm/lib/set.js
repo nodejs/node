@@ -1,29 +1,13 @@
-const BaseCommand = require('./base-command.js')
 
-class Set extends BaseCommand {
-  static get description () {
-    return 'Set a value in the npm configuration'
-  }
+module.exports = set
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'set'
-  }
+set.usage = 'npm set <key> <value> (See `npm config`)'
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['<key>=<value> [<key>=<value> ...] (See `npm config`)']
-  }
+var npm = require('./npm.js')
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  async completion (opts) {
-    return this.npm.commands.config.completion(opts)
-  }
+set.completion = npm.commands.config.completion
 
-  exec (args, cb) {
-    if (!args.length)
-      return cb(this.usage)
-    this.npm.commands.config(['set'].concat(args), cb)
-  }
+function set (args, cb) {
+  if (!args.length) return cb(set.usage)
+  npm.commands.config(['set'].concat(args), cb)
 }
-module.exports = Set

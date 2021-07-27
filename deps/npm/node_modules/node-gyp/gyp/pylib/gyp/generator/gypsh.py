@@ -21,38 +21,36 @@ import sys
 # All of this stuff about generator variables was lovingly ripped from gypd.py.
 # That module has a much better description of what's going on and why.
 _generator_identity_variables = [
-    "EXECUTABLE_PREFIX",
-    "EXECUTABLE_SUFFIX",
-    "INTERMEDIATE_DIR",
-    "PRODUCT_DIR",
-    "RULE_INPUT_ROOT",
-    "RULE_INPUT_DIRNAME",
-    "RULE_INPUT_EXT",
-    "RULE_INPUT_NAME",
-    "RULE_INPUT_PATH",
-    "SHARED_INTERMEDIATE_DIR",
+  'EXECUTABLE_PREFIX',
+  'EXECUTABLE_SUFFIX',
+  'INTERMEDIATE_DIR',
+  'PRODUCT_DIR',
+  'RULE_INPUT_ROOT',
+  'RULE_INPUT_DIRNAME',
+  'RULE_INPUT_EXT',
+  'RULE_INPUT_NAME',
+  'RULE_INPUT_PATH',
+  'SHARED_INTERMEDIATE_DIR',
 ]
 
-generator_default_variables = {}
+generator_default_variables = {
+}
 
 for v in _generator_identity_variables:
-    generator_default_variables[v] = "<(%s)" % v
+  generator_default_variables[v] = '<(%s)' % v
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
-    locals = {
-        "target_list": target_list,
-        "target_dicts": target_dicts,
-        "data": data,
-    }
+  locals = {
+        'target_list':  target_list,
+        'target_dicts': target_dicts,
+        'data':         data,
+      }
 
-    # Use a banner that looks like the stock Python one and like what
-    # code.interact uses by default, but tack on something to indicate what
-    # locals are available, and identify gypsh.
-    banner = "Python %s on %s\nlocals.keys() = %s\ngypsh" % (
-        sys.version,
-        sys.platform,
-        repr(sorted(locals.keys())),
-    )
+  # Use a banner that looks like the stock Python one and like what
+  # code.interact uses by default, but tack on something to indicate what
+  # locals are available, and identify gypsh.
+  banner='Python %s on %s\nlocals.keys() = %s\ngypsh' % \
+         (sys.version, sys.platform, repr(sorted(locals.keys())))
 
-    code.interact(banner, local=locals)
+  code.interact(banner, local=locals)

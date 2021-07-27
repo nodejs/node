@@ -1,0 +1,40 @@
+[![view on npm](https://img.shields.io/npm/v/byte-size.svg)](https://www.npmjs.org/package/byte-size)
+[![npm module downloads](https://img.shields.io/npm/dt/byte-size.svg)](https://www.npmjs.org/package/byte-size)
+[![Build Status](https://travis-ci.org/75lb/byte-size.svg?branch=master)](https://travis-ci.org/75lb/byte-size)
+[![Coverage Status](https://coveralls.io/repos/github/75lb/byte-size/badge.svg?branch=master)](https://coveralls.io/github/75lb/byte-size?branch=master)
+[![Dependency Status](https://david-dm.org/75lb/byte-size.svg)](https://david-dm.org/75lb/byte-size)
+[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](https://github.com/feross/standard)
+
+{{>main}}
+
+### Load anywhere
+
+This library is compatible with Node.js, the Web and any style of module loader. It can be loaded anywhere, natively without transpilation.
+
+Node.js:
+
+```js
+const byteSize = require('byte-size')
+```
+
+Within Node.js with ECMAScript Module support enabled:
+
+```js
+import byteSize from 'byte-size'
+```
+
+Within a modern browser ECMAScript Module:
+
+```js
+import byteSize from './node_modules/byte-size/index.mjs'
+```
+
+Old browser (adds `window.byteSize`):
+
+```html
+<script nomodule src="./node_modules/byte-size/dist/index.js"></script>
+```
+
+* * *
+
+&copy; 2014-18 Lloyd Brookes \<75pound@gmail.com\>. Documented by [jsdoc-to-markdown](https://github.com/jsdoc2md/jsdoc-to-markdown).

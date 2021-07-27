@@ -1,0 +1,69 @@
+{
+  "_args": [
+    [
+      "mississippi@3.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "mississippi@3.0.0",
+  "_id": "mississippi@3.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-x471SsVjUtBRtcvd4BzKE9kFC+/2TeWgKCgw0bZcw1b9l2X3QX5vCWgF+KaZaYm87Ss//rHnWryupDrgLvmSkA==",
+  "_location": "/mississippi",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "mississippi@3.0.0",
+    "name": "mississippi",
+    "escapedName": "mississippi",
+    "rawSpec": "3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "3.0.0"
+  },
+  "_requiredBy": [
+    "/",
+    "/cacache",
+    "/make-fetch-happen",
+    "/npm-registry-fetch/make-fetch-happen",
+    "/pacote"
+  ],
+  "_resolved": "https://registry.npmjs.org/mississippi/-/mississippi-3.0.0.tgz",
+  "_spec": "3.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "max ogden"
+  },
+  "bugs": {
+    "url": "https://github.com/maxogden/mississippi/issues"
+  },
+  "dependencies": {
+    "concat-stream": "^1.5.0",
+    "duplexify": "^3.4.2",
+    "end-of-stream": "^1.1.0",
+    "flush-write-stream": "^1.0.0",
+    "from2": "^2.1.0",
+    "parallel-transform": "^1.1.0",
+    "pump": "^3.0.0",
+    "pumpify": "^1.3.3",
+    "stream-each": "^1.1.0",
+    "through2": "^2.0.0"
+  },
+  "description": "a collection of useful streams",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "homepage": "https://github.com/maxogden/mississippi#readme",
+  "license": "BSD-2-Clause",
+  "main": "index.js",
+  "name": "mississippi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxogden/mississippi.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "3.0.0"
+}

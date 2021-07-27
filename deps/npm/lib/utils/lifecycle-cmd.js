@@ -1,18 +1,18 @@
-// The implementation of commands that are just "run a script"
-// restart, start, stop, test
+exports = module.exports = cmd
 
-const BaseCommand = require('../base-command.js')
-class LifecycleCmd extends BaseCommand {
-  static get usage () {
-    return ['[-- <args>]']
-  }
+var npm = require('../npm.js')
+var usage = require('./usage.js')
 
-  exec (args, cb) {
-    this.npm.commands['run-script']([this.constructor.name, ...args], cb)
+function cmd (stage) {
+  function CMD (args, cb) {
+    npm.commands['run-script']([stage].concat(args), cb)
   }
-
-  execWorkspaces (args, filters, cb) {
-    this.npm.commands['run-script']([this.constructor.name, ...args], cb)
+  CMD.usage = usage(stage, 'npm ' + stage + ' [-- <args>]')
+  var installedShallow = require('./completion/installed-shallow.js')
+  CMD.completion = function (opts, cb) {
+    installedShallow(opts, function (d) {
+      return d.scripts && d.scripts[stage]
+    }, cb)
   }
+  return CMD
 }
-module.exports = LifecycleCmd

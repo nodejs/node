@@ -1,91 +1,77 @@
-const fetch = require('npm-registry-fetch')
+'use strict'
+
+const BB = require('bluebird')
+
+const fetch = require('libnpm/fetch')
+const figgyPudding = require('figgy-pudding')
 const log = require('npmlog')
-const npa = require('npm-package-arg')
+const npa = require('libnpm/parse-arg')
+const npm = require('./npm.js')
+const npmConfig = require('./config/figgy-config.js')
+const output = require('./utils/output.js')
+const usage = require('./utils/usage.js')
+const whoami = require('./whoami.js')
 
-const getIdentity = require('./utils/get-identity')
+const StarConfig = figgyPudding({
+  'unicode': {}
+})
 
-const BaseCommand = require('./base-command.js')
-class Star extends BaseCommand {
-  static get description () {
-    return 'Mark your favorite packages'
-  }
+star.usage = usage(
+  'star',
+  'npm star [<pkg>...]\n' +
+  'npm unstar [<pkg>...]'
+)
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'star'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<pkg>...]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'registry',
-      'unicode',
-    ]
-  }
-
-  exec (args, cb) {
-    this.star(args).then(() => cb()).catch(cb)
-  }
-
-  async star (args) {
-    if (!args.length)
-      throw new Error(this.usage)
-
-    // if we're unstarring, then show an empty star image
-    // otherwise, show the full star image
-    const unicode = this.npm.config.get('unicode')
-    const unstar = this.npm.config.get('star.unstar')
-    const full = unicode ? '\u2605 ' : '(*)'
-    const empty = unicode ? '\u2606 ' : '( )'
-    const show = unstar ? empty : full
-
-    const pkgs = args.map(npa)
-    for (const pkg of pkgs) {
-      const [username, fullData] = await Promise.all([
-        getIdentity(this.npm, this.npm.flatOptions),
-        fetch.json(pkg.escapedName, {
-          ...this.npm.flatOptions,
-          spec: pkg,
-          query: { write: true },
-          preferOnline: true,
-        }),
-      ])
-
-      if (!username)
-        throw new Error('You need to be logged in!')
-
-      const body = {
-        _id: fullData._id,
-        _rev: fullData._rev,
-        users: fullData.users || {},
-      }
-
-      if (!unstar) {
-        log.info('star', 'starring', body._id)
-        body.users[username] = true
-        log.verbose('star', 'starring', body)
-      } else {
-        delete body.users[username]
-        log.info('unstar', 'unstarring', body._id)
-        log.verbose('unstar', 'unstarring', body)
-      }
-
-      const data = await fetch.json(pkg.escapedName, {
-        ...this.npm.flatOptions,
-        spec: pkg,
-        method: 'PUT',
-        body,
-      })
-
-      this.npm.output(show + ' ' + pkg.name)
-      log.verbose('star', data)
-      return data
-    }
-  }
+star.completion = function (opts, cb) {
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
-module.exports = Star
+
+module.exports = star
+function star (args, cb) {
+  const opts = StarConfig(npmConfig())
+  return BB.try(() => {
+    if (!args.length) throw new Error(star.usage)
+    let s = opts.unicode ? '\u2605 ' : '(*)'
+    const u = opts.unicode ? '\u2606 ' : '( )'
+    const using = !(npm.command.match(/^un/))
+    if (!using) s = u
+    return BB.map(args.map(npa), pkg => {
+      return BB.all([
+        whoami([pkg], true, () => {}),
+        fetch.json(pkg.escapedName, opts.concat({
+          spec: pkg,
+          query: {write: true},
+          'prefer-online': true
+        }))
+      ]).then(([username, fullData]) => {
+        if (!username) { throw new Error('You need to be logged in!') }
+        const body = {
+          _id: fullData._id,
+          _rev: fullData._rev,
+          users: fullData.users || {}
+        }
+
+        if (using) {
+          log.info('star', 'starring', body._id)
+          body.users[username] = true
+          log.verbose('star', 'starring', body)
+        } else {
+          delete body.users[username]
+          log.info('star', 'unstarring', body._id)
+          log.verbose('star', 'unstarring', body)
+        }
+        return fetch.json(pkg.escapedName, opts.concat({
+          spec: pkg,
+          method: 'PUT',
+          body
+        }))
+      }).then(data => {
+        output(s + ' ' + pkg.name)
+        log.verbose('star', data)
+        return data
+      })
+    })
+  }).nodeify(cb)
+}

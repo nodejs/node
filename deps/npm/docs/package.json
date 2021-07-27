@@ -1,0 +1,45 @@
+{
+  "name": "npm-cli-docs",
+  "description": "npm cli docs",
+  "version": "0.1.0",
+  "author": "Tanya Brassie <tanyabrassie@tanyascmachine2.home>",
+  "license": "Artistic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli"
+  },
+  "dependencies": {
+    "babel-plugin-styled-components": "^1.10.6",
+    "eslint": "^6.3.0",
+    "gatsby": "^2.18.17",
+    "gatsby-image": "^2.2.37",
+    "gatsby-plugin-catch-links": "^2.1.21",
+    "gatsby-plugin-google-fonts": "^1.0.1",
+    "gatsby-plugin-ipfs": "^2.0.2",
+    "gatsby-plugin-manifest": "^2.2.34",
+    "gatsby-plugin-no-sourcemaps": "^2.1.1",
+    "gatsby-plugin-offline": "^3.0.30",
+    "gatsby-plugin-react-helmet": "^3.1.18",
+    "gatsby-plugin-root-import": "^2.0.5",
+    "gatsby-plugin-sharp": "^2.3.10",
+    "gatsby-plugin-styled-components": "^3.1.16",
+    "gatsby-remark-autolink-headers": "^2.1.21",
+    "gatsby-remark-prismjs": "^3.3.28",
+    "gatsby-source-filesystem": "^2.1.43",
+    "gatsby-transformer-remark": "^2.6.45",
+    "prismjs": "^1.17.1",
+    "prop-types": "^15.7.2",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "react-helmet": "^5.2.1",
+    "rebass": "^4.0.5",
+    "styled-components": "^4.4.0"
+  },
+  "scripts": {
+    "develop": "gatsby develop",
+    "start": "npm run develop",
+    "build": "gatsby build",
+    "build:static": "GATSBY_IS_STATIC=true gatsby build --prefix-paths",
+    "serve": "gatsby serve"
+  }
+}

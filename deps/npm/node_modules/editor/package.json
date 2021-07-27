@@ -1,0 +1,67 @@
+{
+  "_args": [
+    [
+      "editor@1.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "editor@1.0.0",
+  "_id": "editor@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-YMf4e9YrzGqJT6jM1q+3gjok90I=",
+  "_location": "/editor",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "editor@1.0.0",
+    "name": "editor",
+    "escapedName": "editor",
+    "rawSpec": "1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "1.0.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/editor/-/editor-1.0.0.tgz",
+  "_spec": "1.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "bugs": {
+    "url": "https://github.com/substack/node-editor/issues"
+  },
+  "dependencies": {},
+  "description": "launch $EDITOR in your program",
+  "devDependencies": {
+    "tap": "~0.4.4"
+  },
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "engine": {
+    "node": ">=0.6"
+  },
+  "homepage": "https://github.com/substack/node-editor",
+  "keywords": [
+    "text",
+    "edit",
+    "shell"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "editor",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/node-editor.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.0.0"
+}

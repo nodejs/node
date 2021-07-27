@@ -1,209 +1,164 @@
+/* eslint-disable standard/no-callback-literal */
+module.exports = distTag
+
+const BB = require('bluebird')
+
+const figgyPudding = require('figgy-pudding')
 const log = require('npmlog')
-const npa = require('npm-package-arg')
-const regFetch = require('npm-registry-fetch')
-const semver = require('semver')
-
+const npa = require('libnpm/parse-arg')
+const npmConfig = require('./config/figgy-config.js')
+const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const readPackageName = require('./utils/read-package-name.js')
-const BaseCommand = require('./base-command.js')
+const readLocalPkg = BB.promisify(require('./utils/read-local-package.js'))
+const regFetch = require('libnpm/fetch')
+const semver = require('semver')
+const usage = require('./utils/usage')
 
-class DistTag extends BaseCommand {
-  static get description () {
-    return 'Modify package distribution tags'
+const DistTagOpts = figgyPudding({
+  tag: {}
+})
+
+distTag.usage = usage(
+  'dist-tag',
+  'npm dist-tag add <pkg>@<version> [<tag>]' +
+  '\nnpm dist-tag rm <pkg> <tag>' +
+  '\nnpm dist-tag ls [<pkg>]'
+)
+
+distTag.completion = function (opts, cb) {
+  var argv = opts.conf.argv.remain
+  if (argv.length === 2) {
+    return cb(null, ['add', 'rm', 'ls'])
   }
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['workspace', 'workspaces']
+  switch (argv[2]) {
+    default:
+      return cb()
   }
+}
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'dist-tag'
-  }
+function UsageError () {
+  throw Object.assign(new Error('Usage:\n' + distTag.usage), {
+    code: 'EUSAGE'
+  })
+}
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'add <pkg>@<version> [<tag>]',
-      'rm <pkg> <tag>',
-      'ls [<pkg>]',
-    ]
-  }
-
-  async completion (opts) {
-    const argv = opts.conf.argv.remain
-    if (argv.length === 2)
-      return ['add', 'rm', 'ls']
-
-    switch (argv[2]) {
+function distTag ([cmd, pkg, tag], cb) {
+  const opts = DistTagOpts(npmConfig())
+  return BB.try(() => {
+    switch (cmd) {
+      case 'add': case 'a': case 'set': case 's':
+        return add(pkg, tag, opts)
+      case 'rm': case 'r': case 'del': case 'd': case 'remove':
+        return remove(pkg, tag, opts)
+      case 'ls': case 'l': case 'sl': case 'list':
+        return list(pkg, opts)
       default:
-        return []
+        if (!pkg) {
+          return list(cmd, opts)
+        } else {
+          UsageError()
+        }
     }
+  }).then(
+    x => cb(null, x),
+    err => {
+      if (err.code === 'EUSAGE') {
+        cb(err.message)
+      } else {
+        cb(err)
+      }
+    }
+  )
+}
+
+function add (spec, tag, opts) {
+  spec = npa(spec || '')
+  const version = spec.rawSpec
+  const t = (tag || opts.tag).trim()
+
+  log.verbose('dist-tag add', t, 'to', spec.name + '@' + version)
+
+  if (!spec || !version || !t) UsageError()
+
+  if (semver.validRange(t)) {
+    throw new Error('Tag name must not be a valid SemVer range: ' + t)
   }
 
-  exec (args, cb) {
-    this.distTag(args).then(() => cb()).catch(cb)
-  }
-
-  async distTag ([cmdName, pkg, tag]) {
-    const opts = this.npm.flatOptions
-
-    if (['add', 'a', 'set', 's'].includes(cmdName))
-      return this.add(pkg, tag, opts)
-
-    if (['rm', 'r', 'del', 'd', 'remove'].includes(cmdName))
-      return this.remove(pkg, tag, opts)
-
-    if (['ls', 'l', 'sl', 'list'].includes(cmdName))
-      return this.list(pkg, opts)
-
-    if (!pkg) {
-      // when only using the pkg name the default behavior
-      // should be listing the existing tags
-      return this.list(cmdName, opts)
-    } else
-      throw this.usageError()
-  }
-
-  execWorkspaces (args, filters, cb) {
-    this.distTagWorkspaces(args, filters).then(() => cb()).catch(cb)
-  }
-
-  async distTagWorkspaces ([cmdName, pkg, tag], filters) {
-    // cmdName is some form of list
-    // pkg is one of:
-    // - unset
-    // - .
-    // - .@version
-    if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg)))
-      return this.listWorkspaces(filters)
-
-    // pkg is unset
-    // cmdName is one of:
-    // - unset
-    // - .
-    // - .@version
-    if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName)))
-      return this.listWorkspaces(filters)
-
-    // anything else is just a regular dist-tag command
-    // so we fallback to the non-workspaces implementation
-    log.warn('Ignoring workspaces for specified package')
-    return this.distTag([cmdName, pkg, tag])
-  }
-
-  async add (spec, tag, opts) {
-    spec = npa(spec || '')
-    const version = spec.rawSpec
-    const defaultTag = tag || this.npm.config.get('tag')
-
-    log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
-
-    if (!spec.name || !version || !defaultTag)
-      throw this.usageError()
-
-    const t = defaultTag.trim()
-
-    if (semver.validRange(t))
-      throw new Error('Tag name must not be a valid SemVer range: ' + t)
-
-    const tags = await this.fetchTags(spec, opts)
+  return fetchTags(spec, opts).then(tags => {
     if (tags[t] === version) {
       log.warn('dist-tag add', t, 'is already set to version', version)
       return
     }
     tags[t] = version
-    const url =
-      `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(t)}`
-    const reqOpts = {
-      ...opts,
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(t)}`
+    const reqOpts = opts.concat({
       method: 'PUT',
       body: JSON.stringify(version),
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/json'
       },
-      spec,
-    }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
-    this.npm.output(`+${t}: ${spec.name}@${version}`)
-  }
+      spec
+    })
+    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
+      output(`+${t}: ${spec.name}@${version}`)
+    })
+  })
+}
 
-  async remove (spec, tag, opts) {
-    spec = npa(spec || '')
-    log.verbose('dist-tag del', tag, 'from', spec.name)
+function remove (spec, tag, opts) {
+  spec = npa(spec || '')
+  log.verbose('dist-tag del', tag, 'from', spec.name)
 
-    if (!spec.name)
-      throw this.usageError()
-
-    const tags = await this.fetchTags(spec, opts)
+  return fetchTags(spec, opts).then(tags => {
     if (!tags[tag]) {
       log.info('dist-tag del', tag, 'is not a dist-tag on', spec.name)
       throw new Error(tag + ' is not a dist-tag on ' + spec.name)
     }
     const version = tags[tag]
     delete tags[tag]
-    const url =
-      `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
-    const reqOpts = {
-      ...opts,
+    const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
+    const reqOpts = opts.concat({
       method: 'DELETE',
-      spec,
-    }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
-    this.npm.output(`-${tag}: ${spec.name}@${version}`)
-  }
-
-  async list (spec, opts) {
-    if (!spec) {
-      if (this.npm.config.get('global'))
-        throw this.usageError()
-      const pkg = await readPackageName(this.npm.prefix)
-      if (!pkg)
-        throw this.usageError()
-
-      return this.list(pkg, opts)
-    }
-    spec = npa(spec)
-
-    try {
-      const tags = await this.fetchTags(spec, opts)
-      const msg =
-        Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
-      this.npm.output(msg)
-      return tags
-    } catch (err) {
-      log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)
-      throw err
-    }
-  }
-
-  async listWorkspaces (filters) {
-    await this.setWorkspaces(filters)
-
-    for (const name of this.workspaceNames) {
-      try {
-        this.npm.output(`${name}:`)
-        await this.list(npa(name), this.npm.flatOptions)
-      } catch (err) {
-        // set the exitCode directly, but ignore the error
-        // since it will have already been logged by this.list()
-        process.exitCode = 1
-      }
-    }
-  }
-
-  async fetchTags (spec, opts) {
-    const data = await regFetch.json(
-      `/-/package/${spec.escapedName}/dist-tags`,
-      { ...opts, 'prefer-online': true, spec }
-    )
-    if (data && typeof data === 'object')
-      delete data._etag
-    if (!data || !Object.keys(data).length)
-      throw new Error('No dist-tags found for ' + spec.name)
-
-    return data
-  }
+      spec
+    })
+    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
+      output(`-${tag}: ${spec.name}@${version}`)
+    })
+  })
 }
-module.exports = DistTag
+
+function list (spec, opts) {
+  if (!spec) {
+    return readLocalPkg().then(pkg => {
+      if (!pkg) { UsageError() }
+      return list(pkg, opts)
+    })
+  }
+  spec = npa(spec)
+
+  return fetchTags(spec, opts).then(tags => {
+    var msg = Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
+    output(msg)
+    return tags
+  }, err => {
+    log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)
+    throw err
+  })
+}
+
+function fetchTags (spec, opts) {
+  return regFetch.json(
+    `/-/package/${spec.escapedName}/dist-tags`,
+    opts.concat({
+      'prefer-online': true,
+      spec
+    })
+  ).then(data => {
+    if (data && typeof data === 'object') delete data._etag
+    if (!data || !Object.keys(data).length) {
+      throw new Error('No dist-tags found for ' + spec.name)
+    }
+    return data
+  })
+}

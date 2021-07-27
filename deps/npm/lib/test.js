@@ -1,33 +1,16 @@
-const LifecycleCmd = require('./utils/lifecycle-cmd.js')
+/* eslint-disable standard/no-callback-literal */
+module.exports = test
 
-// This ends up calling run-script(['test', ...args])
-class Test extends LifecycleCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Test a package'
-  }
+const testCmd = require('./utils/lifecycle-cmd.js')('test')
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'test'
-  }
+test.usage = testCmd.usage
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'ignore-scripts',
-      'script-shell',
-    ]
-  }
-
-  exec (args, cb) {
-    super.exec(args, er => {
-      if (er && er.code === 'ELIFECYCLE') {
-        /* eslint-disable standard/no-callback-literal */
-        cb('Test failed.  See above for more details.')
-      } else
-        cb(er)
-    })
-  }
+function test (args, cb) {
+  testCmd(args, function (er) {
+    if (!er) return cb()
+    if (er.code === 'ELIFECYCLE') {
+      return cb('Test failed.  See above for more details.')
+    }
+    return cb(er)
+  })
 }
-module.exports = Test

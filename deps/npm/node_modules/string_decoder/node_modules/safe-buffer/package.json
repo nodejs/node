@@ -1,0 +1,62 @@
+{
+  "_from": "safe-buffer@~5.2.0",
+  "_id": "safe-buffer@5.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-fZEwUGbVl7kouZs1jCdMLdt95hdIv0ZeHg6L7qPeciMZhZ+/gdesW4wgTARkrFWEpspjEATAzUGPG8N2jJiwbg==",
+  "_location": "/string_decoder/safe-buffer",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "safe-buffer@~5.2.0",
+    "name": "safe-buffer",
+    "escapedName": "safe-buffer",
+    "rawSpec": "~5.2.0",
+    "saveSpec": null,
+    "fetchSpec": "~5.2.0"
+  },
+  "_requiredBy": [
+    "/string_decoder"
+  ],
+  "_resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.2.0.tgz",
+  "_shasum": "b74daec49b1148f88c64b68d49b1e815c1f2f519",
+  "_spec": "safe-buffer@~5.2.0",
+  "_where": "/Users/darcyclarke/Documents/Repos/npm/cli/node_modules/string_decoder",
+  "author": {
+    "name": "Feross Aboukhadijeh",
+    "email": "feross@feross.org",
+    "url": "http://feross.org"
+  },
+  "bugs": {
+    "url": "https://github.com/feross/safe-buffer/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Safer Node.js Buffer API",
+  "devDependencies": {
+    "standard": "*",
+    "tape": "^4.0.0"
+  },
+  "homepage": "https://github.com/feross/safe-buffer",
+  "keywords": [
+    "buffer",
+    "buffer allocate",
+    "node security",
+    "safe",
+    "safe-buffer",
+    "security",
+    "uninitialized"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "safe-buffer",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/feross/safe-buffer.git"
+  },
+  "scripts": {
+    "test": "standard && tape test/*.js"
+  },
+  "types": "index.d.ts",
+  "version": "5.2.0"
+}

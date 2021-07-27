@@ -18,15 +18,11 @@ if type complete &>/dev/null; then
     fi
 
     local si="$IFS"
-    if ! IFS=$'\n' COMPREPLY=($(COMP_CWORD="$cword" \
+    IFS=$'\n' COMPREPLY=($(COMP_CWORD="$cword" \
                            COMP_LINE="$COMP_LINE" \
                            COMP_POINT="$COMP_POINT" \
                            npm completion -- "${words[@]}" \
-                           2>/dev/null)); then
-      local ret=$?
-      IFS="$si"
-      return $ret
-    fi
+                           2>/dev/null)) || return $?
     IFS="$si"
     if type __ltrim_colon_completions &>/dev/null; then
       __ltrim_colon_completions "${words[cword]}"
@@ -53,16 +49,11 @@ elif type compctl &>/dev/null; then
     read -l line
     read -ln point
     si="$IFS"
-    if ! IFS=$'\n' reply=($(COMP_CWORD="$cword" \
+    IFS=$'\n' reply=($(COMP_CWORD="$cword" \
                        COMP_LINE="$line" \
                        COMP_POINT="$point" \
                        npm completion -- "${words[@]}" \
-                       2>/dev/null)); then
-
-      local ret=$?
-      IFS="$si"
-      return $ret
-    fi
+                       2>/dev/null)) || return $?
     IFS="$si"
   }
   compctl -K _npm_completion npm

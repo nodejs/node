@@ -1,31 +1,63 @@
-const getIdentity = require('./utils/get-identity.js')
+'use strict'
 
-const BaseCommand = require('./base-command.js')
-class Whoami extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Display npm username'
-  }
+const BB = require('bluebird')
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'whoami'
-  }
+const npmConfig = require('./config/figgy-config.js')
+const fetch = require('libnpm/fetch')
+const figgyPudding = require('figgy-pudding')
+const npm = require('./npm.js')
+const output = require('./utils/output.js')
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['registry']
-  }
+const WhoamiConfig = figgyPudding({
+  json: {},
+  registry: {}
+})
 
-  exec (args, cb) {
-    this.whoami(args).then(() => cb()).catch(cb)
-  }
+module.exports = whoami
 
-  async whoami (args) {
-    const username = await getIdentity(this.npm, this.npm.flatOptions)
-    this.npm.output(
-      this.npm.config.get('json') ? JSON.stringify(username) : username
-    )
+whoami.usage = 'npm whoami [--registry <registry>]\n(just prints username according to given registry)'
+
+function whoami ([spec], silent, cb) {
+  // FIXME: need tighter checking on this, but is a breaking change
+  if (typeof cb !== 'function') {
+    cb = silent
+    silent = false
   }
+  const opts = WhoamiConfig(npmConfig())
+  return BB.try(() => {
+    // First, check if we have a user/pass-based auth
+    const registry = opts.registry
+    if (!registry) throw new Error('no default registry set')
+    return npm.config.getCredentialsByURI(registry)
+  }).then(({username, token}) => {
+    if (username) {
+      return username
+    } else if (token) {
+      return fetch.json('/-/whoami', opts.concat({
+        spec
+      })).then(({username}) => {
+        if (username) {
+          return username
+        } else {
+          throw Object.assign(new Error(
+            'Your auth token is no longer valid. Please log in again.'
+          ), {code: 'ENEEDAUTH'})
+        }
+      })
+    } else {
+      // At this point, if they have a credentials object, it doesn't have a
+      // token or auth in it.  Probably just the default registry.
+      throw Object.assign(new Error(
+        'This command requires you to be logged in.'
+      ), {code: 'ENEEDAUTH'})
+    }
+  }).then(username => {
+    if (silent) {
+    } else if (opts.json) {
+      output(JSON.stringify(username))
+    } else {
+      output(username)
+    }
+    return username
+  }).nodeify(cb)
 }
-module.exports = Whoami

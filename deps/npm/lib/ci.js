@@ -1,105 +1,51 @@
-const util = require('util')
-const Arborist = require('@npmcli/arborist')
-const rimraf = util.promisify(require('rimraf'))
-const reifyFinish = require('./utils/reify-finish.js')
-const runScript = require('@npmcli/run-script')
-const fs = require('fs')
-const readdir = util.promisify(fs.readdir)
+'use strict'
 
+const npm = require('./npm.js')
+const Installer = require('libcipm')
 const log = require('npmlog')
+const path = require('path')
+const pack = require('./pack.js')
 
-const removeNodeModules = async where => {
-  const rimrafOpts = { glob: false }
-  process.emit('time', 'npm-ci:rm')
-  const path = `${where}/node_modules`
-  // get the list of entries so we can skip the glob for performance
-  const entries = await readdir(path, null).catch(er => [])
-  await Promise.all(entries.map(f => rimraf(`${path}/${f}`, rimrafOpts)))
-  process.emit('timeEnd', 'npm-ci:rm')
+ci.usage = 'npm ci'
+
+ci.completion = (cb) => cb(null, [])
+
+module.exports = ci
+function ci (args, cb) {
+  const opts = {
+    // Add some non-npm-config opts by hand.
+    cache: path.join(npm.config.get('cache'), '_cacache'),
+    // NOTE: npm has some magic logic around color distinct from the config
+    // value, so we have to override it here
+    color: !!npm.color,
+    hashAlgorithm: 'sha1',
+    includeDeprecated: false,
+    log,
+    'npm-session': npm.session,
+    'project-scope': npm.projectScope,
+    refer: npm.referer,
+    dmode: npm.modes.exec,
+    fmode: npm.modes.file,
+    umask: npm.modes.umask,
+    npmVersion: npm.version,
+    tmp: npm.tmp,
+    dirPacker: pack.packGitDep
+  }
+
+  if (npm.config.get('dev')) {
+    log.warn('ci', 'Usage of the `--dev` option is deprecated. Use `--also=dev` instead.')
+  }
+
+  for (const key in npm.config.list[0]) {
+    if (!['log', 'cache'].includes(key)) {
+      opts[key] = npm.config.list[0][key]
+    }
+  }
+
+  return new Installer(opts).run().then(details => {
+    log.disableProgress()
+    console.log(`added ${details.pkgCount} packages in ${
+      details.runTime / 1000
+    }s`)
+  }).then(() => cb(), cb)
 }
-const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
-
-class CI extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Install a project with a clean slate'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'ci'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'audit',
-      'ignore-scripts',
-      'script-shell',
-    ]
-  }
-
-  exec (args, cb) {
-    this.ci().then(() => cb()).catch(cb)
-  }
-
-  async ci () {
-    if (this.npm.config.get('global')) {
-      const err = new Error('`npm ci` does not work for global packages')
-      err.code = 'ECIGLOBAL'
-      throw err
-    }
-
-    const where = this.npm.prefix
-    const opts = {
-      ...this.npm.flatOptions,
-      path: where,
-      log: this.npm.log,
-      save: false, // npm ci should never modify the lockfile or package.json
-      workspaces: this.workspaceNames,
-    }
-
-    const arb = new Arborist(opts)
-    await Promise.all([
-      arb.loadVirtual().catch(er => {
-        log.verbose('loadVirtual', er.stack)
-        const msg =
-          'The `npm ci` command can only install with an existing package-lock.json or\n' +
-          'npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or\n' +
-          'later to generate a package-lock.json file, then try again.'
-        throw new Error(msg)
-      }),
-      removeNodeModules(where),
-    ])
-    await arb.reify(opts)
-
-    const ignoreScripts = this.npm.config.get('ignore-scripts')
-    // run the same set of scripts that `npm install` runs.
-    if (!ignoreScripts) {
-      const scripts = [
-        'preinstall',
-        'install',
-        'postinstall',
-        'prepublish', // XXX should we remove this finally??
-        'preprepare',
-        'prepare',
-        'postprepare',
-      ]
-      const scriptShell = this.npm.config.get('script-shell') || undefined
-      for (const event of scripts) {
-        await runScript({
-          path: where,
-          args: [],
-          scriptShell,
-          stdio: 'inherit',
-          stdioString: true,
-          banner: log.level !== 'silent',
-          event,
-        })
-      }
-    }
-    await reifyFinish(this.npm, arb)
-  }
-}
-
-module.exports = CI

@@ -1,24 +1,20 @@
 ---
+section: using-npm
 title: scripts
-section: 7
 description: How npm handles the "scripts" field
 ---
 
+# scripts(7)
+
+## How npm handles the "scripts" field
+
 ### Description
 
-The `"scripts"` property of your `package.json` file supports a number
-of built-in scripts and their preset life cycle events as well as
-arbitrary scripts. These all can be executed by running
-`npm run-script <stage>` or `npm run <stage>` for short. *Pre* and *post*
-commands with matching names will be run for those as well (e.g. `premyscript`,
-`myscript`, `postmyscript`). Scripts from dependencies can be run with
-`npm explore <pkg> -- npm run <stage>`.
+The `"scripts"` property of of your `package.json` file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running `npm run-script <stage>` or `npm run <stage>` for short. *Pre* and *post* commands with matching names will be run for those as well (e.g. `premyscript`, `myscript`, `postmyscript`). Scripts from dependencies can be run with `npm explore <pkg> -- npm run <stage>`.
 
 ### Pre & Post Scripts
 
-To create "pre" or "post" scripts for any scripts defined in the
-`"scripts"` section of the `package.json`, simply create another script
-*with a matching name* and add "pre" or "post" to the beginning of them.
+To create "pre" or "post" scripts for any scripts defined in the `"scripts"` section of the `package.json`, simply create another script *with a matching name* and add "pre" or "post" to the beginning of them.
 
 ```json
 {
@@ -30,36 +26,20 @@ To create "pre" or "post" scripts for any scripts defined in the
 }
 ```
 
-In this example `npm run compress` would execute these scripts as
-described.
-
 ### Life Cycle Scripts
 
-There are some special life cycle scripts that happen only in certain
-situations. These scripts happen in addition to the `pre<event>`, `post<event>`, and
-`<event>` scripts.
-
+There are some special life cycle scripts that happen only in certain situations. These scripts happen in addtion to the "pre" and "post" script.
 * `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`
 
 **prepare** (since `npm@4.0.0`)
-* Runs any time before the package is packed, i.e. during `npm publish`
-    and `npm pack`
 * Runs BEFORE the package is packed
 * Runs BEFORE the package is published
 * Runs on local `npm install` without any arguments
 * Run AFTER `prepublish`, but BEFORE `prepublishOnly`
-
-* NOTE: If a package being installed through git contains a `prepare`
- script, its `dependencies` and `devDependencies` will be installed, and
- the prepare script will be run, before the package is packaged and
- installed.
-
-* As of `npm@7` these scripts run in the background.
-  To see the output, run with: `--foreground-scripts`.
+* NOTE: If a package being installed through git contains a `prepare` script, its `dependencies` and `devDependencies` will be installed, and the prepare script will be run, before the package is packaged and installed.
 
 **prepublish** (DEPRECATED)
-* Does not run during `npm publish`, but does run during `npm ci`
-  and `npm install`. See below for more info.
+* Same as `prepare`
 
 **prepublishOnly**
 * Runs BEFORE the package is prepared and packed, ONLY on `npm publish`.
@@ -69,7 +49,7 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 * NOTE: "`npm run pack`" is NOT the same as "`npm pack`". "`npm run pack`" is an arbitrary user defined script name, where as, "`npm pack`" is a CLI defined command.
 
 **postpack**
-* Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
+* Runs AFTER the tarball has been generated and moved to its final destination.
 
 #### Prepare and Prepublish
 
@@ -98,122 +78,65 @@ The advantage of doing these things at `prepublish` time is that they can be don
 
 ### Life Cycle Operation Order
 
-#### [`npm cache add`](/commands/npm-cache)
-
-* `prepare`
-
-#### [`npm ci`](/commands/npm-ci)
-
-* `preinstall`
-* `install`
-* `postinstall`
-* `prepublish`
-* `preprepare`
-* `prepare`
-* `postprepare`
-
- These all run after the actual installation of modules into
- `node_modules`, in order, with no internal actions happening in between
-
-#### [`npm diff`](/commands/npm-diff)
-
-* `prepare`
-
-#### [`npm install`](/commands/npm-install)
-
-These also run when you run `npm install -g <pkg-name>`
-
-* `preinstall`
-* `install`
-* `postinstall`
-* `prepublish`
-* `preprepare`
-* `prepare`
-* `postprepare`
-
-If there is a `binding.gyp` file in the root of your package and you
-haven't defined your own `install` or `preinstall` scripts, npm will
-default the `install` command to compile using node-gyp via `node-gyp
-rebuild`
-
-These are run from the scripts of `<pkg-name>`
-
-#### [`npm pack`](/commands/npm-pack)
-
-* `prepack`
-* `prepare`
-* `postpack`
-
-#### [`npm publish`](/commands/npm-publish)
+#### [`npm publish`](/cli-commands/npm-publish)
 
 * `prepublishOnly`
-* `prepack`
 * `prepare`
-* `postpack`
+* `prepublish`
 * `publish`
 * `postpublish`
 
-`prepare` will not run during `--dry-run`
+#### [`npm pack`](/cli-commands/npm-pack)
 
-#### [`npm rebuild`](/commands/npm-rebuild)
+* `prepack`
+* `postpack`
+
+#### [`npm install`](/cli-commands/npm-install)
 
 * `preinstall`
 * `install`
 * `postinstall`
-* `prepare`
 
-`prepare` is only run if the current directory is a symlink (e.g. with
-linked packages)
+Also triggers
 
-#### [`npm restart`](/commands/npm-restart)
+* `prepublish` (when on local)
+* `prepare` (when on local)
 
-If there is a `restart` script defined, these events are run, otherwise
-`stop` and `start` are both run if present, including their `pre` and
-`post` iterations)
+#### [`npm start`](/cli-commands/npm-start)
 
-* `prerestart`
-* `restart`
-* `postrestart`
-
-#### [`npm run <user defined>`](/commands/npm-run-script)
-
-* `pre<user-defined>`
-* `<user-defined>`
-* `post<user-defined>`
-
-#### [`npm start`](/commands/npm-start)
+`npm run start` has an `npm start` shorthand.
 
 * `prestart`
 * `start`
 * `poststart`
 
-If there is a `server.js` file in the root of your package, then npm
-will default the `start` command to `node server.js`.  `prestart` and
-`poststart` will still run in this case.
+### Default Values
+npm will default some script values based on package contents.
 
-#### [`npm stop`](/commands/npm-stop)
+* `"start": "node server.js"`:
 
-* `prestop`
-* `stop`
-* `poststop`
+  If there is a `server.js` file in the root of your package, then npm
+  will default the `start` command to `node server.js`.
 
-#### [`npm test`](/commands/npm-test)
+* `"install": "node-gyp rebuild"`:
 
-* `pretest`
-* `test`
-* `posttest`
-
+  If there is a `binding.gyp` file in the root of your package and you
+  haven't defined your own `install` or `preinstall` scripts, npm will
+  default the `install` command to compile using node-gyp.
 
 ### User
 
-When npm is run as root, scripts are always run with the effective uid
-and gid of the working directory owner.
+If npm was invoked with root privileges, then it will change the uid
+to the user account or uid specified by the `user` config, which
+defaults to `nobody`.  Set the `unsafe-perm` flag to run scripts with
+root privileges.
 
 ### Environment
 
 Package scripts run in an environment where many pieces of information
 are made available regarding the setup of npm and the current state of
 the process.
+
 
 #### path
 
@@ -246,7 +169,41 @@ package.json file, then your package scripts would have the
 in your code with `process.env.npm_package_name` and
 `process.env.npm_package_version`, and so on for other fields.
 
-See [`package-json.md`](/using-npm/package-json) for more on package configs.
+#### configuration
+
+Configuration parameters are put in the environment with the
+`npm_config_` prefix. For instance, you can view the effective `root`
+config by checking the `npm_config_root` environment variable.
+
+#### Special: package.json "config" object
+
+The package.json "config" keys are overwritten in the environment if
+there is a config param of `<name>[@<version>]:<key>`.  For example,
+if the package.json has this:
+
+```json
+{
+  "name" : "foo",
+  "config" : {
+    "port" : "8080"
+  },
+  "scripts" : {
+    "start" : "node server.js"
+  }
+}
+```
+
+and the server.js is this:
+
+```javascript
+http.createServer(...).listen(process.env.npm_package_config_port)
+```
+
+then the user could change the behavior by doing:
+
+```bash
+  npm config set foo:port 80
+  ```
 
 #### current lifecycle event
 
@@ -304,9 +261,22 @@ Scripts are run by passing the line as a script argument to `sh`.
 If the script exits with a code other than 0, then this will abort the
 process.
 
-Note that these script files don't have to be Node.js or even
-JavaScript programs. They just have to be some kind of executable
+Note that these script files don't have to be nodejs or even
+javascript programs. They just have to be some kind of executable
 file.
+
+### Hook Scripts
+
+If you want to run a specific script at a specific lifecycle event for
+ALL packages, then you can use a hook script.
+
+Place an executable file at `node_modules/.hooks/{eventname}`, and
+it'll get run for all packages when they are going through that point
+in the package lifecycle for any packages installed in that root.
+
+Hook scripts are run exactly the same way as package.json scripts.
+That is, they are in a separate child process, with the env described
+above.
 
 ### Best Practices
 
@@ -334,7 +304,7 @@ file.
 
 ### See Also
 
-* [npm run-script](/commands/npm-run-script)
+* [npm run-script](/cli-commands/npm-run-script)
 * [package.json](/configuring-npm/package-json)
 * [npm developers](/using-npm/developers)
-* [npm install](/commands/npm-install)
+* [npm install](/cli-commands/npm-install)
