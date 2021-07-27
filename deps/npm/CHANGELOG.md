@@ -1,3 +1,10 @@
+## 6.14.14 (2021-07-27)
+
+### DEPENDENCIES
+
+* [`4627c0670`](https://github.com/npm/cli/commit/4627c0670957ee5c5e8506750f4626493aabdc25)
+  `tar@4.4.15`
+
 ## 6.14.13 (2021-04-08)
 
 ### DEPENDENCIES
