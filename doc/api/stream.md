@@ -997,7 +997,7 @@ added: REPLACEME
 
 * Returns: {Promise}
 
-Returns a promise resolving to the full content as an array buffer.
+Returns a promise fulfilled with the full content as an {ArrayBuffer}.
 
 ##### `readable.blob()`
 <!--- YAML>
@@ -1008,8 +1008,7 @@ added: REPLACEME
 
 * Returns: {Promise}
 
-Returns a promise resolving to the full content read as
-Blob.
+Returns a promise fulfilled with the full content as a {Blob}.
 
 ##### `readable.body`
 <!--- YAML>
@@ -1097,8 +1096,8 @@ added: REPLACEME
 
 * Returns: {Promise}
 
-Returns a promise resolving to the full content read as
-utf8 string and parsed to JSON object.
+Returns a promise fulfulled with the full content read as an UTF-8
+string and parsed as a JSON object.
 
 ##### `readable.pause()`
 <!-- YAML
@@ -1410,8 +1409,7 @@ added: REPLACEME
 
 * Returns: {Promise}
 
-Returns a promise resolving to the full content read as
-utf8 string.
+Returns a promise fulfilled with the full content read as an UTF-8 string.
 
 ##### `readable.unpipe([destination])`
 <!-- YAML
