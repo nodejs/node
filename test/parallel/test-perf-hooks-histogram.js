@@ -78,8 +78,5 @@ const { inspect } = require('util');
 {
   // Tests that RecordableHistogram is impossible to construct manually
   const h = createHistogram();
-  assert.throws(
-    () => new h.constructor(),
-    /^TypeError: illegal constructor$/
-  );
+  assert.throws(() => new h.constructor(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 }

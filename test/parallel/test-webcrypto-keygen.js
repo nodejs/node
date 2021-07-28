@@ -657,9 +657,7 @@ const vectors = {
 })().then(common.mustCall());
 
 // End user code cannot create CryptoKey directly
-assert.throws(() => new CryptoKey(), {
-  code: 'ERR_OPERATION_FAILED'
-});
+assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 
 {
   const buffer = Buffer.from('Hello World');
