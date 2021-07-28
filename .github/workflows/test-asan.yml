@@ -9,10 +9,12 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - '**.md'
       - 'doc/**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
+      - '**.md'
       - 'doc/**'
 
 env:
