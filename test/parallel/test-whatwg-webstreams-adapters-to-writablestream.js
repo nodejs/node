@@ -92,7 +92,7 @@ class TestWritable extends Writable {
   const writableStream = newWritableStreamFromStreamWritable(writable);
 
   assert.rejects(writableStream.close(), {
-    code: 'ERR_STREAM_PREMATURE_CLOSE'
+    code: 'ABORT_ERR'
   });
 
   writable.end();
