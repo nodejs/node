@@ -394,6 +394,9 @@
       ['v8_allocation_site_tracking==1', {
         'defines': ['V8_ALLOCATION_SITE_TRACKING',],
       }],
+      ['v8_advanced_bigint_algorithms==1', {
+        'defines': ['V8_ADVANCED_BIGINT_ALGORITHMS',],
+      }],
     ],  # conditions
     'defines': [
       'V8_GYP_BUILD',
