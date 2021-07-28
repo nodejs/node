@@ -13,9 +13,10 @@ on:
       - master
       - main
     paths-ignore:
-      - 'doc/**'
-      - 'deps/**'
+      - '**.md'
       - 'benchmark/**'
+      - 'deps/**'
+      - 'doc/**'
       - 'tools/**'
 
 env:

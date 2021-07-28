@@ -13,6 +13,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - '**.md'
       - 'doc/**'
 
 env:
