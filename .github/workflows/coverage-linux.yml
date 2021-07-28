@@ -4,18 +4,20 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
-      - 'doc/**'
-      - 'deps/**'
+      - '**.md'
       - 'benchmark/**'
+      - 'deps/**'
+      - 'doc/**'
       - 'tools/**'
   push:
     branches:
       - master
       - main
     paths-ignore:
-      - 'doc/**'
-      - 'deps/**'
+      - '**.md'
       - 'benchmark/**'
+      - 'deps/**'
+      - 'doc/**'
       - 'tools/**'
 
 env:
