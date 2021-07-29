@@ -48,15 +48,15 @@ server.listen(common.PIPE, common.mustCall(function() {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.headers['content-type'], 'text/plain');
 
-    res.body = '';
+    res._body = '';
     res.setEncoding('utf8');
 
     res.on('data', function(chunk) {
-      res.body += chunk;
+      res._body += chunk;
     });
 
     res.on('end', common.mustCall(function() {
-      assert.strictEqual(res.body, 'hello world\n');
+      assert.strictEqual(res._body, 'hello world\n');
       server.close(common.mustCall(function(error) {
         assert.strictEqual(error, undefined);
         server.close(common.expectsError({
