@@ -1,5 +1,7 @@
 # Web Streams API
 
+<!--introduced_in=v16.5.0-->
+
 > Stability: 1 - Experimental
 
 An implementation of the [WHATWG Streams Standard][].
