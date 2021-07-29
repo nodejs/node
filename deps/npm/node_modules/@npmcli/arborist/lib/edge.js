@@ -37,6 +37,7 @@ const printableEdge = (edge) => {
     ...(edgeFrom != null ? { from: edgeFrom } : {}),
     ...(edgeTo ? { to: edgeTo } : {}),
     ...(edge.error ? { error: edge.error } : {}),
+    ...(edge.overridden ? { overridden: true } : {}),
   })
 }
 
@@ -72,6 +73,7 @@ class Edge {
       throw new TypeError('must provide "from" node')
     this[_setFrom](from)
     this[_error] = this[_loadError]()
+    this.overridden = false
   }
 
   satisfiedBy (node) {

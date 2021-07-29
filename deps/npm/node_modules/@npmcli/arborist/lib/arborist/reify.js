@@ -5,6 +5,7 @@ const pacote = require('pacote')
 const AuditReport = require('../audit-report.js')
 const {subset, intersects} = require('semver')
 const npa = require('npm-package-arg')
+const debug = require('../debug.js')
 
 const {dirname, resolve, relative} = require('path')
 const {depth: dfwalk} = require('treeverse')
@@ -50,6 +51,7 @@ const _createSparseTree = Symbol.for('createSparseTree')
 const _loadShrinkwrapsAndUpdateTrees = Symbol.for('loadShrinkwrapsAndUpdateTrees')
 const _shrinkwrapInflated = Symbol('shrinkwrapInflated')
 const _bundleUnpacked = Symbol('bundleUnpacked')
+const _bundleMissing = Symbol('bundleMissing')
 const _reifyNode = Symbol.for('reifyNode')
 const _extractOrLink = Symbol('extractOrLink')
 // defined by rebuild mixin
@@ -83,8 +85,9 @@ const _omitPeer = Symbol('omitPeer')
 
 const _global = Symbol.for('global')
 
+const _pruneBundledMetadeps = Symbol('pruneBundledMetadeps')
+
 // defined by Ideal mixin
-const _pruneBundledMetadeps = Symbol.for('pruneBundledMetadeps')
 const _resolvedAdd = Symbol.for('resolvedAdd')
 const _usePackageLock = Symbol.for('usePackageLock')
 const _formatPackageLock = Symbol.for('formatPackageLock')
@@ -112,6 +115,10 @@ module.exports = cls => class Reifier extends cls {
     this[_sparseTreeDirs] = new Set()
     this[_sparseTreeRoots] = new Set()
     this[_trashList] = new Set()
+    // the nodes we unpack to read their bundles
+    this[_bundleUnpacked] = new Set()
+    // child nodes we'd EXPECT to be included in a bundle, but aren't
+    this[_bundleMissing] = new Set()
   }
 
   // public method
@@ -334,7 +341,7 @@ module.exports = cls => class Reifier extends cls {
   // removed later on in the process.  optionally, also mark them
   // as a retired paths, so that we move them out of the way and
   // replace them when rolling back on failure.
-  [_addNodeToTrashList] (node, retire) {
+  [_addNodeToTrashList] (node, retire = false) {
     const paths = [node.path, ...node.binPaths]
     const moves = this[_retiredPaths]
     this.log.silly('reify', 'mark', retire ? 'retired' : 'deleted', paths)
@@ -610,10 +617,9 @@ module.exports = cls => class Reifier extends cls {
   [_loadBundlesAndUpdateTrees] (
     depth = 0, bundlesByDepth = this[_getBundlesByDepth]()
   ) {
-    if (depth === 0) {
-      this[_bundleUnpacked] = new Set()
+    if (depth === 0)
       process.emit('time', 'reify:loadBundles')
-    }
+
     const maxBundleDepth = bundlesByDepth.get('maxBundleDepth')
     if (depth > maxBundleDepth) {
       // if we did something, then prune the tree and update the diffs
@@ -642,14 +648,30 @@ module.exports = cls => class Reifier extends cls {
     }))
     // then load their unpacked children and move into the ideal tree
       .then(nodes =>
-        promiseAllRejectLate(nodes.map(node => new this.constructor({
-          ...this.options,
-          path: node.path,
-        }).loadActual({
-          root: node,
-          // don't transplant any sparse folders we created
-          transplantFilter: node => node.package._id,
-        }))))
+        promiseAllRejectLate(nodes.map(async node => {
+          const arb = new this.constructor({
+            ...this.options,
+            path: node.path,
+          })
+          const notTransplanted = new Set(node.children.keys())
+          await arb.loadActual({
+            root: node,
+            // don't transplant any sparse folders we created
+            // loadActual will set node.package to {} for empty directories
+            // if by chance there are some empty folders in the node_modules
+            // tree for some other reason, then ok, ignore those too.
+            transplantFilter: node => {
+              if (node.package._id) {
+                // it's actually in the bundle if it gets transplanted
+                notTransplanted.delete(node.name)
+                return true
+              } else
+                return false
+            },
+          })
+          for (const name of notTransplanted)
+            this[_bundleMissing].add(node.children.get(name))
+        })))
     // move onto the next level of bundled items
       .then(() => this[_loadBundlesAndUpdateTrees](depth + 1, bundlesByDepth))
   }
@@ -685,6 +707,27 @@ module.exports = cls => class Reifier extends cls {
   // https://github.com/npm/cli/issues/1597#issuecomment-667639545
   [_pruneBundledMetadeps] (bundlesByDepth) {
     const bundleShadowed = new Set()
+
+    // Example dep graph:
+    // root -> (a, c)
+    // a -> BUNDLE(b)
+    // b -> c
+    // c -> b
+    //
+    // package tree:
+    // root
+    // +-- a
+    // |   +-- b(1)
+    // |   +-- c(1)
+    // +-- b(2)
+    // +-- c(2)
+    // 1. mark everything that's shadowed by anything in the bundle.  This
+    //    marks b(2) and c(2).
+    // 2. anything with edgesIn from outside the set, mark not-extraneous,
+    //    remove from set.  This unmarks c(2).
+    // 3. continue until no change
+    // 4. remove everything in the set from the tree.  b(2) is pruned
+
     // create the list of nodes shadowed by children of bundlers
     for (const bundles of bundlesByDepth.values()) {
       // skip the 'maxBundleDepth' item
@@ -700,36 +743,50 @@ module.exports = cls => class Reifier extends cls {
         }
       }
     }
-    let changed = true
-    while (changed) {
-      changed = false
-      for (const shadow of bundleShadowed) {
-        if (!shadow.extraneous) {
-          bundleShadowed.delete(shadow)
-          continue
-        }
 
-        for (const edge of shadow.edgesIn) {
-          if (!edge.from.extraneous) {
-            shadow.extraneous = false
-            bundleShadowed.delete(shadow)
-            changed = true
-          } else {
-            for (const shadDep of shadow.edgesOut.values()) {
-              /* istanbul ignore else - pretty unusual situation, just being
-               * defensive here. Would mean that a bundled dep has a dependency
-               * that is unmet. which, weird, but if you bundle it, we take
-               * whatever you put there and assume the publisher knows best. */
-              if (shadDep.to)
-                bundleShadowed.add(shadDep.to)
-            }
-          }
+    // lib -> (a@1.x) BUNDLE(a@1.2.3 (b@1.2.3))
+    // a@1.2.3 -> (b@1.2.3)
+    // a@1.3.0 -> (b@2)
+    // b@1.2.3 -> ()
+    // b@2 -> (c@2)
+    //
+    // root
+    // +-- lib
+    // |   +-- a@1.2.3
+    // |   +-- b@1.2.3
+    // +-- b@2 <-- shadowed, now extraneous
+    // +-- c@2 <-- also shadowed, because only dependent is shadowed
+    for (const shadow of bundleShadowed) {
+      for (const shadDep of shadow.edgesOut.values()) {
+        /* istanbul ignore else - pretty unusual situation, just being
+         * defensive here. Would mean that a bundled dep has a dependency
+         * that is unmet. which, weird, but if you bundle it, we take
+         * whatever you put there and assume the publisher knows best. */
+        if (shadDep.to) {
+          bundleShadowed.add(shadDep.to)
+          shadDep.to.extraneous = true
         }
       }
     }
+
+    let changed
+    do {
+      changed = false
+      for (const shadow of bundleShadowed) {
+        for (const edge of shadow.edgesIn) {
+          if (!bundleShadowed.has(edge.from)) {
+            shadow.extraneous = false
+            bundleShadowed.delete(shadow)
+            changed = true
+            break
+          }
+        }
+      }
+    } while (changed)
+
     for (const shadow of bundleShadowed) {
-      shadow.parent = null
       this[_addNodeToTrashList](shadow)
+      shadow.root = null
     }
   }
 
@@ -780,6 +837,7 @@ module.exports = cls => class Reifier extends cls {
         const node = diff.ideal
         const bd = this[_bundleUnpacked].has(node)
         const sw = this[_shrinkwrapInflated].has(node)
+        const bundleMissing = this[_bundleMissing].has(node)
 
         // check whether we still need to unpack this one.
         // test the inDepBundle last, since that's potentially a tree walk.
@@ -787,7 +845,7 @@ module.exports = cls => class Reifier extends cls {
           !node.isRoot && // root node already exists
           !bd && // already unpacked to read bundle
           !sw && // already unpacked to read sw
-          !node.inDepBundle // already unpacked by another dep's bundle
+          (bundleMissing || !node.inDepBundle) // already unpacked by another dep's bundle
 
         if (doUnpack)
           unpacks.push(this[_reifyNode](node))
@@ -814,8 +872,26 @@ module.exports = cls => class Reifier extends cls {
     const moves = this[_retiredPaths]
     this[_retiredUnchanged] = {}
     return promiseAllRejectLate(this.diff.children.map(diff => {
-      const realFolder = (diff.actual || diff.ideal).path
+      // skip if nothing was retired
+      if (diff.action !== 'CHANGE' && diff.action !== 'REMOVE')
+        return
+
+      const { path: realFolder } = diff.actual
       const retireFolder = moves[realFolder]
+      /* istanbul ignore next - should be impossible */
+      debug(() => {
+        if (!retireFolder) {
+          const er = new Error('trying to un-retire but not retired')
+          throw Object.assign(er, {
+            realFolder,
+            retireFolder,
+            actual: diff.actual,
+            ideal: diff.ideal,
+            action: diff.action,
+          })
+        }
+      })
+
       this[_retiredUnchanged][retireFolder] = []
       return promiseAllRejectLate(diff.unchanged.map(node => {
         // no need to roll back links, since we'll just delete them anyway
@@ -823,7 +899,7 @@ module.exports = cls => class Reifier extends cls {
           return mkdirp(dirname(node.path)).then(() => this[_reifyNode](node))
 
         // will have been moved/unpacked along with bundler
-        if (node.inDepBundle)
+        if (node.inDepBundle && !this[_bundleMissing].has(node))
           return
 
         this[_retiredUnchanged][retireFolder].push(node)

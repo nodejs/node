@@ -481,6 +481,11 @@ class Node {
     return this === this.root || this === this.root.target
   }
 
+  * ancestry () {
+    for (let anc = this; anc; anc = anc.resolveParent)
+      yield anc
+  }
+
   set root (root) {
     // setting to null means this is the new root
     // should only ever be one step
@@ -878,9 +883,14 @@ class Node {
   // root dependency brings peer deps along with it.  In that case, we
   // will go ahead and create the invalid state, and then try to resolve
   // it with more tree construction, because it's a user request.
-  canReplaceWith (node) {
+  canReplaceWith (node, ignorePeers = []) {
     if (node.name !== this.name)
       return false
+
+    if (node.packageName !== this.packageName)
+      return false
+
+    ignorePeers = new Set(ignorePeers)
 
     // gather up all the deps of this node and that are only depended
     // upon by deps of this node.  those ones don't count, since
@@ -888,6 +898,16 @@ class Node {
     const depSet = gatherDepSet([this], e => e.to !== this && e.valid)
 
     for (const edge of this.edgesIn) {
+      // when replacing peer sets, we need to be able to replace the entire
+      // peer group, which means we ignore incoming edges from other peers
+      // within the replacement set.
+      const ignored = !this.isTop &&
+        edge.from.parent === this.parent &&
+        edge.peer &&
+        ignorePeers.has(edge.from.name)
+      if (ignored)
+        continue
+
       // only care about edges that don't originate from this node
       if (!depSet.has(edge.from) && !edge.satisfiedBy(node))
         return false
@@ -896,8 +916,8 @@ class Node {
     return true
   }
 
-  canReplace (node) {
-    return node.canReplaceWith(this)
+  canReplace (node, ignorePeers) {
+    return node.canReplaceWith(this, ignorePeers)
   }
 
   // return true if it's safe to remove this node, because anything that
@@ -1210,6 +1230,12 @@ class Node {
   }
 
   resolve (name) {
+    /* istanbul ignore next - should be impossible,
+     * but I keep doing this mistake in tests */
+    debug(() => {
+      if (typeof name !== 'string' || !name)
+        throw new Error('non-string passed to Node.resolve')
+    })
     const mine = this.children.get(name)
     if (mine)
       return mine

@@ -31,6 +31,10 @@ class ArboristNode {
       this.bundled = true
     if (tree.inDepBundle)
       this.bundler = tree.getBundler().location
+    if (tree.isProjectRoot)
+      this.isProjectRoot = true
+    if (tree.isWorkspace)
+      this.isWorkspace = true
     const bd = tree.package && tree.package.bundleDependencies
     if (bd && bd.length)
       this.bundleDependencies = bd
@@ -107,6 +111,8 @@ class Edge {
     this.spec = edge.spec || '*'
     if (edge.error)
       this.error = edge.error
+    if (edge.overridden)
+      this.overridden = edge.overridden
   }
 }
 
@@ -122,6 +128,8 @@ class EdgeOut extends Edge {
       this.to ? ' -> ' + this.to : ''
     }${
       this.error ? ' ' + this.error : ''
+    }${
+      this.overridden ? ' overridden' : ''
     } }`
   }
 }
@@ -136,6 +144,8 @@ class EdgeIn extends Edge {
   [util.inspect.custom] () {
     return `{ ${this.from || '""'} ${this.type} ${this.name}@${this.spec}${
       this.error ? ' ' + this.error : ''
+    }${
+      this.overridden ? ' overridden' : ''
     } }`
   }
 }
