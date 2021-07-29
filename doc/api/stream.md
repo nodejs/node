@@ -814,6 +814,8 @@ added: v0.9.4
 
 <!--type=class-->
 
+`Readable` implements the body mixin API from the [fetch specification][].
+
 ##### Event: `'close'`
 <!-- YAML
 added: v0.9.4
@@ -3571,6 +3573,7 @@ contain multi-byte characters.
 [child process stdin]: child_process.md#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.md#child_process_subprocess_stdout
 [crypto]: crypto.md
+[fetch specification]: https://fetch.spec.whatwg.org/#body-mixin
 [fs read streams]: fs.md#fs_class_fs_readstream
 [fs write streams]: fs.md#fs_class_fs_writestream
 [http-incoming-message]: http.md#http_class_http_incomingmessage
