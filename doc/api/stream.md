@@ -989,7 +989,7 @@ The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
 called and `readableFlowing` is not `true`.
 
 ##### `readable.arrayBuffer()`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
 -->
 
@@ -1000,7 +1000,7 @@ added: REPLACEME
 Returns a promise fulfilled with the full content as an {ArrayBuffer}.
 
 ##### `readable.blob()`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
 -->
 
@@ -1011,7 +1011,7 @@ added: REPLACEME
 Returns a promise fulfilled with the full content as a {Blob}.
 
 ##### `readable.body`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
 -->
 
@@ -1088,7 +1088,7 @@ readable.isPaused(); // === false
 ```
 
 ##### `readable.json()`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
 -->
 
@@ -1401,7 +1401,7 @@ readable.on('data', (chunk) => {
 ```
 
 ##### `readable.text()`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
 -->
 
