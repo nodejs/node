@@ -361,5 +361,6 @@ module.exports = {
     btoa: 'readable',
     atob: 'readable',
     performance: 'readable',
+    navigator: 'readable',
   },
 };

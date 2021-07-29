@@ -1,0 +1,5 @@
+{
+  "idlharness.https.any.js": {
+    "skip": "idlharness cannot recognize Node.js environment"
+  }
+}

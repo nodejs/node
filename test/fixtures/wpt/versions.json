@@ -7,6 +7,10 @@
     "commit": "3b1f72e99a91d31551edd2147dc7b564eaf25d72",
     "path": "console"
   },
+  "device-memory": {
+    "commit": "c0cdd63f19507a784531ff4ccc1c71456f79b867",
+    "path": "device-memory"
+  },
   "dom/abort": {
     "commit": "1728d198c92834d92f7f399ef35e7823d5bfa0e4",
     "path": "dom/abort"
@@ -36,7 +40,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "80a417662387b6eda904607d78ad246c5d8bf191",
+    "commit": "fc086c82d5a7e9b01a684a23336d6d1f9e79e303",
     "path": "interfaces"
   },
   "performance-timeline": {

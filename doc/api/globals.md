@@ -295,6 +295,58 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
+## `navigator`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of the [Navigator API][]. Similar to [`window.navigator`][]
+in browsers.
+
+### `navigator.deviceMemory`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The total amount of device memory in GiB, rounded to the nearest power of 2,
+between 0.25 and 8 GiB. Part of the [Device Memory API][].
+
+```js
+console.log(`This device has ${navigator.deviceMemory} GiB of RAM`);
+```
+
+### `navigator.hardwareConcurrency`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer}
+
+The number of logical processors.
+
+```js
+console.log(`This device has ${navigator.hardwareConcurrency} logical CPUs`);
+```
+
+### `navigator.platform`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+A string identifying the operating system platform on which the Node.js process
+is running. For example, it returns 'Linux' on Linux, 'Darwin' on macOS, and
+'Win32' on Windows.
+
+```js
+console.log(`This process is running on ${navigator.platform}`);
+```
+
 ## `performance`
 
 The [`perf_hooks.performance`][] object.
@@ -429,6 +481,8 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[Device Memory API]: https://w3c.github.io/device-memory/
+[Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`EventTarget` and `Event` API]: events.md#event-target-and-event-api
 [`MessageChannel`]: worker_threads.md#worker_threads_class_messagechannel
@@ -455,6 +509,7 @@ The object that acts as the namespace for all W3C
 [`setImmediate`]: timers.md#timers_setimmediate_callback_args
 [`setInterval`]: timers.md#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.md#timers_settimeout_callback_delay_args
+[`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md
