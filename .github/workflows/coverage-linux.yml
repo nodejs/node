@@ -1,0 +1,55 @@
+name: coverage-linux
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'doc/**'
+      - 'deps/**'
+      - 'benchmark/**'
+      - 'tools/**'
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - 'doc/**'
+      - 'deps/**'
+      - 'benchmark/**'
+      - 'tools/**'
+
+env:
+  PYTHON_VERSION: 3.9
+  FLAKY_TESTS: dontcare
+
+jobs:
+  coverage-linux:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Install gcovr
+        run: pip install gcovr==4.2
+      - name: Build
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
+      # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
+      # The cause is most likely coverage's use of the inspector.
+      - name: Test
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots" || exit 0
+      - name: Report JS
+        run: npx c8 report --check-coverage
+      - name: Report C++
+        run: cd out && gcovr --gcov-exclude='.*\b(deps|usr|out|obj|cctest|embedding)\b' -v -r Release/obj.target --xml -o ../coverage/coverage-cxx.xml --root=$(cd ../ && pwd)
+      # Clean temporary output from gcov and c8, so that it's not uploaded:
+      - name: Clean tmp
+        run: rm -rf coverage/tmp && rm -rf out
+      - name: Upload
+        uses: codecov/codecov-action@v1
+        with:
+          directory: ./coverage
