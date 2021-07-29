@@ -1,0 +1,22 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "remark-lint",
+      "pattern": [
+        {
+          "regexp": "^(?:\\x1b\\[\\d+m)*(.+?)(?:\\x1b\\[\\d+m)*$",
+          "file": 1
+        },
+        {
+          "regexp": "^\\s+(?:\\d+:\\d+-)?(\\d+):(\\d+)\\s+\\S*(error|warning|info)\\S*\\s+(.+)\\s+(\\S+)\\s+(?:\\S+)$",
+          "line": 1,
+          "column": 2,
+          "severity": 3,
+          "message": 4,
+          "code": 5,
+          "loop": true
+        }
+      ]
+    }
+  ]
+}
