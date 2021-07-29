@@ -1028,7 +1028,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* Returns: {Boolean}
+* Returns: {boolean}
 
 Returns true if stream has emitted `'data'`, `'end'`, `'error'` or
 `'close'`.
