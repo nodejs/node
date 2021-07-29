@@ -1096,7 +1096,7 @@ added: REPLACEME
 
 * Returns: {Promise}
 
-Returns a promise fulfulled with the full content read as an UTF-8
+Returns a promise fulfilled with the full content read as an UTF-8
 string and parsed as a JSON object.
 
 ##### `readable.pause()`
