@@ -991,7 +991,7 @@ called and `readableFlowing` is not `true`.
 ##### `readable.arrayBuffer()`
 <!-- YAML>
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
@@ -1002,7 +1002,7 @@ Returns a promise fulfilled with the full content as an {ArrayBuffer}.
 ##### `readable.blob()`
 <!-- YAML>
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
@@ -1013,7 +1013,7 @@ Returns a promise fulfilled with the full content as a {Blob}.
 ##### `readable.body`
 <!-- YAML>
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
@@ -1022,9 +1022,9 @@ added: REPLACEME
 Returns a `ReadableStream`.
 
 ##### `readable.bodyUsed`
-<!-- YAML>
+<!-- YAML
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
@@ -1090,7 +1090,7 @@ readable.isPaused(); // === false
 ##### `readable.json()`
 <!-- YAML>
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
@@ -1403,7 +1403,7 @@ readable.on('data', (chunk) => {
 ##### `readable.text()`
 <!-- YAML>
 added: REPLACEME
---->
+-->
 
 > Stability: 1 - Experimental
 
