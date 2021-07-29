@@ -215,6 +215,142 @@ to accept an incorrect (and potentially broken) dependency resolution.
 See \${REPORT} for a full report.
 `
 
+exports[`test/lib/utils/explain-eresolve.js TAP eslint-plugin case > explain with color, depth of 2 1`] = `
+While resolving: [1meslint-plugin-react[22m@[1m7.24.0[22m
+Found: [1meslint[22m@[1m6.8.0[22m[2m[22m
+[2mnode_modules/eslint[22m
+  [33mdev[39m [1meslint[22m@"[1m^3 || ^4 || ^5 || ^6 || ^7[22m" from the root project
+  3 more (@typescript-eslint/parser, ...)
+
+Could not resolve dependency:
+[33mdev[39m [1meslint-plugin-eslint-plugin[22m@"[1m^3.1.0[22m" from the root project
+
+Conflicting peer dependency: [1meslint[22m@[1m7.31.0[22m[2m[22m
+[2mnode_modules/eslint[22m
+  [35mpeer[39m [1meslint[22m@"[1m^7.0.0[22m" from [1meslint-plugin-eslint-plugin[22m@[1m3.5.1[22m[2m[22m
+  [2mnode_modules/eslint-plugin-eslint-plugin[22m
+    [33mdev[39m [1meslint-plugin-eslint-plugin[22m@"[1m^3.1.0[22m" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP eslint-plugin case > explain with no color, depth of 6 1`] = `
+While resolving: eslint-plugin-react@7.24.0
+Found: eslint@6.8.0
+node_modules/eslint
+  dev eslint@"^3 || ^4 || ^5 || ^6 || ^7" from the root project
+  peer eslint@"^5.0.0 || ^6.0.0" from @typescript-eslint/parser@2.34.0
+  node_modules/@typescript-eslint/parser
+    dev @typescript-eslint/parser@"^2.34.0" from the root project
+  peer eslint@"^5.16.0 || ^6.8.0 || ^7.2.0" from eslint-config-airbnb-base@14.2.1
+  node_modules/eslint-config-airbnb-base
+    dev eslint-config-airbnb-base@"^14.2.1" from the root project
+  1 more (eslint-plugin-import)
+
+Could not resolve dependency:
+dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+
+Conflicting peer dependency: eslint@7.31.0
+node_modules/eslint
+  peer eslint@"^7.0.0" from eslint-plugin-eslint-plugin@3.5.1
+  node_modules/eslint-plugin-eslint-plugin
+    dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP eslint-plugin case > report 1`] = `
+# npm resolution error report
+
+\${TIME}
+
+While resolving: eslint-plugin-react@7.24.0
+Found: eslint@6.8.0
+node_modules/eslint
+  dev eslint@"^3 || ^4 || ^5 || ^6 || ^7" from the root project
+  peer eslint@"^5.0.0 || ^6.0.0" from @typescript-eslint/parser@2.34.0
+  node_modules/@typescript-eslint/parser
+    dev @typescript-eslint/parser@"^2.34.0" from the root project
+  peer eslint@"^5.16.0 || ^6.8.0 || ^7.2.0" from eslint-config-airbnb-base@14.2.1
+  node_modules/eslint-config-airbnb-base
+    dev eslint-config-airbnb-base@"^14.2.1" from the root project
+  peer eslint@"^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0" from eslint-plugin-import@2.23.4
+  node_modules/eslint-plugin-import
+    dev eslint-plugin-import@"^2.23.4" from the root project
+    peer eslint-plugin-import@"^2.22.1" from eslint-config-airbnb-base@14.2.1
+    node_modules/eslint-config-airbnb-base
+      dev eslint-config-airbnb-base@"^14.2.1" from the root project
+
+Could not resolve dependency:
+dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+
+Conflicting peer dependency: eslint@7.31.0
+node_modules/eslint
+  peer eslint@"^7.0.0" from eslint-plugin-eslint-plugin@3.5.1
+  node_modules/eslint-plugin-eslint-plugin
+    dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+Raw JSON explanation object:
+
+{
+  "name": "eslint-plugin case",
+  "json": true
+}
+
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP eslint-plugin case > report with color 1`] = `
+While resolving: [1meslint-plugin-react[22m@[1m7.24.0[22m
+Found: [1meslint[22m@[1m6.8.0[22m[2m[22m
+[2mnode_modules/eslint[22m
+  [33mdev[39m [1meslint[22m@"[1m^3 || ^4 || ^5 || ^6 || ^7[22m" from the root project
+  [35mpeer[39m [1meslint[22m@"[1m^5.0.0 || ^6.0.0[22m" from [1m@typescript-eslint/parser[22m@[1m2.34.0[22m[2m[22m
+  [2mnode_modules/@typescript-eslint/parser[22m
+    [33mdev[39m [1m@typescript-eslint/parser[22m@"[1m^2.34.0[22m" from the root project
+  2 more (eslint-config-airbnb-base, eslint-plugin-import)
+
+Could not resolve dependency:
+[33mdev[39m [1meslint-plugin-eslint-plugin[22m@"[1m^3.1.0[22m" from the root project
+
+Conflicting peer dependency: [1meslint[22m@[1m7.31.0[22m[2m[22m
+[2mnode_modules/eslint[22m
+  [35mpeer[39m [1meslint[22m@"[1m^7.0.0[22m" from [1meslint-plugin-eslint-plugin[22m@[1m3.5.1[22m[2m[22m
+  [2mnode_modules/eslint-plugin-eslint-plugin[22m
+    [33mdev[39m [1meslint-plugin-eslint-plugin[22m@"[1m^3.1.0[22m" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP eslint-plugin case > report with no color 1`] = `
+While resolving: eslint-plugin-react@7.24.0
+Found: eslint@6.8.0
+node_modules/eslint
+  dev eslint@"^3 || ^4 || ^5 || ^6 || ^7" from the root project
+  peer eslint@"^5.0.0 || ^6.0.0" from @typescript-eslint/parser@2.34.0
+  node_modules/@typescript-eslint/parser
+    dev @typescript-eslint/parser@"^2.34.0" from the root project
+  2 more (eslint-config-airbnb-base, eslint-plugin-import)
+
+Could not resolve dependency:
+dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+
+Conflicting peer dependency: eslint@7.31.0
+node_modules/eslint
+  peer eslint@"^7.0.0" from eslint-plugin-eslint-plugin@3.5.1
+  node_modules/eslint-plugin-eslint-plugin
+    dev eslint-plugin-eslint-plugin@"^3.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
 exports[`test/lib/utils/explain-eresolve.js TAP gatsby > explain with color, depth of 2 1`] = `
 While resolving: [1mgatsby-recipes[22m@[1m0.2.31[22m
 Found: [1mink[22m@[1m3.0.0-7[22m[2m[22m
@@ -433,6 +569,9 @@ See \${REPORT} for a full report.
 
 exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > explain with color, depth of 2 1`] = `
 While resolving: [1meslint[22m@[1m7.22.0[22m
+Found: [35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
 
 Could not resolve dependency:
 [35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
@@ -442,6 +581,9 @@ Could not resolve dependency:
 
 exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > explain with no color, depth of 6 1`] = `
 While resolving: eslint@7.22.0
+Found: peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
 Could not resolve dependency:
 peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
@@ -455,6 +597,9 @@ exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge
 \${TIME}
 
 While resolving: eslint@7.22.0
+Found: peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
 Could not resolve dependency:
 peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
@@ -476,6 +621,9 @@ Raw JSON explanation object:
 
 exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report with color 1`] = `
 While resolving: [1meslint[22m@[1m7.22.0[22m
+Found: [35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
 
 Could not resolve dependency:
 [35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
@@ -491,6 +639,9 @@ See \${REPORT} for a full report.
 
 exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report with no color 1`] = `
 While resolving: eslint@7.22.0
+Found: peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
 
 Could not resolve dependency:
 peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
