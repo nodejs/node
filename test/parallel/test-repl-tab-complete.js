@@ -443,6 +443,18 @@ testMe.complete('obj.', common.mustCall((error, data) => {
   assert(data[0].includes('obj.key'));
 }));
 
+// Make sure tab completion does not include __defineSetter__ and friends.
+putIn.run(['.clear']);
+
+putIn.run(['var obj = {};']);
+testMe.complete('obj.', common.mustCall(function(error, data) {
+  assert.strictEqual(data[0].includes('obj.__defineGetter__'), false);
+  assert.strictEqual(data[0].includes('obj.__defineSetter__'), false);
+  assert.strictEqual(data[0].includes('obj.__lookupGetter__'), false);
+  assert.strictEqual(data[0].includes('obj.__lookupSetter__'), false);
+  assert.strictEqual(data[0].includes('obj.__proto__'), true);
+}));
+
 // Tab completion for files/directories
 {
   putIn.run(['.clear']);
