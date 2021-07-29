@@ -183,8 +183,10 @@ const assertNoNewer = async (path, data, lockTime, dir = path, seen = null) => {
         await assertNoNewer(path, data, lockTime, child, seen)
       else if (ent.isSymbolicLink()) {
         const target = resolve(parent, await readlink(child))
-        const tstat = await stat(target).catch(() => null)
+        const tstat = await stat(target).catch(
+          /* istanbul ignore next - windows */ () => null)
         seen.add(relpath(path, child))
+        /* istanbul ignore next - windows cannot do this */
         if (tstat && tstat.isDirectory() && !seen.has(relpath(path, target)))
           await assertNoNewer(path, data, lockTime, target, seen)
       }
