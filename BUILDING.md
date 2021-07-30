@@ -113,8 +113,8 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
 | Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental |                                   |
 | Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |    |
-| macOS            | x64              | >= 10.13                        | Tier 1       |                                   |
-| macOS            | arm64            | >= 11                           | Experimental |                                   |
+| macOS            | x64              | >= 10.13                        | Tier 1       | For notes about compilation see <sup>[8](#fn8)</sup>              |
+| macOS            | arm64            | >= 11                           | Tier 1       |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
 | AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
@@ -154,6 +154,10 @@ may not be possible.
 <em id="fn7">7</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
 FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are available
 via the system's package manager, including Clang 9.0.
+
+<em id="fn8">8</em>: Our macOS x64 Binaries are compiled with 10.13 as a target.
+However there is no guarantee compiling on 10.13 will work as Xcode11 is
+required to compile.
 
 ### Supported toolchains
 
