@@ -21,6 +21,11 @@ information described.
     the date in the slug so that it will move to the top of the blog list.)
   * [ ] pre-release: ***LINK TO PR***
   * [ ] post-release: ***LINK TO PR***
+    * Ask the HackerOne reporter if they would like to be credited on the
+      security release blog page:
+      ```text
+      Thank you to <name> for reporting this vulnerability.
+      ```
 
 * [ ] Get agreement on the planned date for the release: ***RELEASE DATE***
 
