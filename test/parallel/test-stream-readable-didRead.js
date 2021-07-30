@@ -7,11 +7,9 @@ function noop() {}
 
 function check(readable, data, fn) {
   assert.strictEqual(readable.readableDidRead, false);
-  assert.strictEqual(readable.readableUsed, false);
   if (data === -1) {
     readable.on('error', common.mustCall());
     readable.on('data', common.mustNotCall());
-    assert.strictEqual(readable.readableUsed, true);
     readable.on('end', common.mustNotCall());
   } else {
     readable.on('error', common.mustNotCall());
@@ -22,17 +20,14 @@ function check(readable, data, fn) {
     }
     if (data > 0) {
       readable.on('data', common.mustCallAtLeast(data));
-      assert.strictEqual(readable.readableUsed, true);
     } else {
       readable.on('data', common.mustNotCall());
-      assert.strictEqual(readable.readableUsed, true);
     }
   }
   readable.on('close', common.mustCall());
   fn();
   setImmediate(() => {
     assert.strictEqual(readable.readableDidRead, true);
-    assert.strictEqual(readable.readableUsed, true);
   });
 }
 
