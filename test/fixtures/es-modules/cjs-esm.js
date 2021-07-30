@@ -1,1 +1,1 @@
-require('./package-type-module/cjs.js');
+eval("require('./package-type-module/cjs.js')");
