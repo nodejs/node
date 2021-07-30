@@ -1270,5 +1270,78 @@ added: REPLACEME
 
 * Type: {WritableStream}
 
+### Utility Consumers
+<!-- YAML
+added: REPLACEME
+-->
+
+The utility consumer functions provide common options for consuming
+streams.
+
+They are accessed using:
+
+```mjs
+import {
+  arrayBuffer,
+  blob,
+  json,
+  text,
+} from 'node:stream/consumers';
+```
+
+```cjs
+const {
+  arrayBuffer,
+  blob,
+  json,
+  text,
+} = require('stream/consumers');
+```
+
+#### `streamConsumers.arrayBuffer(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with an `ArrayBuffer` containing the full
+  contents of the stream.
+
+#### `streamConsumers.blob(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with a {Blob} containing the full contents
+  of the stream.
+
+#### `streamConsumers.buffer(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with a {Buffer} containing the full
+  contents of the stream.
+
+#### `streamConsumers.json(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with the contents of the stream parsed as a
+  UTF-8 encoded string that is then passed through `JSON.parse()`.
+
+#### `streamConsumers.text(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with the contents of the stream parsed as a
+  UTF-8 encoded string.
+
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
