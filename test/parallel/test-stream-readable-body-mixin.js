@@ -353,3 +353,13 @@ for (const key of ['text', 'json', 'arrayBuffer', 'blob']) {
   r.on('close', common.mustCall());
 
 }
+
+{
+  const r = new Readable({
+    read() {
+      this.push(null);
+    }
+  });
+  r.body = 'asd';
+  assert.strictEqual(r.body, 'asd');
+}
