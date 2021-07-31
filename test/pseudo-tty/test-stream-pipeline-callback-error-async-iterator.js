@@ -2,19 +2,18 @@
 'use strict';
 const common = require('../common');
 const {
-  Transform,
   pipeline,
 } = require('stream');
 const assert = require('assert');
 
-function createTransformStream () {
+function createIterator() {
   return async function*(stream) {
-      yield 'test';
-      throw new Error('Artificial Error');
+    yield 'test';
+    throw new Error('Artificial Error');
   };
 }
 
-const ts = createTransformStream();
+const ts = createIterator();
 
 pipeline(ts, process.stdout, common.mustCall((err) => {
   assert.ok(err, 'should have an error');
