@@ -83,12 +83,13 @@ function runTest(test) {
     name: 'Error',
     message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
   }));
+  req.on('end', common.mustNotCall());
 
   currentError = test;
   req.resume();
   req.end();
 
-  req.on('end', common.mustCall(() => {
+  req.on('close', common.mustCall(() => {
     client.close();
 
     if (!tests.length) {
