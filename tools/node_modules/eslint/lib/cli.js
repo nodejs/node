@@ -131,14 +131,16 @@ function translateOptions({
  */
 function countErrors(results) {
     let errorCount = 0;
+    let fatalErrorCount = 0;
     let warningCount = 0;
 
     for (const result of results) {
         errorCount += result.errorCount;
+        fatalErrorCount += result.fatalErrorCount;
         warningCount += result.warningCount;
     }
 
-    return { errorCount, warningCount };
+    return { errorCount, fatalErrorCount, warningCount };
 }
 
 /**
@@ -314,15 +316,22 @@ const cli = {
         if (await printResults(engine, resultsToPrint, options.format, options.outputFile)) {
 
             // Errors and warnings from the original unfiltered results should determine the exit code
-            const { errorCount, warningCount } = countErrors(results);
+            const { errorCount, fatalErrorCount, warningCount } = countErrors(results);
+
             const tooManyWarnings =
                 options.maxWarnings >= 0 && warningCount > options.maxWarnings;
+            const shouldExitForFatalErrors =
+                options.exitOnFatalError && fatalErrorCount > 0;
 
             if (!errorCount && tooManyWarnings) {
                 log.error(
                     "ESLint found too many warnings (maximum: %s).",
                     options.maxWarnings
                 );
+            }
+
+            if (shouldExitForFatalErrors) {
+                return 2;
             }
 
             return (errorCount || tooManyWarnings) ? 1 : 0;

@@ -291,6 +291,12 @@ module.exports = optionator({
             description: "Prevent errors when pattern is unmatched"
         },
         {
+            option: "exit-on-fatal-error",
+            type: "Boolean",
+            default: "false",
+            description: "Exit with exit code 2 in case of fatal error"
+        },
+        {
             option: "debug",
             type: "Boolean",
             default: false,

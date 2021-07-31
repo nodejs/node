@@ -254,6 +254,16 @@ Toru Nagashima
 The people who review and fix bugs and help triage issues.
 
 <table><tbody><tr><td align="center" valign="top" width="11%">
+<a href="https://github.com/brettz9">
+<img src="https://github.com/brettz9.png?s=75" width="75" height="75"><br />
+Brett Zamir
+</a>
+</td><td align="center" valign="top" width="11%">
+<a href="https://github.com/bmish">
+<img src="https://github.com/bmish.png?s=75" width="75" height="75"><br />
+Bryan Mishkin
+</a>
+</td><td align="center" valign="top" width="11%">
 <a href="https://github.com/g-plane">
 <img src="https://github.com/g-plane.png?s=75" width="75" height="75"><br />
 Pig Fang
