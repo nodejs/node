@@ -34,7 +34,9 @@ async function main() {
       client.on('error', common.expectsError(expected));
     }
     stream.resume();
-    await once(stream, 'end');
+    await new Promise((resolve) => {
+      stream.once('close', resolve);
+    });
     client.close();
   }
   server.close();
