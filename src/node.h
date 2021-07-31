@@ -367,7 +367,7 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
-NODE_EXTERN bool InitializeContext(v8::Local<v8::Context> context);
+NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
