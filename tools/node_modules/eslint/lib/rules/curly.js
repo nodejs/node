@@ -132,15 +132,6 @@ module.exports = {
         }
 
         /**
-         * Gets the `else` keyword token of a given `IfStatement` node.
-         * @param {ASTNode} node A `IfStatement` node to get.
-         * @returns {Token} The `else` keyword token.
-         */
-        function getElseKeyword(node) {
-            return node.alternate && sourceCode.getFirstTokenBetween(node.consequent, node.alternate, isElseKeywordToken);
-        }
-
-        /**
          * Determines whether the given node has an `else` keyword token as the first token after.
          * @param {ASTNode} node The node to check.
          * @returns {boolean} `true` if the node is followed by an `else` keyword token.
@@ -361,7 +352,7 @@ module.exports = {
                         if (this.expected) {
                             context.report({
                                 node,
-                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                loc: body.loc,
                                 messageId: opts && opts.condition ? "missingCurlyAfterCondition" : "missingCurlyAfter",
                                 data: {
                                     name
@@ -371,7 +362,7 @@ module.exports = {
                         } else {
                             context.report({
                                 node,
-                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                loc: body.loc,
                                 messageId: opts && opts.condition ? "unexpectedCurlyAfterCondition" : "unexpectedCurlyAfter",
                                 data: {
                                     name

@@ -1,6 +1,6 @@
 {
   "name": "flatted",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "A super light and fast circular JSON parser.",
   "unpkg": "min.js",
   "types": "types.d.ts",
