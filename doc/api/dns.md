@@ -108,6 +108,8 @@ Create a new resolver.
 * `options` {Object}
   * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
     default timeout.
+  * `tries` {integer} The number of tries the resolver will try contacting
+    each name server before giving up, `4` by default.
 
 ### `resolver.cancel()`
 <!-- YAML

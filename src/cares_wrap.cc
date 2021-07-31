@@ -631,9 +631,14 @@ int ParseSoaReply(
 }
 }  // anonymous namespace
 
-ChannelWrap::ChannelWrap(Environment* env, Local<Object> object, int timeout)
+ChannelWrap::ChannelWrap(
+      Environment* env,
+      Local<Object> object,
+      int timeout,
+      int tries)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
-      timeout_(timeout) {
+      timeout_(timeout),
+      tries_(tries) {
   MakeWeak();
 
   Setup();
@@ -647,11 +652,13 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 1);
+  CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
   const int timeout = args[0].As<Int32>()->Value();
+  const int tries = args[1].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout);
+  new ChannelWrap(env, args.This(), timeout, tries);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(
@@ -704,6 +711,7 @@ void ChannelWrap::Setup() {
   options.sock_state_cb = ares_sockstate_cb;
   options.sock_state_cb_data = this;
   options.timeout = timeout_;
+  options.tries = tries_;
 
   int r;
   if (!library_inited_) {
@@ -717,7 +725,8 @@ void ChannelWrap::Setup() {
 
   /* We do the call to ares_init_option for caller. */
   const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB;
+      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
+      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {

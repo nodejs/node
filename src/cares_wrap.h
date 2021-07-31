@@ -155,7 +155,11 @@ struct NodeAresTask final : public MemoryRetainer {
 
 class ChannelWrap final : public AsyncWrap {
  public:
-  ChannelWrap(Environment* env, v8::Local<v8::Object> object, int timeout);
+  ChannelWrap(
+    Environment* env,
+    v8::Local<v8::Object> object,
+    int timeout,
+    int tries);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -189,6 +193,7 @@ class ChannelWrap final : public AsyncWrap {
   bool is_servers_default_ = true;
   bool library_inited_ = false;
   int timeout_;
+  int tries_;
   int active_query_count_ = 0;
   NodeAresTask::List task_list_;
 };
