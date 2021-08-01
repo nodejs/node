@@ -97,6 +97,9 @@ The following methods from the `dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39610
+    description: The `options` object now accepts a `tries` option.
   - version: v12.18.3
     pr-url: https://github.com/nodejs/node/pull/33472
     description: The constructor now accepts an `options` object.
@@ -109,7 +112,7 @@ Create a new resolver.
   * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
     default timeout.
   * `tries` {integer} The number of tries the resolver will try contacting
-    each name server before giving up, `4` by default.
+    each name server before giving up. **Default:** `4`
 
 ### `resolver.cancel()`
 <!-- YAML
