@@ -178,7 +178,12 @@ std::unique_ptr<DictionaryValue> parseMap(
       key = StringUtil::fromUTF8(key_span.data(), key_span.size());
       tokenizer->Next();
     } else if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
-      return nullptr;  // STRING16 not supported yet.
+      span<uint8_t> key_span = tokenizer->GetString16WireRep();
+      if (key_span.size() & 1) return nullptr;  // UTF16 is 2 byte multiple.
+      key = StringUtil::fromUTF16(
+          reinterpret_cast<const uint16_t*>(key_span.data()),
+          key_span.size() / 2);
+      tokenizer->Next();
     } else {
       // Error::CBOR_INVALID_MAP_KEY
       return nullptr;
