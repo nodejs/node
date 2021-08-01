@@ -64,15 +64,18 @@ async function getCollaboratorsFromReadme() {
     crlfDelay: Infinity,
   });
   const returnedArray = [];
-  let processingCollaborators = false;
+  let foundCollaboratorHeading = false;
   for await (const line of readmeText) {
-    const isCollaborator = processingCollaborators && line.length;
-    if (line === '### Collaborators') {
-      processingCollaborators = true;
-    }
-    if (line === '### Collaborator emeriti') {
-      processingCollaborators = false;
+    // If we've found the collaborator heading already, stop processing at the
+    // next heading.
+    if (foundCollaboratorHeading && line.startsWith('#')) {
       break;
+    }
+
+    const isCollaborator = foundCollaboratorHeading && line.length;
+
+    if (line === '### Collaborators') {
+      foundCollaboratorHeading = true;
     }
     if (line.startsWith('**') && isCollaborator) {
       const [, name, email] = /^\*\*([^*]+)\*\* &lt;(.+)&gt;/.exec(line);
@@ -89,6 +92,11 @@ async function getCollaboratorsFromReadme() {
       });
     }
   }
+
+  if (!foundCollaboratorHeading) {
+    throw new Error('Could not find Collaborator section of README');
+  }
+
   return returnedArray;
 }
 
