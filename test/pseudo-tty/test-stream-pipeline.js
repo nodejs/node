@@ -1,9 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const {
   Transform,
   pipeline,
 } = require('stream');
+const assert = require('assert');
 
 function createTransformStream(tf, context) {
   return new Transform({
@@ -20,6 +21,8 @@ const ts = createTransformStream((chunk, _, done) => {
   return done(new Error('Artificial error'));
 });
 
-const ret = pipeline(ts, process.stdout, (err) => err);
+pipeline(ts, process.stdout, common.mustCall((err) => {
+  assert.ok(err, 'should have an error');
+}));
 
-ret.write('test');
+ts.write('test');

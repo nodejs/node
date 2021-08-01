@@ -52,51 +52,67 @@ const net = require('net');
 }
 
 {
-	const w = new Writable({
-	  write (chunk, enc, cb) {
-	    cb()
-	  }
-	});
+  const read = new Readable({
+    read() {}
+  });
 
-	function createTransformStream (tf, context) {
-	  return new Transform({
-	    readableObjectMode: true,
-	    writableObjectMode: true,
-
-	    transform (chunk, encoding, done) {
-	      tf(chunk, context, done);
-	    }
-	  });
-	}
-
-	const ts = createTransformStream((chunk, _, done) => done(new Error('Artificial error')));
-
-	pipeline(ts, w, common.mustCall((err) => {
-		assert.ok(err, 'should have an error');
-	}))
-
-	ts.write('test')
+  assert.throws(() => {
+    pipeline(read, () => {});
+  }, /ERR_MISSING_ARGS/);
+  assert.throws(() => {
+    pipeline(() => {});
+  }, /ERR_MISSING_ARGS/);
+  assert.throws(() => {
+    pipeline();
+  }, /ERR_INVALID_CALLBACK/);
 }
 
 {
-	function createTransformStream (tf, context) {
-	  return new Transform({
-	    readableObjectMode: true,
-	    writableObjectMode: true,
+  const read = new Readable({
+    read() {}
+  });
 
-	    transform (chunk, encoding, done) {
-	      tf(chunk, context, done);
-	    }
-	  })
-	}
+  const write = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
 
-	const ts = createTransformStream((chunk, _, done) => done(new Error('Artificial error')));
+  read.push('data');
+  setImmediate(() => read.destroy());
 
-	pipeline(ts, process.stdout, common.mustCall((err) => {
-		assert.ok(err, 'should have an error');
-	}))
+  pipeline(read, write, common.mustCall((err) => {
+    assert.ok(err, 'should have an error');
+  }));
+}
 
-	ts.write('test');
+{
+  const w = new Writable({
+    write(chunk, enc, cb) {
+      cb();
+    }
+  });
+
+  function createTransformStream(tf, context) {
+    return new Transform({
+      readableObjectMode: true,
+      writableObjectMode: true,
+
+      transform(chunk, encoding, done) {
+        tf(chunk, context, done);
+      }
+    });
+  }
+
+  const ts = createTransformStream((chunk, _, done) => {
+    return done(new Error('Artificial error'));
+  });
+
+  pipeline(ts, w, common.mustCall((err) => {
+    assert.ok(err, 'should have an error');
+  }));
+
+  ts.write('test');
 }
 
 {
