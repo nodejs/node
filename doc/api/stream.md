@@ -2036,7 +2036,8 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* `src` {{Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|AsyncGeneratorFunction|AsyncFunction|Promise|WritableReadablePair}
+* `src` {{Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
+  AsyncGeneratorFunction|AsyncFunction|Promise|WritableReadablePair}
 
 A utility method for creating duplex streams.
 
