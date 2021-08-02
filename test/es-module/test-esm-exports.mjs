@@ -35,7 +35,12 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports-sugar', { default: 'main' }],
     // Path patterns
     ['pkgexports/subpath/sub-dir1', { default: 'main' }],
+    ['pkgexports/subpath/sub-dir1.js', { default: 'main' }],
     ['pkgexports/features/dir1', { default: 'main' }],
+    ['pkgexports/dir1/dir1/trailer', { default: 'main' }],
+    ['pkgexports/dir2/dir2/trailer', { default: 'index' }],
+    ['pkgexports/a/dir1/dir1', { default: 'main' }],
+    ['pkgexports/a/b/dir1/dir1', { default: 'main' }],
   ]);
 
   if (isRequire) {
@@ -77,6 +82,8 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/null/subpath', './null/subpath'],
     // Empty fallback
     ['pkgexports/nofallback1', './nofallback1'],
+    // Non pattern matches
+    ['pkgexports/trailer', './trailer'],
   ]);
 
   const invalidExports = new Map([
@@ -147,6 +154,8 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/sub/not-a-file.js', `pkgexports${sep}not-a-file.js`],
     // No extension lookups
     ['pkgexports/no-ext', `pkgexports${sep}asdf`],
+    // Pattern specificity
+    ['pkgexports/dir2/trailer', `subpath${sep}dir2.js`],
   ]);
 
   if (!isRequire) {
