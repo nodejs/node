@@ -23,7 +23,7 @@ tests['fs.sync.chmod'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                          'fs.chmodSync("fs.txt",100);' +
                          'fs.unlinkSync("fs.txt")';
 tests['fs.sync.chown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.chownSync("fs.txt",' + uid + ',' + gid + ');' +
+                         `fs.chownSync("fs.txt", ${uid}, ${gid});` +
                          'fs.unlinkSync("fs.txt")';
 tests['fs.sync.close'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                          'fs.unlinkSync("fs.txt")';
@@ -36,7 +36,7 @@ tests['fs.sync.fchmod'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                           'fs.unlinkSync("fs.txt")';
 tests['fs.sync.fchown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                           'const fd = fs.openSync("fs.txt", "r+");' +
-                          'fs.fchownSync(fd,' + uid + ',' + gid + ');' +
+                          `fs.fchownSync(fd, ${uid}, ${gid});` +
                           'fs.unlinkSync("fs.txt")';
 tests['fs.sync.fdatasync'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                              'const fd = fs.openSync("fs.txt", "r+");' +
@@ -58,7 +58,7 @@ tests['fs.sync.futimes'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                            'fs.futimesSync(fd,1,1);' +
                            'fs.unlinkSync("fs.txt")';
 tests['fs.sync.lchown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'fs.lchownSync("fs.txt",' + uid + ',' + gid + ');' +
+                          `fs.lchownSync("fs.txt", ${uid}, ${gid});` +
                           'fs.unlinkSync("fs.txt")';
 tests['fs.sync.link'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                         'fs.linkSync("fs.txt", "linkx");' +
