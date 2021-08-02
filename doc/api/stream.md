@@ -2033,9 +2033,7 @@ added: REPLACEME
 
 ### `stream.Duplex.from(src)`
 <!-- YAML
-added:
-  - v12.3.0
-  - v10.17.0
+added: REPLACEME
 -->
 
 * `src` {{Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|AsyncGeneratorFunction|AsyncFunction|Promise|WritableReadablePair}
