@@ -2046,6 +2046,18 @@ added: REPLACEME
   * `signal` {AbortSignal}
 * Returns: {stream.Readable}
 
+### `stream.Readable.isDisturbed(stream)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {stream.Readable|ReadableStream}
+* Returns: `boolean`
+
+Returns whether the stream has been read from.
+
 ### `stream.Readable.toWeb(streamReadable)`
 <!-- YAML
 added: REPLACEME
