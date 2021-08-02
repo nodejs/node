@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.6.1">16.6.1</a><br/>
 <a href="#16.6.0">16.6.0</a><br/>
 <a href="#16.5.0">16.5.0</a><br/>
 <a href="#16.4.2">16.4.2</a><br/>
@@ -40,6 +41,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.6.1"></a>
+## 2021-08-03, Version 16.6.1 (Current), @targos
+
+### Notable Changes
+
+* Updated npm to 7.20.3 (npm team) [#39579](https://github.com/nodejs/node/pull/39579)
+* Reverted an ABI-breaking change from V8 9.2 that could impact some native modules (Michaël Zasso) [#39624](https://github.com/nodejs/node/pull/39624)
+* Fixed a bug in error handling known to affect at least Webpack and Jest (Guy Bedford) [#39593](https://github.com/nodejs/node/pull/39593)
+
+### Commits
+
+* [[`6c769ccedf`](https://github.com/nodejs/node/commit/6c769ccedf)] - **build**: override python executable path on configure (legendecas) [#39465](https://github.com/nodejs/node/pull/39465)
+* [[`cbf6a01c17`](https://github.com/nodejs/node/commit/cbf6a01c17)] - **crypto**: fix `generateKeyPair` with encoding 'jwk' (himself65) [#39319](https://github.com/nodejs/node/pull/39319)
+* [[`3091295609`](https://github.com/nodejs/node/commit/3091295609)] - **deps**: revert ABI-breaking change from V8 9.2 (Michaël Zasso) [#39624](https://github.com/nodejs/node/pull/39624)
+* [[`06d7b8e8c8`](https://github.com/nodejs/node/commit/06d7b8e8c8)] - **deps**: upgrade npm to 7.20.3 (npm team) [#39579](https://github.com/nodejs/node/pull/39579)
+* [[`7b612fadc2`](https://github.com/nodejs/node/commit/7b612fadc2)] - **doc**: fix crypto.hkdf callback derivedKey type (Filip Skokan) [#39453](https://github.com/nodejs/node/pull/39453)
+* [[`7a731efd97`](https://github.com/nodejs/node/commit/7a731efd97)] - **doc,lib,test**: rename HKDF 'key' argument (Tobias Nießen) [#39474](https://github.com/nodejs/node/pull/39474)
+* [[`93bbaa0ce9`](https://github.com/nodejs/node/commit/93bbaa0ce9)] - **module**: fix ERR\_REQUIRE\_ESM error for null frames (Guy Bedford) [#39593](https://github.com/nodejs/node/pull/39593)
+* [[`e13162de09`](https://github.com/nodejs/node/commit/e13162de09)] - **module**: refine `enrichCJSError` (Antoine du Hamel) [#39507](https://github.com/nodejs/node/pull/39507)
+* [[`815fbec6f1`](https://github.com/nodejs/node/commit/815fbec6f1)] - **repl**: do not include legacy getter/setter methods in completion (Anna Henningsen) [#39576](https://github.com/nodejs/node/pull/39576)
+* [[`0405c8d3f0`](https://github.com/nodejs/node/commit/0405c8d3f0)] - **zlib**: avoid converting `Uint8Array` instances to `Buffer` (Antoine du Hamel) [#39492](https://github.com/nodejs/node/pull/39492)
 
 <a id="16.6.0"></a>
 ## 2021-07-29, Version 16.6.0 (Current), @BethGriggs
