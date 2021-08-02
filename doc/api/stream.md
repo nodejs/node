@@ -2047,14 +2047,14 @@ A utility method for creating duplex streams.
 * `ArrayBuffer` converts into readable `Duplex`.
 * `AsyncIterable` converts into a readable `Duplex`. Cannot yield
   `null`.
-* `AsyncGeneratorFunction` converts into a readable/writable transform `Duplex`.
-  Must take a source `AsyncIterable` as first parameter. Cannot yield
+* `AsyncGeneratorFunction` converts into a readable/writable transform
+  `Duplex`. Must take a source `AsyncIterable` as first parameter. Cannot yield
   `null`.
 * `AsyncFunction` converts into a writable `Duplex`. Must return
   either `null` or `undefined`
-* `WritableReadablePair ({ writable, readable })` converts `readable` and `writable` into `Stream` and
-  then combines them into `Duplex` where the `Duplex` will write to the `writable`
-  and read from the `readable`.
+* `WritableReadablePair ({ writable, readable })` converts `readable` and
+  `writable` into `Stream` and then combines them into `Duplex` where the
+  `Duplex` will write to the `writable` and read from the `readable`.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.
 
 ### `stream.Duplex.fromWeb(pair[, options])`
