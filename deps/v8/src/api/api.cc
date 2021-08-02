@@ -1244,8 +1244,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
   }
   if (callback != nullptr) {
-    Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
-                                        c_function_overloads);
+    Utils::ToLocal(obj)->SetCallHandlerV8_92(callback, data, side_effect_type,
+                                             c_function_overloads);
   }
   return Utils::ToLocal(obj);
 }
@@ -1308,6 +1308,16 @@ Local<AccessorSignature> AccessorSignature::New(
   } while (false)
 
 void FunctionTemplate::SetCallHandler(
+    FunctionCallback callback, v8::Local<Value> data,
+    SideEffectType side_effect_type,
+    const CFunction* c_function) {
+  SetCallHandlerV8_92(
+      callback, data, side_effect_type,
+      c_function ? MemorySpan<const CFunction>{c_function, 1}
+                 : MemorySpan<const CFunction>{});
+}
+
+void FunctionTemplate::SetCallHandlerV8_92(
     FunctionCallback callback, v8::Local<Value> data,
     SideEffectType side_effect_type,
     const MemorySpan<const CFunction>& c_function_overloads) {
