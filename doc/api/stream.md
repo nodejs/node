@@ -2036,7 +2036,7 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* `src` {{Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
+* `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
   AsyncGeneratorFunction|AsyncFunction|Promise|WritableReadablePair}
 
 A utility method for creating duplex streams.
@@ -2057,6 +2057,7 @@ A utility method for creating duplex streams.
   `writable` into `Stream` and then combines them into `Duplex` where the
   `Duplex` will write to the `writable` and read from the `readable`.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.
+* Returns: {stream.Duplex}
 
 ### `stream.Duplex.fromWeb(pair[, options])`
 <!-- YAML
