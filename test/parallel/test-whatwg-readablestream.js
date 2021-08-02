@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { isDisturbed } = require('stream');
 const assert = require('assert');
 const {
   isPromise,
@@ -1519,4 +1520,53 @@ class Source {
   readableStreamDefaultControllerEnqueue(controller);
   readableByteStreamControllerClose(controller);
   readableByteStreamControllerEnqueue(controller);
+}
+
+{
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue('a');
+      controller.close();
+    },
+    pull: common.mustNotCall(),
+  });
+
+  const reader = stream.getReader();
+  (async () => {
+    isDisturbed(stream, false);
+    await reader.read();
+    isDisturbed(stream, true);
+  })().then(common.mustCall());
+}
+
+{
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.close();
+    },
+    pull: common.mustNotCall(),
+  });
+
+  const reader = stream.getReader();
+  (async () => {
+    isDisturbed(stream, false);
+    await reader.read();
+    isDisturbed(stream, true);
+  })().then(common.mustCall());
+}
+
+{
+  const stream = new ReadableStream({
+    start(controller) {
+    },
+    pull: common.mustNotCall(),
+  });
+  stream.cancel();
+
+  const reader = stream.getReader();
+  (async () => {
+    isDisturbed(stream, false);
+    await reader.read();
+    isDisturbed(stream, true);
+  })().then(common.mustCall());
 }
