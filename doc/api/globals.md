@@ -242,7 +242,7 @@ within each turn of the Node.js event loop.
 // before any other promise jobs.
 
 DataHandler.prototype.load = async function load(key) {
-  const hit = this._cache.get(url);
+  const hit = this._cache.get(key);
   if (hit !== undefined) {
     queueMicrotask(() => {
       this.emit('load', hit);
@@ -251,7 +251,7 @@ DataHandler.prototype.load = async function load(key) {
   }
 
   const data = await fetchData(key);
-  this._cache.set(url, data);
+  this._cache.set(key, data);
   this.emit('load', data);
 };
 ```
