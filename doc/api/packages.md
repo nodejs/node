@@ -360,9 +360,8 @@ For these use cases, subpath export patterns can be used instead:
 **`*` maps expose nested subpaths as it is a string replacement syntax
 only.**
 
-The left hand matching pattern must always end in `*`. All instances of `*` on
-the right hand side will then be replaced with this value, including if it
-contains any `/` separators.
+All instances of `*` on the right hand side will then be replaced with this
+value, including if it contains any `/` separators.
 
 ```js
 import featureX from 'es-module-package/features/x';
