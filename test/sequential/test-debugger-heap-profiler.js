@@ -32,6 +32,10 @@ const filename = 'node.heapsnapshot';
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('takeHeapSnapshot()'))
     .then(() => JSON.parse(readFileSync(filename, 'utf8')))
+    // Check that two simultaneous snapshots don't step all over each other.
+    // Refs: https://github.com/nodejs/node/issues/39555
+    .then(() => cli.command('takeHeapSnapshot(); takeHeapSnapshot()'))
+    .then(() => JSON.parse(readFileSync(filename, 'utf8')))
     .then(() => cli.quit())
     .then(null, onFatal);
 }
