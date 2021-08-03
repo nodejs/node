@@ -1270,7 +1270,7 @@ added: REPLACEME
 
 * {boolean}
 
-Returns whether the stream was destroyed before `'end'` has been emitted.
+Returns whether the stream was destroyed or errored before emitting `'end'`.
 
 ##### `readable.readableDidRead`
 <!-- YAML
