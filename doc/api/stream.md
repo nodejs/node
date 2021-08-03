@@ -2037,7 +2037,7 @@ added: REPLACEME
 -->
 
 * `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
-  AsyncGeneratorFunction|AsyncFunction|Promise|WritableReadablePair}
+  AsyncGeneratorFunction|AsyncFunction|Promise|Object}
 
 A utility method for creating duplex streams.
 
@@ -2053,7 +2053,7 @@ A utility method for creating duplex streams.
   `null`.
 * `AsyncFunction` converts into a writable `Duplex`. Must return
   either `null` or `undefined`
-* `WritableReadablePair ({ writable, readable })` converts `readable` and
+* `Object ({ writable, readable })` converts `readable` and
   `writable` into `Stream` and then combines them into `Duplex` where the
   `Duplex` will write to the `writable` and read from the `readable`.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.

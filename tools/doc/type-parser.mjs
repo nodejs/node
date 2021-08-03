@@ -34,6 +34,8 @@ const customTypesMap = {
 
   'AsyncIterable': 'https://tc39.github.io/ecma262/#sec-asynciterable-interface',
 
+  'AsyncGeneratorFunction':  'https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorfunction-constructor',
+
   'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
