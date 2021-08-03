@@ -234,6 +234,24 @@ TEST(EncodeDecodeInt32Test, RoundtripsInt32Max) {
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
 }
 
+TEST(EncodeDecodeInt32Test, RoundtripsInt32Min) {
+  // std::numeric_limits<int32_t> is encoded as a uint32 after the initial byte.
+  std::vector<uint8_t> encoded;
+  EncodeInt32(std::numeric_limits<int32_t>::min(), &encoded);
+  // 1 for initial byte, 4 for the uint32.
+  // first three bits: major type = 1;
+  // remaining five bits: additional info = 26, indicating payload is uint32.
+  EXPECT_THAT(encoded, ElementsAreArray(std::array<uint8_t, 5>{
+                           {1 << 5 | 26, 0x7f, 0xff, 0xff, 0xff}}));
+
+  // Reverse direction: decode with CBORTokenizer.
+  CBORTokenizer tokenizer(SpanFrom(encoded));
+  EXPECT_EQ(CBORTokenTag::INT32, tokenizer.TokenTag());
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(), tokenizer.GetInt32());
+  tokenizer.Next();
+  EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
+}
+
 TEST(EncodeDecodeInt32Test, CantRoundtripUint32) {
   // 0xdeadbeef is a value which does not fit below
   // std::numerical_limits<int32_t>::max(), so we can't encode
@@ -261,15 +279,21 @@ TEST(EncodeDecodeInt32Test, DecodeErrorCases) {
     std::vector<uint8_t> data;
     std::string msg;
   };
-  std::vector<TestCase> tests{
-      {TestCase{
-           {24},
-           "additional info = 24 would require 1 byte of payload (but it's 0)"},
-       TestCase{{27, 0xaa, 0xbb, 0xcc},
-                "additional info = 27 would require 8 bytes of payload (but "
-                "it's 3)"},
-       TestCase{{29}, "additional info = 29 isn't recognized"}}};
-
+  std::vector<TestCase> tests{{
+      TestCase{
+          {24},
+          "additional info = 24 would require 1 byte of payload (but it's 0)"},
+      TestCase{{27, 0xaa, 0xbb, 0xcc},
+               "additional info = 27 would require 8 bytes of payload (but "
+               "it's 3)"},
+      TestCase{{29}, "additional info = 29 isn't recognized"},
+      TestCase{{1 << 5 | 27, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+               "Max UINT64 payload is outside the allowed range"},
+      TestCase{{1 << 5 | 26, 0xff, 0xff, 0xff, 0xff},
+               "Max UINT32 payload is outside the allowed range"},
+      TestCase{{1 << 5 | 26, 0x80, 0x00, 0x00, 0x00},
+               "UINT32 payload w/ high bit set is outside the allowed range"},
+  }};
   for (const TestCase& test : tests) {
     SCOPED_TRACE(test.msg);
     CBORTokenizer tokenizer(SpanFrom(test.data));
@@ -1513,6 +1537,22 @@ TEST_F(JsonParserTest, SimpleDictionary) {
       "map begin\n"
       "string16: foo\n"
       "int: 42\n"
+      "map end\n",
+      log_.str());
+}
+
+TEST_F(JsonParserTest, UsAsciiDelCornerCase) {
+  // DEL (0x7f) is a 7 bit US-ASCII character, and while it is a control
+  // character according to Unicode, it's not considered a control
+  // character in https://tools.ietf.org/html/rfc7159#section-7, so
+  // it can be placed directly into the JSON string, without JSON escaping.
+  std::string json = "{\"foo\": \"a\x7f\"}";
+  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  EXPECT_TRUE(log_.status().ok());
+  EXPECT_EQ(
+      "map begin\n"
+      "string16: foo\n"
+      "string16: a\x7f\n"
       "map end\n",
       log_.str());
 }
