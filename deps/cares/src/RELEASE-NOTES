@@ -1,30 +1,68 @@
-c-ares version 1.16.1
+c-ares version 1.17.1
+
+Due to a packaging issue with 1.17.0, we have released 1.17.1 to address that
+issue.  See 1.17.0 release notes below..
+
+
+c-ares version 1.17.0
 
 Security:
- o Prevent possible use-after-free and double-free in ares_getaddrinfo() if
-   ares_destroy() is called prior to ares_getaddrinfo() completing.  Reported
-   by Jann Horn at Google Project Zero.
+ o avoid read-heap-buffer-overflow in ares_parse_soa_reply found during
+   fuzzing [2] [3]
+ o Avoid theoretical buffer overflow in RC4 loop comparison [5]
+ o Empty hquery->name could lead to invalid memory access [15]
+ o ares_parse_{a,aaaa}_reply() could return a larger *naddrttls than was
+   passed in [17]
 
 Changes:
- o Allow TXT records on CHAOS qclass.  Used for retriving things like
-   version.bind, version.server, authoris.bind, hostname.bind, and id.server.
-   [3]
+ o Update help information for adig, acountry, and ahost [4]
+ o Test Suite now uses dynamic system-assigned ports rather than hardcoded
+   ports to prevent failures in containers [10]
+ o Detect remote DNS server does not support EDNS using rules from RFC 6891 [12]
+ o Source tree has been reorganized to use a more modern layout [13]
+ o Allow parsing of CAA Resource Record [14]
 
 Bug fixes:
- o Fix Windows Unicode incompatibilities with ares_getaddrinfo() [1]
- o Silence false cast-align compiler warnings due to valid casts of
-   struct sockaddr to struct sockaddr_in and struct sockaddr_in6.
- o MacOS should use libresolv for retrieving DNS servers, like iOS
- o CMake build system should populate the INCLUDE_DIRECTORIES property of 
-   installed targets [2]
- o Correct macros in use for the ares_getaddrinfo.3 man page
+ o readaddrinfo bad sizeof() [1]
+ o Test cases should honor HAVE_WRITEV flag, not depend on WIN32 [6]
+ o FQDN with trailing period should be queried first [7]
+ o ares_getaddrinfo() was returning members of the struct as garbage values if
+   unset, and was not honoring ai_socktype and ai_protocol hints. [8] [9]
+ o ares_gethostbyname() with AF_UNSPEC and an ip address would fail [11]
+ o Properly document ares_set_local_ip4() uses host byte order [16]
 
 Thanks go to these friendly people for their efforts and contributions:
- Brad House (@bradh352), Daniel Stenberg (@bagder), Dmitry Igrishin (@dmitigr),
- Jann Horn, Shelly Vohr, Teemu R (@rytilahti)
- (6 contributors)
+  @anonymoushelpishere
+  Anthony Penniston (@apenn-msft)
+  Brad House (@bradh352)
+  Bulat Gaifullin (@bgaifullin)
+  Daniela Sonnenschein (@lxdicted)
+  Daniel Stenberg (@bagder)
+  David Hotham (@dimbleby)
+  Fionn Fitzmaurice (@fionn)
+  Gisle Vanem (@gavenm)
+  Ivan Baidakou (@basiliscos)
+  Jonathan Maye-Hobbs (@wheelpharoah)
+  Łukasz Marszał (@lmarszal)
+  lutianxiong (@ltx2018)
+  Seraphime Kirkovski (@Seraphime)
+(14 contributors)
 
 References to bug reports and discussions on issues:
- [1] = https://github.com/c-ares/c-ares/pull/328
- [2] = https://github.com/c-ares/c-ares/pull/323
- [3] = https://github.com/c-ares/c-ares/pull/321
+ [1] = https://github.com/c-ares/c-ares/pull/331
+ [2] = https://github.com/c-ares/c-ares/pull/332
+ [3] = https://github.com/c-ares/c-ares/issues/333
+ [4] = https://github.com/c-ares/c-ares/pull/334
+ [5] = https://github.com/c-ares/c-ares/pull/336
+ [6] = https://github.com/c-ares/c-ares/pull/344
+ [7] = https://github.com/c-ares/c-ares/pull/345
+ [8] = https://github.com/c-ares/c-ares/issues/343
+ [9] = https://github.com/c-ares/c-ares/issues/317
+ [10] = https://github.com/c-ares/c-ares/pull/346
+ [11] = https://github.com/c-ares/c-ares/pull/204
+ [12] = https://github.com/c-ares/c-ares/pull/244
+ [13] = https://github.com/c-ares/c-ares/pull/349
+ [14] = https://github.com/c-ares/c-ares/pull/360
+ [15] = https://github.com/c-ares/c-ares/pull/367
+ [16] = https://github.com/c-ares/c-ares/pull/368
+ [17] = https://github.com/c-ares/c-ares/issues/371
