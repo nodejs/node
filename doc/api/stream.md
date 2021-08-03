@@ -2056,7 +2056,7 @@ added: REPLACEME
 * `stream` {stream.Readable|ReadableStream}
 * Returns: `boolean`
 
-Returns whether the stream has been read from.
+Returns whether the stream has been read from or cancelled.
 
 ### `stream.Readable.toWeb(streamReadable)`
 <!-- YAML
