@@ -156,10 +156,10 @@ struct NodeAresTask final : public MemoryRetainer {
 class ChannelWrap final : public AsyncWrap {
  public:
   ChannelWrap(
-    Environment* env,
-    v8::Local<v8::Object> object,
-    int timeout,
-    int tries);
+      Environment* env,
+      v8::Local<v8::Object> object,
+      int timeout,
+      int tries);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
