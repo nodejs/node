@@ -1261,16 +1261,27 @@ added: v11.4.0
 Is `true` if it is safe to call [`readable.read()`][stream-read], which means
 the stream has not been destroyed or emitted `'error'` or `'end'`.
 
+##### `readable.readableAborted`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {boolean}
+
+Returns whether the stream was destroyed before `'end'` has been emitted.
+
 ##### `readable.readableDidRead`
 <!-- YAML
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * {boolean}
 
-Allows determining if the stream has been or is about to be read.
-Returns true if `'data'`, `'end'`, `'error'` or `'close'` has been
-emitted.
+Returns whether `'data'` has been emitted.
 
 ##### `readable.readableEncoding`
 <!-- YAML
