@@ -28,8 +28,10 @@ function check(readable, data, fn) {
   readable.on('close', common.mustCall());
   fn();
   setImmediate(() => {
-    assert.strictEqual(readable.readableDidRead, true);
-    assert.strictEqual(isDisturbed(readable), true);
+    assert.strictEqual(readable.readableDidRead, data > 0);
+    if (data > 0) {
+      assert.strictEqual(isDisturbed(readable), true);
+    }
   });
 }
 

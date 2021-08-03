@@ -44,6 +44,7 @@ const { Readable } = require('stream');
   assert.strictEqual(readable.readableAborted, false);
   readable.push('asd');
   readable.push(null);
+  assert.strictEqual(readable.readableAborted, false);
   readable.on('end', common.mustCall(() => {
     assert.strictEqual(readable.readableAborted, false);
     readable.destroy();
@@ -52,4 +53,5 @@ const { Readable } = require('stream');
       assert.strictEqual(readable.readableAborted, false);
     });
   }));
+  readable.resume();
 }
