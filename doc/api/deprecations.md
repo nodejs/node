@@ -2786,6 +2786,18 @@ These properties are now available within the standard `detail` property
 of the `PerformanceEntry` object. The existing accessors have been
 deprecated and should no longer be used.
 
+### DEP0153: `readable.readableFlowing` setter
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39644
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`readable.readableFlowing`][] setter should not be used.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2853,6 +2865,7 @@ deprecated and should no longer be used.
 [`process.env`]: process.md#process_process_env
 [`process.mainModule`]: process.md#process_process_mainmodule
 [`punycode`]: punycode.md
+[`readable.readableFlowing`]: stream.html#stream_readable_readableflowing
 [`request.abort()`]: http.md#http_request_abort
 [`request.connection`]: http.md#http_request_connection
 [`request.destroy()`]: http.md#http_request_destroy_error
