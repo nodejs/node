@@ -319,3 +319,85 @@ const assert = require('assert');
   })(), /AbortError/);
   setTimeout(() => controller.abort(), 0);
 }
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('error', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.destroy(new Error('asd'));
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.read();
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+    read.unshift('asd');
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.destroy();
+  read.unshift('asd');
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.resume();
+  read.on('data', common.mustNotCall());
+  read.on('close', common.mustCall((e) => {
+    read.push('asd');
+  }));
+  read.destroy();
+}
+
+{
+  const read = new Readable({
+    read() {
+    },
+  });
+
+  read.on('data', common.mustNotCall());
+  read.destroy();
+  read.push('asd');
+}
