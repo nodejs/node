@@ -17,6 +17,15 @@
  */
 
 /*
+ * NOTE TO INTEGRATORS:
+ *
+ * This header is made public due to legacy projects relying on it.
+ * Please do not use the macros within this header, or include this
+ * header in your project as it may be removed in the future.
+ */
+
+
+/*
  * Macro DNS__16BIT reads a network short (16 bit) given in network
  * byte order, and returns its value as an unsigned short.
  */
