@@ -2865,7 +2865,7 @@ The [`readable.readableFlowing`][] setter should not be used.
 [`process.env`]: process.md#process_process_env
 [`process.mainModule`]: process.md#process_process_mainmodule
 [`punycode`]: punycode.md
-[`readable.readableFlowing`]: stream.html#stream_readable_readableflowing
+[`readable.readableFlowing`]: stream.md#stream_readable_readableflowing
 [`request.abort()`]: http.md#http_request_abort
 [`request.connection`]: http.md#http_request_connection
 [`request.destroy()`]: http.md#http_request_destroy_error
