@@ -23,17 +23,14 @@
 'use strict';
 
 
-(function () {
-  const tmpdir = require('../common/tmpdir');
-  tmpdir.refresh();
-}());
-
-
 // Copied from /test/parallel/test-fs-open.js using options-signature
 (function() {
   const common = require('../common');
   const assert = require('assert');
   const fs = require('fs');
+
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
 
   let caughtException = false;
 
@@ -223,7 +220,9 @@
 
   let openFd;
 
-  fs.open(`${tmpdir.path}/dummy`, {flags: 'wx+'}, common.mustCall((err, fd) => {
+  fs.open(`${tmpdir.path}/dummy`, {
+    flags: 'wx+'
+  }, common.mustCall((err, fd) => {
     debuglog('fs open() callback');
     assert.ifError(err);
     openFd = fd;
