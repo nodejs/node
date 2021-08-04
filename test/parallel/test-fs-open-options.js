@@ -24,7 +24,7 @@
 
 
 // Copied from /test/parallel/test-fs-open.js using options-signature
-(function() {
+{
   const common = require('../common');
   const assert = require('assert');
   const fs = require('fs');
@@ -131,12 +131,11 @@
       }
     );
   });
-}());
+}
 
 
 // Copied from /test/parallel/test-fs-open-flags.js using options-signature
-(function() {
-  // Flags: --expose-internals
+{
   const common = require('../common');
 
   const fixtures = require('../common/fixtures');
@@ -154,11 +153,11 @@
       fs.closeSync(fd);
     }));
   }
-}());
+}
 
 
 // Copied from /test/parallel/test-fs-open-mode-mask.js using options-signature
-(function() {
+{
   // This tests that the lower bits of mode > 0o777 still works in fs.open().
 
   const common = require('../common');
@@ -198,11 +197,11 @@
 
   test(mode, true);
   test(mode, false);
-}());
+}
 
 
 // Copied from /test/parallel/test-fs-open-no-close.js using options-signature
-(function() {
+{
   // Refs: https://github.com/nodejs/node/issues/34266
   // Failing to close a file should not keep the event loop open.
 
@@ -234,12 +233,12 @@
       fs.closeSync(openFd);
     }
   }));
-}());
+}
 
 
 // Copied from /test/parallel/test-fs-open-numeric-flags.js
 // using options-signature
-(function() {
+{
   require('../common');
 
   const assert = require('assert');
@@ -255,4 +254,4 @@
     () => fs.openSync(pathNE, { flags: fs.constants.O_WRONLY }),
     (e) => e.code === 'ENOENT'
   );
-}());
+}
