@@ -32,7 +32,7 @@ tmpdir.refresh();
   // with lazy-mkdirp.
   [
     'appendFile',
-    'writeFile'
+    'writeFile',
   ].forEach((functionName) => {
     const functionNameSync = functionName + 'Sync';
     // Test async lazy-mkdirp multiple times to ensure EEXIST is ignored.
@@ -40,7 +40,7 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionName + '/mkdirp/test1.txt'),
       path.join(tmpdir.path, functionName + '/mkdirp/test2.txt'),
       path.join(tmpdir.path, functionName + '/mkdirp/test3.txt'),
-      path.join(tmpdir.path, functionName + '/mkdirp/test4.txt')
+      path.join(tmpdir.path, functionName + '/mkdirp/test4.txt'),
     ].forEach((pathname) => {
       fs[functionName](
         pathname,
@@ -59,7 +59,7 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test1.txt'),
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test2.txt'),
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test3.txt'),
-      path.join(tmpdir.path, functionNameSync + '/mkdirp/test4.txt')
+      path.join(tmpdir.path, functionNameSync + '/mkdirp/test4.txt'),
     ].forEach((pathname) => {
       fs[functionNameSync](
         pathname,
@@ -71,6 +71,26 @@ tmpdir.refresh();
         assert.strictEqual(data, 'hello world!');
       }));
     });
+    // Test promisified lazy-mkdirp multiple times to ensure EEXIST is ignored.
+    [
+      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test1.txt'),
+      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test2.txt'),
+      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test3.txt'),
+      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test4.txt'),
+    ].forEach((pathname) => {
+      fs.promises.[functionName](
+        pathname,
+        'hello world!',
+        { parents: true }
+      ).then(
+        common.mustSucceed(() => {
+          fs.readFile(pathname, 'utf8', common.mustSucceed((data) => {
+            // Validate data.
+            assert.strictEqual(data, 'hello world!');
+          }));
+        })
+      );
+    });
   });
 }
 
@@ -79,7 +99,7 @@ tmpdir.refresh();
   // will disables option mkdirp for flags missing O_CREAT.
   [
     'appendFile',
-    'writeFile'
+    'writeFile',
   ].forEach((functionName) => {
     const functionNameSync = functionName + 'Sync';
     [
@@ -88,7 +108,7 @@ tmpdir.refresh();
       'sr',  // O_RDONLY | O_SYNC
       'r+',  // O_RDWR
       'rs+', // Fall through.
-      'sr+'  // O_RDWR | O_SYNC
+      'sr+',  // O_RDWR | O_SYNC
     ].forEach((flag) => {
       // Test fs.writeFile(..., { flag: 'r', parents: 'true' }, callback)
       // fails with 'ENOENT'.
@@ -122,7 +142,7 @@ tmpdir.refresh();
   // Test open, openSync
   // with lazy-mkdirp.
   [
-    'open'
+    'open',
   ].forEach((functionName) => {
     const functionNameSync = functionName + 'Sync';
     // Test async lazy-mkdirp multiple times to ensure EEXIST is ignored.
@@ -130,10 +150,10 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionName + '/mkdirp/test1.txt'),
       path.join(tmpdir.path, functionName + '/mkdirp/test2.txt'),
       path.join(tmpdir.path, functionName + '/mkdirp/test3.txt'),
-      path.join(tmpdir.path, functionName + '/mkdirp/test4.txt')
+      path.join(tmpdir.path, functionName + '/mkdirp/test4.txt'),
     ].forEach((pathname) => {
       fs[functionName](pathname, {
-        flag: 'w',
+        flags: 'w',
         parents: true
       }, common.mustSucceed((fd) => {
         // cleanup fd
@@ -145,10 +165,10 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test1.txt'),
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test2.txt'),
       path.join(tmpdir.path, functionNameSync + '/mkdirp/test3.txt'),
-      path.join(tmpdir.path, functionNameSync + '/mkdirp/test4.txt')
+      path.join(tmpdir.path, functionNameSync + '/mkdirp/test4.txt'),
     ].forEach((pathname) => {
       const fd = fs[functionNameSync](pathname, {
-        flag: 'w',
+        flags: 'w',
         parents: true
       });
       // cleanup fd
@@ -159,10 +179,10 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test1.txt'),
       path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test2.txt'),
       path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test3.txt'),
-      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test4.txt')
+      path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test4.txt'),
     ].forEach(async (pathname) => {
       const fd = await fs.promises[functionName](pathname, {
-        flag: 'w',
+        flags: 'w',
         parents: true
       });
       // cleanup fd
@@ -175,7 +195,7 @@ tmpdir.refresh();
   // Test open, openSync, fs.promises.open
   // will disable option mkdirp for flags missing O_CREAT.
   [
-    'open'
+    'open',
   ].forEach((functionName) => {
     const functionNameSync = functionName + 'Sync';
     [
@@ -184,36 +204,36 @@ tmpdir.refresh();
       'sr',  // O_RDONLY | O_SYNC
       'r+',  // O_RDWR
       'rs+', // Fall through.
-      'sr+'  // O_RDWR | O_SYNC
-    ].forEach(async (flag) => {
-      // Test fs.open(..., { flag: 'r', parents: 'true' }, callback)
+      'sr+',  // O_RDWR | O_SYNC
+    ].forEach(async (flags) => {
+      // Test fs.open(..., { flags: 'r', parents: 'true' }, callback)
       // fails with 'ENOENT'.
       fs[functionName](
         path.join(tmpdir.path, 'enoent/enoent/test.txt'),
-        { flag, parents: 'true' },
+        { flags, parents: 'true' },
         common.mustCall((err) => {
           // Validate error 'ENOENT'.
           assert.strictEqual(err.code, 'ENOENT');
         })
       );
-      // Test fs.openSync(..., { flag: 'r', parents: 'true' })
+      // Test fs.openSync(..., { flags: 'r', parents: 'true' })
       // fails with 'ENOENT'.
       try {
         fs[functionNameSync](
           path.join(tmpdir.path, 'enoent/enoent/test.txt'),
-          { flag, parents: 'true' },
+          { flags, parents: 'true' },
         );
         throw new Error('fs.' + functionNameSync + ' should have failed.');
       } catch (errCaught) {
         // Validate error 'ENOENT'.
         assert.strictEqual(errCaught.code, 'ENOENT');
       }
-      // Test fs.promises.open(..., { flag: 'r', parents: 'true' })
+      // Test fs.promises.open(..., { flags: 'r', parents: 'true' })
       // fails with 'ENOENT'.
       try {
         await fs.promises[functionName](
           path.join(tmpdir.path, 'enoent/enoent/test.txt'),
-          { flag, parents: 'true' },
+          { flags, parents: 'true' },
         );
         throw new Error('fs.' + functionName + ' should have failed.');
       } catch (errCaught) {

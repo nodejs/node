@@ -35,7 +35,7 @@
     // Should throw ENOENT, not EBADF
     // see https://github.com/joyent/node/pull/1228
     fs.openSync('/8hvftyuncxrt/path/to/file/that/does/not/exist', {
-      flag: 'r'
+      flags: 'r'
     });
   } catch (e) {
     assert.strictEqual(e.code, 'ENOENT');
@@ -47,24 +47,24 @@
 
   fs.open(__filename, common.mustSucceed());
 
-  fs.open(__filename, { flag: 'r' }, common.mustSucceed());
+  fs.open(__filename, { flags: 'r' }, common.mustSucceed());
 
-  fs.open(__filename, { flag: 'rs' }, common.mustSucceed());
+  fs.open(__filename, { flags: 'rs' }, common.mustSucceed());
 
-  fs.open(__filename, { flag: 'r', mode: 0 }, common.mustSucceed());
+  fs.open(__filename, { flags: 'r', mode: 0 }, common.mustSucceed());
 
-  fs.open(__filename, { flag: 'r', mode: null }, common.mustSucceed());
+  fs.open(__filename, { flags: 'r', mode: null }, common.mustSucceed());
 
   async function promise() {
     await fs.promises.open(__filename);
-    await fs.promises.open(__filename, { flag: 'r' });
+    await fs.promises.open(__filename, { flags: 'r' });
   }
 
   promise().then(common.mustCall()).catch(common.mustNotCall());
 
   assert.throws(
     () => fs.open(__filename, {
-      flag: 'r',
+      flags: 'r',
       mode: 'boom'
     }, common.mustNotCall()),
     {
@@ -85,21 +85,21 @@
 
   [false, 1, [], {}, null, undefined].forEach((i) => {
     assert.throws(
-      () => fs.open(i, { flag: 'r' }, common.mustNotCall()),
+      () => fs.open(i, { flags: 'r' }, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );
     assert.throws(
-      () => fs.openSync(i, { flag: 'r' }, common.mustNotCall()),
+      () => fs.openSync(i, { flags: 'r' }, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );
     assert.rejects(
-      fs.promises.open(i, { flag: 'r' }),
+      fs.promises.open(i, { flags: 'r' }),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
@@ -110,21 +110,21 @@
   // Check invalid modes.
   [false, [], {}].forEach((mode) => {
     assert.throws(
-      () => fs.open(__filename, { flag: 'r', mode }, common.mustNotCall()),
+      () => fs.open(__filename, { flags: 'r', mode }, common.mustNotCall()),
       {
         message: /'mode' must be a 32-bit/,
         code: 'ERR_INVALID_ARG_VALUE'
       }
     );
     assert.throws(
-      () => fs.openSync(__filename, { flag: 'r', mode }, common.mustNotCall()),
+      () => fs.openSync(__filename, { flags: 'r', mode }, common.mustNotCall()),
       {
         message: /'mode' must be a 32-bit/,
         code: 'ERR_INVALID_ARG_VALUE'
       }
     );
     assert.rejects(
-      fs.promises.open(__filename, { flag: 'r', mode }),
+      fs.promises.open(__filename, { flags: 'r', mode }),
       {
         message: /'mode' must be a 32-bit/,
         code: 'ERR_INVALID_ARG_VALUE'
@@ -150,7 +150,7 @@
     tmpdir.refresh();
     const file = path.join(tmpdir.path, 'a.js');
     fs.copyFileSync(fixtures.path('a.js'), file);
-    fs.open(file, { flag: fs.constants.O_DSYNC }, common.mustSucceed((fd) => {
+    fs.open(file, { flags: fs.constants.O_DSYNC }, common.mustSucceed((fd) => {
       fs.closeSync(fd);
     }));
   }
@@ -180,7 +180,7 @@
 
     {
       const file = path.join(tmpdir.path, `openSync-${suffix}.txt`);
-      const fd = fs.openSync(file, { flag: 'w+', mask: input });
+      const fd = fs.openSync(file, { flags: 'w+', mask: input });
       assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
       fs.closeSync(fd);
       assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
@@ -188,7 +188,7 @@
 
     {
       const file = path.join(tmpdir.path, `open-${suffix}.txt`);
-      fs.open(file, { flag: 'w+', mask: input }, common.mustSucceed((fd) => {
+      fs.open(file, { flags: 'w+', mask: input }, common.mustSucceed((fd) => {
         assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
         fs.closeSync(fd);
         assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
@@ -220,7 +220,7 @@
 
   {
     fs.open(`${tmpdir.path}/dummy`, {
-      flag: 'wx+'
+      flags: 'wx+'
     }, common.mustCall((err, fd) => {
       debuglog('fs open() callback');
       assert.ifError(err);
@@ -245,7 +245,7 @@
   // O_WRONLY without O_CREAT shall fail with ENOENT
   const pathNE = path.join(tmpdir.path, 'file-should-not-exist');
   assert.throws(
-    () => fs.openSync(pathNE, { flag: fs.constants.O_WRONLY }),
+    () => fs.openSync(pathNE, { flags: fs.constants.O_WRONLY }),
     (e) => e.code === 'ENOENT'
   );
 }());
