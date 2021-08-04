@@ -119,7 +119,9 @@ callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress([ipv4][, ipv6])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `ipv4` {string} A string representation of an IPv4 address.
@@ -155,7 +157,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -184,8 +186,9 @@ changes:
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
     **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future.
-    New code should use `{ verbatim: true }`.
+    expected to change in the not too distant future. Default value is
+    configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
@@ -439,7 +442,9 @@ will contain an array of canonical name records available for the `hostname`
 
 ## `dns.resolveCaa(hostname, callback)`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * `hostname` {string}
@@ -450,7 +455,7 @@ added: v15.0.0
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of certification authority authorization records
-available for the `hostname` (e.g. `[{critial: 0, iodef:
+available for the `hostname` (e.g. `[{critical: 0, iodef:
 'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
 
 ## `dns.resolveMx(hostname, callback)`
@@ -629,6 +634,23 @@ array of host names.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
 
+## `dns.setDefaultResultOrder(order)`
+<!-- YAML
+added: v16.4.0
+-->
+
+* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+priority than [`--dns-result-order`][]. When using [worker threads][],
+[`dns.setDefaultResultOrder()`][] from the main thread won't affect the default
+dns orders in workers.
+
 ## `dns.setServers(servers)`
 <!-- YAML
 added: v0.11.3
@@ -645,7 +667,7 @@ dns.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 
@@ -732,7 +754,9 @@ The following methods from the `dnsPromises` API are available:
 
 ### `resolver.cancel()`
 <!-- YAML
-added: v15.3.0
+added:
+  - v15.3.0
+  - v14.17.0
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
@@ -755,7 +779,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -777,8 +801,9 @@ added: v10.6.0
     IPv6 addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
     **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future.
-    New code should use `{ verbatim: true }`.
+    expected to change in the not too distant future. Default value is
+    configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
@@ -960,7 +985,9 @@ Here is an example of the result object:
 
 ### `dnsPromises.resolveCaa(hostname)`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 -->
 
 * `hostname` {string}
@@ -968,7 +995,7 @@ added: v15.0.0
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. On success,
 the `Promise` is resolved with an array of objects containing available
 certification authority authorization records available for the `hostname`
-(e.g. `[{critial: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
+(e.g. `[{critical: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
 'pki.example.com'}]`).
 
 ### `dnsPromises.resolveCname(hostname)`
@@ -1132,6 +1159,23 @@ array of host names.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
 
+### `dnsPromises.setDefaultResultOrder(order)`
+<!-- YAML
+added: v16.4.0
+-->
+
+* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dnsPromises.setDefaultResultOrder()`][] have
+higher priority than [`--dns-result-order`][]. When using [worker threads][],
+[`dnsPromises.setDefaultResultOrder()`][] from the main thread won't affect the
+default dns orders in workers.
+
 ### `dnsPromises.setServers(servers)`
 <!-- YAML
 added: v10.6.0
@@ -1148,7 +1192,7 @@ dnsPromises.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 
@@ -1241,6 +1285,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [Implementation considerations section]: #dns_implementation_considerations
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
+[`--dns-result-order`]: cli.md#cli_dns_result_order_order
 [`Error`]: errors.md#errors_class_error
 [`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`dgram.createSocket()`]: dgram.md#dgram_dgram_createsocket_options_callback
@@ -1260,6 +1305,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
 [`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
 [`dns.reverse()`]: #dns_dns_reverse_ip_callback
+[`dns.setDefaultResultOrder()`]: #dns_dns_setdefaultresultorder_order
 [`dns.setServers()`]: #dns_dns_setservers_servers
 [`dnsPromises.getServers()`]: #dns_dnspromises_getservers
 [`dnsPromises.lookup()`]: #dns_dnspromises_lookup_hostname_options
@@ -1277,7 +1323,9 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.resolveSrv()`]: #dns_dnspromises_resolvesrv_hostname
 [`dnsPromises.resolveTxt()`]: #dns_dnspromises_resolvetxt_hostname
 [`dnsPromises.reverse()`]: #dns_dnspromises_reverse_ip
+[`dnsPromises.setDefaultResultOrder()`]: #dns_dnspromises_setdefaultresultorder_order
 [`dnsPromises.setServers()`]: #dns_dnspromises_setservers_servers
 [`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
 [`util.promisify()`]: util.md#util_util_promisify_original
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
+[worker threads]: worker_threads.md

@@ -193,7 +193,9 @@ assert.throws(
   errMessage);
 
 // But all other IV lengths should be accepted.
-for (let n = 1; n < 256; n += 1) {
+const minIvLength = common.hasOpenSSL3 ? 8 : 1;
+const maxIvLength = common.hasOpenSSL3 ? 64 : 256;
+for (let n = minIvLength; n < maxIvLength; n += 1) {
   if (common.hasFipsCrypto && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));
 }

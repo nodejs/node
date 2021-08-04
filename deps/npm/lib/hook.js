@@ -1,75 +1,93 @@
 const hookApi = require('libnpmhook')
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
 
-const usageUtil = require('./utils/usage.js')
-const usage = usageUtil('hook', [
-  'npm hook add <pkg> <url> <secret> [--type=<type>]',
-  'npm hook ls [pkg]',
-  'npm hook rm <id>',
-  'npm hook update <id> <url> <secret>',
-].join('\n'))
-
-const completion = require('./utils/completion/none.js')
-
-const cmd = (args, cb) => hook(args).then(() => cb()).catch(cb)
-
-const hook = async (args) => otplease(npm.flatOptions, opts => {
-  switch (args[0]) {
-    case 'add':
-      return add(args[1], args[2], args[3], opts)
-    case 'ls':
-      return ls(args[1], opts)
-    case 'rm':
-      return rm(args[1], opts)
-    case 'update':
-    case 'up':
-      return update(args[1], args[2], args[3], opts)
-    default:
-      throw usage
+const BaseCommand = require('./base-command.js')
+class Hook extends BaseCommand {
+  static get description () {
+    return 'Manage registry hooks'
   }
-})
 
-const add = (pkg, uri, secret, opts) => {
-  hookApi.add(pkg, uri, secret, opts).then(hook => {
+  static get name () {
+    return 'hook'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+      'otp',
+    ]
+  }
+
+  static get usage () {
+    return [
+      'add <pkg> <url> <secret> [--type=<type>]',
+      'ls [pkg]',
+      'rm <id>',
+      'update <id> <url> <secret>',
+    ]
+  }
+
+  exec (args, cb) {
+    this.hook(args).then(() => cb()).catch(cb)
+  }
+
+  async hook (args) {
+    return otplease(this.npm.flatOptions, (opts) => {
+      switch (args[0]) {
+        case 'add':
+          return this.add(args[1], args[2], args[3], opts)
+        case 'ls':
+          return this.ls(args[1], opts)
+        case 'rm':
+          return this.rm(args[1], opts)
+        case 'update':
+        case 'up':
+          return this.update(args[1], args[2], args[3], opts)
+        default:
+          throw this.usage
+      }
+    })
+  }
+
+  async add (pkg, uri, secret, opts) {
+    const hook = await hookApi.add(pkg, uri, secret, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`+ ${hookName(hook)} ${
+      this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
     }
-  })
-}
+  }
 
-const ls = (pkg, opts) => {
-  return hookApi.ls({ ...opts, package: pkg }).then(hooks => {
+  async ls (pkg, opts) {
+    const hooks = await hookApi.ls({ ...opts, package: pkg })
     if (opts.json)
-      output(JSON.stringify(hooks, null, 2))
+      this.npm.output(JSON.stringify(hooks, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hooks[0]).join('\t'))
+      this.npm.output(Object.keys(hooks[0]).join('\t'))
       hooks.forEach(hook => {
-        output(Object.keys(hook).map(k => hook[k]).join('\t'))
+        this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
       })
     } else if (!hooks.length)
-      output("You don't have any hooks configured yet.")
+      this.npm.output("You don't have any hooks configured yet.")
     else if (!opts.silent && opts.loglevel !== 'silent') {
       if (hooks.length === 1)
-        output('You have one hook configured.')
+        this.npm.output('You have one hook configured.')
       else
-        output(`You have ${hooks.length} hooks configured.`)
+        this.npm.output(`You have ${hooks.length} hooks configured.`)
 
       const table = new Table({ head: ['id', 'target', 'endpoint'] })
       hooks.forEach((hook) => {
         table.push([
           { rowSpan: 2, content: hook.id },
-          hookName(hook),
+          this.hookName(hook),
           hook.endpoint,
         ])
         if (hook.last_delivery) {
@@ -83,48 +101,45 @@ const ls = (pkg, opts) => {
         } else
           table.push([{ colSpan: 2, content: 'never triggered' }])
       })
-      output(table.toString())
+      this.npm.output(table.toString())
     }
-  })
-}
+  }
 
-const rm = (id, opts) => {
-  return hookApi.rm(id, opts).then(hook => {
+  async rm (id, opts) {
+    const hook = await hookApi.rm(id, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`- ${hookName(hook)} ${
+      this.npm.output(`- ${this.hookName(hook)} ${
         opts.unicode ? ' ✘ ' : ' X '
       } ${hook.endpoint}`)
     }
-  })
-}
+  }
 
-const update = (id, uri, secret, opts) => {
-  return hookApi.update(id, uri, secret, opts).then(hook => {
+  async update (id, uri, secret, opts) {
+    const hook = await hookApi.update(id, uri, secret, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`+ ${hookName(hook)} ${
+      this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
     }
-  })
-}
+  }
 
-const hookName = (hook) => {
-  let target = hook.name
-  if (hook.type === 'scope')
-    target = '@' + target
-  if (hook.type === 'owner')
-    target = '~' + target
-  return target
+  hookName (hook) {
+    let target = hook.name
+    if (hook.type === 'scope')
+      target = '@' + target
+    if (hook.type === 'owner')
+      target = '~' + target
+    return target
+  }
 }
-
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Hook

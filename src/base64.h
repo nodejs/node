@@ -36,9 +36,9 @@ static inline const char* base64_select_table(Base64Mode mode) {
 static inline constexpr size_t base64_encoded_size(
     size_t size,
     Base64Mode mode = Base64Mode::NORMAL) {
-  return mode == Base64Mode::NORMAL
-      ? ((size + 2) / 3 * 4)
-      : std::ceil(static_cast<double>(size * 4) / 3);
+  return mode == Base64Mode::NORMAL ? ((size + 2) / 3 * 4)
+                                    : static_cast<size_t>(std::ceil(
+                                          static_cast<double>(size * 4) / 3));
 }
 
 // Doesn't check for padding at the end.  Can be 1-2 bytes over.

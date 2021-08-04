@@ -50,8 +50,7 @@ function findPackageJson(startDir) {
  */
 function installSyncSaveDev(packages) {
     const packageList = Array.isArray(packages) ? packages : [packages];
-    const npmProcess = spawn.sync("npm", ["i", "--save-dev"].concat(packageList),
-        { stdio: "inherit" });
+    const npmProcess = spawn.sync("npm", ["i", "--save-dev"].concat(packageList), { stdio: "inherit" });
     const error = npmProcess.error;
 
     if (error && error.code === "ENOENT") {
@@ -172,6 +171,7 @@ function checkPackageJson(startDir) {
 module.exports = {
     installSyncSaveDev,
     fetchPeerDependencies,
+    findPackageJson,
     checkDeps,
     checkDevDeps,
     checkPackageJson

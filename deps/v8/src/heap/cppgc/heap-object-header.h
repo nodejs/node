@@ -11,6 +11,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
+#include "include/cppgc/internal/name-trait.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
@@ -19,6 +20,9 @@
 #include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
+
+class Visitor;
+
 namespace internal {
 
 // HeapObjectHeader contains meta data per object and is prepended to each
@@ -33,42 +37,45 @@ namespace internal {
 // | unused          |    1 |                                          |
 // | in construction |    1 | In construction encoded as |false|.      |
 // +-----------------+------+------------------------------------------+
-// | size            |   14 | 17 bits because allocations are aligned. |
-// | unused          |    1 |                                          |
+// | size            |   15 | 17 bits because allocations are aligned. |
 // | mark bit        |    1 |                                          |
 // +-----------------+------+------------------------------------------+
 //
 // Notes:
 // - See |GCInfoTable| for constraints on GCInfoIndex.
-// - |size| for regular objects is encoded with 14 bits but can actually
+// - |size| for regular objects is encoded with 15 bits but can actually
 //   represent sizes up to |kBlinkPageSize| (2^17) because allocations are
-//   always 8 byte aligned (see kAllocationGranularity).
+//   always 4 byte aligned (see kAllocationGranularity) on 32bit. 64bit uses
+//   8 byte aligned allocations which leaves 1 bit unused.
 // - |size| for large objects is encoded as 0. The size of a large object is
 //   stored in |LargeObjectPage::PayloadSize()|.
 // - |mark bit| and |in construction| bits are located in separate 16-bit halves
 //    to allow potentially accessing them non-atomically.
 class HeapObjectHeader {
  public:
-  enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
-
   static constexpr size_t kSizeLog2 = 17;
   static constexpr size_t kMaxSize = (size_t{1} << kSizeLog2) - 1;
   static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
-  inline static HeapObjectHeader& FromPayload(void* address);
-  inline static const HeapObjectHeader& FromPayload(const void* address);
+  inline static HeapObjectHeader& FromObject(void* address);
+  inline static const HeapObjectHeader& FromObject(const void* address);
 
   inline HeapObjectHeader(size_t size, GCInfoIndex gc_info_index);
 
-  // The payload starts directly after the HeapObjectHeader.
-  inline Address Payload() const;
+  // The object starts directly after the HeapObjectHeader.
+  inline Address ObjectStart() const;
+  template <AccessMode mode = AccessMode::kNonAtomic>
+  inline Address ObjectEnd() const;
 
   template <AccessMode mode = AccessMode::kNonAtomic>
   inline GCInfoIndex GetGCInfoIndex() const;
 
   template <AccessMode mode = AccessMode::kNonAtomic>
-  inline size_t GetSize() const;
-  inline void SetSize(size_t size);
+  inline size_t AllocatedSize() const;
+  inline void SetAllocatedSize(size_t size);
+
+  template <AccessMode mode = AccessMode::kNonAtomic>
+  inline size_t ObjectSize() const;
 
   template <AccessMode mode = AccessMode::kNonAtomic>
   inline bool IsLargeObject() const;
@@ -93,6 +100,11 @@ class HeapObjectHeader {
   inline bool IsFinalizable() const;
   void Finalize();
 
+  V8_EXPORT_PRIVATE HeapObjectName GetName() const;
+
+  template <AccessMode = AccessMode::kNonAtomic>
+  void Trace(Visitor*) const;
+
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
 
@@ -102,18 +114,17 @@ class HeapObjectHeader {
   using GCInfoIndexField = UnusedField1::Next<GCInfoIndex, 14>;
   // Used in |encoded_low_|.
   using MarkBitField = v8::base::BitField16<bool, 0, 1>;
-  using UnusedField2 = MarkBitField::Next<bool, 1>;
   using SizeField = void;  // Use EncodeSize/DecodeSize instead.
 
   static constexpr size_t DecodeSize(uint16_t encoded) {
     // Essentially, gets optimized to << 1.
-    using SizeField = UnusedField2::Next<size_t, 14>;
+    using SizeField = MarkBitField::Next<size_t, 15>;
     return SizeField::decode(encoded) * kAllocationGranularity;
   }
 
   static constexpr uint16_t EncodeSize(size_t size) {
     // Essentially, gets optimized to >> 1.
-    using SizeField = UnusedField2::Next<size_t, 14>;
+    using SizeField = MarkBitField::Next<size_t, 15>;
     return SizeField::encode(size / kAllocationGranularity);
   }
 
@@ -133,16 +144,20 @@ class HeapObjectHeader {
   uint16_t encoded_low_;
 };
 
+static_assert(kAllocationGranularity == sizeof(HeapObjectHeader),
+              "sizeof(HeapObjectHeader) must match allocation granularity to "
+              "guarantee alignment");
+
 // static
-HeapObjectHeader& HeapObjectHeader::FromPayload(void* payload) {
-  return *reinterpret_cast<HeapObjectHeader*>(static_cast<Address>(payload) -
+HeapObjectHeader& HeapObjectHeader::FromObject(void* object) {
+  return *reinterpret_cast<HeapObjectHeader*>(static_cast<Address>(object) -
                                               sizeof(HeapObjectHeader));
 }
 
 // static
-const HeapObjectHeader& HeapObjectHeader::FromPayload(const void* payload) {
+const HeapObjectHeader& HeapObjectHeader::FromObject(const void* object) {
   return *reinterpret_cast<const HeapObjectHeader*>(
-      static_cast<ConstAddress>(payload) - sizeof(HeapObjectHeader));
+      static_cast<ConstAddress>(object) - sizeof(HeapObjectHeader));
 }
 
 HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
@@ -152,28 +167,43 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   DCHECK_LT(gc_info_index, GCInfoTable::kMaxIndex);
   DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
-  encoded_high_ = GCInfoIndexField::encode(gc_info_index);
   encoded_low_ = EncodeSize(size);
+  // Objects may get published to the marker without any other synchronization
+  // (e.g., write barrier) in which case the in-construction bit is read
+  // concurrently which requires reading encoded_high_ atomically. It is ok if
+  // this write is not observed by the marker, since the sweeper  sets the
+  // in-construction bit to 0 and we can rely on that to guarantee a correct
+  // answer when checking if objects are in-construction.
+  v8::base::AsAtomicPtr(&encoded_high_)
+      ->store(GCInfoIndexField::encode(gc_info_index),
+              std::memory_order_relaxed);
   DCHECK(IsInConstruction());
 #ifdef DEBUG
   CheckApiConstants();
 #endif  // DEBUG
 }
 
-Address HeapObjectHeader::Payload() const {
+Address HeapObjectHeader::ObjectStart() const {
   return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
          sizeof(HeapObjectHeader);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
+Address HeapObjectHeader::ObjectEnd() const {
+  DCHECK(!IsLargeObject());
+  return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
+         AllocatedSize<mode>();
+}
+
+template <AccessMode mode>
 GCInfoIndex HeapObjectHeader::GetGCInfoIndex() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kHigh, std::memory_order_acquire>();
   return GCInfoIndexField::decode(encoded);
 }
 
-template <HeapObjectHeader::AccessMode mode>
-size_t HeapObjectHeader::GetSize() const {
+template <AccessMode mode>
+size_t HeapObjectHeader::AllocatedSize() const {
   // Size is immutable after construction while either marking or sweeping
   // is running so relaxed load (if mode == kAtomic) is enough.
   uint16_t encoded_low_value =
@@ -182,17 +212,24 @@ size_t HeapObjectHeader::GetSize() const {
   return size;
 }
 
-void HeapObjectHeader::SetSize(size_t size) {
+void HeapObjectHeader::SetAllocatedSize(size_t size) {
   DCHECK(!IsMarked());
-  encoded_low_ |= EncodeSize(size);
+  encoded_low_ = EncodeSize(size);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
+size_t HeapObjectHeader::ObjectSize() const {
+  // The following DCHECK also fails for large objects.
+  DCHECK_GT(AllocatedSize<mode>(), sizeof(HeapObjectHeader));
+  return AllocatedSize<mode>() - sizeof(HeapObjectHeader);
+}
+
+template <AccessMode mode>
 bool HeapObjectHeader::IsLargeObject() const {
-  return GetSize<mode>() == kLargeObjectSizeInHeader;
+  return AllocatedSize<mode>() == kLargeObjectSizeInHeader;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsInConstruction() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kHigh, std::memory_order_acquire>();
@@ -200,17 +237,18 @@ bool HeapObjectHeader::IsInConstruction() const {
 }
 
 void HeapObjectHeader::MarkAsFullyConstructed() {
-  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(Payload());
+  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
+      ObjectStart());
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsMarked() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kLow, std::memory_order_relaxed>();
   return MarkBitField::decode(encoded);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void HeapObjectHeader::Unmark() {
   DCHECK(IsMarked<mode>());
   StoreEncoded<mode, EncodedHalf::kLow, std::memory_order_relaxed>(
@@ -228,14 +266,14 @@ bool HeapObjectHeader::TryMarkAtomic() {
                                                  std::memory_order_relaxed);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsYoung() const {
   return !IsMarked<mode>();
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsFree() const {
-  return GetGCInfoIndex() == kFreeListGCInfoIndex;
+  return GetGCInfoIndex<mode>() == kFreeListGCInfoIndex;
 }
 
 bool HeapObjectHeader::IsFinalizable() const {
@@ -243,7 +281,14 @@ bool HeapObjectHeader::IsFinalizable() const {
   return gc_info.finalize;
 }
 
-template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,
+template <AccessMode mode>
+void HeapObjectHeader::Trace(Visitor* visitor) const {
+  const GCInfo& gc_info =
+      GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
+  return gc_info.trace(visitor, ObjectStart());
+}
+
+template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
           std::memory_order memory_order>
 uint16_t HeapObjectHeader::LoadEncoded() const {
   const uint16_t& half =
@@ -252,7 +297,7 @@ uint16_t HeapObjectHeader::LoadEncoded() const {
   return v8::base::AsAtomicPtr(&half)->load(memory_order);
 }
 
-template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,
+template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
           std::memory_order memory_order>
 void HeapObjectHeader::StoreEncoded(uint16_t bits, uint16_t mask) {
   // Caveat: Not all changes to HeapObjectHeader's bitfields go through

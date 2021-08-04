@@ -7,7 +7,11 @@
 
 #include "src/base/iterator.h"
 #include "src/common/globals.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node-marker.h"
+#include "src/compiler/node-origin-table.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/zone/zone-containers.h"
 
@@ -41,11 +45,11 @@ class LoopTree : public ZoneObject {
    public:
     Loop* parent() const { return parent_; }
     const ZoneVector<Loop*>& children() const { return children_; }
-    size_t HeaderSize() const { return body_start_ - header_start_; }
-    size_t BodySize() const { return exits_start_ - body_start_; }
-    size_t ExitsSize() const { return exits_end_ - exits_start_; }
-    size_t TotalSize() const { return exits_end_ - header_start_; }
-    size_t depth() const { return static_cast<size_t>(depth_); }
+    uint32_t HeaderSize() const { return body_start_ - header_start_; }
+    uint32_t BodySize() const { return exits_start_ - body_start_; }
+    uint32_t ExitsSize() const { return exits_end_ - exits_start_; }
+    uint32_t TotalSize() const { return exits_end_ - header_start_; }
+    uint32_t depth() const { return depth_; }
 
    private:
     friend class LoopTree;
@@ -77,7 +81,7 @@ class LoopTree : public ZoneObject {
 
   // Check if the {loop} contains the {node}, either directly or by containing
   // a nested loop that contains {node}.
-  bool Contains(Loop* loop, Node* node) {
+  bool Contains(const Loop* loop, Node* node) {
     for (Loop* c = ContainingLoop(node); c != nullptr; c = c->parent_) {
       if (c == loop) return true;
     }
@@ -87,40 +91,51 @@ class LoopTree : public ZoneObject {
   // Return the list of outer loops.
   const ZoneVector<Loop*>& outer_loops() const { return outer_loops_; }
 
+  // Return a new vector containing the inner loops.
+  ZoneVector<const Loop*> inner_loops() const {
+    ZoneVector<const Loop*> inner_loops(zone_);
+    for (const Loop& loop : all_loops_) {
+      if (loop.children().empty()) {
+        inner_loops.push_back(&loop);
+      }
+    }
+    return inner_loops;
+  }
+
   // Return the unique loop number for a given loop. Loop numbers start at {1}.
-  int LoopNum(Loop* loop) const {
+  int LoopNum(const Loop* loop) const {
     return 1 + static_cast<int>(loop - &all_loops_[0]);
   }
 
   // Return a range which can iterate over the header nodes of {loop}.
-  NodeRange HeaderNodes(Loop* loop) {
+  NodeRange HeaderNodes(const Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->header_start_,
                      &loop_nodes_[0] + loop->body_start_);
   }
 
   // Return the header control node for a loop.
-  Node* HeaderNode(Loop* loop);
+  Node* HeaderNode(const Loop* loop);
 
   // Return a range which can iterate over the body nodes of {loop}.
-  NodeRange BodyNodes(Loop* loop) {
+  NodeRange BodyNodes(const Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->body_start_,
                      &loop_nodes_[0] + loop->exits_start_);
   }
 
   // Return a range which can iterate over the body nodes of {loop}.
-  NodeRange ExitNodes(Loop* loop) {
+  NodeRange ExitNodes(const Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->exits_start_,
                      &loop_nodes_[0] + loop->exits_end_);
   }
 
   // Return a range which can iterate over the nodes of {loop}.
-  NodeRange LoopNodes(Loop* loop) {
+  NodeRange LoopNodes(const Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->header_start_,
                      &loop_nodes_[0] + loop->exits_end_);
   }
 
   // Return the node that represents the control, i.e. the loop node itself.
-  Node* GetLoopControl(Loop* loop) {
+  Node* GetLoopControl(const Loop* loop) {
     // TODO(turbofan): make the loop control node always first?
     for (Node* node : HeaderNodes(loop)) {
       if (node->opcode() == IrOpcode::kLoop) return node;
@@ -161,8 +176,85 @@ class V8_EXPORT_PRIVATE LoopFinder {
   // Build a loop tree for the entire graph.
   static LoopTree* BuildLoopTree(Graph* graph, TickCounter* tick_counter,
                                  Zone* temp_zone);
+
+  static bool HasMarkedExits(LoopTree* loop_tree_, const LoopTree::Loop* loop);
+
+  // Find all nodes of a loop given its header node. Will exit early once the
+  // current loop size exceed {max_size}. This is a very restricted version of
+  // BuildLoopTree.
+  // Assumptions:
+  // 1) All loop exits of the loop are marked with LoopExit, LoopExitEffect,
+  //    and LoopExitValue nodes.
+  // 2) There are no nested loops within this loop.
+  static ZoneUnorderedSet<Node*>* FindUnnestedLoopFromHeader(Node* loop_header,
+                                                             Zone* zone,
+                                                             size_t max_size);
 };
 
+// Copies a range of nodes any number of times.
+class NodeCopier {
+ public:
+  // {max}: The maximum number of nodes that this copier will track, including
+  //        The original nodes and all copies.
+  // {p}: A vector that holds the original nodes and all copies.
+  // {copy_count}: How many times the nodes should be copied.
+  NodeCopier(Graph* graph, uint32_t max, NodeVector* p, uint32_t copy_count)
+      : node_map_(graph, max), copies_(p), copy_count_(copy_count) {
+    DCHECK_GT(copy_count, 0);
+  }
+
+  // Returns the mapping of {node} in the {copy_index}'th copy, or {node} itself
+  // if it is not present in the mapping. The copies are 0-indexed.
+  Node* map(Node* node, uint32_t copy_index);
+
+  // Helper version of {map} for one copy.
+  V8_INLINE Node* map(Node* node) { return map(node, 0); }
+
+  // Insert a new mapping from {original} to {new_copies} into the copier.
+  void Insert(Node* original, const NodeVector& new_copies);
+
+  // Helper version of {Insert} for one copy.
+  void Insert(Node* original, Node* copy);
+
+  template <typename InputIterator>
+  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead,
+                 base::iterator_range<InputIterator> nodes,
+                 SourcePositionTable* source_positions,
+                 NodeOriginTable* node_origins) {
+    // Copy all the nodes first.
+    for (Node* original : nodes) {
+      SourcePositionTable::Scope position(
+          source_positions, source_positions->GetSourcePosition(original));
+      NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", original);
+      node_map_.Set(original, copies_->size() + 1);
+      copies_->push_back(original);
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = graph->CloneNode(original);
+        copies_->push_back(copy);
+      }
+    }
+
+    // Fix inputs of the copies.
+    for (Node* original : nodes) {
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = map(original, copy_index);
+        for (int i = 0; i < copy->InputCount(); i++) {
+          copy->ReplaceInput(i, map(original->InputAt(i), copy_index));
+        }
+      }
+    }
+  }
+
+  bool Marked(Node* node) { return node_map_.Get(node) > 0; }
+
+ private:
+  // Maps a node to its index in the {copies_} vector.
+  NodeMarker<size_t> node_map_;
+  // The vector which contains the mapped nodes.
+  NodeVector* copies_;
+  // How many copies of the nodes should be generated.
+  const uint32_t copy_count_;
+};
 
 }  // namespace compiler
 }  // namespace internal

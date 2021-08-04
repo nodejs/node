@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-api.h"
-
 #include "src/api/api-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "test/cctest/test-api.h"
 
 using ::v8::Array;
 using ::v8::Context;
@@ -30,8 +30,7 @@ void CheckIsTypedArrayVarDetached(const char* name) {
               "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
               name, name, name);
   CHECK(CompileRun(source.begin())->IsTrue());
-  v8::Local<v8::TypedArray> ta =
-      v8::Local<v8::TypedArray>::Cast(CompileRun(name));
+  v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
 }
 
@@ -48,31 +47,11 @@ Local<TypedArray> CreateAndCheck(Local<v8::ArrayBuffer> ab, int byteOffset,
 
 std::shared_ptr<v8::BackingStore> Externalize(Local<v8::ArrayBuffer> ab) {
   std::shared_ptr<v8::BackingStore> backing_store = ab->GetBackingStore();
-  // Keep the tests until the deprecated functions are removed.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  ab->Externalize(backing_store);
-  CHECK(ab->IsExternal());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
   return backing_store;
 }
 
 std::shared_ptr<v8::BackingStore> Externalize(Local<v8::SharedArrayBuffer> ab) {
   std::shared_ptr<v8::BackingStore> backing_store = ab->GetBackingStore();
-  // Keep the tests until the deprecated functions are removed.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  ab->Externalize(backing_store);
-  CHECK(ab->IsExternal());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
   return backing_store;
 }
 
@@ -122,7 +101,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
       "var u8_a = new Uint8Array(ab1);"
       "u8_a[0] = 0xAA;"
       "u8_a[1] = 0xFF; u8_a.buffer");
-  Local<v8::ArrayBuffer> ab1 = Local<v8::ArrayBuffer>::Cast(result);
+  Local<v8::ArrayBuffer> ab1 = result.As<v8::ArrayBuffer>();
   CheckInternalFieldsAreZero(ab1);
   CHECK_EQ(2, ab1->ByteLength());
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab1);
@@ -148,46 +127,6 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   ab1_data[0] = 0xCC;
   ab1_data[1] = 0x11;
   result = CompileRun("u8_a[0] + u8_a[1]");
-  CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
-}
-
-THREADED_TEST(ArrayBuffer_External) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  i::ScopedVector<uint8_t> my_data(100);
-  memset(my_data.begin(), 0, 100);
-  // Keep the tests until the deprecated functions are removed.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  Local<v8::ArrayBuffer> ab3 =
-      v8::ArrayBuffer::New(isolate, my_data.begin(), 100);
-  CheckInternalFieldsAreZero(ab3);
-  CHECK_EQ(100, ab3->ByteLength());
-  CHECK(ab3->IsExternal());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-
-  CHECK(env->Global()->Set(env.local(), v8_str("ab3"), ab3).FromJust());
-
-  v8::Local<v8::Value> result = CompileRun("ab3.byteLength");
-  CHECK_EQ(100, result->Int32Value(env.local()).FromJust());
-
-  result = CompileRun(
-      "var u8_b = new Uint8Array(ab3);"
-      "u8_b[0] = 0xBB;"
-      "u8_b[1] = 0xCC;"
-      "u8_b.length");
-  CHECK_EQ(100, result->Int32Value(env.local()).FromJust());
-  CHECK_EQ(0xBB, my_data[0]);
-  CHECK_EQ(0xCC, my_data[1]);
-  my_data[0] = 0xCC;
-  my_data[1] = 0x11;
-  result = CompileRun("u8_b[0] + u8_b[1]");
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
@@ -272,10 +211,8 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
       "var f64a = new Float64Array(ab, 8, 127);"
       "var dv = new DataView(ab, 1, 1023);");
 
-  v8::Local<v8::ArrayBuffer> ab =
-      Local<v8::ArrayBuffer>::Cast(CompileRun("ab"));
-
-  v8::Local<v8::DataView> dv = v8::Local<v8::DataView>::Cast(CompileRun("dv"));
+  v8::Local<v8::ArrayBuffer> ab = CompileRun("ab").As<v8::ArrayBuffer>();
+  v8::Local<v8::DataView> dv = CompileRun("dv").As<v8::DataView>();
 
   Externalize(ab);
   ab->Detach();
@@ -296,37 +233,6 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   CheckDataViewIsDetached(dv);
 }
 
-// TODO(v8:9380) the Contents data structure should be deprecated.
-THREADED_TEST(ArrayBuffer_AllocationInformation) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  const size_t ab_size = 1024;
-  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, ab_size);
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  v8::ArrayBuffer::Contents contents(ab->GetContents());
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-
-  // Array buffers should have normal allocation mode.
-  CHECK_EQ(contents.AllocationMode(),
-           v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
-  // The allocation must contain the buffer (normally they will be equal, but
-  // this is not required by the contract).
-  CHECK_NOT_NULL(contents.AllocationBase());
-  const uintptr_t alloc =
-      reinterpret_cast<uintptr_t>(contents.AllocationBase());
-  const uintptr_t data = reinterpret_cast<uintptr_t>(contents.Data());
-  CHECK_LE(alloc, data);
-  CHECK_LE(data + contents.ByteLength(), alloc + contents.AllocationLength());
-}
-
 THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -345,7 +251,6 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   // marked as is_external or not.
   USE(u8a->Buffer());
 
-  CHECK(ab->IsExternal());
   CHECK_EQ(2, backing_store->ByteLength());
 }
 
@@ -384,35 +289,6 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(ArrayBuffer_ExternalReused) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  i::ScopedVector<uint8_t> data(100);
-  Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, data.begin(), 100);
-  std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
-  ab1->Detach();
-  Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, data.begin(), 100);
-  std::shared_ptr<v8::BackingStore> bs2 = ab2->GetBackingStore();
-  CHECK_EQ(bs1->Data(), bs2->Data());
-}
-
-THREADED_TEST(SharedArrayBuffer_ExternalReused) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  i::ScopedVector<uint8_t> data(100);
-  Local<v8::SharedArrayBuffer> ab1 =
-      v8::SharedArrayBuffer::New(isolate, data.begin(), 100);
-  std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
-  Local<v8::SharedArrayBuffer> ab2 =
-      v8::SharedArrayBuffer::New(isolate, data.begin(), 100);
-  std::shared_ptr<v8::BackingStore> bs2 = ab2->GetBackingStore();
-  CHECK_EQ(bs1->Data(), bs2->Data());
-}
-
 THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
   i::FLAG_harmony_sharedarraybuffer = true;
   LocalContext env;
@@ -424,7 +300,7 @@ THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
       "var u8_a = new Uint8Array(ab1);"
       "u8_a[0] = 0xAA;"
       "u8_a[1] = 0xFF; u8_a.buffer");
-  Local<v8::SharedArrayBuffer> ab1 = Local<v8::SharedArrayBuffer>::Cast(result);
+  Local<v8::SharedArrayBuffer> ab1 = result.As<v8::SharedArrayBuffer>();
   CheckInternalFieldsAreZero(ab1);
   CHECK_EQ(2, ab1->ByteLength());
   CHECK(!ab1->IsExternal());
@@ -454,64 +330,6 @@ THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-THREADED_TEST(SharedArrayBuffer_External) {
-  i::FLAG_harmony_sharedarraybuffer = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  i::ScopedVector<uint8_t> my_data(100);
-  memset(my_data.begin(), 0, 100);
-  Local<v8::SharedArrayBuffer> ab3 =
-      v8::SharedArrayBuffer::New(isolate, my_data.begin(), 100);
-  CheckInternalFieldsAreZero(ab3);
-  CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
-  CHECK(ab3->IsExternal());
-
-  CHECK(env->Global()->Set(env.local(), v8_str("ab3"), ab3).FromJust());
-
-  v8::Local<v8::Value> result = CompileRun("ab3.byteLength");
-  CHECK_EQ(100, result->Int32Value(env.local()).FromJust());
-
-  result = CompileRun(
-      "var u8_b = new Uint8Array(ab3);"
-      "u8_b[0] = 0xBB;"
-      "u8_b[1] = 0xCC;"
-      "u8_b.length");
-  CHECK_EQ(100, result->Int32Value(env.local()).FromJust());
-  CHECK_EQ(0xBB, my_data[0]);
-  CHECK_EQ(0xCC, my_data[1]);
-  my_data[0] = 0xCC;
-  my_data[1] = 0x11;
-  result = CompileRun("u8_b[0] + u8_b[1]");
-  CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
-}
-
-// TODO(v8:9380) the Contents data structure should be deprecated.
-THREADED_TEST(SharedArrayBuffer_AllocationInformation) {
-  i::FLAG_harmony_sharedarraybuffer = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  const size_t ab_size = 1024;
-  Local<v8::SharedArrayBuffer> ab =
-      v8::SharedArrayBuffer::New(isolate, ab_size);
-  v8::SharedArrayBuffer::Contents contents(ab->GetContents());
-
-  // Array buffers should have normal allocation mode.
-  CHECK_EQ(contents.AllocationMode(),
-           v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
-  // The allocation must contain the buffer (normally they will be equal, but
-  // this is not required by the contract).
-  CHECK_NOT_NULL(contents.AllocationBase());
-  const uintptr_t alloc =
-      reinterpret_cast<uintptr_t>(contents.AllocationBase());
-  const uintptr_t data = reinterpret_cast<uintptr_t>(contents.Data());
-  CHECK_LE(alloc, data);
-  CHECK_LE(data + contents.ByteLength(), alloc + contents.AllocationLength());
-}
-
 THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -519,9 +337,12 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
 
   // Make sure the pointer looks like a heap object
   uint8_t* store_ptr = reinterpret_cast<uint8_t*>(i::kHeapObjectTag);
+  auto backing_store = v8::ArrayBuffer::NewBackingStore(
+      store_ptr, 8, [](void*, size_t, void*) {}, nullptr);
 
   // Create ArrayBuffer with pointer-that-cannot-be-visited in the backing store
-  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, store_ptr, 8);
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, std::move(backing_store));
 
   // Should not crash
   CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
@@ -542,12 +363,15 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   Local<v8::Object> tmp = v8::Object::New(isolate);
   uint8_t* store_ptr =
       reinterpret_cast<uint8_t*>(*reinterpret_cast<uintptr_t*>(*tmp));
+  auto backing_store = v8::ArrayBuffer::NewBackingStore(
+      store_ptr, 8, [](void*, size_t, void*) {}, nullptr);
 
   // Make `store_ptr` point to from space
   CcTest::CollectGarbage(i::NEW_SPACE);
 
   // Create ArrayBuffer with pointer-that-cannot-be-visited in the backing store
-  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, store_ptr, 8);
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, std::move(backing_store));
 
   // Should not crash,
   // i.e. backing store pointer should not be treated as a heap object pointer

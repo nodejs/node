@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
@@ -24,6 +28,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -32,8 +37,6 @@ enum RuntimeExceptionSupport : bool {
 };
 
 enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
-
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
@@ -61,17 +64,16 @@ struct CompilationEnv {
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
-  const LowerSimd lower_simd;
-
-  static constexpr uint32_t kMaxMemoryPagesAtRuntime =
-      std::min(kV8MaxWasmMemoryPages,
-               std::numeric_limits<uintptr_t>::max() / kWasmPageSize);
+  // We assume that memories of size >= half of the virtual address space
+  // cannot be allocated (see https://crbug.com/1201340).
+  static constexpr uint32_t kMaxMemoryPagesAtRuntime = std::min(
+      kV8MaxWasmMemoryPages,
+      (uintptr_t{1} << (kSystemPointerSize == 4 ? 31 : 63)) / kWasmPageSize);
 
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
-                           const WasmFeatures& enabled_features,
-                           LowerSimd lower_simd = kNoLowerSimd)
+                           const WasmFeatures& enabled_features)
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
@@ -85,8 +87,7 @@ struct CompilationEnv {
                      module && module->has_maximum_pages ? module->maximum_pages
                                                          : max_mem_pages()) *
             uint64_t{kWasmPageSize})),
-        enabled_features(enabled_features),
-        lower_simd(lower_simd) {}
+        enabled_features(enabled_features) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -116,7 +117,11 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   ~CompilationState();
 
+  void InitCompileJob(WasmEngine*);
+
   void CancelCompilation();
+
+  void CancelInitialCompilation();
 
   void SetError();
 
@@ -138,6 +143,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   bool baseline_compilation_finished() const;
   bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
+
+  void set_compilation_id(int compilation_id);
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.

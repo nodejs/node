@@ -34,6 +34,10 @@ class JavaScriptFrame;
 class JSGlobalObject;
 class Zone;
 
+namespace compiler {
+class NodeObserver;
+}
+
 namespace wasm {
 struct WasmCompilationResult;
 }  // namespace wasm
@@ -66,7 +70,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceTurboAllocation, trace_turbo_allocation, 16)                \
   V(TraceHeapBroker, trace_heap_broker, 17)                          \
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18) \
-  V(ConcurrentInlining, concurrent_inlining, 19)
+  V(ConcurrentInlining, concurrent_inlining, 19)                     \
+  V(DiscardResultForTesting, discard_result_for_testing, 20)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 21)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -98,10 +104,21 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
-                           Handle<JSFunction> closure, CodeKind code_kind);
+                           Handle<JSFunction> closure, CodeKind code_kind,
+                           BytecodeOffset osr_offset,
+                           JavaScriptFrame* osr_frame);
+  // For testing.
+  OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
+                           Handle<SharedFunctionInfo> shared,
+                           Handle<JSFunction> closure, CodeKind code_kind)
+      : OptimizedCompilationInfo(zone, isolate, shared, closure, code_kind,
+                                 BytecodeOffset::None(), nullptr) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
+
+  OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
+  OptimizedCompilationInfo& operator=(const OptimizedCompilationInfo&) = delete;
 
   ~OptimizedCompilationInfo();
 
@@ -116,8 +133,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   CodeKind code_kind() const { return code_kind_; }
   int32_t builtin_index() const { return builtin_index_; }
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
-  BailoutId osr_offset() const { return osr_offset_; }
+  BytecodeOffset osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
+  void SetNodeObserver(compiler::NodeObserver* observer) {
+    DCHECK_NULL(node_observer_);
+    node_observer_ = observer;
+  }
+  compiler::NodeObserver* node_observer() const { return node_observer_; }
 
   void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
     poisoning_level_ = poisoning_level;
@@ -130,8 +152,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void SetCode(Handle<Code> code);
 
+#if V8_ENABLE_WEBASSEMBLY
   void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
   std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool has_context() const;
   Context context() const;
@@ -146,17 +170,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsOptimizing() const {
     return CodeKindIsOptimizedJSFunction(code_kind());
   }
-  bool IsNativeContextIndependent() const {
-    return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  }
-  bool IsStub() const { return code_kind() == CodeKind::STUB; }
+  bool IsTurboprop() const { return code_kind() == CodeKind::TURBOPROP; }
+#if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
-
-  void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
-    DCHECK(IsOptimizing());
-    osr_offset_ = osr_offset;
-    osr_frame_ = osr_frame;
-  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void set_persistent_handles(
       std::unique_ptr<PersistentHandles> persistent_handles) {
@@ -270,15 +287,21 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Basic block profiling support.
   BasicBlockProfilerData* profiler_data_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
   // The WebAssembly compilation result, not published in the NativeModule yet.
   std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-  // Entry point when compiling for OSR, {BailoutId::None} otherwise.
-  BailoutId osr_offset_ = BailoutId::None();
+  // Entry point when compiling for OSR, {BytecodeOffset::None} otherwise.
+  const BytecodeOffset osr_offset_ = BytecodeOffset::None();
+  // The current OSR frame for specialization or {nullptr}.
+  JavaScriptFrame* const osr_frame_ = nullptr;
 
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.
   Zone* const zone_;
+
+  compiler::NodeObserver* node_observer_ = nullptr;
 
   BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
@@ -288,9 +311,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   const int optimization_id_;
   unsigned inlined_bytecode_size_ = 0;
 
-  // The current OSR frame for specialization or {nullptr}.
-  JavaScriptFrame* osr_frame_ = nullptr;
-
   Vector<const char> debug_name_;
   std::unique_ptr<char[]> trace_turbo_filename_;
 
@@ -299,11 +319,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope
   // 2) Owned by OptimizedCompilationInfo
-  // 3) Owned by JSHeapBroker
-  // 4) Owned by the broker's LocalHeap
-  // 5) Back to the broker for a brief moment (after tearing down the
-  //   LocalHeap as part of exiting LocalHeapScope)
-  // 6) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
+  // 3) Owned by the broker's LocalHeap when entering the LocalHeapScope.
+  // 4) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
   //
   // In normal execution it gets destroyed when PipelineData gets destroyed.
   // There is a special case in GenerateCodeForTesting where the JSHeapBroker
@@ -315,8 +332,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // handles above. The only difference is that is created in the
   // CanonicalHandleScope(i.e step 1) is different).
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
-
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };
 
 }  // namespace internal

@@ -63,6 +63,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF64x2Floor:
     case kMipsF64x2Trunc:
     case kMipsF64x2NearestInt:
+    case kMipsF64x2ConvertLowI32x4S:
+    case kMipsF64x2ConvertLowI32x4U:
+    case kMipsF64x2PromoteLowF32x4:
     case kMipsI64x2Add:
     case kMipsI64x2Sub:
     case kMipsI64x2Mul:
@@ -70,9 +73,22 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI64x2Shl:
     case kMipsI64x2ShrS:
     case kMipsI64x2ShrU:
+    case kMipsI64x2BitMask:
+    case kMipsI64x2Eq:
+    case kMipsI64x2Ne:
+    case kMipsI64x2GtS:
+    case kMipsI64x2GeS:
+    case kMipsI64x2Abs:
+    case kMipsI64x2SConvertI32x4Low:
+    case kMipsI64x2SConvertI32x4High:
+    case kMipsI64x2UConvertI32x4Low:
+    case kMipsI64x2UConvertI32x4High:
+    case kMipsI64x2ExtMulLowI32x4S:
+    case kMipsI64x2ExtMulHighI32x4S:
+    case kMipsI64x2ExtMulLowI32x4U:
+    case kMipsI64x2ExtMulHighI32x4U:
     case kMipsF32x4Abs:
     case kMipsF32x4Add:
-    case kMipsF32x4AddHoriz:
     case kMipsF32x4Eq:
     case kMipsF32x4ExtractLane:
     case kMipsF32x4Le:
@@ -97,6 +113,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF32x4Floor:
     case kMipsF32x4Trunc:
     case kMipsF32x4NearestInt:
+    case kMipsF32x4DemoteF64x2Zero:
     case kMipsFloat32Max:
     case kMipsFloat32Min:
     case kMipsFloat32RoundDown:
@@ -117,9 +134,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsFloorWD:
     case kMipsFloorWS:
     case kMipsI16x8Add:
-    case kMipsI16x8AddHoriz:
-    case kMipsI16x8AddSaturateS:
-    case kMipsI16x8AddSaturateU:
+    case kMipsI16x8AddSatS:
+    case kMipsI16x8AddSatU:
     case kMipsI16x8Eq:
     case kMipsI16x8ExtractLaneU:
     case kMipsI16x8ExtractLaneS:
@@ -144,15 +160,23 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8ShrU:
     case kMipsI16x8Splat:
     case kMipsI16x8Sub:
-    case kMipsI16x8SubSaturateS:
-    case kMipsI16x8SubSaturateU:
+    case kMipsI16x8SubSatS:
+    case kMipsI16x8SubSatU:
     case kMipsI16x8UConvertI32x4:
     case kMipsI16x8UConvertI8x16High:
     case kMipsI16x8UConvertI8x16Low:
     case kMipsI16x8Abs:
     case kMipsI16x8BitMask:
+    case kMipsI16x8Q15MulRSatS:
+    case kMipsI16x8ExtMulLowI8x16S:
+    case kMipsI16x8ExtMulHighI8x16S:
+    case kMipsI16x8ExtMulLowI8x16U:
+    case kMipsI16x8ExtMulHighI8x16U:
+    case kMipsI16x8ExtAddPairwiseI8x16S:
+    case kMipsI16x8ExtAddPairwiseI8x16U:
+    case kMipsI32x4ExtAddPairwiseI16x8S:
+    case kMipsI32x4ExtAddPairwiseI16x8U:
     case kMipsI32x4Add:
-    case kMipsI32x4AddHoriz:
     case kMipsI32x4Eq:
     case kMipsI32x4ExtractLane:
     case kMipsI32x4GeS:
@@ -180,9 +204,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI32x4UConvertI16x8Low:
     case kMipsI32x4Abs:
     case kMipsI32x4BitMask:
+    case kMipsI32x4DotI16x8S:
+    case kMipsI32x4ExtMulLowI16x8S:
+    case kMipsI32x4ExtMulHighI16x8S:
+    case kMipsI32x4ExtMulLowI16x8U:
+    case kMipsI32x4ExtMulHighI16x8U:
+    case kMipsI32x4TruncSatF64x2SZero:
+    case kMipsI32x4TruncSatF64x2UZero:
     case kMipsI8x16Add:
-    case kMipsI8x16AddSaturateS:
-    case kMipsI8x16AddSaturateU:
+    case kMipsI8x16AddSatS:
+    case kMipsI8x16AddSatU:
     case kMipsI8x16Eq:
     case kMipsI8x16ExtractLaneU:
     case kMipsI8x16ExtractLaneS:
@@ -195,7 +226,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16MaxU:
     case kMipsI8x16MinS:
     case kMipsI8x16MinU:
-    case kMipsI8x16Mul:
     case kMipsI8x16Ne:
     case kMipsI8x16Neg:
     case kMipsI8x16ReplaceLane:
@@ -205,10 +235,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16ShrU:
     case kMipsI8x16Splat:
     case kMipsI8x16Sub:
-    case kMipsI8x16SubSaturateS:
-    case kMipsI8x16SubSaturateU:
+    case kMipsI8x16SubSatS:
+    case kMipsI8x16SubSatU:
     case kMipsI8x16UConvertI16x8:
     case kMipsI8x16Abs:
+    case kMipsI8x16Popcnt:
     case kMipsI8x16BitMask:
     case kMipsIns:
     case kMipsLsa:
@@ -253,12 +284,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsS16x8InterleaveRight:
     case kMipsS16x8PackEven:
     case kMipsS16x8PackOdd:
-    case kMipsV8x16AllTrue:
-    case kMipsV8x16AnyTrue:
-    case kMipsV32x4AllTrue:
-    case kMipsV32x4AnyTrue:
-    case kMipsV16x8AllTrue:
-    case kMipsV16x8AnyTrue:
+    case kMipsI64x2AllTrue:
+    case kMipsI32x4AllTrue:
+    case kMipsI16x8AllTrue:
+    case kMipsI8x16AllTrue:
+    case kMipsV128AnyTrue:
     case kMipsS32x4InterleaveEven:
     case kMipsS32x4InterleaveLeft:
     case kMipsS32x4InterleaveOdd:
@@ -315,21 +345,20 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsUlhu:
     case kMipsUlw:
     case kMipsUlwc1:
-    case kMipsS8x16LoadSplat:
-    case kMipsS16x8LoadSplat:
-    case kMipsS32x4LoadSplat:
-    case kMipsS64x2LoadSplat:
-    case kMipsI16x8Load8x8S:
-    case kMipsI16x8Load8x8U:
-    case kMipsI32x4Load16x4S:
-    case kMipsI32x4Load16x4U:
-    case kMipsI64x2Load32x2S:
-    case kMipsI64x2Load32x2U:
+    case kMipsS128Load8Splat:
+    case kMipsS128Load16Splat:
+    case kMipsS128Load32Splat:
+    case kMipsS128Load64Splat:
+    case kMipsS128Load8x8S:
+    case kMipsS128Load8x8U:
+    case kMipsS128Load16x4S:
+    case kMipsS128Load16x4U:
+    case kMipsS128Load32x2S:
+    case kMipsS128Load32x2U:
     case kMipsWord32AtomicPairLoad:
       return kIsLoadOperation;
 
     case kMipsModD:
-    case kMipsModS:
     case kMipsMsaSt:
     case kMipsPush:
     case kMipsSb:
@@ -1248,11 +1277,6 @@ int PrepareForTailCallLatency() {
          Latency::BRANCH + 2 * SubuLatency(false) + 2 + Latency::BRANCH + 1;
 }
 
-int AssemblePopArgumentsAdaptorFrameLatency() {
-  return 1 + Latency::BRANCH + 1 + SmiUntagLatency() +
-         PrepareForTailCallLatency();
-}
-
 int JumpLatency() {
   // Estimated max.
   return 1 + AdduLatency(false) + Latency::BRANCH + 2;
@@ -1278,7 +1302,7 @@ int MultiPushFPULatency() {
 
 int PushCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = MultiPushLatency();
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPushFPULatency();
   }
   return latency;
@@ -1302,7 +1326,7 @@ int MultiPopLatency() {
 
 int PopCallerSavedLatency(SaveFPRegsMode fp_mode) {
   int latency = 0;
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     latency += MultiPopFPULatency();
   }
   return latency + MultiPopLatency();
@@ -1363,17 +1387,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
   // in an empirical way.
   switch (instr->arch_opcode()) {
     case kArchCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return CallLatency();
-    case kArchTailCallCodeObjectFromJSFunction:
-    case kArchTailCallCodeObject: {
-      int latency = 0;
-      if (instr->arch_opcode() == kArchTailCallCodeObjectFromJSFunction) {
-        latency = AssemblePopArgumentsAdaptorFrameLatency();
-      }
-      return latency + JumpLatency();
-    }
+    case kArchTailCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallAddress:
       return JumpLatency();
     case kArchCallJSFunction: {
@@ -1510,7 +1531,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return ShrPairLatency();
       } else {
         // auto immediate_operand = ImmediateOperand::cast(instr->InputAt(2));
-        // return ShrPairLatency(false, immediate_operand->inline_value());
+        // return ShrPairLatency(false, immediate_operand->inline_32_value());
         return 1;
       }
     }
@@ -1529,7 +1550,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return RorLatency(instr->InputAt(1)->IsRegister());
     case kMipsLsa:
       return LsaLatency();
-    case kMipsModS:
     case kMipsModD:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();

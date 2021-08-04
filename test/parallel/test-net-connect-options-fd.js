@@ -25,7 +25,7 @@ function testClients(getSocketOpt, getConnectOpt, getConnectCb) {
       .on('connect', getConnectCb(3)),
     new net.Socket(getSocketOpt(4)).connect(getConnectOpt(4), getConnectCb(4)),
     new net.Socket(getSocketOpt(5)).connect(getConnectOpt(5))
-      .on('connect', getConnectCb(5))
+      .on('connect', getConnectCb(5)),
   ];
 }
 

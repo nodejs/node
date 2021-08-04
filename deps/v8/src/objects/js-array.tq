@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern enum IterationKind extends uint31
-constexpr 'IterationKind' { kKeys, kValues, kEntries }
+extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
@@ -31,6 +30,10 @@ extern class JSArray extends JSObject {
   }
   length: Number;
 }
+
+@doNotGenerateCast
+extern class JSArrayConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
 
 macro NewJSArray(implicit context: Context)(
     map: Map, elements: FixedArrayBase): JSArray {

@@ -1,10 +1,10 @@
 Checks Runtime.getProperties method while debugger is paused.
 
 Running test: testObject5
-  __proto__ own object undefined
   foo own string cat
 Internal properties
   [[PrimitiveValue]] number 5
+  [[Prototype]] object undefined
 
 Running test: testNotOwn
   __defineGetter__ inherited function undefined
@@ -23,6 +23,8 @@ Running test: testNotOwn
   toLocaleString inherited function undefined
   toString inherited function undefined
   valueOf inherited function undefined
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testAccessorsOnly
   b own no value, getter, setter
@@ -32,60 +34,34 @@ Running test: testArray
   0 own string red
   1 own string green
   2 own string blue
-  __proto__ own object undefined
   length own number 3
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testBound
-  __proto__ own function undefined
   length own number 0
   name own string bound Number
 Internal properties
   [[BoundArgs]] object undefined
   [[BoundThis]] object undefined
+  [[Prototype]] function undefined
   [[TargetFunction]] function undefined
 
 Running test: testObjectThrowsLength
-  __proto__ own object undefined
   length own no value, getter
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testTypedArrayWithoutLength
-  __proto__ own object undefined
+Internal properties
+  [[Prototype]] object undefined
 
 Running test: testArrayBuffer
-[[Int8Array]]
-  0 own number 1
-  1 own number 1
-  2 own number 1
-  3 own number 1
-  4 own number 1
-  5 own number 1
-  6 own number 1
-  7 own number 1
-  __proto__ own object undefined
-[[Uint8Array]]
-  0 own number 1
-  1 own number 1
-  2 own number 1
-  3 own number 1
-  4 own number 1
-  5 own number 1
-  6 own number 1
-  7 own number 1
-  __proto__ own object undefined
-[[Int16Array]]
-  0 own number 257
-  1 own number 257
-  2 own number 257
-  3 own number 257
-  __proto__ own object undefined
-[[Int32Array]]
-  0 own number 16843009
-  1 own number 16843009
-  __proto__ own object undefined
 
 Running test: testArrayBufferWithBrokenUintCtor
-  [[Int8Array]] own object undefined
-  [[Uint8Array]] own object undefined
-  __proto__ own object undefined
 Internal properties
-  [[IsDetached]] boolean false
+  [[ArrayBufferByteLength]] number 7
+  [[ArrayBufferData]] string 0x...
+  [[Int8Array]] object undefined
+  [[Prototype]] object undefined
+  [[Uint8Array]] object undefined

@@ -20,7 +20,7 @@ changes:
 
 <!-- source_link=lib/domain.js -->
 
-**This module is pending deprecation**. Once a replacement API has been
+**This module is pending deprecation.** Once a replacement API has been
 finalized, this module will be fully deprecated. Most developers should
 **not** have cause to use this module. Users who absolutely must have
 the functionality that domains provide may rely on it for the time being
@@ -69,7 +69,7 @@ const d = require('domain').create();
 d.on('error', (er) => {
   // The error won't crash the process, but what it does is worse!
   // Though we've prevented abrupt process restarting, we are leaking
-  // resources like crazy if this ever happens.
+  // a lot of resources if this ever happens.
   // This is no better than process.on('uncaughtException')!
   console.log(`error, but oh well ${er.message}`);
 });

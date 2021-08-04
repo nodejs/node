@@ -21,7 +21,7 @@ namespace internal {
 
 #define ALLOCATABLE_GENERAL_REGISTERS(V) \
   V(a0)  V(a1)  V(a2)  V(a3) \
-  V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1)  V(t2) V(s7) \
+  V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1)  V(t2)  V(t3)  V(s7) \
   V(v0)  V(v1)
 
 #define DOUBLE_REGISTERS(V)                               \
@@ -203,7 +203,12 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
-constexpr bool kPadArguments = false;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -368,7 +373,7 @@ constexpr Register kReturnRegister2 = a0;
 constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a0;
-constexpr Register kSpeculationPoisonRegister = a7;
+constexpr Register kSpeculationPoisonRegister = t3;
 constexpr Register kInterpreterAccumulatorRegister = v0;
 constexpr Register kInterpreterBytecodeOffsetRegister = t0;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;

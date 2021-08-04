@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 const assert = require('assert');
@@ -60,7 +59,7 @@ function parseDNSPacket(buffer) {
     ['questions', buffer.readUInt16BE(4)],
     ['answers', buffer.readUInt16BE(6)],
     ['authorityAnswers', buffer.readUInt16BE(8)],
-    ['additionalRecords', buffer.readUInt16BE(10)]
+    ['additionalRecords', buffer.readUInt16BE(10)],
   ];
 
   let offset = 12;
@@ -185,7 +184,7 @@ function writeDomainName(domain) {
     assert(label.length < 64);
     return Buffer.concat([
       Buffer.from([label.length]),
-      Buffer.from(label, 'ascii')
+      Buffer.from(label, 'ascii'),
     ]);
   }).concat([Buffer.alloc(1)]));
 }
@@ -208,7 +207,7 @@ function writeDNSPacket(parsed) {
     buffers.push(writeDomainName(q.domain));
     buffers.push(new Uint16Array([
       types[q.type],
-      q.cls === undefined ? classes.IN : q.cls
+      q.cls === undefined ? classes.IN : q.cls,
     ]));
   }
 
@@ -221,7 +220,7 @@ function writeDNSPacket(parsed) {
     buffers.push(writeDomainName(rr.domain));
     buffers.push(new Uint16Array([
       types[rr.type],
-      rr.cls === undefined ? classes.IN : rr.cls
+      rr.cls === undefined ? classes.IN : rr.cls,
     ]));
     buffers.push(new Int32Array([rr.ttl]));
 
@@ -266,7 +265,7 @@ function writeDNSPacket(parsed) {
         rdLengthBuf[0] = mname.length + rname.length + 20;
         buffers.push(mname, rname);
         buffers.push(new Uint32Array([
-          rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl
+          rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl,
         ]));
         break;
       }

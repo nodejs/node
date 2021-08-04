@@ -2,35 +2,59 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {groupBy} from './helper.mjs'
+
 class Timeline {
-  #values;
-  #selection;
-  #uniqueTypes;
-  constructor() {
-    this.#values = [];
-    this.startTime = 0;
-    this.endTime = 0;
+  // Class:
+  _model;
+  // Array of #model instances:
+  _values;
+  // Current selection, subset of #values:
+  _selection;
+  _breakdown;
+
+  constructor(model, values = [], startTime = 0, endTime = 0) {
+    this._model = model;
+    this._values = values;
+    this.startTime = startTime;
+    this.endTime = endTime;
   }
+
+  get model() {
+    return this._model;
+  }
+
   get all() {
-    return this.#values;
+    return this._values;
   }
+
   get selection() {
-    return this.#selection;
+    return this._selection;
   }
+
+  get selectionOrSelf() {
+    return this._selection ?? this;
+  }
+
   set selection(value) {
-    this.#selection = value;
+    this._selection = value;
   }
-  selectTimeRange(start, end) {
-    this.#selection = this.filter(
-      e => e.time >= start && e.time <= end);
+
+  selectTimeRange(startTime, endTime) {
+    const items = this.range(startTime, endTime);
+    this._selection = new Timeline(this._model, items, startTime, endTime);
   }
+
+  clearSelection() {
+    this._selection = undefined;
+  }
+
   getChunks(windowSizeMs) {
-    //TODO(zcankara) Fill this one
     return this.chunkSizes(windowSizeMs);
   }
+
   get values() {
-    //TODO(zcankara) Not to break something delete later
-    return this.#values;
+    return this._values;
   }
 
   count(filter) {
@@ -49,9 +73,9 @@ class Timeline {
       // Invalid insertion order, might happen without --single-process,
       // finding insertion point.
       let insertionPoint = this.find(time);
-      this.#values.splice(insertionPoint, event);
+      this._values.splice(insertionPoint, event);
     } else {
-      this.#values.push(event);
+      this._values.push(event);
     }
     if (time > 0) {
       this.endTime = Math.max(this.endTime, time);
@@ -64,7 +88,7 @@ class Timeline {
   }
 
   at(index) {
-    return this.#values[index];
+    return this._values[index];
   }
 
   isEmpty() {
@@ -72,46 +96,42 @@ class Timeline {
   }
 
   size() {
-    return this.#values.length;
+    return this._values.length;
+  }
+
+  get length() {
+    return this._values.length;
+  }
+
+  slice(startIndex, endIndex) {
+    return this._values.slice(startIndex, endIndex);
   }
 
   first() {
-    return this.#values[0];
+    return this._values[0];
   }
 
   last() {
-    return this.#values[this.#values.length - 1];
+    return this._values[this._values.length - 1];
+  }
+
+  * [Symbol.iterator]() {
+    yield* this._values;
   }
 
   duration() {
+    if (this.isEmpty()) return 0;
     return this.last().time - this.first().time;
   }
 
-  groupByTypes() {
-    this.#uniqueTypes = new Map();
-    for (const entry of this.all) {
-      if (!this.#uniqueTypes.has(entry.type)) {
-        this.#uniqueTypes.set(entry.type, [entry]);
-      } else {
-        this.#uniqueTypes.get(entry.type).push(entry);
-      }
-    }
-  }
-
-  get uniqueTypes() {
-    if (this.#uniqueTypes === undefined) {
-      this.groupByTypes();
-    }
-    return this.#uniqueTypes;
-  }
-
   forEachChunkSize(count, fn) {
+    if (this.isEmpty()) return;
     const increment = this.duration() / count;
     let currentTime = this.first().time + increment;
     let index = 0;
     for (let i = 0; i < count; i++) {
-      let nextIndex = this.find(currentTime, index);
-      let nextTime = currentTime + increment;
+      const nextIndex = this.find(currentTime, index);
+      const nextTime = currentTime + increment;
       fn(index, nextIndex, currentTime, nextTime);
       index = nextIndex;
       currentTime = nextTime;
@@ -119,56 +139,67 @@ class Timeline {
   }
 
   chunkSizes(count) {
-    let chunks = [];
+    const chunks = [];
     this.forEachChunkSize(count, (start, end) => chunks.push(end - start));
     return chunks;
   }
 
-  chunks(count) {
-    let chunks = [];
+  chunks(count, predicate = undefined) {
+    const chunks = [];
     this.forEachChunkSize(count, (start, end, startTime, endTime) => {
-      let items = this.#values.slice(start, end);
+      let items = this._values.slice(start, end);
+      if (predicate !== undefined) items = items.filter(predicate);
       chunks.push(new Chunk(chunks.length, startTime, endTime, items));
     });
     return chunks;
   }
 
-  range(start, end) {
-    const first = this.find(start);
-    if (first < 0) return [];
-    const last = this.find(end, first);
-    return this.#values.slice(first, last);
+  // Return all entries in ({startTime}, {endTime}]
+  range(startTime, endTime) {
+    const firstIndex = this.find(startTime);
+    if (firstIndex < 0) return [];
+    const lastIndex = this.find(endTime, firstIndex + 1);
+    return this._values.slice(firstIndex, lastIndex);
   }
 
+  // Return the first index for the first element at {time}.
   find(time, offset = 0) {
-    return this.#find(this.#values, each => each.time - time, offset);
+    return this._find(this._values, each => each.time - time, offset);
   }
 
-  #find(array, cmp, offset = 0) {
-    let min = offset;
-    let max = array.length;
-    while (min < max) {
-      let mid = min + Math.floor((max - min) / 2);
-      let result = cmp(array[mid]);
-      if (result > 0) {
-        max = mid - 1;
+  // Return the first index for which compareFn(item) is >= 0;
+  _find(array, compareFn, offset = 0) {
+    let minIndex = offset;
+    let maxIndex = array.length - 1;
+    while (minIndex < maxIndex) {
+      const midIndex = minIndex + (((maxIndex - minIndex) / 2) | 0);
+      if (compareFn(array[midIndex]) < 0) {
+        minIndex = midIndex + 1;
       } else {
-        min = mid + 1;
+        maxIndex = midIndex;
       }
     }
-    return min;
+    return minIndex;
+  }
+
+  getBreakdown(keyFunction) {
+    if (keyFunction) return groupBy(this._values, keyFunction);
+    if (this._breakdown === undefined) {
+      this._breakdown = groupBy(this._values, each => each.type);
+    }
+    return this._breakdown;
   }
 
   depthHistogram() {
-    return this.#values.histogram(each => each.depth);
+    return this._values.histogram(each => each.depth);
   }
 
   fanOutHistogram() {
-    return this.#values.histogram(each => each.children.length);
+    return this._values.histogram(each => each.children.length);
   }
 
   forEach(fn) {
-    return this.#values.forEach(fn);
+    return this._values.forEach(fn);
   }
 }
 
@@ -199,6 +230,10 @@ class Chunk {
   }
 
   size() {
+    return this.items.length;
+  }
+
+  get length() {
     return this.items.length;
   }
 
@@ -235,23 +270,13 @@ class Chunk {
     return chunk;
   }
 
-  getBreakdown(event_fn) {
-    if (event_fn === void 0) {
-      event_fn = each => each;
-    }
-    let breakdown = { __proto__: null };
-    this.items.forEach(each => {
-      const type = event_fn(each);
-      const v = breakdown[type];
-      breakdown[type] = (v | 0) + 1;
-    });
-    return Object.entries(breakdown).sort((a, b) => a[1] - b[1]);
+  getBreakdown(keyFunction) {
+    return groupBy(this.items, keyFunction);
   }
 
   filter() {
     return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
-
 }
 
-export { Timeline, Chunk };
+export {Timeline, Chunk};

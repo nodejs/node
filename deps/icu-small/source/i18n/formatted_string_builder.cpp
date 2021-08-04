@@ -276,6 +276,11 @@ int32_t FormattedStringBuilder::prepareForInsertHelper(int32_t index, int32_t co
     char16_t *oldChars = getCharPtr();
     Field *oldFields = getFieldPtr();
     if (fLength + count > oldCapacity) {
+        if ((fLength + count) > INT32_MAX / 2) {
+            // If we continue, then newCapacity will overlow int32_t in the next line.
+            status = U_INPUT_TOO_LONG_ERROR;
+            return -1;
+        }
         int32_t newCapacity = (fLength + count) * 2;
         int32_t newZero = newCapacity / 2 - (fLength + count) / 2;
 
@@ -330,12 +335,14 @@ int32_t FormattedStringBuilder::prepareForInsertHelper(int32_t index, int32_t co
         fZero = newZero;
         fLength += count;
     }
+    U_ASSERT((fZero + index) >= 0);
     return fZero + index;
 }
 
 int32_t FormattedStringBuilder::remove(int32_t index, int32_t count) {
     // TODO: Reset the heap here?  (If the string after removal can fit on stack?)
     int32_t position = index + fZero;
+    U_ASSERT(position >= 0);
     uprv_memmove2(getCharPtr() + position,
             getCharPtr() + position + count,
             sizeof(char16_t) * (fLength - index - count));

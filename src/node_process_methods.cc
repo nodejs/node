@@ -6,7 +6,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8-fast-api-calls.h"
@@ -34,7 +34,6 @@ typedef int mode_t;
 
 namespace node {
 
-using v8::ApiObject;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -203,12 +202,14 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   if (err)
     return env->ThrowUVException(err, "uv_resident_set_memory");
 
-  fields[0] = rss;
-  fields[1] = v8_heap_stats.total_heap_size();
-  fields[2] = v8_heap_stats.used_heap_size();
-  fields[3] = v8_heap_stats.external_memory();
-  fields[4] = array_buffer_allocator == nullptr ?
-      0 : array_buffer_allocator->total_mem_usage();
+  fields[0] = static_cast<double>(rss);
+  fields[1] = static_cast<double>(v8_heap_stats.total_heap_size());
+  fields[2] = static_cast<double>(v8_heap_stats.used_heap_size());
+  fields[3] = static_cast<double>(v8_heap_stats.external_memory());
+  fields[4] =
+      array_buffer_allocator == nullptr
+          ? 0
+          : static_cast<double>(array_buffer_allocator->total_mem_usage());
 }
 
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
@@ -291,20 +292,20 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
-  fields[2] = rusage.ru_maxrss;
-  fields[3] = rusage.ru_ixrss;
-  fields[4] = rusage.ru_idrss;
-  fields[5] = rusage.ru_isrss;
-  fields[6] = rusage.ru_minflt;
-  fields[7] = rusage.ru_majflt;
-  fields[8] = rusage.ru_nswap;
-  fields[9] = rusage.ru_inblock;
-  fields[10] = rusage.ru_oublock;
-  fields[11] = rusage.ru_msgsnd;
-  fields[12] = rusage.ru_msgrcv;
-  fields[13] = rusage.ru_nsignals;
-  fields[14] = rusage.ru_nvcsw;
-  fields[15] = rusage.ru_nivcsw;
+  fields[2] = static_cast<double>(rusage.ru_maxrss);
+  fields[3] = static_cast<double>(rusage.ru_ixrss);
+  fields[4] = static_cast<double>(rusage.ru_idrss);
+  fields[5] = static_cast<double>(rusage.ru_isrss);
+  fields[6] = static_cast<double>(rusage.ru_minflt);
+  fields[7] = static_cast<double>(rusage.ru_majflt);
+  fields[8] = static_cast<double>(rusage.ru_nswap);
+  fields[9] = static_cast<double>(rusage.ru_inblock);
+  fields[10] = static_cast<double>(rusage.ru_oublock);
+  fields[11] = static_cast<double>(rusage.ru_msgsnd);
+  fields[12] = static_cast<double>(rusage.ru_msgrcv);
+  fields[13] = static_cast<double>(rusage.ru_nsignals);
+  fields[14] = static_cast<double>(rusage.ru_nvcsw);
+  fields[15] = static_cast<double>(rusage.ru_nivcsw);
 }
 
 #ifdef __POSIX__
@@ -355,7 +356,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   });
 
   CHECK(args[0]->IsNumber());
-  pid = args[0].As<Integer>()->Value();
+  pid = static_cast<DWORD>(args[0].As<Integer>()->Value());
 
   process =
       OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
@@ -476,8 +477,8 @@ class FastHrtime : public BaseObject {
   SET_MEMORY_INFO_NAME(FastHrtime)
   SET_SELF_SIZE(FastHrtime)
 
-  static FastHrtime* FromV8ApiObject(ApiObject api_object) {
-    Object* v8_object = reinterpret_cast<Object*>(&api_object);
+  static FastHrtime* FromV8Value(Local<Value> value) {
+    Local<Object> v8_object = value.As<Object>();
     return static_cast<FastHrtime*>(
         v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
   }
@@ -499,8 +500,8 @@ class FastHrtime : public BaseObject {
     fields[2] = t % NANOS_PER_SEC;
   }
 
-  static void FastNumber(ApiObject receiver) {
-    NumberImpl(FromV8ApiObject(receiver));
+  static void FastNumber(Local<Value> receiver) {
+    NumberImpl(FromV8Value(receiver));
   }
 
   static void SlowNumber(const FunctionCallbackInfo<Value>& args) {
@@ -513,8 +514,8 @@ class FastHrtime : public BaseObject {
     fields[0] = t;
   }
 
-  static void FastBigInt(ApiObject receiver) {
-    BigIntImpl(FromV8ApiObject(receiver));
+  static void FastBigInt(Local<Value> receiver) {
+    BigIntImpl(FromV8Value(receiver));
   }
 
   static void SlowBigInt(const FunctionCallbackInfo<Value>& args) {

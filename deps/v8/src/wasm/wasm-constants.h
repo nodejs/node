@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_CONSTANTS_H_
 #define V8_WASM_WASM_CONSTANTS_H_
 
@@ -33,14 +37,14 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   kFuncRefCode = 0x70,
   kExternRefCode = 0x6f,
-  // kAnyCode = 0x6e, // TODO(7748): Implement
+  kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
-  kRttCode = 0x69,
-  // Exception handling proposal
-  kExnRefCode = 0x68,
+  kRttWithDepthCode = 0x69,
+  kRttCode = 0x68,
+  kDataRefCode = 0x67,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
@@ -97,10 +101,11 @@ enum SectionCode : int8_t {
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
   kCompilationHintsSectionCode,   // Compilation hints section
+  kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kCompilationHintsSectionCode,
+  kLastKnownModuleSection = kBranchHintsSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
@@ -109,7 +114,21 @@ constexpr uint8_t kDefaultCompilationHint = 0x0;
 constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
-enum NameSectionKindCode : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
+enum NameSectionKindCode : uint8_t {
+  kModule = 0,
+  kFunction = 1,
+  kLocal = 2,
+  // https://github.com/WebAssembly/extended-name-section/
+  kLabel = 3,
+  kType = 4,
+  kTable = 5,
+  kMemory = 6,
+  kGlobal = 7,
+  kElementSegment = 8,
+  kDataSegment = 9,
+  // https://github.com/WebAssembly/gc/issues/193
+  kField = 10
+};
 
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
@@ -122,6 +141,25 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
+
+// The number of calls to an exported Wasm function that will be handled
+// by the generic wrapper. Once the budget is exhausted, a specific wrapper
+// is to be compiled for the function's signature.
+// The abstract goal of the tiering strategy for the js-to-wasm wrappers is to
+// use the generic wrapper as much as possible (less space, no need to compile),
+// but fall back to compiling a specific wrapper for any function (signature)
+// that is used often enough for the generic wrapper's small execution penalty
+// to start adding up.
+// So, when choosing a value for the initial budget, we are interested in a
+// value that skips on tiering up functions that are called only a few times and
+// the tier-up only wastes resources, but triggers compilation of specific
+// wrappers early on for those functions that have the potential to be called
+// often enough.
+constexpr uint32_t kGenericWrapperBudget = 1000;
+
+#if V8_TARGET_ARCH_X64
+constexpr int32_t kOSRTargetOffset = 3 * kSystemPointerSize;
+#endif
 
 }  // namespace wasm
 }  // namespace internal

@@ -95,6 +95,25 @@ v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
   return PersistentToLocal::Strong(native_execution_async_resources_[i]);
 }
 
+inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
+                                          v8::Local<v8::Function> before,
+                                          v8::Local<v8::Function> after,
+                                          v8::Local<v8::Function> resolve) {
+  js_promise_hooks_[0].Reset(env()->isolate(), init);
+  js_promise_hooks_[1].Reset(env()->isolate(), before);
+  js_promise_hooks_[2].Reset(env()->isolate(), after);
+  js_promise_hooks_[3].Reset(env()->isolate(), resolve);
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      it = contexts_.erase(it);
+      it--;
+      continue;
+    }
+    PersistentToLocal::Weak(env()->isolate(), *it)
+        ->SetPromiseHooks(init, before, after, resolve);
+  }
+}
+
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
   return env()->isolate_data()->async_wrap_provider(idx);
 }
@@ -217,6 +236,46 @@ void AsyncHooks::clear_async_id_stack() {
   fields_[kStackLength] = 0;
 }
 
+inline void AsyncHooks::AddContext(v8::Local<v8::Context> ctx) {
+  ctx->SetPromiseHooks(
+    js_promise_hooks_[0].IsEmpty() ?
+      v8::Local<v8::Function>() :
+      PersistentToLocal::Strong(js_promise_hooks_[0]),
+    js_promise_hooks_[1].IsEmpty() ?
+      v8::Local<v8::Function>() :
+      PersistentToLocal::Strong(js_promise_hooks_[1]),
+    js_promise_hooks_[2].IsEmpty() ?
+      v8::Local<v8::Function>() :
+      PersistentToLocal::Strong(js_promise_hooks_[2]),
+    js_promise_hooks_[3].IsEmpty() ?
+      v8::Local<v8::Function>() :
+      PersistentToLocal::Strong(js_promise_hooks_[3]));
+
+  size_t id = contexts_.size();
+  contexts_.resize(id + 1);
+  contexts_[id].Reset(env()->isolate(), ctx);
+  contexts_[id].SetWeak();
+}
+
+inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
+  v8::Isolate* isolate = env()->isolate();
+  v8::HandleScope handle_scope(isolate);
+  for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
+    if (it->IsEmpty()) {
+      it = contexts_.erase(it);
+      it--;
+      continue;
+    }
+    v8::Local<v8::Context> saved_context =
+      PersistentToLocal::Weak(isolate, *it);
+    if (saved_context == ctx) {
+      it->Reset();
+      contexts_.erase(it);
+      break;
+    }
+  }
+}
+
 // The DefaultTriggerAsyncIdScope(AsyncWrap*) constructor is defined in
 // async_wrap-inl.h to avoid a circular dependency.
 
@@ -304,6 +363,8 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
+
+  this->async_hooks()->AddContext(context);
 }
 
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
@@ -358,7 +419,7 @@ inline T* Environment::GetBindingData(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
   DCHECK_NOT_NULL(map);
-  auto it = map->find(T::binding_data_name);
+  auto it = map->find(T::type_name);
   if (UNLIKELY(it == map->end())) return nullptr;
   T* result = static_cast<T*>(it->second.get());
   DCHECK_NOT_NULL(result);
@@ -377,7 +438,7 @@ inline T* Environment::AddBindingData(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
   DCHECK_NOT_NULL(map);
-  auto result = map->emplace(T::binding_data_name, item);
+  auto result = map->emplace(T::type_name, item);
   CHECK(result.second);
   DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();
@@ -780,8 +841,12 @@ inline bool Environment::has_run_bootstrapping_code() const {
   return has_run_bootstrapping_code_;
 }
 
-inline void Environment::set_has_run_bootstrapping_code(bool value) {
-  has_run_bootstrapping_code_ = value;
+inline void Environment::DoneBootstrapping() {
+  has_run_bootstrapping_code_ = true;
+  // This adjusts the return value of base_object_created_after_bootstrap() so
+  // that tests that check the count do not have to account for internally
+  // created BaseObjects.
+  base_object_created_by_bootstrap_ = base_object_count_;
 }
 
 inline bool Environment::has_serialized_options() const {
@@ -875,17 +940,17 @@ inline node_module* Environment::extra_linked_bindings_head() {
       &extra_linked_bindings_.front() : nullptr;
 }
 
+inline node_module* Environment::extra_linked_bindings_tail() {
+  return extra_linked_bindings_.size() > 0 ?
+      &extra_linked_bindings_.back() : nullptr;
+}
+
 inline const Mutex& Environment::extra_linked_bindings_mutex() const {
   return extra_linked_bindings_mutex_;
 }
 
 inline performance::PerformanceState* Environment::performance_state() {
   return performance_state_.get();
-}
-
-inline std::unordered_map<std::string, uint64_t>*
-    Environment::performance_marks() {
-  return &performance_marks_;
 }
 
 inline IsolateData* Environment::isolate_data() const {
@@ -1027,15 +1092,18 @@ inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
 inline void Environment::SetConstructorFunction(
     v8::Local<v8::Object> that,
     const char* name,
-    v8::Local<v8::FunctionTemplate> tmpl) {
-  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl);
+    v8::Local<v8::FunctionTemplate> tmpl,
+    SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl, flag);
 }
 
 inline void Environment::SetConstructorFunction(
     v8::Local<v8::Object> that,
     v8::Local<v8::String> name,
-    v8::Local<v8::FunctionTemplate> tmpl) {
-  tmpl->SetClassName(name);
+    v8::Local<v8::FunctionTemplate> tmpl,
+    SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
   that->Set(
       context(),
       name,
@@ -1081,12 +1149,27 @@ void Environment::ForEachBaseObject(T&& iterator) {
   }
 }
 
+template <typename T>
+void Environment::ForEachBindingData(T&& iterator) {
+  BindingDataStore* map = static_cast<BindingDataStore*>(
+      context()->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kBindingListIndex));
+  DCHECK_NOT_NULL(map);
+  for (auto& it : *map) {
+    iterator(it.first, it.second);
+  }
+}
+
 void Environment::modify_base_object_count(int64_t delta) {
   base_object_count_ += delta;
 }
 
+int64_t Environment::base_object_created_after_bootstrap() const {
+  return base_object_count_ - base_object_created_by_bootstrap_;
+}
+
 int64_t Environment::base_object_count() const {
-  return base_object_count_ - initial_base_object_count_;
+  return base_object_count_;
 }
 
 void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {

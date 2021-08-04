@@ -5,209 +5,308 @@
 #ifndef INCLUDE_V8_CPPGC_H_
 #define INCLUDE_V8_CPPGC_H_
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "cppgc/common.h"
+#include "cppgc/custom-space.h"
+#include "cppgc/heap-statistics.h"
+#include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8.h"           // NOLINT(build/include_directory)
+
+namespace cppgc {
+class AllocationHandle;
+class HeapHandle;
+}  // namespace cppgc
 
 namespace v8 {
 
-class Isolate;
-template <typename T>
-class JSMember;
-
 namespace internal {
-
-class JSMemberBaseExtractor;
-
-class V8_EXPORT JSMemberBase {
- public:
-  /**
-   * Returns true if the reference is empty, i.e., has not been assigned
-   * object.
-   */
-  bool IsEmpty() const { return val_ == nullptr; }
-
-  /**
-   * Clears the reference. IsEmpty() will return true after this call.
-   */
-  inline void Reset();
-
- private:
-  static internal::Address* New(v8::Isolate* isolate,
-                                internal::Address* object_slot,
-                                internal::Address** this_slot);
-  static void Delete(internal::Address* object);
-  static void Copy(const internal::Address* const* from_slot,
-                   internal::Address** to_slot);
-  static void Move(internal::Address** from_slot, internal::Address** to_slot);
-
-  JSMemberBase() = default;
-
-  JSMemberBase(v8::Isolate* isolate, internal::Address* object_slot)
-      : val_(New(isolate, object_slot, &val_)) {}
-
-  inline JSMemberBase& CopyImpl(const JSMemberBase& other);
-  inline JSMemberBase& MoveImpl(JSMemberBase&& other);
-
-  // val_ points to a GlobalHandles node.
-  internal::Address* val_ = nullptr;
-
-  template <typename T>
-  friend class v8::JSMember;
-  friend class v8::internal::JSMemberBaseExtractor;
-};
-
-JSMemberBase& JSMemberBase::CopyImpl(const JSMemberBase& other) {
-  if (this != &other) {
-    Reset();
-    if (!other.IsEmpty()) {
-      Copy(&other.val_, &val_);
-    }
-  }
-  return *this;
-}
-
-JSMemberBase& JSMemberBase::MoveImpl(JSMemberBase&& other) {
-  if (this != &other) {
-    // No call to Reset() as Move() will conditionally reset itself when needed,
-    // and otherwise reuse the internal meta data.
-    Move(&other.val_, &val_);
-  }
-  return *this;
-}
-
-void JSMemberBase::Reset() {
-  if (IsEmpty()) return;
-  Delete(val_);
-  val_ = nullptr;
-}
-
+class CppHeap;
 }  // namespace internal
 
+class CustomSpaceStatisticsReceiver;
+
 /**
- * A traced handle without destructor that clears the handle. The handle may
- * only be used in GarbageCollected objects and must be processed in a Trace()
- * method.
+ * Describes how V8 wrapper objects maintain references to garbage-collected C++
+ * objects.
  */
-template <typename T>
-class V8_EXPORT JSMember : public internal::JSMemberBase {
-  static_assert(std::is_base_of<v8::Value, T>::value,
-                "JSMember only supports references to v8::Value");
+struct WrapperDescriptor final {
+  /**
+   * The index used on `v8::Ojbect::SetAlignedPointerFromInternalField()` and
+   * related APIs to add additional data to an object which is used to identify
+   * JS->C++ references.
+   */
+  using InternalFieldIndex = int;
 
- public:
-  JSMember() = default;
+  /**
+   * Unknown embedder id. The value is reserved for internal usages and must not
+   * be used with `CppHeap`.
+   */
+  static constexpr uint16_t kUnknownEmbedderId = UINT16_MAX;
 
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(Isolate* isolate, Local<U> that)
-      : internal::JSMemberBase(isolate,
-                               reinterpret_cast<internal::Address*>(*that)) {}
+  constexpr WrapperDescriptor(InternalFieldIndex wrappable_type_index,
+                              InternalFieldIndex wrappable_instance_index,
+                              uint16_t embedder_id_for_garbage_collected)
+      : wrappable_type_index(wrappable_type_index),
+        wrappable_instance_index(wrappable_instance_index),
+        embedder_id_for_garbage_collected(embedder_id_for_garbage_collected) {}
 
-  JSMember(const JSMember& other) { CopyImpl(other); }
+  /**
+   * Index of the wrappable type.
+   */
+  InternalFieldIndex wrappable_type_index;
 
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(const JSMember<U>& other) {  // NOLINT
-    CopyImpl(other);
-  }
+  /**
+   * Index of the wrappable instance.
+   */
+  InternalFieldIndex wrappable_instance_index;
 
-  JSMember(JSMember&& other) { MoveImpl(std::move(other)); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(JSMember<U>&& other) {  // NOLINT
-    MoveImpl(std::move(other));
-  }
-
-  JSMember& operator=(const JSMember& other) { return CopyImpl(other); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember& operator=(const JSMember<U>& other) {
-    return CopyImpl(other);
-  }
-
-  JSMember& operator=(JSMember&& other) { return MoveImpl(other); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember& operator=(JSMember<U>&& other) {
-    return MoveImpl(other);
-  }
-
-  T* operator->() const { return reinterpret_cast<T*>(val_); }
-  T* operator*() const { return reinterpret_cast<T*>(val_); }
-
-  using internal::JSMemberBase::Reset;
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  void Set(v8::Isolate* isolate, Local<U> that) {
-    Reset();
-    val_ = New(isolate, reinterpret_cast<internal::Address*>(*that), &val_);
-  }
+  /**
+   * Embedder id identifying instances of garbage-collected objects. It is
+   * expected that the first field of the wrappable type is a uint16_t holding
+   * the id. Only references to instances of wrappables types with an id of
+   * `embedder_id_for_garbage_collected` will be considered by CppHeap.
+   */
+  uint16_t embedder_id_for_garbage_collected;
 };
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const JSMember<T1>& lhs, const JSMember<T2>& rhs) {
-  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(*lhs);
-  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
-  if (a == nullptr) return b == nullptr;
-  if (b == nullptr) return false;
-  return *a == *b;
-}
+struct V8_EXPORT CppHeapCreateParams {
+  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
+  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator!=(const JSMember<T1>& lhs, const JSMember<T2>& rhs) {
-  return !(lhs == rhs);
-}
+  std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+  WrapperDescriptor wrapper_descriptor;
+};
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const JSMember<T1>& lhs, const Local<T2>& rhs) {
-  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(*lhs);
-  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
-  if (a == nullptr) return b == nullptr;
-  if (b == nullptr) return false;
-  return *a == *b;
-}
+/**
+ * A heap for allocating managed C++ objects.
+ */
+class V8_EXPORT CppHeap {
+ public:
+  static std::unique_ptr<CppHeap> Create(v8::Platform* platform,
+                                         const CppHeapCreateParams& params);
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const Local<T1>& lhs, const JSMember<T2> rhs) {
-  return rhs == lhs;
-}
+  virtual ~CppHeap() = default;
 
-template <typename T1, typename T2>
-inline bool operator!=(const JSMember<T1>& lhs, const T2& rhs) {
-  return !(lhs == rhs);
-}
+  /**
+   * \returns the opaque handle for allocating objects using
+   * `MakeGarbageCollected()`.
+   */
+  cppgc::AllocationHandle& GetAllocationHandle();
 
-template <typename T1, typename T2>
-inline bool operator!=(const T1& lhs, const JSMember<T2>& rhs) {
-  return !(lhs == rhs);
-}
+  /**
+   * \returns the opaque heap handle which may be used to refer to this heap in
+   *   other APIs. Valid as long as the underlying `CppHeap` is alive.
+   */
+  cppgc::HeapHandle& GetHeapHandle();
+
+  /**
+   * Terminate clears all roots and performs multiple garbage collections to
+   * reclaim potentially newly created objects in destructors.
+   *
+   * After this call, object allocation is prohibited.
+   */
+  void Terminate();
+
+  /**
+   * \param detail_level specifies whether should return detailed
+   *   statistics or only brief summary statistics.
+   * \returns current CppHeap statistics regarding memory consumption
+   *   and utilization.
+   */
+  cppgc::HeapStatistics CollectStatistics(
+      cppgc::HeapStatistics::DetailLevel detail_level);
+
+  /**
+   * Collects statistics for the given spaces and reports them to the receiver.
+   *
+   * \param custom_spaces a collection of custom space indicies.
+   * \param receiver an object that gets the results.
+   */
+  void CollectCustomSpaceStatisticsAtLastGC(
+      std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+      std::unique_ptr<CustomSpaceStatisticsReceiver> receiver);
+
+  /**
+   * Enables a detached mode that allows testing garbage collection using
+   * `cppgc::testing` APIs. Once used, the heap cannot be attached to an
+   * `Isolate` anymore.
+   */
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  /**
+   * Performs a stop-the-world garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageForTesting(cppgc::EmbedderStackState stack_state);
+
+ private:
+  CppHeap() = default;
+
+  friend class internal::CppHeap;
+};
 
 class JSVisitor : public cppgc::Visitor {
  public:
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
 
-  template <typename T>
-  void Trace(const JSMember<T>& ref) {
-    if (ref.IsEmpty()) return;
+  void Trace(const TracedReferenceBase& ref) {
+    if (ref.IsEmptyThreadSafe()) return;
     Visit(ref);
   }
 
  protected:
   using cppgc::Visitor::Visit;
 
-  virtual void Visit(const internal::JSMemberBase& ref) {}
+  virtual void Visit(const TracedReferenceBase& ref) {}
+};
+
+/**
+ * **DO NOT USE: Use the appropriate managed types.**
+ *
+ * Consistency helpers that aid in maintaining a consistent internal state of
+ * the garbage collector.
+ */
+class V8_EXPORT JSHeapConsistency final {
+ public:
+  using WriteBarrierParams = cppgc::internal::WriteBarrier::Params;
+  using WriteBarrierType = cppgc::internal::WriteBarrier::Type;
+
+  /**
+   * Gets the required write barrier type for a specific write.
+   *
+   * Note: Handling for C++ to JS references.
+   *
+   * \param ref The reference being written to.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrierType
+  GetWriteBarrierType(const TracedReferenceBase& ref,
+                      WriteBarrierParams& params, HeapHandleCallback callback) {
+    if (ref.IsEmpty()) return WriteBarrierType::kNone;
+
+    if (V8_LIKELY(!cppgc::internal::WriteBarrier::
+                      IsAnyIncrementalOrConcurrentMarking())) {
+      return cppgc::internal::WriteBarrier::Type::kNone;
+    }
+    cppgc::HeapHandle& handle = callback();
+    if (!cppgc::subtle::HeapState::IsMarking(handle)) {
+      return cppgc::internal::WriteBarrier::Type::kNone;
+    }
+    params.heap = &handle;
+#if V8_ENABLE_CHECKS
+    params.type = cppgc::internal::WriteBarrier::Type::kMarking;
+#endif  // !V8_ENABLE_CHECKS
+    return cppgc::internal::WriteBarrier::Type::kMarking;
+  }
+
+  /**
+   * Gets the required write barrier type for a specific write.
+   *
+   * Note: Handling for JS to C++ references.
+   *
+   * \param wrapper The wrapper that has been written into.
+   * \param wrapper_index The wrapper index in `wrapper` that has been written
+   *   into.
+   * \param wrappable The value that was written.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrierType GetWriteBarrierType(
+      v8::Local<v8::Object>& wrapper, int wrapper_index, const void* wrappable,
+      WriteBarrierParams& params, HeapHandleCallback callback) {
+#if V8_ENABLE_CHECKS
+    CheckWrapper(wrapper, wrapper_index, wrappable);
+#endif  // V8_ENABLE_CHECKS
+    return cppgc::internal::WriteBarrier::
+        GetWriteBarrierTypeForExternallyReferencedObject(wrappable, params,
+                                                         callback);
+  }
+
+  /**
+   * Conservative Dijkstra-style write barrier that processes an object if it
+   * has not yet been processed.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param ref The reference being written to.
+   */
+  static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
+                                               cppgc::HeapHandle& heap_handle,
+                                               const TracedReferenceBase& ref) {
+    cppgc::internal::WriteBarrier::CheckParams(WriteBarrierType::kMarking,
+                                               params);
+    DijkstraMarkingBarrierSlow(heap_handle, ref);
+  }
+
+  /**
+   * Conservative Dijkstra-style write barrier that processes an object if it
+   * has not yet been processed.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param object The pointer to the object. May be an interior pointer to a
+   *   an interface of the actual object.
+   */
+  static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
+                                               cppgc::HeapHandle& heap_handle,
+                                               const void* object) {
+    cppgc::internal::WriteBarrier::DijkstraMarkingBarrier(params, object);
+  }
+
+  /**
+   * Generational barrier for maintaining consistency when running with multiple
+   * generations.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param ref The reference being written to.
+   */
+  static V8_INLINE void GenerationalBarrier(const WriteBarrierParams& params,
+                                            const TracedReferenceBase& ref) {}
+
+ private:
+  JSHeapConsistency() = delete;
+
+  static void CheckWrapper(v8::Local<v8::Object>&, int, const void*);
+
+  static void DijkstraMarkingBarrierSlow(cppgc::HeapHandle&,
+                                         const TracedReferenceBase& ref);
+};
+
+/**
+ * Provided as input to `CppHeap::CollectCustomSpaceStatisticsAtLastGC()`.
+ *
+ * Its method is invoked with the results of the statistic collection.
+ */
+class CustomSpaceStatisticsReceiver {
+ public:
+  virtual ~CustomSpaceStatisticsReceiver() = default;
+  /**
+   * Reports the size of a space at the last GC. It is called for each space
+   * that was requested in `CollectCustomSpaceStatisticsAtLastGC()`.
+   *
+   * \param space_index The index of the space.
+   * \param bytes The total size of live objects in the space at the last GC.
+   *    It is zero if there was no GC yet.
+   */
+  virtual void AllocatedBytes(cppgc::CustomSpaceIndex space_index,
+                              size_t bytes) = 0;
 };
 
 }  // namespace v8
@@ -215,8 +314,8 @@ class JSVisitor : public cppgc::Visitor {
 namespace cppgc {
 
 template <typename T>
-struct TraceTrait<v8::JSMember<T>> {
-  static void Trace(Visitor* visitor, const v8::JSMember<T>* self) {
+struct TraceTrait<v8::TracedReference<T>> {
+  static void Trace(Visitor* visitor, const v8::TracedReference<T>* self) {
     static_cast<v8::JSVisitor*>(visitor)->Trace(*self);
   }
 };

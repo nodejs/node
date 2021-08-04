@@ -113,6 +113,7 @@ const DISALLOWED_FLAGS = [
 
     // Disallowed due to false positives.
     '--check-handle-count',
+    '--correctness-fuzzer-suppressions',
     '--expose-debug-as',
     '--expose-natives-as',
     '--expose-trigger-failure',
@@ -146,6 +147,7 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
 const ALLOWED_RUNTIME_FUNCTIONS = new Set([
     // List of allowed runtime functions. Others will be replaced with no-ops.
     'ArrayBufferDetach',
+    'CompileBaseline',
     'DeoptimizeFunction',
     'DeoptimizeNow',
     'EnableCodeLoggingForTesting',

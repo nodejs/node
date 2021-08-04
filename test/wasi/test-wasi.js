@@ -53,7 +53,7 @@ if (process.argv[2] === 'wasi-child') {
       '--experimental-wasi-unstable-preview1',
       __filename,
       'wasi-child',
-      options.test
+      options.test,
     ], opts);
     console.log(child.stderr.toString());
     assert.strictEqual(child.status, options.exitCode || 0);
@@ -78,7 +78,6 @@ if (process.argv[2] === 'wasi-child') {
     runWASI({ test: 'getrusage' });
   }
   runWASI({ test: 'gettimeofday' });
-  runWASI({ test: 'link' });
   runWASI({ test: 'main_args' });
   runWASI({ test: 'notdir' });
   runWASI({ test: 'poll' });

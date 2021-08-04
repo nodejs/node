@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/template-objects-tq.inc"
+
 // CachedTemplateObject is a tuple used to cache a TemplateObject that has been
 // created. All the CachedTemplateObject's for a given SharedFunctionInfo form a
 // linked list via the next fields.

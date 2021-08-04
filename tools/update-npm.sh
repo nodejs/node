@@ -11,25 +11,25 @@ if [ "$#" -le 0 ]; then
   exit 1
 fi
 
-WORKSPACE="$TMPDIR"update-npm-$NPM_VERSION/
-
-if [ -d "$WORKSPACE" ]; then
-  echo "Cleaning up old workspace"
-  rm -rf "$WORKSPACE"
-fi
-
 echo "Making temporary workspace"
 
-mkdir -p "$WORKSPACE"
+WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
+
+cleanup () {
+  EXIT_CODE=$?
+  [ -d "$WORKSPACE" ] && rm -rf "$WORKSPACE"
+  exit $EXIT_CODE
+}
+
+trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-git clone git@github.com:npm/cli.git
+git clone --depth=1 --branch="v$NPM_VERSION" git@github.com:npm/cli.git
 cd cli
 
 echo "Preparing npm release"
 
-git checkout v"$NPM_VERSION"
 make
 make release
 
@@ -40,11 +40,7 @@ rm -rf npm/
 
 echo "Copying new npm"
 
-tar zxf "$WORKSPACE"cli/release/npm-"$NPM_VERSION".tgz
-
-echo "Deleting temporary workspace"
-
-rm -rf "$WORKSPACE"
+tar zxf "$WORKSPACE"/cli/release/npm-"$NPM_VERSION".tgz
 
 echo ""
 echo "All done!"

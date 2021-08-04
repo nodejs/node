@@ -277,6 +277,11 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
+static void IsConstructor(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  args.GetReturnValue().Set(args[0].As<v8::Function>()->IsConstructor());
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHiddenValue);
   registry->Register(SetHiddenValue);
@@ -293,6 +298,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
+  registry->Register(IsConstructor);
 }
 
 void Initialize(Local<Object> target,
@@ -331,6 +337,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
   env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
+  env->SetMethodNoSideEffect(target, "isConstructor", IsConstructor);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

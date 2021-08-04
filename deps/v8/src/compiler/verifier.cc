@@ -355,6 +355,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
       CheckNotTyped(node);
       break;
     case IrOpcode::kTrapIf:
@@ -395,11 +396,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(1, input_count);
       // Parameter has an input that produces enough values.
       int const index = ParameterIndexOf(node->op());
-      Node* const start = NodeProperties::GetValueInput(node, 0);
-      CHECK_EQ(IrOpcode::kStart, start->opcode());
+      StartNode start{NodeProperties::GetValueInput(node, 0)};
       // Currently, parameter indices start at -1 instead of 0.
       CHECK_LE(-1, index);
-      CHECK_LT(index + 1, start->op()->ValueOutputCount());
+      CHECK_LE(index, start.LastParameterIndex_MaybeNonStandardLayout());
       CheckTypeIs(node, Type::Any());
       break;
     }
@@ -482,8 +482,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       Node* control = NodeProperties::GetControlInput(node, 0);
       CHECK_EQ(effect_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + effect_count);
-      // If the control input is a Merge, then make sure that at least one
-      // of it's usages is non-phi.
+      // If the control input is a Merge, then make sure that at least one of
+      // its usages is non-phi.
       if (control->opcode() == IrOpcode::kMerge) {
         bool non_phi_use_found = false;
         for (Node* use : control->uses()) {
@@ -535,29 +535,25 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(0, control_count);
       CHECK_EQ(0, effect_count);
       CHECK_EQ(6, input_count);
-      // Check that the parameters and registers are kStateValues or
-      // kTypedStateValues.
-      for (int i = 0; i < 2; ++i) {
-        CHECK(NodeProperties::GetValueInput(node, i)->opcode() ==
-                  IrOpcode::kStateValues ||
-              NodeProperties::GetValueInput(node, i)->opcode() ==
-                  IrOpcode::kTypedStateValues);
-      }
+
+      FrameState state{node};
+      CHECK(state.parameters()->opcode() == IrOpcode::kStateValues ||
+            state.parameters()->opcode() == IrOpcode::kTypedStateValues);
+      CHECK(state.locals()->opcode() == IrOpcode::kStateValues ||
+            state.locals()->opcode() == IrOpcode::kTypedStateValues);
 
       // Checks that the state input is empty for all but kInterpretedFunction
       // frames, where it should have size one.
       {
-        const FrameStateInfo& state_info = FrameStateInfoOf(node->op());
-        const FrameStateFunctionInfo* func_info = state_info.function_info();
+        const FrameStateFunctionInfo* func_info =
+            state.frame_state_info().function_info();
         CHECK_EQ(func_info->parameter_count(),
-                 StateValuesAccess(node->InputAt(kFrameStateParametersInput))
-                     .size());
-        CHECK_EQ(
-            func_info->local_count(),
-            StateValuesAccess(node->InputAt(kFrameStateLocalsInput)).size());
+                 StateValuesAccess(state.parameters()).size());
+        CHECK_EQ(func_info->local_count(),
+                 StateValuesAccess(state.locals()).size());
 
-        Node* accumulator = node->InputAt(kFrameStateStackInput);
-        if (func_info->type() == FrameStateType::kInterpretedFunction) {
+        Node* accumulator = state.stack();
+        if (func_info->type() == FrameStateType::kUnoptimizedFunction) {
           // The accumulator (InputAt(2)) cannot be kStateValues.
           // It can be kTypedStateValues (to signal the type) and it can have
           // other Node types including that of the optimized_out HeapConstant.
@@ -772,7 +768,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // We don't check the input for Type::Function because this_function can
       // be context-allocated.
       CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::Callable());
+      CheckTypeIs(node, Type::NonInternal());
       break;
 
     case IrOpcode::kJSHasContextExtension:
@@ -958,8 +954,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeBigIntNegate:
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kBigIntAsUintN:
-      CheckValueInputIs(node, 0, Type::BigInt());
+    case IrOpcode::kSpeculativeBigIntAsUintN:
+      CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kBigIntAdd:
@@ -1231,11 +1227,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kArgumentsLength:
     case IrOpcode::kRestLength:
-      CheckValueInputIs(node, 0, Type::ExternalPointer());
       CheckTypeIs(node, TypeCache::Get()->kArgumentsLengthType);
-      break;
-    case IrOpcode::kArgumentsFrame:
-      CheckTypeIs(node, Type::ExternalPointer());
       break;
     case IrOpcode::kNewDoubleElements:
     case IrOpcode::kNewSmiOrObjectElements:
@@ -1244,8 +1236,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherInternal());
       break;
     case IrOpcode::kNewArgumentsElements:
-      CheckValueInputIs(node, 0, Type::ExternalPointer());
-      CheckValueInputIs(node, 1,
+      CheckValueInputIs(node, 0,
                         Type::Range(0.0, FixedArray::kMaxLength, zone));
       CheckTypeIs(node, Type::OtherInternal());
       break;
@@ -1509,6 +1500,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAssertType:
       break;
 
+    case IrOpcode::kVerifyType:
+      if (NodeProperties::IsTyped(node)) {
+        Node* input = NodeProperties::GetValueInput(node, 0);
+        DCHECK(NodeProperties::IsTyped(input));
+        CHECK(NodeProperties::GetType(node).Equals(
+            NodeProperties::GetType(input)));
+      }
+      break;
+
     case IrOpcode::kCheckFloat64Hole:
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
@@ -1626,10 +1626,18 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::ExternalPointer());  // callee
       CheckValueInputIs(node, 1, Type::Any());              // receiver
       break;
+#if V8_ENABLE_WEBASSEMBLY
+    case IrOpcode::kJSWasmCall:
+      CHECK_GE(value_count, 3);
+      CheckTypeIs(node, Type::Any());
+      CheckValueInputIs(node, 0, Type::Any());  // callee
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // Machine operators
     // -----------------------
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
@@ -1659,8 +1667,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord64Rol:
     case IrOpcode::kWord64Ror:
     case IrOpcode::kWord64Clz:
-    case IrOpcode::kWord64Popcnt:
     case IrOpcode::kWord64Ctz:
+    case IrOpcode::kWord64RolLowerable:
+    case IrOpcode::kWord64RorLowerable:
+    case IrOpcode::kWord64ClzLowerable:
+    case IrOpcode::kWord64CtzLowerable:
+    case IrOpcode::kWord64Popcnt:
     case IrOpcode::kWord64ReverseBits:
     case IrOpcode::kWord64ReverseBytes:
     case IrOpcode::kSimd128ReverseBytes:
@@ -1792,6 +1804,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
+    case IrOpcode::kWord32Select:
+    case IrOpcode::kWord64Select:
+    case IrOpcode::kFloat32Select:
+    case IrOpcode::kFloat64Select:
     case IrOpcode::kInt32PairAdd:
     case IrOpcode::kInt32PairSub:
     case IrOpcode::kInt32PairMul:
@@ -1849,7 +1865,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // TODO(rossberg): Check.
       break;
   }
-}  // NOLINT(readability/fn_size)
+}
 
 void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
                    CodeType code_type) {

@@ -24,7 +24,7 @@ class ZoneList;
 // add any entries if there is a ScopedList with the same backing in an inner
 // scope.
 template <typename T, typename TBacking = T>
-class ScopedList final {
+class V8_NODISCARD ScopedList final {
   // The backing can either be the same type as the list type, or, for pointers,
   // we additionally allow a void* backing store.
   static_assert((std::is_same<TBacking, T>::value) ||

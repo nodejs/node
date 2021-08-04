@@ -61,7 +61,7 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
   const stringifiedDefault = [
     null,
     retDefault.stdout.toString(),
-    retDefault.stderr.toString()
+    retDefault.stderr.toString(),
   ];
   assert.deepStrictEqual(retUTF8.output, stringifiedDefault);
 }

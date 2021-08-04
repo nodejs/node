@@ -172,9 +172,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   }
   PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
-  Handle<Map> GetFieldOwnerMap() const;
   FieldIndex GetFieldIndex() const;
-  Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
@@ -190,12 +188,13 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
+  bool TryLookupCachedProperty(Handle<AccessorPair> accessor);
   bool TryLookupCachedProperty();
-  bool LookupCachedProperty();
 
  private:
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
+  bool LookupCachedProperty(Handle<AccessorPair> accessor);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, size_t index,
                         Handle<Object> lookup_start_object,
@@ -245,6 +244,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> FetchValue(AllocationPolicy allocation_policy =
                                 AllocationPolicy::kAllocationAllowed) const;
   bool IsConstFieldValueEqualTo(Object value) const;
+  bool IsConstDictValueEqualTo(Object value) const;
+
   template <bool is_element>
   void ReloadPropertyInformation();
 
@@ -287,6 +288,46 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   const Handle<Object> lookup_start_object_;
   const size_t index_;
   InternalIndex number_ = InternalIndex::NotFound();
+};
+
+// Similar to the LookupIterator, but for concurrent accesses from a background
+// thread.
+//
+// Note: This is a work in progress, intended to bundle code related to
+// concurrent lookups here. In its current state, the class is obviously not an
+// 'iterator'. Still, keeping the name for now, with the intent to clarify
+// names and implementation once we've gotten some experience with more
+// involved logic.
+// TODO(jgruber, v8:7790): Consider using a LookupIterator-style interface.
+// TODO(jgruber, v8:7790): Consider merging back into the LookupIterator once
+// functionality and constraints are better known.
+class ConcurrentLookupIterator final : public AllStatic {
+ public:
+  // Tri-state to distinguish between 'not-present' and 'who-knows' failures.
+  enum Result {
+    kPresent,     // The value was found.
+    kNotPresent,  // No value exists.
+    kGaveUp,      // The operation can't be completed.
+  };
+
+  // Implements the own data property lookup for the specialized case of
+  // fixed_cow_array backing stores (these are only in use for array literal
+  // boilerplates). The contract is that the elements, elements kind, and array
+  // length passed to this function should all be read from the same JSArray
+  // instance; but due to concurrency it's possible that they may not be
+  // consistent among themselves (e.g. the elements kind may not match the
+  // given elements backing store). We are thus extra-careful to handle
+  // exceptional situations.
+  V8_EXPORT_PRIVATE static base::Optional<Object> TryGetOwnCowElement(
+      Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
+      int array_length, size_t index);
+
+  // Unlike above, the contract is that holder, elements, and elements_kind are
+  // a consistent view of the world; and index must be a valid element index.
+  V8_EXPORT_PRIVATE static Result TryGetOwnConstantElement(
+      Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+      JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
+      size_t index);
 };
 
 }  // namespace internal

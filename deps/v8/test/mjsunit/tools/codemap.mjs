@@ -25,12 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import { CodeMap } from "../../../tools/codemap.mjs";
-
-function newCodeEntry(size, name) {
-  return new CodeMap.CodeEntry(size, name);
-};
-
+import { CodeMap, CodeEntry } from "../../../tools/codemap.mjs";
 
 function assertEntry(codeMap, expected_name, addr) {
   var entry = codeMap.findEntry(addr);
@@ -46,9 +41,9 @@ function assertNoEntry(codeMap, addr) {
 
 (function testLibrariesAndStaticCode() {
   var codeMap = new CodeMap();
-  codeMap.addLibrary(0x1500, newCodeEntry(0x3000, 'lib1'));
-  codeMap.addLibrary(0x15500, newCodeEntry(0x5000, 'lib2'));
-  codeMap.addLibrary(0x155500, newCodeEntry(0x10000, 'lib3'));
+  codeMap.addLibrary(0x1500, new CodeEntry(0x3000, 'lib1'));
+  codeMap.addLibrary(0x15500, new CodeEntry(0x5000, 'lib2'));
+  codeMap.addLibrary(0x155500, new CodeEntry(0x10000, 'lib3'));
   assertNoEntry(codeMap, 0);
   assertNoEntry(codeMap, 0x1500 - 1);
   assertEntry(codeMap, 'lib1', 0x1500);
@@ -70,9 +65,9 @@ function assertNoEntry(codeMap, addr) {
   assertNoEntry(codeMap, 0x155500 + 0x10000);
   assertNoEntry(codeMap, 0xFFFFFFFF);
 
-  codeMap.addStaticCode(0x1510, newCodeEntry(0x30, 'lib1-f1'));
-  codeMap.addStaticCode(0x1600, newCodeEntry(0x50, 'lib1-f2'));
-  codeMap.addStaticCode(0x15520, newCodeEntry(0x100, 'lib2-f1'));
+  codeMap.addStaticCode(0x1510, new CodeEntry(0x30, 'lib1-f1'));
+  codeMap.addStaticCode(0x1600, new CodeEntry(0x50, 'lib1-f2'));
+  codeMap.addStaticCode(0x15520, new CodeEntry(0x100, 'lib2-f1'));
   assertEntry(codeMap, 'lib1', 0x1500);
   assertEntry(codeMap, 'lib1', 0x1510 - 1);
   assertEntry(codeMap, 'lib1-f1', 0x1510);
@@ -96,10 +91,10 @@ function assertNoEntry(codeMap, addr) {
 
 (function testDynamicCode() {
   var codeMap = new CodeMap();
-  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code1'));
-  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code2'));
-  codeMap.addCode(0x1900, newCodeEntry(0x50, 'code3'));
-  codeMap.addCode(0x1950, newCodeEntry(0x10, 'code4'));
+  codeMap.addCode(0x1500, new CodeEntry(0x200, 'code1'));
+  codeMap.addCode(0x1700, new CodeEntry(0x100, 'code2'));
+  codeMap.addCode(0x1900, new CodeEntry(0x50, 'code3'));
+  codeMap.addCode(0x1950, new CodeEntry(0x10, 'code4'));
   assertNoEntry(codeMap, 0);
   assertNoEntry(codeMap, 0x1500 - 1);
   assertEntry(codeMap, 'code1', 0x1500);
@@ -122,8 +117,8 @@ function assertNoEntry(codeMap, addr) {
 
 (function testCodeMovesAndDeletions() {
   var codeMap = new CodeMap();
-  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code1'));
-  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code2'));
+  codeMap.addCode(0x1500, new CodeEntry(0x200, 'code1'));
+  codeMap.addCode(0x1700, new CodeEntry(0x100, 'code2'));
   assertEntry(codeMap, 'code1', 0x1500);
   assertEntry(codeMap, 'code2', 0x1700);
   codeMap.moveCode(0x1500, 0x1800);
@@ -139,8 +134,8 @@ function assertNoEntry(codeMap, addr) {
 (function testDynamicNamesDuplicates() {
   var codeMap = new CodeMap();
   // Code entries with same names but different addresses.
-  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code'));
-  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code'));
+  codeMap.addCode(0x1500, new CodeEntry(0x200, 'code'));
+  codeMap.addCode(0x1700, new CodeEntry(0x100, 'code'));
   assertEntry(codeMap, 'code', 0x1500);
   assertEntry(codeMap, 'code {1}', 0x1700);
   // Test name stability.
@@ -151,9 +146,9 @@ function assertNoEntry(codeMap, addr) {
 
 (function testStaticEntriesExport() {
   var codeMap = new CodeMap();
-  codeMap.addStaticCode(0x1500, newCodeEntry(0x3000, 'lib1'));
-  codeMap.addStaticCode(0x15500, newCodeEntry(0x5000, 'lib2'));
-  codeMap.addStaticCode(0x155500, newCodeEntry(0x10000, 'lib3'));
+  codeMap.addStaticCode(0x1500, new CodeEntry(0x3000, 'lib1'));
+  codeMap.addStaticCode(0x15500, new CodeEntry(0x5000, 'lib2'));
+  codeMap.addStaticCode(0x155500, new CodeEntry(0x10000, 'lib3'));
   var allStatics = codeMap.getAllStaticEntries();
   allStatics = allStatics.map(String);
   allStatics.sort();
@@ -163,9 +158,9 @@ function assertNoEntry(codeMap, addr) {
 
 (function testDynamicEntriesExport() {
   var codeMap = new CodeMap();
-  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code1'));
-  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code2'));
-  codeMap.addCode(0x1900, newCodeEntry(0x50, 'code3'));
+  codeMap.addCode(0x1500, new CodeEntry(0x200, 'code1'));
+  codeMap.addCode(0x1700, new CodeEntry(0x100, 'code2'));
+  codeMap.addCode(0x1900, new CodeEntry(0x50, 'code3'));
   var allDynamics = codeMap.getAllDynamicEntries();
   allDynamics = allDynamics.map(String);
   allDynamics.sort();

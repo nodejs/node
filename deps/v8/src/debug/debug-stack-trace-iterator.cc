@@ -6,21 +6,17 @@
 
 #include "src/api/api-inl.h"
 #include "src/debug/debug-evaluate.h"
-#include "src/debug/debug-interface.h"
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/wasm/wasm-debug-evaluate.h"
-#include "src/wasm/wasm-debug.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
-
-bool debug::StackTraceIterator::SupportsWasmDebugEvaluate() {
-  return i::FLAG_wasm_expose_debug_eval;
-}
 
 std::unique_ptr<debug::StackTraceIterator> debug::StackTraceIterator::Create(
     v8::Isolate* isolate, int index) {
@@ -103,7 +99,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     if (!scope_iterator.ClosureScopeHasThisReference()) {
       return v8::MaybeLocal<v8::Value>();
     }
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;
@@ -126,9 +122,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
 
 v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   CHECK(!Done());
+#if V8_ENABLE_WEBASSEMBLY
   if (frame_inspector_ && frame_inspector_->IsWasm()) {
     return v8::Local<v8::Value>();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
   bool is_optimized = iterator_.frame()->is_optimized();
   if (is_optimized || !is_top_frame_ ||
@@ -166,24 +164,19 @@ v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {
 std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
-  StandardFrame* frame = iterator_.frame();
-  if (frame->is_wasm()) {
-    return std::make_unique<DebugWasmScopeIterator>(isolate_,
-                                                    WasmFrame::cast(frame));
+#if V8_ENABLE_WEBASSEMBLY
+  if (iterator_.frame()->is_wasm()) {
+    return GetWasmScopeIterator(WasmFrame::cast(iterator_.frame()));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
-}
-
-bool DebugStackTraceIterator::Restart() {
-  DCHECK(!Done());
-  if (iterator_.is_wasm()) return false;
-  return LiveEdit::RestartFrame(iterator_.javascript_frame());
 }
 
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
   Handle<Object> value;
+
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
   if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
                             inlined_frame_index_, Utils::OpenHandle(*source),
@@ -195,25 +188,5 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
   return Utils::ToLocal(value);
 }
 
-v8::MaybeLocal<v8::String> DebugStackTraceIterator::EvaluateWasm(
-    internal::Vector<const internal::byte> source, int frame_index) {
-  DCHECK(!Done());
-  if (!i::FLAG_wasm_expose_debug_eval || !iterator_.is_wasm()) {
-    return v8::MaybeLocal<v8::String>();
-  }
-  Handle<String> value;
-  i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
-
-  FrameSummary summary = FrameSummary::Get(iterator_.frame(), 0);
-  const FrameSummary::WasmFrameSummary& wasmSummary = summary.AsWasm();
-  Handle<WasmInstanceObject> instance = wasmSummary.wasm_instance();
-
-  if (!v8::internal::wasm::DebugEvaluate(source, instance, iterator_.frame())
-           .ToHandle(&value)) {
-    isolate_->OptionalRescheduleException(false);
-    return v8::MaybeLocal<v8::String>();
-  }
-  return Utils::ToLocal(value);
-}
 }  // namespace internal
 }  // namespace v8

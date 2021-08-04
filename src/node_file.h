@@ -3,23 +3,19 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
 #include "aliased_buffer.h"
 #include "node_messaging.h"
+#include "node_snapshotable.h"
 #include "stream_base.h"
-#include <iostream>
 
 namespace node {
 namespace fs {
 
 class FileHandleReadWrap;
 
-class BindingData : public BaseObject {
+class BindingData : public SnapshotableObject {
  public:
-  explicit BindingData(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        stats_field_array(env->isolate(), kFsStatsBufferLength),
-        stats_field_bigint_array(env->isolate(), kFsStatsBufferLength) {}
+  explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
   AliasedBigUint64Array stats_field_bigint_array;
@@ -27,7 +23,10 @@ class BindingData : public BaseObject {
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
 
-  static constexpr FastStringKey binding_data_name { "fs" };
+  SERIALIZABLE_OBJECT_METHODS()
+  static constexpr FastStringKey type_name{"node::fs::BindingData"};
+  static constexpr EmbedderObjectType type_int =
+      EmbedderObjectType::k_fs_binding_data;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
@@ -235,6 +234,12 @@ class FileHandleReadWrap final : public ReqWrap<uv_fs_t> {
 // the object is garbage collected
 class FileHandle final : public AsyncWrap, public StreamBase {
  public:
+  enum InternalFields {
+    kFileHandleBaseField = StreamBase::kInternalFieldCount,
+    kClosingPromiseSlot,
+    kInternalFieldCount
+  };
+
   static FileHandle* New(BindingData* binding_data,
                          int fd,
                          v8::Local<v8::Object> obj = v8::Local<v8::Object>());

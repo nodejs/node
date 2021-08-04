@@ -63,12 +63,7 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
   if (!opt_gen) return "";
   const std::string& generates = *opt_gen;
   if (enforce_tnode_type) {
-    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-        generates.substr(generates.length() - 1, 1) != ">") {
-      ReportError("generated type \"", generates,
-                  "\" should be of the form \"TNode<...>\"");
-    }
-    return generates.substr(6, generates.length() - 7);
+    return UnwrapTNodeTypeName(generates);
   }
   return generates;
 }
@@ -77,7 +72,7 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
 const AbstractType* TypeVisitor::ComputeType(
     AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
   std::string generates =
-      ComputeGeneratesType(decl->generates, !decl->is_constexpr);
+      ComputeGeneratesType(decl->generates, !decl->IsConstexpr());
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
@@ -90,25 +85,21 @@ const AbstractType* TypeVisitor::ComputeType(
     }
   }
 
-  if (decl->is_constexpr && decl->transient) {
+  if (decl->IsConstexpr() && decl->IsTransient()) {
     ReportError("cannot declare a transient type that is also constexpr");
   }
 
   const Type* non_constexpr_version = nullptr;
-  if (decl->is_constexpr) {
+  if (decl->IsConstexpr()) {
     QualifiedName non_constexpr_name{GetNonConstexprName(decl->name->value)};
     if (auto type = Declarations::TryLookupType(non_constexpr_name)) {
       non_constexpr_version = *type;
     }
   }
 
-  AbstractTypeFlags flags = AbstractTypeFlag::kNone;
-  if (decl->transient) flags |= AbstractTypeFlag::kTransient;
-  if (decl->is_constexpr) flags |= AbstractTypeFlag::kConstexpr;
-
-  return TypeOracle::GetAbstractType(parent_type, decl->name->value, flags,
-                                     generates, non_constexpr_version,
-                                     specialized_from);
+  return TypeOracle::GetAbstractType(parent_type, decl->name->value,
+                                     decl->flags, generates,
+                                     non_constexpr_version, specialized_from);
 }
 
 void DeclareMethods(AggregateType* container_type,
@@ -216,7 +207,9 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
-            false};
+            false,
+            FieldSynchronization::kNone,
+            FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
     // Offsets are assigned based on an assumption of no space between members.
@@ -291,10 +284,24 @@ const ClassType* TypeVisitor::ComputeType(
     Error("Class \"", decl->name->value,
           "\" requires a layout but doesn't have one");
   }
+  if (flags & ClassFlag::kCustomCppClass) {
+    if (!(flags & ClassFlag::kExport)) {
+      Error("Only exported classes can have a custom C++ class.");
+    }
+    if (flags & ClassFlag::kExtern) {
+      Error("No need to specify ", ANNOTATION_CUSTOM_CPP_CLASS,
+            ", extern classes always have a custom C++ class.");
+    }
+  }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;
-      generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      std::string explicit_generates =
+          ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      if (explicit_generates == generates) {
+        Lint("Unnecessary 'generates' clause for class ", decl->name->value);
+      }
+      generates = explicit_generates;
     }
     if (flags & ClassFlag::kExport) {
       Error("cannot export a class that is marked extern");
@@ -308,8 +315,7 @@ const ClassType* TypeVisitor::ComputeType(
         Error("non-external classes must have defined layouts");
       }
     }
-    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify |
-            ClassFlag::kGenerateBodyDescriptor;
+    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify;
   }
   if (!(flags & ClassFlag::kExtern) &&
       (flags & ClassFlag::kHasSameInstanceTypeAsParent)) {
@@ -354,14 +360,17 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
                  UnionTypeExpression::DynamicCast(type_expression)) {
     return TypeOracle::GetUnionType(ComputeType(union_type->a),
                                     ComputeType(union_type->b));
-  } else {
-    auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
+  } else if (auto* function_type_exp =
+                 FunctionTypeExpression::DynamicCast(type_expression)) {
     TypeVector argument_types;
     for (TypeExpression* type_exp : function_type_exp->parameters) {
       argument_types.push_back(ComputeType(type_exp));
     }
     return TypeOracle::GetBuiltinPointerType(
         argument_types, ComputeType(function_type_exp->return_type));
+  } else {
+    auto* precomputed = PrecomputedTypeExpression::cast(type_expression);
+    return precomputed->type;
   }
 }
 
@@ -411,7 +420,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("in-object properties cannot be weak");
       }
     }
-    base::Optional<Expression*> array_length = field_expression.index;
+    base::Optional<ClassFieldIndexInfo> array_length = field_expression.index;
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
          class_type,
@@ -420,7 +429,9 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.weak,
          field_expression.const_qualified,
-         field_expression.generate_verify});
+         field_expression.generate_verify,
+         field_expression.read_synchronization,
+         field_expression.write_synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned
@@ -429,7 +440,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       field.ValidateAlignment(class_offset +
                               field_size * ResidueClass::Unknown());
 
-      if (auto literal = NumberLiteralExpression::DynamicCast(*field.index)) {
+      if (auto literal =
+              NumberLiteralExpression::DynamicCast(field.index->expr)) {
         size_t value = static_cast<size_t>(literal->number);
         if (value != literal->number) {
           Error("non-integral array length").Position(field.pos);

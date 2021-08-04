@@ -39,8 +39,8 @@ static Handle<JSFunction> Compile(const char* source) {
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, isolate->native_context());
+  return Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+      .Build();
 }
 
 
@@ -49,7 +49,7 @@ TEST(TestLinkageCreate) {
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
+                                shared, function, CodeKind::TURBOFAN);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(call_descriptor);
 }
@@ -67,8 +67,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<SharedFunctionInfo> shared(function->shared(),
                                       handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                  shared, function,
-                                  CodeKind::OPTIMIZED_FUNCTION);
+                                  shared, function, CodeKind::TURBOFAN);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(call_descriptor);
 
@@ -85,7 +84,7 @@ TEST(TestLinkageJSCall) {
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
+                                shared, function, CodeKind::TURBOFAN);
 
   for (int i = 0; i < 32; i++) {
     auto call_descriptor = Linkage::GetJSCallDescriptor(
@@ -109,12 +108,13 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
+  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+                                CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
   CHECK_EQ(false, call_descriptor->IsJSFunctionCall());
@@ -124,17 +124,19 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
       Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
+  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+                                CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ParameterCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
@@ -147,6 +149,7 @@ TEST(TestFPLinkageStubCall) {
   CHECK_EQ(call_descriptor->GetReturnLocation(0).GetLocation(),
            kReturnRegister0.code());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

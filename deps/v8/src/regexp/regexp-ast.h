@@ -59,7 +59,7 @@ class Interval {
     else if (from_ == kNone)
       return that;
     else
-      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+      return Interval(std::min(from_, that.from_), std::max(to_, that.to_));
   }
 
   bool Contains(int value) { return (from_ <= value) && (value <= to_); }
@@ -214,8 +214,7 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os,
-                                        Zone* zone);  // NOLINT
+  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os, Zone* zone);
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
   virtual bool Is##Name();

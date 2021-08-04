@@ -1,8 +1,6 @@
 const t = require('tap')
-const requireInject = require('require-inject')
+const { fake: mockNpm } = require('../fixtures/mock-npm')
 const { resolve, delimiter } = require('path')
-const OUTPUT = []
-const output = (...msg) => OUTPUT.push(msg)
 
 const ARB_CTOR = []
 const ARB_ACTUAL_TREE = {}
@@ -25,25 +23,27 @@ class Arborist {
 let PROGRESS_ENABLED = true
 const LOG_WARN = []
 let PROGRESS_IGNORED = false
-const npm = {
-  flatOptions: {
-    yes: true,
-    call: '',
-    package: [],
-    legacyPeerDeps: false,
-    shell: 'shell-cmd',
-  },
+const flatOptions = {
+  npxCache: 'npx-cache-dir',
+  color: false,
+  cache: 'cache-dir',
+  legacyPeerDeps: false,
+  package: [],
+}
+const config = {
+  cache: 'bad-cache-dir', // this should never show up passed into libnpmexec
+  yes: true,
+  call: '',
+  package: [],
+  'script-shell': 'shell-cmd',
+}
+
+const npm = mockNpm({
+  flatOptions,
+  config,
   localPrefix: 'local-prefix',
   localBin: 'local-bin',
   globalBin: 'global-bin',
-  config: {
-    get: k => {
-      if (k !== 'cache')
-        throw new Error('unexpected config get')
-
-      return 'cache-dir'
-    },
-  },
   log: {
     disableProgress: () => {
       PROGRESS_ENABLED = false
@@ -55,7 +55,7 @@ const npm = {
       LOG_WARN.push(args)
     },
   },
-}
+})
 
 const RUN_SCRIPTS = []
 const runScript = async opt => {
@@ -87,18 +87,19 @@ const PATH = require('../../lib/utils/path.js')
 let CI_NAME = 'travis-ci'
 
 const mocks = {
-  '@npmcli/arborist': Arborist,
-  '@npmcli/run-script': runScript,
-  '@npmcli/ci-detect': () => CI_NAME,
-  '../../lib/npm.js': npm,
-  pacote,
-  read,
-  'mkdirp-infer-owner': mkdirp,
-  '../../lib/utils/output.js': output,
+  libnpmexec: t.mock('libnpmexec', {
+    '@npmcli/arborist': Arborist,
+    '@npmcli/run-script': runScript,
+    '@npmcli/ci-detect': () => CI_NAME,
+    pacote,
+    read,
+    'mkdirp-infer-owner': mkdirp,
+  }),
 }
-const exec = requireInject('../../lib/exec.js', mocks)
+const Exec = t.mock('../../lib/exec.js', mocks)
+const exec = new Exec(npm)
 
-t.afterEach(cb => {
+t.afterEach(() => {
   MKDIRPS.length = 0
   ARB_CTOR.length = 0
   ARB_REIFY.length = 0
@@ -108,65 +109,81 @@ t.afterEach(cb => {
   READ_ERROR = null
   LOG_WARN.length = 0
   PROGRESS_IGNORED = false
-  npm.flatOptions.legacyPeerDeps = false
-  npm.flatOptions.package = []
-  npm.flatOptions.call = ''
+  flatOptions.legacyPeerDeps = false
+  flatOptions.color = false
+  config['script-shell'] = 'shell-cmd'
+  config.package = []
+  flatOptions.package = []
+  config.call = ''
+  config.yes = true
+  npm.color = false
   npm.localBin = 'local-bin'
   npm.globalBin = 'global-bin'
-  cb()
 })
 
-t.test('npx foo, bin already exists locally', async t => {
+t.test('npx foo, bin already exists locally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.localBin = path
+  npm.localBin = resolve(path, 'node_modules', '.bin')
 
-  await exec(['foo', 'one arg', 'two arg'], er => {
-    t.ifError(er, 'npm exec')
+  exec.exec(['foo', 'one arg', 'two arg'], er => {
+    t.error(er, 'npm exec')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' }},
+      args: ['one arg', 'two arg'],
+      cache: flatOptions.cache,
+      npxCache: flatOptions.npxCache,
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: {
+        PATH: [npm.localBin, ...PATH].join(delimiter),
+      },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' }},
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: {
-      PATH: [path, ...PATH].join(delimiter),
-    },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npx foo, bin already exists globally', async t => {
+t.test('npx foo, bin already exists globally', t => {
   const path = t.testdir({
-    foo: 'just some file',
+    node_modules: {
+      '.bin': {
+        foo: 'just some file',
+      },
+    },
   })
 
   PROGRESS_IGNORED = true
-  npm.globalBin = path
+  npm.globalBin = resolve(path, 'node_modules', '.bin')
 
-  await exec(['foo', 'one arg', 'two arg'], er => {
-    t.ifError(er, 'npm exec')
+  exec.exec(['foo', 'one arg', 'two arg'], er => {
+    t.error(er, 'npm exec')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' }},
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: {
+        PATH: [npm.globalBin, ...PATH].join(delimiter),
+      },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' }},
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: {
-      PATH: [path, ...PATH].join(delimiter),
-    },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec foo, already present locally', async t => {
+t.test('npm exec foo, already present locally', t => {
   const path = t.testdir()
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
@@ -180,96 +197,142 @@ t.test('npm exec foo, already present locally', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo', 'one arg', 'two arg'], er => {
+  exec.exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH: process.env.PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH: process.env.PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec <noargs>, run interactive shell', async t => {
+t.test('npm exec <noargs>, run interactive shell', t => {
   CI_NAME = null
   const { isTTY } = process.stdin
   process.stdin.isTTY = true
   t.teardown(() => process.stdin.isTTY = isTTY)
 
-  const run = async (t, doRun = true) => {
+  const run = (t, doRun, cb) => {
     LOG_WARN.length = 0
     ARB_CTOR.length = 0
     MKDIRPS.length = 0
     ARB_REIFY.length = 0
-    OUTPUT.length = 0
-    await exec([], er => {
+    npm._mockOutputs.length = 0
+    exec.exec([], er => {
       if (er)
         throw er
-    })
-    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-    t.strictSame(ARB_CTOR, [], 'no need to instantiate arborist')
-    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-    if (doRun) {
-      t.match(RUN_SCRIPTS, [{
-        pkg: { scripts: { npx: 'shell-cmd' } },
-        args: [],
-        banner: false,
-        path: process.cwd(),
-        stdioString: true,
-        event: 'npx',
-        env: { PATH: process.env.PATH },
-        stdio: 'inherit',
-      }])
-    } else
-      t.strictSame(RUN_SCRIPTS, [])
-    RUN_SCRIPTS.length = 0
-  }
+      t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+      t.strictSame(ARB_CTOR, [], 'no need to instantiate arborist')
+      t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+      t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+      if (doRun) {
+        t.match(RUN_SCRIPTS, [{
+          pkg: { scripts: { npx: 'shell-cmd' } },
+          args: [],
+          banner: false,
+          path: process.cwd(),
+          stdioString: true,
+          event: 'npx',
+          env: { PATH: process.env.PATH },
+          stdio: 'inherit',
+        }])
+      } else
+        t.strictSame(RUN_SCRIPTS, [])
 
-  t.test('print message when tty and not in CI', async t => {
+      RUN_SCRIPTS.length = 0
+      cb()
+    })
+  }
+  t.test('print message when tty and not in CI', t => {
     CI_NAME = null
     process.stdin.isTTY = true
-    await run(t)
-    t.strictSame(LOG_WARN, [])
-    t.strictSame(OUTPUT, [
-      ['\nEntering npm script environment\nType \'exit\' or ^D when finished\n'],
-    ], 'printed message about interactive shell')
+    run(t, true, () => {
+      t.strictSame(LOG_WARN, [])
+      t.strictSame(npm._mockOutputs, [
+        [`\nEntering npm script environment at location:\n${process.cwd()}\nType 'exit' or ^D when finished\n`],
+      ], 'printed message about interactive shell')
+      t.end()
+    })
   })
 
-  t.test('no message when not TTY', async t => {
+  t.test('print message with color when tty and not in CI', t => {
+    CI_NAME = null
+    process.stdin.isTTY = true
+    npm.color = true
+    flatOptions.color = true
+
+    run(t, true, () => {
+      t.strictSame(LOG_WARN, [])
+      t.strictSame(npm._mockOutputs, [
+        [`\u001b[0m\u001b[0m\n\u001b[0mEntering npm script environment\u001b[0m\u001b[0m at location:\u001b[0m\n\u001b[0m\u001b[2m${process.cwd()}\u001b[22m\u001b[0m\u001b[1m\u001b[22m\n\u001b[1mType 'exit' or ^D when finished\u001b[22m\n\u001b[1m\u001b[22m`],
+      ], 'printed message about interactive shell')
+      t.end()
+    })
+  })
+
+  t.test('no message when not TTY', t => {
     CI_NAME = null
     process.stdin.isTTY = false
-    await run(t)
-    t.strictSame(LOG_WARN, [])
-    t.strictSame(OUTPUT, [], 'no message about interactive shell')
+    run(t, true, () => {
+      t.strictSame(LOG_WARN, [])
+      t.strictSame(npm._mockOutputs, [], 'no message about interactive shell')
+      t.end()
+    })
   })
 
-  t.test('print warning when in CI and interactive', async t => {
+  t.test('print warning when in CI and interactive', t => {
     CI_NAME = 'travis-ci'
     process.stdin.isTTY = true
-    await run(t, false)
-    t.strictSame(LOG_WARN, [
-      ['exec', 'Interactive mode disabled in CI environment'],
-    ])
-    t.strictSame(OUTPUT, [], 'no message about interactive shell')
+    run(t, false, () => {
+      t.strictSame(LOG_WARN, [
+        ['exec', 'Interactive mode disabled in CI environment'],
+      ])
+      t.strictSame(npm._mockOutputs, [], 'no message about interactive shell')
+      t.end()
+    })
+  })
+
+  t.test('not defined script-shell config value', t => {
+    CI_NAME = null
+    process.stdin.isTTY = true
+    config['script-shell'] = undefined
+
+    exec.exec([], er => {
+      if (er)
+        throw er
+
+      t.match(RUN_SCRIPTS, [{
+        pkg: { scripts: { npx: /sh|cmd/ } },
+      }])
+
+      LOG_WARN.length = 0
+      ARB_CTOR.length = 0
+      MKDIRPS.length = 0
+      ARB_REIFY.length = 0
+      npm._mockOutputs.length = 0
+      RUN_SCRIPTS.length = 0
+      t.end()
+    })
   })
 
   t.end()
 })
 
-t.test('npm exec foo, not present locally or in central loc', async t => {
+t.test('npm exec foo, not present locally or in central loc', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -285,30 +348,31 @@ t.test('npm exec foo, not present locally or in central loc', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo', 'one arg', 'two arg'], er => {
+  exec.exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [{add: ['foo@'], legacyPeerDeps: false}], 'need to install foo@')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.match(ARB_REIFY, [{add: ['foo@'], legacyPeerDeps: false}], 'need to install foo@')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec foo, not present locally but in central loc', async t => {
+t.test('npm exec foo, not present locally but in central loc', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -324,30 +388,31 @@ t.test('npm exec foo, not present locally but in central loc', async t => {
     },
     _from: 'foo@',
   }
-  await exec(['foo', 'one arg', 'two arg'], er => {
+  exec.exec(['foo', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [], 'no need to install again, already there')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.match(ARB_REIFY, [], 'no need to install again, already there')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec foo, present locally but wrong version', async t => {
+t.test('npm exec foo, present locally but wrong version', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/2badf4630f1cfaad')
+  const installDir = resolve('npx-cache-dir/2badf4630f1cfaad')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -363,28 +428,29 @@ t.test('npm exec foo, present locally but wrong version', async t => {
     },
     _from: 'foo@2.x',
   }
-  await exec(['foo@2.x', 'one arg', 'two arg'], er => {
+  exec.exec(['foo@2.x', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [{ add: ['foo@2.x'], legacyPeerDeps: false }], 'need to add foo@2.x')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foo' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.match(ARB_REIFY, [{ add: ['foo@2.x'], legacyPeerDeps: false }], 'need to add foo@2.x')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foo' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec --package=foo bar', async t => {
+t.test('npm exec --package=foo bar', t => {
   const path = t.testdir()
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
@@ -398,28 +464,30 @@ t.test('npm exec --package=foo bar', async t => {
     },
     _from: 'foo@',
   }
-  npm.flatOptions.package = ['foo']
-  await exec(['bar', 'one arg', 'two arg'], er => {
+  config.package = ['foo']
+  flatOptions.package = ['foo']
+  exec.exec(['bar', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'bar' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH: process.env.PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'bar' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH: process.env.PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec @foo/bar -- --some=arg, locally installed', async t => {
+t.test('npm exec @foo/bar -- --some=arg, locally installed', t => {
   const foobarManifest = {
     name: '@foo/bar',
     version: '1.2.3',
@@ -440,27 +508,28 @@ t.test('npm exec @foo/bar -- --some=arg, locally installed', async t => {
     children: new Map([['@foo/bar', { name: '@foo/bar', version: '1.2.3' }]]),
   }
   MANIFESTS['@foo/bar'] = foobarManifest
-  await exec(['@foo/bar', '--some=arg'], er => {
+  exec.exec(['@foo/bar', '--some=arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'bar' } },
+      args: ['--some=arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH: process.env.PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-  t.match(ARB_CTOR, [{ package: ['@foo/bar'], path }])
-  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'bar' } },
-    args: ['--some=arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH: process.env.PATH },
-    stdio: 'inherit',
-  }])
 })
 
-t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locally installed', async t => {
+t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locally installed', t => {
   const foobarManifest = {
     name: '@foo/bar',
     version: '1.2.3',
@@ -482,24 +551,25 @@ t.test('npm exec @foo/bar, with same bin alias and no unscoped named bin, locall
     children: new Map([['@foo/bar', { name: '@foo/bar', version: '1.2.3' }]]),
   }
   MANIFESTS['@foo/bar'] = foobarManifest
-  await exec(['@foo/bar', 'one arg', 'two arg'], er => {
+  exec.exec(['@foo/bar', 'one arg', 'two arg'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'baz' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH: process.env.PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-  t.match(ARB_CTOR, [{ package: ['@foo/bar'], path }])
-  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'baz' } },
-    args: ['one arg', 'two arg'],
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH: process.env.PATH },
-    stdio: 'inherit',
-  }])
 })
 
 t.test('npm exec @foo/bar, with different bin alias and no unscoped named bin, locally installed', t => {
@@ -519,12 +589,12 @@ t.test('npm exec @foo/bar, with different bin alias and no unscoped named bin, l
     _from: 'foo@',
     _id: '@foo/bar@1.2.3',
   }
-  return t.rejects(exec(['@foo/bar'], er => {
-    if (er)
-      throw er
-  }), {
-    message: 'could not determine executable to run',
-    pkgid: '@foo/bar@1.2.3',
+  exec.exec(['@foo/bar'], er => {
+    t.match(er, {
+      message: 'could not determine executable to run',
+      pkgid: '@foo/bar@1.2.3',
+    })
+    t.end()
   })
 })
 
@@ -534,11 +604,11 @@ t.test('run command with 2 packages, need install, verify sort', t => {
   const cases = [['foo', 'bar'], ['bar', 'foo']]
   t.plan(cases.length)
   for (const packages of cases) {
-    t.test(packages.join(', '), async t => {
-      npm.flatOptions.package = packages
-      const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+    t.test(packages.join(', '), t => {
+      config.package = packages
+      const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
       const path = t.testdir()
-      const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+      const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
       npm.localPrefix = path
       ARB_ACTUAL_TREE[path] = {
         children: new Map(),
@@ -562,25 +632,26 @@ t.test('run command with 2 packages, need install, verify sort', t => {
         },
         _from: 'bar@',
       }
-      await exec(['foobar', 'one arg', 'two arg'], er => {
+      exec.exec(['foobar', 'one arg', 'two arg'], er => {
         if (er)
           throw er
+        t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+        t.match(ARB_CTOR, [{ path }])
+        t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
+        t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+        const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+        t.match(RUN_SCRIPTS, [{
+          pkg: { scripts: { npx: 'foobar' } },
+          args: ['one arg', 'two arg'],
+          banner: false,
+          path: process.cwd(),
+          stdioString: true,
+          event: 'npx',
+          env: { PATH },
+          stdio: 'inherit',
+        }])
+        t.end()
       })
-      t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-      t.match(ARB_CTOR, [{ package: packages, path }])
-      t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
-      t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-      const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-      t.match(RUN_SCRIPTS, [{
-        pkg: { scripts: { npx: 'foobar' } },
-        args: ['one arg', 'two arg'],
-        banner: false,
-        path: process.cwd(),
-        stdioString: true,
-        event: 'npx',
-        env: { PATH },
-        stdio: 'inherit',
-      }])
     })
   }
 })
@@ -597,12 +668,12 @@ t.test('npm exec foo, no bin in package', t => {
     _from: 'foo@',
     _id: 'foo@1.2.3',
   }
-  return t.rejects(exec(['foo'], er => {
-    if (er)
-      throw er
-  }), {
-    message: 'could not determine executable to run',
-    pkgid: 'foo@1.2.3',
+  exec.exec(['foo'], er => {
+    t.match(er, {
+      message: 'could not determine executable to run',
+      pkgid: 'foo@1.2.3',
+    })
+    t.end()
   })
 })
 
@@ -622,20 +693,20 @@ t.test('npm exec foo, many bins in package, none named foo', t => {
     _from: 'foo@',
     _id: 'foo@1.2.3',
   }
-  return t.rejects(exec(['foo'], er => {
-    if (er)
-      throw er
-  }), {
-    message: 'could not determine executable to run',
-    pkgid: 'foo@1.2.3',
+  exec.exec(['foo'], er => {
+    t.match(er, {
+      message: 'could not determine executable to run',
+      pkgid: 'foo@1.2.3',
+    })
+    t.end()
   })
 })
 
-t.test('npm exec -p foo -c "ls -laF"', async t => {
+t.test('npm exec -p foo -c "ls -laF"', t => {
   const path = t.testdir()
   npm.localPrefix = path
-  npm.flatOptions.package = ['foo']
-  npm.flatOptions.call = 'ls -laF'
+  config.package = ['foo']
+  config.call = 'ls -laF'
   ARB_ACTUAL_TREE[path] = {
     children: new Map([['foo', { name: 'foo', version: '1.2.3' }]]),
   }
@@ -644,31 +715,35 @@ t.test('npm exec -p foo -c "ls -laF"', async t => {
     version: '1.2.3',
     _from: 'foo@',
   }
-  await exec([], er => {
+  exec.exec([], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [], 'no need to make any dirs')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no need to reify anything')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'ls -laF' } },
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH: process.env.PATH },
+      stdio: 'inherit',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [], 'no need to make any dirs')
-  t.match(ARB_CTOR, [{ package: ['foo'], path }])
-  t.strictSame(ARB_REIFY, [], 'no need to reify anything')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'ls -laF' } },
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH: process.env.PATH },
-    stdio: 'inherit',
-  }])
 })
 
 t.test('positional args and --call together is an error', t => {
-  npm.flatOptions.call = 'true'
-  return exec(['foo'], er => t.equal(er, exec.usage))
+  config.call = 'true'
+  exec.exec(['foo'], er => {
+    t.equal(er, exec.usage)
+    t.end()
+  })
 })
 
-t.test('prompt when installs are needed if not already present and shell is a TTY', async t => {
+t.test('prompt when installs are needed if not already present and shell is a TTY', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -683,12 +758,12 @@ t.test('prompt when installs are needed if not already present and shell is a TT
   const packages = ['foo', 'bar']
   READ_RESULT = 'yolo'
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = undefined
+  config.package = packages
+  config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -712,31 +787,32 @@ t.test('prompt when installs are needed if not already present and shell is a TT
     },
     _from: 'bar@',
   }
-  await exec(['foobar'], er => {
+  exec.exec(['foobar'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foobar' } },
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.strictSame(READ, [{
+      prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
+      default: 'y',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foobar' } },
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
-  t.strictSame(READ, [{
-    prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
-    default: 'y',
-  }])
 })
 
-t.test('skip prompt when installs are needed if not already present and shell is not a tty (multiple packages)', async t => {
+t.test('skip prompt when installs are needed if not already present and shell is not a tty (multiple packages)', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -751,12 +827,12 @@ t.test('skip prompt when installs are needed if not already present and shell is
   const packages = ['foo', 'bar']
   READ_RESULT = 'yolo'
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = undefined
+  config.package = packages
+  config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -780,29 +856,30 @@ t.test('skip prompt when installs are needed if not already present and shell is
     },
     _from: 'bar@',
   }
-  await exec(['foobar'], er => {
+  exec.exec(['foobar'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foobar' } },
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.strictSame(READ, [], 'should not have prompted')
+    t.strictSame(LOG_WARN, [['exec', 'The following packages were not found and will be installed: bar, foo']], 'should have printed a warning')
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install both packages')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foobar' } },
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
-  t.strictSame(READ, [], 'should not have prompted')
-  t.strictSame(LOG_WARN, [['exec', 'The following packages were not found and will be installed: bar, foo']], 'should have printed a warning')
 })
 
-t.test('skip prompt when installs are needed if not already present and shell is not a tty (single package)', async t => {
+t.test('skip prompt when installs are needed if not already present and shell is not a tty (single package)', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -817,12 +894,12 @@ t.test('skip prompt when installs are needed if not already present and shell is
   const packages = ['foo']
   READ_RESULT = 'yolo'
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = undefined
+  config.package = packages
+  config.yes = undefined
 
-  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b))
+  const add = packages.map(p => `${p}@`).sort((a, b) => a.localeCompare(b, 'en'))
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -838,29 +915,30 @@ t.test('skip prompt when installs are needed if not already present and shell is
     },
     _from: 'foo@',
   }
-  await exec(['foobar'], er => {
+  exec.exec(['foobar'], er => {
     if (er)
       throw er
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install the package')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+    t.match(RUN_SCRIPTS, [{
+      pkg: { scripts: { npx: 'foobar' } },
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    }])
+    t.strictSame(READ, [], 'should not have prompted')
+    t.strictSame(LOG_WARN, [['exec', 'The following package was not found and will be installed: foo']], 'should have printed a warning')
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.match(ARB_REIFY, [{add, legacyPeerDeps: false}], 'need to install the package')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
-  t.match(RUN_SCRIPTS, [{
-    pkg: { scripts: { npx: 'foobar' } },
-    banner: false,
-    path: process.cwd(),
-    stdioString: true,
-    event: 'npx',
-    env: { PATH },
-    stdio: 'inherit',
-  }])
-  t.strictSame(READ, [], 'should not have prompted')
-  t.strictSame(LOG_WARN, [['exec', 'The following package was not found and will be installed: foo']], 'should have printed a warning')
 })
 
-t.test('abort if prompt rejected', async t => {
+t.test('abort if prompt rejected', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -875,11 +953,11 @@ t.test('abort if prompt rejected', async t => {
   const packages = ['foo', 'bar']
   READ_RESULT = 'no, why would I want such a thing??'
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = undefined
+  config.package = packages
+  config.yes = undefined
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -903,21 +981,22 @@ t.test('abort if prompt rejected', async t => {
     },
     _from: 'bar@',
   }
-  await exec(['foobar'], er => {
-    t.equal(er, 'canceled', 'should be canceled')
+  exec.exec(['foobar'], er => {
+    t.match(er, /canceled/, 'should be canceled')
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no install performed')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.strictSame(RUN_SCRIPTS, [])
+    t.strictSame(READ, [{
+      prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
+      default: 'y',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.strictSame(ARB_REIFY, [], 'no install performed')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.strictSame(RUN_SCRIPTS, [])
-  t.strictSame(READ, [{
-    prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
-    default: 'y',
-  }])
 })
 
-t.test('abort if prompt false', async t => {
+t.test('abort if prompt false', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -932,11 +1011,11 @@ t.test('abort if prompt false', async t => {
   const packages = ['foo', 'bar']
   READ_ERROR = 'canceled'
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = undefined
+  config.package = packages
+  config.yes = undefined
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -960,21 +1039,22 @@ t.test('abort if prompt false', async t => {
     },
     _from: 'bar@',
   }
-  await exec(['foobar'], er => {
+  exec.exec(['foobar'], er => {
     t.equal(er, 'canceled', 'should be canceled')
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no install performed')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.strictSame(RUN_SCRIPTS, [])
+    t.strictSame(READ, [{
+      prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
+      default: 'y',
+    }])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.strictSame(ARB_REIFY, [], 'no install performed')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.strictSame(RUN_SCRIPTS, [])
-  t.strictSame(READ, [{
-    prompt: 'Need to install the following packages:\n  bar\n  foo\nOk to proceed? ',
-    default: 'y',
-  }])
 })
 
-t.test('abort if -n provided', async t => {
+t.test('abort if -n provided', t => {
   const stdoutTTY = process.stdout.isTTY
   const stdinTTY = process.stdin.isTTY
   t.teardown(() => {
@@ -988,11 +1068,11 @@ t.test('abort if -n provided', async t => {
 
   const packages = ['foo', 'bar']
 
-  npm.flatOptions.package = packages
-  npm.flatOptions.yes = false
+  config.package = packages
+  config.yes = false
 
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/07de77790e5f40f2')
+  const installDir = resolve('npx-cache-dir/07de77790e5f40f2')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -1016,20 +1096,21 @@ t.test('abort if -n provided', async t => {
     },
     _from: 'bar@',
   }
-  await exec(['foobar'], er => {
-    t.equal(er, 'canceled', 'should be canceled')
+  exec.exec(['foobar'], er => {
+    t.match(er, /canceled/, 'should be canceled')
+    t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+    t.match(ARB_CTOR, [{ path }])
+    t.strictSame(ARB_REIFY, [], 'no install performed')
+    t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+    t.strictSame(RUN_SCRIPTS, [])
+    t.strictSame(READ, [])
+    t.end()
   })
-  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
-  t.match(ARB_CTOR, [{ package: packages, path }])
-  t.strictSame(ARB_REIFY, [], 'no install performed')
-  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
-  t.strictSame(RUN_SCRIPTS, [])
-  t.strictSame(READ, [])
 })
 
-t.test('forward legacyPeerDeps opt', async t => {
+t.test('forward legacyPeerDeps opt', t => {
   const path = t.testdir()
-  const installDir = resolve('cache-dir/_npx/f7fbba6e0636f890')
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
   npm.localPrefix = path
   ARB_ACTUAL_TREE[path] = {
     children: new Map(),
@@ -1045,11 +1126,103 @@ t.test('forward legacyPeerDeps opt', async t => {
     },
     _from: 'foo@',
   }
-  npm.flatOptions.yes = true
-  npm.flatOptions.legacyPeerDeps = true
-  await exec(['foo'], er => {
+  config.yes = true
+  flatOptions.legacyPeerDeps = true
+  exec.exec(['foo'], er => {
     if (er)
       throw er
+    t.match(ARB_REIFY, [{add: ['foo@'], legacyPeerDeps: true}], 'need to install foo@ using legacyPeerDeps opt')
+    t.end()
   })
-  t.match(ARB_REIFY, [{add: ['foo@'], legacyPeerDeps: true}], 'need to install foo@ using legacyPeerDeps opt')
+})
+
+t.test('workspaces', t => {
+  npm.localPrefix = t.testdir({
+    node_modules: {
+      '.bin': {
+        foo: '',
+      },
+    },
+    packages: {
+      a: {
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+          bin: 'cli.js',
+        }),
+        'cli.js': '',
+      },
+      b: {
+        'package.json': JSON.stringify({
+          name: 'b',
+          version: '1.0.0',
+        }),
+      },
+    },
+    'package.json': JSON.stringify({
+      name: 'root',
+      version: '1.0.0',
+      workspaces: ['packages/*'],
+    }),
+  })
+
+  PROGRESS_IGNORED = true
+  npm.localBin = resolve(npm.localPrefix, 'node_modules/.bin')
+
+  t.test('with args, run scripts in the context of a workspace', t => {
+    exec.execWorkspaces(['foo', 'one arg', 'two arg'], ['a', 'b'], er => {
+      if (er)
+        throw er
+
+      t.match(RUN_SCRIPTS, [{
+        pkg: { scripts: { npx: 'foo' }},
+        args: ['one arg', 'two arg'],
+        banner: false,
+        path: process.cwd(),
+        stdioString: true,
+        event: 'npx',
+        env: {
+          PATH: [npm.localBin, ...PATH].join(delimiter),
+        },
+        stdio: 'inherit',
+      }])
+      t.end()
+    })
+  })
+
+  t.test('no args, spawn interactive shell', async t => {
+    CI_NAME = null
+    process.stdin.isTTY = true
+
+    await new Promise((res, rej) => {
+      exec.execWorkspaces([], ['a'], er => {
+        if (er)
+          return rej(er)
+
+        t.strictSame(LOG_WARN, [])
+        t.strictSame(npm._mockOutputs, [
+          [`\nEntering npm script environment in workspace a@1.0.0 at location:\n${resolve(npm.localPrefix, 'packages/a')}\nType 'exit' or ^D when finished\n`],
+        ], 'printed message about interactive shell')
+        res()
+      })
+    })
+
+    npm.color = true
+    flatOptions.color = true
+    npm._mockOutputs.length = 0
+    await new Promise((res, rej) => {
+      exec.execWorkspaces([], ['a'], er => {
+        if (er)
+          return rej(er)
+
+        t.strictSame(LOG_WARN, [])
+        t.strictSame(npm._mockOutputs, [
+          [`\u001b[0m\u001b[0m\n\u001b[0mEntering npm script environment\u001b[0m\u001b[0m in workspace \u001b[32ma@1.0.0\u001b[39m at location:\u001b[0m\n\u001b[0m\u001b[2m${resolve(npm.localPrefix, 'packages/a')}\u001b[22m\u001b[0m\u001b[1m\u001b[22m\n\u001b[1mType 'exit' or ^D when finished\u001b[22m\n\u001b[1m\u001b[22m`],
+        ], 'printed message about interactive shell')
+        res()
+      })
+    })
+  })
+
+  t.end()
 })

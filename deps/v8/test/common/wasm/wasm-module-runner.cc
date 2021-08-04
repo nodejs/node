@@ -14,6 +14,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "test/common/wasm/wasm-interpreter.h"
 
@@ -48,31 +49,33 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
-      case ValueType::kI32:
+      case kI32:
         arguments[i] = WasmValue(int32_t{0});
         break;
-      case ValueType::kI64:
+      case kI64:
         arguments[i] = WasmValue(int64_t{0});
         break;
-      case ValueType::kF32:
+      case kF32:
         arguments[i] = WasmValue(0.0f);
         break;
-      case ValueType::kF64:
+      case kF64:
         arguments[i] = WasmValue(0.0);
         break;
-      case ValueType::kS128:
+      case kS128:
         arguments[i] = WasmValue(Simd128{});
         break;
-      case ValueType::kOptRef:
+      case kOptRef:
         arguments[i] =
-            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
+            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()),
+                      sig->GetParam(i));
         break;
-      case ValueType::kRef:
-      case ValueType::kRtt:
-      case ValueType::kI8:
-      case ValueType::kI16:
-      case ValueType::kStmt:
-      case ValueType::kBottom:
+      case kRef:
+      case kRtt:
+      case kRttWithDepth:
+      case kI8:
+      case kI16:
+      case kVoid:
+      case kBottom:
         UNREACHABLE();
     }
   }
@@ -87,26 +90,27 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
-      case ValueType::kI32:
-      case ValueType::kF32:
-      case ValueType::kF64:
-      case ValueType::kS128:
+      case kI32:
+      case kF32:
+      case kF64:
+      case kS128:
         // Argument here for kS128 does not matter as we should error out before
         // hitting this case.
         arguments[i] = handle(Smi::zero(), isolate);
         break;
-      case ValueType::kI64:
+      case kI64:
         arguments[i] = BigInt::FromInt64(isolate, 0);
         break;
-      case ValueType::kOptRef:
+      case kOptRef:
         arguments[i] = isolate->factory()->null_value();
         break;
-      case ValueType::kRef:
-      case ValueType::kRtt:
-      case ValueType::kI8:
-      case ValueType::kI16:
-      case ValueType::kStmt:
-      case ValueType::kBottom:
+      case kRef:
+      case kRtt:
+      case kRttWithDepth:
+      case kI8:
+      case kI16:
+      case kVoid:
+      case kBottom:
         UNREACHABLE();
     }
   }
@@ -137,6 +141,13 @@ WasmInterpretationResult InterpretWasmModule(
   v8::internal::HandleScope scope(isolate);
   const WasmFunction* func = &instance->module()->functions[function_index];
 
+  CHECK(func->exported);
+  // This would normally be handled by export wrappers.
+  if (!IsJSCompatibleSignature(func->sig, instance->module(),
+                               WasmFeatures::FromIsolate(isolate))) {
+    return WasmInterpretationResult::Trapped(false);
+  }
+
   WasmInterpreter interpreter{
       isolate, instance->module(),
       ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
@@ -161,16 +172,16 @@ WasmInterpretationResult InterpretWasmModule(
     if (func->sig->return_count() > 0) {
       WasmValue return_value = interpreter.GetReturnValue();
       switch (func->sig->GetReturn(0).kind()) {
-        case ValueType::kI32:
+        case kI32:
           result = return_value.to<int32_t>();
           break;
-        case ValueType::kI64:
+        case kI64:
           result = static_cast<int32_t>(return_value.to<int64_t>());
           break;
-        case ValueType::kF32:
+        case kF32:
           result = static_cast<int32_t>(return_value.to<float>());
           break;
-        case ValueType::kF64:
+        case kF64:
           result = static_cast<int32_t>(return_value.to<double>());
           break;
         default:
@@ -229,6 +240,13 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
+
+  // Multi-value returns, get the first return value (see InterpretWasmModule).
+  if (result->IsJSArray()) {
+    auto receiver = Handle<JSReceiver>::cast(result);
+    result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
+  }
+
   if (result->IsSmi()) {
     return Smi::ToInt(*result);
   }

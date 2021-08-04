@@ -1,35 +1,34 @@
 #!/bin/sh
 
-# Locate an acceptable python interpreter and then re-execute the script.
+# Locate an acceptable Python interpreter and then re-execute the script.
 # Note that the mix of single and double quotes is intentional,
 # as is the fact that the ] goes on a new line.
 _=[ 'exec' '/bin/sh' '-c' '''
-test ${FORCE_PYTHON2} && exec python2 "$0" "$@"  # workaround for gclient
 command -v python3.9 >/dev/null && exec python3.9 "$0" "$@"
 command -v python3.8 >/dev/null && exec python3.8 "$0" "$@"
 command -v python3.7 >/dev/null && exec python3.7 "$0" "$@"
 command -v python3.6 >/dev/null && exec python3.6 "$0" "$@"
-command -v python3.5 >/dev/null && exec python3.5 "$0" "$@"
 command -v python3 >/dev/null && exec python3 "$0" "$@"
-command -v python2.7 >/dev/null && exec python2.7 "$0" "$@"
 exec python "$0" "$@"
 ''' "$0" "$@"
 ]
 del _
 
 import sys
-from distutils.spawn import find_executable
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
 
-print('Node.js configure: Found Python {0}.{1}.{2}...'.format(*sys.version_info))
-acceptable_pythons = ((3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (2, 7))
+print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
+acceptable_pythons = ((3, 9), (3, 8), (3, 7), (3, 6))
 if sys.version_info[:2] in acceptable_pythons:
   import configure
 else:
-  python_cmds = ['python{0}.{1}'.format(*vers) for vers in acceptable_pythons]
-  sys.stderr.write('Please use {0}.\n'.format(' or '.join(python_cmds)))
+  python_cmds = ['python{}.{}'.format(*vers) for vers in acceptable_pythons]
+  sys.stderr.write('Please use {}.\n'.format(' or '.join(python_cmds)))
   for python_cmd in python_cmds:
-      python_cmd_path = find_executable(python_cmd)
+      python_cmd_path = which(python_cmd)
       if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
-        sys.stderr.write('\t{0} {1}\n'.format(python_cmd_path,
-                                              ' '.join(sys.argv[:1])))
+        sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
   sys.exit(1)

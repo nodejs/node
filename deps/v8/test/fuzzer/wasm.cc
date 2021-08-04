@@ -21,21 +21,14 @@
 namespace i = v8::internal;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  i::FlagScope<bool> enable_##feat(&i::FLAG_experimental_wasm_##feat, true);
-  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
-#undef ENABLE_STAGED_FEATURES
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  i::FlagScope<uint32_t> max_mem_flag_scope(&i::FLAG_wasm_max_mem_pages, 32);
-  i::FlagScope<uint32_t> max_table_size_scope(&i::FLAG_wasm_max_table_size,
-                                              100);
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
+  i::FLAG_wasm_max_mem_pages = 32;
+  i::FLAG_wasm_max_table_size = 100;
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
@@ -46,6 +39,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  i::wasm::fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
+
   v8::TryCatch try_catch(isolate);
   i::wasm::testing::SetupIsolateForWasmModule(i_isolate);
   i::wasm::ModuleWireBytes wire_bytes(data, data + size);

@@ -12,7 +12,7 @@ class Benchmark {
     this._ended = false;
 
     // Holds process.hrtime value
-    this._time = [0, 0];
+    this._time = 0n;
 
     // Use the file name as the name of the benchmark
     this.name = require.main.filename.slice(__dirname.length + 1);
@@ -218,12 +218,12 @@ class Benchmark {
       throw new Error('Called start more than once in a single benchmark');
     }
     this._started = true;
-    this._time = process.hrtime();
+    this._time = process.hrtime.bigint();
   }
 
   end(operations) {
     // Get elapsed time now and do error checking later for accuracy.
-    const elapsed = process.hrtime(this._time);
+    const time = process.hrtime.bigint();
 
     if (!this._started) {
       throw new Error('called end without start');
@@ -237,16 +237,19 @@ class Benchmark {
     if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED && operations <= 0) {
       throw new Error('called end() with operation count <= 0');
     }
-    if (elapsed[0] === 0 && elapsed[1] === 0) {
+
+    this._ended = true;
+
+    if (time === this._time) {
       if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED)
         throw new Error('insufficient clock precision for short benchmark');
       // Avoid dividing by zero
-      elapsed[1] = 1;
+      this.report(operations && Number.MAX_VALUE, 0n);
+      return;
     }
 
-    this._ended = true;
-    const time = elapsed[0] + elapsed[1] / 1e9;
-    const rate = operations / time;
+    const elapsed = time - this._time;
+    const rate = operations / (Number(elapsed) / 1e9);
     this.report(rate, elapsed);
   }
 
@@ -255,10 +258,19 @@ class Benchmark {
       name: this.name,
       conf: this.config,
       rate,
-      time: elapsed[0] + elapsed[1] / 1e9,
+      time: nanoSecondsToString(elapsed),
       type: 'report',
     });
   }
+}
+
+function nanoSecondsToString(bigint) {
+  const str = bigint.toString();
+  const decimalPointIndex = str.length - 9;
+  if (decimalPointIndex <= 0) {
+    return `0.${'0'.repeat(-decimalPointIndex)}${str}`;
+  }
+  return `${str.slice(0, decimalPointIndex)}.${str.slice(decimalPointIndex)}`;
 }
 
 function formatResult(data) {
@@ -271,7 +283,7 @@ function formatResult(data) {
   let rate = data.rate.toString().split('.');
   rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
   rate = (rate[1] ? rate.join('.') : rate[0]);
-  return `${data.name}${conf}: ${rate}`;
+  return `${data.name}${conf}: ${rate}\n`;
 }
 
 function sendResult(data) {
@@ -280,7 +292,7 @@ function sendResult(data) {
     process.send(data);
   } else {
     // Otherwise report by stdout
-    console.log(formatResult(data));
+    process.stdout.write(formatResult(data));
   }
 }
 

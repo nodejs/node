@@ -15,17 +15,16 @@ module.exports = async opts => {
       hadError = true
       // how can merges be real if our git isn't real?
       return true
-    } else
+    } else {
       throw er
+    }
   })
 
   if (!clean) {
-    if (!force)
+    if (!force) {
       throw new Error('Git working directory not clean.')
-    log.warn(
-      'version',
-      'Git working directory not clean, proceeding forcefully.'
-    )
+    }
+    log.warn('version', 'Git working directory not clean, proceeding forcefully.')
   }
 
   return !hadError

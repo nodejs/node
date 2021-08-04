@@ -22,6 +22,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   InterpreterAssembler(compiler::CodeAssemblerState* state, Bytecode bytecode,
                        OperandScale operand_scale);
   ~InterpreterAssembler();
+  InterpreterAssembler(const InterpreterAssembler&) = delete;
+  InterpreterAssembler& operator=(const InterpreterAssembler&) = delete;
 
   // Returns the 32-bit unsigned count immediate for bytecode operand
   // |operand_index| in the current bytecode.
@@ -79,11 +81,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Context at |depth| in the context chain starting at |context|.
   TNode<Context> GetContextAtDepth(TNode<Context> context,
                                    TNode<Uint32T> depth);
-
-  // Goto the given |target| if the context chain starting at |context| has any
-  // extensions up to the given |depth|.
-  void GotoIfHasContextExtensionUpToDepth(TNode<Context> context,
-                                          TNode<Uint32T> depth, Label* target);
 
   // A RegListNodePair provides an abstraction over lists of registers.
   class RegListNodePair {
@@ -191,12 +188,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                     TNode<UintPtrT> slot_id,
                                     TNode<HeapObject> maybe_feedback_vector);
 
-  // Call runtime function with |args| arguments which will return |return_size|
-  // number of values.
-  compiler::Node* CallRuntimeN(TNode<Uint32T> function_id,
-                               TNode<Context> context,
-                               const RegListNodePair& args,
-                               int return_size = 1);
+  // Call runtime function with |args| arguments.
+  template <class T = Object>
+  TNode<T> CallRuntimeN(TNode<Uint32T> function_id, TNode<Context> context,
+                        const RegListNodePair& args, int return_count);
 
   // Jump forward relative to the current bytecode by the |jump_offset|.
   void Jump(TNode<IntPtrT> jump_offset);
@@ -231,6 +226,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void DispatchToBytecode(TNode<WordT> target_bytecode,
                           TNode<IntPtrT> new_bytecode_offset);
 
+  // Dispatches to |target_bytecode| at BytecodeOffset(). Includes short-star
+  // lookahead if the current bytecode_ is likely followed by a short-star
+  // instruction.
+  void DispatchToBytecodeWithOptionalStarLookahead(
+      TNode<WordT> target_bytecode);
+
   // Abort with the given abort reason.
   void Abort(AbortReason abort_reason);
   void AbortIfWordNotEqual(TNode<WordT> lhs, TNode<WordT> rhs,
@@ -240,8 +241,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
       TNode<FixedArrayBase> parameters_and_registers,
       TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
 
-  // Dispatch to frame dropper trampoline if necessary.
-  void MaybeDropFrames(TNode<Context> context);
+  // Perform OnStackReplacement.
+  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump);
 
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   TNode<IntPtrT> BytecodeOffset();
@@ -251,6 +252,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   static bool TargetSupportsUnalignedAccess();
 
   void ToNumberOrNumeric(Object::Conversion mode);
+
+  void StoreRegisterForShortStar(TNode<Object> value, TNode<WordT> opcode);
+
+  // Load the bytecode at |bytecode_offset|.
+  TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
 
  private:
   // Returns a pointer to the current function's BytecodeArray object.
@@ -372,16 +378,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<IntPtrT> Advance(int delta);
   TNode<IntPtrT> Advance(TNode<IntPtrT> delta, bool backward = false);
 
-  // Load the bytecode at |bytecode_offset|.
-  TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
+  // Look ahead for short Star and inline it in a branch, including subsequent
+  // dispatch. Anything after this point can assume that the following
+  // instruction was not a short Star.
+  void StarDispatchLookahead(TNode<WordT> target_bytecode);
 
-  // Look ahead for Star and inline it in a branch. Returns a new target
-  // bytecode node for dispatch.
-  TNode<WordT> StarDispatchLookahead(TNode<WordT> target_bytecode);
-
-  // Build code for Star at the current BytecodeOffset() and Advance() to the
-  // next dispatch offset.
-  void InlineStar();
+  // Build code for short Star at the current BytecodeOffset() and Advance() to
+  // the next dispatch offset.
+  void InlineShortStar(TNode<WordT> target_bytecode);
 
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
   void DispatchToBytecodeHandlerEntry(TNode<RawPtrT> handler_entry,
@@ -398,12 +402,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   CodeStubAssembler::TVariable<IntPtrT> bytecode_offset_;
   CodeStubAssembler::TVariable<ExternalReference> dispatch_table_;
   CodeStubAssembler::TVariable<Object> accumulator_;
-  AccumulatorUse accumulator_use_;
+  ImplicitRegisterUse implicit_register_use_;
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };
 
 }  // namespace interpreter

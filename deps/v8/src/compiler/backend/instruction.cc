@@ -14,8 +14,13 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -150,8 +155,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
           return os << "(S)";
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT:
-          return os << "(1)";
+        case UnallocatedOperand::SAME_AS_INPUT:
+          return os << "(" << unalloc->input_index() << ")";
         case UnallocatedOperand::REGISTER_OR_SLOT:
           return os << "(-)";
         case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
@@ -164,9 +169,13 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
       switch (imm.type()) {
-        case ImmediateOperand::INLINE:
-          return os << "#" << imm.inline_value();
-        case ImmediateOperand::INDEXED:
+        case ImmediateOperand::INLINE_INT32:
+          return os << "#" << imm.inline_int32_value();
+        case ImmediateOperand::INLINE_INT64:
+          return os << "#" << imm.inline_int64_value();
+        case ImmediateOperand::INDEXED_RPO:
+          return os << "[rpo_immediate:" << imm.indexed_value() << "]";
+        case ImmediateOperand::INDEXED_IMM:
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
@@ -238,6 +247,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kMapWord:
+          UNREACHABLE();
       }
       return os << "]";
     }
@@ -411,6 +422,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "set";
     case kFlags_trap:
       return os << "trap";
+    case kFlags_select:
+      return os << "select";
   }
   UNREACHABLE();
 }
@@ -827,6 +840,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
+      rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
       next_virtual_register_(0),
       reference_maps_(zone()),
@@ -902,6 +916,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kCompressed:
       return rep;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       break;
   }
 
@@ -999,31 +1014,37 @@ namespace {
 size_t GetConservativeFrameSizeInBytes(FrameStateType type,
                                        size_t parameters_count,
                                        size_t locals_count,
-                                       BailoutId bailout_id) {
+                                       BytecodeOffset bailout_id) {
   switch (type) {
-    case FrameStateType::kInterpretedFunction: {
-      auto info = InterpretedFrameInfo::Conservative(
+    case FrameStateType::kUnoptimizedFunction: {
+      auto info = UnoptimizedFrameInfo::Conservative(
           static_cast<int>(parameters_count), static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
-    case FrameStateType::kArgumentsAdaptor: {
-      auto info = ArgumentsAdaptorFrameInfo::Conservative(
+    case FrameStateType::kArgumentsAdaptor:
+      // The arguments adaptor frame state is only used in the deoptimizer and
+      // does not occupy any extra space in the stack. Check out the design doc:
+      // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
+      // We just need to account for the additional parameters we might push
+      // here.
+      return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
           static_cast<int>(parameters_count));
-      return info.frame_size_in_bytes();
-    }
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
       auto info = BuiltinContinuationFrameInfo::Conservative(
           static_cast<int>(parameters_count),
           Builtins::CallInterfaceDescriptorFor(
-              Builtins::GetBuiltinFromBailoutId(bailout_id)),
+              Builtins::GetBuiltinFromBytecodeOffset(bailout_id)),
           config);
       return info.frame_size_in_bytes();
     }
@@ -1034,7 +1055,7 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
 size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
                                             size_t parameters_count,
                                             size_t locals_count,
-                                            BailoutId bailout_id,
+                                            BytecodeOffset bailout_id,
                                             FrameStateDescriptor* outer_state) {
   size_t outer_total_conservative_frame_size_in_bytes =
       (outer_state == nullptr)
@@ -1048,7 +1069,7 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
 }  // namespace
 
 FrameStateDescriptor::FrameStateDescriptor(
-    Zone* zone, FrameStateType type, BailoutId bailout_id,
+    Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
@@ -1068,9 +1089,12 @@ FrameStateDescriptor::FrameStateDescriptor(
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {
-    case FrameStateType::kInterpretedFunction:
+    case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1121,6 +1145,19 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   }
   return count;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
+    Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
+    OutputFrameStateCombine state_combine, size_t parameters_count,
+    size_t locals_count, size_t stack_count,
+    MaybeHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    : FrameStateDescriptor(zone, type, bailout_id, state_combine,
+                           parameters_count, locals_count, stack_count,
+                           shared_info, outer_state),
+      return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

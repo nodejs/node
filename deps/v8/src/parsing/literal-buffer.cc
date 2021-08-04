@@ -12,8 +12,8 @@
 namespace v8 {
 namespace internal {
 
-template <typename LocalIsolate>
-Handle<String> LiteralBuffer::Internalize(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<String> LiteralBuffer::Internalize(IsolateT* isolate) const {
   if (is_one_byte()) {
     return isolate->factory()->InternalizeString(one_byte_literal());
   }
@@ -30,7 +30,7 @@ int LiteralBuffer::NewCapacity(int min_capacity) {
 }
 
 void LiteralBuffer::ExpandBuffer() {
-  int min_capacity = Max(kInitialCapacity, backing_store_.length());
+  int min_capacity = std::max({kInitialCapacity, backing_store_.length()});
   Vector<byte> new_store = Vector<byte>::New(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);

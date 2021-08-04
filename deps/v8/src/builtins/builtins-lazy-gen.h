@@ -21,7 +21,7 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
-  void TailCallRuntimeIfMarkerEquals(TNode<Smi> marker,
+  void TailCallRuntimeIfMarkerEquals(TNode<Uint32T> marker,
                                      OptimizationMarker expected_marker,
                                      Runtime::FunctionId function_id,
                                      TNode<JSFunction> function);

@@ -119,6 +119,7 @@ int uv_set_process_title(const char* title) {
   memcpy(pt->str, title, len);
   memset(pt->str + len, '\0', pt->cap - len);
   pt->len = len;
+  uv__set_process_title(pt->str);
 
   uv_mutex_unlock(&process_title_mutex);
 

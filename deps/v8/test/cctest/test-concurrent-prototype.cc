@@ -10,6 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -32,7 +33,8 @@ class ConcurrentSearchThread final : public v8::base::Thread {
         sema_started_(sema_started) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {
@@ -43,9 +45,9 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     for (Handle<JSObject> js_obj : handles_) {
       // Walk up the prototype chain all the way to the top.
-      Handle<Map> map(js_obj->synchronized_map(), &local_heap);
+      Handle<Map> map(js_obj->map(kAcquireLoad), &local_heap);
       while (!map->prototype().IsNull()) {
-        Handle<Map> map_prototype_map(map->prototype().synchronized_map(),
+        Handle<Map> map_prototype_map(map->prototype().map(kAcquireLoad),
                                       &local_heap);
         if (!map_prototype_map->IsJSObjectMap()) {
           break;
@@ -55,11 +57,9 @@ class ConcurrentSearchThread final : public v8::base::Thread {
     }
 
     CHECK_EQ(handles_.size(), kNumHandles * 2);
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
+ private:
   Heap* heap_;
   std::vector<Handle<JSObject>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -68,7 +68,6 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
 // Test to search on a background thread, while the main thread is idle.
 TEST(ProtoWalkBackground) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -79,7 +78,7 @@ TEST(ProtoWalkBackground) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");
@@ -108,7 +107,6 @@ TEST(ProtoWalkBackground) {
 // Test to search on a background thread, while the main thread modifies the
 // descriptor array.
 TEST(ProtoWalkBackground_DescriptorArrayWrite) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -119,7 +117,7 @@ TEST(ProtoWalkBackground_DescriptorArrayWrite) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");
@@ -155,7 +153,6 @@ TEST(ProtoWalkBackground_DescriptorArrayWrite) {
 }
 
 TEST(ProtoWalkBackground_PrototypeChainWrite) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -166,7 +163,7 @@ TEST(ProtoWalkBackground_PrototypeChainWrite) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
 
   for (int i = 0; i < kNumHandles; i++) {

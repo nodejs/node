@@ -104,6 +104,13 @@ if (!common.hasIntl) {
     const numberFormat = new Intl.NumberFormat(['en']).format(12345.67890);
     assert.strictEqual(numberFormat, '12,345.679');
   }
+  // Number format resolved options
+  {
+    const numberFormat = new Intl.NumberFormat('en-US', { style: 'percent' });
+    const resolvedOptions = numberFormat.resolvedOptions();
+    assert.strictEqual(resolvedOptions.locale, 'en-US');
+    assert.strictEqual(resolvedOptions.style, 'percent');
+  }
   // Significant Digits
   {
     const loc = ['en-US'];

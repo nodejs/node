@@ -33,7 +33,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_i)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
@@ -60,7 +60,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_i)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
@@ -95,7 +95,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_i)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, index,                 // put index on stack
           kExprI32Const, newValue,              // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
@@ -128,7 +128,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_i)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
@@ -160,7 +160,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
@@ -192,7 +192,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
@@ -227,7 +227,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
@@ -264,7 +264,7 @@ function generateBuilder() {
   builder.addFunction('main', kSig_i_ii)
       .addBody([
         kExprLocalGet, 0,                       // get condition parameter
-        kExprIf, kWasmStmt,                     // if it's 1 then enter if
+        kExprIf, kWasmVoid,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow

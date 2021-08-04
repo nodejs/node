@@ -714,6 +714,26 @@ Used when a child process is being forked without specifying an IPC channel.
 Used when the main process is trying to read data from the child process's
 STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 
+<a id="ERR_CLOSED_MESSAGE_PORT"></a>
+### `ERR_CLOSED_MESSAGE_PORT`
+<!--
+added:
+  - v16.2.0
+  - v14.17.1
+changes:
+  - version: 11.12.0
+    pr-url: https://github.com/nodejs/node/pull/26487
+    description: The error message was removed.
+  - version:
+      - v16.2.0
+      - v14.17.1
+    pr-url: https://github.com/nodejs/node/pull/38510
+    description: The error message was reintroduced.
+-->
+
+There was an attempt to use a `MessagePort` instance in a closed
+state, usually after `.close()` has been called.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### `ERR_CONSOLE_WRITABLE_STREAM`
 
@@ -919,6 +939,18 @@ added: v15.0.0
 
 Initialization of an asynchronous crypto operation failed.
 
+<a id="ERR_CRYPTO_JWK_UNSUPPORTED_CURVE"></a>
+### `ERR_CRYPTO_JWK_UNSUPPORTED_CURVE`
+
+Key's Elliptic Curve is not registered for use in the
+[JSON Web Key Elliptic Curve Registry][].
+
+<a id="ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE"></a>
+### `ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE`
+
+Key's Asymmetric Key Type is not registered for use in the
+[JSON Web Key Types Registry][].
+
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 ### `ERR_CRYPTO_OPERATION_FAILED`
 <!-- YAML
@@ -967,6 +999,34 @@ An unknown cipher was specified.
 An unknown Diffie-Hellman group name was given. See
 [`crypto.getDiffieHellman()`][] for a list of valid group names.
 
+<a id="ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
+### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
+<!-- YAML
+added: v15.0.0
+-->
+
+An attempt to invoke an unsupported crypto operation was made.
+
+<a id="ERR_DEBUGGER_ERROR"></a>
+### `ERR_DEBUGGER_ERROR`
+<!-- YAML
+added:
+  - v16.4.0
+  - v14.17.4
+-->
+
+An error occurred with the [debugger][].
+
+<a id="ERR_DEBUGGER_STARTUP_ERROR"></a>
+### `ERR_DEBUGGER_STARTUP_ERROR`
+<!-- YAML
+added:
+  - v16.4.0
+  - v14.17.4
+-->
+
+The [debugger][] timed out waiting for the required host/port to be free.
+
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
 <!-- YAML
@@ -979,14 +1039,6 @@ A call to `process.dlopen()` failed.
 ### `ERR_DIR_CLOSED`
 
 The [`fs.Dir`][] was previously closed.
-
-<a id"ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
-### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
-<!-- YAML
-added: v15.0.0
--->
-
-An attempt to invoke an unsupported crypto operation was made.
 
 <a id="ERR_DIR_CONCURRENT_OPERATION"></a>
 ### `ERR_DIR_CONCURRENT_OPERATION`
@@ -1352,6 +1404,15 @@ When setting the priority for an HTTP/2 stream, the stream may be marked as
 a dependency for a parent stream. This error code is used when an attempt is
 made to mark a stream and dependent of itself.
 
+<a id="ERR_HTTP2_TOO_MANY_INVALID_FRAMES"></a>
+### `ERR_HTTP2_TOO_MANY_INVALID_FRAMES`
+<!--
+added: v15.14.0
+-->
+
+The limit of acceptable invalid HTTP/2 protocol frames sent by the peer,
+as specified through the `maxSessionInvalidFrames` option, has been exceeded.
+
 <a id="ERR_HTTP2_TRAILERS_ALREADY_SENT"></a>
 ### `ERR_HTTP2_TRAILERS_ALREADY_SENT`
 
@@ -1370,6 +1431,11 @@ is set for the `Http2Stream`.
 
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
+
+<a id="ERR_ILLEGAL_CONSTRUCTOR"></a>
+### `ERR_ILLEGAL_CONSTRUCTOR`
+
+An attempt was made to construct an object using a non-public constructor.
 
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`
@@ -1568,8 +1634,8 @@ which is not supported.
 <a id="ERR_INVALID_REPL_INPUT"></a>
 ### `ERR_INVALID_REPL_INPUT`
 
-The input may not be used in the [`REPL`][]. All prohibited inputs are
-documented in the [`REPL`][]'s documentation.
+The input may not be used in the [`REPL`][]. The conditions under which this
+error is used are described in the [`REPL`][] documentation.
 
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 ### `ERR_INVALID_RETURN_PROPERTY`
@@ -1640,10 +1706,10 @@ An invalid URI was passed.
 <a id="ERR_INVALID_URL"></a>
 ### `ERR_INVALID_URL`
 
-An invalid URL was passed to the [WHATWG][WHATWG URL API]
-[`URL` constructor][`new URL(input)`] to be parsed. The thrown error object
-typically has an additional property `'input'` that contains the URL that failed
-to parse.
+An invalid URL was passed to the [WHATWG][WHATWG URL API] [`URL`
+constructor][`new URL(input)`] or the legacy [`url.parse()`][] to be parsed.
+The thrown error object typically has an additional property `'input'` that
+contains the URL that failed to parse.
 
 <a id="ERR_INVALID_URL_SCHEME"></a>
 ### `ERR_INVALID_URL_SCHEME`
@@ -1811,7 +1877,7 @@ would be possible by calling a callback more than once.
 <a id="ERR_NAPI_CONS_FUNCTION"></a>
 ### `ERR_NAPI_CONS_FUNCTION`
 
-While using `N-API`, a constructor passed was not a function.
+While using `Node-API`, a constructor passed was not a function.
 
 <a id="ERR_NAPI_INVALID_DATAVIEW_ARGS"></a>
 ### `ERR_NAPI_INVALID_DATAVIEW_ARGS`
@@ -1891,6 +1957,16 @@ The `package.json` [`"exports"`][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
 
+<a id="ERR_PERFORMANCE_INVALID_TIMESTAMP"></a>
+### `ERR_PERFORMANCE_INVALID_TIMESTAMP`
+
+An invalid timestamp value was provided for a performance mark or measure.
+
+<a id="ERR_PERFORMANCE_MEASURE_INVALID_OPTIONS"></a>
+### `ERR_PERFORMANCE_MEASURE_INVALID_OPTIONS`
+
+Invalid options were provided for a performance measure.
+
 <a id="ERR_PROTO_ACCESS"></a>
 ### `ERR_PROTO_ACCESS`
 
@@ -1898,37 +1974,6 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`--disable-proto=throw`][]. [`Object.getPrototypeOf`][] and
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
-
-<a id="ERR_QUIC_FAILED_TO_CREATE_SESSION"></a>
-### `ERR_QUIC_FAILED_TO_CREATE_SESSION`
-
-> Stability: 1 - Experimental
-
-An unspecified failure occured trying to initialize a new `QuicClientSession`.
-
-<a id="ERR_QUIC_INVALID_REMOTE_TRANSPORT_PARAMS"></a>
-### `ERR_QUIC_INVALID_REMOTE_TRANSPORT_PARAMS`
-
-> Stability: 1 - Experimental
-
-An attempt to resume a `QuicClientSession` using remembered remote transport
-parameters failed because the transport parameters were invalid.
-
-<a id="ERR_QUIC_INVALID_TLS_SESSION_TICKET"></a>
-### `ERR_QUIC_INVALID_TLS_SESSION_TICKET`
-
-> Stability: 1 - Experimental
-
-An attempt resume a `QuicClientSession` using a remembered TLS session ticket
-failed because the session ticket was invalid.
-
-<a id="ERR_QUIC_VERSION_NEGOTIATION"></a>
-### `ERR_QUIC_VERSION_NEGOTIATION`
-
-> Stability: 1 - Experimental
-
-A `QuicClientSession` received a version negotiation request from the
-server and was shutdown accordingly.
 
 <a id="ERR_REQUIRE_ESM"></a>
 ### `ERR_REQUIRE_ESM`
@@ -2332,6 +2377,11 @@ than the parent module. Linked modules must share the same context.
 
 The linker function returned a module for which linking has failed.
 
+<a id="ERR_VM_MODULE_LINK_FAILURE"></a>
+### `ERR_VM_MODULE_LINK_FAILURE`
+
+The module was unable to be linked due to a failure.
+
 <a id="ERR_VM_MODULE_NOT_MODULE"></a>
 ### `ERR_VM_MODULE_NOT_MODULE`
 
@@ -2410,11 +2460,11 @@ changes:
      - v10.15.0
     commit: 186035243fad247e3955f
     pr-url: https://github.com/nodejs-private/node-private/pull/143
-    description: Max header size in `http_parser` was set to 8KB.
+    description: Max header size in `http_parser` was set to 8 KB.
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8KB of HTTP header data is received then
+malconfigured clients, if more than 8 KB of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
@@ -2454,16 +2504,6 @@ removed: v12.5.0
 
 The value passed to `postMessage()` contained an object that is not supported
 for transferring.
-
-<a id="ERR_CLOSED_MESSAGE_PORT"></a>
-### `ERR_CLOSED_MESSAGE_PORT`
-<!-- YAML
-added: v10.5.0
-removed: v11.12.0
--->
-
-There was an attempt to use a `MessagePort` instance in a closed
-state, usually after `.close()` has been called.
 
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
 ### `ERR_CRYPTO_HASH_DIGEST_NO_UTF16`
@@ -2578,7 +2618,7 @@ added: v9.0.0
 removed: v10.0.0
 -->
 
-Used by the `N-API` when `Constructor.prototype` is not an object.
+Used by the `Node-API` when `Constructor.prototype` is not an object.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 ### `ERR_NO_LONGER_SUPPORTED`
@@ -2747,6 +2787,8 @@ The native call from `process.cpuUsage` could not be processed.
 
 [ES Module]: esm.md
 [ICU]: intl.md#intl_internationalization_support
+[JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+[JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
 [Node.js error codes]: #nodejs-error-codes
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
@@ -2796,7 +2838,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`new URLSearchParams(iterable)`]: url.md#url_new_urlsearchparams_iterable
 [`package.json`]: packages.md#packages_node_js_package_json_field_definitions
 [`postMessage()`]: worker_threads.md#worker_threads_port_postmessage_value_transferlist
-[`process.on('exit')`]: process.md#Event:-`'exit'`
+[`process.on('exit')`]: process.md#process_event_exit
 [`process.send()`]: process.md#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.md#stream_readable_read_size_1
@@ -2811,9 +2853,11 @@ The native call from `process.cpuUsage` could not be processed.
 [`stream.write()`]: stream.md#stream_writable_write_chunk_encoding_callback
 [`subprocess.kill()`]: child_process.md#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.md#child_process_subprocess_send_message_sendhandle_options_callback
+[`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`util.getSystemErrorName(error.errno)`]: util.md#util_util_getsystemerrorname_err
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#crypto_crypto_gethashes
+[debugger]: debugger.md
 [define a custom subpath]: packages.md#packages_subpath_exports
 [domains]: domain.md
 [event emitter-based]: events.md#events_class_eventemitter

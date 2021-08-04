@@ -44,7 +44,8 @@ const
     assert = require("assert"),
     path = require("path"),
     util = require("util"),
-    lodash = require("lodash"),
+    merge = require("lodash.merge"),
+    equal = require("fast-deep-equal"),
     Traverser = require("../../lib/shared/traverser"),
     { getRuleOptionsSchema, validate } = require("../shared/config-validator"),
     { Linter, SourceCodeFixer, interpolate } = require("../linter");
@@ -52,6 +53,7 @@ const
 const ajv = require("../shared/ajv")({ strictDefaults: true });
 
 const espreePath = require.resolve("espree");
+const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -70,6 +72,7 @@ const espreePath = require.resolve("espree");
  * @property {{ [name: string]: any }} [parserOptions] Options for the parser.
  * @property {{ [name: string]: "readonly" | "writable" | "off" }} [globals] The additional global variables.
  * @property {{ [name: string]: boolean }} [env] Environments for the test case.
+ * @property {boolean} [only] Run only this test case or the subset of test cases with this property.
  */
 
 /**
@@ -85,6 +88,7 @@ const espreePath = require.resolve("espree");
  * @property {{ [name: string]: any }} [parserOptions] Options for the parser.
  * @property {{ [name: string]: "readonly" | "writable" | "off" }} [globals] The additional global variables.
  * @property {{ [name: string]: boolean }} [env] Environments for the test case.
+ * @property {boolean} [only] Run only this test case or the subset of test cases with this property.
  */
 
 /**
@@ -120,7 +124,8 @@ const RuleTesterParameters = [
     "filename",
     "options",
     "errors",
-    "output"
+    "output",
+    "only"
 ];
 
 /*
@@ -235,6 +240,7 @@ function defineStartEndAsError(objName, node) {
     });
 }
 
+
 /**
  * Define `start`/`end` properties of all nodes of the given AST as throwing error.
  * @param {ASTNode} ast The root node to errorize `start`/`end` properties.
@@ -254,8 +260,10 @@ function defineStartEndAsErrorInTree(ast, visitorKeys) {
  * @returns {Parser} Wrapped parser object.
  */
 function wrapParser(parser) {
+
     if (typeof parser.parseForESLint === "function") {
         return {
+            [parserSymbol]: parser,
             parseForESLint(...args) {
                 const ret = parser.parseForESLint(...args);
 
@@ -264,7 +272,9 @@ function wrapParser(parser) {
             }
         };
     }
+
     return {
+        [parserSymbol]: parser,
         parse(...args) {
             const ast = parser.parse(...args);
 
@@ -281,6 +291,7 @@ function wrapParser(parser) {
 // default separators for testing
 const DESCRIBE = Symbol("describe");
 const IT = Symbol("it");
+const IT_ONLY = Symbol("itOnly");
 
 /**
  * This is `it` default handler if `it` don't exist.
@@ -324,10 +335,9 @@ class RuleTester {
          * configuration and the default configuration.
          * @type {Object}
          */
-        this.testerConfig = lodash.merge(
-
-            // we have to clone because merge uses the first argument for recipient
-            lodash.cloneDeep(defaultConfig),
+        this.testerConfig = merge(
+            {},
+            defaultConfig,
             testerConfig,
             { rules: { "rule-tester/validate-ast": "error" } }
         );
@@ -369,7 +379,7 @@ class RuleTester {
      * @returns {void}
      */
     static resetDefaultConfig() {
-        defaultConfig = lodash.cloneDeep(testerDefaultConfig);
+        defaultConfig = merge({}, testerDefaultConfig);
     }
 
 
@@ -401,6 +411,46 @@ class RuleTester {
     }
 
     /**
+     * Adds the `only` property to a test to run it in isolation.
+     * @param {string | ValidTestCase | InvalidTestCase} item A single test to run by itself.
+     * @returns {ValidTestCase | InvalidTestCase} The test with `only` set.
+     */
+    static only(item) {
+        if (typeof item === "string") {
+            return { code: item, only: true };
+        }
+
+        return { ...item, only: true };
+    }
+
+    static get itOnly() {
+        if (typeof this[IT_ONLY] === "function") {
+            return this[IT_ONLY];
+        }
+        if (typeof this[IT] === "function" && typeof this[IT].only === "function") {
+            return Function.bind.call(this[IT].only, this[IT]);
+        }
+        if (typeof it === "function" && typeof it.only === "function") {
+            return Function.bind.call(it.only, it);
+        }
+
+        if (typeof this[DESCRIBE] === "function" || typeof this[IT] === "function") {
+            throw new Error(
+                "Set `RuleTester.itOnly` to use `only` with a custom test framework.\n" +
+                "See https://eslint.org/docs/developer-guide/nodejs-api#customizing-ruletester for more."
+            );
+        }
+        if (typeof it === "function") {
+            throw new Error("The current test framework does not support exclusive tests with `only`.");
+        }
+        throw new Error("To use `only`, use RuleTester with a test framework that provides `it.only()` like Mocha.");
+    }
+
+    static set itOnly(value) {
+        this[IT_ONLY] = value;
+    }
+
+    /**
      * Define a rule for one particular run of tests.
      * @param {string} name The name of the rule to define.
      * @param {Function} rule The rule definition.
@@ -427,12 +477,12 @@ class RuleTester {
             scenarioErrors = [],
             linter = this.linter;
 
-        if (lodash.isNil(test) || typeof test !== "object") {
+        if (!test || typeof test !== "object") {
             throw new TypeError(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
         }
 
         requiredScenarios.forEach(scenarioType => {
-            if (lodash.isNil(test[scenarioType])) {
+            if (!test[scenarioType]) {
                 scenarioErrors.push(`Could not find any ${scenarioType} test scenarios`);
             }
         });
@@ -465,7 +515,7 @@ class RuleTester {
          * @private
          */
         function runRuleForItem(item) {
-            let config = lodash.cloneDeep(testerConfig),
+            let config = merge({}, testerConfig),
                 code, filename, output, beforeAST, afterAST;
 
             if (typeof item === "string") {
@@ -477,13 +527,17 @@ class RuleTester {
                  * Assumes everything on the item is a config except for the
                  * parameters used by this tester
                  */
-                const itemConfig = lodash.omit(item, RuleTesterParameters);
+                const itemConfig = { ...item };
+
+                for (const parameter of RuleTesterParameters) {
+                    delete itemConfig[parameter];
+                }
 
                 /*
                  * Create the config object from the tester config and this item
                  * specific configurations.
                  */
-                config = lodash.merge(
+                config = merge(
                     config,
                     itemConfig
                 );
@@ -589,7 +643,7 @@ class RuleTester {
          * @private
          */
         function assertASTDidntChange(beforeAST, afterAST) {
-            if (!lodash.isEqual(beforeAST, afterAST)) {
+            if (!equal(beforeAST, afterAST)) {
                 assert.fail("Rule should not modify AST.");
             }
         }
@@ -606,7 +660,8 @@ class RuleTester {
             const messages = result.messages;
 
             assert.strictEqual(messages.length, 0, util.format("Should have no errors but had %d: %s",
-                messages.length, util.inspect(messages)));
+                messages.length,
+                util.inspect(messages)));
 
             assertASTDidntChange(result.beforeAST, result.afterAST);
         }
@@ -661,13 +716,18 @@ class RuleTester {
                 }
 
                 assert.strictEqual(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
-                    item.errors, item.errors === 1 ? "" : "s", messages.length, util.inspect(messages)));
+                    item.errors,
+                    item.errors === 1 ? "" : "s",
+                    messages.length,
+                    util.inspect(messages)));
             } else {
                 assert.strictEqual(
-                    messages.length, item.errors.length,
-                    util.format(
+                    messages.length, item.errors.length, util.format(
                         "Should have %d error%s but had %d: %s",
-                        item.errors.length, item.errors.length === 1 ? "" : "s", messages.length, util.inspect(messages)
+                        item.errors.length,
+                        item.errors.length === 1 ? "" : "s",
+                        messages.length,
+                        util.inspect(messages)
                     )
                 );
 
@@ -881,23 +941,29 @@ class RuleTester {
         RuleTester.describe(ruleName, () => {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
-                    RuleTester.it(sanitize(typeof valid === "object" ? valid.code : valid), () => {
-                        testValidTemplate(valid);
-                    });
+                    RuleTester[valid.only ? "itOnly" : "it"](
+                        sanitize(typeof valid === "object" ? valid.code : valid),
+                        () => {
+                            testValidTemplate(valid);
+                        }
+                    );
                 });
             });
 
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
-                    RuleTester.it(sanitize(invalid.code), () => {
-                        testInvalidTemplate(invalid);
-                    });
+                    RuleTester[invalid.only ? "itOnly" : "it"](
+                        sanitize(invalid.code),
+                        () => {
+                            testInvalidTemplate(invalid);
+                        }
+                    );
                 });
             });
         });
     }
 }
 
-RuleTester[DESCRIBE] = RuleTester[IT] = null;
+RuleTester[DESCRIBE] = RuleTester[IT] = RuleTester[IT_ONLY] = null;
 
 module.exports = RuleTester;

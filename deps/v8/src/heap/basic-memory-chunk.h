@@ -106,6 +106,9 @@ class BasicMemoryChunk {
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
     PINNED = 1u << 22,
+
+    // This page belongs to a shared heap.
+    IN_SHARED_HEAP = 1u << 23,
   };
 
   static const intptr_t kAlignment =
@@ -203,7 +206,18 @@ class BasicMemoryChunk {
   static const Flags kSkipEvacuationSlotsRecordingMask =
       kEvacuationCandidateMask | kIsInYoungGenerationMask;
 
-  bool InReadOnlySpace() const { return IsFlagSet(READ_ONLY_HEAP); }
+ private:
+  bool InReadOnlySpaceRaw() const { return IsFlagSet(READ_ONLY_HEAP); }
+
+ public:
+  bool InReadOnlySpace() const {
+#ifdef THREAD_SANITIZER
+    // This is needed because TSAN does not process the memory fence
+    // emitted after page initialization.
+    SynchronizedHeapLoad();
+#endif
+    return IsFlagSet(READ_ONLY_HEAP);
+  }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
@@ -243,6 +257,8 @@ class BasicMemoryChunk {
   }
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
+
+  bool InSharedHeap() const { return IsFlagSet(IN_SHARED_HEAP); }
 
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
@@ -337,7 +353,7 @@ class BasicMemoryChunk {
   // Perform a dummy acquire load to tell TSAN that there is no data race in
   // mark-bit initialization. See MemoryChunk::Initialize for the corresponding
   // release store.
-  void SynchronizedHeapLoad();
+  void SynchronizedHeapLoad() const;
 #endif
 
  protected:

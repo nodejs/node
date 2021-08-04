@@ -13,7 +13,7 @@
 #include <openssl/opensslv.h>
 #endif  // HAVE_OPENSSL
 
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
+#ifdef OPENSSL_INFO_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
 #endif
@@ -96,15 +96,15 @@ Metadata::Versions::Versions() {
   openssl = GetOpenSSLVersion();
 #endif
 
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-  ngtcp2 = NGTCP2_VERSION;
-  nghttp3 = NGHTTP3_VERSION;
-#endif
-
 #ifdef NODE_HAVE_I18N_SUPPORT
   icu = U_ICU_VERSION;
   unicode = U_UNICODE_VERSION;
 #endif  // NODE_HAVE_I18N_SUPPORT
+
+#ifdef OPENSSL_INFO_QUIC
+  ngtcp2 = NGTCP2_VERSION;
+  nghttp3 = NGHTTP3_VERSION;
+#endif
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {

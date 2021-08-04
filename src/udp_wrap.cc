@@ -531,7 +531,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     wrap->current_send_has_callback_ =
         sendto ? args[5]->IsTrue() : args[3]->IsTrue();
 
-    err = wrap->Send(*bufs, count, addr);
+    err = static_cast<int>(wrap->Send(*bufs, count, addr));
 
     wrap->current_send_req_wrap_.Clear();
     wrap->current_send_has_callback_ = false;
@@ -705,11 +705,10 @@ void UDPWrap::OnRecv(ssize_t nread,
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
-    object(),
-    Undefined(env->isolate()),
-    Undefined(env->isolate())
-  };
+      Integer::New(env->isolate(), static_cast<int32_t>(nread)),
+      object(),
+      Undefined(env->isolate()),
+      Undefined(env->isolate())};
 
   if (nread < 0) {
     MakeCallback(env->onmessage_string(), arraysize(argv), argv);

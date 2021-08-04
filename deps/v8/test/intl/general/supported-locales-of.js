@@ -27,8 +27,6 @@
 
 // Tests supportedLocalesOf method.
 
-// Flags: --harmony-intl-segmenter
-
 var services = [
   Intl.Collator,
   Intl.DateTimeFormat,

@@ -62,17 +62,16 @@ typedef enum UListFormatterField {
     ULISTFMT_ELEMENT_FIELD
 } UListFormatterField;
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Type of meaning expressed by the list.
  *
- * @draft ICU 67
+ * @stable ICU 67
  */
 typedef enum UListFormatterType {
     /**
      * Conjunction formatting, e.g. "Alice, Bob, Charlie, and Delta".
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_TYPE_AND,
 
@@ -80,14 +79,14 @@ typedef enum UListFormatterType {
      * Disjunction (or alternative, or simply one of) formatting, e.g.
      * "Alice, Bob, Charlie, or Delta".
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_TYPE_OR,
 
     /**
      * Formatting of a list of values with units, e.g. "5 pounds, 12 ounces".
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_TYPE_UNITS
 } UListFormatterType;
@@ -95,29 +94,28 @@ typedef enum UListFormatterType {
 /**
  * Verbosity level of the list patterns.
  *
- * @draft ICU 67
+ * @stable ICU 67
  */
 typedef enum UListFormatterWidth {
     /**
      * Use list formatting with full words (no abbreviations) when possible.
      *
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_WIDTH_WIDE,
 
     /**
      * Use list formatting of typical length.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_WIDTH_SHORT,
 
     /**
      * Use list formatting of the shortest possible length.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     ULISTFMT_WIDTH_NARROW,
 } UListFormatterWidth;
-#endif /* U_HIDE_DRAFT_API */
 
 /**
  * Open a new UListFormatter object using the rules for a given locale.
@@ -141,7 +139,6 @@ U_CAPI UListFormatter* U_EXPORT2
 ulistfmt_open(const char*  locale,
               UErrorCode*  status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Open a new UListFormatter object appropriate for the given locale, list type,
  * and style.
@@ -162,12 +159,11 @@ ulistfmt_open(const char*  locale,
  * @return
  *            A pointer to a UListFormatter object for the specified locale,
  *            or NULL if an error occurred.
- * @draft ICU 67
+ * @stable ICU 67
  */
 U_CAPI UListFormatter* U_EXPORT2
 ulistfmt_openForType(const char*  locale, UListFormatterType type,
                      UListFormatterWidth width, UErrorCode*  status);
-#endif /* U_HIDE_DRAFT_API */
 
 /**
  * Close a UListFormatter object. Once closed it may no longer be used.

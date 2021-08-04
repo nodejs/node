@@ -45,14 +45,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 19
 bytecodes: [
   /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
-                B(Star), R(1),
+                B(Star1),
   /*   48 E> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaConstant), U8(2),
-                B(Star), R(2),
+                B(Star2),
   /*   48 E> */ B(CallProperty1), R(0), R(1), R(2), U8(3),
   /*   61 S> */ B(Return),
 ]

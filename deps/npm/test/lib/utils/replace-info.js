@@ -49,7 +49,7 @@ t.equal(
   'should replace single item within a phrase'
 )
 
-t.deepEqual(
+t.same(
   replaceInfo([
     'Something https://user:pass@registry.npmjs.org/ foo bar',
     'http://foo:bar@registry.npmjs.org',
@@ -63,7 +63,7 @@ t.deepEqual(
   'should replace single item within a phrase'
 )
 
-t.deepEqual(
+t.same(
   replaceInfo([
     'Something https://user:pass@registry.npmjs.org/ foo bar',
     null,

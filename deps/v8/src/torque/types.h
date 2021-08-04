@@ -95,7 +95,10 @@ struct SpecializationKey {
 
 using MaybeSpecializationKey = base::Optional<SpecializationKey<GenericType>>;
 
-struct RuntimeType {
+struct TypeChecker {
+  // The type of the object. This string is not guaranteed to correspond to a
+  // C++ class, but just to a type checker function: for any type "Foo" here,
+  // the function Object::IsFoo must exist.
   std::string type;
   // If {type} is "MaybeObject", then {weak_ref_to} indicates the corresponding
   // strong object type. Otherwise, {weak_ref_to} is empty.
@@ -114,6 +117,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
+  std::string UnhandlifiedCppTypeName() const;
   std::string HandlifiedCppTypeName() const;
 
   const Type* parent() const { return parent_; }
@@ -135,8 +139,10 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
-  virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
+  base::Optional<const AggregateType*> AggregateSupertype() const;
+  virtual std::vector<TypeChecker> GetTypeCheckers() const { return {}; }
   virtual std::string GetRuntimeType() const;
+  virtual std::string GetDebugType() const;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
@@ -156,6 +162,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   virtual const Type* ConstexprVersion() const {
     if (constexpr_version_) return constexpr_version_;
     if (IsConstexpr()) return this;
+    if (parent()) return parent()->ConstexprVersion();
     return nullptr;
   }
 
@@ -208,7 +215,7 @@ struct Field {
 
   SourcePosition pos;
   const AggregateType* aggregate;
-  base::Optional<Expression*> index;
+  base::Optional<ClassFieldIndexInfo> index;
   NameAndType name_and_type;
 
   // The byte offset of this field from the beginning of the containing class or
@@ -222,6 +229,8 @@ struct Field {
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
+  FieldSynchronization read_synchronization;
+  FieldSynchronization write_synchronization;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -259,12 +268,7 @@ class AbstractType final : public Type {
   DECLARE_TYPE_BOILERPLATE(AbstractType)
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
-  std::string GetGeneratedTypeNameImpl() const override {
-    if (generated_type_.empty()) {
-      return parent()->GetGeneratedTypeName();
-    }
-    return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
-  }
+  std::string GetGeneratedTypeNameImpl() const override;
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsConstexpr() const final {
     const bool is_constexpr = flags_ & AbstractTypeFlag::kConstexpr;
@@ -279,7 +283,7 @@ class AbstractType final : public Type {
     return nullptr;
   }
 
-  std::vector<RuntimeType> GetRuntimeTypes() const override;
+  std::vector<TypeChecker> GetTypeCheckers() const override;
 
   size_t AlignmentLog2() const override;
 
@@ -313,6 +317,10 @@ class AbstractType final : public Type {
 
   bool IsTransient() const override {
     return flags_ & AbstractTypeFlag::kTransient;
+  }
+
+  bool UseParentTypeChecker() const {
+    return flags_ & AbstractTypeFlag::kUseParentTypeChecker;
   }
 
   AbstractTypeFlags flags_;
@@ -349,7 +357,7 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
   }
   size_t function_pointer_type_id() const { return function_pointer_type_id_; }
 
-  std::vector<RuntimeType> GetRuntimeTypes() const override {
+  std::vector<TypeChecker> GetTypeCheckers() const override {
     return {{"Smi", ""}};
   }
 
@@ -387,6 +395,7 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   std::string GetRuntimeType() const override {
     return parent()->GetRuntimeType();
   }
+  std::string GetDebugType() const override { return parent()->GetDebugType(); }
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;
@@ -461,10 +470,10 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return union_type ? UnionType(*union_type) : UnionType(t);
   }
 
-  std::vector<RuntimeType> GetRuntimeTypes() const override {
-    std::vector<RuntimeType> result;
+  std::vector<TypeChecker> GetTypeCheckers() const override {
+    std::vector<TypeChecker> result;
     for (const Type* member : types_) {
-      std::vector<RuntimeType> sub_result = member->GetRuntimeTypes();
+      std::vector<TypeChecker> sub_result = member->GetTypeCheckers();
       result.insert(result.end(), sub_result.begin(), sub_result.end());
     }
     return result;
@@ -498,8 +507,8 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
     return parent()->GetGeneratedTNodeTypeName();
   }
 
-  std::vector<RuntimeType> GetRuntimeTypes() const override {
-    return {{parent()->GetGeneratedTNodeTypeName(), ""}};
+  std::vector<TypeChecker> GetTypeCheckers() const override {
+    return parent()->GetTypeCheckers();
   }
 
   void SetConstexprVersion(const Type*) const override { UNREACHABLE(); }
@@ -559,8 +568,18 @@ class AggregateType : public Type {
   std::vector<Method*> Methods(const std::string& name) const;
 
   std::vector<const AggregateType*> GetHierarchy() const;
-  std::vector<RuntimeType> GetRuntimeTypes() const override {
+  std::vector<TypeChecker> GetTypeCheckers() const override {
     return {{name_, ""}};
+  }
+
+  const Field& LastField() const {
+    for (base::Optional<const AggregateType*> current = this;
+         current.has_value();
+         current = (*current)->parent()->AggregateSupertype()) {
+      const std::vector<Field>& fields = (*current)->fields_;
+      if (!fields.empty()) return fields[fields.size() - 1];
+    }
+    ReportError("Can't get last field of empty aggregate type");
   }
 
  protected:
@@ -608,6 +627,8 @@ class StructType final : public AggregateType {
 
   // Classifies a struct as containing tagged data, untagged data, or both.
   Classification ClassifyContents() const;
+
+  SourcePosition GetPosition() const { return decl_->pos; }
 
  private:
   friend class TypeOracle;
@@ -657,8 +678,8 @@ class ClassType final : public AggregateType {
                            (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
-    if (IsAbstract()) return false;
-    return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
+    return flags_ & ClassFlag::kGenerateBodyDescriptor ||
+           (!IsAbstract() && !IsExtern());
   }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
@@ -672,6 +693,11 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern() ||
            ShouldGenerateBodyDescriptor();
   }
+  bool ShouldGenerateFullClassDefinition() const {
+    return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);
+  }
+  // Class with multiple or non-standard maps, do not auto-generate map.
+  bool HasCustomMap() const { return flags_ & ClassFlag::kCustomMap; }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
@@ -703,6 +729,14 @@ class ClassType final : public AggregateType {
   std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
   base::Optional<ObjectSlotKind> ComputeArraySlotKind() const;
   bool HasNoPointerSlots() const;
+  bool HasIndexedFieldsIncludingInParents() const;
+  const Field* GetFieldPreceding(size_t field_index) const;
+
+  // Given that the field exists in this class or a superclass, returns the
+  // specific class that declared the field.
+  const ClassType* GetClassDeclaringField(const Field& f) const;
+
+  std::string GetSliceMacroName(const Field& field) const;
 
   const InstanceTypeConstraints& GetInstanceTypeConstraints() const {
     return decl_->instance_type_constraints;
@@ -717,8 +751,9 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kUndefinedLayout;
   }
   SourcePosition GetPosition() const { return decl_->pos; }
+  SourceId AttributedToFile() const;
 
-  // TODO(tebbi): We should no longer pass around types as const pointers, so
+  // TODO(turbofan): We should no longer pass around types as const pointers, so
   // that we can avoid mutable fields and const initializers for
   // late-initialized portions of types like this one.
   void InitializeInstanceTypes(base::Optional<int> own,
@@ -733,6 +768,8 @@ class ClassType final : public AggregateType {
             ClassFlags flags, const std::string& generates,
             const ClassDeclaration* decl, const TypeAlias* alias);
 
+  void GenerateSliceAccessor(size_t field_index);
+
   size_t header_size_;
   ResidueClass size_;
   mutable ClassFlags flags_;
@@ -746,6 +783,20 @@ class ClassType final : public AggregateType {
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {
   os << t.ToString();
   return os;
+}
+
+template <bool success = false>
+std::ostream& operator<<(std::ostream& os, const Type* t) {
+  static_assert(success,
+                "Using Type* with an ostream is usually a mistake. Did you "
+                "mean to use Type& instead? If you actually intended to print "
+                "a pointer, use static_cast<const void*>.");
+  return os;
+}
+
+// Don't emit an error if a Type* is printed due to CHECK macros.
+inline std::ostream& operator<<(base::CheckMessageStream& os, const Type* t) {
+  return os << static_cast<const void*>(t);
 }
 
 class VisitResult {

@@ -40,8 +40,8 @@ v8_shared_library("v8windbg") {
     "base/dbgext.def",
     "src/cur-isolate.cc",
     "src/cur-isolate.h",
-    "src/list-chunks.cc",
-    "src/list-chunks.h",
+    "src/js-stack.cc",
+    "src/js-stack.h",
     "src/local-variables.cc",
     "src/local-variables.h",
     "src/object-inspection.cc",
@@ -54,6 +54,9 @@ v8_shared_library("v8windbg") {
 
   deps = [
     ":v8windbg_base",
+    "../../:v8_flags",
+    "../../:v8_libbase",
+    "../../:v8_shared_internal_headers",
     "../debug_helper:v8_debug_helper",
   ]
 }

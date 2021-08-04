@@ -27,7 +27,7 @@ const server = http
   .listen(0, function() {
     const s = net.connect(this.address().port);
 
-    const big = 'GET / HTTP/1.0\r\n\r\n'.repeat(COUNT);
+    const big = 'GET / HTTP/1.1\r\n\r\n'.repeat(COUNT);
 
     s.write(big);
     s.resume();

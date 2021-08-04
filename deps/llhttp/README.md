@@ -1,4 +1,5 @@
 # llhttp
+[![CI](https://github.com/nodejs/llhttp/workflows/CI/badge.svg)](https://github.com/nodejs/llhttp/actions?query=workflow%3ACI)
 
 Port of [http_parser][0] to [llparse][1].
 
@@ -31,7 +32,7 @@ So far llhttp outperforms http_parser:
 
 |                 | input size |  bandwidth   |  reqs/sec  |   time  |
 |:----------------|-----------:|-------------:|-----------:|--------:|
-| **llhttp**      | 8192.00 mb | 1777.24 mb/s | 3583799.39 ops/sec | 4.61 s |
+| **llhttp**      | 8192.00 mb | 1777.24 mb/s | 3583799.39 req/sec | 4.61 s |
 | **http_parser** | 8192.00 mb | 694.66 mb/s | 1406180.33 req/sec | 11.79 s |
 
 llhttp is faster by approximately **156%**.
@@ -89,8 +90,14 @@ if (err == HPE_OK) {
           parser.reason);
 }
 ```
+For more information on API usage, please refer to [src/native/api.h](https://github.com/nodejs/llhttp/blob/master/src/native/api.h).
 
 ---
+
+### Bindings to other languages
+
+* Python: [pallas/pyllhttp][8]
+* Ruby: [metabahn/llhttp][9]
 
 #### LICENSE
 
@@ -125,3 +132,5 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 [5]: https://llvm.org/docs/LangRef.html#call-instruction
 [6]: https://clang.llvm.org/
 [7]: https://github.com/nodejs/node
+[8]: https://github.com/pallas/pyllhttp
+[9]: https://github.com/metabahn/llhttp

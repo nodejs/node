@@ -11,6 +11,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -55,7 +56,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
 }
 
 void AstNode::Print(Isolate* isolate) {
-  AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);
 }
 
@@ -223,12 +223,6 @@ bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
 }
 
-bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
-  return language_mode() == LanguageMode::kStrict &&
-         scope()->arguments() == nullptr &&
-         scope()->rest_parameter() == nullptr;
-}
-
 int FunctionLiteral::start_position() const {
   return scope()->start_position();
 }
@@ -241,12 +235,6 @@ LanguageMode FunctionLiteral::language_mode() const {
 
 FunctionKind FunctionLiteral::kind() const { return scope()->function_kind(); }
 
-bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
-  if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
-  DCHECK_NOT_NULL(expr->AsFunctionLiteral()->scope());
-  return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
-}
-
 std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   const AstConsString* cons_string;
   if (raw_name_ != nullptr && !raw_name_->IsEmpty()) {
@@ -254,7 +242,6 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
     cons_string = raw_inferred_name_;
   } else if (!inferred_name_.is_null()) {
-    AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
     char* empty_str = new char[1];
@@ -272,7 +259,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     }
   }
   std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
-  memcpy(result.get(), result_vec.data(), result_vec.size());
+  base::Memcpy(result.get(), result_vec.data(), result_vec.size());
   result[result_vec.size()] = '\0';
   return result;
 }
@@ -438,7 +425,7 @@ int ObjectLiteral::InitDepthAndFlags() {
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
     if (key->AsArrayIndex(&element_index)) {
-      max_element_index = Max(element_index, max_element_index);
+      max_element_index = std::max(element_index, max_element_index);
       elements++;
     } else {
       DCHECK(key->IsPropertyName());
@@ -456,8 +443,8 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename LocalIsolate>
-void ObjectLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
+template <typename IsolateT>
+void ObjectLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int index_keys = 0;
@@ -586,7 +573,6 @@ int ArrayLiteral::InitDepthAndFlags() {
             break;
           case Literal::kBigInt:
           case Literal::kString:
-          case Literal::kSymbol:
           case Literal::kBoolean:
           case Literal::kUndefined:
           case Literal::kNull:
@@ -611,8 +597,8 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename LocalIsolate>
-void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
+template <typename IsolateT>
+void ArrayLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int constants_length =
@@ -656,11 +642,11 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
       }
 
       // New handle scope here, needs to be after BuildContants().
-      typename LocalIsolate::HandleScopeType scope(isolate);
+      typename IsolateT::HandleScopeType scope(isolate);
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
 
       if (boilerplate_value.IsTheHole(isolate)) {
         DCHECK(IsHoleyElementsKind(kind));
@@ -675,7 +661,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
           boilerplate_descriptor_kind(),
           GetMoreGeneralElementsKind(boilerplate_descriptor_kind(),
                                      boilerplate_value.OptimalElementsKind(
-                                         GetIsolateForPtrCompr(*elements))));
+                                         GetPtrComprCageBase(*elements))));
 
       FixedArray::cast(*elements).set(array_index, boilerplate_value);
     }
@@ -711,9 +697,9 @@ bool MaterializedLiteral::IsSimple() const {
   return false;
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
-                                                        LocalIsolate* isolate) {
+                                                        IsolateT* isolate) {
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
@@ -756,8 +742,8 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
   return false;
 }
 
-template <typename LocalIsolate>
-void MaterializedLiteral::BuildConstants(LocalIsolate* isolate) {
+template <typename IsolateT>
+void MaterializedLiteral::BuildConstants(IsolateT* isolate) {
   if (IsArrayLiteral()) {
     AsArrayLiteral()->BuildBoilerplateDescription(isolate);
     return;
@@ -774,9 +760,9 @@ template EXPORT_TEMPLATE_DEFINE(
     V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(LocalIsolate*
                                                                  isolate);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
       this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
@@ -903,6 +889,22 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
          MatchLiteralCompareNull(right_, op(), left_, expr);
 }
 
+void CallBase::ComputeSpreadPosition() {
+  int arguments_length = arguments_.length();
+  int first_spread_index = 0;
+  for (; first_spread_index < arguments_length; first_spread_index++) {
+    if (arguments_.at(first_spread_index)->IsSpread()) break;
+  }
+  SpreadPosition position;
+  if (first_spread_index == arguments_length - 1) {
+    position = kHasFinalSpread;
+  } else {
+    DCHECK_LT(first_spread_index, arguments_length - 1);
+    position = kHasNonFinalSpread;
+  }
+  bit_field_ |= SpreadPositionField::encode(position);
+}
+
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != nullptr) {
@@ -976,8 +978,8 @@ bool Literal::AsArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
 }
 
-template <typename LocalIsolate>
-Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<Object> Literal::BuildValue(IsolateT* isolate) const {
   switch (type()) {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
@@ -986,8 +988,6 @@ Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const {
           number_);
     case kString:
       return string_->string();
-    case kSymbol:
-      return isolate->factory()->home_object_symbol();
     case kBoolean:
       return isolate->factory()->ToBoolean(boolean_);
     case kNull:
@@ -1033,8 +1033,6 @@ bool Literal::ToBooleanIsTrue() const {
       }
       return false;
     }
-    case kSymbol:
-      return true;
     case kTheHole:
       UNREACHABLE();
   }

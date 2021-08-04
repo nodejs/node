@@ -27,6 +27,7 @@
 
 #include "test/cctest/cctest.h"
 
+#include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/codegen/compiler.h"
@@ -45,7 +46,7 @@
 #endif  // V8_USE_PERFETTO
 
 #if V8_OS_WIN
-#include <windows.h>  // NOLINT
+#include <windows.h>
 #if V8_CC_MSVC
 #include <crtdbg.h>
 #endif
@@ -235,7 +236,7 @@ void LocalContext::Initialize(v8::Isolate* isolate,
 
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
 // we don't want any unnecessary #includes in cctest.h.
-class InitializedHandleScopeImpl {
+class V8_NODISCARD InitializedHandleScopeImpl {
  public:
   explicit InitializedHandleScopeImpl(i::Isolate* isolate)
       : handle_scope_(isolate) {}
@@ -244,8 +245,8 @@ class InitializedHandleScopeImpl {
   i::HandleScope handle_scope_;
 };
 
-InitializedHandleScope::InitializedHandleScope()
-    : main_isolate_(CcTest::InitIsolateOnce()),
+InitializedHandleScope::InitializedHandleScope(i::Isolate* isolate)
+    : main_isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 
@@ -263,13 +264,13 @@ i::Handle<i::JSFunction> Optimize(
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
   i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
-        i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
+        i::Compiler::Compile(isolate, function, i::Compiler::CLEAR_EXCEPTION,
                              &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
 
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                   i::CodeKind::OPTIMIZED_FUNCTION);
+                                   i::CodeKind::TURBOFAN);
 
   if (flags & i::OptimizedCompilationInfo::kInlining) {
     info.set_inlining();
@@ -282,7 +283,7 @@ i::Handle<i::JSFunction> Optimize(
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
           .ToHandleChecked();
   info.native_context().AddOptimizedCode(*code);
-  function->set_code(*code);
+  function->set_code(*code, v8::kReleaseStore);
 
   return function;
 }
@@ -333,16 +334,19 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(
       &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
     constexpr bool use_default_signal_handler = true;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -406,3 +410,11 @@ int main(int argc, char* argv[]) {
 
 RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
+
+bool IsValidUnwrapObject(v8::Object* object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  return (instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSApiObjectType ||
+          instance_type == i::Internals::kJSSpecialApiObjectType);
+}

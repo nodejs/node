@@ -5,6 +5,8 @@
 #include "src/compiler/graph-assembler.h"
 
 #include "src/codegen/code-factory.h"
+#include "src/compiler/access-builder.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
 // For TNode types.
@@ -329,6 +331,21 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
   return block;
 }
 
+class V8_NODISCARD GraphAssembler::BlockInlineReduction {
+ public:
+  explicit BlockInlineReduction(GraphAssembler* gasm) : gasm_(gasm) {
+    DCHECK(!gasm_->inline_reductions_blocked_);
+    gasm_->inline_reductions_blocked_ = true;
+  }
+  ~BlockInlineReduction() {
+    DCHECK(gasm_->inline_reductions_blocked_);
+    gasm_->inline_reductions_blocked_ = false;
+  }
+
+ private:
+  GraphAssembler* gasm_;
+};
+
 GraphAssembler::GraphAssembler(
     MachineGraph* mcgraph, Zone* zone,
     base::Optional<NodeChangedCallback> node_changed_callback,
@@ -342,6 +359,8 @@ GraphAssembler::GraphAssembler(
                          ? new BasicBlockUpdater(schedule, mcgraph->graph(),
                                                  mcgraph->common(), zone)
                          : nullptr),
+      inline_reducers_(zone),
+      inline_reductions_blocked_(false),
       loop_headers_(zone),
       mark_loop_exits_(mark_loop_exits) {}
 
@@ -349,6 +368,10 @@ GraphAssembler::~GraphAssembler() { DCHECK_EQ(loop_nesting_level_, 0); }
 
 Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return AddClonedNode(mcgraph()->IntPtrConstant(value));
+}
+
+Node* GraphAssembler::UintPtrConstant(uintptr_t value) {
+  return AddClonedNode(mcgraph()->UintPtrConstant(value));
 }
 
 Node* GraphAssembler::Int32Constant(int32_t value) {
@@ -491,6 +514,11 @@ Node* GraphAssembler::Float64RoundTruncate(Node* value) {
       graph()->NewNode(machine()->Float64RoundTruncate().op(), value));
 }
 
+Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
+  return AddNode(
+      graph()->NewNode(machine()->TruncateFloat64ToInt64(kind), value));
+}
+
 Node* GraphAssembler::Projection(int index, Node* value) {
   return AddNode(
       graph()->NewNode(common()->Projection(index), value, control()));
@@ -519,6 +547,31 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                    Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreField(access), object,
                                   value, effect(), control()));
+}
+
+#ifdef V8_MAP_PACKING
+TNode<Map> GraphAssembler::UnpackMapWord(Node* map_word) {
+  map_word = BitcastTaggedToWordForTagAndSmiBits(map_word);
+  // TODO(wenyuzhao): Clear header metadata.
+  Node* map = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return TNode<Map>::UncheckedCast(BitcastWordToTagged(map));
+}
+
+Node* GraphAssembler::PackMapWord(TNode<Map> map) {
+  Node* map_word = BitcastTaggedToWordForTagAndSmiBits(map);
+  Node* packed = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return BitcastWordToTaggedSigned(packed);
+}
+#endif
+
+TNode<Map> GraphAssembler::LoadMap(Node* object) {
+  Node* map_word = Load(MachineType::TaggedPointer(), object,
+                        HeapObject::kMapOffset - kHeapObjectTag);
+#ifdef V8_MAP_PACKING
+  return UnpackMapWord(map_word);
+#else
+  return TNode<Map>::UncheckedCast(map_word);
+#endif
 }
 
 Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,
@@ -709,6 +762,18 @@ Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
   return AddNode(graph()->NewNode(op, object, offset, effect(), control()));
 }
 
+Node* GraphAssembler::ProtectedStore(MachineRepresentation rep, Node* object,
+                                     Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->ProtectedStore(rep), object,
+                                  offset, value, effect(), control()));
+}
+
+Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
+                                    Node* offset) {
+  return AddNode(graph()->NewNode(machine()->ProtectedLoad(type), object,
+                                  offset, effect(), control()));
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }
@@ -789,6 +854,15 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       IsSafetyCheck is_safety_check) {
   return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
                          frame_state, is_safety_check);
+}
+
+Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
+                                                      Node* slot_index,
+                                                      Node* value, Node* map,
+                                                      Node* frame_state) {
+  return AddNode(graph()->NewNode(common()->DynamicCheckMapsWithDeoptUnless(),
+                                  condition, slot_index, value, map,
+                                  frame_state, effect(), control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
@@ -938,6 +1012,28 @@ Node* GraphAssembler::AddClonedNode(Node* node) {
 }
 
 Node* GraphAssembler::AddNode(Node* node) {
+  if (!inline_reducers_.empty() && !inline_reductions_blocked_) {
+    // Reducers may add new nodes to the graph using this graph assembler,
+    // however they should never introduce nodes that need further reduction,
+    // so block reduction
+    BlockInlineReduction scope(this);
+    Reduction reduction;
+    for (auto reducer : inline_reducers_) {
+      reduction = reducer->Reduce(node, nullptr);
+      if (reduction.Changed()) break;
+    }
+    if (reduction.Changed()) {
+      Node* replacement = reduction.replacement();
+      if (replacement != node) {
+        // Replace all uses of node and kill the node to make sure we don't
+        // leave dangling dead uses.
+        NodeProperties::ReplaceUses(node, replacement, effect(), control());
+        node->Kill();
+        return replacement;
+      }
+    }
+  }
+
   if (block_updater_) {
     block_updater_->AddNode(node);
   }

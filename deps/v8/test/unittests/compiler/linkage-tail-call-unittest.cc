@@ -29,16 +29,26 @@ class LinkageTailCall : public TestWithZone {
     DCHECK(arraysize(kMachineTypes) >=
            locations->return_count() + locations->parameter_count());
     USE(kMachineTypes);
+    size_t stack_arguments = 0;
+    for (size_t i = 0; i < locations->parameter_count(); ++i) {
+      if (locations->GetParam(i).IsCallerFrameSlot()) stack_arguments++;
+    }
+    size_t stack_returns = 0;
+    for (size_t i = 0; i < locations->return_count(); ++i) {
+      if (locations->GetReturn(i).IsCallerFrameSlot()) stack_returns++;
+    }
     return zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
         LinkageLocation::ForAnyRegister(MachineType::Pointer()),
-        locations,                 // location_sig
-        0,                         // js_parameter_count
+        locations,  // location_sig
+        stack_arguments,
         Operator::kNoProperties,   // properties
         0,                         // callee-saved
         0,                         // callee-saved fp
         CallDescriptor::kNoFlags,  // flags,
-        "");
+        "", StackArgumentOrder::kDefault,
+        0,  // allocatable_registers
+        stack_returns);
   }
 
   LinkageLocation StackLocation(int loc) {
@@ -159,8 +169,8 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCallee) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to add one slot of padding to the callee arguments.
-  int expected = kPadArguments ? 2 : 1;
+  // We might need to add padding slots to the callee arguments.
+  int expected = 1 + ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -182,8 +192,8 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCaller) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to drop one slot of padding from the caller's arguments.
-  int expected = kPadArguments ? -2 : -1;
+  // We might need to drop padding slots from the caller's arguments.
+  int expected = -1 - ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -319,8 +329,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to add one slot of padding to the callee arguments.
-  int expected = kPadArguments ? 0 : -1;
+  // We might need to add padding slots to the callee arguments.
+  int expected = ArgumentPaddingSlots(1) - 1;
   EXPECT_EQ(expected, stack_param_delta);
 }
 
@@ -349,8 +359,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
-  // We might need to drop one slot of padding from the caller's arguments.
-  int expected = kPadArguments ? 0 : 1;
+  // We might need to drop padding slots from the caller's arguments.
+  int expected = 1 - ArgumentPaddingSlots(1);
   EXPECT_EQ(expected, stack_param_delta);
 }
 

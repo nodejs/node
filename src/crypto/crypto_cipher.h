@@ -215,24 +215,31 @@ class CipherJob final : public CryptoJob<CipherTraits> {
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
   void DoThreadPoolWork() override {
-    switch (CipherTraits::DoCipher(
-                AsyncWrap::env(),
-                key(),
-                cipher_mode_,
-                *CryptoJob<CipherTraits>::params(),
-                in_,
-                &out_)) {
-      case WebCryptoCipherStatus::OK:
-        // Success!
-        break;
-      case WebCryptoCipherStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoCipherStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Cipher job failed."));
+    const WebCryptoCipherStatus status =
+        CipherTraits::DoCipher(
+            AsyncWrap::env(),
+            key(),
+            cipher_mode_,
+            *CryptoJob<CipherTraits>::params(),
+            in_,
+            &out_);
+    if (status == WebCryptoCipherStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+    errors->Capture();
+    if (errors->Empty()) {
+      switch (status) {
+        case WebCryptoCipherStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoCipherStatus::INVALID_KEY_TYPE:
+          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
+          break;
+        case WebCryptoCipherStatus::FAILED:
+          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
+          break;
       }
     }
   }
@@ -241,17 +248,18 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-    if (out_.size() > 0) {
-      CHECK(errors->empty());
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+
+    if (errors->Empty())
+      errors->Capture();
+
+    if (out_.size() > 0 || errors->Empty()) {
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       return v8::Just(!result->IsEmpty());
     }
 
-    if (errors->empty())
-      errors->Capture();
-    CHECK(!errors->empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }

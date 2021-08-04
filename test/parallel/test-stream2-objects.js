@@ -70,7 +70,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }
@@ -95,7 +95,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }
@@ -114,7 +114,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }

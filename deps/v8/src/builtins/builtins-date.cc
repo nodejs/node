@@ -112,7 +112,7 @@ const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   str = String::Flatten(isolate, str);
   double out[DateParser::OUTPUT_SIZE];
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String::FlatContent str_content = str->GetFlatContent(no_gc);
   bool result;
   if (str_content.IsOneByte()) {

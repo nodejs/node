@@ -9,8 +9,15 @@ const { Buffer } = require('buffer');
 const assert = require('assert');
 const { getRandomValues } = require('crypto').webcrypto;
 
-[undefined, null, '', 1, {}, []].forEach((i) => {
-  assert.throws(() => getRandomValues(i), { code: 17 });
+[
+  undefined, null, '', 1, {}, [],
+  new Float32Array(1),
+  new Float64Array(1),
+].forEach((i) => {
+  assert.throws(
+    () => getRandomValues(i),
+    { name: 'TypeMismatchError', code: 17 },
+  );
 });
 
 {
@@ -18,32 +25,27 @@ const { getRandomValues } = require('crypto').webcrypto;
   getRandomValues(buf);
 }
 
-{
-  const buf = new Uint8Array(new Array(10).fill(0));
-  const before = Buffer.from(buf).toString('hex');
+const intTypedConstructors = [
+  Int8Array,
+  Int16Array,
+  Int32Array,
+  Uint8Array,
+  Uint16Array,
+  Uint32Array,
+  BigInt64Array,
+  BigUint64Array,
+];
+
+for (const ctor of intTypedConstructors) {
+  const buf = new ctor(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
   getRandomValues(buf);
-  const after = Buffer.from(buf).toString('hex');
+  const after = Buffer.from(buf.buffer).toString('hex');
   assert.notStrictEqual(before, after);
 }
 
 {
-  const buf = new Uint16Array(new Array(10).fill(0));
-  const before = Buffer.from(buf).toString('hex');
-  getRandomValues(buf);
-  const after = Buffer.from(buf).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new Uint32Array(new Array(10).fill(0));
-  const before = Buffer.from(buf).toString('hex');
-  getRandomValues(buf);
-  const after = Buffer.from(buf).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new Uint16Array(new Array(10).fill(0));
+  const buf = new Uint16Array(10);
   const before = Buffer.from(buf).toString('hex');
   getRandomValues(new DataView(buf.buffer));
   const after = Buffer.from(buf).toString('hex');

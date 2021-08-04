@@ -1,8 +1,11 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --expose-internals --no-warnings --expose-gc
 'use strict';
 
 const common = require('../common');
-const { defineEventHandler } = require('internal/event_target');
+const {
+  defineEventHandler,
+  kWeakHandler,
+} = require('internal/event_target');
 
 const {
   ok,
@@ -57,7 +60,6 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     false,
-    function() {},
   ].forEach((i) => (
     throws(() => new Event('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -161,6 +163,36 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  // Same event dispatched multiple times.
+  const event = new Event('foo');
+  const eventTarget1 = new EventTarget();
+  const eventTarget2 = new EventTarget();
+
+  eventTarget1.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget1);
+    deepStrictEqual(event.composedPath(), [eventTarget1]);
+  }));
+
+  eventTarget2.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget2);
+    deepStrictEqual(event.composedPath(), [eventTarget2]);
+  }));
+
+  eventTarget1.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget1);
+  deepStrictEqual(event.composedPath(), []);
+
+
+  eventTarget2.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget2);
+  deepStrictEqual(event.composedPath(), []);
+}
+
+{
   const eventTarget = new EventTarget();
   const event = new Event('foo', { cancelable: true });
   eventTarget.addEventListener('foo', (event) => event.preventDefault());
@@ -176,14 +208,25 @@ let asyncTest = Promise.resolve();
 }
 
 {
-  const uncaughtException = common.mustCall((err, event) => {
+  // The `options` argument can be `null`.
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, null);
+  eventTarget.dispatchEvent(event);
+}
+
+{
+  const uncaughtException = common.mustCall((err, origin) => {
     strictEqual(err.message, 'boom');
-    strictEqual(event.type, 'foo');
+    strictEqual(origin, 'uncaughtException');
   }, 4);
 
-  // Whether or not the handler function is async or not, errors
-  // are routed to uncaughtException
-  process.on('error', uncaughtException);
+  // Make sure that we no longer call 'error' on error.
+  process.on('error', common.mustNotCall());
+  // Don't call rejection even for async handlers.
+  process.on('unhandledRejection', common.mustNotCall());
+  process.on('uncaughtException', uncaughtException);
 
   const eventTarget = new EventTarget();
 
@@ -229,7 +272,7 @@ let asyncTest = Promise.resolve();
     {},  // No type event
     undefined,
     1,
-    false
+    false,
   ].forEach((i) => {
     throws(() => target.dispatchEvent(i), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -250,14 +293,7 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     {},  // No handleEvent function
-    false
-  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
-
-  [
-    'foo',
-    1,
-    {},  // No handleEvent function
-    false
+    false,
   ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
 }
 
@@ -401,7 +437,7 @@ let asyncTest = Promise.resolve();
     undefined,
     false,
     Symbol(),
-    /a/
+    /a/,
   ].forEach((i) => {
     throws(() => target.dispatchEvent.call(i, event), {
       code: 'ERR_INVALID_THIS'
@@ -569,4 +605,28 @@ let asyncTest = Promise.resolve();
 
   const et = new EventTarget();
   strictEqual(et.constructor.name, 'EventTarget');
+}
+{
+  // Weak event handlers work
+  const et = new EventTarget();
+  const listener = common.mustCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Weak event handlers can be removed and weakness is not part of the key
+  const et = new EventTarget();
+  const listener = common.mustNotCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.removeEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Test listeners are held weakly
+  const et = new EventTarget();
+  et.addEventListener('foo', common.mustNotCall(), { [kWeakHandler]: {} });
+  setImmediate(() => {
+    global.gc();
+    et.dispatchEvent(new Event('foo'));
+  });
 }

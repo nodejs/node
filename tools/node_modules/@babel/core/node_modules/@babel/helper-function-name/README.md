@@ -2,7 +2,7 @@
 
 > Helper function to change the property 'name' of every function
 
-See our website [@babel/helper-function-name](https://babeljs.io/docs/en/next/babel-helper-function-name.html) for more information.
+See our website [@babel/helper-function-name](https://babeljs.io/docs/en/babel-helper-function-name) for more information.
 
 ## Install
 

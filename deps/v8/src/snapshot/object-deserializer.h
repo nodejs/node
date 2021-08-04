@@ -23,10 +23,10 @@ class ObjectDeserializer final : public Deserializer {
       Handle<String> source);
 
  private:
-  explicit ObjectDeserializer(const SerializedCodeData* data);
+  explicit ObjectDeserializer(Isolate* isolate, const SerializedCodeData* data);
 
   // Deserialize an object graph. Fail gracefully.
-  MaybeHandle<HeapObject> Deserialize(Isolate* isolate);
+  MaybeHandle<HeapObject> Deserialize();
 
   void LinkAllocationSites();
   void CommitPostProcessedObjects();

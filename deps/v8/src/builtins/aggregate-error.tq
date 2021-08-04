@@ -9,10 +9,6 @@ namespace error {
 transitioning javascript builtin AggregateErrorConstructor(
     js-implicit context: NativeContext, target: JSFunction,
     newTarget: JSAny)(...arguments): JSAny {
-  // This function is implementing the spec as suggested by
-  // https://github.com/tc39/proposal-promise-any/pull/59 . FIXME(marja):
-  // change this if the PR is declined, otherwise remove the comment.
-
   // 1. If NewTarget is undefined, let newTarget be the active function
   // object, else let newTarget be NewTarget.
   // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget,
@@ -23,8 +19,9 @@ transitioning javascript builtin AggregateErrorConstructor(
   //   [[Writable]]: *true*, [[Enumerable]]: *false*, [[Configurable]]: *true*
   //   c. Perform ! DefinePropertyOrThrow(_O_, *"message"*, _msgDesc_).
   const message: JSAny = arguments[1];
-  const obj: JSObject =
-      ConstructAggregateErrorHelper(context, target, newTarget, message);
+  const options: JSAny = arguments[2];
+  const obj: JSObject = ConstructAggregateErrorHelper(
+      context, target, newTarget, message, options);
 
   // 4. Let errorsList be ? IterableToList(errors).
   const errors: JSAny = arguments[0];
@@ -42,7 +39,7 @@ transitioning javascript builtin AggregateErrorConstructor(
 }
 
 extern transitioning runtime ConstructAggregateErrorHelper(
-    Context, JSFunction, JSAny, Object): JSObject;
+    Context, JSFunction, JSAny, Object, Object): JSObject;
 
 extern transitioning runtime ConstructInternalAggregateErrorHelper(
     Context, Object): JSObject;

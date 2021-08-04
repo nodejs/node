@@ -3,7 +3,12 @@
 // found in the LICENSE file.
 
 @abstract
-extern class Context extends HeapObject {
+@export
+@customCppClass
+// We normally don't generate a BodyDescriptor for an abstact class, but here we
+// do since all context classes share the same BodyDescriptor.
+@generateBodyDescriptor
+class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }
@@ -113,11 +118,41 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FAST_ALIASED_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FUNCTION_CONTEXT_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_PROTOTYPE_APPLY_INDEX: Slot<NativeContext, JSFunction>,
+
+  UINT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT8_CLAMPED_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGUINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+
+  RAB_GSAB_UINT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
 
   PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,
   PROMISE_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
   STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: Slot<NativeContext, Map>,
+
+  PROMISE_HOOK_INIT_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_BEFORE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_AFTER_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_RESOLVE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
 
   CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX: Slot<NativeContext, HeapObject>,
 

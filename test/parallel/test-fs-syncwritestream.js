@@ -36,6 +36,6 @@ proc.on('close', common.mustCall(() => {
 
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(filename, 'utf8')), [
     { instance: true, readable: false, writable: true },
-    { instance: true, readable: false, writable: true }
+    { instance: true, readable: false, writable: true },
   ]);
 }));

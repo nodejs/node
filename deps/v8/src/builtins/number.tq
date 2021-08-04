@@ -63,8 +63,9 @@ transitioning macro ThisNumberValue(implicit context: Context)(
 
 macro ToCharCode(input: int32): char8 {
   assert(0 <= input && input < 36);
-  return input < 10 ? %RawDownCast<char8>(input + kAsciiZero) :
-                      %RawDownCast<char8>(input - 10 + kAsciiLowerCaseA);
+  return input < 10 ?
+      %RawDownCast<char8>(Unsigned(input + kAsciiZero)) :
+      %RawDownCast<char8>(Unsigned(input - 10 + kAsciiLowerCaseA));
 }
 
 @export
@@ -92,25 +93,25 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
     length = length + 1;
   }
   assert(length > 0);
-  const strSeq: SeqOneByteString = AllocateSeqOneByteString(Unsigned(length));
+  const strSeq = AllocateNonEmptySeqOneByteString(Unsigned(length));
   let cursor: intptr = Convert<intptr>(length) - 1;
   while (n > 0) {
     const digit: int32 = n % radix;
     n = n / radix;
-    strSeq.chars[cursor] = ToCharCode(digit);
+    *UnsafeConstCast(&strSeq.chars[cursor]) = ToCharCode(digit);
     cursor = cursor - 1;
   }
   if (isNegative) {
     assert(cursor == 0);
     // Insert '-' to result.
-    strSeq.chars[0] = 45;
+    *UnsafeConstCast(&strSeq.chars[0]) = 45;
   } else {
     assert(cursor == -1);
     // In sync with Factory::SmiToString: If radix = 10 and positive number,
     // update hash for string.
     if (radix == 10) {
-      assert(strSeq.hash_field == kNameEmptyHashField);
-      strSeq.hash_field = MakeArrayIndexHash(Unsigned(x), Unsigned(length));
+      assert(strSeq.raw_hash_field == kNameEmptyHashField);
+      strSeq.raw_hash_field = MakeArrayIndexHash(Unsigned(x), Unsigned(length));
     }
   }
   return strSeq;
@@ -236,7 +237,7 @@ transitioning javascript builtin NumberParseFloat(
     }
   } label String(s: String) {
     // Check if the string is a cached array index.
-    const hash: NameHash = s.hash_field;
+    const hash: NameHash = s.raw_hash_field;
     if (!hash.is_not_integer_index_mask &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;
@@ -287,7 +288,7 @@ transitioning builtin ParseInt(implicit context: Context)(
     return ChangeInt32ToTagged(i);
   } label String(s: String) {
     // Check if the string is a cached array index.
-    const hash: NameHash = s.hash_field;
+    const hash: NameHash = s.raw_hash_field;
     if (!hash.is_not_integer_index_mask &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;

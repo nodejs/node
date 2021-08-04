@@ -19,6 +19,8 @@ class TransportBase;
 class V8_EXPORT_PRIVATE Session {
  public:
   explicit Session(TransportBase* transport);
+  Session(const Session&) = delete;
+  Session& operator=(const Session&) = delete;
 
   // Attempt to send a packet and optionally wait for an ACK from the receiver.
   bool SendPacket(Packet* packet, bool expect_ack = true);
@@ -61,8 +63,6 @@ class V8_EXPORT_PRIVATE Session {
   TransportBase* io_;  // Transport object not owned by the Session.
   bool connected_;     // Is the connection still valid.
   bool ack_enabled_;   // If true, emit or wait for '+' from RSP stream.
-
-  DISALLOW_COPY_AND_ASSIGN(Session);
 };
 
 }  // namespace gdb_server

@@ -10,16 +10,21 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
+- common: https://github.com/web-platform-tests/wpt/tree/bb97a68974/common
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
-- encoding: https://github.com/web-platform-tests/wpt/tree/3c9820d1cc/encoding
-- url: https://github.com/web-platform-tests/wpt/tree/1783c9bccf/url
-- resources: https://github.com/web-platform-tests/wpt/tree/351a99782b/resources
-- interfaces: https://github.com/web-platform-tests/wpt/tree/b4be9a3fdf/interfaces
+- dom/abort: https://github.com/web-platform-tests/wpt/tree/1728d198c9/dom/abort
+- encoding: https://github.com/web-platform-tests/wpt/tree/35f70910d3/encoding
+- FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
+- hr-time: https://github.com/web-platform-tests/wpt/tree/9910784394/hr-time
+- html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
-- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/264f12bc7b/html/webappapis/timers
-- hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
-- common: https://github.com/web-platform-tests/wpt/tree/4dacb6e2ff/common
-- dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
+- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
+- interfaces: https://github.com/web-platform-tests/wpt/tree/80a4176623/interfaces
+- performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
+- resources: https://github.com/web-platform-tests/wpt/tree/972ca5b669/resources
+- streams: https://github.com/web-platform-tests/wpt/tree/8f60d94439/streams
+- url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
+- user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
-[`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
+[`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt

@@ -74,27 +74,36 @@ TEST_P(RandomNumberGeneratorTest, NextDoubleReturnsValueBetween0And1) {
   }
 }
 
-#if GTEST_HAS_DEATH_TEST
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+// Official release builds strip all fatal messages for saving binary size,
+// see src/base/logging.h.
+#define FATAL_MSG(msg) "ignored"
+#else
+#define FATAL_MSG(msg) "Check failed: " msg
+#endif
+
 TEST(RandomNumberGenerator, NextSampleInvalidParam) {
   RandomNumberGenerator rng(123);
   std::vector<uint64_t> sample;
-  EXPECT_DEATH(sample = rng.NextSample(10, 11), ".*Check failed: n <= max.*");
+  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSample(10, 11),
+                            FATAL_MSG("n <= max"));
 }
 
 TEST(RandomNumberGenerator, NextSampleSlowInvalidParam1) {
   RandomNumberGenerator rng(123);
   std::vector<uint64_t> sample;
-  EXPECT_DEATH(sample = rng.NextSampleSlow(10, 11),
-               ".*Check failed: max - excluded.size*");
+  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSampleSlow(10, 11),
+                            FATAL_MSG("max - excluded.size"));
 }
 
 TEST(RandomNumberGenerator, NextSampleSlowInvalidParam2) {
   RandomNumberGenerator rng(123);
   std::vector<uint64_t> sample;
-  EXPECT_DEATH(sample = rng.NextSampleSlow(5, 3, {0, 2, 3}),
-               ".*Check failed: max - excluded.size*");
+  ASSERT_DEATH_IF_SUPPORTED(sample = rng.NextSampleSlow(5, 3, {0, 2, 3}),
+                            FATAL_MSG("max - excluded.size"));
 }
-#endif
+
+#undef FATAL_MSG
 
 TEST_P(RandomNumberGeneratorTest, NextSample0) {
   size_t m = 1;

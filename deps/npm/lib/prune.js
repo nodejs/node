@@ -1,25 +1,44 @@
 // prune extraneous packages
-const npm = require('./npm.js')
 const Arborist = require('@npmcli/arborist')
-const usageUtil = require('./utils/usage.js')
-
 const reifyFinish = require('./utils/reify-finish.js')
 
-const usage = usageUtil('prune',
-  'npm prune [[<@scope>/]<pkg>...] [--production]'
-)
-const completion = require('./utils/completion/none.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Prune extends ArboristWorkspaceCmd {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Remove extraneous packages'
+  }
 
-const cmd = (args, cb) => prune().then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'prune'
+  }
 
-const prune = async () => {
-  const where = npm.prefix
-  const arb = new Arborist({
-    ...npm.flatOptions,
-    path: where,
-  })
-  await arb.prune(npm.flatOptions)
-  await reifyFinish(arb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['omit', 'dry-run', 'json', ...super.params]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[[<@scope>/]<pkg>...]']
+  }
+
+  exec (args, cb) {
+    this.prune().then(() => cb()).catch(cb)
+  }
+
+  async prune () {
+    const where = this.npm.prefix
+    const opts = {
+      ...this.npm.flatOptions,
+      path: where,
+      log: this.npm.log,
+      workspaces: this.workspaceNames,
+    }
+    const arb = new Arborist(opts)
+    await arb.prune(opts)
+    await reifyFinish(this.npm, arb)
+  }
 }
-
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Prune

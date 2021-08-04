@@ -119,8 +119,10 @@ const cmdList = [
   'prefix',
   'bin',
   'whoami',
+  'diff',
   'dist-tag',
   'ping',
+  'pkg',
 
   'test',
   'stop',
@@ -135,10 +137,25 @@ const cmdList = [
 ]
 
 const plumbing = ['birthday', 'help-search']
+
+// these commands just shell out to something else or handle the
+// error themselves, so it's confusing and weird to write out
+// our full error log banner when they exit non-zero
+const shellouts = [
+  'exec',
+  'run-script',
+  'test',
+  'start',
+  'stop',
+  'restart',
+  'birthday',
+]
+
 module.exports = {
   aliases: Object.assign({}, shorthands, affordances),
   shorthands,
   affordances,
   cmdList,
   plumbing,
+  shellouts,
 }

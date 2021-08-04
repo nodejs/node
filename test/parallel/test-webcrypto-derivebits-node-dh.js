@@ -77,7 +77,7 @@ const kTestData = {
 async function prepareKeys() {
   const [
     privateKey,
-    publicKey
+    publicKey,
   ] = await Promise.all([
     subtle.importKey(
       'pkcs8',
@@ -89,7 +89,7 @@ async function prepareKeys() {
       'spki',
       Buffer.from(kTestData.spki, 'hex'),
       { name: 'NODE-DH' },
-      true, [])
+      true, []),
   ]);
   return {
     privateKey,
@@ -112,6 +112,7 @@ async function prepareKeys() {
       public: publicKey
     }, privateKey, null);
 
+    assert(bits instanceof ArrayBuffer);
     assert.strictEqual(Buffer.from(bits).toString('hex'), result);
   }
 

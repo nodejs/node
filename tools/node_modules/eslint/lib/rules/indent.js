@@ -12,9 +12,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
-const astUtils = require("./utils/ast-utils");
 const createTree = require("functional-red-black-tree");
+
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -1068,7 +1068,7 @@ module.exports = {
         const baseOffsetListeners = {
             "ArrayExpression, ArrayPattern"(node) {
                 const openingBracket = sourceCode.getFirstToken(node);
-                const closingBracket = sourceCode.getTokenAfter(lodash.findLast(node.elements) || openingBracket, astUtils.isClosingBracketToken);
+                const closingBracket = sourceCode.getTokenAfter([...node.elements].reverse().find(_ => _) || openingBracket, astUtils.isClosingBracketToken);
 
                 addElementListIndent(node.elements, openingBracket, closingBracket, options.ArrayExpression);
             },
@@ -1177,7 +1177,7 @@ module.exports = {
                     offsets.setDesiredOffset(questionMarkToken, firstToken, 1);
                     offsets.setDesiredOffset(colonToken, firstToken, 1);
 
-                    offsets.setDesiredOffset(firstConsequentToken, firstToken,
+                    offsets.setDesiredOffset(firstConsequentToken, firstToken, firstConsequentToken.type === "Punctuator" &&
                         options.offsetTernaryExpressions ? 2 : 1);
 
                     /*
@@ -1203,8 +1203,7 @@ module.exports = {
                          * If `baz` were aligned with `bar` rather than being offset by 1 from `foo`, `baz` would end up
                          * having no expected indentation.
                          */
-                        offsets.setDesiredOffset(firstAlternateToken, firstToken,
-                            firstAlternateToken.type === "Punctuator" &&
+                        offsets.setDesiredOffset(firstAlternateToken, firstToken, firstAlternateToken.type === "Punctuator" &&
                             options.offsetTernaryExpressions ? 2 : 1);
                     }
                 }
@@ -1559,8 +1558,9 @@ module.exports = {
          * 2. Don't set any offsets against the first token of the node.
          * 3. Call `ignoreNode` on the node sometime after exiting it and before validating offsets.
          */
-        const offsetListeners = lodash.mapValues(
-            baseOffsetListeners,
+        const offsetListeners = {};
+
+        for (const [selector, listener] of Object.entries(baseOffsetListeners)) {
 
             /*
              * Offset listener calls are deferred until traversal is finished, and are called as
@@ -1578,10 +1578,8 @@ module.exports = {
              * To avoid this, the `Identifier` listener isn't called until traversal finishes and all
              * ignored nodes are known.
              */
-            listener =>
-                node =>
-                    listenerCallQueue.push({ listener, node })
-        );
+            offsetListeners[selector] = node => listenerCallQueue.push({ listener, node });
+        }
 
         // For each ignored node selector, set up a listener to collect it into the `ignoredNodes` set.
         const ignoredNodes = new Set();

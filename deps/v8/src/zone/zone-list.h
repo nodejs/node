@@ -48,6 +48,9 @@ class ZoneList final : public ZoneObject {
 
   ZoneList(ZoneList<T>&& other) V8_NOEXCEPT { *this = std::move(other); }
 
+  ZoneList(const ZoneList&) = delete;
+  ZoneList& operator=(const ZoneList&) = delete;
+
   // The ZoneList objects are usually allocated as a fields in other
   // zone-allocated objects for which destructors are not called anyway, so
   // we are not going to clear the memory here as well.
@@ -177,8 +180,6 @@ class ZoneList final : public ZoneObject {
 
   // Resize the list.
   void Resize(int new_capacity, Zone* zone);
-
-  DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
 
 }  // namespace internal

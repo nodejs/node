@@ -27,6 +27,7 @@
 #endif
 
 #if defined(V8_OS_WIN)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN
 
@@ -2062,10 +2063,31 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void debug(const char* message, uint32_t code, Instr params = BREAK);
 
   // Required by V8.
-  void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
-  void dq(uint64_t data) { dc64(data); }
-  void dp(uintptr_t data) { dc64(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc32(data);
+  }
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
 
   // Code generation helpers --------------------------------------------------
 
@@ -2367,18 +2389,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 
+  // Used by veneer checks below - returns the max (= overapproximated) pc
+  // offset after the veneer pool, if the veneer pool were to be emitted
+  // immediately.
+  intptr_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin);
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
-  bool ShouldEmitVeneer(int max_reachable_pc,
-                        size_t margin = kVeneerDistanceMargin);
+  bool ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
+    return max_reachable_pc < MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
+  }
   bool ShouldEmitVeneers(size_t margin = kVeneerDistanceMargin) {
     return ShouldEmitVeneer(unresolved_branches_first_limit(), margin);
   }
 
-  // The maximum code size generated for a veneer. Currently one branch
+  // The code size generated for a veneer. Currently one branch
   // instruction. This is for code size checking purposes, and can be extended
   // in the future for example if we decide to add nops between the veneers.
-  static constexpr int kMaxVeneerCodeSize = 1 * kInstrSize;
+  static constexpr int kVeneerCodeSize = 1 * kInstrSize;
 
   void RecordVeneerPool(int location_offset, int size);
   // Emits veneers for branches that are approaching their maximum range.
@@ -2394,7 +2421,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
 
-  class BlockPoolsScope {
+  class V8_NODISCARD BlockPoolsScope {
    public:
     // Block veneer and constant pool. Emits pools if necessary to ensure that
     // {margin} more bytes can be emitted without triggering pool emission.
@@ -2589,7 +2616,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     STATIC_ASSERT(sizeof(instruction) == kInstrSize);
     DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
-    memcpy(pc_, &instruction, sizeof(instruction));
+    base::Memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
     CheckBuffer();
   }
@@ -2601,13 +2628,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
-    memcpy(pc_, data, size);
+    base::Memcpy(pc_, data, size);
     pc_ += size;
     CheckBuffer();
   }
 
   void GrowBuffer();
-  void CheckBufferSpace();
+  V8_INLINE void CheckBufferSpace();
   void CheckBuffer();
 
   // Emission of the veneer pools may be blocked in some code sequences.
@@ -2759,9 +2786,7 @@ class PatchingAssembler : public Assembler {
 
 class EnsureSpace {
  public:
-  explicit EnsureSpace(Assembler* assembler) : block_pools_scope_(assembler) {
-    assembler->CheckBufferSpace();
-  }
+  explicit V8_INLINE EnsureSpace(Assembler* assembler);
 
  private:
   Assembler::BlockPoolsScope block_pools_scope_;

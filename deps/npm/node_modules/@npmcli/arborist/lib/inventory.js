@@ -4,9 +4,23 @@
 // keys is the set of fields to be able to query.
 const _primaryKey = Symbol('_primaryKey')
 const _index = Symbol('_index')
-const defaultKeys = ['name', 'license', 'funding', 'realpath']
+const defaultKeys = ['name', 'license', 'funding', 'realpath', 'packageName']
 const { hasOwnProperty } = Object.prototype
 const debug = require('./debug.js')
+
+// handling for the outdated "licenses" array, just pick the first one
+// also support the alternative spelling "licence"
+const getLicense = pkg => {
+  if (pkg) {
+    const lic = pkg.license || pkg.licence
+    if (lic)
+      return lic
+    const lics = pkg.licenses || pkg.licences
+    if (Array.isArray(lics))
+      return lics[0]
+  }
+}
+
 class Inventory extends Map {
   constructor (opt = {}) {
     const { primary, keys } = opt
@@ -56,7 +70,9 @@ class Inventory extends Map {
     for (const [key, map] of this[_index].entries()) {
       // if the node has the value, but it's false, then use that
       const val_ = hasOwnProperty.call(node, key) ? node[key]
-        : node[key] || (node.package && node.package[key])
+        : key === 'license' ? getLicense(node.package)
+        : node[key] ? node[key]
+        : node.package && node.package[key]
       const val = typeof val_ === 'string' ? val_
         : !val_ || typeof val_ !== 'object' ? val_
         : key === 'license' ? val_.type

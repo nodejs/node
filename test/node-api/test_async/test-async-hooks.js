@@ -55,6 +55,6 @@ process.on('exit', () => {
     { type: 'before', id: testId },
     { type: 'complete' },
     { type: 'after', id: testId },
-    { type: 'destroy', id: testId }
+    { type: 'destroy', id: testId },
   ]);
 });

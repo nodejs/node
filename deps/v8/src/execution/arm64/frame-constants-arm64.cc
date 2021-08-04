@@ -19,7 +19,7 @@ Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
-int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
   STATIC_ASSERT(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
   // Interpreter frame header size is not 16-bytes aligned, so we'll need at
   // least one register slot to make the frame a multiple of 16 bytes. The code

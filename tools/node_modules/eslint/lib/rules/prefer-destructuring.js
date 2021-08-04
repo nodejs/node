@@ -168,7 +168,7 @@ module.exports = {
          * Assignment expression is not fixed.
          * Array destructuring is not fixed.
          * Renamed property is not fixed.
-         * @param {ASTNode} node the the node to evaluate
+         * @param {ASTNode} node the node to evaluate
          * @returns {boolean} whether or not the node should be fixed
          */
         function shouldFix(node) {

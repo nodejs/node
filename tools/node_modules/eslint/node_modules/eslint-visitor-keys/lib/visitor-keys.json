@@ -211,10 +211,15 @@
     "ObjectPattern": [
         "properties"
     ],
+    "PrivateIdentifier": [],
     "Program": [
         "body"
     ],
     "Property": [
+        "key",
+        "value"
+    ],
+    "PropertyDefinition": [
         "key",
         "value"
     ],

@@ -9,6 +9,7 @@
 
 #include "cppgc/internal/persistent-node.h"
 #include "cppgc/internal/pointer-policies.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
 #include "cppgc/type-traits.h"
 #include "cppgc/visitor.h"
@@ -20,13 +21,15 @@ class Visitor;
 
 namespace internal {
 
+// PersistentBase always refers to the object as const object and defers to
+// BasicPersistent on casting to the right type as needed.
 class PersistentBase {
  protected:
   PersistentBase() = default;
-  explicit PersistentBase(void* raw) : raw_(raw) {}
+  explicit PersistentBase(const void* raw) : raw_(raw) {}
 
-  void* GetValue() const { return raw_; }
-  void SetValue(void* value) { raw_ = value; }
+  const void* GetValue() const { return raw_; }
+  void SetValue(const void* value) { raw_ = value; }
 
   PersistentNode* GetNode() const { return node_; }
   void SetNode(PersistentNode* node) { node_ = node; }
@@ -39,7 +42,7 @@ class PersistentBase {
   }
 
  private:
-  mutable void* raw_ = nullptr;
+  mutable const void* raw_ = nullptr;
   mutable PersistentNode* node_ = nullptr;
 
   friend class PersistentRegion;
@@ -92,7 +95,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicPersistent(  // NOLINT
+  BasicPersistent(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other,
       const SourceLocation& loc = SourceLocation::Current())
@@ -115,7 +118,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicPersistent(internal::BasicMember<U, MemberBarrierPolicy,  // NOLINT
+  BasicPersistent(internal::BasicMember<U, MemberBarrierPolicy,
                                         MemberWeaknessTag, MemberCheckingPolicy>
                       member,
                   const SourceLocation& loc = SourceLocation::Current())
@@ -186,15 +189,36 @@ class BasicPersistent final : public PersistentBase,
   // heterogeneous assignments between different Member and Persistent handles
   // based on their actual types.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
-    return static_cast<T*>(GetValue());
+    // The const_cast below removes the constness from PersistentBase storage.
+    // The following static_cast re-adds any constness if specified through the
+    // user-visible template parameter T.
+    return static_cast<T*>(const_cast<void*>(GetValue()));
   }
 
-  void Clear() { Assign(nullptr); }
+  void Clear() {
+    // Simplified version of `Assign()` to allow calling without a complete type
+    // `T`.
+    if (IsValid()) {
+      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
+      SetNode(nullptr);
+    }
+    SetValue(nullptr);
+  }
 
   T* Release() {
     T* result = Get();
     Clear();
     return result;
+  }
+
+  template <typename U, typename OtherWeaknessPolicy = WeaknessPolicy,
+            typename OtherLocationPolicy = LocationPolicy,
+            typename OtherCheckingPolicy = CheckingPolicy>
+  BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                  OtherCheckingPolicy>
+  To() const {
+    return BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                           OtherCheckingPolicy>(static_cast<U*>(Get()));
   }
 
  private:

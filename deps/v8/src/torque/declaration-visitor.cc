@@ -98,9 +98,11 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     }
   }
 
-  if (signature.return_type->StructSupertype()) {
-    Error("Builtins cannot return structs, but the return type is ",
-          *signature.return_type, ".");
+  if (signature.return_type->StructSupertype() && javascript) {
+    Error(
+        "Builtins with JS linkage cannot return structs, but the return type "
+        "is ",
+        *signature.return_type, ".");
   }
 
   if (signature.return_type == TypeOracle::GetVoidType()) {
@@ -139,7 +141,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     ReportError(
         "runtime functions can only return strong tagged values, but "
         "found type ",
-        signature.return_type);
+        *signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
     if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {

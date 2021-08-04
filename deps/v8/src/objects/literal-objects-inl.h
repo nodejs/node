@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/literal-objects-tq-inl.inc"
+
 //
 // ObjectBoilerplateDescription
 //
@@ -27,26 +29,26 @@ SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
 
 Object ObjectBoilerplateDescription::name(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return name(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return name(cage_base, index);
 }
 
-Object ObjectBoilerplateDescription::name(const Isolate* isolate,
+Object ObjectBoilerplateDescription::name(PtrComprCageBase cage_base,
                                           int index) const {
   // get() already checks for out of bounds access, but we do not want to allow
   // access to the last element, if it is the number of properties.
   DCHECK_NE(size(), index);
-  return get(isolate, 2 * index + kDescriptionStartIndex);
+  return get(cage_base, 2 * index + kDescriptionStartIndex);
 }
 
 Object ObjectBoilerplateDescription::value(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return value(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return value(cage_base, index);
 }
 
-Object ObjectBoilerplateDescription::value(const Isolate* isolate,
+Object ObjectBoilerplateDescription::value(PtrComprCageBase cage_base,
                                            int index) const {
-  return get(isolate, 2 * index + 1 + kDescriptionStartIndex);
+  return get(cage_base, 2 * index + 1 + kDescriptionStartIndex);
 }
 
 void ObjectBoilerplateDescription::set_key_value(int index, Object key,
@@ -133,6 +135,12 @@ void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
 bool ArrayBoilerplateDescription::is_empty() const {
   return constant_elements().length() == 0;
 }
+
+//
+// RegExpBoilerplateDescription
+//
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription)
 
 }  // namespace internal
 }  // namespace v8

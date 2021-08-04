@@ -53,6 +53,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.force_assert_statements) {
     GlobalContext::SetForceAssertStatements();
   }
+  if (options.annotate_ir) {
+    GlobalContext::SetAnnotateIR();
+  }
   TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   TypeOracle::Scope type_oracle;
   CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
@@ -75,7 +78,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.SetDryRun(output_directory.length() == 0);
 
   implementation_visitor.GenerateInstanceTypes(output_directory);
-  implementation_visitor.BeginCSAFiles();
+  implementation_visitor.BeginGeneratedFiles();
+  implementation_visitor.BeginDebugMacrosFile();
 
   implementation_visitor.VisitAllDeclarables();
 
@@ -94,7 +98,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
 
-  implementation_visitor.EndCSAFiles();
+  implementation_visitor.EndGeneratedFiles();
+  implementation_visitor.EndDebugMacrosFile();
   implementation_visitor.GenerateImplementation(output_directory);
 
   if (GlobalContext::collect_language_server_data()) {

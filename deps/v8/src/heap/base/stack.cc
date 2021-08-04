@@ -6,9 +6,11 @@
 
 #include <limits>
 
+#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace heap {
 namespace base {
@@ -20,9 +22,19 @@ extern "C" void PushAllRegistersAndIterateStack(const Stack*, StackVisitor*,
 Stack::Stack(const void* stack_start) : stack_start_(stack_start) {}
 
 bool Stack::IsOnStack(void* slot) const {
-  void* raw_slot = v8::base::Stack::GetStackSlot(slot);
-  return v8::base::Stack::GetCurrentStackPosition() <= raw_slot &&
-         raw_slot <= stack_start_;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // If the slot is part of a fake frame, then it is definitely on the stack.
+  void* real_frame = __asan_addr_is_in_fake_stack(
+      __asan_get_current_fake_stack(), reinterpret_cast<void*>(slot), nullptr,
+      nullptr);
+  if (real_frame) {
+    return true;
+  }
+  // Fall through as there is still a regular stack present even when running
+  // with ASAN fake stacks.
+#endif  // V8_USE_ADDRESS_SANITIZER
+  return v8::base::Stack::GetCurrentStackPosition() <= slot &&
+         slot <= stack_start_;
 }
 
 namespace {
@@ -31,7 +43,7 @@ namespace {
 
 // No ASAN support as accessing fake frames otherwise results in
 // "stack-use-after-scope" warnings.
-NO_SANITIZE_ADDRESS
+DISABLE_ASAN
 void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
                                      void* asan_fake_stack,
                                      const void* stack_start,
@@ -67,7 +79,7 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
   // Source:
-  // https://github.com/llvm/llvm-project/blob/master/compiler-rt/lib/safestack/safestack.cpp
+  // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/safestack/safestack.cpp
   constexpr size_t kSafeStackAlignmentBytes = 16;
   void* stack_end = __builtin___get_unsafe_stack_ptr();
   void* stack_start = __builtin___get_unsafe_stack_top();
@@ -91,7 +103,7 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 // any data that needs to be scanned.
 V8_NOINLINE
 // No ASAN support as method accesses redzones while walking the stack.
-NO_SANITIZE_ADDRESS
+DISABLE_ASAN
 void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
                          intptr_t* stack_end) {
 #ifdef V8_USE_ADDRESS_SANITIZER
@@ -106,7 +118,7 @@ void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
     // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
     // into a local which is unpoisoned.
     void* address = *current;
-    MSAN_UNPOISON(&address, sizeof(address));
+    MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
     if (address == nullptr) continue;
     visitor->VisitPointer(address);
 #ifdef V8_USE_ADDRESS_SANITIZER
@@ -123,6 +135,11 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   IterateSafeStackIfNecessary(visitor);
+}
+
+void Stack::IteratePointersUnsafe(StackVisitor* visitor,
+                                  uintptr_t stack_end) const {
+  IteratePointersImpl(this, visitor, reinterpret_cast<intptr_t*>(stack_end));
 }
 
 }  // namespace base

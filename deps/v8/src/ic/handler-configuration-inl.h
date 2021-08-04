@@ -48,20 +48,16 @@ Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index,
-                                   ElementsKind kind) {
+Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   int config = KindBits::encode(kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |
                IsDoubleBits::encode(field_index.is_double()) |
-               FieldIndexBits::encode(field_index.index()) |
-               CompactElementsKindBits::encode(ToCompactElementsKind(kind));
+               FieldIndexBits::encode(field_index.index());
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate,
-                                                   ElementsKind kind) {
-  int config = KindBits::encode(kConstantFromPrototype) |
-               CompactElementsKindBits::encode(ToCompactElementsKind(kind));
+Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
+  int config = KindBits::encode(kConstantFromPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 

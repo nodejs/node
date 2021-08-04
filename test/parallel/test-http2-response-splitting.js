@@ -9,7 +9,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const { URL } = require('url');
 
 // Response splitting example, credit: Amit Klein, Safebreach
 const str = '/welcome?lang=bar%c4%8d%c4%8aContent­Length:%200%c4%8d%c4%8a%c' +

@@ -7,13 +7,14 @@
 
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/api-callbacks-tq.inc"
 
 // An accessor must have a getter, but can have no setter.
 //
@@ -62,6 +63,8 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
   // Return number added.
   static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                           Handle<FixedArray> array, int valid_descriptors);
+
+  DECL_PRINTER(AccessorInfo)
 
  private:
   inline bool HasExpectedReceiverType();

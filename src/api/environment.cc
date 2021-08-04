@@ -359,12 +359,13 @@ Environment* CreateEnvironment(
 }
 
 void FreeEnvironment(Environment* env) {
-  Isolate::DisallowJavascriptExecutionScope disallow_js(env->isolate(),
+  Isolate* isolate = env->isolate();
+  Isolate::DisallowJavascriptExecutionScope disallow_js(isolate,
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   {
-    HandleScope handle_scope(env->isolate());  // For env->context().
+    HandleScope handle_scope(isolate);  // For env->context().
     Context::Scope context_scope(env->context());
-    SealHandleScope seal_handle_scope(env->isolate());
+    SealHandleScope seal_handle_scope(isolate);
 
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
@@ -377,7 +378,7 @@ void FreeEnvironment(Environment* env) {
   // NodePlatform implementation.
   MultiIsolatePlatform* platform = env->isolate_data()->platform();
   if (platform != nullptr)
-    platform->DrainTasks(env->isolate());
+    platform->DrainTasks(isolate);
 
   delete env;
 }
@@ -409,14 +410,15 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8) {
   CHECK_NOT_NULL(main_script_source_utf8);
+  Isolate* isolate = env->isolate();
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         // This is a slightly hacky way to convert UTF-8 to UTF-16.
         Local<String> str =
-            String::NewFromUtf8(env->isolate(),
+            String::NewFromUtf8(isolate,
                                 main_script_source_utf8).ToLocalChecked();
-        auto main_utf16 = std::make_unique<String::Value>(env->isolate(), str);
+        auto main_utf16 = std::make_unique<String::Value>(isolate, str);
 
         // TODO(addaleax): Avoid having a global table for all scripts.
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
@@ -465,7 +467,8 @@ MultiIsolatePlatform* CreatePlatform(
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size, tracing_controller)
+  return MultiIsolatePlatform::Create(thread_pool_size,
+                                      tracing_controller)
       .release();
 }
 
@@ -475,8 +478,11 @@ void FreePlatform(MultiIsolatePlatform* platform) {
 
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return std::make_unique<NodePlatform>(thread_pool_size, tracing_controller);
+    v8::TracingController* tracing_controller,
+    v8::PageAllocator* page_allocator) {
+  return std::make_unique<NodePlatform>(thread_pool_size,
+                                        tracing_controller,
+                                        page_allocator);
 }
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
@@ -653,10 +659,10 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
   CHECK_NOT_NULL(env);
   Mutex::ScopedLock lock(env->extra_linked_bindings_mutex());
 
-  node_module* prev_head = env->extra_linked_bindings_head();
+  node_module* prev_tail = env->extra_linked_bindings_tail();
   env->extra_linked_bindings()->push_back(mod);
-  if (prev_head != nullptr)
-    prev_head->nm_link = &env->extra_linked_bindings()->back();
+  if (prev_tail != nullptr)
+    prev_tail->nm_link = &env->extra_linked_bindings()->back();
 }
 
 void AddLinkedBinding(Environment* env, const napi_module& mod) {

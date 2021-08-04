@@ -7,6 +7,7 @@
 
 #include <array>
 
+#include "include/cppgc/heap-statistics.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -43,7 +44,9 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t Size() const;
   bool IsEmpty() const;
 
-  bool Contains(Block) const;
+  void CollectStatistics(HeapStatistics::FreeListStatistics&);
+
+  bool ContainsForTesting(Block) const;
 
  private:
   class Entry;

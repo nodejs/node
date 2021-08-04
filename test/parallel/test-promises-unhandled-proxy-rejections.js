@@ -1,7 +1,6 @@
+// Flags: --unhandled-rejections=none
 'use strict';
 const common = require('../common');
-
-common.disableCrashOnUnhandledRejection();
 
 function throwErr() {
   throw new Error('Error from proxy');

@@ -41,14 +41,16 @@ class MachineGraph;
 class NodeOriginTable;
 class Schedule;
 class SourcePositionTable;
+struct WasmLoopInfo;
 
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.
-  static std::unique_ptr<OptimizedCompilationJob> NewCompilationJob(
-      Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
-      bool has_script, BailoutId osr_offset = BailoutId::None(),
-      JavaScriptFrame* osr_frame = nullptr);
+  static V8_EXPORT_PRIVATE std::unique_ptr<OptimizedCompilationJob>
+  NewCompilationJob(Isolate* isolate, Handle<JSFunction> function,
+                    CodeKind code_kind, bool has_script,
+                    BytecodeOffset osr_offset = BytecodeOffset::None(),
+                    JavaScriptFrame* osr_frame = nullptr);
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
@@ -56,7 +58,7 @@ class Pipeline : public AllStatic {
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
       wasm::FunctionBody function_body, const wasm::WasmModule* module,
-      int function_index);
+      int function_index, std::vector<compiler::WasmLoopInfo>* loop_infos);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(

@@ -38,7 +38,7 @@ function GlobalImportedInitTest(pad) {
 
   var g = builder.addImportedGlobal("mod", "offset", kWasmI32);
 
-  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
+  while (pad-- > 0) builder.addGlobal(kWasmI32, false);  // pad
 
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])

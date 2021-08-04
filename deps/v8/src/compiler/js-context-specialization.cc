@@ -40,7 +40,7 @@ Reduction JSContextSpecialization::ReduceParameter(Node* node) {
     // Constant-fold the function parameter {node}.
     Handle<JSFunction> function;
     if (closure().ToHandle(&function)) {
-      Node* value = jsgraph()->Constant(JSFunctionRef(broker_, function));
+      Node* value = jsgraph()->Constant(MakeRef(broker_, function));
       return Replace(value);
     }
   }
@@ -89,13 +89,9 @@ namespace {
 
 bool IsContextParameter(Node* node) {
   DCHECK_EQ(IrOpcode::kParameter, node->opcode());
-  Node* const start = NodeProperties::GetValueInput(node, 0);
-  DCHECK_EQ(IrOpcode::kStart, start->opcode());
-  int const index = ParameterIndexOf(node->op());
-  // The context is always the last parameter to a JavaScript function, and
-  // {Parameter} indices start at -1, so value outputs of {Start} look like
-  // this: closure, receiver, param0, ..., paramN, context.
-  return index == start->op()->ValueOutputCount() - 2;
+  return ParameterIndexOf(node->op()) ==
+         StartNode{NodeProperties::GetValueInput(node, 0)}
+             .ContextParameterIndex_MaybeNonStandardLayout();
 }
 
 // Given a context {node} and the {distance} from that context to the target
@@ -107,7 +103,7 @@ base::Optional<ContextRef> GetSpecializationContext(
     Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      HeapObjectRef object(broker, HeapConstantOf(node->op()));
+      HeapObjectRef object = MakeRef(broker, HeapConstantOf(node->op()));
       if (object.IsContext()) return object.AsContext();
       break;
     }
@@ -116,7 +112,7 @@ base::Optional<ContextRef> GetSpecializationContext(
       if (maybe_outer.To(&outer) && IsContextParameter(node) &&
           *distance >= outer.distance) {
         *distance -= outer.distance;
-        return ContextRef(broker, outer.context);
+        return MakeRef(broker, outer.context);
       }
       break;
     }
@@ -235,7 +231,7 @@ base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
 
   switch (context->opcode()) {
     case IrOpcode::kHeapConstant: {
-      HeapObjectRef object(broker, HeapConstantOf(context->op()));
+      HeapObjectRef object = MakeRef(broker, HeapConstantOf(context->op()));
       if (object.IsContext()) {
         return find_context(object.AsContext());
       }
@@ -244,7 +240,7 @@ base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
     case IrOpcode::kParameter: {
       OuterContext outer;
       if (maybe_context.To(&outer) && IsContextParameter(context)) {
-        return find_context(ContextRef(broker, outer.context));
+        return find_context(MakeRef(broker, outer.context));
       }
       break;
     }
@@ -263,17 +259,18 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
   ContextRef context = maybe_context.value();
   SourceTextModuleRef module =
       context.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
-  ObjectRef import_meta = module.import_meta();
-  if (import_meta.IsJSObject()) {
-    Node* import_meta_const = jsgraph()->Constant(import_meta);
-    ReplaceWithValue(node, import_meta_const);
-    return Changed(import_meta_const);
-  } else {
-    DCHECK(import_meta.IsTheHole());
+  base::Optional<ObjectRef> import_meta = module.import_meta();
+  if (!import_meta.has_value()) return NoChange();
+  if (!import_meta->IsJSObject()) {
+    DCHECK(import_meta->IsTheHole());
     // The import.meta object has not yet been created. Let JSGenericLowering
     // replace the operator with a runtime call.
     return NoChange();
   }
+
+  Node* import_meta_const = jsgraph()->Constant(*import_meta);
+  ReplaceWithValue(node, import_meta_const);
+  return Changed(import_meta_const);
 }
 
 Isolate* JSContextSpecialization::isolate() const {

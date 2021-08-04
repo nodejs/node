@@ -131,14 +131,12 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   return native_module;
 }
 
-void TestReturnMultipleValues(MachineType type) {
-  const int kMaxCount = 20;
-  const int kMaxParamCount = 9;
-  // Use 9 parameters as a regression test or https://crbug.com/838098.
-  for (int param_count : {2, kMaxParamCount}) {
-    for (int count = 0; count < kMaxCount; ++count) {
-      printf("\n==== type = %s, count = %d ====\n\n\n",
-             MachineReprToString(type.representation()), count);
+template <int kMinParamCount, int kMaxParamCount>
+void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
+  for (int param_count : {kMinParamCount, kMaxParamCount}) {
+    for (int count = min_count; count < max_count; ++count) {
+      printf("\n==== type = %s, parameter_count = %d, count = %d ====\n\n\n",
+             MachineReprToString(type.representation()), param_count, count);
       v8::internal::AccountingAllocator allocator;
       Zone zone(&allocator, ZONE_NAME);
       CallDescriptor* desc =
@@ -230,8 +228,15 @@ void TestReturnMultipleValues(MachineType type) {
 
 }  // namespace
 
+// Use 9 parameters as a regression test or https://crbug.com/838098.
 #define TEST_MULTI(Type, type) \
-  TEST(ReturnMultiple##Type) { TestReturnMultipleValues(type); }
+  TEST(ReturnMultiple##Type) { TestReturnMultipleValues<2, 9>(type, 0, 20); }
+
+// Create a frame larger than UINT16_MAX to force TF to use an extra register
+// when popping the frame.
+TEST(TestReturnMultipleValuesLargeFrame) {
+  TestReturnMultipleValues<20000, 20000>(MachineType::Int32(), 2, 3);
+}
 
 TEST_MULTI(Int32, MachineType::Int32())
 #if (!V8_TARGET_ARCH_32_BIT)

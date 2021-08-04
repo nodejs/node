@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_CODE_SPACE_ACCESS_H_
 #define V8_WASM_CODE_SPACE_ACCESS_H_
 
@@ -28,7 +32,7 @@ inline void SwitchMemoryPermissionsToExecutable() {
 
 namespace wasm {
 
-class CodeSpaceWriteScope {
+class V8_NODISCARD CodeSpaceWriteScope {
  public:
   // TODO(jkummerow): Background threads could permanently stay in
   // writable mode; only the main thread has to switch back and forth.

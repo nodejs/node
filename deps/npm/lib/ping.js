@@ -1,28 +1,41 @@
 const log = require('npmlog')
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
-
-const usage = usageUtil('ping', 'npm ping\nping registry')
-const completion = require('./utils/completion/none.js')
-
-const cmd = (args, cb) => ping(args).then(() => cb()).catch(cb)
 const pingUtil = require('./utils/ping.js')
+const BaseCommand = require('./base-command.js')
 
-const ping = async args => {
-  log.notice('PING', npm.flatOptions.registry)
-  const start = Date.now()
-  const details = await pingUtil(npm.flatOptions)
-  const time = Date.now() - start
-  log.notice('PONG', `${time / 1000}ms`)
-  if (npm.flatOptions.json) {
-    output(JSON.stringify({
-      registry: npm.flatOptions.registry,
-      time,
-      details,
-    }, null, 2))
-  } else if (Object.keys(details).length)
-    log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
+class Ping extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Ping npm registry'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['registry']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'ping'
+  }
+
+  exec (args, cb) {
+    this.ping(args).then(() => cb()).catch(cb)
+  }
+
+  async ping (args) {
+    log.notice('PING', this.npm.config.get('registry'))
+    const start = Date.now()
+    const details = await pingUtil(this.npm.flatOptions)
+    const time = Date.now() - start
+    log.notice('PONG', `${time}ms`)
+    if (this.npm.config.get('json')) {
+      this.npm.output(JSON.stringify({
+        registry: this.npm.config.get('registry'),
+        time,
+        details,
+      }, null, 2))
+    } else if (Object.keys(details).length)
+      log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
+  }
 }
-
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Ping

@@ -23,7 +23,7 @@ class CodeDataContainer;
   V(kStrongRootList, "(Strong roots)")                \
   V(kSmiRootList, "(Smi roots)")                      \
   V(kBootstrapper, "(Bootstrapper)")                  \
-  V(kTop, "(Isolate)")                                \
+  V(kStackRoots, "(Stack roots)")                     \
   V(kRelocatable, "(Relocatable)")                    \
   V(kDebug, "(Debugger)")                             \
   V(kCompilationCache, "(Compilation cache)")         \
@@ -39,6 +39,8 @@ class CodeDataContainer;
   V(kReadOnlyObjectCache, "(Read-only object cache)") \
   V(kWeakCollections, "(Weak collections)")           \
   V(kWrapperTracing, "(Wrapper tracing)")             \
+  V(kWriteBarrier, "(Write barrier)")                 \
+  V(kRetainMaps, "(Retain maps)")                     \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
@@ -162,6 +164,9 @@ class ObjectVisitor {
 
   // Visits the relocation info using the given iterator.
   virtual void VisitRelocInfo(RelocIterator* it);
+
+  // Visits the object's map pointer, decoding as necessary
+  virtual void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 };
 
 }  // namespace internal

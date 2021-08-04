@@ -14,10 +14,15 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
+#include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -82,7 +87,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ Parameter(1));
+  params.push_back(__ Parameter<Object>(1));
   params.push_back(__ HeapConstant(
       BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
@@ -114,7 +119,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  TNode<FixedArray> state_in = __ Cast(__ Parameter(2));
+  auto state_in = __ Parameter<FixedArray>(2);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
@@ -123,10 +128,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       case MachineRepresentation::kTagged:
         break;
       case MachineRepresentation::kFloat32:
-        element = __ TruncateFloat64ToFloat32(__ LoadHeapNumberValue(element));
+        element = __ TruncateFloat64ToFloat32(
+            __ LoadHeapNumberValue(__ CAST(element)));
         break;
       case MachineRepresentation::kFloat64:
-        element = __ LoadHeapNumberValue(element);
+        element = __ LoadHeapNumberValue(__ CAST(element));
         break;
       case MachineRepresentation::kSimd128: {
         Node* vector = tester.raw_assembler_for_testing()->AddNode(
@@ -203,13 +209,13 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, call_descriptor, "teardown");
   CodeStubAssembler assembler(tester.state());
-  TNode<FixedArray> result_array = __ Cast(__ Parameter(1));
+  auto result_array = __ Parameter<FixedArray>(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     // The first argument is not used and the second is "result_array".
-    Node* param = __ Parameter(i + 2);
+    Node* param = __ UntypedParameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
-        __ StoreFixedArrayElement(result_array, i, param,
+        __ StoreFixedArrayElement(result_array, i, __ Cast(param),
                                   UNSAFE_SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.
@@ -220,18 +226,19 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
       case MachineRepresentation::kFloat64: {
         __ StoreObjectFieldNoWriteBarrier(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),
-            HeapNumber::kValueOffset, __ UncheckedCast<Float64T>(param));
+            __ IntPtrConstant(HeapNumber::kValueOffset),
+            __ UncheckedCast<Float64T>(param));
       } break;
       case MachineRepresentation::kSimd128: {
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
-          TNode<Smi> lane_value =
-              __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
+          TNode<Smi> lane_value = __ SmiFromInt32(__ UncheckedCast<Int32T>(
+              tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
                       ->I32x4ExtractLane(lane),
-                  param));
+                  param)));
           __ StoreFixedArrayElement(vector, lane, lane_value,
                                     UNSAFE_SKIP_WRITE_BARRIER);
         }
@@ -964,10 +971,11 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(), CodeKind::STUB),
+        info_(ArrayVector("test"), environment->main_zone(),
+              CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
-            CodeKind::STUB)) {
+            CodeKind::FOR_TESTING)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or
@@ -1054,9 +1062,9 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, stack_slot_delta)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1143,9 +1151,10 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         first_unused_stack_slot)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1427,6 +1436,108 @@ TEST(AssembleTailCallGap) {
     }
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+
+std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
+                                                         size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
+  module->num_declared_functions = 1;
+  // We have to add the code object to a NativeModule, because the
+  // WasmCallDescriptor assumes that code is on the native heap and not
+  // within a code object.
+  auto native_module = isolate->wasm_engine()->NewNativeModule(
+      isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
+  native_module->SetWireBytes({});
+  return native_module;
+}
+
+}  // namespace
+
+// Test stack argument pushing with some gaps that require stack pointer
+// adjustment.
+TEST(Regress_1171759) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  // Create a minimal callee with enlough parameters to exhaust parameter
+  // registers and force some stack parameters.
+  constexpr int kDoubleParams = 16;
+  // These are followed by a single, and another double to create a gap.
+  constexpr int kTotalParams = kDoubleParams + 2;
+
+  wasm::FunctionSig::Builder builder(&zone, 1, kTotalParams);
+  // Make the first parameter slots double width.
+  for (int i = 0; i < kDoubleParams; i++) {
+    builder.AddParam(wasm::ValueType::For(MachineType::Float64()));
+  }
+  // Allocate a single parameter.
+  builder.AddParam(wasm::ValueType::For(MachineType::Float32()));
+  // Allocate a double parameter which should create a stack gap.
+  builder.AddParam(wasm::ValueType::For(MachineType::Float64()));
+
+  builder.AddReturn(wasm::ValueType::For(MachineType::Int32()));
+
+  CallDescriptor* desc =
+      compiler::GetWasmCallDescriptor(&zone, builder.Build());
+
+  HandleAndZoneScope handles(kCompressGraphZone);
+  RawMachineAssembler m(handles.main_isolate(),
+                        handles.main_zone()->New<Graph>(handles.main_zone()),
+                        desc, MachineType::PointerRepresentation(),
+                        InstructionSelector::SupportedMachineOperatorFlags());
+
+  m.Return(m.Int32Constant(0));
+
+  OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                CodeKind::WASM_FUNCTION);
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(
+          &info, handles.main_isolate(), desc, m.graph(),
+          AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest())
+          .ToHandleChecked();
+
+  std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+      handles.main_isolate(), code->raw_instruction_size());
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+
+  // Generate a minimal calling function, to push stack arguments.
+  RawMachineAssemblerTester<int32_t> mt;
+  Node* function = mt.PointerConstant(code_start);
+  Node* dummy_context = mt.PointerConstant(nullptr);
+  Node* double_slot = mt.Float64Constant(0);
+  Node* single_slot_that_creates_gap = mt.Float32Constant(0);
+  Node* call_inputs[] = {function,
+                         dummy_context,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         double_slot,
+                         single_slot_that_creates_gap,
+                         double_slot};
+
+  Node* call =
+      mt.AddNode(mt.common()->Call(desc), 2 + kTotalParams, call_inputs);
+
+  mt.Return(call);
+
+  CHECK_EQ(0, mt.Call());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

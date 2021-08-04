@@ -13,6 +13,7 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 
@@ -36,53 +37,74 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
       BUILTIN_CODE(masm->isolate(), ConstructFunction));
 }
 
-TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
+  BuildConstruct(
+      target, new_target, argc, [=] { return LoadContextFromBaseline(); },
+      [=] { return LoadFeedbackVectorFromBaseline(); }, slot,
+      UpdateFeedbackMode::kGuaranteedFeedback);
+}
+
+TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+
+  BuildConstruct(
+      target, new_target, argc, [=] { return context; },
+      [=] { return feedback_vector; }, slot,
+      UpdateFeedbackMode::kOptionalFeedback);
+}
+
+void CallOrConstructBuiltinsAssembler::BuildConstruct(
+    TNode<Object> target, TNode<Object> new_target, TNode<Int32T> argc,
+    const LazyNode<Context>& context,
+    const LazyNode<HeapObject>& feedback_vector, TNode<UintPtrT> slot,
+    UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
-                           &if_construct_generic, &if_construct_array,
-                           &allocation_site);
+  TNode<Context> eager_context = context();
+  CollectConstructFeedback(eager_context, target, new_target, feedback_vector(),
+                           slot, mode, &if_construct_generic,
+                           &if_construct_array, &allocation_site);
 
   BIND(&if_construct_generic);
-  TailCallBuiltin(Builtins::kConstruct, context, target, new_target, argc);
+  TailCallBuiltin(Builtins::kConstruct, eager_context, target, new_target,
+                  argc);
 
   BIND(&if_construct_array);
-  TailCallBuiltin(Builtins::kArrayConstructorImpl, context, target, new_target,
-                  argc, allocation_site.value());
+  TailCallBuiltin(Builtins::kArrayConstructorImpl, eager_context, target,
+                  new_target, argc, allocation_site.value());
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
+  auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -94,30 +116,55 @@ TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
-  TNode<Int32T> args_count =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
-TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
-  TNode<Int32T> args_count =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  return BuildConstructWithSpread(
+      target, new_target, spread, args_count,
+      [=] { return LoadContextFromBaseline(); },
+      [=] { return LoadFeedbackVectorFromBaseline(); }, slot,
+      UpdateFeedbackMode::kGuaranteedFeedback);
+}
 
+TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+
+  return BuildConstructWithSpread(
+      target, new_target, spread, args_count, [=] { return context; },
+      [=] { return feedback_vector; }, slot,
+      UpdateFeedbackMode::kGuaranteedFeedback);
+}
+
+void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
+    TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
+    TNode<Int32T> argc, const LazyNode<Context>& context,
+    const LazyNode<HeapObject>& feedback_vector, TNode<UintPtrT> slot,
+    UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  TNode<Context> eager_context = context();
+  CollectConstructFeedback(eager_context, target, new_target, feedback_vector(),
+                           slot, UpdateFeedbackMode::kGuaranteedFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -125,17 +172,14 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   Goto(&if_construct_generic);  // Not implemented.
 
   BIND(&if_construct_generic);
-  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+  CallOrConstructWithSpread(target, new_target, spread, argc, eager_context);
 }
 
-using Node = compiler::Node;
-
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
-  TNode<SharedFunctionInfo> shared_function_info =
-      CAST(Parameter(Descriptor::kSharedFunctionInfo));
-  TNode<FeedbackCell> feedback_cell =
-      CAST(Parameter(Descriptor::kFeedbackCell));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto shared_function_info =
+      Parameter<SharedFunctionInfo>(Descriptor::kSharedFunctionInfo);
+  auto feedback_cell = Parameter<FeedbackCell>(Descriptor::kFeedbackCell);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
 
@@ -219,9 +263,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<JSReceiver> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSFunction>(Descriptor::kTarget);
+  auto new_target = Parameter<JSReceiver>(Descriptor::kNewTarget);
 
   Label call_runtime(this);
 
@@ -283,7 +327,12 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      properties =
+          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
+    } else {
+      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+    }
     Goto(&instantiate_map);
   }
 
@@ -354,15 +403,49 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
-    TNode<JSRegExp> boilerplate = CAST(literal_site);
-    int size =
-        JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
-    TNode<HeapObject> copy = Allocate(size);
-    for (int offset = 0; offset < size; offset += kTaggedSize) {
-      TNode<Object> value = LoadObjectField(boilerplate, offset);
-      StoreObjectFieldNoWriteBarrier(copy, offset, value);
-    }
-    result = CAST(copy);
+    STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+    STATIC_ASSERT(JSRegExp::kSourceOffset ==
+                  JSRegExp::kDataOffset + kTaggedSize);
+    STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+                  JSRegExp::kSourceOffset + kTaggedSize);
+    STATIC_ASSERT(JSRegExp::kHeaderSize ==
+                  JSRegExp::kFlagsOffset + kTaggedSize);
+    STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
+    DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
+
+    TNode<RegExpBoilerplateDescription> boilerplate = CAST(literal_site);
+    TNode<HeapObject> new_object = Allocate(JSRegExp::Size());
+
+    // Initialize Object fields.
+    TNode<JSFunction> regexp_function = CAST(LoadContextElement(
+        LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
+    TNode<Map> initial_map = CAST(LoadObjectField(
+        regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
+    StoreMapNoWriteBarrier(new_object, initial_map);
+    // Initialize JSReceiver fields.
+    StoreObjectFieldRoot(new_object, JSReceiver::kPropertiesOrHashOffset,
+                         RootIndex::kEmptyFixedArray);
+    // Initialize JSObject fields.
+    StoreObjectFieldRoot(new_object, JSObject::kElementsOffset,
+                         RootIndex::kEmptyFixedArray);
+    // Initialize JSRegExp fields.
+    StoreObjectFieldNoWriteBarrier(
+        new_object, JSRegExp::kDataOffset,
+        LoadObjectField(boilerplate,
+                        RegExpBoilerplateDescription::kDataOffset));
+    StoreObjectFieldNoWriteBarrier(
+        new_object, JSRegExp::kSourceOffset,
+        LoadObjectField(boilerplate,
+                        RegExpBoilerplateDescription::kSourceOffset));
+    StoreObjectFieldNoWriteBarrier(
+        new_object, JSRegExp::kFlagsOffset,
+        LoadObjectField(boilerplate,
+                        RegExpBoilerplateDescription::kFlagsOffset));
+    StoreObjectFieldNoWriteBarrier(
+        new_object, JSRegExp::kLastIndexOffset,
+        SmiConstant(JSRegExp::kInitialLastIndexValue));
+
+    result = CAST(new_object);
     Goto(&end);
   }
 
@@ -454,7 +537,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
-  TVARIABLE(FixedArray, var_properties);
+  TVARIABLE(HeapObject, var_properties);
   {
     TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
     GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bit_field_3), call_runtime);
@@ -465,8 +548,13 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
-      var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
-                                          call_runtime);
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        var_properties =
+            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      } else {
+        var_properties = CopyNameDictionary(
+            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+      }
       // Slow objects have no in-object properties.
       Goto(&done);
     }
@@ -541,39 +629,26 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     // Copy over in-object properties.
     Label continue_with_write_barrier(this), done_init(this);
     TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
-    // Heap numbers are only mutable on 32-bit platforms.
-    bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
       Comment("Copy in-object properties fast");
       Label continue_fast(this, &offset);
       Branch(IntPtrEqual(offset.value(), instance_size), &done_init,
              &continue_fast);
       BIND(&continue_fast);
-      if (may_use_mutable_heap_numbers) {
-        TNode<Object> field = LoadObjectField(boilerplate, offset.value());
-        Label store_field(this);
-        GotoIf(TaggedIsSmi(field), &store_field);
-        // TODO(leszeks): Read the field descriptor to decide if this heap
-        // number is mutable or not.
-        GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
-        Goto(&store_field);
-        BIND(&store_field);
-        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
-      } else {
-        // Copy fields as raw data.
-        TNode<TaggedT> field =
-            LoadObjectField<TaggedT>(boilerplate, offset.value());
-        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
-      }
+      TNode<Object> field = LoadObjectField(boilerplate, offset.value());
+      Label store_field(this);
+      GotoIf(TaggedIsSmi(field), &store_field);
+      // TODO(leszeks): Read the field descriptor to decide if this heap
+      // number is mutable or not.
+      GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
+      Goto(&store_field);
+      BIND(&store_field);
+      StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
       Branch(WordNotEqual(offset.value(), instance_size), &continue_fast,
              &done_init);
     }
 
-    if (!may_use_mutable_heap_numbers) {
-      BIND(&done_init);
-      return copy;
-    }
     // Continue initializing the literal after seeing the first sub-object
     // potentially causing allocation. In this case we prepare the new literal
     // by copying all pending fields over from the boilerplate and emit full
@@ -617,7 +692,6 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
     TNode<IntPtrT> end_offset) {
   // Iterate over all object properties of a freshly copied object and
   // duplicate mutable heap numbers.
-  if (FLAG_unbox_double_fields) return;
   Comment("Copy mutable HeapNumber values");
   BuildFastLoop<IntPtrT>(
       start_offset, end_offset,

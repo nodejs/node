@@ -5,13 +5,17 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_INL_H_
 #define V8_OBJECTS_JS_FUNCTION_INL_H_
 
+#include "src/objects/js-function.h"
+
+// Include other inline headers *after* including js-function.h, such that e.g.
+// the definition of JSFunction is available (and this comment prevents
+// clang-format from merging that include into the following ones).
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/objects/js-function.h"
 #include "src/strings/string-builder-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,6 +24,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-function-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
 OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)
@@ -27,6 +33,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)
 CAST_ACCESSOR(JSFunction)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
+                          kFeedbackCellOffset)
 
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
@@ -48,7 +56,7 @@ void JSFunction::ClearOptimizationMarker() {
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code().checks_optimization_marker();
+  return code(kAcquireLoad).checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {
@@ -62,6 +70,20 @@ bool JSFunction::IsMarkedForConcurrentOptimization() {
              OptimizationMarker::kCompileOptimizedConcurrent;
 }
 
+void JSFunction::SetInterruptBudget() {
+  if (!has_feedback_vector()) {
+    DCHECK(shared().is_compiled());
+    int budget = FLAG_budget_for_feedback_vector_allocation;
+    if (FLAG_feedback_allocation_on_bytecode_size) {
+      budget = shared().GetBytecodeArray(GetIsolate()).length() *
+               FLAG_scale_factor_for_feedback_allocation;
+    }
+    raw_feedback_cell().set_interrupt_budget(budget);
+    return;
+  }
+  FeedbackVector::SetInterruptBudget(raw_feedback_cell());
+}
+
 void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||
@@ -69,7 +91,8 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     mode = ConcurrencyMode::kNotConcurrent;
   }
 
-  DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsNCI());
+  DCHECK(!is_compiled() || ActiveTierIsIgnition() ||
+         ActiveTierIsMidtierTurboprop() || ActiveTierIsBaseline());
   DCHECK(!ActiveTierIsTurbofan());
   DCHECK(shared().IsInterpreted());
   DCHECK(shared().allows_lazy_compilation() ||
@@ -97,8 +120,8 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 }
 
 bool JSFunction::IsInOptimizationQueue() {
-  return has_feedback_vector() && feedback_vector().optimization_marker() ==
-                                      OptimizationMarker::kInOptimizationQueue;
+  if (!has_feedback_vector()) return false;
+  return IsInOptimizationQueueMarker(feedback_vector().optimization_marker());
 }
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
@@ -108,11 +131,12 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   }
 }
 
-AbstractCode JSFunction::abstract_code() {
+template <typename IsolateT>
+AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
-    return AbstractCode::cast(shared().GetBytecodeArray());
+    return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(code());
+    return AbstractCode::cast(code(kAcquireLoad));
   }
 }
 
@@ -130,10 +154,7 @@ void JSFunction::set_code(Code value) {
 #endif
 }
 
-void JSFunction::set_code_no_write_barrier(Code value) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
-}
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, Code, kCodeOffset)
 
 // TODO(ishell): Why relaxed read but release store?
 DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
@@ -145,20 +166,6 @@ void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
   // Release semantics to support acquire read in NeedsResetDueToFlushedBytecode
   RELEASE_WRITE_FIELD(*this, kSharedFunctionInfoOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
-}
-
-void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
-  if (has_feedback_vector() && feedback_vector().has_optimized_code()) {
-    if (FLAG_trace_opt) {
-      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-      PrintF(scope.file(),
-             "[evicting entry from optimizing code feedback slot (%s) for ",
-             reason);
-      ShortPrint(scope.file());
-      PrintF(scope.file(), "]\n");
-    }
-    feedback_vector().ClearOptimizedCode();
-  }
 }
 
 void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
@@ -193,77 +200,77 @@ NativeContext JSFunction::native_context() {
   return context().native_context();
 }
 
-void JSFunction::set_context(HeapObject value) {
+void JSFunction::set_context(HeapObject value, WriteBarrierMode mode) {
   DCHECK(value.IsUndefined() || value.IsContext());
   WRITE_FIELD(*this, kContextOffset, value);
-  WRITE_BARRIER(*this, kContextOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kContextOffset, value, mode);
 }
 
-ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, HeapObject,
-                  kPrototypeOrInitialMapOffset, map().has_prototype_slot())
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
+                                  HeapObject, kPrototypeOrInitialMapOffset,
+                                  map().has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
-  return map(isolate).has_prototype_slot();
+  return map(cage_base).has_prototype_slot();
 }
 
 DEF_GETTER(JSFunction, initial_map, Map) {
-  return Map::cast(prototype_or_initial_map(isolate));
+  return Map::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
-  DCHECK(has_prototype_slot(isolate));
-  return prototype_or_initial_map(isolate).IsMap(isolate);
+  DCHECK(has_prototype_slot(cage_base));
+  return prototype_or_initial_map(cage_base, kAcquireLoad).IsMap(cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
-  DCHECK(has_prototype_slot(isolate));
-  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
-  // i::GetIsolateForPtrCompr(HeapObject).
-  return has_initial_map(isolate) ||
-         !prototype_or_initial_map(isolate).IsTheHole(
-             GetReadOnlyRoots(isolate));
+  DCHECK(has_prototype_slot(cage_base));
+  return has_initial_map(cage_base) ||
+         !prototype_or_initial_map(cage_base, kAcquireLoad)
+              .IsTheHole(GetReadOnlyRoots(cage_base));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
-  DCHECK(has_prototype_slot(isolate));
-  return map(isolate).has_non_instance_prototype() ||
-         has_instance_prototype(isolate);
+  DCHECK(has_prototype_slot(cage_base));
+  return map(cage_base).has_non_instance_prototype() ||
+         has_instance_prototype(cage_base);
 }
 
 DEF_GETTER(JSFunction, has_prototype_property, bool) {
-  return (has_prototype_slot(isolate) && IsConstructor(isolate)) ||
-         IsGeneratorFunction(shared(isolate).kind());
+  return (has_prototype_slot(cage_base) && IsConstructor(cage_base)) ||
+         IsGeneratorFunction(shared(cage_base).kind());
 }
 
 DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
-  return !has_prototype_property(isolate) ||
-         map(isolate).has_non_instance_prototype();
+  return !has_prototype_property(cage_base) ||
+         map(cage_base).has_non_instance_prototype();
 }
 
 DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
-  DCHECK(has_instance_prototype(isolate));
-  if (has_initial_map(isolate)) return initial_map(isolate).prototype(isolate);
+  DCHECK(has_instance_prototype(cage_base));
+  if (has_initial_map(cage_base))
+    return initial_map(cage_base).prototype(cage_base);
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return HeapObject::cast(prototype_or_initial_map(isolate));
+  return HeapObject::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, prototype, Object) {
-  DCHECK(has_prototype(isolate));
+  DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map(isolate).has_non_instance_prototype()) {
-    Object prototype = map(isolate).GetConstructor(isolate);
+  if (map(cage_base).has_non_instance_prototype()) {
+    Object prototype = map(cage_base).GetConstructor(cage_base);
     // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap(isolate));
-    DCHECK(!prototype.IsFunctionTemplateInfo(isolate));
+    DCHECK(!prototype.IsMap(cage_base));
+    DCHECK(!prototype.IsFunctionTemplateInfo(cage_base));
     return prototype;
   }
-  return instance_prototype(isolate);
+  return instance_prototype(cage_base);
 }
 
 bool JSFunction::is_compiled() const {
-  return code().builtin_index() != Builtins::kCompileLazy &&
+  return code(kAcquireLoad).builtin_index() != Builtins::kCompileLazy &&
          shared().is_compiled();
 }
 

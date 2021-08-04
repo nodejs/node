@@ -1,6 +1,22 @@
 Tests side-effect-free evaluation
-Paused on 'debugger;'
+
+Running test: basicTest
+Paused on "debugger;"
 f() returns 1
 g() returns 2
 f() returns 1
 g() throws EvalError
+
+Running test: testDate
+someGlobalDate.setDate(10) : throws
+new Date().setDate(10) : ok
+someGlobalDate.setFullYear(1991) : throws
+new Date().setFullYear(1991) : ok
+someGlobalDate.setHours(0) : throws
+new Date().setHours(0) : ok
+someGlobalDate.getDate() : ok
+new Date().getDate() : ok
+someGlobalDate.getFullYear() : ok
+new Date().getFullYear() : ok
+someGlobalDate.getHours() : ok
+new Date().getHours() : ok

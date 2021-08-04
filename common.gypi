@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.22',
+    'v8_embedder_string': '-node.18',
 
     ##### V8 defaults for Node.js #####
 
@@ -99,7 +99,7 @@
         'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
       }],
       ['openssl_fips != ""', {
-        'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
+        'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }, {
         'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }],
@@ -164,17 +164,28 @@
           'v8_enable_handle_zapping': 0,
           'pgo_generate': ' -fprofile-generate ',
           'pgo_use': ' -fprofile-use -fprofile-correction ',
-          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
           'conditions': [
             ['node_shared != "true"', {
               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
             }, {
               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
             }],
+            ['llvm_version=="0.0"', {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
+            }, {
+              'lto': ' -flto ', # Clang
+            }],
           ],
         },
         'cflags': [ '-O3' ],
         'conditions': [
+          ['enable_lto=="true"', {
+            'cflags': ['<(lto)'],
+            'ldflags': ['<(lto)'],
+            'xcode_settings': {
+              'LLVM_LTO': 'YES',
+            },
+          }],
           ['OS=="linux"', {
             'conditions': [
               ['node_section_ordering_info!=""', {
@@ -205,10 +216,6 @@
               ['enable_pgo_use=="true"', {
                 'cflags': ['<(pgo_use)'],
                 'ldflags': ['<(pgo_use)'],
-              },],
-              ['enable_lto=="true"', {
-                'cflags': ['<(lto)'],
-                'ldflags': ['<(lto)'],
               },],
             ],
           },],
@@ -375,7 +382,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++14' ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
@@ -519,7 +526,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1y',  # -std=gnu++1y
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++14',  # -std=gnu++14
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],

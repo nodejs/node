@@ -122,6 +122,37 @@ struct napi_env__ {
   void* instance_data = nullptr;
 };
 
+// This class is used to keep a napi_env live in a way that
+// is exception safe versus calling Ref/Unref directly
+class EnvRefHolder {
+ public:
+  explicit EnvRefHolder(napi_env env) : _env(env) {
+      _env->Ref();
+  }
+
+  explicit EnvRefHolder(const EnvRefHolder& other): _env(other.env()) {
+    _env->Ref();
+  }
+
+  EnvRefHolder(EnvRefHolder&& other) {
+    _env = other._env;
+    other._env = nullptr;
+  }
+
+  ~EnvRefHolder() {
+    if (_env != nullptr) {
+      _env->Unref();
+    }
+  }
+
+  napi_env env(void) const {
+    return _env;
+  }
+
+ private:
+  napi_env _env;
+};
+
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
 
@@ -333,6 +364,80 @@ class TryCatch : public v8::TryCatch {
 
  private:
   napi_env _env;
+};
+
+// Wrapper around v8impl::Persistent that implements reference counting.
+class RefBase : protected Finalizer, RefTracker {
+ protected:
+  RefBase(napi_env env,
+          uint32_t initial_refcount,
+          bool delete_self,
+          napi_finalize finalize_callback,
+          void* finalize_data,
+          void* finalize_hint);
+
+ public:
+  static RefBase* New(napi_env env,
+                      uint32_t initial_refcount,
+                      bool delete_self,
+                      napi_finalize finalize_callback,
+                      void* finalize_data,
+                      void* finalize_hint);
+
+  static inline void Delete(RefBase* reference);
+
+  virtual ~RefBase();
+  void* Data();
+  uint32_t Ref();
+  uint32_t Unref();
+  uint32_t RefCount();
+
+ protected:
+  void Finalize(bool is_env_teardown = false) override;
+
+ private:
+  uint32_t _refcount;
+  bool _delete_self;
+};
+
+class Reference : public RefBase {
+  using SecondPassCallParameterRef = Reference*;
+
+ protected:
+  template <typename... Args>
+  Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args);
+
+ public:
+  static Reference* New(napi_env env,
+                        v8::Local<v8::Value> value,
+                        uint32_t initial_refcount,
+                        bool delete_self,
+                        napi_finalize finalize_callback = nullptr,
+                        void* finalize_data = nullptr,
+                        void* finalize_hint = nullptr);
+
+  virtual ~Reference();
+  uint32_t Ref();
+  uint32_t Unref();
+  v8::Local<v8::Value> Get();
+
+ protected:
+  void Finalize(bool is_env_teardown = false) override;
+
+ private:
+  void ClearWeak();
+  void SetWeak();
+
+  static void FinalizeCallback(
+      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data);
+  static void SecondPassCallback(
+      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data);
+
+  v8impl::Persistent<v8::Value> _persistent;
+  SecondPassCallParameterRef* _secondPassParameter;
+  bool _secondPassScheduled;
+
+  FRIEND_TEST(JsNativeApiV8Test, Reference);
 };
 
 }  // end of namespace v8impl

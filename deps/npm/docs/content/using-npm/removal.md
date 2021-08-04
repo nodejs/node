@@ -58,8 +58,6 @@ modules.  To track those down, you can do the following:
 find /usr/local/{lib/node,bin} -exec grep -l npm \{\} \; ;
 ```
 
-(This is also in the README file.)
-
 ### See also
 
 * [npm uninstall](/commands/npm-uninstall)

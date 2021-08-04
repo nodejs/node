@@ -96,10 +96,10 @@ RETURN_PASS = 0
 RETURN_FAIL = 2
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
+SMOKE_TESTS = os.path.join(BASE_PATH, 'v8_smoke_tests.js')
 
 # Timeout for one d8 run.
-SANITY_CHECK_TIMEOUT_SEC = 1
+SMOKE_TEST_TIMEOUT_SEC = 1
 TEST_TIMEOUT_SEC = 3
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
@@ -211,14 +211,14 @@ class ExecutionArgumentsConfig(object):
         'default: bundled in the directory of this script',
         default=DEFAULT_D8)
 
-  def make_options(self, options, default_config=None):
+  def make_options(self, options, default_config=None, default_d8=None):
     def get(name):
       return getattr(options, '%s_%s' % (self.label, name))
 
     config = default_config or get('config')
     assert config in CONFIGS
 
-    d8 = get('d8')
+    d8 = default_d8 or get('d8')
     if not os.path.isabs(d8):
       d8 = os.path.join(BASE_PATH, d8)
     assert os.path.exists(d8)
@@ -239,9 +239,20 @@ class ExecutionConfig(object):
     flags = getattr(options, label).flags
     self.command = Command(options, label, d8, flags)
 
+    # Options for a fallback configuration only exist when comparing
+    # different architectures.
+    fallback_label = label + '_fallback'
+    self.fallback = None
+    if getattr(options, fallback_label, None):
+      self.fallback = ExecutionConfig(options, fallback_label)
+
   @property
   def flags(self):
     return self.command.flags
+
+  @property
+  def is_error_simulation(self):
+    return '--simulate-errors' in self.flags
 
 
 def parse_args():
@@ -253,8 +264,8 @@ def parse_args():
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
   parser.add_argument(
-      '--skip-sanity-checks', default=False, action='store_true',
-      help='skip sanity checks for testing purposes')
+      '--skip-smoke-tests', default=False, action='store_true',
+      help='skip smoke tests for testing purposes')
   parser.add_argument(
       '--skip-suppressions', default=False, action='store_true',
       help='skip suppressions to reproduce known issues')
@@ -274,7 +285,15 @@ def parse_args():
   options.first = first_config_arguments.make_options(options)
   options.second = second_config_arguments.make_options(options)
   options.default = second_config_arguments.make_options(
-      options, DEFAULT_CONFIG)
+      options, default_config=DEFAULT_CONFIG)
+
+  # Use fallback configurations only on diffrent architectures. In this
+  # case we are going to re-test against the first architecture.
+  if options.first.arch != options.second.arch:
+    options.second_fallback = second_config_arguments.make_options(
+        options, default_d8=options.first.d8)
+    options.default_fallback = second_config_arguments.make_options(
+        options, default_config=DEFAULT_CONFIG, default_d8=options.first.d8)
 
   # Ensure we make a valid comparison.
   if (options.first.d8 == options.second.d8 and
@@ -311,10 +330,12 @@ def fail_bailout(output, ignore_by_output_fun):
 
 
 def format_difference(
-    source_key, first_config, second_config,
-    first_config_output, second_config_output, difference, source=None):
+    first_config, second_config,
+    first_config_output, second_config_output,
+    difference, source_key=None, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
+  source_key = source_key or cluster_failures(source)
   first_config_label = '%s,%s' % (first_config.arch, first_config.config)
   second_config_label = '%s,%s' % (second_config.arch, second_config.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
@@ -372,6 +393,29 @@ def cluster_failures(source, known_failures=None):
   return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
 
 
+class RepeatedRuns(object):
+  """Helper class for storing statistical data from repeated runs."""
+  def __init__(self, test_case, timeout, verbose):
+    self.test_case = test_case
+    self.timeout = timeout
+    self.verbose = verbose
+
+    # Stores if any run has crashed or was simulated.
+    self.has_crashed = False
+    self.simulated = False
+
+  def run(self, config):
+    comparison_output = config.command.run(
+        self.test_case, timeout=self.timeout, verbose=self.verbose)
+    self.has_crashed = self.has_crashed or comparison_output.HasCrashed()
+    self.simulated = self.simulated or config.is_error_simulation
+    return comparison_output
+
+  @property
+  def crash_state(self):
+    return '_simulated_crash_' if self.simulated else '_unexpected_crash_'
+
+
 def run_comparisons(suppress, execution_configs, test_case, timeout,
                     verbose=True, ignore_crashes=True, source_key=None):
   """Runs different configurations and bails out on output difference.
@@ -384,23 +428,20 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
     timeout: Timeout in seconds for one run.
     verbose: Prints the executed commands.
     ignore_crashes: Typically we ignore crashes during fuzzing as they are
-        frequent. However, when running sanity checks we should not crash
+        frequent. However, when running smoke tests we should not crash
         and immediately flag crashes as a failure.
     source_key: A fixed source key. If not given, it will be inferred from the
         output.
   """
-  run_test_case = lambda config: config.command.run(
-      test_case, timeout=timeout, verbose=verbose)
+  runner = RepeatedRuns(test_case, timeout, verbose)
 
   # Run the baseline configuration.
   baseline_config = execution_configs[0]
-  baseline_output = run_test_case(baseline_config)
-  has_crashed = baseline_output.HasCrashed()
+  baseline_output = runner.run(baseline_config)
 
   # Iterate over the remaining configurations, run and compare.
   for comparison_config in execution_configs[1:]:
-    comparison_output = run_test_case(comparison_config)
-    has_crashed = has_crashed or comparison_output.HasCrashed()
+    comparison_output = runner.run(comparison_config)
     difference, source = suppress.diff(baseline_output, comparison_output)
 
     if difference:
@@ -410,21 +451,34 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
       fail_bailout(baseline_output, suppress.ignore_by_output)
       fail_bailout(comparison_output, suppress.ignore_by_output)
 
-      source_key = source_key or cluster_failures(source)
-      raise FailException(format_difference(
-          source_key, baseline_config, comparison_config,
-          baseline_output, comparison_output, difference, source))
+      # Check if a difference also occurs with the fallback configuration and
+      # give it precedence. E.g. we always prefer x64 differences.
+      if comparison_config.fallback:
+        fallback_output = runner.run(comparison_config.fallback)
+        fallback_difference, fallback_source = suppress.diff(
+            baseline_output, fallback_output)
+        if fallback_difference:
+          fail_bailout(fallback_output, suppress.ignore_by_output)
+          source = fallback_source
+          comparison_config = comparison_config.fallback
+          comparison_output = fallback_output
+          difference = fallback_difference
 
-  if has_crashed:
+      raise FailException(format_difference(
+          baseline_config, comparison_config,
+          baseline_output, comparison_output,
+          difference, source_key, source))
+
+  if runner.has_crashed:
     if ignore_crashes:
       # Show if a crash has happened in one of the runs and no difference was
       # detected. This is only for the statistics during experiments.
       raise PassException('# V8 correctness - C-R-A-S-H')
     else:
-      # Subsume unexpected crashes (e.g. during sanity checks) with one failure
-      # state.
+      # Subsume simulated and unexpected crashes (e.g. during smoke tests)
+      # with one failure state.
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-          configs='', source_key='', suppression='unexpected crash'))
+          configs='', source_key='', suppression=runner.crash_state))
 
 
 def main():
@@ -441,7 +495,7 @@ def main():
   content_bailout(content, suppress.ignore_by_content)
 
   # Prepare the baseline, default and a secondary configuration to compare to.
-  # The baseline (turbofan) takes precedence as many of the secondary configs
+  # The default (turbofan) takes precedence as many of the secondary configs
   # are based on the turbofan config with additional parameters.
   execution_configs = [
     ExecutionConfig(options, 'first'),
@@ -451,18 +505,18 @@ def main():
 
   # First, run some fixed smoke tests in all configs to ensure nothing
   # is fundamentally wrong, in order to prevent bug flooding.
-  if not options.skip_sanity_checks:
+  if not options.skip_smoke_tests:
     run_comparisons(
         suppress, execution_configs,
-        test_case=SANITY_CHECKS,
-        timeout=SANITY_CHECK_TIMEOUT_SEC,
+        test_case=SMOKE_TESTS,
+        timeout=SMOKE_TEST_TIMEOUT_SEC,
         verbose=False,
-        # Don't accept crashes during sanity checks. A crash would hint at
+        # Don't accept crashes during smoke tests. A crash would hint at
         # a flag that might be incompatible or a broken test file.
         ignore_crashes=False,
-        # Special source key for sanity checks so that clusterfuzz dedupes all
+        # Special source key for smoke tests so that clusterfuzz dedupes all
         # cases on this in case it's hit.
-        source_key = 'sanity check failed',
+        source_key = 'smoke test failed',
     )
 
   # Second, run all configs against the fuzz test case.

@@ -20,7 +20,7 @@ Add tests when:
 
 ## Test directory structure
 
-See [directory structure overview][] for outline of existing test & locations.
+See [directory structure overview][] for outline of existing test and locations.
 When deciding on whether to expand an existing test file or create a new one,
 consider going through the files related to the subsystem.
 For example, look for `test-streams` when writing a test for `lib/streams.js`.
@@ -109,6 +109,21 @@ case, `_`, lower case).
 
 ### **Lines 11-22**
 
+```js
+const server = http.createServer(common.mustCall((req, res) => {
+  res.end('ok');
+}));
+server.listen(0, () => {
+  http.get({
+    port: server.address().port,
+    headers: { 'Test': 'Düsseldorf' }
+  }, common.mustCall((res) => {
+    assert.strictEqual(res.statusCode, 200);
+    server.close();
+  }));
+});
+```
+
 This is the body of the test. This test is simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
@@ -146,7 +161,7 @@ platforms.
 ### The *common* API
 
 Make use of the helpers from the `common` module as much as possible. Please
-refer to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common)
+refer to the [common file documentation](https://github.com/nodejs/node/tree/HEAD/test/common)
 for the full details of the helpers.
 
 #### common.mustCall
@@ -206,7 +221,6 @@ const server = http.createServer(common.mustCall((req, res) => {
     server.close();
   }));
 }));
-
 ```
 
 **Note:** Many functions invoke their callback with an `err` value as the first
@@ -214,9 +228,9 @@ argument. It is not a good idea to simply pass `common.mustCall()` to those
 because `common.mustCall()` will ignore the error. Use `common.mustSucceed()`
 instead.
 
-#### Countdown Module
+#### Countdown module
 
-The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module)
+The common [Countdown module](https://github.com/nodejs/node/tree/HEAD/test/common#countdown-module)
 provides a simple countdown mechanism for tests that require a particular
 action to be taken after a given number of completed tasks (for instance,
 shutting down an HTTP server after a specific number of requests).
@@ -236,11 +250,9 @@ countdown.dec(); // The countdown callback will be invoked now.
 
 When writing tests involving promises, it is generally good to wrap the
 `onFulfilled` handler, otherwise the test could successfully finish if the
-promise never resolves (pending promises do not keep the event loop alive). The
-`common` module automatically adds a handler that makes the process crash - and
-hence, the test fail - in the case of an `unhandledRejection` event. It is
-possible to disable it with `common.disableCrashOnUnhandledRejection()` if
-needed.
+promise never resolves (pending promises do not keep the event loop alive).
+Node.js automatically crashes - and hence, the test fails - in the case of an
+`unhandledRejection` event.
 
 ```js
 const common = require('../common');
@@ -271,6 +283,15 @@ require('../common');
 const assert = require('assert');
 const freelist = require('internal/freelist');
 ```
+
+In specific scenarios it may be useful to get a hold of `primordials` or
+`internalBinding()`. You can do so using
+
+```console
+node --expose-internals -r internal/test/binding lib/fs.js
+```
+
+This only works if you preload `internal/test/binding` by command line flag.
 
 ### Assertions
 
@@ -330,7 +351,7 @@ in each release, such as:
 * Template literals over string concatenation
 * Arrow functions when appropriate
 
-## Naming Test Files
+## Naming test files
 
 Test files are named using kebab casing. The first component of the name is
 `test`. The second is the module or subsystem being tested. The third is usually
@@ -342,13 +363,13 @@ named `test-process-before-exit.js`. If the test specifically checked that arrow
 functions worked correctly with the `beforeExit` event, then it might be named
 `test-process-before-exit-arrow-functions.js`.
 
-## Imported Tests
+## Imported tests
 
-### Web Platform Tests
+### Web platform tests
 
 See [`test/wpt`](../../test/wpt/README.md) for more information.
 
-## C++ Unit test
+## C++ unit test
 
 C++ code can be tested using [Google Test][]. Most features in Node.js can be
 tested using the methods described previously in this document. But there are
@@ -429,7 +450,7 @@ and tearing it down after the tests have finished.
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
 
-### Test Coverage
+### Test coverage
 
 To generate a test coverage report, see the
 [Test Coverage section of the Building guide][].
@@ -439,9 +460,9 @@ Nightly coverage reports for the Node.js master branch are available at
 
 [ASCII]: https://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
-[`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
+[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#running-coverage
+[`common` module]: https://github.com/nodejs/node/blob/HEAD/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
-[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
+[directory structure overview]: https://github.com/nodejs/node/blob/HEAD/test/README.md#test-directories
 [node.green]: https://node.green/
-[test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests-same-data-multiple-tests
+[test fixture]: https://github.com/google/googletest/blob/HEAD/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests-same-data-multiple-tests

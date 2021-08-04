@@ -115,25 +115,27 @@ PrintSig PrintReturns(const FunctionSig* sig) {
 }
 const char* ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       return "kWasmI32";
-    case ValueType::kI64:
+    case kI64:
       return "kWasmI64";
-    case ValueType::kF32:
+    case kF32:
       return "kWasmF32";
-    case ValueType::kF64:
+    case kF64:
       return "kWasmF64";
-    case ValueType::kS128:
+    case kS128:
       return "kWasmS128";
-    case ValueType::kOptRef:
+    case kOptRef:
       switch (type.heap_representation()) {
         case HeapType::kExtern:
           return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
-        case HeapType::kExn:
-          return "kWasmExnRef";
+        case HeapType::kAny:
+        case HeapType::kI31:
+        case HeapType::kBottom:
         default:
+          // TODO(7748): Implement these if fuzzing for them is enabled.
           UNREACHABLE();
       }
     default:
@@ -265,7 +267,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
+    DecodeLocalDecls(enabled_features, &decls, module, func_code.begin(),
                      func_code.end());
     if (!decls.type_list.empty()) {
       os << "  ";
@@ -305,23 +307,30 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
+void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
+  struct EnableStagedWasmFeatures {
+    explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  FLAG_experimental_wasm_##feat = true;
+      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+      isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
+    }
+  };
+  // The compiler will properly synchronize the constructor call.
+  static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
+}
+
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
-  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
-#undef ENABLE_STAGED_FEATURES
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.
   if (data.size() > max_input_size()) return;
 
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
@@ -330,6 +339,12 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  OneTimeEnableStagedWasmFeatures(isolate);
+
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
 
@@ -343,6 +358,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // The first byte builds the bitmask to control which function will be
   // compiled with Turbofan and which one with Liftoff.
   uint8_t tier_mask = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
+  uint8_t debug_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, &buffer, &num_args,
                       &interpreter_args, &compiler_args)) {
@@ -362,6 +379,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     FlagScope<bool> liftoff(&FLAG_liftoff, true);
     FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
+    FlagScope<int> debug_mask_scope(&FLAG_wasm_debug_mask_for_testing,
+                                    debug_mask);
     compiled_module = i_isolate->wasm_engine()->SyncCompile(
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }

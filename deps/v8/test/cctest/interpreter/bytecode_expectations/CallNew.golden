@@ -14,10 +14,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   50 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
   /*   57 E> */ B(Construct), R(0), R(0), U8(0), U8(2),
   /*   67 S> */ B(Return),
 ]
@@ -35,12 +35,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 15
 bytecodes: [
   /*   63 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(3),
-                B(Star), R(1),
+                B(Star1),
                 B(Ldar), R(0),
   /*   70 E> */ B(Construct), R(0), R(1), U8(1), U8(2),
   /*   81 S> */ B(Return),
@@ -64,16 +64,16 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 21
 bytecodes: [
   /*  105 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(3),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaSmi), I8(4),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaSmi), I8(5),
-                B(Star), R(3),
+                B(Star3),
                 B(Ldar), R(0),
   /*  112 E> */ B(Construct), R(0), R(1), U8(3), U8(2),
   /*  129 S> */ B(Return),

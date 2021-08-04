@@ -16,7 +16,7 @@ const testContents = [
   '\n',
   'line 1',
   'line 1\nline 2 南越国是前203年至前111年存在于岭南地区的一个国家\nline 3\ntrailing',
-  'line 1\nline 2\nline 3 ends with newline\n'
+  'line 1\nline 2\nline 3 ends with newline\n',
 ];
 
 async function testSimple() {
@@ -39,7 +39,7 @@ async function testSimple() {
       expectedLines.pop();
     }
     assert.deepStrictEqual(iteratedLines, expectedLines);
-    assert.strictEqual(iteratedLines.join(''), fileContent.replace(/\n/gm, ''));
+    assert.strictEqual(iteratedLines.join(''), fileContent.replace(/\n/g, ''));
   }
 }
 

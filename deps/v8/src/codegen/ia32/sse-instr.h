@@ -19,6 +19,7 @@
   V(paddusb, 66, 0F, DC)         \
   V(paddusw, 66, 0F, DD)         \
   V(pand, 66, 0F, DB)            \
+  V(pandn, 66, 0F, DF)           \
   V(pcmpeqb, 66, 0F, 74)         \
   V(pcmpeqw, 66, 0F, 75)         \
   V(pcmpeqd, 66, 0F, 76)         \
@@ -39,6 +40,8 @@
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \
   V(pavgw, 66, 0F, E3)           \
+  V(pmulhuw, 66, 0F, E4)         \
+  V(pmulhw, 66, 0F, E5)          \
   V(psrlw, 66, 0F, D1)           \
   V(psrld, 66, 0F, D2)           \
   V(psrlq, 66, 0F, D3)           \
@@ -61,12 +64,14 @@
   V(pxor, 66, 0F, EF)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
-  V(phaddd, 66, 0F, 38, 02)       \
-  V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
+  V(phaddw, 66, 0F, 38, 01)       \
+  V(phaddd, 66, 0F, 38, 02)       \
+  V(pmaddubsw, 66, 0F, 38, 04)    \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
-  V(psignd, 66, 0F, 38, 0A)
+  V(psignd, 66, 0F, 38, 0A)       \
+  V(pmulhrsw, 66, 0F, 38, 0B)
 
 // SSSE3 instructions whose AVX version has two operands.
 #define SSSE3_UNOP_INSTRUCTION_LIST(V) \
@@ -75,6 +80,8 @@
   V(pabsd, 66, 0F, 38, 1E)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(pmuldq, 66, 0F, 38, 28)      \
+  V(pcmpeqq, 66, 0F, 38, 29)     \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \

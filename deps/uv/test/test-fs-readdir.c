@@ -230,6 +230,9 @@ static void file_opendir_cb(uv_fs_t* req) {
 }
 
 TEST_IMPL(fs_readdir_file) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char* path;
   int r;
 

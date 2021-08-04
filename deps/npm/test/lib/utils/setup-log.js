@@ -1,14 +1,12 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const settings = {
   level: 'warn',
 }
-t.afterEach(cb => {
+t.afterEach(() => {
   Object.keys(settings).forEach(k => {
     delete settings[k]
   })
-  cb()
 })
 
 const WARN_CALLED = []
@@ -61,7 +59,7 @@ const npmlog = {
 }
 
 const EXPLAIN_CALLED = []
-const setupLog = requireInject('../../../lib/utils/setup-log.js', {
+const setupLog = t.mock('../../../lib/utils/setup-log.js', {
   '../../../lib/utils/explain-eresolve.js': {
     explain: (...args) => {
       EXPLAIN_CALLED.push(args)
@@ -86,15 +84,15 @@ t.test('setup with color=always and unicode', t => {
   t.strictSame(WARN_CALLED, [['ERESOLVE', 'hello', { some: 'object' }]])
   WARN_CALLED.length = 0
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: 'always',
     unicode: true,
     progress: false,
-  })), true)
+  }))
 
   npmlog.warn('ERESOLVE', 'hello', { some: { other: 'object' } })
-  t.strictSame(EXPLAIN_CALLED, [[{ some: { other: 'object' } }]],
+  t.strictSame(EXPLAIN_CALLED, [[{ some: { other: 'object' } }, true, 2]],
     'log.warn(ERESOLVE) patched to call explainEresolve()')
   t.strictSame(WARN_CALLED, [
     ['ERESOLVE', 'hello'],
@@ -127,12 +125,12 @@ t.test('setup with color=true, no unicode, and non-TTY terminal', t => {
   process.stderr.isTTY = false
   process.stdout.isTTY = false
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: false,
     progress: false,
     heading: 'asdf',
-  })), false)
+  }))
 
   t.strictSame(settings, {
     level: 'warn',
@@ -158,12 +156,12 @@ t.test('setup with color=true, no unicode, and dumb TTY terminal', t => {
   process.stdout.isTTY = true
   process.env.TERM = 'dumb'
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: true,
     progress: false,
     heading: 'asdf',
-  })), true)
+  }))
 
   t.strictSame(settings, {
     level: 'warn',
@@ -189,12 +187,12 @@ t.test('setup with color=true, no unicode, and non-dumb TTY terminal', t => {
   process.stdout.isTTY = true
   process.env.TERM = 'totes not dum'
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: true,
     progress: true,
     heading: 'asdf',
-  })), true)
+  }))
 
   t.strictSame(settings, {
     level: 'warn',
@@ -220,12 +218,12 @@ t.test('setup with non-TTY stdout, TTY stderr', t => {
   process.stdout.isTTY = false
   process.env.TERM = 'definitely not a dummy'
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: true,
     progress: true,
     heading: 'asdf',
-  })), false)
+  }))
 
   t.strictSame(settings, {
     level: 'warn',
@@ -250,12 +248,12 @@ t.test('setup with TTY stdout, non-TTY stderr', t => {
   process.stderr.isTTY = false
   process.stdout.isTTY = true
 
-  t.equal(setupLog(config({
+  setupLog(config({
     loglevel: 'warn',
     color: true,
     progress: true,
     heading: 'asdf',
-  })), true)
+  }))
 
   t.strictSame(settings, {
     level: 'warn',

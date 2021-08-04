@@ -34,11 +34,13 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
         simplified_(simplified) {
   }
 
+  JSGraph(const JSGraph&) = delete;
+  JSGraph& operator=(const JSGraph&) = delete;
+
   // CEntryStubs are cached depending on the result size and other flags.
-  Node* CEntryStubConstant(int result_size,
-                           SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                           ArgvMode argv_mode = kArgvOnStack,
-                           bool builtin_exit_frame = false);
+  Node* CEntryStubConstant(
+      int result_size, SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore,
+      ArgvMode argv_mode = ArgvMode::kStack, bool builtin_exit_frame = false);
 
   // Used for padding frames. (alias: the hole)
   Node* PaddingConstant() { return TheHoleConstant(); }
@@ -132,8 +134,6 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   // Internal helper to canonicalize a number constant.
   Node* NumberConstant(double value);
-
-  DISALLOW_COPY_AND_ASSIGN(JSGraph);
 };
 
 }  // namespace compiler

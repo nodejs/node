@@ -13,7 +13,12 @@ SSL_quic_read_level,
 SSL_quic_write_level,
 SSL_provide_quic_data,
 SSL_process_quic_post_handshake,
-SSL_is_quic
+SSL_is_quic,
+SSL_get_peer_quic_transport_version,
+SSL_get_quic_transport_version,
+SSL_set_quic_transport_version,
+SSL_set_quic_use_legacy_codepoint,
+SSL_set_quic_early_data_enabled
 - QUIC support
 
 =head1 SYNOPSIS
@@ -38,6 +43,12 @@ SSL_is_quic
                            const uint8_t *data, size_t len);
  int SSL_process_quic_post_handshake(SSL *ssl);
  int SSL_is_quic(SSL *ssl);
+
+ void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy);
+ void SSL_set_quic_transport_version(SSL *ssl, int version);
+ int SSL_get_quic_transport_version(const SSL *ssl);
+ int SSL_get_peer_quic_transport_version(const SSL *ssl);
+ void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
 
 =head1 DESCRIPTION
 
@@ -82,6 +93,26 @@ sent by the server.
 
 SSL_is_quic() indicates whether a connection uses QUIC.  A given B<SSL>
 or B<SSL_CTX> can only be used with QUIC or TLS, but not both.
+
+SSL_set_quic_use_legacy_codepoint() specifies the legacy extension codepoint
+in manner compatible with some versions of BoringSSL.
+
+SSL_set_quic_transport_version() specifies the quic transport version that
+allows for backwards and forwards compatibility. If set to 0 (default) the
+server will use the highest version the client sent. If set to 0 (default)
+the client will send both extensions.
+
+SSL_get_quic_transport_version() returns the value set by
+SSL_set_quic_transport_version().
+
+SSL_get_peer_quic_transport_version() returns the version the that was 
+negotiated.
+
+SSL_set_quic_early_data_enabled() enables QUIC early data if a nonzero
+value is passed.  Clients must set a resumed session before calling this
+function.  Servers must additionally call SSL_CTX_set_max_early_data() or
+SSL_set_max_early_data() with 0xffffffffu as the argument, so that any
+issued session tickets indicate that server is able to accept early data.
 
 =head1 NOTES
 

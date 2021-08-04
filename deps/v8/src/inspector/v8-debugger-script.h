@@ -52,6 +52,8 @@ class V8DebuggerScript {
       bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client);
 
   virtual ~V8DebuggerScript();
+  V8DebuggerScript(const V8DebuggerScript&) = delete;
+  V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
 
   const String16& scriptId() const { return m_id; }
   bool hasSourceURLComment() const { return m_hasSourceURLComment; }
@@ -60,11 +62,7 @@ class V8DebuggerScript {
 
   virtual const String16& sourceMappingURL() const = 0;
   virtual String16 source(size_t pos, size_t len = UINT_MAX) const = 0;
-  virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;
   virtual Language getLanguage() const = 0;
-  virtual v8::Maybe<String16> getExternalDebugSymbolsURL() const = 0;
-  virtual v8::Maybe<v8::debug::WasmScript::DebugSymbolsType>
-  getDebugSymbolsType() const = 0;
   virtual const String16& hash() const = 0;
   virtual int startLine() const = 0;
   virtual int startColumn() const = 0;
@@ -94,9 +92,16 @@ class V8DebuggerScript {
 
   virtual bool setBreakpoint(const String16& condition,
                              v8::debug::Location* location, int* id) const = 0;
-  void removeWasmBreakpoint(int id);
   virtual void MakeWeak() = 0;
   virtual bool setBreakpointOnRun(int* id) const = 0;
+
+#if V8_ENABLE_WEBASSEMBLY
+  virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;
+  virtual v8::Maybe<v8::debug::WasmScript::DebugSymbolsType>
+  getDebugSymbolsType() const = 0;
+  virtual v8::Maybe<String16> getExternalDebugSymbolsURL() const = 0;
+  void removeWasmBreakpoint(int id);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  protected:
   V8DebuggerScript(v8::Isolate*, String16 id, String16 url,
@@ -111,9 +116,6 @@ class V8DebuggerScript {
 
   v8::Isolate* m_isolate;
   String16 m_embedderName;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };
 
 }  // namespace v8_inspector

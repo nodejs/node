@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash"),
+const equal = require("fast-deep-equal"),
     recConfig = require("../../conf/eslint-recommended"),
     ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
     { Linter } = require("../linter"),
@@ -85,7 +85,7 @@ class Registry {
      * @returns {void}
      */
     populateFromCoreRules() {
-        const rulesConfig = configRule.createCoreRuleConfigs();
+        const rulesConfig = configRule.createCoreRuleConfigs(/* noDeprecated = */ true);
 
         this.rules = makeRegistryItems(rulesConfig);
     }
@@ -329,7 +329,7 @@ function extendFromRecommended(config) {
     const recRules = Object.keys(recConfig.rules).filter(ruleId => ConfigOps.isErrorSeverity(recConfig.rules[ruleId]));
 
     recRules.forEach(ruleId => {
-        if (lodash.isEqual(recConfig.rules[ruleId], newConfig.rules[ruleId])) {
+        if (equal(recConfig.rules[ruleId], newConfig.rules[ruleId])) {
             delete newConfig.rules[ruleId];
         }
     });

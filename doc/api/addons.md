@@ -7,15 +7,16 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 [`require()`][require] function can load addons as ordinary Node.js modules.
 Addons provide an interface between JavaScript and C/C++ libraries.
 
-There are three options for implementing addons: N-API, nan, or direct
+There are three options for implementing addons: Node-API, nan, or direct
 use of internal V8, libuv and Node.js libraries. Unless there is a need for
-direct access to functionality which is not exposed by N-API, use N-API.
-Refer to [C/C++ addons with N-API](n-api.md) for more information on N-API.
+direct access to functionality which is not exposed by Node-API, use Node-API.
+Refer to [C/C++ addons with Node-API](n-api.md) for more information on
+Node-API.
 
-When not using N-API, implementing addons is complicated,
+When not using Node-API, implementing addons is complicated,
 involving knowledge of several components and APIs:
 
-* V8: the C++ library Node.js uses to provide the
+* [V8][]: the C++ library Node.js uses to provide the
   JavaScript implementation. V8 provides the mechanisms for creating objects,
   calling functions, etc. V8's API is documented mostly in the
   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
@@ -245,7 +246,7 @@ changes:
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
 
-* Be an N-API addon, or
+* Be an Node-API addon, or
 * Be declared as context-aware using `NODE_MODULE_INIT()` as described above
 
 In order to support [`Worker`][] threads, addons need to clean up any resources
@@ -437,11 +438,11 @@ addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
-## N-API
+## Node-API
 
 > Stability: 2 - Stable
 
-N-API is an API for building native addons. It is independent from
+Node-API is an API for building native addons. It is independent from
 the underlying JavaScript runtime (e.g. V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate addons from
@@ -451,17 +452,17 @@ recompilation. Addons are built/packaged with the same approach/tools
 outlined in this document (node-gyp, etc.). The only difference is the
 set of APIs that are used by the native code. Instead of using the V8
 or [Native Abstractions for Node.js][] APIs, the functions available
-in the N-API are used.
+in the Node-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
-provided by N-API carries with it certain
+provided by Node-API carries with it certain
 [implementation considerations](n-api.md#n_api_implications_of_abi_stability).
 
-To use N-API in the above "Hello world" example, replace the content of
+To use Node-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
 
 ```cpp
-// hello.cc using N-API
+// hello.cc using Node-API
 #include <node_api.h>
 
 namespace demo {
@@ -493,7 +494,7 @@ NAPI_MODULE(NODE_GYP_MODULE_NAME, init)
 ```
 
 The functions available and how to use them are documented in
-[C/C++ addons with N-API](n-api.md).
+[C/C++ addons with Node-API](n-api.md).
 
 ## Addon examples
 
@@ -1363,10 +1364,11 @@ console.log(result);
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[V8]: https://v8.dev/
 [`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[examples]: https://github.com/nodejs/nan/tree/master/examples/
+[examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp

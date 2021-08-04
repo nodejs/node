@@ -14,8 +14,9 @@ const {
 } = require('@npmcli/node-gyp')
 
 const boolEnv = b => b ? '1' : ''
-const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path)
+const sortNodes = (a, b) => (a.depth - b.depth) || a.path.localeCompare(b.path, 'en')
 
+const _workspaces = Symbol.for('workspaces')
 const _build = Symbol('build')
 const _resetQueues = Symbol('resetQueues')
 const _rebuildBundle = Symbol('rebuildBundle')
@@ -70,8 +71,14 @@ module.exports = cls => class Builder extends cls {
 
     // if we don't have a set of nodes, then just rebuild
     // the actual tree on disk.
-    if (!nodes)
-      nodes = (await this.loadActual()).inventory.values()
+    if (!nodes) {
+      const tree = await this.loadActual()
+      if (this[_workspaces] && this[_workspaces].length) {
+        const filterSet = this.workspaceDependencySet(tree, this[_workspaces])
+        nodes = tree.inventory.filter(node => filterSet.has(node))
+      } else
+        nodes = tree.inventory.values()
+    }
 
     // separates links nodes so that it can run
     // prepare scripts and link bins in the expected order
@@ -115,10 +122,6 @@ module.exports = cls => class Builder extends cls {
       await this[_runScripts]('preinstall')
     if (this[_binLinks] && type !== 'links')
       await this[_linkAllBins]()
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('install')
-      await this[_runScripts]('postinstall')
-    }
 
     // links should also run prepare scripts and only link bins after that
     if (type === 'links') {
@@ -126,6 +129,11 @@ module.exports = cls => class Builder extends cls {
 
       if (this[_binLinks])
         await this[_linkAllBins]()
+    }
+
+    if (!this[_ignoreScripts]) {
+      await this[_runScripts]('install')
+      await this[_runScripts]('postinstall')
     }
 
     process.emit('timeEnd', `build:${type}`)
@@ -161,7 +169,7 @@ module.exports = cls => class Builder extends cls {
     const queue = [...set].sort(sortNodes)
 
     for (const node of queue) {
-      const { package: { bin, scripts = {} } } = node
+      const { package: { bin, scripts = {} } } = node.target
       const { preinstall, install, postinstall, prepare } = scripts
       const tests = { bin, preinstall, install, postinstall, prepare }
       for (const [key, has] of Object.entries(tests)) {
@@ -194,7 +202,7 @@ module.exports = cls => class Builder extends cls {
         !(meta.originalLockfileVersion >= 2)
     }
 
-    const { package: pkg, hasInstallScript } = node
+    const { package: pkg, hasInstallScript } = node.target
     const { gypfile, bin, scripts = {} } = pkg
 
     const { preinstall, install, postinstall, prepare } = scripts
@@ -255,7 +263,7 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
-      } = node.target || node
+      } = node.target
 
       // skip any that we know we'll be deleting
       if (this[_trashList].has(path))

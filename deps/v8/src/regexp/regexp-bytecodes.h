@@ -231,7 +231,7 @@ static constexpr int kRegExpBytecodeLengths[] = {
 };
 
 inline constexpr int RegExpBytecodeLength(int bytecode) {
-  CONSTEXPR_DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
+  DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
   return kRegExpBytecodeLengths[bytecode];
 }
 
@@ -242,7 +242,7 @@ static constexpr const char* const kRegExpBytecodeNames[] = {
 };
 
 inline constexpr const char* RegExpBytecodeName(int bytecode) {
-  CONSTEXPR_DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
+  DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
   return kRegExpBytecodeNames[bytecode];
 }
 

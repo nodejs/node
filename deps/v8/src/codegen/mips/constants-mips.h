@@ -203,6 +203,26 @@ const uint32_t kFCSRFlagMask =
 
 const uint32_t kFCSRExceptionFlagMask = kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
+const uint32_t kFCSRInexactCauseBit = 12;
+const uint32_t kFCSRUnderflowCauseBit = 13;
+const uint32_t kFCSROverflowCauseBit = 14;
+const uint32_t kFCSRDivideByZeroCauseBit = 15;
+const uint32_t kFCSRInvalidOpCauseBit = 16;
+const uint32_t kFCSRUnimplementedOpCauseBit = 17;
+
+const uint32_t kFCSRInexactCauseMask = 1 << kFCSRInexactCauseBit;
+const uint32_t kFCSRUnderflowCauseMask = 1 << kFCSRUnderflowCauseBit;
+const uint32_t kFCSROverflowCauseMask = 1 << kFCSROverflowCauseBit;
+const uint32_t kFCSRDivideByZeroCauseMask = 1 << kFCSRDivideByZeroCauseBit;
+const uint32_t kFCSRInvalidOpCauseMask = 1 << kFCSRInvalidOpCauseBit;
+const uint32_t kFCSRUnimplementedOpCauseMask = 1
+                                               << kFCSRUnimplementedOpCauseBit;
+
+const uint32_t kFCSRCauseMask =
+    kFCSRInexactCauseMask | kFCSRUnderflowCauseMask | kFCSROverflowCauseMask |
+    kFCSRDivideByZeroCauseMask | kFCSRInvalidOpCauseMask |
+    kFCSRUnimplementedOpCauseBit;
+
 // 'pref' instruction hints
 const int32_t kPrefHintLoad = 0;
 const int32_t kPrefHintStore = 1;

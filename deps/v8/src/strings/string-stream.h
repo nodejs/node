@@ -47,6 +47,8 @@ class FixedStringAllocator final : public StringAllocator {
   FixedStringAllocator(char* buffer, unsigned length)
       : buffer_(buffer), length_(length) {}
   ~FixedStringAllocator() override = default;
+  FixedStringAllocator(const FixedStringAllocator&) = delete;
+  FixedStringAllocator& operator=(const FixedStringAllocator&) = delete;
 
   char* allocate(unsigned bytes) override;
   char* grow(unsigned* bytes) override;
@@ -54,7 +56,6 @@ class FixedStringAllocator final : public StringAllocator {
  private:
   char* buffer_;
   unsigned length_;
-  DISALLOW_COPY_AND_ASSIGN(FixedStringAllocator);
 };
 
 template <std::size_t kInlineSize>

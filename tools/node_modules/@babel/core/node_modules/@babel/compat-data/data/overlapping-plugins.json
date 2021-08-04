@@ -1,0 +1,21 @@
+{
+  "transform-async-to-generator": [
+    "bugfix/transform-async-arrows-in-class"
+  ],
+  "transform-parameters": [
+    "bugfix/transform-edge-default-parameters"
+  ],
+  "transform-function-name": [
+    "bugfix/transform-edge-function-name"
+  ],
+  "transform-block-scoping": [
+    "bugfix/transform-safari-block-shadowing",
+    "bugfix/transform-safari-for-shadowing"
+  ],
+  "transform-template-literals": [
+    "bugfix/transform-tagged-template-caching"
+  ],
+  "proposal-optional-chaining": [
+    "bugfix/transform-v8-spread-parameters-in-optional-chaining"
+  ]
+}

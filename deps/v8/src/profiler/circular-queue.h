@@ -23,6 +23,8 @@ class SamplingCircularQueue {
   // Executed on the application thread.
   SamplingCircularQueue();
   ~SamplingCircularQueue();
+  SamplingCircularQueue(const SamplingCircularQueue&) = delete;
+  SamplingCircularQueue& operator=(const SamplingCircularQueue&) = delete;
 
   // StartEnqueue returns a pointer to a memory location for storing the next
   // record or nullptr if all entries are full at the moment.
@@ -57,8 +59,6 @@ class SamplingCircularQueue {
   Entry buffer_[Length];
   alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
   alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
-
-  DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
 };
 
 

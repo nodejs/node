@@ -17,23 +17,13 @@ let func = builder.addFunction('func', kSig_v_i)
                .exportAs('main');
 var o = builder.addGlobal(kWasmI32, func).exportAs('exported_global');
 builder.addGlobal(kWasmI32);  // global2
-let moduleBytes = JSON.stringify(builder.toArray());
+let moduleBytes = builder.toArray();
 
-function test(moduleBytes) {
-  let module = new WebAssembly.Module((new Uint8Array(moduleBytes)).buffer);
-  let imported_global_value = 123;
-  instance = new WebAssembly.Instance(
-      module, {module_name: {imported_global: imported_global_value}});
-}
-
-(async function() {
-  try {
+InspectorTest.runAsyncTestSuite([
+  async function test() {
     Protocol.Debugger.enable();
     Protocol.Runtime.evaluate({
-      expression: `
-      let instance;
-      ${test.toString()}
-      test(${moduleBytes});`
+      expression: `var instance = (${WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(moduleBytes)}, {module_name: {imported_global: 123}});`
     });
 
     InspectorTest.log('Waiting for wasm script to be parsed.');
@@ -72,11 +62,5 @@ function test(moduleBytes) {
         InspectorTest.log(`   ${prop.name}: {${values}}`);
       }
     }
-
-    InspectorTest.log('Finished.');
-  } catch (exc) {
-    InspectorTest.log(`Failed with exception: ${exc}.`);
-  } finally {
-    InspectorTest.completeTest();
   }
-})();
+]);

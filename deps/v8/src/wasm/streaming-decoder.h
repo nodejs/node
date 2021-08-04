@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_STREAMING_DECODER_H_
 #define V8_WASM_STREAMING_DECODER_H_
 
@@ -39,6 +43,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // finished successfully and the decoding should continue.
   virtual bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                         std::shared_ptr<WireBytesStorage>,
+                                        int code_section_start,
                                         int code_section_length) = 0;
 
   // Process a function body. Returns true if the processing finished

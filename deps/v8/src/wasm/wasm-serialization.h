@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_SERIALIZATION_H_
 #define V8_WASM_WASM_SERIALIZATION_H_
 
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -42,6 +47,8 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 
  private:
   NativeModule* native_module_;
+  // The {WasmCodeRefScope} keeps the pointers in {code_table_} alive.
+  WasmCodeRefScope code_ref_scope_;
   std::vector<WasmCode*> code_table_;
 };
 

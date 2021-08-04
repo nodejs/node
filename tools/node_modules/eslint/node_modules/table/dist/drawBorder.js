@@ -1,110 +1,100 @@
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.drawBorderTop = exports.drawBorderJoin = exports.drawBorderBottom = exports.drawBorder = void 0;
-
-/**
- * @typedef drawBorder~parts
- * @property {string} left
- * @property {string} right
- * @property {string} body
- * @property {string} join
- */
-
-/**
- * @param {number[]} columnSizeIndex
- * @param {drawBorder~parts} parts
- * @returns {string}
- */
-const drawBorder = (columnSizeIndex, parts) => {
-  const columns = columnSizeIndex.map(size => {
-    return parts.body.repeat(size);
-  }).join(parts.join);
-  return parts.left + columns + parts.right + '\n';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.drawBorderTop = exports.drawBorderJoin = exports.drawBorderBottom = exports.drawBorder = exports.createTableBorderGetter = void 0;
+const drawContent_1 = require("./drawContent");
+const drawBorder = (columnWidths, config) => {
+    const { separator, drawVerticalLine } = config;
+    const columns = columnWidths.map((size) => {
+        return config.separator.body.repeat(size);
+    });
+    return drawContent_1.drawContent(columns, {
+        drawSeparator: drawVerticalLine,
+        separatorGetter: (index, columnCount) => {
+            if (index === 0) {
+                return separator.left;
+            }
+            if (index === columnCount) {
+                return separator.right;
+            }
+            return separator.join;
+        },
+    }) + '\n';
 };
-/**
- * @typedef drawBorderTop~parts
- * @property {string} topLeft
- * @property {string} topRight
- * @property {string} topBody
- * @property {string} topJoin
- */
-
-/**
- * @param {number[]} columnSizeIndex
- * @param {drawBorderTop~parts} parts
- * @returns {string}
- */
-
-
 exports.drawBorder = drawBorder;
-
-const drawBorderTop = (columnSizeIndex, parts) => {
-  const border = drawBorder(columnSizeIndex, {
-    body: parts.topBody,
-    join: parts.topJoin,
-    left: parts.topLeft,
-    right: parts.topRight
-  });
-
-  if (border === '\n') {
-    return '';
-  }
-
-  return border;
+const drawBorderTop = (columnWidths, config) => {
+    const result = drawBorder(columnWidths, {
+        ...config,
+        separator: {
+            body: config.border.topBody,
+            join: config.border.topJoin,
+            left: config.border.topLeft,
+            right: config.border.topRight,
+        },
+    });
+    if (result === '\n') {
+        return '';
+    }
+    return result;
 };
-/**
- * @typedef drawBorderJoin~parts
- * @property {string} joinLeft
- * @property {string} joinRight
- * @property {string} joinBody
- * @property {string} joinJoin
- */
-
-/**
- * @param {number[]} columnSizeIndex
- * @param {drawBorderJoin~parts} parts
- * @returns {string}
- */
-
-
 exports.drawBorderTop = drawBorderTop;
-
-const drawBorderJoin = (columnSizeIndex, parts) => {
-  return drawBorder(columnSizeIndex, {
-    body: parts.joinBody,
-    join: parts.joinJoin,
-    left: parts.joinLeft,
-    right: parts.joinRight
-  });
+const drawBorderJoin = (columnWidths, config) => {
+    return drawBorder(columnWidths, {
+        ...config,
+        separator: {
+            body: config.border.joinBody,
+            join: config.border.joinJoin,
+            left: config.border.joinLeft,
+            right: config.border.joinRight,
+        },
+    });
 };
-/**
- * @typedef drawBorderBottom~parts
- * @property {string} topLeft
- * @property {string} topRight
- * @property {string} topBody
- * @property {string} topJoin
- */
-
-/**
- * @param {number[]} columnSizeIndex
- * @param {drawBorderBottom~parts} parts
- * @returns {string}
- */
-
-
 exports.drawBorderJoin = drawBorderJoin;
-
-const drawBorderBottom = (columnSizeIndex, parts) => {
-  return drawBorder(columnSizeIndex, {
-    body: parts.bottomBody,
-    join: parts.bottomJoin,
-    left: parts.bottomLeft,
-    right: parts.bottomRight
-  });
+const drawBorderBottom = (columnWidths, config) => {
+    return drawBorder(columnWidths, {
+        ...config,
+        separator: {
+            body: config.border.bottomBody,
+            join: config.border.bottomJoin,
+            left: config.border.bottomLeft,
+            right: config.border.bottomRight,
+        },
+    });
 };
-
 exports.drawBorderBottom = drawBorderBottom;
-//# sourceMappingURL=drawBorder.js.map
+const createTableBorderGetter = (columnWidths, config) => {
+    return (index, size) => {
+        if (!config.header) {
+            if (index === 0) {
+                return drawBorderTop(columnWidths, config);
+            }
+            if (index === size) {
+                return drawBorderBottom(columnWidths, config);
+            }
+            return drawBorderJoin(columnWidths, config);
+        }
+        // Deal with the header
+        if (index === 0) {
+            return drawBorderTop(columnWidths, {
+                ...config,
+                border: {
+                    ...config.border,
+                    topJoin: config.border.topBody,
+                },
+            });
+        }
+        if (index === 1) {
+            return drawBorderJoin(columnWidths, {
+                ...config,
+                border: {
+                    ...config.border,
+                    joinJoin: config.border.headerJoin,
+                },
+            });
+        }
+        if (index === size) {
+            return drawBorderBottom(columnWidths, config);
+        }
+        return drawBorderJoin(columnWidths, config);
+    };
+};
+exports.createTableBorderGetter = createTableBorderGetter;

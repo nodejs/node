@@ -47,7 +47,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSelector selector(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
-      InstructionSelector::kEnableSwitchJumpTable, &tick_counter,
+      InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing,
@@ -90,7 +90,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
         auto imm = ImmediateOperand::cast(input);
-        if (imm->type() == ImmediateOperand::INDEXED) {
+        if (imm->type() == ImmediateOperand::INDEXED_IMM) {
           int index = imm->indexed_value();
           s.immediates_.insert(
               std::make_pair(index, sequence.GetImmediate(imm)));
@@ -138,6 +138,14 @@ bool InstructionSelectorTest::Stream::IsSameAsFirst(
   return unallocated->HasSameAsInputPolicy();
 }
 
+bool InstructionSelectorTest::Stream::IsSameAsInput(
+    const InstructionOperand* operand, int input_index) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->HasSameAsInputPolicy() &&
+         unallocated->input_index() == input_index;
+}
+
 bool InstructionSelectorTest::Stream::IsUsedAtStart(
     const InstructionOperand* operand) const {
   if (!operand->IsUnallocated()) return false;
@@ -149,7 +157,7 @@ const FrameStateFunctionInfo*
 InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
-      FrameStateType::kInterpretedFunction, parameter_count, local_count,
+      FrameStateType::kUnoptimizedFunction, parameter_count, local_count,
       Handle<SharedFunctionInfo>());
 }
 
@@ -333,7 +341,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id(42);
+  BytecodeOffset bailout_id(42);
 
   Node* function_node = m.Parameter(0);
   Node* receiver = m.Parameter(1);
@@ -361,7 +369,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.common()->FrameState(bailout_id, OutputFrameStateCombine::PokeAt(0),
                              m.GetFrameStateFunctionInfo(1, 0)),
       parameters, locals, stack, context_sentinel, function_node,
-      m.UndefinedConstant());
+      m.graph()->start());
 
   // Build the call.
   Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
@@ -389,7 +397,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id_before(42);
+  BytecodeOffset bailout_id_before(42);
 
   // Some arguments for the call node.
   Node* function_node = m.Parameter(0);
@@ -421,7 +429,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
                                        OutputFrameStateCombine::PokeAt(0),
                                        m.GetFrameStateFunctionInfo(1, 1)),
                 parameters, locals, stack, context_sentinel, function_node,
-                m.UndefinedConstant());
+                m.graph()->start());
 
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
@@ -481,8 +489,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id_before(42);
-  BailoutId bailout_id_parent(62);
+  BytecodeOffset bailout_id_before(42);
+  BytecodeOffset bailout_id_parent(62);
 
   // Some arguments for the call node.
   Node* function_node = m.Parameter(0);
@@ -512,7 +520,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       m.common()->FrameState(bailout_id_parent,
                              OutputFrameStateCombine::Ignore(),
                              m.GetFrameStateFunctionInfo(1, 1)),
-      parameters, locals, stack, context, function_node, m.UndefinedConstant());
+      parameters, locals, stack, context, function_node, m.graph()->start());
 
   Node* parameters2 = m.AddNode(
       m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),

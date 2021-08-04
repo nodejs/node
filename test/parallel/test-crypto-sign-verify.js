@@ -63,7 +63,9 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: 'bye, bye, error stack' });
+  }, { message: common.hasOpenSSL3 ?
+    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
+    'bye, bye, error stack' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -170,14 +172,14 @@ assert.throws(
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
 
     const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
@@ -339,7 +341,10 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, {
+  }, common.hasOpenSSL3 ? {
+    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /illegal or unsupported padding mode/,
+  } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
     opensslErrorStack: [
@@ -383,7 +388,7 @@ assert.throws(
   });
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     // These should all just work
     sign.update(new clazz());
@@ -422,7 +427,7 @@ assert.throws(
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     algo: 'sha1',
-    sigLen: 256 }
+    sigLen: 256 },
 ].forEach((pair) => {
   const algo = pair.algo;
 
@@ -458,7 +463,7 @@ assert.throws(
   }
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     const data = new clazz();
     const sig = crypto.sign(algo, data, pair.private);
@@ -496,7 +501,7 @@ assert.throws(
     [
       crypto.createSign('sha1').update(data).sign(privKey),
       crypto.sign('sha1', data, privKey),
-      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' })
+      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' }),
     ].forEach((sig) => {
       // Signature length variability due to DER encoding
       assert(sig.length >= length + 4 && sig.length <= length + 8);
@@ -521,11 +526,15 @@ assert.throws(
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
       sig = crypto.randomBytes(length + i);
-      assert.throws(() => {
-        crypto.verify('sha1', data, opts, sig);
-      }, {
-        message: 'Malformed signature'
-      });
+      let result;
+      try {
+        result = crypto.verify('sha1', data, opts, sig);
+      } catch (err) {
+        assert.match(err.message, /asn1 encoding/);
+        assert.strictEqual(err.library, 'asn1 encoding routines');
+        continue;
+      }
+      assert.strictEqual(result, false);
     }
   }
 

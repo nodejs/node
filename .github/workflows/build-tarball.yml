@@ -2,9 +2,11 @@ name: Build from tarball
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - master
+      - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
 
@@ -57,8 +59,8 @@ jobs:
           name: tarballs
       - name: Extract tarball
         run: |
-          tar xzf tarballs/*.tar.gz
-          echo "TAR_DIR=`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
+          tar xzf tarballs/*.tar.gz -C $RUNNER_TEMP
+          echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
       - name: Copy directories needed for testing
         run: |
           cp -r tools/node_modules $TAR_DIR/tools

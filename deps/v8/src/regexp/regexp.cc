@@ -6,6 +6,7 @@
 
 #include "src/codegen/compilation-cache.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/interrupts-scope.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/experimental/experimental.h"
@@ -17,6 +18,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/regexp/regexp-parser.h"
+#include "src/regexp/regexp-utils.h"
 #include "src/strings/string-search.h"
 #include "src/utils/ostreams.h"
 
@@ -75,7 +77,8 @@ class RegExpImpl final : public AllStatic {
   // Returns an empty handle in case of an exception.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
 
   static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                               Handle<String> sample_subject, bool is_one_byte);
@@ -88,7 +91,7 @@ class RegExpImpl final : public AllStatic {
   static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
                       JSRegExp::Flags flags, Handle<String> pattern,
                       Handle<String> sample_subject, bool is_one_byte,
-                      uint32_t backtrack_limit);
+                      uint32_t& backtrack_limit);
 
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray re);
@@ -119,10 +122,14 @@ void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                            error_text));
 }
 
+bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
+  return RegExpUtils::IsUnmodifiedRegExp(isolate, regexp);
+}
+
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 static bool HasFewDifferentCharacters(Handle<String> pattern) {
-  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
   bool character_found[kMod];
@@ -182,9 +189,22 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   bool has_been_compiled = false;
 
-  if (FLAG_enable_experimental_regexp_engine &&
+  if (FLAG_default_to_experimental_regexp_engine &&
       ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
                                        parse_result.capture_count)) {
+    DCHECK(FLAG_enable_experimental_regexp_engine);
+    ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
+                                   parse_result.capture_count);
+    has_been_compiled = true;
+  } else if (flags & JSRegExp::kLinear) {
+    DCHECK(FLAG_enable_experimental_regexp_engine);
+    if (!ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
+                                          parse_result.capture_count)) {
+      // TODO(mbid): The error could provide a reason for why the regexp can't
+      // be executed in linear time (e.g. due to back references).
+      return RegExp::ThrowRegExpException(isolate, re, pattern,
+                                          RegExpError::kNotLinear);
+    }
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;
@@ -248,9 +268,19 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate, Handle<JSRegExp> re,
 }
 
 // static
+MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
+    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+    int index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
+  return ExperimentalRegExp::OneshotExec(isolate, regexp, subject, index,
+                                         last_match_info, exec_quirks);
+}
+
+// static
 MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
-                                 Handle<RegExpMatchInfo> last_match_info) {
+                                 Handle<RegExpMatchInfo> last_match_info,
+                                 ExecQuirks exec_quirks) {
   switch (regexp->TypeTag()) {
     case JSRegExp::NOT_COMPILED:
       UNREACHABLE();
@@ -259,10 +289,10 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   last_match_info);
     case JSRegExp::IRREGEXP:
       return RegExpImpl::IrregexpExec(isolate, regexp, subject, index,
-                                      last_match_info);
+                                      last_match_info, exec_quirks);
     case JSRegExp::EXPERIMENTAL:
       return ExperimentalRegExp::Exec(isolate, regexp, subject, index,
-                                      last_match_info);
+                                      last_match_info, exec_quirks);
   }
 }
 
@@ -292,7 +322,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(index, subject->length());
 
   subject = String::Flatten(isolate, subject);
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
+  DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   String needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle.length();
@@ -450,9 +480,10 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   compile_data.compilation_target = re->ShouldProduceBytecode()
                                         ? RegExpCompilationTarget::kBytecode
                                         : RegExpCompilationTarget::kNative;
+  uint32_t backtrack_limit = re->BacktrackLimit();
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
-              is_one_byte, re->BacktrackLimit());
+              is_one_byte, backtrack_limit);
   if (!compilation_succeeded) {
     DCHECK(compile_data.error != RegExpError::kNone);
     RegExp::ThrowRegExpException(isolate, re, compile_data.error);
@@ -482,6 +513,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   if (compile_data.register_count > register_max) {
     SetIrregexpMaxRegisterCount(*data, compile_data.register_count);
   }
+  data->set(JSRegExp::kIrregexpBacktrackLimit, Smi::FromInt(backtrack_limit));
 
   if (FLAG_trace_regexp_tier_up) {
     PrintF("JSRegExp object %p %s size: %d\n",
@@ -595,6 +627,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
         case IrregexpInterpreter::SUCCESS:
         case IrregexpInterpreter::EXCEPTION:
         case IrregexpInterpreter::FAILURE:
+        case IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL:
           return result;
         case IrregexpInterpreter::RETRY:
           // The string has changed representation, and we must restart the
@@ -612,7 +645,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
 
 MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int previous_index, Handle<RegExpMatchInfo> last_match_info) {
+    int previous_index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
   subject = String::Flatten(isolate, subject);
@@ -662,16 +696,24 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
                                   output_registers, required_registers);
 
   if (res == RegExp::RE_SUCCESS) {
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      if (output_registers[0] >= subject->length()) {
+        return isolate->factory()->null_value();
+      }
+    }
     int capture_count = regexp->CaptureCount();
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
-  }
-  if (res == RegExp::RE_EXCEPTION) {
+  } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
+    return ExperimentalRegExp::OneshotExec(isolate, regexp, subject,
+                                           previous_index, last_match_info);
+  } else if (res == RegExp::RE_EXCEPTION) {
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
+  } else {
+    DCHECK(res == RegExp::RE_FAILURE);
+    return isolate->factory()->null_value();
   }
-  DCHECK(res == RegExp::RE_FAILURE);
-  return isolate->factory()->null_value();
 }
 
 // static
@@ -696,7 +738,7 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
 
   int capture_register_count =
       JSRegExp::RegistersForCaptureCount(capture_count);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (match != nullptr) {
     for (int i = 0; i < capture_register_count; i += 2) {
       result->SetCapture(i, match[i]);
@@ -740,15 +782,15 @@ bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
                                Handle<String> pattern,
                                Handle<String> sample_subject,
                                bool is_one_byte) {
+  uint32_t backtrack_limit = JSRegExp::kNoBacktrackLimit;
   return RegExpImpl::Compile(isolate, zone, data, flags, pattern,
-                             sample_subject, is_one_byte,
-                             JSRegExp::kNoBacktrackLimit);
+                             sample_subject, is_one_byte, backtrack_limit);
 }
 
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
                          JSRegExp::Flags flags, Handle<String> pattern,
                          Handle<String> sample_subject, bool is_one_byte,
-                         uint32_t backtrack_limit) {
+                         uint32_t& backtrack_limit) {
   if (JSRegExp::RegistersForCaptureCount(data->capture_count) >
       RegExpMacroAssembler::kMaxRegisterCount) {
     data->error = RegExpError::kTooLarge;
@@ -767,7 +809,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   sample_subject = String::Flatten(isolate, sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (int i = Max(0, half_way);
+  for (int i = std::max(0, half_way);
        i < sample_subject->length() && chars_sampled < kSampleSize;
        i++, chars_sampled++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
@@ -778,6 +820,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   if (data->error != RegExpError::kNone) {
     return false;
   }
+
+  if (FLAG_trace_regexp_graph) DotPrinter::DotPrint("Start", data->node);
 
   // Create the correct assembler for the architecture.
   std::unique_ptr<RegExpMacroAssembler> macro_assembler;
@@ -815,6 +859,9 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #elif V8_TARGET_ARCH_MIPS64
     macro_assembler.reset(new RegExpMacroAssemblerMIPS(isolate, zone, mode,
                                                        output_register_count));
+#elif V8_TARGET_ARCH_RISCV64
+    macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
+                                                        output_register_count));
 #else
 #error "Unsupported architecture"
 #endif
@@ -825,7 +872,21 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
-  macro_assembler->set_backtrack_limit(backtrack_limit);
+  if (FLAG_enable_experimental_regexp_engine_on_excessive_backtracks &&
+      ExperimentalRegExp::CanBeHandled(data->tree, flags,
+                                       data->capture_count)) {
+    if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
+      backtrack_limit = FLAG_regexp_backtracks_before_fallback;
+    } else {
+      backtrack_limit =
+          std::min(backtrack_limit, FLAG_regexp_backtracks_before_fallback);
+    }
+    macro_assembler->set_backtrack_limit(backtrack_limit);
+    macro_assembler->set_can_fallback(true);
+  } else {
+    macro_assembler->set_backtrack_limit(backtrack_limit);
+    macro_assembler->set_can_fallback(false);
+  }
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
@@ -929,8 +990,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
         register_array_size_ = registers_per_match_;
         max_matches_ = 1;
       } else {
-        register_array_size_ = Max(registers_per_match_,
-                                   Isolate::kJSRegexpStaticOffsetsVectorSize);
+        register_array_size_ = std::max(
+            {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       }
       break;
     }
@@ -943,8 +1004,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       }
       registers_per_match_ =
           JSRegExp::RegistersForCaptureCount(regexp->CaptureCount());
-      register_array_size_ =
-          Max(registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize);
+      register_array_size_ = std::max(
+          {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       break;
     }
   }
@@ -1012,10 +1073,10 @@ int32_t* RegExpGlobalCache::FetchNext() {
         break;
       case JSRegExp::EXPERIMENTAL: {
         DCHECK(ExperimentalRegExp::IsCompiled(regexp_, isolate_));
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         num_matches_ = ExperimentalRegExp::ExecRaw(
-            isolate_, *regexp_, *subject_, register_array_,
-            register_array_size_, last_end_index);
+            isolate_, RegExp::kFromRuntime, *regexp_, *subject_,
+            register_array_, register_array_size_, last_end_index);
         break;
       }
       case JSRegExp::IRREGEXP: {
@@ -1035,7 +1096,16 @@ int32_t* RegExpGlobalCache::FetchNext() {
       }
     }
 
-    if (num_matches_ <= 0) return nullptr;
+    // Fall back to experimental engine if needed and possible.
+    if (num_matches_ == RegExp::kInternalRegExpFallbackToExperimental) {
+      num_matches_ = ExperimentalRegExp::OneshotExecRaw(
+          isolate_, regexp_, subject_, register_array_, register_array_size_,
+          last_end_index);
+    }
+
+    if (num_matches_ <= 0) {
+      return nullptr;
+    }
     current_match_index_ = 0;
     return register_array_;
   } else {
@@ -1068,7 +1138,7 @@ Object RegExpResultsCache::Lookup(Heap* heap, String key_string,
     cache = heap->regexp_multiple_cache();
   }
 
-  uint32_t hash = key_string.Hash();
+  uint32_t hash = key_string.hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
   if (cache.get(index + kStringOffset) != key_string ||
@@ -1103,7 +1173,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     cache = factory->regexp_multiple_cache();
   }
 
-  uint32_t hash = key_string->Hash();
+  uint32_t hash = key_string->hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::zero()) {

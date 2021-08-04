@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_OBJECTS_INL_H_
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
@@ -28,15 +32,18 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
-OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)
+OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, WasmFunctionData)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
@@ -49,16 +56,18 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
+CAST_ACCESSOR(WasmFunctionData)
 CAST_ACCESSOR(WasmTypeInfo)
 CAST_ACCESSOR(WasmStruct)
 CAST_ACCESSOR(WasmArray)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
-  DEF_GETTER(holder, has_##name, bool) {                              \
-    Object value = TaggedField<Object, offset>::load(isolate, *this); \
-    return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
-  }                                                                   \
-  ACCESSORS(holder, name, type, offset)
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
+  DEF_GETTER(holder, has_##name, bool) {                                \
+    Object value = TaggedField<Object, offset>::load(cage_base, *this); \
+    return !value.IsUndefined(GetReadOnlyRoots(cage_base));             \
+  }                                                                     \
+  ACCESSORS_CHECKED2(holder, name, type, offset,                        \
+                     !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
   type holder::name() const {                                                 \
@@ -127,8 +136,7 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-// TODO(7748): This will not suffice to hold the 32-bit encoding of a ValueType.
-// We need to devise and encoding that does, and also encodes is_mutable.
+// TODO(7748): Try to come up with some encoding that includes is_mutable?
 SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
 SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 
@@ -164,8 +172,8 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for externref, funcref, and exnref.
-  DCHECK(type().is_reference_type());
+  // We use this getter for externref and funcref.
+  DCHECK(type().is_reference());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
@@ -186,9 +194,8 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
-  // We use this getter externref and exnref.
   DCHECK(type().is_reference_to(wasm::HeapType::kExtern) ||
-         type().is_reference_to(wasm::HeapType::kExn));
+         type().is_reference_to(wasm::HeapType::kAny));
   tagged_buffer().set(offset(), *value);
 }
 
@@ -237,6 +244,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, num_liftoff_function_calls_array,
                     uint32_t*, kNumLiftoffFunctionCallsArrayOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
+                    kBreakOnEntryOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
@@ -322,18 +331,22 @@ WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExportedFunction)
 
+// WasmFunctionData
+ACCESSORS(WasmFunctionData, ref, Object, kRefOffset)
+
 // WasmExportedFunctionData
 ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
           kInstanceOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
-              kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
-ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
-ACCESSORS(WasmExportedFunctionData, wasm_call_target, Object,
-          kWasmCallTargetOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
 ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, wrapper_budget, kWrapperBudgetOffset)
+ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
+
+wasm::FunctionSig* WasmExportedFunctionData::sig() const {
+  return reinterpret_cast<wasm::FunctionSig*>(signature().foreign_address());
+}
 
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
@@ -342,7 +355,7 @@ WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
 CAST_ACCESSOR(WasmJSFunction)
 
 // WasmJSFunctionData
-OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData, Struct)
+OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData, WasmFunctionData)
 CAST_ACCESSOR(WasmJSFunctionData)
 SMI_ACCESSORS(WasmJSFunctionData, serialized_return_count,
               kSerializedReturnCountOffset)
@@ -350,24 +363,15 @@ SMI_ACCESSORS(WasmJSFunctionData, serialized_parameter_count,
               kSerializedParameterCountOffset)
 ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
-ACCESSORS(WasmJSFunctionData, callable, JSReceiver, kCallableOffset)
 ACCESSORS(WasmJSFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+ACCESSORS(WasmJSFunctionData, wasm_to_js_wrapper_code, Code,
+          kWasmToJsWrapperCodeOffset)
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));
 }
 CAST_ACCESSOR(WasmCapiFunction)
-
-// WasmCapiFunctionData
-OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, Struct)
-CAST_ACCESSOR(WasmCapiFunctionData)
-PRIMITIVE_ACCESSORS(WasmCapiFunctionData, call_target, Address,
-                    kCallTargetOffset)
-ACCESSORS(WasmCapiFunctionData, embedder_data, Foreign, kEmbedderDataOffset)
-ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
-ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
 
 // WasmExternalFunction
 WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
@@ -393,8 +397,7 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  // TODO(7748): Support other table types? Wait for spec to clear up.
-  return wasm::ValueType::Ref(raw_type(), wasm::kNullable);
+  return wasm::ValueType::FromRawBitField(raw_type());
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
@@ -412,12 +415,26 @@ wasm::StructType* WasmStruct::type(Map map) {
 
 wasm::StructType* WasmStruct::GcSafeType(Map map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
-  HeapObject raw = HeapObject::cast(map.constructor_or_backpointer());
-  MapWord map_word = raw.map_word();
+  HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
+  MapWord map_word = raw.map_word(kRelaxedLoad);
   HeapObject forwarded =
       map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
   Foreign foreign = Foreign::cast(forwarded);
   return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+}
+
+int WasmStruct::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of filler objects), and its
+  // computation must not overflow.
+  STATIC_ASSERT(Smi::kMaxValue <= kMaxInt);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
+                  Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
+}
+
+int WasmStruct::GcSafeSize(Map map) {
+  wasm::StructType* type = GcSafeType(map);
+  return Size(type);
 }
 
 wasm::StructType* WasmStruct::type() const { return type(map()); }
@@ -435,8 +452,8 @@ wasm::ArrayType* WasmArray::type(Map map) {
 
 wasm::ArrayType* WasmArray::GcSafeType(Map map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
-  HeapObject raw = HeapObject::cast(map.constructor_or_backpointer());
-  MapWord map_word = raw.map_word();
+  HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
+  MapWord map_word = raw.map_word(kRelaxedLoad);
   HeapObject forwarded =
       map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
   Foreign foreign = Foreign::cast(forwarded);
@@ -450,7 +467,17 @@ int WasmArray::SizeFor(Map map, int length) {
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
 
+int WasmArray::GcSafeSizeFor(Map map, int length) {
+  int element_size = GcSafeType(map)->element_type().element_size_bytes();
+  return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
+}
+
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
+#ifdef V8_HEAP_SANDBOX
+  // Due to the type-specific pointer tags for external pointers, we need to
+  // allocate an entry in the table here even though it will just store nullptr.
+  AllocateExternalPointerEntries(isolate);
+#endif
   set_foreign_address(isolate, 0);
 }
 

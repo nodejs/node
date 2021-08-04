@@ -5,6 +5,7 @@
 #include "src/heap/marking-barrier.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -37,6 +38,7 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
 
 void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (MarkValue(host, value)) {
     if (is_compacting_ && slot.address()) {
       collector_->RecordSlot(host, slot, value);
@@ -45,6 +47,7 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (MarkValue(host, value)) {
     if (is_compacting_) {
       if (is_main_thread_barrier_) {
@@ -60,6 +63,7 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
 
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
+  DCHECK(IsCurrentMarkingBarrier());
   if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
     // The extension will be marked when the marker visits the host object.
     return;
@@ -69,6 +73,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
 
 void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
+  DCHECK(IsCurrentMarkingBarrier());
   DCHECK(is_main_thread_barrier_);
   int16_t raw_marked = descriptor_array.raw_number_of_marked_descriptors();
   if (NumberOfMarkedDescriptors::decode(collector_->epoch(), raw_marked) <
@@ -80,6 +85,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
 
 void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                      HeapObject target) {
+  DCHECK(IsCurrentMarkingBarrier());
   MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
   if (info.should_record) {
@@ -94,36 +100,27 @@ void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
 // static
 void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
   heap->marking_barrier()->Activate(is_compacting);
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps(
-        [is_compacting](LocalHeap* local_heap) {
-          local_heap->marking_barrier()->Activate(is_compacting);
-        });
-  }
+  heap->safepoint()->IterateLocalHeaps([is_compacting](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Activate(is_compacting);
+  });
 }
 
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
   heap->marking_barrier()->Deactivate();
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->marking_barrier()->Deactivate();
-    });
-  }
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Deactivate();
+  });
 }
 
 // static
 void MarkingBarrier::PublishAll(Heap* heap) {
   heap->marking_barrier()->Publish();
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->marking_barrier()->Publish();
-    });
-  }
+  heap->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->marking_barrier()->Publish(); });
 }
 
 void MarkingBarrier::Publish() {
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   if (is_activated_) {
     worklist_.Publish();
     for (auto& it : typed_slots_map_) {
@@ -153,7 +150,6 @@ void MarkingBarrier::DeactivateSpace(NewSpace* space) {
 void MarkingBarrier::Deactivate() {
   is_activated_ = false;
   is_compacting_ = false;
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   if (is_main_thread_barrier_) {
     DeactivateSpace(heap_->old_space());
     DeactivateSpace(heap_->map_space());
@@ -191,7 +187,6 @@ void MarkingBarrier::ActivateSpace(NewSpace* space) {
 void MarkingBarrier::Activate(bool is_compacting) {
   DCHECK(!is_activated_);
   DCHECK(worklist_.IsLocalEmpty());
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   is_compacting_ = is_compacting;
   is_activated_ = true;
   if (is_main_thread_barrier_) {
@@ -213,6 +208,10 @@ void MarkingBarrier::Activate(bool is_compacting) {
       p->SetOldGenerationPageFlags(true);
     }
   }
+}
+
+bool MarkingBarrier::IsCurrentMarkingBarrier() {
+  return WriteBarrier::CurrentMarkingBarrier(heap_) == this;
 }
 
 }  // namespace internal

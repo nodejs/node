@@ -142,7 +142,7 @@ common.skipIfDumbTerminal();
     'hop/zoo',
     '/zoo',
     'zoo',
-    ''
+    '',
   ].forEach(function(expectedLine) {
     rl.write.apply(rl, key.xterm.metad);
     assert.strictEqual(rl.cursor, 0);

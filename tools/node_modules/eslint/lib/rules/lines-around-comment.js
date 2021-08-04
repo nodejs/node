@@ -8,8 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash"),
-    astUtils = require("./utils/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -347,7 +346,7 @@ module.exports = {
             const nextTokenOrComment = sourceCode.getTokenAfter(token, { includeComments: true });
 
             // check for newline before
-            if (!exceptionStartAllowed && before && !lodash.includes(commentAndEmptyLines, prevLineNum) &&
+            if (!exceptionStartAllowed && before && !commentAndEmptyLines.includes(prevLineNum) &&
                     !(astUtils.isCommentToken(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, token))) {
                 const lineStart = token.range[0] - token.loc.start.column;
                 const range = [lineStart, lineStart];
@@ -362,7 +361,7 @@ module.exports = {
             }
 
             // check for newline after
-            if (!exceptionEndAllowed && after && !lodash.includes(commentAndEmptyLines, nextLineNum) &&
+            if (!exceptionEndAllowed && after && !commentAndEmptyLines.includes(nextLineNum) &&
                     !(astUtils.isCommentToken(nextTokenOrComment) && astUtils.isTokenOnSameLine(token, nextTokenOrComment))) {
                 context.report({
                     node: token,

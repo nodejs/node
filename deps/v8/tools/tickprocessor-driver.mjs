@@ -34,7 +34,7 @@ import {
 // Tick Processor's code flow.
 
 function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
+  const processor = new ArgumentsProcessor(args);
   if (processor.parse()) {
     return processor.result();
   } else {
@@ -48,31 +48,32 @@ function initSourceMapSupport() {
 
   // Overwrite the load function to load scripts synchronously.
   SourceMap.load = function(sourceMapURL) {
-    var content = readFile(sourceMapURL);
-    var sourceMapObject = (JSON.parse(content));
+    const content = readFile(sourceMapURL);
+    const sourceMapObject = (JSON.parse(content));
     return new SourceMap(sourceMapURL, sourceMapObject);
   };
 }
 
-var entriesProviders = {
+const entriesProviders = {
   'unix': UnixCppEntriesProvider,
   'windows': WindowsCppEntriesProvider,
   'mac': MacCppEntriesProvider
 };
 
-var params = processArguments(arguments);
-var sourceMap = null;
+const params = processArguments(arguments);
+let sourceMap = null;
 if (params.sourceMap) {
   initSourceMapSupport();
   sourceMap = SourceMap.load(params.sourceMap);
 }
-var tickProcessor = new TickProcessor(
+const tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm, params.objdump, params.targetRootFS,
                                           params.apkEmbeddedLibrary),
   params.separateIc,
   params.separateBytecodes,
   params.separateBuiltins,
   params.separateStubs,
+  params.separateBaselineHandlers,
   params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,
@@ -85,4 +86,9 @@ var tickProcessor = new TickProcessor(
   params.runtimeTimerFilter,
   params.preprocessJson);
 tickProcessor.processLogFile(params.logFileName);
-tickProcessor.printStatistics();
+
+if (params.serializeVMSymbols) {
+  tickProcessor.printVMSymbols();
+} else {
+  tickProcessor.printStatistics();
+}

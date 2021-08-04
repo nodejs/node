@@ -382,7 +382,7 @@ utext_previous32From(UText *ut, int64_t index) {
     //
     UChar32     cPrev;    // The character preceding cCurr, which is what we will return.
 
-    // Address the chunk containg the position preceding the incoming index
+    // Address the chunk containing the position preceding the incoming index
     // A tricky edge case:
     //   We try to test the requested native index against the chunkNativeStart to determine
     //    whether the character preceding the one at the index is in the current chunk.
@@ -894,7 +894,7 @@ struct UTF8Buf {
                                                      //    one for a supplementary starting in the last normal position,
                                                      //    and one for an entry for the buffer limit position.
     uint8_t   mapToUChars[UTF8_TEXT_CHUNK_SIZE*3+6]; // Map native offset from bufNativeStart to
-                                                     //   correspoding offset in filled part of buf.
+                                                     //   corresponding offset in filled part of buf.
     int32_t   align;
 };
 
@@ -1545,7 +1545,7 @@ utf8TextMapOffsetToNative(const UText *ut) {
 }
 
 //
-// Map a native index to the corrsponding chunk offset
+// Map a native index to the corresponding chunk offset
 //
 static int32_t U_CALLCONV
 utf8TextMapIndexToUTF16(const UText *ut, int64_t index64) {

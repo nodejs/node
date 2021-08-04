@@ -124,13 +124,6 @@ for (const tr in tests) {
                               '--trace-event-categories', 'node.fs.sync',
                               '-e', tests[tr] ],
                             { cwd: tmpdir.path, encoding: 'utf8' });
-  // Some AIX versions don't support futimes or utimes, so skip.
-  if (common.isAIX && proc.status !== 0 && tr === 'fs.sync.futimes') {
-    continue;
-  }
-  if (common.isAIX && proc.status !== 0 && tr === 'fs.sync.utimes') {
-    continue;
-  }
 
   // Make sure the operation is successful.
   // Don't use assert with a custom message here. Otherwise the

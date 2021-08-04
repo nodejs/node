@@ -80,15 +80,11 @@ static Object GetFieldValue(JSObject obj, int property_index) {
 }
 
 static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
-  if (obj.IsUnboxedDoubleField(field_index)) {
-    return obj.RawFastDoublePropertyAt(field_index);
+  Object value = obj.RawFastPropertyAt(field_index);
+  if (value.IsHeapNumber()) {
+    return HeapNumber::cast(value).value();
   } else {
-    Object value = obj.RawFastPropertyAt(field_index);
-    if (value.IsHeapNumber()) {
-      return HeapNumber::cast(value).value();
-    } else {
-      return value.Number();
-    }
+    return value.Number();
   }
 }
 
@@ -105,8 +101,9 @@ bool IsObjectShrinkable(JSObject obj) {
   int unused = obj.map().UnusedPropertyFields();
   if (unused == 0) return false;
 
+  Address packed_filler = MapWord::FromMap(*filler_map).ptr();
   for (int i = inobject_properties - unused; i < inobject_properties; i++) {
-    if (*filler_map != GetFieldValue(obj, i)) {
+    if (packed_filler != GetFieldValue(obj, i).ptr()) {
       return false;
     }
   }
@@ -842,6 +839,8 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
 }
 
 TEST(SlowModeSubclass) {
+  if (FLAG_stress_concurrent_allocation) return;
+
   // Avoid eventual completion of in-object slack tracking.
   FLAG_always_opt = false;
   CcTest::InitializeVM();

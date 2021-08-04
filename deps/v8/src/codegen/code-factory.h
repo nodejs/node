@@ -28,10 +28,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // is exported here.
   static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
 
-  static Handle<Code> CEntry(Isolate* isolate, int result_size = 1,
-                             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                             ArgvMode argv_mode = kArgvOnStack,
-                             bool builtin_exit_frame = false);
+  static Handle<Code> CEntry(
+      Isolate* isolate, int result_size = 1,
+      SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore,
+      ArgvMode argv_mode = ArgvMode::kStack, bool builtin_exit_frame = false);
 
   // Initial states for ICs.
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
@@ -49,9 +49,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable ResumeGenerator(Isolate* isolate);
 
-  static Callable FrameDropperTrampoline(Isolate* isolate);
-  static Callable HandleDebuggerStatement(Isolate* isolate);
-
   static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
@@ -68,7 +65,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
 
-  static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Call_WithFeedback(Isolate* isolate, ConvertReceiverMode mode);
@@ -93,6 +89,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       Isolate* isolate, InterpreterPushArgsMode mode);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
+  static Callable InterpreterOnStackReplacement_ToBaseline(Isolate* isolate);
 
   static Callable ArrayNoArgumentConstructor(
       Isolate* isolate, ElementsKind kind,

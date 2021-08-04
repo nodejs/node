@@ -2,7 +2,8 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_process.h"
+#include "node_i18n.h"
+#include "node_process-inl.h"
 
 #include <time.h>  // tzset(), _tzset()
 
@@ -69,15 +70,32 @@ std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
 template <typename T>
-void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
+void DateTimeConfigurationChangeNotification(
+    Isolate* isolate,
+    const T& key,
+    const char* val = nullptr) {
   if (key.length() == 2 && key[0] == 'T' && key[1] == 'Z') {
 #ifdef __POSIX__
     tzset();
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
 #else
     _tzset();
+
+# if defined(NODE_HAVE_I18N_SUPPORT)
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kSkip);
+
+    // On windows, the TZ environment is not supported out of the box.
+    // By default, v8 will only be able to detect the system configured
+    // timezone. This supports using the TZ environment variable to set
+    // the default timezone instead.
+    if (val != nullptr) i18n::SetDefaultTimeZone(val);
+# else
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
+# endif
 #endif
-    auto constexpr time_zone_detection = Isolate::TimeZoneDetection::kRedetect;
-    isolate->DateTimeConfigurationChangeNotification(time_zone_detection);
   }
 }
 
@@ -128,7 +146,7 @@ void RealEnvStore::Set(Isolate* isolate,
   if (key.length() > 0 && key[0] == '=') return;
 #endif
   uv_os_setenv(*key, *val);
-  DateTimeConfigurationChangeNotification(isolate, key);
+  DateTimeConfigurationChangeNotification(isolate, key, *val);
 }
 
 int32_t RealEnvStore::Query(const char* key) const {

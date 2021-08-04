@@ -45,35 +45,35 @@ static_assert(kNeedS128RegPair == (kFpRegPair != kNoReg),
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
-static inline constexpr bool needs_gp_reg_pair(ValueType type) {
-  return kNeedI64RegPair && type == kWasmI64;
+static inline constexpr bool needs_gp_reg_pair(ValueKind kind) {
+  return kNeedI64RegPair && kind == kI64;
 }
 
-static inline constexpr bool needs_fp_reg_pair(ValueType type) {
-  return kNeedS128RegPair && type == kWasmS128;
+static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
+  return kNeedS128RegPair && kind == kS128;
 }
 
-static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
+static inline constexpr RegClass reg_class_for(ValueKind kind) {
   switch (kind) {
-    case ValueType::kF32:
-    case ValueType::kF64:
+    case kF32:
+    case kF64:
       return kFpReg;
-    case ValueType::kI32:
+    case kI8:
+    case kI16:
+    case kI32:
       return kGpReg;
-    case ValueType::kI64:
+    case kI64:
       return kNeedI64RegPair ? kGpRegPair : kGpReg;
-    case ValueType::kS128:
+    case kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
-    case ValueType::kRef:
-    case ValueType::kOptRef:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       return kGpReg;
     default:
-      return kNoReg;  // unsupported type
+      return kNoReg;  // unsupported kind
   }
-}
-
-static inline constexpr RegClass reg_class_for(ValueType type) {
-  return reg_class_for(type.kind());
 }
 
 // Description of LiftoffRegister code encoding.
@@ -137,8 +137,8 @@ static_assert(2 * kBitsPerGpRegCode >= kBitsPerFpRegCode,
 
 class LiftoffRegister {
   static constexpr int needed_bits =
-      Max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
-          kBitsPerLiftoffRegCode);
+      std::max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
+               kBitsPerLiftoffRegCode);
   using storage_t = std::conditional<
       needed_bits <= 8, uint8_t,
       std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
@@ -152,11 +152,12 @@ class LiftoffRegister {
                 "chosen type is small enough");
 
  public:
-  explicit LiftoffRegister(Register reg) : LiftoffRegister(reg.code()) {
+  constexpr explicit LiftoffRegister(Register reg)
+      : LiftoffRegister(reg.code()) {
     DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
     DCHECK_EQ(reg, gp());
   }
-  explicit LiftoffRegister(DoubleRegister reg)
+  constexpr explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
     DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
     DCHECK_EQ(reg, fp());
@@ -188,9 +189,9 @@ class LiftoffRegister {
 
   // Shifts the register code depending on the type before converting to a
   // LiftoffRegister.
-  static LiftoffRegister from_external_code(RegClass rc, ValueType type,
+  static LiftoffRegister from_external_code(RegClass rc, ValueKind kind,
                                             int code) {
-    if (!kSimpleFPAliasing && type == kWasmF32) {
+    if (!kSimpleFPAliasing && kind == kF32) {
       // Liftoff assumes a one-to-one mapping between float registers and
       // double registers, and so does not distinguish between f32 and f64
       // registers. The f32 register code must therefore be halved in order
@@ -198,7 +199,7 @@ class LiftoffRegister {
       DCHECK_EQ(0, code % 2);
       return LiftoffRegister::from_code(rc, code >> 1);
     }
-    if (kNeedS128RegPair && type == kWasmS128) {
+    if (kNeedS128RegPair && kind == kS128) {
       // Similarly for double registers and SIMD registers, the SIMD code
       // needs to be doubled to pass the f64 code to Liftoff.
       return LiftoffRegister::ForFpPair(DoubleRegister::from_code(code << 1));
@@ -275,22 +276,22 @@ class LiftoffRegister {
     return DoubleRegister::from_code((code_ & kCodeMask) + 1);
   }
 
-  Register gp() const {
+  constexpr Register gp() const {
     DCHECK(is_gp());
     return Register::from_code(code_);
   }
 
-  DoubleRegister fp() const {
+  constexpr DoubleRegister fp() const {
     DCHECK(is_fp());
     return DoubleRegister::from_code(code_ - kAfterMaxLiftoffGpRegCode);
   }
 
-  int liftoff_code() const {
+  constexpr int liftoff_code() const {
     STATIC_ASSERT(sizeof(int) >= sizeof(storage_t));
     return static_cast<int>(code_);
   }
 
-  RegClass reg_class() const {
+  constexpr RegClass reg_class() const {
     return is_fp_pair() ? kFpRegPair
                         : is_gp_pair() ? kGpRegPair : is_gp() ? kGpReg : kFpReg;
   }
@@ -364,7 +365,7 @@ class LiftoffRegList {
     return reg;
   }
 
-  LiftoffRegister clear(LiftoffRegister reg) {
+  constexpr LiftoffRegister clear(LiftoffRegister reg) {
     if (reg.is_pair()) {
       regs_ &= ~(storage_t{1} << reg.low().liftoff_code());
       regs_ &= ~(storage_t{1} << reg.high().liftoff_code());
@@ -372,6 +373,12 @@ class LiftoffRegList {
       regs_ &= ~(storage_t{1} << reg.liftoff_code());
     }
     return reg;
+  }
+  constexpr Register clear(Register reg) {
+    return clear(LiftoffRegister{reg}).gp();
+  }
+  constexpr DoubleRegister clear(DoubleRegister reg) {
+    return clear(LiftoffRegister{reg}).fp();
   }
 
   bool has(LiftoffRegister reg) const {
@@ -381,8 +388,8 @@ class LiftoffRegList {
     }
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
-  bool has(Register reg) const { return has(LiftoffRegister(reg)); }
-  bool has(DoubleRegister reg) const { return has(LiftoffRegister(reg)); }
+  bool has(Register reg) const { return has(LiftoffRegister{reg}); }
+  bool has(DoubleRegister reg) const { return has(LiftoffRegister{reg}); }
 
   constexpr bool is_empty() const { return regs_ == 0; }
 

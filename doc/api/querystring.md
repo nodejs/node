@@ -2,7 +2,7 @@
 
 <!--introduced_in=v0.1.25-->
 
-> Stability: 2 - Stable
+> Stability: 3 - Legacy
 
 <!--name=querystring-->
 
@@ -14,6 +14,9 @@ query strings. It can be accessed using:
 ```js
 const querystring = require('querystring');
 ```
+
+The `querystring` API is considered Legacy. While it is still maintained,
+new code should use the {URLSearchParams} API instead.
 
 ## `querystring.decode()`
 <!-- YAML

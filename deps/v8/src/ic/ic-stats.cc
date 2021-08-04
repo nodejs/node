@@ -78,15 +78,14 @@ const char* ICStats::GetOrCacheScriptName(Script script) {
 
 const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
   Address function_ptr = function.ptr();
-  if (function_name_map_.find(function_ptr) != function_name_map_.end()) {
-    return function_name_map_[function_ptr].get();
+  // Lookup the function name or add a null unique_ptr if no entry exists.
+  std::unique_ptr<char[]>& function_name = function_name_map_[function_ptr];
+  if (!function_name) {
+    ic_infos_[pos_].is_optimized = function.HasAttachedOptimizedCode();
+    // Update the map entry with the actual debug name.
+    function_name = function.shared().DebugNameCStr();
   }
-  SharedFunctionInfo shared = function.shared();
-  ic_infos_[pos_].is_optimized = function.HasAttachedOptimizedCode();
-  char* function_name = shared.DebugName().ToCString().release();
-  function_name_map_.insert(
-      std::make_pair(function_ptr, std::unique_ptr<char[]>(function_name)));
-  return function_name;
+  return function_name.get();
 }
 
 ICInfo::ICInfo()

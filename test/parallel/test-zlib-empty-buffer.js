@@ -14,7 +14,7 @@ const emptyBuffer = Buffer.alloc(0);
     [ promisify(zlib.deflateRaw), promisify(zlib.inflateRaw), 'raw' ],
     [ promisify(zlib.deflate), promisify(zlib.inflate), 'deflate' ],
     [ promisify(zlib.gzip), promisify(zlib.gunzip), 'gzip' ],
-    [ promisify(zlib.brotliCompress), promisify(zlib.brotliDecompress), 'br' ]
+    [ promisify(zlib.brotliCompress), promisify(zlib.brotliDecompress), 'br' ],
   ]) {
     const compressed = await compress(emptyBuffer);
     const decompressed = await decompress(compressed);

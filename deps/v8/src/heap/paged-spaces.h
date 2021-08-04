@@ -300,6 +300,20 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void SetLinearAllocationArea(Address top, Address limit);
 
+  Address original_top_acquire() {
+    return original_top_.load(std::memory_order_acquire);
+  }
+
+  Address original_limit_relaxed() {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
+
+  void MoveOriginalTopForward() {
+    DCHECK_GE(top(), original_top_);
+    DCHECK_LE(top(), original_limit_);
+    original_top_.store(top(), std::memory_order_release);
+  }
+
  private:
   class ConcurrentAllocationMutex {
    public:
@@ -312,9 +326,7 @@ class V8_EXPORT_PRIVATE PagedSpace
     base::Optional<base::MutexGuard> guard_;
   };
 
-  bool SupportsConcurrentAllocation() {
-    return FLAG_concurrent_allocation && !is_local_space();
-  }
+  bool SupportsConcurrentAllocation() { return !is_local_space(); }
 
   // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit);
@@ -342,7 +354,13 @@ class V8_EXPORT_PRIVATE PagedSpace
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   virtual Page* Expand();
-  Page* ExpandBackground(LocalHeap* local_heap);
+
+  // Expands the space by a single page from a background thread and allocates
+  // a memory area of the given size in it. If successful the method returns
+  // the address and size of the area.
+  base::Optional<std::pair<Address, size_t>> ExpandBackground(
+      LocalHeap* local_heap, size_t size_in_bytes);
+
   Page* AllocatePage();
 
   // Sets up a linear allocation area that fits the given number of bytes.
@@ -386,6 +404,9 @@ class V8_EXPORT_PRIVATE PagedSpace
                                       AllocationAlignment alignment,
                                       AllocationOrigin origin);
 
+  V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
+                                       AllocationOrigin origin);
+
   Executability executable_;
 
   LocalSpaceKind local_space_kind_;
@@ -397,6 +418,11 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
+
+  // The top and the limit at the time of setting the linear allocation area.
+  // These values can be accessed by background tasks.
+  std::atomic<Address> original_top_;
+  std::atomic<Address> original_limit_;
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
@@ -512,7 +538,8 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object.
   explicit MapSpace(Heap* heap)
-      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, new FreeListMap()) {}
+      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList()) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
     if (base::bits::IsPowerOfTwo(Map::kSize)) {

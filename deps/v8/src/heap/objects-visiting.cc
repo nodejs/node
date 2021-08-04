@@ -87,16 +87,16 @@ static void ClearWeakList(Heap* heap, Object list) {
 template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code code, Object next) {
-    code.code_data_container().set_next_code_link(next,
-                                                  UPDATE_WEAK_WRITE_BARRIER);
+    code.code_data_container(kAcquireLoad)
+        .set_next_code_link(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object WeakNext(Code code) {
-    return code.code_data_container().next_code_link();
+    return code.code_data_container(kAcquireLoad).next_code_link();
   }
 
   static HeapObject WeakNextHolder(Code code) {
-    return code.code_data_container();
+    return code.code_data_container(kAcquireLoad);
   }
 
   static int WeakNextOffset() { return CodeDataContainer::kNextCodeLinkOffset; }

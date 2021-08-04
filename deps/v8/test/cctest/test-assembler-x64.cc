@@ -744,7 +744,7 @@ TEST(AssemblerMultiByteNop) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -801,7 +801,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -866,7 +866,7 @@ TEST(AssemblerX64Extractps) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -903,7 +903,7 @@ TEST(AssemblerX64SSE) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -934,7 +934,7 @@ TEST(AssemblerX64SSE3) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1159,7 +1159,7 @@ TEST(AssemblerX64FMA_sd) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1385,7 +1385,7 @@ TEST(AssemblerX64FMA_ss) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1461,7 +1461,7 @@ TEST(AssemblerX64SSE_ss) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1547,7 +1547,7 @@ TEST(AssemblerX64AVX_ss) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1787,7 +1787,7 @@ TEST(AssemblerX64AVX_sd) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1979,7 +1979,7 @@ TEST(AssemblerX64BMI1) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2039,7 +2039,7 @@ TEST(AssemblerX64LZCNT) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2099,7 +2099,7 @@ TEST(AssemblerX64POPCNT) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2362,7 +2362,7 @@ TEST(AssemblerX64BMI2) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2406,7 +2406,7 @@ TEST(AssemblerX64JumpTables1) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2454,7 +2454,7 @@ TEST(AssemblerX64JumpTables2) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2511,7 +2511,7 @@ TEST(AssemblerX64vmovups) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -2519,6 +2519,35 @@ TEST(AssemblerX64vmovups) {
 
   auto f = GeneratedCode<F9>::FromCode(*code);
   CHECK_EQ(-1.5, f.Call(1.5, -1.5));
+}
+
+TEST(CpuFeatures_ProbeImpl) {
+  // Support for a newer extension implies support for the older extensions.
+  CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX),
+                CpuFeatures::IsSupported(SSE4_2));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(SSE4_2),
+                CpuFeatures::IsSupported(SSE4_1));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(SSE4_1),
+                CpuFeatures::IsSupported(SSSE3));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(SSSE3),
+                CpuFeatures::IsSupported(SSE3));
+
+  // Check the reverse, if an older extension is not supported, a newer
+  // extension cannot be supported.
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE3),
+                !CpuFeatures::IsSupported(SSSE3));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSSE3),
+                !CpuFeatures::IsSupported(SSE4_1));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_1),
+                !CpuFeatures::IsSupported(SSE4_2));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_2),
+                !CpuFeatures::IsSupported(AVX));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
+                !CpuFeatures::IsSupported(AVX2));
+  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
+                !CpuFeatures::IsSupported(FMA3));
 }
 
 #undef __

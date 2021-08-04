@@ -73,7 +73,8 @@ Data types
     * `nread`:  Number of bytes that have been received.
       0 if there is no more data to read. Note that 0 may also mean that an
       empty datagram was received (in this case `addr` is not NULL). < 0 if
-      a transmission error was detected.
+      a transmission error was detected; if using :man:`recvmmsg(2)` no more
+      chunks will be received and the buffer can be freed safely.
     * `buf`: :c:type:`uv_buf_t` with the received data.
     * `addr`: ``struct sockaddr*`` containing the address of the sender.
       Can be NULL. Valid for the duration of the callback only.
@@ -84,10 +85,11 @@ Data types
     on error.
 
     When using :man:`recvmmsg(2)`, chunks will have the `UV_UDP_MMSG_CHUNK` flag set,
-    those must not be freed. There will be a final callback with `nread` set to 0,
-    `addr` set to NULL and the buffer pointing at the initially allocated data with
-    the `UV_UDP_MMSG_CHUNK` flag cleared and the `UV_UDP_MMSG_FREE` flag set.
-    The callee can now safely free the provided buffer.
+    those must not be freed. If no errors occur, there will be a final callback with
+    `nread` set to 0, `addr` set to NULL and the buffer pointing at the initially
+    allocated data with the `UV_UDP_MMSG_CHUNK` flag cleared and the `UV_UDP_MMSG_FREE`
+    flag set. If a UDP socket error occurs, `nread` will be < 0. In either scenario,
+    the callee can now safely free the provided buffer.
 
     .. versionchanged:: 1.40.0 added the `UV_UDP_MMSG_FREE` flag.
 

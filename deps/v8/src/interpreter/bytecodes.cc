@@ -32,13 +32,13 @@ const int Bytecodes::kOperandCount[] = {
 #undef ENTRY
 };
 
-const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
-#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kAccumulatorUse,
+const ImplicitRegisterUse Bytecodes::kImplicitRegisterUse[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kImplicitRegisterUse,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
 };
 
-const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+const uint8_t Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
   {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
   BYTECODE_LIST(ENTRY)
@@ -93,6 +93,13 @@ Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
   }
 };
 // clang-format on
+
+// Make sure kFirstShortStar and kLastShortStar are set correctly.
+#define ASSERT_SHORT_STAR_RANGE(Name, ...)                        \
+  STATIC_ASSERT(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
+                Bytecode::k##Name <= Bytecode::kLastShortStar);
+SHORT_STAR_BYTECODE_LIST(ASSERT_SHORT_STAR_RANGE)
+#undef ASSERT_SHORT_STAR_RANGE
 
 // static
 const char* Bytecodes::ToString(Bytecode bytecode) {
@@ -264,6 +271,11 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
 bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
   if (operand_scale == OperandScale::kSingle) {
     switch (bytecode) {
+      // Short-star lookahead is required for correctness on kDebugBreak0. The
+      // handler for all short-star codes re-reads the opcode from the bytecode
+      // array and would not work correctly if it instead read kDebugBreak0.
+      case Bytecode::kDebugBreak0:
+
       case Bytecode::kLdaZero:
       case Bytecode::kLdaSmi:
       case Bytecode::kLdaNull:
@@ -274,7 +286,9 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaNamedProperty:
       case Bytecode::kLdaKeyedProperty:
       case Bytecode::kLdaContextSlot:
+      case Bytecode::kLdaImmutableContextSlot:
       case Bytecode::kLdaCurrentContextSlot:
+      case Bytecode::kLdaImmutableCurrentContextSlot:
       case Bytecode::kAdd:
       case Bytecode::kSub:
       case Bytecode::kMul:
@@ -295,6 +309,10 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kCallUndefinedReceiver2:
       case Bytecode::kConstruct:
       case Bytecode::kConstructWithSpread:
+      case Bytecode::kCreateObjectLiteral:
+      case Bytecode::kCreateArrayLiteral:
+      case Bytecode::kThrowReferenceErrorIfHole:
+      case Bytecode::kGetTemplateObject:
         return true;
       default:
         return false;
@@ -326,7 +344,8 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
 // static
 bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
                                    OperandScale operand_scale) {
-  return operand_scale == OperandScale::kSingle ||
+  return (operand_scale == OperandScale::kSingle &&
+          (!IsShortStar(bytecode) || bytecode == Bytecode::kStar0)) ||
          Bytecodes::IsBytecodeWithScalableOperands(bytecode);
 }
 

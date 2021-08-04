@@ -28,7 +28,7 @@ server.listen(0, () => {
       {
         children: [
           // current_headers and/or queue could be empty
-          { node_name: 'Http2Stream', edge_name: 'wrapped' }
+          { node_name: 'Http2Stream', edge_name: 'wrapped' },
         ]
       },
     ], { loose: true });
@@ -37,32 +37,32 @@ server.listen(0, () => {
     state.validateSnapshotNodes('Node / FileHandle', [
       {
         children: [
-          { node_name: 'FileHandle', edge_name: 'wrapped' }
+          { node_name: 'FileHandle', edge_name: 'wrapped' },
           // current_headers could be empty
         ]
-      }
+      },
     ], { loose: true });
     state.validateSnapshotNodes('Node / TCPSocketWrap', [
       {
         children: [
-          { node_name: 'TCP', edge_name: 'wrapped' }
+          { node_name: 'TCP', edge_name: 'wrapped' },
         ]
-      }
+      },
     ], { loose: true });
     state.validateSnapshotNodes('Node / TCPServerWrap', [
       {
         children: [
-          { node_name: 'TCP', edge_name: 'wrapped' }
+          { node_name: 'TCP', edge_name: 'wrapped' },
         ]
-      }
+      },
     ], { loose: true });
     // `Node / StreamPipe` (C++) -> StreamPipe (JS)
     state.validateSnapshotNodes('Node / StreamPipe', [
       {
         children: [
-          { node_name: 'StreamPipe', edge_name: 'wrapped' }
+          { node_name: 'StreamPipe', edge_name: 'wrapped' },
         ]
-      }
+      },
     ]);
     // `Node / Http2Session` (C++) -> Http2Session (JS)
     state.validateSnapshotNodes('Node / Http2Session', [
@@ -72,11 +72,11 @@ server.listen(0, () => {
           { node_name: 'Node / nghttp2_memory', edge_name: 'nghttp2_memory' },
           {
             node_name: 'Node / streams', edge_name: 'streams'
-          }
+          },
           // outstanding_pings, outgoing_buffers, outgoing_storage,
           // pending_rst_streams could be empty
         ]
-      }
+      },
     ], { loose: true });
   }));
 

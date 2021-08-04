@@ -17,7 +17,7 @@ const tty = require('tty');
 When Node.js detects that it is being run with a text terminal ("TTY")
 attached, [`process.stdin`][] will, by default, be initialized as an instance of
 `tty.ReadStream` and both [`process.stdout`][] and [`process.stderr`][] will, by
-default be instances of `tty.WriteStream`. The preferred method of determining
+default, be instances of `tty.WriteStream`. The preferred method of determining
 whether Node.js is being run within a TTY context is to check that the value of
 the `process.stdout.isTTY` property is `true`:
 
@@ -211,10 +211,10 @@ added: v0.7.7
 
 * Returns: {number[]}
 
-`writeStream.getWindowSize()` returns the size of the [TTY](tty.md)
+`writeStream.getWindowSize()` returns the size of the TTY
 corresponding to this `WriteStream`. The array is of the type
 `[numColumns, numRows]` where `numColumns` and `numRows` represent the number
-of columns and rows in the corresponding [TTY](tty.md).
+of columns and rows in the corresponding TTY.
 
 ### `writeStream.hasColors([count][, env])`
 <!-- YAML

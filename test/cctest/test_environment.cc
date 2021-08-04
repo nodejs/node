@@ -1,6 +1,7 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
+#include "util.h"
 
 #include <string>
 #include "gtest/gtest.h"
@@ -10,6 +11,7 @@
 
 using node::AtExit;
 using node::RunAtExit;
+using node::USE;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -74,7 +76,7 @@ class RedirectStdErr {
     fflush(stderr);
     fgetpos(stderr, &pos_);
     fd_ = dup(fileno(stderr));
-    freopen(filename_, "w", stderr);
+    USE(freopen(filename_, "w", stderr));
   }
 
   ~RedirectStdErr() {
@@ -329,8 +331,8 @@ static void at_exit_js(void* arg) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  assert(!obj.IsEmpty());  // Assert VM is still alive.
-  assert(obj->IsObject());
+  EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
+  EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
 }
 
@@ -645,7 +647,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(isolate_);
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
+      isolate_, v8::MicrotasksPolicy::kExplicit);
   v8::Local<v8::Context> context = v8::Context::New(
       isolate_, nullptr, {}, {}, {}, queue.get());
   node::InitializeContext(context);

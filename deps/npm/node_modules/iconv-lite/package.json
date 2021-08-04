@@ -1,7 +1,7 @@
 {
     "name": "iconv-lite",
     "description": "Convert character encodings in pure javascript.",
-    "version": "0.6.2",
+    "version": "0.6.3",
     "license": "MIT",
     "keywords": [
         "iconv",

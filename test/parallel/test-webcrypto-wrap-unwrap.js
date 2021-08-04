@@ -64,7 +64,7 @@ async function generateKeysToWrap() {
   const parameters = [
     {
       algorithm: {
-        name: 'RSASSA-PKCS1-V1_5',
+        name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'
@@ -152,7 +152,7 @@ async function generateKeysToWrap() {
       },
       usages: ['sign', 'verify'],
       pair: false,
-    }
+    },
   ];
 
   const allkeys = await Promise.all(parameters.map(async (params) => {
@@ -173,14 +173,15 @@ async function generateKeysToWrap() {
           algorithm: params.algorithm,
           usages: params.privateUsages,
           key: keys.privateKey,
-        }
+        },
       ];
     }
 
     return [{
       algorithm: params.algorithm,
       usages: params.usages,
-      key: keys }];
+      key: keys,
+    }];
   }));
 
   return allkeys.flat();
@@ -243,7 +244,7 @@ async function testWrap(wrappingKey, unwrappingKey, key, wrap, format) {
   assert.deepStrictEqual(exported, exportedAgain);
 }
 
-async function testWrapping(name, keys, ecdhPeerKey) {
+async function testWrapping(name, keys) {
   const variations = [];
 
   const {
@@ -264,13 +265,9 @@ async function testWrapping(name, keys, ecdhPeerKey) {
 (async function() {
   await generateWrappingKeys();
   const keys = await generateKeysToWrap();
-  const ecdhPeerKey = await subtle.generateKey({
-    name: 'ECDH',
-    namedCurve: 'P-384'
-  }, true, ['deriveBits']);
   const variations = [];
   Object.keys(kWrappingData).forEach((name) => {
-    return testWrapping(name, keys, ecdhPeerKey);
+    return testWrapping(name, keys);
   });
   await Promise.all(variations);
 })().then(common.mustCall());

@@ -9,8 +9,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-
-const lodash = require("lodash");
+const { upperCaseFirst } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Constants
@@ -71,7 +70,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of line of code in a function",
+            description: "enforce a maximum number of lines of code in a function",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines-per-function"
@@ -191,7 +190,7 @@ module.exports = {
             }
 
             if (lineCount > maxLines) {
-                const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(funcNode));
+                const name = upperCaseFirst(astUtils.getFunctionNameWithKind(funcNode));
 
                 context.report({
                     node,

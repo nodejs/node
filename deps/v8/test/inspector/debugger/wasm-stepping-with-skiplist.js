@@ -18,9 +18,9 @@ const func_a_idx = func_a.index;
 const func_b = builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       // clang-format off
-      kExprLoop, kWasmStmt,               // while
+      kExprLoop, kWasmVoid,               // while
         kExprLocalGet, 0,                 // -
-        kExprIf, kWasmStmt,               // if <param0> != 0
+        kExprIf, kWasmVoid,               // if <param0> != 0
           kExprLocalGet, 0,               // -
           kExprI32Const, 1,               // -
           kExprI32Sub,                    // -
@@ -44,30 +44,27 @@ const call_function_offset = loop_body_start_offset + 12;
 const func_a_start_offset = func_a.body_offset;
 const func_a_end_offset = func_a_start_offset + 2;
 
-runTest()
-    .catch(reason => InspectorTest.log(`Failed: ${reason}`))
-    .then(InspectorTest.completeTest);
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Setting up global instance variable');
+    WasmInspectorTest.instantiate(module_bytes);
+    const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
+    const scriptId = wasmScript.scriptId;
 
-async function runTest() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Setting up global instance variable');
-  WasmInspectorTest.instantiate(module_bytes);
-  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
-  const scriptId = wasmScript.scriptId;
+    InspectorTest.log('Got wasm script: ' + wasmScript.url);
 
-  InspectorTest.log('Got wasm script: ' + wasmScript.url);
+    let bpmsg = await Protocol.Debugger.setBreakpoint({
+      location:
+          {scriptId: scriptId, lineNumber: 0, columnNumber: loop_start_offset}
+    });
+    InspectorTest.logMessage(bpmsg.result.actualLocation);
 
-  let bpmsg = await Protocol.Debugger.setBreakpoint({
-    location:
-        {scriptId: scriptId, lineNumber: 0, columnNumber: loop_start_offset}
-  });
-  InspectorTest.logMessage(bpmsg.result.actualLocation);
-
-  await checkValidSkipLists(scriptId);
-  await checkInvalidSkipLists(scriptId);
-
-  InspectorTest.log('Finished!');
-}
+    await checkValidSkipLists(scriptId);
+    await checkInvalidSkipLists(scriptId);
+  }
+]);
 
 async function checkValidSkipLists(scriptId) {
   InspectorTest.log('Test with valid skip lists');

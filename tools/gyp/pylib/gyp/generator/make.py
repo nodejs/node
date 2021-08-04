@@ -21,7 +21,6 @@
 # toplevel Makefile.  It may make sense to generate some .mk files on
 # the side to keep the files readable.
 
-from __future__ import print_function
 
 import os
 import re
@@ -108,7 +107,7 @@ def CalculateVariables(default_variables, params):
 
 def CalculateGeneratorInputInfo(params):
     """Calculate the generator specific info that gets fed to input (called by
-  gyp)."""
+    gyp)."""
     generator_flags = params.get("generator_flags", {})
     android_ndk_version = generator_flags.get("android_ndk_version", None)
     # Android NDK requires a strict link order.
@@ -320,7 +319,7 @@ CFLAGS.host ?= $(CPPFLAGS_host) $(CFLAGS_host)
 CXX.host ?= %(CXX.host)s
 CXXFLAGS.host ?= $(CPPFLAGS_host) $(CXXFLAGS_host)
 LINK.host ?= %(LINK.host)s
-LDFLAGS.host ?=
+LDFLAGS.host ?= $(LDFLAGS_host)
 AR.host ?= %(AR.host)s
 
 # Define a dir function that can handle spaces.
@@ -615,15 +614,15 @@ def Target(filename):
 
 def EscapeShellArgument(s):
     """Quotes an argument so that it will be interpreted literally by a POSIX
-     shell. Taken from
-     http://stackoverflow.com/questions/35817/whats-the-best-way-to-escape-ossystem-calls-in-python
-     """
+    shell. Taken from
+    http://stackoverflow.com/questions/35817/whats-the-best-way-to-escape-ossystem-calls-in-python
+    """
     return "'" + s.replace("'", "'\\''") + "'"
 
 
 def EscapeMakeVariableExpansion(s):
     """Make has its own variable expansion syntax using $. We must escape it for
-     string to be interpreted literally."""
+    string to be interpreted literally."""
     return s.replace("$", "$$")
 
 
@@ -638,7 +637,7 @@ def EscapeCppDefine(s):
 
 def QuoteIfNecessary(string):
     """TODO: Should this ideally be replaced with one or more of the above
-     functions?"""
+    functions?"""
     if '"' in string:
         string = '"' + string.replace('"', '\\"') + '"'
     return string
@@ -679,11 +678,11 @@ target_outputs = {}
 target_link_deps = {}
 
 
-class MakefileWriter(object):
+class MakefileWriter:
     """MakefileWriter packages up the writing of one target-specific foobar.mk.
 
-  Its only real entry point is Write(), and is mostly used for namespacing.
-  """
+    Its only real entry point is Write(), and is mostly used for namespacing.
+    """
 
     def __init__(self, generator_flags, flavor):
         self.generator_flags = generator_flags
@@ -737,14 +736,14 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     ):
         """The main entry point: writes a .mk file for a single target.
 
-    Arguments:
-      qualified_target: target we're generating
-      base_path: path relative to source root we're building in, used to resolve
-                 target-relative paths
-      output_filename: output .mk file name to write
-      spec, configs: gyp info
-      part_of_all: flag indicating this target is part of 'all'
-    """
+        Arguments:
+          qualified_target: target we're generating
+          base_path: path relative to source root we're building in, used to resolve
+                     target-relative paths
+          output_filename: output .mk file name to write
+          spec, configs: gyp info
+          part_of_all: flag indicating this target is part of 'all'
+        """
         gyp.common.EnsureDirExists(output_filename)
 
         self.fp = open(output_filename, "w")
@@ -844,7 +843,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             sources = [x for x in all_sources if Compilable(x)]
             if sources:
                 self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT1)
-                extensions = set([os.path.splitext(s)[1] for s in sources])
+                extensions = {os.path.splitext(s)[1] for s in sources}
                 for ext in extensions:
                     if ext in self.suffix_rules_srcdir:
                         self.WriteLn(self.suffix_rules_srcdir[ext])
@@ -888,15 +887,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def WriteSubMake(self, output_filename, makefile_path, targets, build_dir):
         """Write a "sub-project" Makefile.
 
-    This is a small, wrapper Makefile that calls the top-level Makefile to build
-    the targets from a single gyp file (i.e. a sub-project).
+        This is a small, wrapper Makefile that calls the top-level Makefile to build
+        the targets from a single gyp file (i.e. a sub-project).
 
-    Arguments:
-      output_filename: sub-project Makefile name to write
-      makefile_path: path to the top-level Makefile
-      targets: list of "all" targets for this sub-project
-      build_dir: build output directory, relative to the sub-project
-    """
+        Arguments:
+          output_filename: sub-project Makefile name to write
+          makefile_path: path to the top-level Makefile
+          targets: list of "all" targets for this sub-project
+          build_dir: build output directory, relative to the sub-project
+        """
         gyp.common.EnsureDirExists(output_filename)
         self.fp = open(output_filename, "w")
         self.fp.write(header)
@@ -910,7 +909,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteLn("all:")
         if makefile_path:
             makefile_path = " -C " + makefile_path
-        self.WriteLn("\t$(MAKE)%s %s" % (makefile_path, " ".join(targets)))
+        self.WriteLn("\t$(MAKE){} {}".format(makefile_path, " ".join(targets)))
         self.fp.close()
 
     def WriteActions(
@@ -923,17 +922,17 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     ):
         """Write Makefile code for any 'actions' from the gyp input.
 
-    extra_sources: a list that will be filled in with newly generated source
-                   files, if any
-    extra_outputs: a list that will be filled in with any outputs of these
-                   actions (used to make other pieces dependent on these
-                   actions)
-    part_of_all: flag indicating this target is part of 'all'
-    """
+        extra_sources: a list that will be filled in with newly generated source
+                       files, if any
+        extra_outputs: a list that will be filled in with any outputs of these
+                       actions (used to make other pieces dependent on these
+                       actions)
+        part_of_all: flag indicating this target is part of 'all'
+        """
         env = self.GetSortedXcodeEnv()
         for action in actions:
             name = StringToMakefileVariable(
-                "%s_%s" % (self.qualified_target, action["action_name"])
+                "{}_{}".format(self.qualified_target, action["action_name"])
             )
             self.WriteLn('### Rules for action "%s":' % action["action_name"])
             inputs = action["inputs"]
@@ -960,9 +959,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 ]
             command = gyp.common.EncodePOSIXShellList(action_commands)
             if "message" in action:
-                self.WriteLn("quiet_cmd_%s = ACTION %s $@" % (name, action["message"]))
+                self.WriteLn(
+                    "quiet_cmd_{} = ACTION {} $@".format(name, action["message"])
+                )
             else:
-                self.WriteLn("quiet_cmd_%s = ACTION %s $@" % (name, name))
+                self.WriteLn(f"quiet_cmd_{name} = ACTION {name} $@")
             if len(dirs) > 0:
                 command = "mkdir -p %s" % " ".join(dirs) + "; " + command
 
@@ -1022,7 +1023,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
             # Stuff the outputs in a variable so we can refer to them later.
             outputs_variable = "action_%s_outputs" % name
-            self.WriteLn("%s := %s" % (outputs_variable, " ".join(outputs)))
+            self.WriteLn("{} := {}".format(outputs_variable, " ".join(outputs)))
             extra_outputs.append("$(%s)" % outputs_variable)
             self.WriteLn()
 
@@ -1038,16 +1039,16 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     ):
         """Write Makefile code for any 'rules' from the gyp input.
 
-    extra_sources: a list that will be filled in with newly generated source
-                   files, if any
-    extra_outputs: a list that will be filled in with any outputs of these
-                   rules (used to make other pieces dependent on these rules)
-    part_of_all: flag indicating this target is part of 'all'
-    """
+        extra_sources: a list that will be filled in with newly generated source
+                       files, if any
+        extra_outputs: a list that will be filled in with any outputs of these
+                       rules (used to make other pieces dependent on these rules)
+        part_of_all: flag indicating this target is part of 'all'
+        """
         env = self.GetSortedXcodeEnv()
         for rule in rules:
             name = StringToMakefileVariable(
-                "%s_%s" % (self.qualified_target, rule["rule_name"])
+                "{}_{}".format(self.qualified_target, rule["rule_name"])
             )
             count = 0
             self.WriteLn("### Generated for rule %s:" % name)
@@ -1175,10 +1176,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def WriteCopies(self, copies, extra_outputs, part_of_all):
         """Write Makefile code for any 'copies' from the gyp input.
 
-    extra_outputs: a list that will be filled in with any outputs of this action
-                   (used to make other pieces dependent on this action)
-    part_of_all: flag indicating this target is part of 'all'
-    """
+        extra_outputs: a list that will be filled in with any outputs of this action
+                       (used to make other pieces dependent on this action)
+        part_of_all: flag indicating this target is part of 'all'
+        """
         self.WriteLn("### Generated for copy rule.")
 
         variable = StringToMakefileVariable(self.qualified_target + "_copies")
@@ -1206,7 +1207,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 path = gyp.xcode_emulation.ExpandEnvVars(path, env)
                 self.WriteDoCmd([output], [path], "copy", part_of_all)
                 outputs.append(output)
-        self.WriteLn("%s = %s" % (variable, " ".join(QuoteSpaces(o) for o in outputs)))
+        self.WriteLn(
+            "{} = {}".format(variable, " ".join(QuoteSpaces(o) for o in outputs))
+        )
         extra_outputs.append("$(%s)" % variable)
         self.WriteLn()
 
@@ -1278,15 +1281,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         precompiled_header,
     ):
         """Write Makefile code for any 'sources' from the gyp input.
-    These are source files necessary to build the current target.
+        These are source files necessary to build the current target.
 
-    configs, deps, sources: input from gyp.
-    extra_outputs: a list of extra outputs this action should be dependent on;
-                   used to serialize action/rules before compilation
-    extra_link_deps: a list that will be filled in with any outputs of
-                     compilation (to be used in link lines)
-    part_of_all: flag indicating this target is part of 'all'
-    """
+        configs, deps, sources: input from gyp.
+        extra_outputs: a list of extra outputs this action should be dependent on;
+                       used to serialize action/rules before compilation
+        extra_link_deps: a list that will be filled in with any outputs of
+                         compilation (to be used in link lines)
+        part_of_all: flag indicating this target is part of 'all'
+        """
 
         # Write configuration-specific variables for CFLAGS, etc.
         for configname in sorted(configs.keys()):
@@ -1300,8 +1303,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
             if self.flavor == "mac":
                 cflags = self.xcode_settings.GetCflags(
-                    configname,
-                    arch=config.get('xcode_configuration_platform')
+                    configname, arch=config.get("xcode_configuration_platform")
                 )
                 cflags_c = self.xcode_settings.GetCflagsC(configname)
                 cflags_cc = self.xcode_settings.GetCflagsCC(configname)
@@ -1364,7 +1366,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         if pchdeps:
             self.WriteLn("# Dependencies from obj files to their precompiled headers")
             for source, obj, gch in pchdeps:
-                self.WriteLn("%s: %s" % (obj, gch))
+                self.WriteLn(f"{obj}: {gch}")
             self.WriteLn("# End precompiled header dependencies")
 
         if objs:
@@ -1436,12 +1438,12 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 "mm": "GYP_PCH_OBJCXXFLAGS",
             }[lang]
             self.WriteLn(
-                "%s: %s := %s " % (gch, var_name, lang_flag) + "$(DEFS_$(BUILDTYPE)) "
+                f"{gch}: {var_name} := {lang_flag} " + "$(DEFS_$(BUILDTYPE)) "
                 "$(INCS_$(BUILDTYPE)) "
                 "$(CFLAGS_$(BUILDTYPE)) " + extra_flags
             )
 
-            self.WriteLn("%s: %s FORCE_DO_CMD" % (gch, input))
+            self.WriteLn(f"{gch}: {input} FORCE_DO_CMD")
             self.WriteLn("\t@$(call do_cmd,pch_%s,1)" % lang)
             self.WriteLn("")
             assert " " not in gch, "Spaces in gch filenames not supported (%s)" % gch
@@ -1451,9 +1453,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def ComputeOutputBasename(self, spec):
         """Return the 'output basename' of a gyp spec.
 
-    E.g., the loadable module 'foobar' in directory 'baz' will produce
-      'libfoobar.so'
-    """
+        E.g., the loadable module 'foobar' in directory 'baz' will produce
+          'libfoobar.so'
+        """
         assert not self.is_mac_bundle
 
         if self.flavor == "mac" and self.type in (
@@ -1510,9 +1512,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def ComputeOutput(self, spec):
         """Return the 'output' (full output path) of a gyp spec.
 
-    E.g., the loadable module 'foobar' in directory 'baz' will produce
-      '$(obj)/baz/libfoobar.so'
-    """
+        E.g., the loadable module 'foobar' in directory 'baz' will produce
+          '$(obj)/baz/libfoobar.so'
+        """
         assert not self.is_mac_bundle
 
         path = os.path.join("$(obj)." + self.toolset, self.path)
@@ -1535,10 +1537,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def ComputeDeps(self, spec):
         """Compute the dependencies of a gyp spec.
 
-    Returns a tuple (deps, link_deps), where each is a list of
-    filenames that will need to be put in front of make for either
-    building (deps) or linking (link_deps).
-    """
+        Returns a tuple (deps, link_deps), where each is a list of
+        filenames that will need to be put in front of make for either
+        building (deps) or linking (link_deps).
+        """
         deps = []
         link_deps = []
         if "dependencies" in spec:
@@ -1571,11 +1573,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     ):
         """Write Makefile code to produce the final target of the gyp spec.
 
-    spec, configs: input from gyp.
-    deps, link_deps: dependency lists; see ComputeDeps()
-    extra_outputs: any extra outputs that our target should depend on
-    part_of_all: flag indicating this target is part of 'all'
-    """
+        spec, configs: input from gyp.
+        deps, link_deps: dependency lists; see ComputeDeps()
+        extra_outputs: any extra outputs that our target should depend on
+        part_of_all: flag indicating this target is part of 'all'
+        """
 
         self.WriteLn("### Rules for final target.")
 
@@ -1597,7 +1599,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         configname,
                         generator_default_variables["PRODUCT_DIR"],
                         lambda p: Sourceify(self.Absolutify(p)),
-                        arch=config.get('xcode_configuration_platform')
+                        arch=config.get("xcode_configuration_platform"),
                     )
 
                     # TARGET_POSTBUILDS_$(BUILDTYPE) is added to postbuilds later on.
@@ -1860,7 +1862,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 and self.toolset == "target"
             ):
                 # On mac, products are created in install_path immediately.
-                assert install_path == self.output, "%s != %s" % (
+                assert install_path == self.output, "{} != {}".format(
                     install_path,
                     self.output,
                 )
@@ -1897,24 +1899,24 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def WriteList(self, value_list, variable=None, prefix="", quoter=QuoteIfNecessary):
         """Write a variable definition that is a list of values.
 
-    E.g. WriteList(['a','b'], 'foo', prefix='blah') writes out
-         foo = blaha blahb
-    but in a pretty-printed style.
-    """
+        E.g. WriteList(['a','b'], 'foo', prefix='blah') writes out
+             foo = blaha blahb
+        but in a pretty-printed style.
+        """
         values = ""
         if value_list:
             value_list = [quoter(prefix + value) for value in value_list]
             values = " \\\n\t" + " \\\n\t".join(value_list)
-        self.fp.write("%s :=%s\n\n" % (variable, values))
+        self.fp.write(f"{variable} :={values}\n\n")
 
     def WriteDoCmd(
         self, outputs, inputs, command, part_of_all, comment=None, postbuilds=False
     ):
         """Write a Makefile rule that uses do_cmd.
 
-    This makes the outputs dependent on the command line that was run,
-    as well as support the V= make command line flag.
-    """
+        This makes the outputs dependent on the command line that was run,
+        as well as support the V= make command line flag.
+        """
         suffix = ""
         if postbuilds:
             assert "," not in command
@@ -1922,7 +1924,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteMakeRule(
             outputs,
             inputs,
-            actions=["$(call do_cmd,%s%s)" % (command, suffix)],
+            actions=[f"$(call do_cmd,{command}{suffix})"],
             comment=comment,
             command=command,
             force=True,
@@ -1947,18 +1949,18 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     ):
         """Write a Makefile rule, with some extra tricks.
 
-    outputs: a list of outputs for the rule (note: this is not directly
-             supported by make; see comments below)
-    inputs: a list of inputs for the rule
-    actions: a list of shell commands to run for the rule
-    comment: a comment to put in the Makefile above the rule (also useful
-             for making this Python script's code self-documenting)
-    order_only: if true, makes the dependency order-only
-    force: if true, include FORCE_DO_CMD as an order-only dep
-    phony: if true, the rule does not actually generate the named output, the
-           output is just a name to run the rule
-    command: (optional) command name to generate unambiguous labels
-    """
+        outputs: a list of outputs for the rule (note: this is not directly
+                 supported by make; see comments below)
+        inputs: a list of inputs for the rule
+        actions: a list of shell commands to run for the rule
+        comment: a comment to put in the Makefile above the rule (also useful
+                 for making this Python script's code self-documenting)
+        order_only: if true, makes the dependency order-only
+        force: if true, include FORCE_DO_CMD as an order-only dep
+        phony: if true, the rule does not actually generate the named output, the
+               output is just a name to run the rule
+        command: (optional) command name to generate unambiguous labels
+        """
         outputs = [QuoteSpaces(o) for o in outputs]
         inputs = [QuoteSpaces(i) for i in inputs]
 
@@ -1974,11 +1976,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # Order only rule: Just write a simple rule.
             # TODO(evanm): just make order_only a list of deps instead of this hack.
             self.WriteLn(
-                "%s: | %s%s" % (" ".join(outputs), " ".join(inputs), force_append)
+                "{}: | {}{}".format(" ".join(outputs), " ".join(inputs), force_append)
             )
         elif len(outputs) == 1:
             # Regular rule, one output: Just write a simple rule.
-            self.WriteLn("%s: %s%s" % (outputs[0], " ".join(inputs), force_append))
+            self.WriteLn("{}: {}{}".format(outputs[0], " ".join(inputs), force_append))
         else:
             # Regular rule, more than one output: Multiple outputs are tricky in
             # make. We will write three rules:
@@ -1994,10 +1996,12 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 (command or self.target).encode("utf-8")
             ).hexdigest()
             intermediate = "%s.intermediate" % cmddigest
-            self.WriteLn("%s: %s" % (" ".join(outputs), intermediate))
+            self.WriteLn("{}: {}".format(" ".join(outputs), intermediate))
             self.WriteLn("\t%s" % "@:")
-            self.WriteLn("%s: %s" % (".INTERMEDIATE", intermediate))
-            self.WriteLn("%s: %s%s" % (intermediate, " ".join(inputs), force_append))
+            self.WriteLn("{}: {}".format(".INTERMEDIATE", intermediate))
+            self.WriteLn(
+                "{}: {}{}".format(intermediate, " ".join(inputs), force_append)
+            )
             actions.insert(0, "$(call do_cmd,touch)")
 
         if actions:
@@ -2008,16 +2012,16 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     def WriteAndroidNdkModuleRule(self, module_name, all_sources, link_deps):
         """Write a set of LOCAL_XXX definitions for Android NDK.
 
-    These variable definitions will be used by Android NDK but do nothing for
-    non-Android applications.
+        These variable definitions will be used by Android NDK but do nothing for
+        non-Android applications.
 
-    Arguments:
-      module_name: Android NDK module name, which must be unique among all
-          module names.
-      all_sources: A list of source files (will be filtered by Compilable).
-      link_deps: A list of link dependencies, which must be sorted in
-          the order from dependencies to dependents.
-    """
+        Arguments:
+          module_name: Android NDK module name, which must be unique among all
+              module names.
+          all_sources: A list of source files (will be filtered by Compilable).
+          link_deps: A list of link dependencies, which must be sorted in
+              the order from dependencies to dependents.
+        """
         if self.type not in ("executable", "shared_library", "static_library"):
             return
 
@@ -2129,14 +2133,14 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             #  export foo := a\ b
             # it does not -- the backslash is written to the env as literal character.
             # So don't escape spaces in |env[k]|.
-            self.WriteLn("%s: export %s := %s" % (QuoteSpaces(target), k, v))
+            self.WriteLn(f"{QuoteSpaces(target)}: export {k} := {v}")
 
     def Objectify(self, path):
         """Convert a path to its output directory form."""
         if "$(" in path:
             path = path.replace("$(obj)/", "$(obj).%s/$(TARGET)/" % self.toolset)
         if "$(obj)" not in path:
-            path = "$(obj).%s/$(TARGET)/%s" % (self.toolset, path)
+            path = f"$(obj).{self.toolset}/$(TARGET)/{path}"
         return path
 
     def Pchify(self, path, lang):
@@ -2144,14 +2148,14 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         path = self.Absolutify(path)
         if "$(" in path:
             path = path.replace(
-                "$(obj)/", "$(obj).%s/$(TARGET)/pch-%s" % (self.toolset, lang)
+                "$(obj)/", f"$(obj).{self.toolset}/$(TARGET)/pch-{lang}"
             )
             return path
-        return "$(obj).%s/$(TARGET)/pch-%s/%s" % (self.toolset, lang, path)
+        return f"$(obj).{self.toolset}/$(TARGET)/pch-{lang}/{path}"
 
     def Absolutify(self, path):
         """Convert a subdirectory-relative path into a base-relative path.
-    Skips over paths that contain variables."""
+        Skips over paths that contain variables."""
         if "$(" in path:
             # Don't call normpath in this case, as it might collapse the
             # path too aggressively if it features '..'. However it's still
@@ -2219,7 +2223,7 @@ def PerformBuild(data, configurations, params):
         if options.toplevel_dir and options.toplevel_dir != ".":
             arguments += "-C", options.toplevel_dir
         arguments.append("BUILDTYPE=" + config)
-        print("Building [%s]: %s" % (config, arguments))
+        print(f"Building [{config}]: {arguments}")
         subprocess.check_call(arguments)
 
 
@@ -2253,7 +2257,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # away when we add verification that all targets have the
     # necessary configurations.
     default_configuration = None
-    toolsets = set([target_dicts[target]["toolset"] for target in target_list])
+    toolsets = {target_dicts[target]["toolset"] for target in target_list}
     for target in target_list:
         spec = target_dicts[target]
         if spec["default_configuration"] != "Default":
@@ -2328,7 +2332,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
             {
                 "copy_archive_args": copy_archive_arguments,
                 "flock": "./gyp-flock-tool flock",
-                "flock_index": 2
+                "flock_index": 2,
             }
         )
     elif flavor == "freebsd":
@@ -2362,7 +2366,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
             value = "$(abspath %s)" % value
         wrapper = wrappers.get(key)
         if wrapper:
-            value = "%s %s" % (wrapper, value)
+            value = f"{wrapper} {value}"
             del wrappers[key]
         if key in ("CC", "CC.host", "CXX", "CXX.host"):
             make_global_settings += (
@@ -2372,10 +2376,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
             env_key = key.replace(".", "_")  # CC.host -> CC_host
             if env_key in os.environ:
                 value = os.environ[env_key]
-            make_global_settings += "  %s = %s\n" % (key, value)
+            make_global_settings += f"  {key} = {value}\n"
             make_global_settings += "endif\n"
         else:
-            make_global_settings += "%s ?= %s\n" % (key, value)
+            make_global_settings += f"{key} ?= {value}\n"
     # TODO(ukai): define cmd when only wrapper is specified in
     # make_global_settings.
 
@@ -2413,8 +2417,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
         this_make_global_settings = data[build_file].get("make_global_settings", [])
         assert make_global_settings_array == this_make_global_settings, (
-            "make_global_settings needs to be the same for all targets. %s vs. %s"
-            % (this_make_global_settings, make_global_settings)
+            "make_global_settings needs to be the same for all targets "
+            f"{this_make_global_settings} vs. {make_global_settings}"
         )
 
         build_files.add(gyp.common.RelativePath(build_file, options.toplevel_dir))

@@ -101,8 +101,10 @@ class SemiSpace;
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size, code_space) \
-  DCHECK((0 < size) && (size <= code_space->AreaSize()))
+#define DCHECK_CODEOBJECT_SIZE(size, code_space)                          \
+  DCHECK((0 < size) &&                                                    \
+         (size <= std::min(MemoryChunkLayout::MaxRegularCodeObjectSize(), \
+                           code_space->AreaSize())))
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not
@@ -118,6 +120,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
   }
+
+  Space(const Space&) = delete;
+  Space& operator=(const Space&) = delete;
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
@@ -192,8 +197,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
@@ -218,9 +221,11 @@ class Page : public MemoryChunk {
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
   static Page* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
@@ -229,6 +234,7 @@ class Page : public MemoryChunk {
   // we subtract a hole word. The valid address ranges from
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
   static Page* FromAllocationAreaAddress(Address address) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return Page::FromAddress(address - kTaggedSize);
   }
 

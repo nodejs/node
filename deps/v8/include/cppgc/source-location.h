@@ -25,7 +25,7 @@ namespace cppgc {
 
 /**
  * Encapsulates source location information. Mimics C++20's
- * std::source_location.
+ * `std::source_location`.
  */
 class V8_EXPORT SourceLocation final {
  public:

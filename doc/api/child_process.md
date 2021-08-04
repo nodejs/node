@@ -146,6 +146,13 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version: v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/36308
+    description: AbortSignal support was added.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -153,13 +160,15 @@ changes:
 
 * `command` {string} The command to run, with space-separated arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
     **Default:** `process.cwd()`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `shell` {string} Shell to execute the command with. See
     [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
@@ -183,6 +192,8 @@ directly by the shell and special characters (vary based on
 need to be dealt with accordingly:
 
 ```js
+const { exec } = require('child_process');
+
 exec('"/path/to/test file/test.sh" arg1 arg2');
 // Double quotes are used so that the space in the path is not interpreted as
 // a delimiter of multiple arguments.
@@ -246,11 +257,31 @@ async function lsExample() {
 lsExample();
 ```
 
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+const { exec } = require('child_process');
+const controller = new AbortController();
+const { signal } = controller;
+const child = exec('grep ssh', { signal }, (error) => {
+  console.log(error); // an AbortError
+});
+controller.abort();
+```
+
 ### `child_process.execFile(file[, args][, options][, callback])`
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: v15.4.0
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version:
+      - v15.4.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36308
     description: AbortSignal support was added.
   - version: v8.8.0
@@ -261,7 +292,7 @@ changes:
 * `file` {string} The name or path of the executable file to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
@@ -280,7 +311,8 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
-  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -339,6 +371,7 @@ If the `signal` option is enabled, calling `.abort()` on the corresponding
 the error passed to the callback will be an `AbortError`:
 
 ```js
+const { execFile } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = execFile('node', ['--version'], { signal }, (error) => {
@@ -351,7 +384,19 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version: v15.13.0
+    pr-url: https://github.com/nodejs/node/pull/37256
+    description: timeout was added.
+  - version: v15.11.0
+    pr-url: https://github.com/nodejs/node/pull/37325
+    description: killSignal for AbortSignal was added.
+  - version:
+      - v15.6.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36603
     description: AbortSignal support was added.
   - version:
@@ -370,7 +415,7 @@ changes:
 * `modulePath` {string} The module to run in the child.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `detached` {boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
     [`options.detached`][]).
@@ -382,7 +427,10 @@ changes:
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization][] for more details. **Default:** `'json'`.
-  * `signal` {AbortSignal} Allows closing the subprocess using an AbortSignal.
+  * `signal` {AbortSignal} Allows closing the child process using an
+    AbortSignal.
+  * `killSignal` {string|integer} The signal value to be used when the spawned
+    process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
@@ -394,6 +442,8 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
+  * `timeout` {number} In milliseconds the maximum amount of time the process
+    is allowed to run. **Default:** `undefined`.
 * Returns: {ChildProcess}
 
 The `child_process.fork()` method is a special case of
@@ -424,14 +474,44 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
-The `signal` option works exactly the same way it does in
-[`child_process.spawn()`][].
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+if (process.argv[2] === 'child') {
+  setTimeout(() => {
+    console.log(`Hello from ${process.argv[2]}!`);
+  }, 1_000);
+} else {
+  const { fork } = require('child_process');
+  const controller = new AbortController();
+  const { signal } = controller;
+  const child = fork(__filename, ['child'], { signal });
+  child.on('error', (err) => {
+    // This will be called with err being an AbortError if the controller aborts
+  });
+  controller.abort(); // Stops the child process
+}
+```
 
 ### `child_process.spawn(command[, args][, options])`
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: v15.5.0
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version: v15.13.0
+    pr-url: https://github.com/nodejs/node/pull/37256
+    description: timeout was added.
+  - version: v15.11.0
+    pr-url: https://github.com/nodejs/node/pull/37325
+    description: killSignal for AbortSignal was added.
+  - version:
+      - v15.5.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36432
     description: AbortSignal support was added.
   - version:
@@ -453,7 +533,7 @@ changes:
 * `command` {string} The command to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
@@ -476,7 +556,12 @@ changes:
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
+  * `timeout` {number} In milliseconds the maximum amount of time the process
+    is allowed to run. **Default:** `undefined`.
+  * `killSignal` {string|integer} The signal value to be used when the spawned
+    process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
 
 * Returns: {ChildProcess}
 
@@ -589,13 +674,14 @@ If the `signal` option is enabled, calling `.abort()` on the corresponding
 the error passed to the callback will be an `AbortError`:
 
 ```js
+const { spawn } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const grep = spawn('grep', ['ssh'], { signal });
 grep.on('error', (err) => {
   // This will be called with err being an AbortError if the controller aborts
 });
-controller.abort(); // stops the process
+controller.abort(); // Stops the child process
 ```
 
 #### `options.detached`
@@ -660,7 +746,7 @@ subprocess.unref();
 <!-- YAML
 added: v0.7.10
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/29412
     description: Added the `overlapped` stdio flag.
   - version: v3.3.1
@@ -775,6 +861,10 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
@@ -795,7 +885,7 @@ changes:
 * `file` {string} The name or path of the executable file to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
@@ -844,6 +934,10 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
@@ -858,7 +952,7 @@ changes:
 
 * `command` {string} The command to run.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
@@ -904,6 +998,10 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v16.4.0
+    pr-url: https://github.com/nodejs/node/pull/38862
+    description: The `cwd` option can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
@@ -927,7 +1025,7 @@ changes:
 * `command` {string} The command to run.
 * `args` {string[]} List of string arguments.
 * `options` {Object}
-  * `cwd` {string} Current working directory of the child process.
+  * `cwd` {string|URL} Current working directory of the child process.
   * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
     as stdin to the spawned process. Supplying this value will override
     `stdio[0]`.
@@ -1001,9 +1099,11 @@ added: v0.7.7
 * `code` {number} The exit code if the child exited on its own.
 * `signal` {string} The signal by which the child process was terminated.
 
-The `'close'` event is emitted when the stdio streams of a child process have
-been closed. This is distinct from the [`'exit'`][] event, since multiple
-processes might share the same stdio streams.
+The `'close'` event is emitted after a process has ended _and_ the stdio
+streams of a child process have been closed. This is distinct from the
+[`'exit'`][] event, since multiple processes might share the same stdio
+streams. The `'close'` event will always emit after [`'exit'`][] was
+already emitted, or [`'error'`][] if the child failed to spawn.
 
 ```js
 const { spawn } = require('child_process');
@@ -1094,10 +1194,14 @@ See [Advanced serialization][] for more details.
 
 ### Event: `'spawn'`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 The `'spawn'` event is emitted once the child process has spawned successfully.
+If the child process does not spawn successfully, the `'spawn'` event is not
+emitted and the `'error'` event is emitted instead.
 
 If emitted, the `'spawn'` event comes before all other events and before any
 data is received via `stdout` or `stderr`.
@@ -1211,6 +1315,11 @@ may not actually terminate the process.
 
 See kill(2) for reference.
 
+On Windows, where POSIX signals do not exist, the `signal` argument will be
+ignored, and the process will be killed forcefully and abruptly (similar to
+`'SIGKILL'`).
+See [Signal Events][] for more details.
+
 On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
 new process in a shell or with the use of the `shell` option of `ChildProcess`:
@@ -1225,7 +1334,7 @@ const subprocess = spawn(
     '-c',
     `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
-    }, 500);"`
+    }, 500);"`,
   ], {
     stdio: ['inherit', 'inherit', 'inherit']
   }
@@ -1253,9 +1362,11 @@ does not indicate that the child process has been terminated.
 added: v0.1.90
 -->
 
-* {integer}
+* {integer|undefined}
 
-Returns the process identifier (PID) of the child process.
+Returns the process identifier (PID) of the child process. If the child process
+fails to spawn due to errors, then the value is `undefined` and `error` is
+emitted.
 
 ```js
 const { spawn } = require('child_process');
@@ -1558,7 +1669,7 @@ const subprocess = child_process.spawn('ls', {
   stdio: [
     0, // Use parent's stdin for child.
     'pipe', // Pipe child's stdout to parent.
-    fs.openSync('err.out', 'w') // Direct child's stderr to a file.
+    fs.openSync('err.out', 'w'), // Direct child's stderr to a file.
   ]
 });
 
@@ -1673,6 +1784,7 @@ or [`child_process.fork()`][].
 [Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell requirements]: #child_process_shell_requirements
+[Signal Events]: process.md#process_signal_events
 [`'disconnect'`]: process.md#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit

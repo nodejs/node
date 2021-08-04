@@ -59,6 +59,8 @@ class V8InspectorImpl : public V8Inspector {
  public:
   V8InspectorImpl(v8::Isolate*, V8InspectorClient*);
   ~V8InspectorImpl() override;
+  V8InspectorImpl(const V8InspectorImpl&) = delete;
+  V8InspectorImpl& operator=(const V8InspectorImpl&) = delete;
 
   v8::Isolate* isolate() const { return m_isolate; }
   V8InspectorClient* client() { return m_client; }
@@ -66,13 +68,14 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
   uint64_t isolateId() const { return m_isolateId; }
+  int resolveUniqueContextId(V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
   v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
                                            const String16& code,
                                            const String16& fileName);
-  v8::Local<v8::Context> regexContext();
+  v8::MaybeLocal<v8::Context> regexContext();
 
   // V8Inspector implementation.
   std::unique_ptr<V8InspectorSession> connect(int contextGroupId,
@@ -127,6 +130,7 @@ class V8InspectorImpl : public V8Inspector {
   void forEachSession(
       int contextGroupId,
       const std::function<void(V8InspectorSessionImpl*)>& callback);
+  int64_t generateUniqueId();
 
   class EvaluateScope {
    public:
@@ -175,12 +179,11 @@ class V8InspectorImpl : public V8Inspector {
   ConsoleStorageMap m_consoleStorageMap;
 
   std::unordered_map<int, int> m_contextIdToGroupIdMap;
+  std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
   std::unique_ptr<V8Console> m_console;
 
   Counters* m_counters = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };
 
 }  // namespace v8_inspector

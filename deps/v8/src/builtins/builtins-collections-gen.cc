@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
@@ -843,27 +842,27 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
 TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
   if (variant == kMap || variant == kWeakMap) {
-    return AllocateOrderedHashTable<OrderedHashMap>();
+    return AllocateOrderedHashMap();
   } else {
-    return AllocateOrderedHashTable<OrderedHashSet>();
+    return AllocateOrderedHashSet();
   }
 }
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   GenerateConstructor(kMap, isolate()->factory()->Map_string(), new_target,
                       argc, context);
 }
 
 TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   GenerateConstructor(kSet, isolate()->factory()->Set_string(), new_target,
                       argc, context);
@@ -911,7 +910,7 @@ TNode<IntPtrT> CollectionsBuiltinsAssembler::GetHash(
 
   BIND(&if_receiver);
   {
-    var_hash = LoadJSReceiverIdentityHash(key);
+    var_hash = LoadJSReceiverIdentityHash(CAST(key));
     Goto(&done);
   }
 
@@ -1160,8 +1159,8 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
 }
 
 TF_BUILTIN(MapIteratorToList, CollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSMapIterator> iterator = CAST(Parameter(Descriptor::kSource));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterator = Parameter<JSMapIterator>(Descriptor::kSource);
   Return(MapIteratorToList(context, iterator));
 }
 
@@ -1247,8 +1246,8 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
 }
 
 TF_BUILTIN(SetOrSetIteratorToList, CollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> object = CAST(Parameter(Descriptor::kSource));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto object = Parameter<HeapObject>(Descriptor::kSource);
   Return(SetOrSetIteratorToList(context, object));
 }
 
@@ -1421,8 +1420,8 @@ void CollectionsBuiltinsAssembler::SameValueZeroHeapNumber(
 }
 
 TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
-  TNode<HeapObject> table = CAST(Parameter(Descriptor::kTable));
-  TNode<Smi> index = CAST(Parameter(Descriptor::kIndex));
+  auto table = Parameter<HeapObject>(Descriptor::kTable);
+  auto index = Parameter<Smi>(Descriptor::kIndex);
   Label return_index(this), return_zero(this);
 
   // Check if we need to update the {index}.
@@ -1561,9 +1560,9 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
 }
 
 TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
 
@@ -1587,9 +1586,9 @@ TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
 
@@ -1628,10 +1627,10 @@ const TNode<Object> CollectionsBuiltinsAssembler::NormalizeNumberKey(
 }
 
 TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.set");
 
@@ -1746,9 +1745,9 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
 }
 
 TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "Map.prototype.delete");
@@ -1805,9 +1804,9 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.add");
 
@@ -1914,9 +1913,9 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
 }
 
 TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
                          "Set.prototype.delete");
@@ -1969,8 +1968,8 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "Map.prototype.entries");
   Return(AllocateJSCollectionIterator<JSMapIterator>(
@@ -1978,8 +1977,8 @@ TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "get Map.prototype.size");
   const TNode<OrderedHashMap> table =
@@ -1989,9 +1988,8 @@ TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map.prototype.forEach";
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   CodeStubArguments args(this, argc);
   const TNode<Object> receiver = args.GetReceiver();
   const TNode<Object> callback = args.GetOptionalArgumentValue(0);
@@ -2051,16 +2049,16 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(MapPrototypeKeys, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.keys");
   Return(AllocateJSCollectionIterator<JSMapIterator>(
       context, Context::MAP_KEY_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
 TF_BUILTIN(MapPrototypeValues, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "Map.prototype.values");
   Return(AllocateJSCollectionIterator<JSMapIterator>(
@@ -2069,8 +2067,8 @@ TF_BUILTIN(MapPrototypeValues, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map Iterator.prototype.next";
-  const TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   // Ensure that {maybe_receiver} is actually a JSMapIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
@@ -2145,9 +2143,9 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.has");
 
@@ -2206,8 +2204,8 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
                          "Set.prototype.entries");
   Return(AllocateJSCollectionIterator<JSSetIterator>(
@@ -2215,8 +2213,8 @@ TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
                          "get Set.prototype.size");
   const TNode<OrderedHashSet> table =
@@ -2226,9 +2224,8 @@ TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set.prototype.forEach";
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   CodeStubArguments args(this, argc);
   const TNode<Object> receiver = args.GetReceiver();
   const TNode<Object> callback = args.GetOptionalArgumentValue(0);
@@ -2281,8 +2278,8 @@ TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
                          "Set.prototype.values");
   Return(AllocateJSCollectionIterator<JSSetIterator>(
@@ -2291,8 +2288,8 @@ TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set Iterator.prototype.next";
-  const TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   // Ensure that {maybe_receiver} is actually a JSSetIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
@@ -2404,8 +2401,8 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
 }
 
 TF_BUILTIN(FindOrderedHashMapEntry, CollectionsBuiltinsAssembler) {
-  const TNode<OrderedHashMap> table = CAST(Parameter(Descriptor::kTable));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  const auto table = Parameter<OrderedHashMap>(Descriptor::kTable);
+  const auto key = Parameter<Object>(Descriptor::kKey);
 
   TVARIABLE(IntPtrT, entry_start_position, IntPtrConstant(0));
   Label entry_found(this), not_found(this);
@@ -2698,34 +2695,34 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
 }
 
 TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string(),
                       new_target, argc, context);
 }
 
 TF_BUILTIN(WeakSetConstructor, WeakCollectionsBuiltinsAssembler) {
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string(),
                       new_target, argc, context);
 }
 
 TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
-  TNode<EphemeronHashTable> table = CAST(Parameter(Descriptor::kTable));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  auto table = Parameter<EphemeronHashTable>(Descriptor::kTable);
+  auto key = Parameter<Object>(Descriptor::kKey);
 
   Label if_not_found(this);
 
   GotoIfNotJSReceiver(key, &if_not_found);
 
-  TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(key, &if_not_found);
+  TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(CAST(key), &if_not_found);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> key_index =
       FindKeyIndexForKey(table, key, hash, EntryMask(capacity), &if_not_found);
@@ -2736,9 +2733,9 @@ TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakMapGet, WeakCollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_undefined(this);
 
@@ -2758,9 +2755,9 @@ TF_BUILTIN(WeakMapGet, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakMapPrototypeHas, WeakCollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_false(this);
 
@@ -2782,15 +2779,15 @@ TF_BUILTIN(WeakMapPrototypeHas, WeakCollectionsBuiltinsAssembler) {
 // Helper that removes the entry with a given key from the backing store
 // (EphemeronHashTable) of a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSWeakCollection> collection = CAST(Parameter(Descriptor::kCollection));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto collection = Parameter<JSWeakCollection>(Descriptor::kCollection);
+  auto key = Parameter<Object>(Descriptor::kKey);
 
   Label call_runtime(this), if_not_found(this);
 
   GotoIfNotJSReceiver(key, &if_not_found);
 
-  TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(key, &if_not_found);
+  TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(CAST(key), &if_not_found);
   TNode<EphemeronHashTable> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> key_index =
@@ -2812,10 +2809,10 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
 // Helper that sets the key and value to the backing store (EphemeronHashTable)
 // of a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSWeakCollection> collection = CAST(Parameter(Descriptor::kCollection));
-  TNode<JSReceiver> key = CAST(Parameter(Descriptor::kKey));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto collection = Parameter<JSWeakCollection>(Descriptor::kCollection);
+  auto key = Parameter<JSReceiver>(Descriptor::kKey);
+  auto value = Parameter<Object>(Descriptor::kValue);
 
   CSA_ASSERT(this, IsJSReceiver(key));
 
@@ -2862,9 +2859,9 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakMapPrototypeDelete, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
                          "WeakMap.prototype.delete");
@@ -2873,10 +2870,10 @@ TF_BUILTIN(WeakMapPrototypeDelete, CodeStubAssembler) {
 }
 
 TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto value = Parameter<Object>(Descriptor::kValue);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
                          "WeakMap.prototype.set");
@@ -2892,9 +2889,9 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto value = Parameter<Object>(Descriptor::kValue);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
                          "WeakSet.prototype.add");
@@ -2910,9 +2907,9 @@ TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto value = Parameter<Object>(Descriptor::kValue);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
                          "WeakSet.prototype.delete");
@@ -2922,9 +2919,9 @@ TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {
 }
 
 TF_BUILTIN(WeakSetPrototypeHas, WeakCollectionsBuiltinsAssembler) {
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> key = CAST(Parameter(Descriptor::kKey));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_false(this);
 

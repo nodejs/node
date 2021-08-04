@@ -49,12 +49,13 @@ void Context::Initialize(Isolate* isolate) {
 
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
                                 String name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Static variables cannot be in script contexts.
   IsStaticFlag is_static_flag;
   for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
+    result->is_repl_mode = context.scope_info().IsReplModeScope();
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag, &is_static_flag);
@@ -216,7 +217,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         if (FLAG_trace_contexts) {
           PrintF(" - trying other script contexts\n");
         }
@@ -287,7 +288,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     if (context->IsFunctionContext() || context->IsBlockContext() ||
         context->IsScriptContext() || context->IsEvalContext() ||
         context->IsModuleContext() || context->IsCatchContext()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       ScopeInfo scope_info = context->scope_info();
@@ -415,11 +416,11 @@ void NativeContext::AddOptimizedCode(Code code) {
   DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(get(OPTIMIZED_CODE_LIST));
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::OptimizedCodeListHead() {
@@ -427,7 +428,7 @@ Object NativeContext::OptimizedCodeListHead() {
 }
 
 void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::DeoptimizedCodeListHead() {
@@ -510,6 +511,54 @@ STATIC_ASSERT(NativeContext::kMicrotaskQueueOffset ==
 STATIC_ASSERT(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
+
+void NativeContext::RunPromiseHook(PromiseHookType type,
+                                   Handle<JSPromise> promise,
+                                   Handle<Object> parent) {
+  Isolate* isolate = promise->GetIsolate();
+  DCHECK(isolate->HasContextPromiseHooks());
+  int contextSlot;
+
+  switch (type) {
+    case PromiseHookType::kInit:
+      contextSlot = PROMISE_HOOK_INIT_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kResolve:
+      contextSlot = PROMISE_HOOK_RESOLVE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kBefore:
+      contextSlot = PROMISE_HOOK_BEFORE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kAfter:
+      contextSlot = PROMISE_HOOK_AFTER_FUNCTION_INDEX;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<Object> hook(isolate->native_context()->get(contextSlot), isolate);
+  if (hook->IsUndefined()) return;
+
+  int argc = type == PromiseHookType::kInit ? 2 : 1;
+  Handle<Object> argv[2] = {
+    Handle<Object>::cast(promise),
+    parent
+  };
+
+  Handle<Object> receiver = isolate->global_proxy();
+
+  if (Execution::Call(isolate, hook, receiver, argc, argv).is_null()) {
+    DCHECK(isolate->has_pending_exception());
+    Handle<Object> exception(isolate->pending_exception(), isolate);
+
+    MessageLocation* no_location = nullptr;
+    Handle<JSMessageObject> message =
+        isolate->CreateMessageOrAbort(exception, no_location);
+    MessageHandler::ReportMessage(isolate, no_location, message);
+
+    isolate->clear_pending_exception();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -2,15 +2,17 @@ name: linters
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - master
+      - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
 
 env:
   PYTHON_VERSION: 3.9
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
 
 jobs:
   lint-addon-docs:
@@ -19,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -45,22 +47,29 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
         run: npx envinfo
+      - name: Get release version numbers
+        if: ${{ github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch }}
+        id: get-released-versions
+        run: ./tools/node-lint-md-cli-rollup/src/list-released-versions-from-changelogs.mjs
       - name: Lint docs
         run: |
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
           NODE=$(command -v node) make lint-md
+        env:
+          NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
+
   lint-js:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -98,3 +107,12 @@ jobs:
       - uses: mszostok/codeowners-validator@v0.4.0
         with:
           checks: "files,duppatterns"
+  lint-pr-url:
+    if: ${{ github.event.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
+      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}

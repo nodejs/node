@@ -18,22 +18,6 @@ U_NAMESPACE_BEGIN
 namespace units {
 
 /**
- * Looks up the unit category of a base unit identifier.
- *
- * Only supports base units, other units must be resolved to base units before
- * passing to this function.
- *
- * Categories are found in `unitQuantities` in the `units` resource (see
- * `units.txt`).
- *
- * TODO(hugovdm): if we give units_data.cpp access to the functionality of
- * `extractCompoundBaseUnit` which is currently in units_converter.cpp, we could
- * support all units for which there is a category. Does it make sense to move
- * that function to units_data.cpp?
- */
-CharString U_I18N_API getUnitCategory(const char *baseUnitIdentifier, UErrorCode &status);
-
-/**
  * Encapsulates "convertUnits" information from units resources, specifying how
  * to convert from one unit to another.
  *

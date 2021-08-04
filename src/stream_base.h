@@ -19,6 +19,7 @@ class ShutdownWrap;
 class WriteWrap;
 class StreamBase;
 class StreamResource;
+class ExternalReferenceRegistry;
 
 struct StreamWriteResult {
   bool async;
@@ -308,7 +309,7 @@ class StreamBase : public StreamResource {
 
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target);
-
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;
   virtual bool IsIPCPipe();

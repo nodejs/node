@@ -9,7 +9,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -65,15 +64,19 @@ enum FixedArraySubInstanceType {
       LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
 };
 
+#include "torque-generated/src/objects/fixed-array-tq.inc"
+
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
 class FixedArrayBase
     : public TorqueGeneratedFixedArrayBase<FixedArrayBase, HeapObject> {
  public:
-  // Get and set the length using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedFixedArrayBase::length;
+  using TorqueGeneratedFixedArrayBase::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
-  inline Object unchecked_synchronized_length() const;
+  inline Object unchecked_length(AcquireLoadTag) const;
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -100,7 +103,7 @@ class FixedArray
  public:
   // Setter and getter for elements.
   inline Object get(int index) const;
-  inline Object get(const Isolate* isolate, int index) const;
+  inline Object get(PtrComprCageBase cage_base, int index) const;
 
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
@@ -110,12 +113,21 @@ class FixedArray
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value);
 
-  // Synchronized setters and getters.
-  inline Object synchronized_get(int index) const;
-  inline Object synchronized_get(const Isolate* isolate, int index) const;
-  // Currently only Smis are written with release semantics, hence we can avoid
-  // a write barrier.
-  inline void synchronized_set(int index, Smi value);
+  // Relaxed accessors.
+  inline Object get(int index, RelaxedLoadTag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    RelaxedLoadTag) const;
+  inline void set(int index, Object value, RelaxedStoreTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, RelaxedStoreTag);
+
+  // Acquire/release accessors.
+  inline Object get(int index, AcquireLoadTag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    AcquireLoadTag) const;
+  inline void set(int index, Object value, ReleaseStoreTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, ReleaseStoreTag);
 
   // Setter that uses write barrier.
   inline void set(int index, Object value);
@@ -278,14 +290,16 @@ class WeakFixedArray
     : public TorqueGeneratedWeakFixedArray<WeakFixedArray, HeapObject> {
  public:
   inline MaybeObject Get(int index) const;
-  inline MaybeObject Get(const Isolate* isolate, int index) const;
+  inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
 
   inline void Set(
       int index, MaybeObject value,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
-  // Get and set the length using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedWeakFixedArray::length;
+  using TorqueGeneratedWeakFixedArray::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
@@ -353,7 +367,7 @@ class WeakArrayList
   V8_EXPORT_PRIVATE void Compact(Isolate* isolate);
 
   inline MaybeObject Get(int index) const;
-  inline MaybeObject Get(const Isolate* isolate, int index) const;
+  inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
@@ -366,7 +380,7 @@ class WeakArrayList
   }
 
   static constexpr int CapacityForLength(int length) {
-    return length + Max(length / 2, 2);
+    return length + std::max(length / 2, 2);
   }
 
   // Gives access to raw memory which stores the array's data.
@@ -376,9 +390,6 @@ class WeakArrayList
                            int src_index, int len, WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull();
-
-  // Get and set the capacity using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
   int AllocatedSize();
 
@@ -416,16 +427,15 @@ class WeakArrayList
 class WeakArrayList::Iterator {
  public:
   explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
+  Iterator(const Iterator&) = delete;
+  Iterator& operator=(const Iterator&) = delete;
 
   inline HeapObject Next();
 
  private:
   int index_;
   WeakArrayList array_;
-#ifdef DEBUG
-  DisallowHeapAllocation no_gc_;
-#endif  // DEBUG
-  DISALLOW_COPY_AND_ASSIGN(Iterator);
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.
@@ -454,7 +464,7 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   // storage capacity, i.e., length().
   inline void SetLength(int length);
   inline Object Get(int index) const;
-  inline Object Get(const Isolate* isolate, int index) const;
+  inline Object Get(PtrComprCageBase cage_base, int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
@@ -600,7 +610,7 @@ class TemplateList
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
   inline Object get(int index) const;
-  inline Object get(const Isolate* isolate, int index) const;
+  inline Object get(PtrComprCageBase cage_base, int index) const;
   inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);

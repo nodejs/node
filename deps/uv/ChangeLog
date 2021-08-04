@@ -1,3 +1,82 @@
+2021.02.14, Version 1.41.0 (Stable), 1dff88e5161cba5c59276d2070d2e304e4dcb242
+
+Changes since version 1.40.0:
+
+* mailmap: update contact information for richardlau (Richard Lau)
+
+* build: add asan checks (gengjiawen)
+
+* unix: report bind error in uv_tcp_connect() (Ben Noordhuis)
+
+* doc: uv_tcp_bind() never returns UV_EADDRINUSE (Ben Noordhuis)
+
+* test: fix pump and tcp_write_batch benchmarks (Santiago Gimeno)
+
+* doc: mark IBM i as Tier 2 support (Jesse Gorzinski)
+
+* doc,poll: add notes (repeated cb & cancel pending cb) (Elad Nachmias)
+
+* linux: fix -Wincompatible-pointer-types warning (Ben Noordhuis)
+
+* linux: fix -Wsign-compare warning (Ben Noordhuis)
+
+* android: add system call api guards (Ben Noordhuis)
+
+* unix,win: harmonize uv_read_start() error handling (Ben Noordhuis)
+
+* unix,win: more uv_read_start() argument validation (Ben Noordhuis)
+
+* build: turn on -fno-strict-aliasing (Ben Noordhuis)
+
+* stream: add uv_pipe and uv_socketpair to the API (Jameson Nash)
+
+* unix,win: initialize timer `timeout` field (Ben Noordhuis)
+
+* bsd-ifaddrs: improve comments (Darshan Sen)
+
+* test: remove unnecessary uv_fs_stat() calls (Ben Noordhuis)
+
+* fs: fix utime/futime timestamp rounding errors (Ben Noordhuis)
+
+* test: ensure reliable floating point comparison (Jameson Nash)
+
+* unix,fs: fix uv_fs_sendfile() (Santiago Gimeno)
+
+* unix: fix uv_fs_stat when using statx (Simon Kadisch)
+
+* linux,macos: fix uv_set_process_title regression (Momtchil Momtchev)
+
+* doc: clarify UDP errors and recvmmsg (Ethel Weston)
+
+* test-getaddrinfo: use example.invalid (Drew DeVault)
+
+* Revert "build: fix android autotools build" (Bernardo Ramos)
+
+* unix,fs: on DVS fs, statx returns EOPNOTSUPP (Mark Klein)
+
+* win, fs: mkdir really return UV_EINVAL for invalid names (Nicholas Vavilov)
+
+* tools: migrate tools/make_dist_html.py to python3 (Dominique Dumont)
+
+* unix: fix uv_uptime() on linux (schamberg97)
+
+* unix: check for partial copy_file_range support (Momtchil Momtchev)
+
+* win: bump minimum supported version to windows 8 (Ben Noordhuis)
+
+* poll,unix: ensure safety of rapid fd reuse (Bob Weinand)
+
+* test: fix some warnings (Issam E. Maghni)
+
+* unix: fix uv_uptime() regression (Santiago Gimeno)
+
+* doc: fix versionadded metadata (cjihrig)
+
+* test: fix 'incompatible pointer types' warnings (cjihrig)
+
+* unix: check for EXDEV in uv__fs_sendfile() (Darshan Sen)
+
+
 2020.09.26, Version 1.40.0 (Stable), 4e69e333252693bd82d6338d6124f0416538dbfc
 
 Changes since version 1.39.0:

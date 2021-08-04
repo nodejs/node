@@ -25,6 +25,8 @@ class Locale;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-locale-tq.inc"
+
 class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
  public:
   // Creates locale object with properties derived from input locale string
@@ -37,6 +39,21 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
                                         Handle<JSLocale> locale);
   static MaybeHandle<JSLocale> Minimize(Isolate* isolate,
                                         Handle<JSLocale> locale);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> Calendars(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> Collations(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> HourCycles(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> NumberingSystems(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> TextInfo(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> TimeZones(
+      Isolate* isolate, Handle<JSLocale> locale);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> WeekInfo(
+      Isolate* isolate, Handle<JSLocale> locale);
 
   static Handle<Object> Language(Isolate* isolate, Handle<JSLocale> locale);
   static Handle<Object> Script(Isolate* isolate, Handle<JSLocale> locale);

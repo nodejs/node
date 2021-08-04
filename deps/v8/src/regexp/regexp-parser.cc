@@ -1789,7 +1789,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
 #undef CHECK_FAILED
 
 bool RegExpParser::Parse(RegExpCompileData* result,
-                         const DisallowHeapAllocation&) {
+                         const DisallowGarbageCollection&) {
   DCHECK(result != nullptr);
   RegExpTree* tree = ParsePattern();
   if (failed()) {
@@ -1820,7 +1820,7 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
   RegExpParser parser(input, flags, isolate, zone);
   bool success;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     success = parser.Parse(result, no_gc);
   }
   if (success) {
@@ -1833,7 +1833,7 @@ bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                       FlatStringReader* input,
                                       JSRegExp::Flags flags,
                                       RegExpCompileData* result,
-                                      const DisallowHeapAllocation& no_gc) {
+                                      const DisallowGarbageCollection& no_gc) {
   RegExpParser parser(input, flags, isolate, zone);
   return parser.Parse(result, no_gc);
 }

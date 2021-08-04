@@ -8,10 +8,11 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 SUB_TESTS = [
+  'inspector',
   'json',
   'parser',
-  'regexp_builtins',
   'regexp',
+  'regexp_builtins',
   'multi_return',
   'wasm',
   'wasm_async',

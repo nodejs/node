@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
 
 import ast
 
@@ -20,8 +19,6 @@ import traceback
 from distutils.version import StrictVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
-
-PY3 = bytes != str
 
 # A list of types that are treated as linkable.
 linkable_types = [
@@ -228,17 +225,9 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes, is_target, check
         return data[build_file_path]
 
     if os.path.exists(build_file_path):
-        # Open the build file for read ('r') with universal-newlines mode ('U')
-        # to make sure platform specific newlines ('\r\n' or '\r') are converted to '\n'
-        # which otherwise will fail eval()
-        if PY3 or sys.platform == "zos":
-            # On z/OS, universal-newlines mode treats the file as an ascii file.
-            # But since node-gyp produces ebcdic files, do not use that mode.
-            build_file_contents = open(build_file_path, "r").read()
-        else:
-            build_file_contents = open(build_file_path, "rU").read()
+        build_file_contents = open(build_file_path, encoding='utf-8').read()
     else:
-        raise GypError("%s not found (cwd: %s)" % (build_file_path, os.getcwd()))
+        raise GypError(f"{build_file_path} not found (cwd: {os.getcwd()})")
 
     build_file_data = None
     try:
@@ -567,7 +556,7 @@ class ParallelProcessingError(Exception):
     pass
 
 
-class ParallelState(object):
+class ParallelState:
     """Class to keep track of state when processing input files in parallel.
 
   If build files are loaded in parallel, use this to keep track of
@@ -987,9 +976,8 @@ def ExpandVariables(input, phase, variables, build_file):
                         )
 
                     p_stdout, p_stderr = p.communicate("")
-                    if PY3:
-                        p_stdout = p_stdout.decode("utf-8")
-                        p_stderr = p_stderr.decode("utf-8")
+                    p_stdout = p_stdout.decode("utf-8")
+                    p_stderr = p_stderr.decode("utf-8")
 
                     if p.wait() != 0 or p_stderr:
                         sys.stderr.write(p_stderr)
@@ -1219,7 +1207,7 @@ def EvalSingleCondition(cond_expr, true_dict, false_dict, phase, variables, buil
     except NameError as e:
         gyp.common.ExceptionAppend(
             e,
-            "while evaluating condition '%s' in %s" % (cond_expr_expanded, build_file),
+            f"while evaluating condition '{cond_expr_expanded}' in {build_file}",
         )
         raise GypError(e)
 
@@ -1675,7 +1663,7 @@ def RemoveLinkDependenciesFromNoneTargets(targets):
                             )
 
 
-class DependencyGraphNode(object):
+class DependencyGraphNode:
     """
 
   Attributes:
@@ -2252,7 +2240,7 @@ def MergeLists(to, fro, to_file, fro_file, is_paths=False, append=True):
 
     # Make membership testing of hashables in |to| (in particular, strings)
     # faster.
-    hashable_to_set = set(x for x in to if is_hashable(x))
+    hashable_to_set = {x for x in to if is_hashable(x)}
     for item in fro:
         singleton = False
         if type(item) in (str, int):
@@ -2772,7 +2760,7 @@ def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
         rule_name = rule["rule_name"]
         if rule_name in rule_names:
             raise GypError(
-                "rule %s exists in duplicate, target %s" % (rule_name, target)
+                f"rule {rule_name} exists in duplicate, target {target}"
             )
         rule_names[rule_name] = rule
 

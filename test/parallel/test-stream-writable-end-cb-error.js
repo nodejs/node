@@ -8,19 +8,20 @@ const stream = require('stream');
   // Invoke end callback on failure.
   const writable = new stream.Writable();
 
+  const _err = new Error('kaboom');
   writable._write = (chunk, encoding, cb) => {
-    process.nextTick(cb, new Error('kaboom'));
+    process.nextTick(cb, _err);
   };
 
   writable.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(err, _err);
   }));
   writable.write('asd');
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
 }
 
@@ -57,18 +58,12 @@ const stream = require('stream');
     }
   });
   w.end('testing ended state', common.mustCall((err) => {
-    // This errors since .destroy(err), which is invoked by errors
-    // in same tick below, will error all pending callbacks.
-    // Does this make sense? Not sure.
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
   }));
   assert.strictEqual(w.destroyed, false);
   assert.strictEqual(w.writableEnded, true);
   w.end(common.mustCall((err) => {
-    // This errors since .destroy(err), which is invoked by errors
-    // in same tick below, will error all pending callbacks.
-    // Does this make sense? Not sure.
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
   }));
   assert.strictEqual(w.destroyed, false);
   assert.strictEqual(w.writableEnded, true);

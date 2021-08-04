@@ -14,13 +14,13 @@ namespace v8 {
 namespace internal {
 
 void RegExpBytecodeGenerator::Emit(uint32_t byte, uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  DCHECK(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint32_t*>(buffer_.begin() + pc_) = word;
-  pc_ += 4;
+  DCHECK(is_uint24(twenty_four_bits));
+  Emit32((twenty_four_bits << BYTECODE_SHIFT) | byte);
+}
+
+void RegExpBytecodeGenerator::Emit(uint32_t byte, int32_t twenty_four_bits) {
+  DCHECK(is_int24(twenty_four_bits));
+  Emit32((static_cast<uint32_t>(twenty_four_bits) << BYTECODE_SHIFT) | byte);
 }
 
 void RegExpBytecodeGenerator::Emit16(uint32_t word) {

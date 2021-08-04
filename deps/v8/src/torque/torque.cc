@@ -33,7 +33,14 @@ int WrappedMain(int argc, const char** argv) {
     } else if (argument == "-v8-root") {
       options.v8_root = std::string(argv[++i]);
     } else if (argument == "-m32") {
+#ifdef V8_COMPRESS_POINTERS
+      std::cerr << "Pointer compression is incompatible with -m32.\n";
+      base::OS::Abort();
+#else
       options.force_32bit_output = true;
+#endif
+    } else if (argument == "-annotate-ir") {
+      options.annotate_ir = true;
     } else {
       // Otherwise it's a .tq file. Remember it for compilation.
       files.emplace_back(std::move(argument));

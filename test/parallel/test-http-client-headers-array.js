@@ -44,11 +44,11 @@ execute({ headers: { 'x-foo': 'boom', 'cookie': 'a=1; b=2; c=3' } });
 execute({ headers: { 'x-foo': 'boom', 'cookie': [ 'a=1', 'b=2', 'c=3' ] } });
 execute({ headers: [[ 'x-foo', 'boom' ], [ 'cookie', 'a=1; b=2; c=3' ]] });
 execute({ headers: [
-  [ 'x-foo', 'boom' ], [ 'cookie', [ 'a=1', 'b=2', 'c=3' ]]
+  [ 'x-foo', 'boom' ], [ 'cookie', [ 'a=1', 'b=2', 'c=3' ]],
 ] });
 execute({ headers: [
   [ 'x-foo', 'boom' ], [ 'cookie', 'a=1' ],
-  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3']
+  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3'],
 ] });
 
 // Authorization and Host header both missing from the second
@@ -56,5 +56,5 @@ execute({ auth: 'foo:bar', headers:
   { 'x-foo': 'boom', 'cookie': 'a=1; b=2; c=3' } });
 execute({ auth: 'foo:bar', headers: [
   [ 'x-foo', 'boom' ], [ 'cookie', 'a=1' ],
-  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3']
+  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3'],
 ] });

@@ -8,8 +8,21 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
 const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Creates an array of numbers from `start` up to, but not including, `end`
+ * @param {number} start The start of the range
+ * @param {number} end The end of the range
+ * @returns {number[]} The range of numbers
+ */
+function range(start, end) {
+    return [...Array(end - start).keys()].map(x => x + start);
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -119,9 +132,23 @@ module.exports = {
             }
 
             if (start <= end) {
-                return lodash.range(start, end + 1);
+                return range(start, end + 1);
             }
             return [];
+        }
+
+        /**
+         * Returns a new array formed by applying a given callback function to each element of the array, and then flattening the result by one level.
+         * TODO(stephenwade): Replace this with array.flatMap when we drop support for Node v10
+         * @param {any[]} array The array to process
+         * @param {Function} fn The function to use
+         * @returns {any[]} The result array
+         */
+        function flatMap(array, fn) {
+            const mapped = array.map(fn);
+            const flattened = [].concat(...mapped);
+
+            return flattened;
         }
 
         return {
@@ -135,7 +162,7 @@ module.exports = {
                  * If file ends with a linebreak, `sourceCode.lines` will have one extra empty line at the end.
                  * That isn't a real line, so we shouldn't count it.
                  */
-                if (lines.length > 1 && lodash.last(lines).text === "") {
+                if (lines.length > 1 && lines[lines.length - 1].text === "") {
                     lines.pop();
                 }
 
@@ -146,12 +173,10 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = lodash.flatten(
-                        comments.map(comment => getLinesWithoutCode(comment))
-                    );
+                    const commentLines = flatMap(comments, comment => getLinesWithoutCode(comment));
 
                     lines = lines.filter(
-                        l => !lodash.includes(commentLines, l.lineNumber)
+                        l => !commentLines.includes(l.lineNumber)
                     );
                 }
 
@@ -163,7 +188,7 @@ module.exports = {
                         },
                         end: {
                             line: sourceCode.lines.length,
-                            column: lodash.last(sourceCode.lines).length
+                            column: sourceCode.lines[sourceCode.lines.length - 1].length
                         }
                     };
 

@@ -62,8 +62,10 @@ class Message : public MemoryRetainer {
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
-  v8::MaybeLocal<v8::Value> Deserialize(Environment* env,
-                                        v8::Local<v8::Context> context);
+  v8::MaybeLocal<v8::Value> Deserialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   // Serialize a JS value, and optionally transfer objects, into this message.
   // The Message object retains ownership of all transferred objects until
@@ -105,6 +107,9 @@ class Message : public MemoryRetainer {
 
  private:
   MallocedBuffer<char> main_message_buf_;
+  // TODO(addaleax): Make this a std::variant to save storage size in the common
+  // case (which is that all of these vectors are empty) once that is available
+  // with C++17.
   std::vector<std::shared_ptr<v8::BackingStore>> array_buffers_;
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
   std::vector<std::unique_ptr<TransferData>> transferables_;
@@ -145,9 +150,9 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   size_t size() const { return ports_.size(); }
 
  private:
-  std::string name_;
+  const std::string name_;
+  RwLock group_mutex_;  // Protects ports_.
   std::set<MessagePortData*> ports_;
-  Mutex group_mutex_;
 
   static void CheckSiblingGroup(const std::string& name);
 
@@ -200,6 +205,9 @@ class MessagePortData : public TransferData {
   // This mutex protects all fields below it, with the exception of
   // sibling_.
   mutable Mutex mutex_;
+  // TODO(addaleax): Make this a std::variant<std::shared_ptr, std::unique_ptr>
+  // once that is available with C++17, because std::shared_ptr comes with
+  // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
@@ -234,6 +242,7 @@ class MessagePort : public HandleWrap {
   // If this port is closed, or if there is no sibling, this message is
   // serialized with transfers, then silently discarded.
   v8::Maybe<bool> PostMessage(Environment* env,
+                              v8::Local<v8::Context> context,
                               v8::Local<v8::Value> message,
                               const TransferList& transfer);
 
@@ -285,11 +294,18 @@ class MessagePort : public HandleWrap {
   SET_SELF_SIZE(MessagePort)
 
  private:
+  enum class MessageProcessingMode {
+    kNormalOperation,
+    kForceReadMessages
+  };
+
   void OnClose() override;
-  void OnMessage();
+  void OnMessage(MessageProcessingMode mode);
   void TriggerAsync();
-  v8::MaybeLocal<v8::Value> ReceiveMessage(v8::Local<v8::Context> context,
-                                           bool only_if_receiving);
+  v8::MaybeLocal<v8::Value> ReceiveMessage(
+      v8::Local<v8::Context> context,
+      MessageProcessingMode mode,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;

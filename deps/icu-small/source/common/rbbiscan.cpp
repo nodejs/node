@@ -284,7 +284,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doEndAssign:
         {
-            // We have reached the end of an assignement statement.
+            // We have reached the end of an assignment statement.
             //   Current scan char is the ';' that terminates the assignment.
 
             // Terminate expression, leaves expression parse tree rooted in TOS node.
@@ -856,6 +856,10 @@ UChar32  RBBIRuleScanner::nextCharLL() {
         return (UChar32)-1;
     }
     ch         = fRB->fRules.char32At(fNextIndex);
+    if (U_IS_SURROGATE(ch)) {
+        error(U_ILLEGAL_CHAR_FOUND);
+        return U_SENTINEL;
+    }
     fNextIndex = fRB->fRules.moveIndex32(fNextIndex, 1);
 
     if (ch == chCR ||

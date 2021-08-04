@@ -44,14 +44,18 @@ extern class DebugInfo extends Struct {
   script: Undefined|Script;
   // The original uninstrumented bytecode array for functions with break
   // points - the instrumented bytecode is held in the shared function info.
+  @cppAcquireLoad
+  @cppReleaseStore
   original_bytecode_array: Undefined|BytecodeArray;
   // The debug instrumented bytecode array for functions with break points
   // - also pointed to by the shared function info.
+  @cppAcquireLoad
+  @cppReleaseStore
   debug_bytecode_array: Undefined|BytecodeArray;
   // Fixed array holding status information for each active break point.
   break_points: FixedArray;
   // A bitfield that lists uses of the current instance.
-  flags: SmiTagged<DebugInfoFlags>;
+  @cppRelaxedLoad @cppRelaxedStore flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
 }
 
@@ -69,18 +73,4 @@ struct CoverageInfoSlot {
 extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;
-}
-
-@generateCppClass
-@generatePrint
-extern class WasmValue extends Struct {
-  // TODO(7748): Name and comment are outdated.
-  // The type, should map to ValueType::Kind values in value-type.h.
-  value_type: SmiTagged<WasmValueType>;
-  // Holds the actual value. For example, if this holds a Wasm i32, this will
-  // be of length 4, for s128, it will have length 16. These values are
-  // represented by the respective C++ types, and memcpy-ed in.
-  // When value_type is a externref, it holds the object that externref points
-  // to.
-  bytes_or_ref: Object|ByteArray;
 }

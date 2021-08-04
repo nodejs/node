@@ -39,8 +39,8 @@ class GarbageCollectedBase {
 }  // namespace internal
 
 /**
- * Base class for managed objects. Only descendent types of GarbageCollected
- * can be constructed using MakeGarbageCollected. Must be inherited from as
+ * Base class for managed objects. Only descendent types of `GarbageCollected`
+ * can be constructed using `MakeGarbageCollected()`. Must be inherited from as
  * left-most base class.
  *
  * Types inheriting from GarbageCollected must provide a method of
@@ -73,10 +73,11 @@ class GarbageCollectedBase {
  * };
  * \endcode
  */
-template <typename>
+template <typename T>
 class GarbageCollected : public internal::GarbageCollectedBase {
  public:
   using IsGarbageCollectedTypeMarker = void;
+  using ParentMostGarbageCollectedType = T;
 
  protected:
   GarbageCollected() = default;

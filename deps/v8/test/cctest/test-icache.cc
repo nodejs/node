@@ -6,9 +6,12 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/handles/handles-inl.h"
-#include "src/wasm/code-space-access.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/code-space-access.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -60,6 +63,10 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
 #elif V8_TARGET_ARCH_S390
   for (int i = 0; i < kNumInstr; ++i) {
     __ agfi(r2, Operand(1));
+  }
+#elif V8_TARGET_ARCH_RISCV64
+  for (int i = 0; i < kNumInstr; ++i) {
+    __ Add32(a0, a0, Operand(1));
   }
 #else
 #error Unsupported architecture
@@ -166,6 +173,7 @@ CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
 
 #undef CONDITIONAL_TEST
 
+#if V8_ENABLE_WEBASSEMBLY
 // Order of operation for this test case:
 //   perm(RWX) -> exec -> patch -> flush -> exec
 TEST(TestFlushICacheOfWritableAndExecutable) {
@@ -173,7 +181,8 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
   HandleScope handles(isolate);
 
   for (int i = 0; i < kNumIterations; ++i) {
-    auto buffer = AllocateAssemblerBuffer(kBufferSize);
+    auto buffer = AllocateAssemblerBuffer(kBufferSize, nullptr,
+                                          VirtualMemory::kMapAsJittable);
 
     // Allow calling the function from C++.
     auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());
@@ -192,6 +201,7 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #undef __
 

@@ -94,16 +94,23 @@
       "delivery_value": "*",
       "redirection": "*",
       "subresource": [
-        "area-tag",
         "a-tag",
+        "area-tag",
+        "audio-tag",
+        "beacon",
         "fetch",
         "iframe-tag",
         "img-tag",
+        "link-css-tag",
+        "link-prefetch-tag",
+        "object-tag",
+        "picture-tag",
         "script-tag",
         "sharedworker-classic",
         "sharedworker-import",
         "sharedworker-import-data",
         "sharedworker-module",
+        "video-tag",
         "worker-classic",
         "worker-import",
         "worker-import-data",
@@ -126,6 +133,27 @@
         "cross-ws",
         "cross-ws-downgrade"
       ],
+      "expectation": "*"
+    },
+    {
+      // Worklets are HTTPS contexts only
+      "expansion": "*",
+      "source_scheme": "http",
+      "source_context_list": "*",
+      "delivery_type": "*",
+      "delivery_value": "*",
+      "redirection": "*",
+      "subresource": [
+        "worklet-animation",
+        "worklet-animation-import-data",
+        "worklet-audio",
+        "worklet-audio-import-data",
+        "worklet-layout",
+        "worklet-layout-import-data",
+        "worklet-paint",
+        "worklet-paint-import-data"
+      ],
+      "origin": "*",
       "expectation": "*"
     }
   ],

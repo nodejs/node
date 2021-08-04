@@ -58,8 +58,10 @@ class PerfJitLogger : public CodeEventLogger {
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Extension added to V8 log file name to get the low-level log name.
   static const char kFilenameFormatString[];
@@ -75,7 +77,9 @@ class PerfJitLogger : public CodeEventLogger {
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
   void LogWriteDebugInfo(Handle<Code> code, Handle<SharedFunctionInfo> shared);
+#if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void LogWriteUnwindingInfo(Code code);
 
   static const uint32_t kElfMachIA32 = 3;
@@ -86,6 +90,7 @@ class PerfJitLogger : public CodeEventLogger {
   static const uint32_t kElfMachARM64 = 183;
   static const uint32_t kElfMachS390x = 22;
   static const uint32_t kElfMachPPC64 = 21;
+  static const uint32_t kElfMachRISCV = 243;
 
   uint32_t GetElfMach() {
 #if V8_TARGET_ARCH_IA32
@@ -104,6 +109,8 @@ class PerfJitLogger : public CodeEventLogger {
     return kElfMachS390x;
 #elif V8_TARGET_ARCH_PPC64
     return kElfMachPPC64;
+#elif V8_TARGET_ARCH_RISCV64
+    return kElfMachRISCV;
 #else
     UNIMPLEMENTED();
     return 0;

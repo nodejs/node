@@ -20,7 +20,7 @@ class Handle;
 class Isolate;
 
 // Forward declarations.
-class BailoutId;
+class BytecodeOffset;
 class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
@@ -40,12 +40,16 @@ class Builtins {
  public:
   explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
 
+  Builtins(const Builtins&) = delete;
+  Builtins& operator=(const Builtins&) = delete;
+
   void TearDown();
 
   // Disassembler support.
   const char* Lookup(Address pc);
 
   enum Name : int32_t {
+    kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
                  DEF_ENUM)
@@ -59,8 +63,6 @@ class Builtins {
 #undef EXTRACT_NAME
   };
 
-  static const int32_t kNoBuiltinId = -1;
-
   static constexpr int kFirstWideBytecodeHandler =
       kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
   static constexpr int kFirstExtraWideBytecodeHandler =
@@ -70,14 +72,16 @@ class Builtins {
   STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
 
   static constexpr bool IsBuiltinId(int maybe_id) {
-    return 0 <= maybe_id && maybe_id < builtin_count;
+    STATIC_ASSERT(kNoBuiltinId == -1);
+    return static_cast<uint32_t>(maybe_id) <
+           static_cast<uint32_t>(builtin_count);
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
 
-  static BailoutId GetContinuationBailoutId(Name name);
-  static Name GetBuiltinFromBailoutId(BailoutId);
+  static BytecodeOffset GetContinuationBytecodeOffset(Name name);
+  static Name GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
@@ -250,8 +254,6 @@ class Builtins {
   int js_entry_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
-
-  DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
 Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(

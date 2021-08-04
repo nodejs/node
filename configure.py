@@ -14,7 +14,12 @@ import shutil
 import bz2
 import io
 
-from distutils.spawn import find_executable as which
+# Fallback to find_executable from distutils.spawn is a stopgap for
+# supporting V8 builds, which do not yet support Python 3.
+try:
+  from shutil import which
+except ImportError:
+  from distutils.spawn import find_executable as which
 from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
@@ -38,7 +43,9 @@ import nodedownload
 sys.path.insert(0, 'tools')
 import getmoduleversion
 import getnapibuildversion
+import getsharedopensslhasquic
 from gyp_node import run_gyp
+from utils import SearchFiles
 
 # parse our options
 parser = argparse.ArgumentParser()
@@ -46,7 +53,7 @@ parser = argparse.ArgumentParser()
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
-              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x')
+              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x', 'riscv64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -122,12 +129,6 @@ parser.add_argument('--error-on-warn',
     default=None,
     help='Turn compiler warnings into errors for node core sources.')
 
-parser.add_argument('--experimental-quic',
-    action='store_true',
-    dest='experimental_quic',
-    default=None,
-    help='enable experimental quic support')
-
 parser.add_argument('--gdb',
     action='store_true',
     dest='gdb',
@@ -173,7 +174,7 @@ parser.add_argument("--enable-lto",
     dest="enable_lto",
     default=None,
     help="Enable compiling with lto of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer.")
+         "with gcc 5.4.1+ or clang 3.9.1+.")
 
 parser.add_argument("--link-module",
     action="append",
@@ -289,28 +290,6 @@ shared_optgroup.add_argument('--shared-nghttp2-libpath',
     dest='shared_nghttp2_libpath',
     help='a directory to search for the shared nghttp2 DLLs')
 
-shared_optgroup.add_argument('--shared-ngtcp2',
-    action='store_true',
-    dest='shared_ngtcp2',
-    default=None,
-    help='link to a shared ngtcp2 DLL instead of static linking')
-
-shared_optgroup.add_argument('--shared-ngtcp2-includes',
-    action='store',
-    dest='shared_ngtcp2_includes',
-    help='directory containing ngtcp2 header files')
-
-shared_optgroup.add_argument('--shared-ngtcp2-libname',
-    action='store',
-    dest='shared_ngtcp2_libname',
-    default='ngtcp2',
-    help='alternative lib name to link to [default: %(default)s]')
-
-shared_optgroup.add_argument('--shared-ngtcp2-libpath',
-    action='store',
-    dest='shared_ngtcp2_libpath',
-    help='a directory to search for the shared ngtcp2 DLLs')
-
 shared_optgroup.add_argument('--shared-nghttp3',
     action='store_true',
     dest='shared_nghttp3',
@@ -332,6 +311,28 @@ shared_optgroup.add_argument('--shared-nghttp3-libpath',
     action='store',
     dest='shared_nghttp3_libpath',
     help='a directory to search for the shared nghttp3 DLLs')
+
+shared_optgroup.add_argument('--shared-ngtcp2',
+    action='store_true',
+    dest='shared_ngtcp2',
+    default=None,
+    help='link to a shared ngtcp2 DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ngtcp2-includes',
+    action='store',
+    dest='shared_ngtcp2_includes',
+    help='directory containing ngtcp2 header files')
+
+shared_optgroup.add_argument('--shared-ngtcp2-libname',
+    action='store',
+    dest='shared_ngtcp2_libname',
+    default='ngtcp2',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ngtcp2-libpath',
+    action='store',
+    dest='shared_ngtcp2_libpath',
+    help='a directory to search for the shared tcp2 DLLs')
 
 shared_optgroup.add_argument('--shared-openssl',
     action='store_true',
@@ -952,6 +953,7 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
+    o['variables']['llvm_version'] = '0.0'
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
@@ -965,8 +967,8 @@ def check_compiler(o):
                 ('clang ' if is_clang else '', CXX, version_str))
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
-  elif clang_version < (8, 0, 0) if is_clang else gcc_version < (6, 3, 0):
-    warn('C++ compiler (CXX=%s, %s) too old, need g++ 6.3.0 or clang++ 8.0.0' %
+  elif clang_version < (8, 0, 0) if is_clang else gcc_version < (8, 3, 0):
+    warn('C++ compiler (CXX=%s, %s) too old, need g++ 8.3.0 or clang++ 8.0.0' %
          (CXX, version_str))
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
@@ -1048,12 +1050,7 @@ def is_arm_hard_float_abi():
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
-  if sys.platform.startswith('aix'):
-    # we only support gcc at this point and the default on AIX
-    # would be xlc so hard code gcc
-    k = cc_macros('gcc')
-  else:
-    k = cc_macros(os.environ.get('CC_host'))
+  k = cc_macros(os.environ.get('CC_host'))
 
   matchup = {
     '__aarch64__' : 'arm64',
@@ -1065,6 +1062,7 @@ def host_arch_cc():
     '__PPC__'     : 'ppc64',
     '__x86_64__'  : 'x64',
     '__s390x__'   : 's390x',
+    '__riscv'     : 'riscv',
   }
 
   rtn = 'ia32' # default
@@ -1076,6 +1074,12 @@ def host_arch_cc():
 
   if rtn == 'mipsel' and '_LP64' in k:
     rtn = 'mips64el'
+
+  if rtn == 'riscv':
+    if k['__riscv_xlen'] == '64':
+      rtn = 'riscv64'
+    else:
+      rtn = 'riscv32'
 
   return rtn
 
@@ -1131,15 +1135,24 @@ def configure_mips(o, target_arch):
   host_byteorder = 'little' if target_arch in ('mipsel', 'mips64el') else 'big'
   o['variables']['v8_host_byteorder'] = host_byteorder
 
+def clang_version_ge(version_checked):
+  for compiler in [(CC, 'c'), (CXX, 'c++')]:
+    ok, is_clang, clang_version, gcc_version = \
+      try_check_compiler(compiler[0], compiler[1])
+    if is_clang and clang_version >= version_checked:
+      return True
+  return False
 
 def gcc_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
-    ok, is_clang, clang_version, compiler_version = \
+    ok, is_clang, clang_version, gcc_version = \
       try_check_compiler(compiler[0], compiler[1])
-    if is_clang or compiler_version < version_checked:
+    if is_clang or gcc_version < version_checked:
       return False
   return True
 
+def configure_node_lib_files(o):
+  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node(o):
   if options.dest_os == 'android':
@@ -1217,18 +1230,19 @@ def configure_node(o):
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
 
-  if flavor != 'linux' and (options.enable_lto):
+  if flavor == 'win' and (options.enable_lto):
     raise Exception(
-      'The lto option is supported only on linux.')
+      'Use Link Time Code Generation instead.')
 
-  if flavor == 'linux':
-    if options.enable_lto:
-      version_checked = (5, 4, 1)
-      if not gcc_version_ge(version_checked):
-        version_checked_str = ".".join(map(str, version_checked))
-        raise Exception(
-          'The option --enable-lto is supported for gcc and gxx %s'
-          ' or newer only.' % (version_checked_str))
+  if options.enable_lto:
+    gcc_version_checked = (5, 4, 1)
+    clang_version_checked = (3, 9, 1)
+    if not gcc_version_ge(gcc_version_checked) and not clang_version_ge(clang_version_checked):
+      gcc_version_checked_str = ".".join(map(str, gcc_version_checked))
+      clang_version_checked_str = ".".join(map(str, clang_version_checked))
+      raise Exception(
+        'The option --enable-lto is supported for gcc %s+'
+        'or clang %s+ only.' % (gcc_version_checked_str, clang_version_checked_str))
 
   o['variables']['enable_lto'] = b(options.enable_lto)
 
@@ -1289,14 +1303,6 @@ def configure_node(o):
     o['variables']['debug_nghttp2'] = 1
   else:
     o['variables']['debug_nghttp2'] = 'false'
-
-  if options.experimental_quic:
-    if options.shared_openssl:
-      raise Exception('QUIC requires a modified version of OpenSSL and '
-                      'cannot be enabled when using --shared-openssl.')
-    o['variables']['experimental_quic'] = 1
-  else:
-    o['variables']['experimental_quic'] = 'false'
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
@@ -1378,6 +1384,7 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o):
+  o['variables']['v8_enable_webassembly'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
@@ -1404,8 +1411,11 @@ def configure_openssl(o):
   variables = o['variables']
   variables['node_use_openssl'] = b(not options.without_ssl)
   variables['node_shared_openssl'] = b(options.shared_openssl)
+  variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
+  variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['openssl_fips'] = ''
+  variables['openssl_quic'] = b(True)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -1421,8 +1431,6 @@ def configure_openssl(o):
       without_ssl_error('--openssl-fips')
     if options.openssl_default_cipher_list:
       without_ssl_error('--openssl-default-cipher-list')
-    if options.experimental_quic:
-      without_ssl_error('--experimental-quic')
     return
 
   if options.use_openssl_ca_store:
@@ -1462,6 +1470,15 @@ def configure_openssl(o):
 
   if options.openssl_fips or options.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
+
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
+  if options.openssl_is_fips:
+    o['defines'] += ['OPENSSL_FIPS']
+
+  if options.shared_openssl:
+    variables['openssl_quic'] = b(getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes']))
 
   configure_library('openssl', o)
 
@@ -1836,7 +1853,7 @@ def make_bin_override():
   if sys.platform == 'win32':
     raise Exception('make_bin_override should not be called on win32.')
   # If the system python is not the python we are running (which should be
-  # python 2), then create a directory with a symlink called `python` to our
+  # python 3), then create a directory with a symlink called `python` to our
   # sys.executable. This directory will be prefixed to the PATH, so that
   # other tools that shell out to `python` will use the appropriate python
 
@@ -1884,6 +1901,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
+configure_node_lib_files(output)
 configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
@@ -1891,6 +1909,8 @@ configure_library('libuv', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
+configure_library('nghttp3', output, pkgname='libnghttp3')
+configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
@@ -1984,6 +2004,10 @@ else:
 
 if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
+
+# override the variable `python` defined in common.gypi
+if bin_override is not None:
+  gyp_args += ['-Dpython=' + sys.executable]
 
 # pass the leftover positional arguments to GYP
 gyp_args += args

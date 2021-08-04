@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
+#include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
@@ -30,7 +31,7 @@ bool HasBoilerplate(Handle<Object> literal_site) {
 
 void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
                               FeedbackSlot slot) {
-  vector->Set(slot, Smi::FromInt(1));
+  vector->SynchronizedSet(slot, Smi::FromInt(1));
 }
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
@@ -118,7 +119,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         FieldIndex index = FieldIndex::ForPropertyIndex(
             copy->map(isolate), details.field_index(),
             details.representation());
-        if (copy->IsUnboxedDoubleField(isolate, index)) continue;
         Object raw = copy->RawFastPropertyAt(isolate, index);
         if (raw.IsJSObject(isolate)) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -132,15 +132,30 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<NameDictionary> dict(copy->property_dictionary(isolate), isolate);
-      for (InternalIndex i : dict->IterateEntries()) {
-        Object raw = dict->ValueAt(isolate, i);
-        if (!raw.IsJSObject(isolate)) continue;
-        DCHECK(dict->KeyAt(isolate, i).IsName());
-        Handle<JSObject> value(JSObject::cast(raw), isolate);
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, value, VisitElementOrProperty(copy, value), JSObject);
-        if (copying) dict->ValueAtPut(i, *value);
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        Handle<SwissNameDictionary> dict(
+            copy->property_dictionary_swiss(isolate), isolate);
+        for (InternalIndex i : dict->IterateEntries()) {
+          Object raw = dict->ValueAt(i);
+          if (!raw.IsJSObject(isolate)) continue;
+          DCHECK(dict->KeyAt(i).IsName());
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) dict->ValueAtPut(i, *value);
+        }
+      } else {
+        Handle<NameDictionary> dict(copy->property_dictionary(isolate),
+                                    isolate);
+        for (InternalIndex i : dict->IterateEntries()) {
+          Object raw = dict->ValueAt(isolate, i);
+          if (!raw.IsJSObject(isolate)) continue;
+          DCHECK(dict->KeyAt(isolate, i).IsName());
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) dict->ValueAtPut(i, *value);
+        }
       }
     }
 
@@ -203,6 +218,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       // Typed elements cannot be created using an object literal.
       UNREACHABLE();
@@ -276,7 +292,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   }
   void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
     if (object.is_null()) return;
-    scope_site->set_boilerplate(*object);
+    scope_site->set_boilerplate(*object, kReleaseStore);
     if (FLAG_trace_creation_allocation_sites) {
       bool top_level =
           !scope_site.is_null() && top().is_identical_to(scope_site);
@@ -504,7 +520,7 @@ Handle<JSObject> CreateArrayLiteral(
 inline DeepCopyHints DecodeCopyHints(int flags) {
   DeepCopyHints copy_hints =
       (flags & AggregateLiteral::kIsShallow) ? kObjectIsShallow : kNoHints;
-  if (FLAG_track_double_fields && !FLAG_unbox_double_fields) {
+  if (FLAG_track_double_fields) {
     // Make sure we properly clone mutable heap numbers on 32-bit platforms.
     copy_hints = kNoHints;
   }
@@ -567,7 +583,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                         JSObject);
     creation_context.ExitScope(site, boilerplate);
 
-    vector->Set(literals_slot, *site);
+    vector->SynchronizedSet(literals_slot, *site);
   }
 
   STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
@@ -649,36 +665,46 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
-  Handle<FeedbackVector> vector;
-  if (maybe_vector->IsFeedbackVector()) {
-    vector = Handle<FeedbackVector>::cast(maybe_vector);
-  } else {
-    DCHECK(maybe_vector->IsUndefined());
-  }
-  if (vector.is_null()) {
-    Handle<JSRegExp> new_regexp;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, new_regexp,
-        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
-    return *new_regexp;
+  if (maybe_vector->IsUndefined()) {
+    // We don't have a vector; don't create a boilerplate, simply construct a
+    // plain JSRegExp instance and return it.
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
   }
 
-  // This function assumes that the boilerplate does not yet exist.
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
+
+  // This function must not be called when a boilerplate already exists (if it
+  // exists, callers should instead copy the boilerplate into a new JSRegExp
+  // instance).
   CHECK(!HasBoilerplate(literal_site));
 
-  Handle<JSRegExp> boilerplate;
+  Handle<JSRegExp> regexp_instance;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, boilerplate,
+      isolate, regexp_instance,
       JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
+
+  // JSRegExp literal sites are initialized in a two-step process:
+  // Uninitialized-Preinitialized, and Preinitialized-Initialized.
   if (IsUninitializedLiteralSite(*literal_site)) {
     PreInitializeLiteralSite(vector, literal_slot);
-    return *boilerplate;
+    return *regexp_instance;
   }
-  vector->Set(literal_slot, *boilerplate);
-  return *JSRegExp::Copy(boilerplate);
+
+  Handle<FixedArray> data(FixedArray::cast(regexp_instance->data()), isolate);
+  Handle<String> source(String::cast(regexp_instance->source()), isolate);
+  Handle<RegExpBoilerplateDescription> boilerplate =
+      isolate->factory()->NewRegExpBoilerplateDescription(
+          data, source, Smi::cast(regexp_instance->flags()));
+
+  vector->SynchronizedSet(literal_slot, *boilerplate);
+  DCHECK(HasBoilerplate(
+      handle(vector->Get(literal_slot)->cast<Object>(), isolate)));
+
+  return *regexp_instance;
 }
 
 }  // namespace internal

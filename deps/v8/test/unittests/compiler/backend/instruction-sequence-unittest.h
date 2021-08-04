@@ -42,7 +42,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
 
   enum TestOperandType {
     kInvalid,
-    kSameAsFirst,
+    kSameAsInput,
     kRegister,
     kFixedRegister,
     kSlot,
@@ -51,7 +51,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     kNone,
     kConstant,
     kUnique,
-    kUniqueRegister
+    kUniqueRegister,
+    kDeoptArg
   };
 
   struct TestOperand {
@@ -72,7 +73,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     MachineRepresentation rep_;
   };
 
-  static TestOperand Same() { return TestOperand(kSameAsFirst); }
+  static TestOperand Same() { return TestOperand(kSameAsInput); }
 
   static TestOperand Reg(VReg vreg, int index = kNoValue) {
     TestOperandType type = (index == kNoValue) ? kRegister : kFixedRegister;
@@ -102,6 +103,10 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   static TestOperand Const(int index) {
     CHECK_NE(kNoValue, index);
     return TestOperand(kConstant, index);
+  }
+
+  static TestOperand DeoptArg(VReg vreg) {
+    return TestOperand(kDeoptArg, vreg);
   }
 
   static TestOperand Use(VReg vreg) { return TestOperand(kNone, vreg); }
@@ -148,6 +153,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   }
 
   InstructionSequenceTest();
+  InstructionSequenceTest(const InstructionSequenceTest&) = delete;
+  InstructionSequenceTest& operator=(const InstructionSequenceTest&) = delete;
 
   void SetNumRegs(int num_general_registers, int num_double_registers);
   int GetNumRegs(MachineRepresentation rep);
@@ -280,8 +287,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   LoopBlocks loop_blocks_;
   InstructionBlock* current_block_;
   bool block_returns_;
-
-  DISALLOW_COPY_AND_ASSIGN(InstructionSequenceTest);
 };
 
 }  // namespace compiler

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 #define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 
@@ -51,7 +55,7 @@ class WasmImportWrapperCache {
   };
 
   // Helper class to modify the cache under a lock.
-  class ModificationScope {
+  class V8_NODISCARD ModificationScope {
    public:
     explicit ModificationScope(WasmImportWrapperCache* cache)
         : cache_(cache), guard_(&cache->mutex_) {}

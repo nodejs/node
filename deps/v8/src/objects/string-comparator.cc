@@ -44,7 +44,7 @@ bool StringComparator::Equals(String string_1, String string_2) {
   state_1_.Init(string_1);
   state_2_.Init(string_2);
   while (true) {
-    int to_check = Min(state_1_.length_, state_2_.length_);
+    int to_check = std::min(state_1_.length_, state_2_.length_);
     DCHECK(to_check > 0 && to_check <= length);
     bool is_equal;
     if (state_1_.is_one_byte_) {

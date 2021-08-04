@@ -111,7 +111,7 @@ async function main() {
     'Runtime.enable',
     'Debugger.setBreakpointByUrl',
     'Debugger.evaluateOnCallFrame',
-    'Debugger.resume'
+    'Debugger.resume',
   ]);
 }
 

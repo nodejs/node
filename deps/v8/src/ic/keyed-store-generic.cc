@@ -555,8 +555,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 
   // Out-of-capacity accesses (index >= capacity) jump here. Additionally,
   // an ElementsKind transition might be necessary.
-  // The index can also be negative or larger than kMaxArrayIndex at this point!
-  // Jump to the runtime in that case to convert it to a named property.
+  // The index can also be negative or larger than kMaxElementIndex at this
+  // point! Jump to the runtime in that case to convert it to a named property.
   BIND(&if_grow);
   {
     Comment("Grow backing store");
@@ -568,7 +568,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   // dispatch.
   BIND(&if_nonfast);
   {
-    STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    STATIC_ASSERT(LAST_ELEMENTS_KIND ==
+                  LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
@@ -588,7 +589,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   BIND(&if_typed_array);
   {
     Comment("Typed array");
-    // TODO(jkummerow): Support typed arrays.
+    // TODO(jkummerow): Support typed arrays. Note: RAB / GSAB backed typed
+    // arrays end up here too.
     Goto(slow);
   }
 }
@@ -638,7 +640,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
       BIND(&found_dict);
       {
-        TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+        TNode<PropertyDictionary> dictionary = CAST(var_meta_storage.value());
         TNode<IntPtrT> entry = var_entry.value();
         TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
         JumpIfDataProperty(details, &ok_to_write, readonly);
@@ -833,15 +835,15 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
-    NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
-                                         &var_name_index, &not_found);
+    TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
+    NameDictionaryLookup<PropertyDictionary>(
+        properties, name, &dictionary_found, &var_name_index, &not_found);
     BIND(&dictionary_found);
     {
-      Label overwrite(this);
+      Label check_const(this), overwrite(this), done(this);
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
-      JumpIfDataProperty(details, &overwrite,
+      JumpIfDataProperty(details, &check_const,
                          ShouldReconfigureExisting() ? nullptr : &readonly);
 
       if (ShouldCallSetter()) {
@@ -856,13 +858,30 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         Goto(slow);
       }
 
+      BIND(&check_const);
+      {
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, var_name_index.value());
+
+          BranchIfSameValue(prev_value, p->value(), &done, slow,
+                            SameValueMode::kNumbersOnly);
+        } else {
+          Goto(&overwrite);
+        }
+      }
+
       BIND(&overwrite);
       {
         CheckForAssociatedProtector(name, slow);
-        StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
-                                             p->value());
-        exit_point->Return(p->value());
+        StoreValueByKeyIndex<PropertyDictionary>(
+            properties, var_name_index.value(), p->value());
+        Goto(&done);
       }
+
+      BIND(&done);
+      exit_point->Return(p->value());
     }
 
     BIND(&not_found);
@@ -895,8 +914,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
-      Add<NameDictionary>(properties, name, p->value(),
-                          &add_dictionary_property_slow);
+      Add<PropertyDictionary>(properties, name, p->value(),
+                              &add_dictionary_property_slow);
       exit_point->Return(p->value());
 
       BIND(&add_dictionary_property_slow);
@@ -1031,10 +1050,10 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   using Descriptor = StoreDescriptor;
 
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   KeyedStoreGeneric(context, receiver, name, value, Nothing<LanguageMode>());
 }
@@ -1050,11 +1069,11 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   using Descriptor = StoreDescriptor;
 
-  TNode<Object> receiver_maybe_smi = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver_maybe_smi = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this, Label::kDeferred), store_property(this);
 

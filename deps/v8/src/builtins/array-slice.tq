@@ -66,7 +66,7 @@ macro HandleFastAliasedSloppyArgumentsSlice(
                        unmappedElements.objects[current]);
     // It is safe to skip the write barrier here because resultElements was
     // allocated together with result in a folded allocation.
-    // TODO(tebbi): The verification of this fails at the moment due to
+    // TODO(turbofan): The verification of this fails at the moment due to
     // missing load elimination.
     StoreFixedArrayElement(
         resultElements, indexOut++, newElement, UNSAFE_SKIP_WRITE_BARRIER);

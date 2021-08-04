@@ -78,7 +78,7 @@ added: v0.10.0
 
 * Returns: {SomeClass | null} The next `SomeClass` in line.
 
-`SomeClass` must be registered in `tools/doc/type-parser.js`
+`SomeClass` must be registered in `tools/doc/type-parser.mjs`
 to be properly parsed in `{type}` fields.
 
 ### SomeClass.someProperty

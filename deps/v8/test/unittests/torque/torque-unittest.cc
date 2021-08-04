@@ -45,6 +45,8 @@ type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type WeakHeapObject extends Tagged;
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 type Uninitialized extends Tagged;
+type TaggedIndex extends StrongTagged;
+type TaggedZeroPattern extends TaggedIndex;
 
 @abstract
 extern class HeapObject extends StrongTagged {
@@ -87,6 +89,7 @@ type SmiTagged<T : type extends uint31> extends Smi;
 type String extends HeapObject;
 type HeapNumber extends HeapObject;
 type FixedArrayBase extends HeapObject;
+type Lazy<T: type>;
 
 struct float64_or_hole {
   is_hole: bool;

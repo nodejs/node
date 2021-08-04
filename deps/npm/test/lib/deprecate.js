@@ -1,5 +1,4 @@
-const { test } = require('tap')
-const requireInject = require('require-inject')
+const t = require('tap')
 
 let getIdentityImpl = () => 'someperson'
 let npmFetchBody = null
@@ -18,10 +17,7 @@ npmFetch.json = async (uri, opts) => {
   }
 }
 
-const deprecate = requireInject('../../lib/deprecate.js', {
-  '../../lib/npm.js': {
-    flatOptions: { registry: 'https://registry.npmjs.org' },
-  },
+const Deprecate = t.mock('../../lib/deprecate.js', {
   '../../lib/utils/get-identity.js': async () => getIdentityImpl(),
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmaccess: {
@@ -30,66 +26,79 @@ const deprecate = requireInject('../../lib/deprecate.js', {
   'npm-registry-fetch': npmFetch,
 })
 
-test('completion', async t => {
+const deprecate = new Deprecate({
+  flatOptions: { registry: 'https://registry.npmjs.org' },
+})
+
+t.test('completion', async t => {
   const defaultIdentityImpl = getIdentityImpl
   t.teardown(() => {
     getIdentityImpl = defaultIdentityImpl
   })
 
-  const { completion } = deprecate
-
-  const testComp = (argv, expect) => {
-    return new Promise((resolve, reject) => {
-      completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-        if (err)
-          return reject(err)
-
-        t.strictSame(res, expect, `completion: ${argv}`)
-        resolve()
-      })
-    })
+  const testComp = async (argv, expect) => {
+    const res =
+      await deprecate.completion({ conf: { argv: { remain: argv } } })
+    t.strictSame(res, expect, `completion: ${argv}`)
   }
 
-  await testComp([], ['foo', 'bar', 'baz'])
-  await testComp(['b'], ['bar', 'baz'])
-  await testComp(['fo'], ['foo'])
-  await testComp(['g'], [])
-  await testComp(['foo', 'something'], [])
+  await Promise.all([
+    testComp([], ['foo', 'bar', 'baz']),
+    testComp(['b'], ['bar', 'baz']),
+    testComp(['fo'], ['foo']),
+    testComp(['g'], []),
+    testComp(['foo', 'something'], []),
+  ])
 
   getIdentityImpl = () => {
-    throw new Error('unknown failure')
+    throw new Error('deprecate test failure')
   }
 
-  t.rejects(testComp([], []), /unknown failure/)
+  t.rejects(testComp([], []), { message: 'deprecate test failure' })
 })
 
-test('no args', t => {
-  deprecate([], (err) => {
-    t.match(err, /Usage: npm deprecate/, 'logs usage')
+t.test('no args', t => {
+  deprecate.exec([], (err) => {
+    t.match(err, 'Usage:', 'logs usage')
     t.end()
   })
 })
 
-test('only one arg', t => {
-  deprecate(['foo'], (err) => {
-    t.match(err, /Usage: npm deprecate/, 'logs usage')
+t.test('only one arg', t => {
+  deprecate.exec(['foo'], (err) => {
+    t.match(err, 'Usage:', 'logs usage')
     t.end()
   })
 })
 
-test('invalid semver range', t => {
-  deprecate(['foo@notaversion', 'this will fail'], (err) => {
+t.test('invalid semver range', t => {
+  deprecate.exec(['foo@notaversion', 'this will fail'], (err) => {
     t.match(err, /invalid version range/, 'logs semver error')
     t.end()
   })
 })
 
-test('deprecates given range', t => {
+t.test('undeprecate', t => {
+  deprecate.exec(['foo', ''], (err) => {
+    if (err)
+      throw err
+    t.match(npmFetchBody, {
+      versions: {
+        '1.0.0': { deprecated: '' },
+        '1.0.1': { deprecated: '' },
+        '1.0.1-pre': { deprecated: '' },
+      },
+    }, 'undeprecates everything')
+    t.end()
+  })
+})
+
+t.test('deprecates given range', t => {
   t.teardown(() => {
     npmFetchBody = null
   })
 
-  deprecate(['foo@1.0.0', 'this version is deprecated'], (err) => {
+  deprecate.exec(['foo@1.0.0', 'this version is deprecated'], (err) => {
     if (err)
       throw err
 
@@ -110,12 +119,12 @@ test('deprecates given range', t => {
   })
 })
 
-test('deprecates all versions when no range is specified', t => {
+t.test('deprecates all versions when no range is specified', t => {
   t.teardown(() => {
     npmFetchBody = null
   })
 
-  deprecate(['foo', 'this version is deprecated'], (err) => {
+  deprecate.exec(['foo', 'this version is deprecated'], (err) => {
     if (err)
       throw err
 

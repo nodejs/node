@@ -37,11 +37,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       std::vector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
-  template <typename LocalIsolate>
-  Handle<BytecodeArray> FinalizeBytecode(LocalIsolate* isolate,
+  template <typename IsolateT>
+  Handle<BytecodeArray> FinalizeBytecode(IsolateT* isolate,
                                          Handle<Script> script);
-  template <typename LocalIsolate>
-  Handle<ByteArray> FinalizeSourcePositionTable(LocalIsolate* isolate);
+  template <typename IsolateT>
+  Handle<ByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -71,6 +71,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ExpressionResultScope;
   class FeedbackSlotCache;
   class IteratorRecord;
+  class MultipleEntryBlockContextScope;
   class LoopScope;
   class NaryCodeCoverageSlots;
   class OptionalChainNullLabelScope;
@@ -164,8 +165,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
-  template <typename LocalIsolate>
-  void AllocateDeferredConstants(LocalIsolate* isolate, Handle<Script> script);
+  template <typename IsolateT>
+  void AllocateDeferredConstants(IsolateT* isolate, Handle<Script> script);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -242,17 +243,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                const AstRawString* name);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
-                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+                         TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableLoadForAccumulatorValue(
       Variable* variable, HoleCheckMode hole_check_mode,
-      TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+      TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableAssignment(
       Variable* variable, Token::Value op, HoleCheckMode hole_check_mode,
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
   void BuildLiteralCompareNil(Token::Value compare_op,
                               BytecodeArrayBuilder::NilValue nil);
-  void BuildReturn(int source_position = kNoSourcePosition);
-  void BuildAsyncReturn(int source_position = kNoSourcePosition);
+  void BuildReturn(int source_position);
+  void BuildAsyncReturn(int source_position);
   void BuildAsyncGeneratorReturn();
   void BuildReThrow();
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
@@ -311,11 +312,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
   void BuildPrivateBrandCheck(Property* property, Register object,
                               MessageTemplate tmpl);
+  void BuildPrivateMethodIn(Variable* private_name,
+                            Expression* object_expression);
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
   void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
                            Register home_object);
+  void BuildClassProperty(ClassLiteral::Property* property);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
@@ -325,10 +329,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
-  void VisitSetHomeObject(Register value, Register home_object,
-                          LiteralProperty* property);
-  void VisitLiteralAccessor(Register home_object, LiteralProperty* property,
-                            Register value_out);
+  void VisitLiteralAccessor(LiteralProperty* property, Register value_out);
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
 

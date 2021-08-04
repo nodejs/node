@@ -47,6 +47,25 @@ found in the LICENSE file. -->
   To view the profile, click the <i>Choose file</i> button above and choose
   the file in the dialog box.
 
+  <br>
+  <br>
+  For recording a profile from Chrome use:
+  <pre>
+    --no-sandbox --js-flags=--prof
+  </pre>
+
+  If running on Android use also use --single-process:
+  <pre>
+    --single-process --no-sandbox --js-flags=--prof
+  </pre>
+
+  If the profile is from Android pass the unstripped Chrome library to
+  resolve C++ symbols when processing the file using linux-tick-processor.
+  <pre>
+  &lt;v8-dir>/tools/linux-tick-processor --preprocess --apk-embedded-library=./out/Release/lib.unstripped/libchrome.so v8.log > v8.json
+  </pre>
+
+  More detailed instructions for Android here: https://v8.dev/docs/profile-chromium#android
 </div>
 
 <div id="timeline" style="display : none">
@@ -112,7 +131,7 @@ found in the LICENSE file. -->
 <br>
 <br>
 <br>
-Copyright the V8 Authors - Last change to this page: 2018/08/13
+Copyright the V8 Authors - Last change to this page: 2020/12/04
 </p>
 
 </body>

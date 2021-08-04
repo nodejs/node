@@ -28,6 +28,11 @@ class PendingCompilationErrorHandler {
   PendingCompilationErrorHandler()
       : has_pending_error_(false), stack_overflow_(false) {}
 
+  PendingCompilationErrorHandler(const PendingCompilationErrorHandler&) =
+      delete;
+  PendingCompilationErrorHandler& operator=(
+      const PendingCompilationErrorHandler&) = delete;
+
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
 
@@ -48,15 +53,15 @@ class PendingCompilationErrorHandler {
   bool has_pending_warnings() const { return !warning_messages_.empty(); }
 
   // Handle errors detected during parsing.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void PrepareErrors(LocalIsolate* isolate, AstValueFactory* ast_value_factory);
+  void PrepareErrors(IsolateT* isolate, AstValueFactory* ast_value_factory);
   V8_EXPORT_PRIVATE void ReportErrors(Isolate* isolate,
                                       Handle<Script> script) const;
 
   // Handle warnings detected during compilation.
-  template <typename LocalIsolate>
-  void PrepareWarnings(LocalIsolate* isolate);
+  template <typename IsolateT>
+  void PrepareWarnings(IsolateT* isolate);
   void ReportWarnings(Isolate* isolate, Handle<Script> script) const;
 
   V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(Isolate* isolate);
@@ -101,8 +106,8 @@ class PendingCompilationErrorHandler {
     MessageLocation GetLocation(Handle<Script> script) const;
     MessageTemplate message() const { return message_; }
 
-    template <typename LocalIsolate>
-    void Prepare(LocalIsolate* isolate);
+    template <typename IsolateT>
+    void Prepare(IsolateT* isolate);
 
    private:
     enum Type { kNone, kAstRawString, kConstCharString, kMainThreadHandle };
@@ -130,8 +135,6 @@ class PendingCompilationErrorHandler {
   MessageDetails error_details_;
 
   std::forward_list<MessageDetails> warning_messages_;
-
-  DISALLOW_COPY_AND_ASSIGN(PendingCompilationErrorHandler);
 };
 
 extern template void PendingCompilationErrorHandler::PrepareErrors(

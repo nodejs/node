@@ -258,21 +258,21 @@ struct text_region FindNodeTextRegion() {
 
 #if defined(__linux__)
 bool IsTransparentHugePagesEnabled() {
-  std::ifstream ifs;
-
-  ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
-  if (!ifs) {
+  // File format reference:
+  // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/huge_memory.c?id=13391c60da3308ed9980de0168f74cce6c62ac1d#n163
+  const char* filename = "/sys/kernel/mm/transparent_hugepage/enabled";
+  std::ifstream config_stream(filename, std::ios::in);
+  if (!config_stream.good()) {
     PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
     return false;
   }
 
-  std::string always, madvise;
-  if (ifs.is_open()) {
-    while (ifs >> always >> madvise) {}
-  }
-  ifs.close();
-
-  return always == "[always]" || madvise == "[madvise]";
+  std::string token;
+  config_stream >> token;
+  if ("[always]" == token) return true;
+  config_stream >> token;
+  if ("[madvise]" == token) return true;
+  return false;
 }
 #elif defined(__FreeBSD__)
 bool IsSuperPagesEnabled() {

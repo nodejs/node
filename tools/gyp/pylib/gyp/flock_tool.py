@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -18,7 +18,7 @@ def main(args):
     executor.Dispatch(args)
 
 
-class FlockTool(object):
+class FlockTool:
     """This class emulates the 'flock' command."""
 
     def Dispatch(self, args):

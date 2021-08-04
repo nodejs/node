@@ -6,37 +6,42 @@
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_H_
 
 #include "include/v8-cppgc.h"
+#include "include/v8.h"
+#include "src/base/logging.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
 
-class JSMemberBase;
-
 namespace internal {
 
-class JSMemberBaseExtractor {
+class BasicTracedReferenceExtractor {
  public:
-  static Address* ObjectReference(const JSMemberBase& ref) {
+  static Address* ObjectReference(const TracedReferenceBase& ref) {
     return reinterpret_cast<Address*>(ref.val_);
   }
 };
 
 class UnifiedHeapMarkingState {
  public:
-  explicit UnifiedHeapMarkingState(Heap& heap) : heap_(heap) {}
+  explicit UnifiedHeapMarkingState(Heap* heap) : heap_(heap) {}
 
   UnifiedHeapMarkingState(const UnifiedHeapMarkingState&) = delete;
   UnifiedHeapMarkingState& operator=(const UnifiedHeapMarkingState&) = delete;
 
-  inline void MarkAndPush(const JSMemberBase&);
+  inline void MarkAndPush(const TracedReferenceBase&);
 
  private:
-  Heap& heap_;
+  Heap* heap_;
 };
 
-void UnifiedHeapMarkingState::MarkAndPush(const JSMemberBase& ref) {
-  heap_.RegisterExternallyReferencedObject(
-      JSMemberBaseExtractor::ObjectReference(ref));
+void UnifiedHeapMarkingState::MarkAndPush(const TracedReferenceBase& ref) {
+  // The same visitor is used in testing scenarios without attaching the heap to
+  // an Isolate under the assumption that no non-empty v8 references are found.
+  // Having the following DCHECK crash means that the heap is in detached mode
+  // but we find traceable pointers into an Isolate.
+  DCHECK_NOT_NULL(heap_);
+  heap_->RegisterExternallyReferencedObject(
+      BasicTracedReferenceExtractor::ObjectReference(ref));
 }
 
 }  // namespace internal

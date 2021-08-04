@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/node-gyp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Tools for dealing with node-gyp packages",
   "scripts": {
     "test": "tap",
@@ -24,6 +24,7 @@
     "coverage-map": "map.js"
   },
   "devDependencies": {
+    "require-inject": "^1.4.4",
     "tap": "^14.10.6",
     "tmp": "^0.2.1"
   }

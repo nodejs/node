@@ -4,6 +4,7 @@
 
 #include "src/common/assert-scope.h"
 
+#include "src/base/bit-field.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
@@ -14,96 +15,47 @@ namespace internal {
 
 namespace {
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey,
-                                GetPerThreadAssertKey,
-                                base::Thread::CreateThreadLocalKey())
+template <PerThreadAssertType kType>
+using PerThreadDataBit = base::BitField<bool, kType, 1>;
+template <PerIsolateAssertType kType>
+using PerIsolateDataBit = base::BitField<bool, kType, 1>;
+
+// Thread-local storage for assert data. Default all asserts to "allow".
+thread_local uint32_t current_per_thread_assert_data(~0);
 
 }  // namespace
 
-class PerThreadAssertData final {
- public:
-  PerThreadAssertData() : nesting_level_(0) {
-    for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
-      assert_states_[i] = true;
-    }
-  }
-
-  ~PerThreadAssertData() {
-    for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; ++i) {
-      DCHECK(assert_states_[i]);
-    }
-  }
-
-  bool Get(PerThreadAssertType type) const { return assert_states_[type]; }
-  void Set(PerThreadAssertType type, bool x) { assert_states_[type] = x; }
-
-  void IncrementLevel() { ++nesting_level_; }
-  bool DecrementLevel() { return --nesting_level_ == 0; }
-
-  static PerThreadAssertData* GetCurrent() {
-    return reinterpret_cast<PerThreadAssertData*>(
-        base::Thread::GetThreadLocal(*GetPerThreadAssertKey()));
-  }
-  static void SetCurrent(PerThreadAssertData* data) {
-    base::Thread::SetThreadLocal(*GetPerThreadAssertKey(), data);
-  }
-
- private:
-  bool assert_states_[LAST_PER_THREAD_ASSERT_TYPE];
-  int nesting_level_;
-
-  DISALLOW_COPY_AND_ASSIGN(PerThreadAssertData);
-};
-
 template <PerThreadAssertType kType, bool kAllow>
-PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope() {
-  PerThreadAssertData* current_data = PerThreadAssertData::GetCurrent();
-  if (current_data == nullptr) {
-    current_data = new PerThreadAssertData();
-    PerThreadAssertData::SetCurrent(current_data);
-  }
-  data_and_old_state_.update(current_data, current_data->Get(kType));
-  current_data->IncrementLevel();
-  current_data->Set(kType, kAllow);
+PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
+    : old_data_(current_per_thread_assert_data) {
+  current_per_thread_assert_data =
+      PerThreadDataBit<kType>::update(old_data_.value(), kAllow);
 }
 
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
-  if (data() == nullptr) return;
+  if (!old_data_.has_value()) return;
   Release();
 }
 
 template <PerThreadAssertType kType, bool kAllow>
 void PerThreadAssertScope<kType, kAllow>::Release() {
-  auto* current_data = data();
-  DCHECK_NOT_NULL(current_data);
-  current_data->Set(kType, old_state());
-  if (current_data->DecrementLevel()) {
-    PerThreadAssertData::SetCurrent(nullptr);
-    delete current_data;
-  }
-  set_data(nullptr);
+  current_per_thread_assert_data = old_data_.value();
+  old_data_.reset();
 }
 
 // static
 template <PerThreadAssertType kType, bool kAllow>
 bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
-  PerThreadAssertData* current_data = PerThreadAssertData::GetCurrent();
-  return current_data == nullptr || current_data->Get(kType);
+  return PerThreadDataBit<kType>::decode(current_per_thread_assert_data);
 }
-
-namespace {
-template <PerIsolateAssertType kType>
-using DataBit = base::BitField<bool, kType, 1>;
-}  // namespace
 
 template <PerIsolateAssertType kType, bool kAllow>
 PerIsolateAssertScope<kType, kAllow>::PerIsolateAssertScope(Isolate* isolate)
     : isolate_(isolate), old_data_(isolate->per_isolate_assert_data()) {
   DCHECK_NOT_NULL(isolate);
-  STATIC_ASSERT(kType < 32);
   isolate_->set_per_isolate_assert_data(
-      DataBit<kType>::update(old_data_, kAllow));
+      PerIsolateDataBit<kType>::update(old_data_, kAllow));
 }
 
 template <PerIsolateAssertType kType, bool kAllow>
@@ -114,22 +66,46 @@ PerIsolateAssertScope<kType, kAllow>::~PerIsolateAssertScope() {
 // static
 template <PerIsolateAssertType kType, bool kAllow>
 bool PerIsolateAssertScope<kType, kAllow>::IsAllowed(Isolate* isolate) {
-  return DataBit<kType>::decode(isolate->per_isolate_assert_data());
+  return PerIsolateDataBit<kType>::decode(isolate->per_isolate_assert_data());
+}
+
+// static
+template <PerIsolateAssertType kType, bool kAllow>
+void PerIsolateAssertScope<kType, kAllow>::Open(Isolate* isolate,
+                                                bool* was_execution_allowed) {
+  DCHECK_NOT_NULL(isolate);
+  DCHECK_NOT_NULL(was_execution_allowed);
+  uint32_t old_data = isolate->per_isolate_assert_data();
+  *was_execution_allowed = PerIsolateDataBit<kType>::decode(old_data);
+  isolate->set_per_isolate_assert_data(
+      PerIsolateDataBit<kType>::update(old_data, kAllow));
+}
+// static
+template <PerIsolateAssertType kType, bool kAllow>
+void PerIsolateAssertScope<kType, kAllow>::Close(Isolate* isolate,
+                                                 bool was_execution_allowed) {
+  DCHECK_NOT_NULL(isolate);
+  uint32_t old_data = isolate->per_isolate_assert_data();
+  isolate->set_per_isolate_assert_data(
+      PerIsolateDataBit<kType>::update(old_data, was_execution_allowed));
 }
 
 // -----------------------------------------------------------------------------
 // Instantiations.
 
-template class PerThreadAssertScope<GARBAGE_COLLECTION_ASSERT, false>;
-template class PerThreadAssertScope<GARBAGE_COLLECTION_ASSERT, true>;
 template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
 template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
+template class PerThreadAssertScope<SAFEPOINTS_ASSERT, false>;
+template class PerThreadAssertScope<SAFEPOINTS_ASSERT, true>;
 template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
 template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
 template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
 template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
 template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
 template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
+template class PerThreadAssertScope<GC_MOLE, false>;
 
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;

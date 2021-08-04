@@ -31,7 +31,8 @@ assert.deepStrictEqual(v8OptionsLines, [...v8OptionsLines].sort());
 const documented = new Set();
 for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
   for (const match of line.matchAll(/`(-[^`]+)`/g)) {
-    const option = match[1];
+    // Remove negation from the option's name.
+    const option = match[1].replace('--no-', '--');
     assert(!documented.has(option),
            `Option '${option}' was documented more than once as an ` +
            `allowed option for NODE_OPTIONS in ${cliMd}.`);
@@ -41,7 +42,8 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
 
 // Filter out options that are conditionally present.
 const conditionalOpts = [
-  { include: common.hasCrypto,
+  {
+    include: common.hasCrypto,
     filter: (opt) => {
       return [
         '--openssl-config',
@@ -50,21 +52,17 @@ const conditionalOpts = [
         '--use-openssl-ca',
         '--secure-heap',
         '--secure-heap-min',
+        '--enable-fips',
+        '--force-fips',
       ].includes(opt);
-    } },
-  {
-    // We are using openssl_is_fips from the configuration because it could be
-    // the case that OpenSSL is FIPS compatible but fips has not been enabled
-    // (starting node with --enable-fips). If we use common.hasFipsCrypto
-    // that would only tells us if fips has been enabled, but in this case we
-    // want to check options which will be available regardless of whether fips
-    // is enabled at runtime or not.
-    include: process.config.variables.openssl_is_fips,
-    filter: (opt) => opt.includes('-fips') },
-  { include: common.hasIntl,
-    filter: (opt) => opt === '--icu-data-dir' },
-  { include: process.features.inspector,
-    filter: (opt) => opt.startsWith('--inspect') || opt === '--debug-port' },
+    }
+  }, {
+    include: common.hasIntl,
+    filter: (opt) => opt === '--icu-data-dir'
+  }, {
+    include: process.features.inspector,
+    filter: (opt) => opt.startsWith('--inspect') || opt === '--debug-port'
+  },
 ];
 documented.forEach((opt) => {
   conditionalOpts.forEach(({ include, filter }) => {
@@ -89,12 +87,23 @@ const undocumented = difference(process.allowedNodeEnvironmentFlags,
                                 documented);
 // Remove intentionally undocumented options.
 assert(undocumented.delete('--debug-arraybuffer-allocations'));
+assert(undocumented.delete('--no-debug-arraybuffer-allocations'));
 assert(undocumented.delete('--es-module-specifier-resolution'));
 assert(undocumented.delete('--experimental-report'));
 assert(undocumented.delete('--experimental-worker'));
+assert(undocumented.delete('--node-snapshot'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));
 assert(undocumented.delete('--verify-base-objects'));
+assert(undocumented.delete('--no-verify-base-objects'));
+
+// Remove negated versions of the flags.
+for (const flag of undocumented) {
+  if (flag.startsWith('--no-')) {
+    assert(documented.has(`--${flag.slice(5)}`), flag);
+    undocumented.delete(flag);
+  }
+}
 
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +

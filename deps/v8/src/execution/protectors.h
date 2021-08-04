@@ -26,6 +26,8 @@ class Protectors : public AllStatic {
     is_concat_spreadable_protector)                                           \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
+  V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
+                                                                              \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
   /* Set.prototype.entries(). It does not protect the original iteration   */ \

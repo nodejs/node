@@ -55,20 +55,41 @@
 }],  # no_i18n == True
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
   'mjsunit/fail/assert-in-promise-fail-recursive': [FAIL],
   'fail/wasm-*': [SKIP],
   'wasm-*': [SKIP],
-
-  # Test output requires --validate-asm, which is disabled in jitless mode.
   'asm-*': [SKIP],
-}], # lite_mode or variant == jitless
+}],  # not has_webassembly or variant == jitless
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['arch == mips64el or arch == mipsel', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}], # arch == mips64el or arch == mipsel
+
+['arch == riscv64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}],
+
+##############################################################################
+['no_simd_hardware == True', {
+  'wasm-trace-memory': [SKIP],
+  'wasm-trace-memory-liftoff': [SKIP],
+}],  # no_simd_hardware == True
+
+################################################################################
+['third_party_heap', {
+  # Performs GC
+  'weakref-finalizationregistry-error': [SKIP],
+}], # third_party_heap
 
 ]

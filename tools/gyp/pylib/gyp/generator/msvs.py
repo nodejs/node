@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
 
 import ntpath
 import os
@@ -25,8 +24,6 @@ import gyp.MSVSUtil as MSVSUtil
 import gyp.MSVSVersion as MSVSVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
-
-PY3 = bytes != str
 
 
 # Regular expression for validating Visual Studio GUIDs.  If the GUID
@@ -120,9 +117,7 @@ def _GetDomainAndUserName():
             call = subprocess.Popen(
                 ["net", "config", "Workstation"], stdout=subprocess.PIPE
             )
-            config = call.communicate()[0]
-            if PY3:
-                config = config.decode("utf-8")
+            config = call.communicate()[0].decode("utf-8")
             username_re = re.compile(r"^User name\s+(\S+)", re.MULTILINE)
             username_match = username_re.search(config)
             if username_match:
@@ -319,7 +314,7 @@ def _ConfigBaseName(config_name, platform_name):
 
 def _ConfigFullName(config_name, config_data):
     platform_name = _ConfigPlatform(config_data)
-    return "%s|%s" % (_ConfigBaseName(config_name, platform_name), platform_name)
+    return f"{_ConfigBaseName(config_name, platform_name)}|{platform_name}"
 
 
 def _ConfigWindowsTargetPlatformVersion(config_data, version):
@@ -340,7 +335,7 @@ def _ConfigWindowsTargetPlatformVersion(config_data, version):
             # Find a matching entry in sdk_dir\include.
             expected_sdk_dir = r"%s\include" % sdk_dir
             names = sorted(
-                [
+                (
                     x
                     for x in (
                         os.listdir(expected_sdk_dir)
@@ -348,7 +343,7 @@ def _ConfigWindowsTargetPlatformVersion(config_data, version):
                         else []
                     )
                     if x.startswith(version)
-                ],
+                ),
                 reverse=True,
             )
             if names:
@@ -614,7 +609,7 @@ def _GenerateNativeRulesForMSVS(p, rules, output_dir, spec, options):
     spec: the project dict
     options: global generator options
   """
-    rules_filename = "%s%s.rules" % (spec["target_name"], options.suffix)
+    rules_filename = "{}{}.rules".format(spec["target_name"], options.suffix)
     rules_file = MSVSToolFile.Writer(
         os.path.join(output_dir, rules_filename), spec["target_name"]
     )
@@ -660,7 +655,7 @@ def _GenerateExternalRules(rules, output_dir, spec, sources, options, actions_to
     options: global generator options
     actions_to_add: The list of actions we will add to.
   """
-    filename = "%s_rules%s.mk" % (spec["target_name"], options.suffix)
+    filename = "{}_rules{}.mk".format(spec["target_name"], options.suffix)
     mk_file = gyp.common.WriteOnDiff(os.path.join(output_dir, filename))
     # Find cygwin style versions of some paths.
     mk_file.write('OutDirCygwin:=$(shell cygpath -u "$(OutDir)")\n')
@@ -703,7 +698,7 @@ def _GenerateExternalRules(rules, output_dir, spec, sources, options, actions_to
             cmd = ['"%s"' % i for i in cmd]
             cmd = " ".join(cmd)
             # Add it to the makefile.
-            mk_file.write("%s: %s\n" % (" ".join(outputs), " ".join(inputs)))
+            mk_file.write("{}: {}\n".format(" ".join(outputs), " ".join(inputs)))
             mk_file.write("\t%s\n\n" % cmd)
     # Close up the file.
     mk_file.close()
@@ -1570,7 +1565,7 @@ def _AdjustSourcesAndConvertToFilterHierarchy(
     if version.UsesVcxproj():
         while (
             all([isinstance(s, MSVSProject.Filter) for s in sources])
-            and len(set([s.name for s in sources])) == 1
+            and len({s.name for s in sources}) == 1
         ):
             assert all([len(s.contents) == 1 for s in sources])
             sources = [s.contents[0] for s in sources]
@@ -1776,8 +1771,8 @@ def _GetCopies(spec):
                 base_dir = posixpath.split(src_bare)[0]
                 outer_dir = posixpath.split(src_bare)[1]
                 fixed_dst = _FixPath(dst)
-                full_dst = '"%s\\%s\\"' % (fixed_dst, outer_dir)
-                cmd = 'mkdir %s 2>nul & cd "%s" && xcopy /e /f /y "%s" %s' % (
+                full_dst = f'"{fixed_dst}\\{outer_dir}\\"'
+                cmd = 'mkdir {} 2>nul & cd "{}" && xcopy /e /f /y "{}" {}'.format(
                     full_dst,
                     _FixPath(base_dir),
                     outer_dir,
@@ -1788,17 +1783,17 @@ def _GetCopies(spec):
                         [src],
                         ["dummy_copies", dst],
                         cmd,
-                        "Copying %s to %s" % (src, fixed_dst),
+                        f"Copying {src} to {fixed_dst}",
                     )
                 )
             else:
                 fix_dst = _FixPath(cpy["destination"])
-                cmd = 'mkdir "%s" 2>nul & set ERRORLEVEL=0 & copy /Y "%s" "%s"' % (
+                cmd = 'mkdir "{}" 2>nul & set ERRORLEVEL=0 & copy /Y "{}" "{}"'.format(
                     fix_dst,
                     _FixPath(src),
                     _FixPath(dst),
                 )
-                copies.append(([src], [dst], cmd, "Copying %s to %s" % (src, fix_dst)))
+                copies.append(([src], [dst], cmd, f"Copying {src} to {fix_dst}"))
     return copies
 
 
@@ -1898,12 +1893,12 @@ def _GetPlatformOverridesOfProject(spec):
     for config_name, c in spec["configurations"].items():
         config_fullname = _ConfigFullName(config_name, c)
         platform = c.get("msvs_target_platform", _ConfigPlatform(c))
-        fixed_config_fullname = "%s|%s" % (
+        fixed_config_fullname = "{}|{}".format(
             _ConfigBaseName(config_name, _ConfigPlatform(c)),
             platform,
         )
         if spec["toolset"] == "host" and generator_supports_multiple_toolsets:
-            fixed_config_fullname = "%s|x64" % (config_name,)
+            fixed_config_fullname = f"{config_name}|x64"
         config_platform_overrides[config_fullname] = fixed_config_fullname
     return config_platform_overrides
 
@@ -2056,7 +2051,7 @@ def PerformBuild(data, configurations, params):
 
     for config in configurations:
         arguments = [devenv, sln_path, "/Build", config]
-        print("Building [%s]: %s" % (config, arguments))
+        print(f"Building [{config}]: {arguments}")
         subprocess.check_call(arguments)
 
 
@@ -2242,7 +2237,7 @@ def _AppendFiltersForMSBuild(
             if not parent_filter_name:
                 filter_name = source.name
             else:
-                filter_name = "%s\\%s" % (parent_filter_name, source.name)
+                filter_name = f"{parent_filter_name}\\{source.name}"
             # Add the filter to the group.
             filter_group.append(
                 [
@@ -2370,7 +2365,7 @@ def _GenerateRulesForMSBuild(
     _AdjustSourcesForRules(rules, sources, excluded_sources, True)
 
 
-class MSBuildRule(object):
+class MSBuildRule:
     """Used to store information used to generate an MSBuild rule.
 
   Attributes:
@@ -2569,7 +2564,7 @@ def _GenerateMSBuildRuleTargetsFile(targets_path, msbuild_rules):
                 "Condition": "'@(%s)' != '' and '%%(%s.ExcludedFromBuild)' != "
                 "'true'" % (rule.tlog, rule.tlog),
                 "File": "$(IntDir)$(ProjectName).read.1.tlog",
-                "Lines": "^%%(%s.Source);%%(%s.Inputs)" % (rule.tlog, rule.tlog),
+                "Lines": f"^%({rule.tlog}.Source);%({rule.tlog}.Inputs)",
             },
         ]
         command_and_input_section = [
@@ -2915,7 +2910,7 @@ def _GetMSBuildProjectConfigurations(configurations, spec):
     group = ["ItemGroup", {"Label": "ProjectConfigurations"}]
     for (name, settings) in sorted(configurations.items()):
         configuration, platform = _GetConfigurationAndPlatform(name, settings, spec)
-        designation = "%s|%s" % (configuration, platform)
+        designation = f"{configuration}|{platform}"
         group.append(
             [
                 "ProjectConfiguration",
@@ -3280,13 +3275,11 @@ def _GetMSBuildPropertyGroup(spec, label, properties):
             # Self references are ignored. Self reference is used in a few places to
             # append to the default value. I.e. PATH=$(PATH);other_path
             edges.update(
-                set(
-                    [
-                        v
-                        for v in MSVS_VARIABLE_REFERENCE.findall(value)
-                        if v in properties and v != node
-                    ]
-                )
+                {
+                    v
+                    for v in MSVS_VARIABLE_REFERENCE.findall(value)
+                    if v in properties and v != node
+                }
             )
         return edges
 

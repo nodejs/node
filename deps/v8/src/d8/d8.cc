@@ -13,6 +13,7 @@
 #include <iterator>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -30,6 +31,8 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/base/sys-info.h"
 #include "src/d8/d8-console.h"
 #include "src/d8/d8-platforms.h"
@@ -51,13 +54,12 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/web-snapshot/web-snapshot.h"
 
 #ifdef V8_FUZZILLI
 #include "src/d8/cov.h"
@@ -331,11 +333,6 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
 
-static Local<Value> Throw(Isolate* isolate, const char* message) {
-  return isolate->ThrowException(
-      String::NewFromUtf8(isolate, message).ToLocalChecked());
-}
-
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
                                      Local<Context> context,
                                      Local<v8::Object> object,
@@ -353,13 +350,13 @@ static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
 std::shared_ptr<Worker> GetWorkerFromInternalField(Isolate* isolate,
                                                    Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
-    Throw(isolate, "this is not a Worker");
+    isolate->ThrowError("this is not a Worker");
     return nullptr;
   }
 
   i::Handle<i::Object> handle = Utils::OpenHandle(*object->GetInternalField(0));
   if (handle->IsSmi()) {
-    Throw(isolate, "Worker is defunct because main thread is terminating");
+    isolate->ThrowError("Worker is defunct because main thread is terminating");
     return nullptr;
   }
   auto managed = i::Handle<i::Managed<Worker>>::cast(handle);
@@ -395,7 +392,7 @@ class TraceConfigParser {
     Local<String> source =
         String::NewFromUtf8(isolate, json_str).ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
-    Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
+    Local<v8::Object> trace_config_object = result.As<v8::Object>();
 
     UpdateIncludedCategoriesList(isolate, context, trace_config_object,
                                  trace_config);
@@ -408,7 +405,7 @@ class TraceConfigParser {
     Local<Value> value =
         GetValue(isolate, context, object, kIncludedCategoriesParam);
     if (value->IsArray()) {
-      Local<Array> v8_array = Local<Array>::Cast(value);
+      Local<Array> v8_array = value.As<Array>();
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
         Local<Value> v = v8_array->Get(context, i)
                              .ToLocalChecked()
@@ -463,6 +460,7 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
+std::atomic<bool> Shell::valid_fuzz_script_{false};
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
 std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
@@ -487,7 +485,7 @@ ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
   if (entry != cached_code_map_.end() && entry->second) {
     int length = entry->second->length;
     uint8_t* cache = new uint8_t[length];
-    memcpy(cache, entry->second->data, length);
+    base::Memcpy(cache, entry->second->data, length);
     ScriptCompiler::CachedData* cached_data = new ScriptCompiler::CachedData(
         cache, length, ScriptCompiler::CachedData::BufferOwned);
     return cached_data;
@@ -504,7 +502,7 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
   DCHECK(*key);
   int length = cache_data->length;
   uint8_t* cache = new uint8_t[length];
-  memcpy(cache, cache_data->data, length);
+  base::Memcpy(cache, cache_data->data, length);
   cached_code_map_[*key] = std::unique_ptr<ScriptCompiler::CachedData>(
       new ScriptCompiler::CachedData(cache, length,
                                      ScriptCompiler::CachedData::BufferOwned));
@@ -538,10 +536,11 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
 class StreamingCompileTask final : public v8::Task {
  public:
   StreamingCompileTask(Isolate* isolate,
-                       v8::ScriptCompiler::StreamedSource* streamed_source)
+                       v8::ScriptCompiler::StreamedSource* streamed_source,
+                       v8::ScriptType type)
       : isolate_(isolate),
-        script_streaming_task_(v8::ScriptCompiler::StartStreamingScript(
-            isolate, streamed_source)) {
+        script_streaming_task_(v8::ScriptCompiler::StartStreaming(
+            isolate, streamed_source, type)) {
     Shell::NotifyStartStreamingTask(isolate_);
   }
 
@@ -564,6 +563,80 @@ class StreamingCompileTask final : public v8::Task {
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask>
       script_streaming_task_;
 };
+
+namespace {
+template <class T>
+MaybeLocal<T> CompileStreamed(Local<Context> context,
+                              ScriptCompiler::StreamedSource* v8_source,
+                              Local<String> full_source_string,
+                              const ScriptOrigin& origin) {}
+
+template <>
+MaybeLocal<Script> CompileStreamed(Local<Context> context,
+                                   ScriptCompiler::StreamedSource* v8_source,
+                                   Local<String> full_source_string,
+                                   const ScriptOrigin& origin) {
+  return ScriptCompiler::Compile(context, v8_source, full_source_string,
+                                 origin);
+}
+
+template <>
+MaybeLocal<Module> CompileStreamed(Local<Context> context,
+                                   ScriptCompiler::StreamedSource* v8_source,
+                                   Local<String> full_source_string,
+                                   const ScriptOrigin& origin) {
+  return ScriptCompiler::CompileModule(context, v8_source, full_source_string,
+                                       origin);
+}
+
+template <class T>
+MaybeLocal<T> Compile(Local<Context> context, ScriptCompiler::Source* source,
+                      ScriptCompiler::CompileOptions options) {}
+template <>
+MaybeLocal<Script> Compile(Local<Context> context,
+                           ScriptCompiler::Source* source,
+                           ScriptCompiler::CompileOptions options) {
+  return ScriptCompiler::Compile(context, source, options);
+}
+
+template <>
+MaybeLocal<Module> Compile(Local<Context> context,
+                           ScriptCompiler::Source* source,
+                           ScriptCompiler::CompileOptions options) {
+  return ScriptCompiler::CompileModule(context->GetIsolate(), source, options);
+}
+
+}  // namespace
+
+template <class T>
+MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
+                                   Local<String> source,
+                                   const ScriptOrigin& origin) {
+  if (options.streaming_compile) {
+    v8::ScriptCompiler::StreamedSource streamed_source(
+        std::make_unique<DummySourceStream>(source),
+        v8::ScriptCompiler::StreamedSource::UTF8);
+    PostBlockingBackgroundTask(std::make_unique<StreamingCompileTask>(
+        isolate, &streamed_source,
+        std::is_same<T, Module>::value ? v8::ScriptType::kModule
+                                       : v8::ScriptType::kClassic));
+    // Pump the loop until the streaming task completes.
+    Shell::CompleteMessageLoop(isolate);
+    return CompileStreamed<T>(context, &streamed_source, source, origin);
+  }
+
+  ScriptCompiler::CachedData* cached_code = nullptr;
+  if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+    cached_code = LookupCodeCache(isolate, source);
+  }
+  ScriptCompiler::Source script_source(source, origin, cached_code);
+  MaybeLocal<T> result =
+      Compile<T>(context, &script_source,
+                 cached_code ? ScriptCompiler::kConsumeCodeCache
+                             : ScriptCompiler::kNoCompileOptions);
+  if (cached_code) CHECK(!cached_code->rejected);
+  return result;
+}
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
@@ -616,42 +689,17 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Context::Scope context_scope(realm);
     MaybeLocal<Script> maybe_script;
     Local<Context> context(isolate->GetCurrentContext());
-    ScriptOrigin origin(name);
+    ScriptOrigin origin(isolate, name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
-      ScriptCompiler::CachedData* cached_code =
-          LookupCodeCache(isolate, source);
-      if (cached_code != nullptr) {
-        ScriptCompiler::Source script_source(source, origin, cached_code);
-        maybe_script = ScriptCompiler::Compile(context, &script_source,
-                                               options.compile_options);
-        CHECK(!cached_code->rejected);
-      } else {
-        ScriptCompiler::Source script_source(source, origin);
-        maybe_script = ScriptCompiler::Compile(
-            context, &script_source, ScriptCompiler::kNoCompileOptions);
+    for (int i = 1; i < options.repeat_compile; ++i) {
+      HandleScope handle_scope(isolate);
+      if (CompileString<Script>(isolate, context, source, origin).IsEmpty()) {
+        return false;
       }
-    } else if (options.streaming_compile) {
-      v8::ScriptCompiler::StreamedSource streamed_source(
-          std::make_unique<DummySourceStream>(source),
-          v8::ScriptCompiler::StreamedSource::UTF8);
-
-      PostBlockingBackgroundTask(
-          std::make_unique<StreamingCompileTask>(isolate, &streamed_source));
-
-      // Pump the loop until the streaming task completes.
-      Shell::CompleteMessageLoop(isolate);
-
-      maybe_script =
-          ScriptCompiler::Compile(context, &streamed_source, source, origin);
-    } else {
-      ScriptCompiler::Source script_source(source, origin);
-      maybe_script = ScriptCompiler::Compile(context, &script_source,
-                                             options.compile_options);
     }
-
     Local<Script> script;
-    if (!maybe_script.ToLocal(&script)) {
+    if (!CompileString<Script>(isolate, context, source, origin)
+             .ToLocal(&script)) {
       return false;
     }
 
@@ -662,6 +710,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
           ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
+    }
+    if (options.compile_only) {
+      return true;
     }
     maybe_result = script->Run(realm);
     if (options.code_cache_options ==
@@ -677,6 +728,27 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     data->realm_current_ = data->realm_switch_;
+
+    if (options.web_snapshot_config) {
+      std::vector<std::string> exports;
+      if (!ReadLines(options.web_snapshot_config, exports)) {
+        isolate->ThrowError("Web snapshots: unable to read config");
+        CHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
+
+      i::WebSnapshotSerializer serializer(isolate);
+      i::WebSnapshotData snapshot_data;
+      if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
+        DCHECK_NOT_NULL(snapshot_data.buffer);
+        WriteChars("web.snap", snapshot_data.buffer, snapshot_data.buffer_size);
+      } else {
+        CHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
+    }
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
@@ -792,13 +864,46 @@ class ModuleEmbedderData {
 
  public:
   explicit ModuleEmbedderData(Isolate* isolate)
-      : module_to_specifier_map(10, ModuleGlobalHash(isolate)) {}
+      : module_to_specifier_map(10, ModuleGlobalHash(isolate)),
+        json_module_to_parsed_json_map(10, ModuleGlobalHash(isolate)) {}
 
-  // Map from normalized module specifier to Module.
-  std::unordered_map<std::string, Global<Module>> specifier_to_module_map;
+  static ModuleType ModuleTypeFromImportAssertions(
+      Local<Context> context, Local<FixedArray> import_assertions,
+      bool hasPositions) {
+    Isolate* isolate = context->GetIsolate();
+    const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
+    for (int i = 0; i < import_assertions->Length();
+         i += kV8AssertionEntrySize) {
+      Local<String> v8_assertion_key =
+          import_assertions->Get(context, i).As<v8::String>();
+      std::string assertion_key = ToSTLString(isolate, v8_assertion_key);
+
+      if (assertion_key == "type") {
+        Local<String> v8_assertion_value =
+            import_assertions->Get(context, i + 1).As<String>();
+        std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
+        if (assertion_value == "json") {
+          return ModuleType::kJSON;
+        } else {
+          // JSON is currently the only supported non-JS type
+          return ModuleType::kInvalid;
+        }
+      }
+    }
+
+    // If no type is asserted, default to JS.
+    return ModuleType::kJavaScript;
+  }
+
+  // Map from (normalized module specifier, module type) pair to Module.
+  std::map<std::pair<std::string, ModuleType>, Global<Module>> module_map;
   // Map from Module to its URL as defined in the ScriptOrigin
   std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
       module_to_specifier_map;
+  // Map from JSON Module to its parsed content, for use in module
+  // JSONModuleEvaluationSteps
+  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
+      json_module_to_parsed_json_map;
 };
 
 enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
@@ -820,6 +925,7 @@ void DisposeModuleEmbedderData(Local<Context> context) {
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
+                                         Local<FixedArray> import_assertions,
                                          Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
   ModuleEmbedderData* d = GetModuleDataFromContext(context);
@@ -828,15 +934,20 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
   CHECK(specifier_it != d->module_to_specifier_map.end());
   std::string absolute_path = NormalizePath(ToSTLString(isolate, specifier),
                                             DirName(specifier_it->second));
-  auto module_it = d->specifier_to_module_map.find(absolute_path);
-  CHECK(module_it != d->specifier_to_module_map.end());
+  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
+      context, import_assertions, true);
+  auto module_it =
+      d->module_map.find(std::make_pair(absolute_path, module_type));
+  CHECK(module_it != d->module_map.end());
   return module_it->second.Get(isolate);
 }
 
 }  // anonymous namespace
 
-MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
-                                          const std::string& file_name) {
+MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
+                                          Local<Context> context,
+                                          const std::string& file_name,
+                                          ModuleType module_type) {
   DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
@@ -848,24 +959,56 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
       source_text = ReadFile(isolate, fallback_file_name.c_str());
     }
   }
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
-    std::string msg = "d8: Error reading module from " + file_name;
-    Throw(isolate, msg.c_str());
+    std::string msg = "d8: Error reading  module from " + file_name;
+    if (!referrer.IsEmpty()) {
+      auto specifier_it =
+          d->module_to_specifier_map.find(Global<Module>(isolate, referrer));
+      CHECK(specifier_it != d->module_to_specifier_map.end());
+      msg += "\n    imported by " + specifier_it->second;
+    }
+    isolate->ThrowError(
+        v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
     return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
-      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
-      Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
-      Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
-  ScriptCompiler::Source source(source_text, origin);
+      isolate, String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
+      0, 0, false, -1, Local<Value>(), false, false, true);
+
   Local<Module> module;
-  if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
-    return MaybeLocal<Module>();
+  if (module_type == ModuleType::kJavaScript) {
+    ScriptCompiler::Source source(source_text, origin);
+    if (!CompileString<Module>(isolate, context, source_text, origin)
+             .ToLocal(&module)) {
+      return MaybeLocal<Module>();
+    }
+  } else if (module_type == ModuleType::kJSON) {
+    Local<Value> parsed_json;
+    if (!v8::JSON::Parse(context, source_text).ToLocal(&parsed_json)) {
+      return MaybeLocal<Module>();
+    }
+
+    std::vector<Local<String>> export_names{
+        String::NewFromUtf8(isolate, "default").ToLocalChecked()};
+
+    module = v8::Module::CreateSyntheticModule(
+        isolate,
+        String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
+        export_names, Shell::JSONModuleEvaluationSteps);
+
+    CHECK(d->json_module_to_parsed_json_map
+              .insert(std::make_pair(Global<Module>(isolate, module),
+                                     Global<Value>(isolate, parsed_json)))
+              .second);
+  } else {
+    UNREACHABLE();
   }
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  CHECK(d->specifier_to_module_map
-            .insert(std::make_pair(file_name, Global<Module>(isolate, module)))
+  CHECK(d->module_map
+            .insert(std::make_pair(std::make_pair(file_name, module_type),
+                                   Global<Module>(isolate, module)))
             .second);
   CHECK(d->module_to_specifier_map
             .insert(std::make_pair(Global<Module>(isolate, module), file_name))
@@ -873,12 +1016,30 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
 
   std::string dir_name = DirName(file_name);
 
-  for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
-    Local<String> name = module->GetModuleRequest(i);
+  Local<FixedArray> module_requests = module->GetModuleRequests();
+  for (int i = 0, length = module_requests->Length(); i < length; ++i) {
+    Local<ModuleRequest> module_request =
+        module_requests->Get(context, i).As<ModuleRequest>();
+    Local<String> name = module_request->GetSpecifier();
     std::string absolute_path =
         NormalizePath(ToSTLString(isolate, name), dir_name);
-    if (d->specifier_to_module_map.count(absolute_path)) continue;
-    if (FetchModuleTree(context, absolute_path).IsEmpty()) {
+    Local<FixedArray> import_assertions = module_request->GetImportAssertions();
+    ModuleType request_module_type =
+        ModuleEmbedderData::ModuleTypeFromImportAssertions(
+            context, import_assertions, true);
+
+    if (request_module_type == ModuleType::kInvalid) {
+      isolate->ThrowError("Invalid module type was asserted");
+      return MaybeLocal<Module>();
+    }
+
+    if (d->module_map.count(
+            std::make_pair(absolute_path, request_module_type))) {
+      continue;
+    }
+
+    if (FetchModuleTree(module, context, absolute_path, request_module_type)
+            .IsEmpty()) {
       return MaybeLocal<Module>();
     }
   }
@@ -886,24 +1047,57 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   return module;
 }
 
-namespace {
+MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
+                                                   Local<Module> module) {
+  Isolate* isolate = context->GetIsolate();
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  auto json_value_it =
+      d->json_module_to_parsed_json_map.find(Global<Module>(isolate, module));
+  CHECK(json_value_it != d->json_module_to_parsed_json_map.end());
+  Local<Value> json_value = json_value_it->second.Get(isolate);
+
+  TryCatch try_catch(isolate);
+  Maybe<bool> result = module->SetSyntheticModuleExport(
+      isolate,
+      String::NewFromUtf8Literal(isolate, "default",
+                                 NewStringType::kInternalized),
+      json_value);
+
+  // Setting the default export should never fail.
+  CHECK(!try_catch.HasCaught());
+  CHECK(!result.IsNothing() && result.FromJust());
+
+  if (i::FLAG_harmony_top_level_await) {
+    Local<Promise::Resolver> resolver =
+        Promise::Resolver::New(context).ToLocalChecked();
+    resolver->Resolve(context, Undefined(isolate)).ToChecked();
+    return resolver->GetPromise();
+  }
+
+  return Undefined(isolate);
+}
 
 struct DynamicImportData {
   DynamicImportData(Isolate* isolate_, Local<String> referrer_,
                     Local<String> specifier_,
+                    Local<FixedArray> import_assertions_,
                     Local<Promise::Resolver> resolver_)
       : isolate(isolate_) {
     referrer.Reset(isolate, referrer_);
     specifier.Reset(isolate, specifier_);
+    import_assertions.Reset(isolate, import_assertions_);
     resolver.Reset(isolate, resolver_);
   }
 
   Isolate* isolate;
   Global<String> referrer;
   Global<String> specifier;
+  Global<FixedArray> import_assertions;
   Global<Promise::Resolver> resolver;
 };
 
+namespace {
 struct ModuleResolutionData {
   ModuleResolutionData(Isolate* isolate_, Local<Value> module_namespace_,
                        Local<Promise::Resolver> resolver_)
@@ -960,16 +1154,17 @@ void Shell::ModuleResolutionFailureCallback(
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
     Local<Context> context, Local<ScriptOrModule> referrer,
-    Local<String> specifier) {
+    Local<String> specifier, Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
       Promise::Resolver::New(context);
   Local<Promise::Resolver> resolver;
   if (maybe_resolver.ToLocal(&resolver)) {
-    DynamicImportData* data = new DynamicImportData(
-        isolate, Local<String>::Cast(referrer->GetResourceName()), specifier,
-        resolver);
+    DynamicImportData* data =
+        new DynamicImportData(isolate, referrer->GetResourceName().As<String>(),
+                              specifier, import_assertions, resolver);
+    PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();
   }
@@ -996,18 +1191,36 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
-  std::unique_ptr<DynamicImportData> import_data_(
-      static_cast<DynamicImportData*>(import_data));
+  DynamicImportData* import_data_ =
+      static_cast<DynamicImportData*>(import_data);
+
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
   Local<String> referrer(import_data_->referrer.Get(isolate));
   Local<String> specifier(import_data_->specifier.Get(isolate));
+  Local<FixedArray> import_assertions(
+      import_data_->import_assertions.Get(isolate));
   Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
+  PerIsolateData::Get(isolate)->DeleteDynamicImportData(import_data_);
+
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
+
+  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
+      realm, import_assertions, false);
+
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+
+  if (module_type == ModuleType::kInvalid) {
+    isolate->ThrowError("Invalid module type was asserted");
+    CHECK(try_catch.HasCaught());
+    resolver->Reject(realm, try_catch.Exception()).ToChecked();
+    return;
+  }
 
   std::string source_url = ToSTLString(isolate, referrer);
   std::string dir_name =
@@ -1015,15 +1228,15 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
-
   ModuleEmbedderData* d = GetModuleDataFromContext(realm);
   Local<Module> root_module;
-  auto module_it = d->specifier_to_module_map.find(absolute_path);
-  if (module_it != d->specifier_to_module_map.end()) {
+  auto module_it =
+      d->module_map.find(std::make_pair(absolute_path, module_type));
+  if (module_it != d->module_map.end()) {
     root_module = module_it->second.Get(isolate);
-  } else if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+  } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
+                              module_type)
+                  .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
@@ -1046,11 +1259,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   Local<Value> module_namespace = root_module->GetModuleNamespace();
   if (i::FLAG_harmony_top_level_await) {
-    Local<Promise> result_promise(Local<Promise>::Cast(result));
-    if (result_promise->State() == Promise::kRejected) {
-      resolver->Reject(realm, result_promise->Result()).ToChecked();
-      return;
-    }
+    Local<Promise> result_promise(result.As<Promise>());
 
     // Setup callbacks, and then chain them to the result promise.
     // ModuleResolutionData will be deleted by the callbacks.
@@ -1090,7 +1299,9 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   Local<Module> root_module;
 
-  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+  if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
+                       ModuleType::kJavaScript)
+           .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     ReportException(isolate, &try_catch);
     return false;
@@ -1113,7 +1324,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     // Loop until module execution finishes
     // TODO(cbruni): This is a bit wonky. "Real" engines would not be
     // able to just busy loop waiting for execution to finish.
-    Local<Promise> result_promise(Local<Promise>::Cast(result));
+    Local<Promise> result_promise(result.As<Promise>());
     while (result_promise->State() == Promise::kPending) {
       isolate->PerformMicrotaskCheckpoint();
     }
@@ -1137,6 +1348,37 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   return true;
 }
 
+bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
+  HandleScope handle_scope(isolate);
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
+
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  int length = 0;
+  std::unique_ptr<uint8_t[]> snapshot_data(
+      reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
+  if (length == 0) {
+    isolate->ThrowError("Error reading the web snapshot");
+    DCHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+  i::WebSnapshotDeserializer deserializer(isolate);
+  if (!deserializer.UseWebSnapshot(snapshot_data.get(),
+                                   static_cast<size_t>(length))) {
+    DCHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+  DCHECK(!try_catch.HasCaught());
+  return true;
+}
+
 PerIsolateData::PerIsolateData(Isolate* isolate)
     : isolate_(isolate), realms_(nullptr) {
   isolate->SetData(0, this);
@@ -1151,6 +1393,11 @@ PerIsolateData::~PerIsolateData() {
   if (i::FLAG_expose_async_hooks) {
     delete async_hooks_wrapper_;  // This uses the isolate
   }
+#if defined(LEAK_SANITIZER)
+  for (DynamicImportData* data : import_data_) {
+    delete data;
+  }
+#endif
 }
 
 void PerIsolateData::SetTimeout(Local<Function> callback,
@@ -1210,7 +1457,28 @@ int PerIsolateData::HandleUnhandledPromiseRejections() {
     Shell::ReportException(isolate_, message, value);
   }
   unhandled_promises_.clear();
+  ignore_unhandled_promises_ = false;
   return static_cast<int>(i);
+}
+
+void PerIsolateData::AddDynamicImportData(DynamicImportData* data) {
+#if defined(LEAK_SANITIZER)
+  import_data_.insert(data);
+#endif
+}
+void PerIsolateData::DeleteDynamicImportData(DynamicImportData* data) {
+#if defined(LEAK_SANITIZER)
+  import_data_.erase(data);
+#endif
+  delete data;
+}
+
+Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
+  return test_api_object_ctor_.Get(isolate_);
+}
+
+void PerIsolateData::SetTestApiObjectCtor(Local<FunctionTemplate> ctor) {
+  test_api_object_ctor_.Reset(isolate_, ctor);
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
@@ -1245,14 +1513,14 @@ int PerIsolateData::RealmFind(Local<Context> context) {
 int PerIsolateData::RealmIndexOrThrow(
     const v8::FunctionCallbackInfo<v8::Value>& args, int arg_offset) {
   if (args.Length() < arg_offset || !args[arg_offset]->IsNumber()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return -1;
   }
   int index = args[arg_offset]
                   ->Int32Value(args.GetIsolate()->GetCurrentContext())
                   .FromMaybe(-1);
   if (index < 0 || index >= realm_count_ || realms_[index].IsEmpty()) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return -1;
   }
   return index;
@@ -1310,13 +1578,22 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return;
   }
-  int index = data->RealmFind(args[0]
-                                  ->ToObject(isolate->GetCurrentContext())
-                                  .ToLocalChecked()
-                                  ->CreationContext());
+  Local<Object> object =
+      args[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
+  i::Handle<i::JSReceiver> i_object = Utils::OpenHandle(*object);
+  if (i_object->IsJSGlobalProxy() &&
+      i::Handle<i::JSGlobalProxy>::cast(i_object)->IsDetached()) {
+    return;
+  }
+  Local<Context> creation_context;
+  if (!object->GetCreationContext().ToLocal(&creation_context)) {
+    args.GetIsolate()->ThrowError("object doesn't have creation context");
+    return;
+  }
+  int index = data->RealmFind(creation_context);
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
@@ -1397,7 +1674,7 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
 
@@ -1426,7 +1703,7 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
 
@@ -1443,7 +1720,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
   DisposeRealm(args, index);
@@ -1465,10 +1742,11 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
   if (args.Length() < 2 || !args[1]->IsString()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return;
   }
-  ScriptOrigin origin(String::NewFromUtf8Literal(isolate, "(d8)",
+  ScriptOrigin origin(isolate,
+                      String::NewFromUtf8Literal(isolate, "(d8)",
                                                  NewStringType::kInternalized));
   ScriptCompiler::Source script_source(
       args[1]->ToString(isolate->GetCurrentContext()).ToLocalChecked(), origin);
@@ -1515,24 +1793,27 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   std::string file_name = i_isolate->logger()->file_name();
   if (!i::Log::IsLoggingToTemporaryFile(file_name)) {
-    Throw(isolate, "Only capturing from temporary files is supported.");
+    isolate->ThrowError("Only capturing from temporary files is supported.");
     return;
   }
   if (!i_isolate->logger()->is_logging()) {
-    Throw(isolate, "Logging not enabled.");
+    isolate->ThrowError("Logging not enabled.");
     return;
   }
 
   std::string raw_log;
   FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
-  CHECK_NOT_NULL(log_file);
+  if (!log_file) {
+    isolate->ThrowError("Log file does not exist.");
+    return;
+  }
 
   bool exists = false;
   raw_log = i::ReadFile(log_file, &exists, true);
-  fclose(log_file);
+  base::Fclose(log_file);
 
   if (!exists) {
-    Throw(isolate, "Unable to read log file.");
+    isolate->ThrowError("Unable to read log file.");
     return;
   }
   Local<String> result =
@@ -1541,6 +1822,93 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
           .ToLocalChecked();
 
   args.GetReturnValue().Set(result);
+}
+
+void Shell::TestVerifySourcePositions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  // Check if the argument is a valid function.
+  if (args.Length() != 1) {
+    isolate->ThrowError("Expected function as single argument.");
+    return;
+  }
+  auto arg_handle = Utils::OpenHandle(*args[0]);
+  if (!arg_handle->IsHeapObject() || !i::Handle<i::HeapObject>::cast(arg_handle)
+                                          ->IsJSFunctionOrBoundFunction()) {
+    isolate->ThrowError("Expected function as single argument.");
+    return;
+  }
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+
+  auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
+  while (callable->IsJSBoundFunction()) {
+    auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
+    auto bound_target = bound_function->bound_target_function();
+    callable =
+        handle(i::JSFunctionOrBoundFunction::cast(bound_target), i_isolate);
+  }
+
+  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);
+  if (!function->shared().HasBytecodeArray()) {
+    isolate->ThrowError("Function has no BytecodeArray attached.");
+    return;
+  }
+  i::Handle<i::BytecodeArray> bytecodes =
+      handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
+  i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
+  bool has_baseline = function->shared().HasBaselineData();
+  i::Handle<i::ByteArray> bytecode_offsets;
+  std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
+  if (has_baseline) {
+    bytecode_offsets =
+        handle(i::ByteArray::cast(
+                   function->shared().GetCode().bytecode_offset_table()),
+               i_isolate);
+    offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
+        bytecode_offsets, bytecodes);
+    // A freshly initiated BytecodeOffsetIterator points to the prologue.
+    DCHECK_EQ(offset_iterator->current_pc_start_offset(), 0);
+    DCHECK_EQ(offset_iterator->current_bytecode_offset(),
+              i::kFunctionEntryBytecodeOffset);
+    offset_iterator->Advance();
+  }
+  while (!bytecode_iterator.done()) {
+    if (has_baseline) {
+      if (offset_iterator->current_bytecode_offset() !=
+          bytecode_iterator.current_offset()) {
+        isolate->ThrowError("Baseline bytecode offset mismatch.");
+        return;
+      }
+      // Check that we map every address to this bytecode correctly.
+      // The start address is exclusive and the end address inclusive.
+      for (i::Address pc = offset_iterator->current_pc_start_offset() + 1;
+           pc <= offset_iterator->current_pc_end_offset(); ++pc) {
+        i::baseline::BytecodeOffsetIterator pc_lookup(bytecode_offsets,
+                                                      bytecodes);
+        pc_lookup.AdvanceToPCOffset(pc);
+        if (pc_lookup.current_bytecode_offset() !=
+            bytecode_iterator.current_offset()) {
+          isolate->ThrowError(
+              "Baseline bytecode offset mismatch for PC lookup.");
+          return;
+        }
+      }
+    }
+    bytecode_iterator.Advance();
+    if (has_baseline && !bytecode_iterator.done()) {
+      if (offset_iterator->done()) {
+        isolate->ThrowError("Missing bytecode(s) in baseline offset mapping.");
+        return;
+      }
+      offset_iterator->Advance();
+    }
+  }
+  if (has_baseline && !offset_iterator->done()) {
+    isolate->ThrowError("Excess offsets in baseline offset mapping.");
+    return;
+  }
 }
 
 // async_hooks.createHook() registers functions to be called for different
@@ -1572,6 +1940,27 @@ void Shell::AsyncHooksTriggerAsyncId(
       PerIsolateData::Get(isolate)->GetAsyncHooks()->GetTriggerAsyncId()));
 }
 
+void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (i::FLAG_correctness_fuzzer_suppressions) {
+    // Make sure we have no pending promises if correctness fuzzing is active.
+    // Due to fast-paths we might have not created all intermediate promises
+    // that aren't spec visible. However, the promise hook might expose them
+    // and cause different output.
+    isolate->PerformMicrotaskCheckpoint();
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  HandleScope handle_scope(isolate);
+
+  context->SetPromiseHooks(
+    args[0]->IsFunction() ? args[0].As<Function>() : Local<Function>(),
+    args[1]->IsFunction() ? args[1].As<Function>() : Local<Function>(),
+    args[2]->IsFunction() ? args[2].As<Function>() : Local<Function>(),
+    args[3]->IsFunction() ? args[3].As<Function>() : Local<Function>());
+
+  args.GetReturnValue().Set(v8::Undefined(isolate));
+}
+
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
@@ -1585,7 +1974,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = Local<Symbol>::Cast(arg)->Description();
+      arg = arg.As<Symbol>()->Description(args.GetIsolate());
     }
     if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
@@ -1624,7 +2013,7 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == nullptr) {
-    Throw(args.GetIsolate(), "Error loading file");
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   if (args.Length() == 2) {
@@ -1636,7 +2025,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
-    Throw(args.GetIsolate(), "Error loading file");
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   args.GetReturnValue().Set(source);
@@ -1684,12 +2073,12 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == nullptr) {
-      Throw(args.GetIsolate(), "Error loading file");
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     Local<String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
-      Throw(args.GetIsolate(), "Error loading file");
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     if (!ExecuteString(
@@ -1698,7 +2087,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
             kNoPrintResult,
             options.quiet_load ? kNoReportExceptions : kReportExceptions,
             kNoProcessMessageQueue)) {
-      Throw(args.GetIsolate(), "Error executing file");
+      args.GetIsolate()->ThrowError("Error executing file");
       return;
     }
   }
@@ -1708,56 +2097,151 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   args.GetReturnValue().Set(v8::Number::New(isolate, 0));
   if (args.Length() == 0 || !args[0]->IsFunction()) return;
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback = args[0].As<Function>();
   Local<Context> context = isolate->GetCurrentContext();
   PerIsolateData::Get(isolate)->SetTimeout(callback, context);
+}
+
+enum WorkerType { kClassic, kString, kFunction, kInvalid, kNone };
+
+void ReadWorkerTypeAndArguments(const v8::FunctionCallbackInfo<v8::Value>& args,
+                                WorkerType* worker_type,
+                                Local<Value>* arguments = nullptr) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    Local<Object> object = args[1].As<Object>();
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Value> value;
+    if (!TryGetValue(isolate, context, object, "type").ToLocal(&value)) {
+      *worker_type = WorkerType::kNone;
+      return;
+    }
+    if (!value->IsString()) {
+      *worker_type = WorkerType::kInvalid;
+      return;
+    }
+    Local<String> worker_type_string =
+        value->ToString(context).ToLocalChecked();
+    String::Utf8Value str(isolate, worker_type_string);
+    if (strcmp("string", *str) == 0) {
+      *worker_type = WorkerType::kString;
+    } else if (strcmp("classic", *str) == 0) {
+      *worker_type = WorkerType::kClassic;
+    } else if (strcmp("function", *str) == 0) {
+      *worker_type = WorkerType::kFunction;
+    } else {
+      *worker_type = WorkerType::kInvalid;
+    }
+    if (arguments != nullptr) {
+      bool got_arguments =
+          TryGetValue(isolate, context, object, "arguments").ToLocal(arguments);
+      USE(got_arguments);
+    }
+  } else {
+    *worker_type = WorkerType::kNone;
+  }
+}
+
+bool FunctionAndArgumentsToString(Local<Function> function,
+                                  Local<Value> arguments, Local<String>* source,
+                                  Isolate* isolate) {
+  Local<Context> context = isolate->GetCurrentContext();
+  MaybeLocal<String> maybe_function_string =
+      function->FunctionProtoToString(context);
+  Local<String> function_string;
+  if (!maybe_function_string.ToLocal(&function_string)) {
+    isolate->ThrowError("Failed to convert function to string");
+    return false;
+  }
+  *source = String::NewFromUtf8Literal(isolate, "(");
+  *source = String::Concat(isolate, *source, function_string);
+  Local<String> middle = String::NewFromUtf8Literal(isolate, ")(");
+  *source = String::Concat(isolate, *source, middle);
+  if (!arguments.IsEmpty() && !arguments->IsUndefined()) {
+    if (!arguments->IsArray()) {
+      isolate->ThrowError("'arguments' must be an array");
+      return false;
+    }
+    Local<String> comma = String::NewFromUtf8Literal(isolate, ",");
+    Local<Array> array = arguments.As<Array>();
+    for (uint32_t i = 0; i < array->Length(); ++i) {
+      if (i > 0) {
+        *source = String::Concat(isolate, *source, comma);
+      }
+      MaybeLocal<Value> maybe_argument = array->Get(context, i);
+      Local<Value> argument;
+      if (!maybe_argument.ToLocal(&argument)) {
+        isolate->ThrowError("Failed to get argument");
+        return false;
+      }
+      Local<String> argument_string;
+      if (!JSON::Stringify(context, argument).ToLocal(&argument_string)) {
+        isolate->ThrowError("Failed to convert argument to string");
+        return false;
+      }
+      *source = String::Concat(isolate, *source, argument_string);
+    }
+  }
+  Local<String> suffix = String::NewFromUtf8Literal(isolate, ")");
+  *source = String::Concat(isolate, *source, suffix);
+  return true;
 }
 
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    Throw(args.GetIsolate(), "1st argument must be string");
+  if (args.Length() < 1 || (!args[0]->IsString() && !args[0]->IsFunction())) {
+    isolate->ThrowError("1st argument must be a string or a function");
     return;
   }
 
-  // d8 honors `options={type: string}`, which means the first argument is
-  // not a filename but string of script to be run.
-  bool load_from_file = true;
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    Local<Object> object = args[1].As<Object>();
-    Local<Context> context = isolate->GetCurrentContext();
-    Local<Value> value;
-    if (TryGetValue(args.GetIsolate(), context, object, "type")
-            .ToLocal(&value) &&
-        value->IsString()) {
-      Local<String> worker_type = value->ToString(context).ToLocalChecked();
-      String::Utf8Value str(isolate, worker_type);
-      if (strcmp("string", *str) == 0) {
-        load_from_file = false;
-      } else if (strcmp("classic", *str) == 0) {
-        load_from_file = true;
-      } else {
-        Throw(args.GetIsolate(), "Unsupported worker type");
-        return;
-      }
+  Local<String> source;
+  if (args[0]->IsFunction()) {
+    // d8 supports `options={type: 'function', arguments:[...]}`, which means
+    // the first argument is a function with the code to be ran. Restrictions
+    // apply; in particular the function will be converted to a string and the
+    // Worker constructed based on it.
+    WorkerType worker_type;
+    Local<Value> arguments;
+    ReadWorkerTypeAndArguments(args, &worker_type, &arguments);
+    if (worker_type != WorkerType::kFunction) {
+      isolate->ThrowError("Invalid or missing worker type");
+      return;
     }
-  }
 
-  Local<Value> source;
-  if (load_from_file) {
-    String::Utf8Value filename(args.GetIsolate(), args[0]);
-    source = ReadFile(args.GetIsolate(), *filename);
-    if (source.IsEmpty()) {
-      Throw(args.GetIsolate(), "Error loading worker script");
+    // Source: ( function_to_string )( params )
+    if (!FunctionAndArgumentsToString(args[0].As<Function>(), arguments,
+                                      &source, isolate)) {
       return;
     }
   } else {
-    source = args[0];
+    // d8 honors `options={type: 'string'}`, which means the first argument is
+    // not a filename but string of script to be run.
+    bool load_from_file = true;
+    WorkerType worker_type;
+    ReadWorkerTypeAndArguments(args, &worker_type);
+    if (worker_type == WorkerType::kString) {
+      load_from_file = false;
+    } else if (worker_type != WorkerType::kNone &&
+               worker_type != WorkerType::kClassic) {
+      isolate->ThrowError("Invalid worker type");
+      return;
+    }
+
+    if (load_from_file) {
+      String::Utf8Value filename(isolate, args[0]);
+      source = ReadFile(isolate, *filename);
+      if (source.IsEmpty()) {
+        args.GetIsolate()->ThrowError("Error loading worker script");
+        return;
+      }
+    } else {
+      source = args[0].As<String>();
+    }
   }
 
   if (!args.IsConstructCall()) {
-    Throw(args.GetIsolate(), "Worker must be constructed with new");
+    isolate->ThrowError("Worker must be constructed with new");
     return;
   }
 
@@ -1772,9 +2256,9 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     base::MutexGuard lock_guard(workers_mutex_.Pointer());
     if (!allow_new_workers_) return;
 
-    String::Utf8Value script(args.GetIsolate(), source);
+    String::Utf8Value script(isolate, source);
     if (!*script) {
-      Throw(args.GetIsolate(), "Can't get worker script");
+      isolate->ThrowError("Can't get worker script");
       return;
     }
 
@@ -1788,7 +2272,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
         i_isolate, kWorkerSizeEstimate, worker);
     args.Holder()->SetInternalField(0, Utils::ToLocal(managed));
     if (!Worker::StartWorkerThread(std::move(worker))) {
-      Throw(args.GetIsolate(), "Can't start thread");
+      isolate->ThrowError("Can't start thread");
       return;
     }
   }
@@ -1799,7 +2283,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   if (args.Length() < 1) {
-    Throw(isolate, "Invalid argument");
+    isolate->ThrowError("Invalid argument");
     return;
   }
 
@@ -1811,7 +2295,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<Value> message = args[0];
   Local<Value> transfer =
-      args.Length() >= 2 ? args[1] : Local<Value>::Cast(Undefined(isolate));
+      args.Length() >= 2 ? args[1] : Undefined(isolate).As<Value>();
   std::unique_ptr<SerializationData> data =
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
@@ -1913,7 +2397,7 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args) {
                    .FromMaybe(0);
     switch (arg) {
       case 0:
-        V8_IMMEDIATE_CRASH();
+        IMMEDIATE_CRASH();
         break;
       case 1:
         CHECK(0);
@@ -1997,8 +2481,7 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
   if (v8::TryCatch::StackTrace(context, exception_obj)
           .ToLocal(&stack_trace_string) &&
       stack_trace_string->IsString()) {
-    v8::String::Utf8Value stack_trace(isolate,
-                                      Local<String>::Cast(stack_trace_string));
+    v8::String::Utf8Value stack_trace(isolate, stack_trace_string.As<String>());
     printf("%s\n", ToCString(stack_trace));
   }
   printf("\n");
@@ -2095,7 +2578,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
     Local<String> source =
         String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
     Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
-    ScriptOrigin origin(name);
+    ScriptOrigin origin(isolate, name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
     stringify_function_.Reset(
@@ -2107,6 +2590,33 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   MaybeLocal<Value> result = fun->Call(context, Undefined(isolate), 1, argv);
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
+}
+
+void Shell::NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(v8::Number::New(isolate, 1));
+}
+
+Local<FunctionTemplate> Shell::CreateNodeTemplates(Isolate* isolate) {
+  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
+  Local<Signature> signature = v8::Signature::New(isolate, node);
+  Local<FunctionTemplate> nodeType = FunctionTemplate::New(
+      isolate, NodeTypeCallback, Local<Value>(), signature);
+  nodeType->SetAcceptAnyReceiver(false);
+  proto_template->SetAccessorProperty(
+      String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
+
+  Local<FunctionTemplate> element = FunctionTemplate::New(isolate);
+  element->Inherit(node);
+
+  Local<FunctionTemplate> html_element = FunctionTemplate::New(isolate);
+  html_element->Inherit(element);
+
+  Local<FunctionTemplate> div_element = FunctionTemplate::New(isolate);
+  div_element->Inherit(html_element);
+
+  return div_element;
 }
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
@@ -2140,7 +2650,11 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(isolate, "performance",
                        Shell::CreatePerformanceTemplate(isolate));
   global_template->Set(isolate, "Worker", Shell::CreateWorkerTemplate(isolate));
-  global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
+
+  // Prevent fuzzers from creating side effects.
+  if (!i::FLAG_fuzzing) {
+    global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
+  }
   global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
 
 #ifdef V8_FUZZILLI
@@ -2215,6 +2729,7 @@ Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
   test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
+
   return test_template;
 }
 
@@ -2264,6 +2779,40 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                       FunctionTemplate::New(isolate, LogGetAndStop));
 
     d8_template->Set(isolate, "log", log_template);
+
+    Local<ObjectTemplate> dom_template = ObjectTemplate::New(isolate);
+    dom_template->Set(isolate, "Div", Shell::CreateNodeTemplates(isolate));
+    d8_template->Set(isolate, "dom", dom_template);
+  }
+  {
+    Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
+    // For different runs of correctness fuzzing the bytecode of a function
+    // might get flushed, resulting in spurious errors.
+    if (!i::FLAG_correctness_fuzzer_suppressions) {
+      test_template->Set(
+          isolate, "verifySourcePositions",
+          FunctionTemplate::New(isolate, TestVerifySourcePositions));
+    }
+    // Correctness fuzzing will attempt to compare results of tests with and
+    // without turbo_fast_api_calls, so we don't expose the fast_c_api
+    // constructor when --correctness_fuzzer_suppressions is on.
+    if (i::FLAG_turbo_fast_api_calls &&
+        !i::FLAG_correctness_fuzzer_suppressions) {
+      test_template->Set(isolate, "FastCAPI",
+                         Shell::CreateTestFastCApiTemplate(isolate));
+      test_template->Set(isolate, "LeafInterfaceType",
+                         Shell::CreateLeafInterfaceTypeTemplate(isolate));
+    }
+
+    d8_template->Set(isolate, "test", test_template);
+  }
+  {
+    Local<ObjectTemplate> promise_template = ObjectTemplate::New(isolate);
+    promise_template->Set(
+        isolate, "setHooks",
+        FunctionTemplate::New(isolate, SetPromiseHooks, Local<Value>(),
+                              Local<Signature>(), 4));
+    d8_template->Set(isolate, "promise", promise_template);
   }
   return d8_template;
 }
@@ -2330,13 +2879,10 @@ void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   }
   if (!exception->IsNativeError() &&
       (message.IsEmpty() || message->GetStackTrace().IsEmpty())) {
-    // If there is no real Error object, manually throw and catch a stack trace.
-    v8::TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    isolate->ThrowException(v8::Exception::Error(
-        v8::String::NewFromUtf8Literal(isolate, "Unhandled Promise.")));
-    message = try_catch.Message();
-    exception = try_catch.Exception();
+    // If there is no real Error object, manually create a stack trace.
+    exception = v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate, "Unhandled Promise."));
+    message = Exception::CreateMessage(isolate, exception);
   }
   isolate->SetCaptureStackTraceForUncaughtExceptions(capture_exceptions);
 
@@ -2574,6 +3120,84 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
   delete counters_file_;
   delete counter_map_;
+
+  if (options.simulate_errors && is_valid_fuzz_script()) {
+    // Simulate several errors detectable by fuzzers behind a flag if the
+    // minimum file size for fuzzing was executed.
+    FuzzerMonitor::SimulateErrors();
+  }
+}
+
+void Dummy(char* arg) {}
+
+V8_NOINLINE void FuzzerMonitor::SimulateErrors() {
+  // Initialize a fresh RNG to not interfere with JS execution.
+  std::unique_ptr<base::RandomNumberGenerator> rng;
+  int64_t seed = internal::FLAG_random_seed;
+  if (seed != 0) {
+    rng = std::make_unique<base::RandomNumberGenerator>(seed);
+  } else {
+    rng = std::make_unique<base::RandomNumberGenerator>();
+  }
+
+  double p = rng->NextDouble();
+  if (p < 0.1) {
+    ControlFlowViolation();
+  } else if (p < 0.2) {
+    DCheck();
+  } else if (p < 0.3) {
+    Fatal();
+  } else if (p < 0.4) {
+    ObservableDifference();
+  } else if (p < 0.5) {
+    UndefinedBehavior();
+  } else if (p < 0.6) {
+    UseAfterFree();
+  } else if (p < 0.7) {
+    UseOfUninitializedValue();
+  }
+}
+
+V8_NOINLINE void FuzzerMonitor::ControlFlowViolation() {
+  // Control flow violation caught by CFI.
+  void (*func)() = (void (*)()) & Dummy;
+  func();
+}
+
+V8_NOINLINE void FuzzerMonitor::DCheck() {
+  // Caught in debug builds.
+  DCHECK(false);
+}
+
+V8_NOINLINE void FuzzerMonitor::Fatal() {
+  // Caught in all build types.
+  FATAL("Fake error.");
+}
+
+V8_NOINLINE void FuzzerMonitor::ObservableDifference() {
+  // Observable difference caught by differential fuzzing.
+  printf("___fake_difference___\n");
+}
+
+V8_NOINLINE void FuzzerMonitor::UndefinedBehavior() {
+  // Caught by UBSAN.
+  int32_t val = -1;
+  USE(val << 8);
+}
+
+V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
+  // Use-after-free caught by ASAN.
+  std::vector<bool>* storage = new std::vector<bool>(3);
+  delete storage;
+  USE(storage->at(1));
+}
+
+V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
+// Use-of-uninitialized-value caught by MSAN.
+#if defined(__clang__)
+  int uninitialized[1];
+  if (uninitialized[0]) USE(uninitialized);
+#endif
 }
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -2585,20 +3209,20 @@ static FILE* FOpen(const char* path, const char* mode) {
     return nullptr;
   }
 #else
-  FILE* file = fopen(path, mode);
+  FILE* file = base::Fopen(path, mode);
   if (file == nullptr) return nullptr;
   struct stat file_stat;
   if (fstat(fileno(file), &file_stat) != 0) return nullptr;
   bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
   if (is_regular_file) return file;
-  fclose(file);
+  base::Fclose(file);
   return nullptr;
 #endif
 }
 
-static char* ReadChars(const char* name, int* size_out) {
-  if (Shell::options.read_from_tcp_port >= 0) {
-    return Shell::ReadCharsFromTcpPort(name, size_out);
+char* Shell::ReadChars(const char* name, int* size_out) {
+  if (options.read_from_tcp_port >= 0) {
+    return ReadCharsFromTcpPort(name, size_out);
   }
 
   FILE* file = FOpen(name, "rb");
@@ -2613,14 +3237,28 @@ static char* ReadChars(const char* name, int* size_out) {
   for (size_t i = 0; i < size;) {
     i += fread(&chars[i], 1, size - i, file);
     if (ferror(file)) {
-      fclose(file);
+      base::Fclose(file);
       delete[] chars;
       return nullptr;
     }
   }
-  fclose(file);
+  base::Fclose(file);
   *size_out = static_cast<int>(size);
   return chars;
+}
+
+bool Shell::ReadLines(const char* name, std::vector<std::string>& lines) {
+  int length;
+  const char* data = reinterpret_cast<const char*>(ReadChars(name, &length));
+  if (data == nullptr) {
+    return false;
+  }
+  std::stringstream stream(data);
+  std::string line;
+  while (std::getline(stream, line, '\n')) {
+    lines.emplace_back(line);
+  }
+  return true;
 }
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -2630,13 +3268,13 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value filename(isolate, args[0]);
   int length;
   if (*filename == nullptr) {
-    Throw(isolate, "Error loading file");
+    isolate->ThrowError("Error loading file");
     return;
   }
 
   uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
   if (data == nullptr) {
-    Throw(isolate, "Error reading file");
+    isolate->ThrowError("Error reading file");
     return;
   }
   std::unique_ptr<v8::BackingStore> backing_store =
@@ -2671,6 +3309,13 @@ Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
                  .ToLocalChecked();
   }
   return result;
+}
+
+void Shell::WriteChars(const char* name, uint8_t* buffer, size_t buffer_size) {
+  FILE* file = base::Fopen(name, "w");
+  if (file == nullptr) return;
+  fwrite(buffer, 1, buffer_size, file);
+  base::Fclose(file);
 }
 
 void Shell::RunShell(Isolate* isolate) {
@@ -2739,11 +3384,10 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
     if (callback->IsFunction()) {
       v8::TryCatch try_catch(isolate_);
       Local<Value> args[] = {message};
-      USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 1,
-                                                args));
+      USE(callback.As<Function>()->Call(context, Undefined(isolate_), 1, args));
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
-        Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
+        Local<Object> exception = try_catch.Exception().As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
             isolate_, "message", NewStringType::kInternalized);
         Local<String> expected = v8::String::NewFromUtf8Literal(
@@ -2798,8 +3442,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     is_paused = true;
 
     while (is_paused) {
-      USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 0,
-                                                {}));
+      USE(callback.As<Function>()->Call(context, Undefined(isolate_), 0, {}));
       if (try_catch.HasCaught()) {
         is_paused = false;
       }
@@ -2932,6 +3575,15 @@ bool SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       continue;
+    } else if (strcmp(arg, "--web-snapshot") == 0 && i + 1 < end_offset_) {
+      // Treat the next file as a web snapshot.
+      arg = argv_[++i];
+      Shell::set_script_executed();
+      if (!Shell::ExecuteWebSnapshot(isolate, arg)) {
+        success = false;
+        break;
+      }
+      continue;
     } else if (arg[0] == '-') {
       // Ignore other options. They have been parsed already.
       continue;
@@ -2947,6 +3599,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
       base::OS::ExitProcess(1);
     }
     Shell::set_script_executed();
+    Shell::update_script_size(source->Length());
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
                               Shell::kReportExceptions,
                               Shell::kProcessMessageQueue)) {
@@ -3166,15 +3819,14 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   Local<Object> global = context->Global();
 
   // Get the message handler.
-  Local<Value> onmessage = global
-                               ->Get(context, String::NewFromUtf8Literal(
-                                                  isolate_, "onmessage",
-                                                  NewStringType::kInternalized))
-                               .ToLocalChecked();
-  if (!onmessage->IsFunction()) {
+  MaybeLocal<Value> maybe_onmessage = global->Get(
+      context, String::NewFromUtf8Literal(isolate_, "onmessage",
+                                          NewStringType::kInternalized));
+  Local<Value> onmessage;
+  if (!maybe_onmessage.ToLocal(&onmessage) || !onmessage->IsFunction()) {
     return;
   }
-  Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
+  Local<Function> onmessage_fun = onmessage.As<Function>();
 
   v8::TryCatch try_catch(isolate_);
   try_catch.SetVerbose(true);
@@ -3250,13 +3902,12 @@ void Worker::ExecuteInThread() {
                 isolate_, source, file_name, Shell::kNoPrintResult,
                 Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Check that there's a message handler
-          Local<Value> onmessage =
-              global
-                  ->Get(context, String::NewFromUtf8Literal(
-                                     isolate_, "onmessage",
-                                     NewStringType::kInternalized))
-                  .ToLocalChecked();
-          if (onmessage->IsFunction()) {
+          MaybeLocal<Value> maybe_onmessage = global->Get(
+              context,
+              String::NewFromUtf8Literal(isolate_, "onmessage",
+                                         NewStringType::kInternalized));
+          Local<Value> onmessage;
+          if (maybe_onmessage.ToLocal(&onmessage) && onmessage->IsFunction()) {
             // Now wait for messages
             ProcessMessages();
           }
@@ -3290,7 +3941,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   if (args.Length() < 1) {
-    Throw(isolate, "Invalid argument");
+    isolate->ThrowError("Invalid argument");
     return;
   }
 
@@ -3300,7 +3951,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
     DCHECK(args.Data()->IsExternal());
-    Local<External> this_value = Local<External>::Cast(args.Data());
+    Local<External> this_value = args.Data().As<External>();
     Worker* worker = static_cast<Worker*>(this_value->Value());
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
@@ -3321,31 +3972,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--no-arguments") == 0) {
       options.include_arguments = false;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--simulate-errors") == 0) {
+      options.simulate_errors = true;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--nostress-opt") == 0 ||
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
-      options.stress_snapshot = true;
-      // Incremental marking is incompatible with the stress_snapshot mode;
-      // specifically, serialization may clear bytecode arrays from shared
-      // function infos which the MarkCompactCollector (running concurrently)
-      // may still need. See also https://crbug.com/v8/10882.
-      //
-      // We thus force the implication
-      //
-      //   --stress-snapshot ~~> --no-incremental-marking
-      //
-      // Note: This is not an issue in production because we don't clear SFI's
-      // there (that only happens in mksnapshot and in --stress-snapshot mode).
-      i::FLAG_incremental_marking = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
-               strcmp(argv[i], "--no-stress-snapshot") == 0) {
-      options.stress_snapshot = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
@@ -3482,6 +4117,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
+      options.web_snapshot_config = argv[i] + 22;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--compile-only") == 0) {
+      options.compile_only = true;
+      argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--repeat-compile=", 17) == 0) {
+      options.repeat_compile = atoi(argv[i] + 17);
+      argv[i] = nullptr;
 #ifdef V8_FUZZILLI
     } else if (strcmp(argv[i], "--no-fuzzilli-enable-builtins-coverage") == 0) {
       options.fuzzilli_enable_builtins_coverage = false;
@@ -3493,6 +4137,17 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
+      options.enable_system_instrumentation = true;
+      options.trace_enabled = true;
+#if defined(V8_OS_WIN)
+      // Guard this bc the flag has a lot of overhead and is not currently used
+      // by macos
+      i::FLAG_interpreted_frames_native_stack = true;
+#endif
+      argv[i] = nullptr;
+#endif
     }
   }
 
@@ -3503,10 +4158,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   const char* usage =
       "Synopsis:\n"
       "  shell [options] [--shell] [<file>...]\n"
-      "  d8 [options] [-e <string>] [--shell] [[--module] <file>...]\n\n"
+      "  d8 [options] [-e <string>] [--shell] [[--module|--web-snapshot]"
+      " <file>...]\n\n"
       "  -e        execute a string in V8\n"
       "  --shell   run an interactive JavaScript shell\n"
-      "  --module  execute a file as a JavaScript module\n\n";
+      "  --module  execute a file as a JavaScript module\n"
+      "  --web-snapshot  execute a file as a web snapshot\n\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::FLAG_abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
@@ -3528,10 +4185,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
-    } else if (strcmp(str, "--module") == 0) {
-      // Pass on to SourceGroup, which understands this option.
+    } else if (strcmp(str, "--module") == 0 ||
+               strcmp(str, "--web-snapshot") == 0) {
+      // Pass on to SourceGroup, which understands these options.
     } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      if (!i::FLAG_correctness_fuzzer_suppressions) {
+        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      }
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       set_script_executed();
     } else if (strncmp(str, "-", 1) != 0) {
@@ -3571,13 +4231,12 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       if (!options.isolate_sources[0].Execute(isolate)) success = false;
       if (!CompleteMessageLoop(isolate)) success = false;
-      if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
-    if (last_run && options.stress_snapshot) {
+    if (last_run && i::FLAG_stress_snapshot) {
       static constexpr bool kClearRecompilableData = true;
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
@@ -3603,6 +4262,9 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     printf("%i pending unhandled Promise rejection(s) detected.\n",
            Shell::unhandled_promise_rejections_.load());
     success = false;
+    // RunMain may be executed multiple times, e.g. in REPRL mode, so we have to
+    // reset this counter.
+    Shell::unhandled_promise_rejections_.store(0);
   }
   // In order to finish successfully, success must be != expected_to_throw.
   return success == Shell::options.expected_to_throw ? 1 : 0;
@@ -3740,6 +4402,9 @@ class Serializer : public ValueSerializer::Delegate {
         serializer_(isolate, this),
         current_memory_usage_(0) {}
 
+  Serializer(const Serializer&) = delete;
+  Serializer& operator=(const Serializer&) = delete;
+
   Maybe<bool> WriteValue(Local<Context> context, Local<Value> value,
                          Local<Value> transfer) {
     bool ok;
@@ -3817,32 +4482,33 @@ class Serializer : public ValueSerializer::Delegate {
     current_memory_usage_ += size;
     if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
 
-    void* result = realloc(old_buffer, size);
+    void* result = base::Realloc(old_buffer, size);
     *actual_size = result ? size : 0;
     return result;
   }
 
-  void FreeBufferMemory(void* buffer) override { free(buffer); }
+  void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
 
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
     if (transfer->IsArray()) {
-      Local<Array> transfer_array = Local<Array>::Cast(transfer);
+      Local<Array> transfer_array = transfer.As<Array>();
       uint32_t length = transfer_array->Length();
       for (uint32_t i = 0; i < length; ++i) {
         Local<Value> element;
         if (transfer_array->Get(context, i).ToLocal(&element)) {
           if (!element->IsArrayBuffer()) {
-            Throw(isolate_, "Transfer array elements must be an ArrayBuffer");
+            isolate_->ThrowError(
+                "Transfer array elements must be an ArrayBuffer");
             return Nothing<bool>();
           }
 
-          Local<ArrayBuffer> array_buffer = Local<ArrayBuffer>::Cast(element);
+          Local<ArrayBuffer> array_buffer = element.As<ArrayBuffer>();
 
           if (std::find(array_buffers_.begin(), array_buffers_.end(),
                         array_buffer) != array_buffers_.end()) {
-            Throw(isolate_,
-                  "ArrayBuffer occurs in the transfer array more than once");
+            isolate_->ThrowError(
+                "ArrayBuffer occurs in the transfer array more than once");
             return Nothing<bool>();
           }
 
@@ -3857,7 +4523,7 @@ class Serializer : public ValueSerializer::Delegate {
     } else if (transfer->IsUndefined()) {
       return Just(true);
     } else {
-      Throw(isolate_, "Transfer list must be an Array or undefined");
+      isolate_->ThrowError("Transfer list must be an Array or undefined");
       return Nothing<bool>();
     }
   }
@@ -3867,7 +4533,7 @@ class Serializer : public ValueSerializer::Delegate {
       Local<ArrayBuffer> array_buffer =
           Local<ArrayBuffer>::New(isolate_, global_array_buffer);
       if (!array_buffer->IsDetachable()) {
-        Throw(isolate_, "ArrayBuffer could not be transferred");
+        isolate_->ThrowError("ArrayBuffer could not be transferred");
         return Nothing<bool>();
       }
 
@@ -3887,8 +4553,6 @@ class Serializer : public ValueSerializer::Delegate {
   std::vector<Global<WasmModuleObject>> wasm_modules_;
   std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   size_t current_memory_usage_;
-
-  DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
 class Deserializer : public ValueDeserializer::Delegate {
@@ -3899,6 +4563,9 @@ class Deserializer : public ValueDeserializer::Delegate {
         data_(std::move(data)) {
     deserializer_.SetSupportsLegacyWireFormat(true);
   }
+
+  Deserializer(const Deserializer&) = delete;
+  Deserializer& operator=(const Deserializer&) = delete;
 
   MaybeLocal<Value> ReadValue(Local<Context> context) {
     bool read_header;
@@ -3938,8 +4605,6 @@ class Deserializer : public ValueDeserializer::Delegate {
   Isolate* isolate_;
   ValueDeserializer deserializer_;
   std::unique_ptr<SerializationData> data_;
-
-  DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
 
 class D8Testing {
@@ -4058,17 +4723,20 @@ int Shell::Main(int argc, char* argv[]) {
           ? v8::platform::InProcessStackDumping::kDisabled
           : v8::platform::InProcessStackDumping::kEnabled;
 
-  std::unique_ptr<platform::tracing::TracingController> tracing;
   std::ofstream trace_file;
+  std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
-    const char* trace_path =
-        options.trace_path ? options.trace_path : "v8_trace.json";
-    trace_file.open(trace_path);
-    if (!trace_file.good()) {
-      printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
-             strerror(errno));
-      return 1;
+
+    if (!options.enable_system_instrumentation) {
+      const char* trace_path =
+          options.trace_path ? options.trace_path : "v8_trace.json";
+      trace_file.open(trace_path);
+      if (!trace_file.good()) {
+        printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
+               strerror(errno));
+        return 1;
+      }
     }
 
 #ifdef V8_USE_PERFETTO
@@ -4080,10 +4748,23 @@ int Shell::Main(int argc, char* argv[]) {
 
     tracing->InitializeForPerfetto(&trace_file);
 #else
-    platform::tracing::TraceBuffer* trace_buffer =
-        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-            platform::tracing::TraceBuffer::kRingBufferChunks,
-            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    platform::tracing::TraceBuffer* trace_buffer = nullptr;
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    if (options.enable_system_instrumentation) {
+      trace_buffer =
+          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+              platform::tracing::TraceBuffer::kRingBufferChunks,
+              platform::tracing::TraceWriter::
+                  CreateSystemInstrumentationTraceWriter());
+    }
+#endif  // V8_ENABLE_SYSTEM_INSTRUMENTATION
+    if (!trace_buffer) {
+      trace_buffer =
+          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+              platform::tracing::TraceBuffer::kRingBufferChunks,
+              platform::tracing::TraceWriter::CreateJSONTraceWriter(
+                  trace_file));
+    }
     tracing->Initialize(trace_buffer);
 #endif  // V8_USE_PERFETTO
   }
@@ -4159,12 +4840,14 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
     constexpr bool use_default_trap_handler = true;
     if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_trap_handler)) {
       FATAL("Could not register trap handler");
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate = Isolate::New(create_params);
 
@@ -4200,6 +4883,9 @@ int Shell::Main(int argc, char* argv[]) {
         } else {
           trace_config =
               platform::tracing::TraceConfig::CreateDefaultTraceConfig();
+          if (options.enable_system_instrumentation) {
+            trace_config->AddIncludedCategory("disabled-by-default-v8.compile");
+          }
         }
         tracing_controller->StartTracing(trace_config);
       }

@@ -3,69 +3,112 @@ const npa = require('npm-package-arg')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const readLocalPkgName = require('./utils/read-local-package.js')
-const usageUtil = require('./utils/usage.js')
+const readPackageName = require('./utils/read-package-name.js')
+const BaseCommand = require('./base-command.js')
 
-const usage = usageUtil(
-  'dist-tag',
-  'npm dist-tag add <pkg>@<version> [<tag>]' +
-  '\nnpm dist-tag rm <pkg> <tag>' +
-  '\nnpm dist-tag ls [<pkg>]'
-)
-
-const completion = function (opts, cb) {
-  const argv = opts.conf.argv.remain
-  if (argv.length === 2)
-    return cb(null, ['add', 'rm', 'ls'])
-
-  switch (argv[2]) {
-    default:
-      return cb()
+class DistTag extends BaseCommand {
+  static get description () {
+    return 'Modify package distribution tags'
   }
-}
 
-const cmd = (args, cb) => distTag(args).then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['workspace', 'workspaces']
+  }
 
-const distTag = async ([cmdName, pkg, tag]) => {
-  const opts = npm.flatOptions
-  const has = (items) => new Set(items).has(cmdName)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'dist-tag'
+  }
 
-  if (has(['add', 'a', 'set', 's']))
-    return add(pkg, tag, opts)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'add <pkg>@<version> [<tag>]',
+      'rm <pkg> <tag>',
+      'ls [<pkg>]',
+    ]
+  }
 
-  if (has(['rm', 'r', 'del', 'd', 'remove']))
-    return remove(pkg, tag, opts)
+  async completion (opts) {
+    const argv = opts.conf.argv.remain
+    if (argv.length === 2)
+      return ['add', 'rm', 'ls']
 
-  if (has(['ls', 'l', 'sl', 'list']))
-    return list(pkg, opts)
+    switch (argv[2]) {
+      default:
+        return []
+    }
+  }
 
-  if (!pkg) {
-    // when only using the pkg name the default behavior
-    // should be listing the existing tags
-    return list(cmdName, opts)
-  } else
-    throw usage
-}
+  exec (args, cb) {
+    this.distTag(args).then(() => cb()).catch(cb)
+  }
 
-function add (spec, tag, opts) {
-  spec = npa(spec || '')
-  const version = spec.rawSpec
-  const defaultTag = tag || opts.defaultTag
+  async distTag ([cmdName, pkg, tag]) {
+    const opts = this.npm.flatOptions
 
-  log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
+    if (['add', 'a', 'set', 's'].includes(cmdName))
+      return this.add(pkg, tag, opts)
 
-  if (!spec.name || !version || !defaultTag)
-    throw usage
+    if (['rm', 'r', 'del', 'd', 'remove'].includes(cmdName))
+      return this.remove(pkg, tag, opts)
 
-  const t = defaultTag.trim()
+    if (['ls', 'l', 'sl', 'list'].includes(cmdName))
+      return this.list(pkg, opts)
 
-  if (semver.validRange(t))
-    throw new Error('Tag name must not be a valid SemVer range: ' + t)
+    if (!pkg) {
+      // when only using the pkg name the default behavior
+      // should be listing the existing tags
+      return this.list(cmdName, opts)
+    } else
+      throw this.usageError()
+  }
 
-  return fetchTags(spec, opts).then(tags => {
+  execWorkspaces (args, filters, cb) {
+    this.distTagWorkspaces(args, filters).then(() => cb()).catch(cb)
+  }
+
+  async distTagWorkspaces ([cmdName, pkg, tag], filters) {
+    // cmdName is some form of list
+    // pkg is one of:
+    // - unset
+    // - .
+    // - .@version
+    if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg)))
+      return this.listWorkspaces(filters)
+
+    // pkg is unset
+    // cmdName is one of:
+    // - unset
+    // - .
+    // - .@version
+    if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName)))
+      return this.listWorkspaces(filters)
+
+    // anything else is just a regular dist-tag command
+    // so we fallback to the non-workspaces implementation
+    log.warn('Ignoring workspaces for specified package')
+    return this.distTag([cmdName, pkg, tag])
+  }
+
+  async add (spec, tag, opts) {
+    spec = npa(spec || '')
+    const version = spec.rawSpec
+    const defaultTag = tag || this.npm.config.get('tag')
+
+    log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
+
+    if (!spec.name || !version || !defaultTag)
+      throw this.usageError()
+
+    const t = defaultTag.trim()
+
+    if (semver.validRange(t))
+      throw new Error('Tag name must not be a valid SemVer range: ' + t)
+
+    const tags = await this.fetchTags(spec, opts)
     if (tags[t] === version) {
       log.warn('dist-tag add', t, 'is already set to version', version)
       return
@@ -82,20 +125,18 @@ function add (spec, tag, opts) {
       },
       spec,
     }
-    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
-      output(`+${t}: ${spec.name}@${version}`)
-    })
-  })
-}
+    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    this.npm.output(`+${t}: ${spec.name}@${version}`)
+  }
 
-function remove (spec, tag, opts) {
-  spec = npa(spec || '')
-  log.verbose('dist-tag del', tag, 'from', spec.name)
+  async remove (spec, tag, opts) {
+    spec = npa(spec || '')
+    log.verbose('dist-tag del', tag, 'from', spec.name)
 
-  if (!spec.name)
-    throw usage
+    if (!spec.name)
+      throw this.usageError()
 
-  return fetchTags(spec, opts).then(tags => {
+    const tags = await this.fetchTags(spec, opts)
     if (!tags[tag]) {
       log.info('dist-tag del', tag, 'is not a dist-tag on', spec.name)
       throw new Error(tag + ' is not a dist-tag on ' + spec.name)
@@ -109,50 +150,60 @@ function remove (spec, tag, opts) {
       method: 'DELETE',
       spec,
     }
-    return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
-      output(`-${tag}: ${spec.name}@${version}`)
-    })
-  })
-}
-
-function list (spec, opts) {
-  if (!spec) {
-    return readLocalPkgName().then(pkg => {
-      if (!pkg)
-        throw usage
-
-      return list(pkg, opts)
-    })
+    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
-  spec = npa(spec)
 
-  return fetchTags(spec, opts).then(tags => {
-    const msg =
-      Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
-    output(msg)
-    return tags
-  }, err => {
-    log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)
-    throw err
-  })
-}
+  async list (spec, opts) {
+    if (!spec) {
+      if (this.npm.config.get('global'))
+        throw this.usageError()
+      const pkg = await readPackageName(this.npm.prefix)
+      if (!pkg)
+        throw this.usageError()
 
-function fetchTags (spec, opts) {
-  return regFetch.json(
-    `/-/package/${spec.escapedName}/dist-tags`,
-    {
-      ...opts,
-      'prefer-online': true,
-      spec,
+      return this.list(pkg, opts)
     }
-  ).then(data => {
+    spec = npa(spec)
+
+    try {
+      const tags = await this.fetchTags(spec, opts)
+      const msg =
+        Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
+      this.npm.output(msg)
+      return tags
+    } catch (err) {
+      log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)
+      throw err
+    }
+  }
+
+  async listWorkspaces (filters) {
+    await this.setWorkspaces(filters)
+
+    for (const name of this.workspaceNames) {
+      try {
+        this.npm.output(`${name}:`)
+        await this.list(npa(name), this.npm.flatOptions)
+      } catch (err) {
+        // set the exitCode directly, but ignore the error
+        // since it will have already been logged by this.list()
+        process.exitCode = 1
+      }
+    }
+  }
+
+  async fetchTags (spec, opts) {
+    const data = await regFetch.json(
+      `/-/package/${spec.escapedName}/dist-tags`,
+      { ...opts, 'prefer-online': true, spec }
+    )
     if (data && typeof data === 'object')
       delete data._etag
     if (!data || !Object.keys(data).length)
       throw new Error('No dist-tags found for ' + spec.name)
 
     return data
-  })
+  }
 }
-
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = DistTag

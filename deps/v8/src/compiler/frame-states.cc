@@ -12,14 +12,13 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-// Guard equality of these constants. Ideally they should be merged at
-// some point.
-STATIC_ASSERT(kFrameStateOuterStateInput ==
-              FrameState::kFrameStateOuterStateInput);
 
 size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_value(sc.parameter_);
@@ -53,8 +52,8 @@ size_t hash_value(FrameStateInfo const& info) {
 
 std::ostream& operator<<(std::ostream& os, FrameStateType type) {
   switch (type) {
-    case FrameStateType::kInterpretedFunction:
-      os << "INTERPRETED_FRAME";
+    case FrameStateType::kUnoptimizedFunction:
+      os << "UNOPTIMIZED_FRAME";
       break;
     case FrameStateType::kArgumentsAdaptor:
       os << "ARGUMENTS_ADAPTOR";
@@ -65,6 +64,11 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kBuiltinContinuation:
       os << "BUILTIN_CONTINUATION_FRAME";
       break;
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kJSToWasmBuiltinContinuation:
+      os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
@@ -88,7 +92,7 @@ std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
 
 namespace {
 
-// Lazy deopt points where the frame state is assocated with a call get an
+// Lazy deopt points where the frame state is associated with a call get an
 // additional parameter for the return result from the call. The return result
 // is added by the deoptimizer and not explicitly specified in the frame state.
 // Lazy deopt points which can catch exceptions further get an additional
@@ -110,7 +114,8 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
     Node* closure, Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
-    Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>()) {
+    Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(),
+    const wasm::FunctionSig* signature = nullptr) {
   Graph* const graph = jsgraph->graph();
   CommonOperatorBuilder* const common = jsgraph->common();
 
@@ -118,10 +123,20 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
       common->StateValues(parameter_count, SparseInputMask::Dense());
   Node* params_node = graph->NewNode(op_param, parameter_count, parameters);
 
-  BailoutId bailout_id = Builtins::GetContinuationBailoutId(name);
+  BytecodeOffset bailout_id = Builtins::GetContinuationBytecodeOffset(name);
+#if V8_ENABLE_WEBASSEMBLY
+  const FrameStateFunctionInfo* state_info =
+      signature ? common->CreateJSToWasmFrameStateFunctionInfo(
+                      frame_type, parameter_count, 0, shared, signature)
+                : common->CreateFrameStateFunctionInfo(
+                      frame_type, parameter_count, 0, shared);
+#else
+  DCHECK_NULL(signature);
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
                                            shared);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   return FrameState(graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
@@ -134,7 +149,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
 FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtins::Name name, Node* context,
     Node* const* parameters, int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode) {
+    ContinuationFrameStateMode mode, const wasm::FunctionSig* signature) {
   Callable callable = Builtins::CallableFor(jsgraph->isolate(), name);
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
@@ -163,11 +178,34 @@ FrameState CreateStubBuiltinContinuationFrameState(
     actual_parameters.push_back(parameters[i]);
   }
 
+  FrameStateType frame_state_type = FrameStateType::kBuiltinContinuation;
+#if V8_ENABLE_WEBASSEMBLY
+  if (name == Builtins::kJSToWasmLazyDeoptContinuation) {
+    CHECK_NOT_NULL(signature);
+    frame_state_type = FrameStateType::kJSToWasmBuiltinContinuation;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return CreateBuiltinContinuationFrameStateCommon(
-      jsgraph, FrameStateType::kBuiltinContinuation, name,
-      jsgraph->UndefinedConstant(), context, actual_parameters.data(),
-      static_cast<int>(actual_parameters.size()), outer_frame_state);
+      jsgraph, frame_state_type, name, jsgraph->UndefinedConstant(), context,
+      actual_parameters.data(), static_cast<int>(actual_parameters.size()),
+      outer_frame_state, Handle<SharedFunctionInfo>(), signature);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+FrameState CreateJSWasmCallBuiltinContinuationFrameState(
+    JSGraph* jsgraph, Node* context, Node* outer_frame_state,
+    const wasm::FunctionSig* signature) {
+  base::Optional<wasm::ValueKind> wasm_return_kind =
+      wasm::WasmReturnTypeFromSignature(signature);
+  Node* node_return_type =
+      jsgraph->SmiConstant(wasm_return_kind ? wasm_return_kind.value() : -1);
+  Node* lazy_deopt_parameters[] = {node_return_type};
+  return CreateStubBuiltinContinuationFrameState(
+      jsgraph, Builtins::kJSToWasmLazyDeoptContinuation, context,
+      lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+      outer_frame_state, ContinuationFrameStateMode::LAZY, signature);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,
@@ -185,6 +223,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
   // to be the second value in the translation when creating stack crawls
   // (e.g. Error.stack) of optimized JavaScript frames.
   std::vector<Node*> actual_parameters;
+  actual_parameters.reserve(stack_parameter_count);
   for (int i = 0; i < stack_parameter_count; ++i) {
     actual_parameters.push_back(stack_parameters[i]);
   }

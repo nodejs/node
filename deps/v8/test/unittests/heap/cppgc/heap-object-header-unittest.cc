@@ -21,7 +21,7 @@ TEST(HeapObjectHeaderTest, Constructor) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
-  EXPECT_EQ(kSize, header.GetSize());
+  EXPECT_EQ(kSize, header.AllocatedSize());
   EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex());
   EXPECT_TRUE(header.IsInConstruction());
   EXPECT_FALSE(header.IsMarked());
@@ -32,7 +32,15 @@ TEST(HeapObjectHeaderTest, Payload) {
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(reinterpret_cast<ConstAddress>(&header) + sizeof(HeapObjectHeader),
-            header.Payload());
+            header.ObjectStart());
+}
+
+TEST(HeapObjectHeaderTest, PayloadEnd) {
+  constexpr GCInfoIndex kGCInfoIndex = 17;
+  constexpr size_t kSize = kAllocationGranularity;
+  HeapObjectHeader header(kSize, kGCInfoIndex);
+  EXPECT_EQ(reinterpret_cast<ConstAddress>(&header) + kSize,
+            header.ObjectEnd());
 }
 
 TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
@@ -40,16 +48,15 @@ TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex());
-  EXPECT_EQ(kGCInfoIndex,
-            header.GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex<AccessMode::kAtomic>());
 }
 
-TEST(HeapObjectHeaderTest, GetSize) {
+TEST(HeapObjectHeaderTest, AllocatedSize) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity * 23;
   HeapObjectHeader header(kSize, kGCInfoIndex);
-  EXPECT_EQ(kSize, header.GetSize());
-  EXPECT_EQ(kSize, header.GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(kSize, header.AllocatedSize());
+  EXPECT_EQ(kSize, header.AllocatedSize<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, IsLargeObject) {
@@ -57,13 +64,10 @@ TEST(HeapObjectHeaderTest, IsLargeObject) {
   constexpr size_t kSize = kAllocationGranularity * 23;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(false, header.IsLargeObject());
-  EXPECT_EQ(false,
-            header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(false, header.IsLargeObject<AccessMode::kAtomic>());
   HeapObjectHeader large_header(0, kGCInfoIndex + 1);
   EXPECT_EQ(true, large_header.IsLargeObject());
-  EXPECT_EQ(
-      true,
-      large_header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(true, large_header.IsLargeObject<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, MarkObjectAsFullyConstructed) {
@@ -75,7 +79,7 @@ TEST(HeapObjectHeaderTest, MarkObjectAsFullyConstructed) {
   EXPECT_FALSE(header.IsInConstruction());
   // Size shares the same bitfield and should be unaffected by
   // MarkObjectAsFullyConstructed.
-  EXPECT_EQ(kSize, header.GetSize());
+  EXPECT_EQ(kSize, header.AllocatedSize());
 }
 
 TEST(HeapObjectHeaderTest, TryMark) {
@@ -110,7 +114,7 @@ TEST(HeapObjectHeaderTest, Unmark) {
   EXPECT_FALSE(header2.IsMarked());
   EXPECT_TRUE(header2.TryMarkAtomic());
   EXPECT_TRUE(header2.IsMarked());
-  header2.Unmark<HeapObjectHeader::AccessMode::kAtomic>();
+  header2.Unmark<AccessMode::kAtomic>();
   // GCInfoIndex shares the same bitfield and should be unaffected by Unmark.
   EXPECT_EQ(kGCInfoIndex, header2.GetGCInfoIndex());
   EXPECT_FALSE(header2.IsMarked());
@@ -130,7 +134,7 @@ class ConcurrentGCThread final : public v8::base::Thread {
         payload_(payload) {}
 
   void Run() final {
-    while (header_->IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
+    while (header_->IsInConstruction<AccessMode::kAtomic>()) {
     }
     USE(v8::base::AsAtomicPtr(const_cast<size_t*>(&payload_->value))
             ->load(std::memory_order_relaxed));
@@ -152,10 +156,10 @@ TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
       ~kAllocationMask;
   typename std::aligned_storage<kSize, kAllocationGranularity>::type data;
   HeapObjectHeader* header = new (&data) HeapObjectHeader(kSize, 1);
-  ConcurrentGCThread gc_thread(header,
-                               reinterpret_cast<Payload*>(header->Payload()));
+  ConcurrentGCThread gc_thread(
+      header, reinterpret_cast<Payload*>(header->ObjectStart()));
   CHECK(gc_thread.Start());
-  new (header->Payload()) Payload();
+  new (header->ObjectStart()) Payload();
   header->MarkAsFullyConstructed();
   gc_thread.Join();
 }

@@ -22,6 +22,11 @@
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
+// The FIPS-related functions are only available
+// when the OpenSSL itself was compiled with FIPS support.
+#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
+#  include <openssl/fips.h>
+#endif  // OPENSSL_FIPS
 
 #include <algorithm>
 #include <memory>
@@ -59,6 +64,7 @@ using EVPMDPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using BignumPointer = DeleteFnPtr<BIGNUM, BN_free>;
+using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
@@ -69,7 +75,7 @@ using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using RsaPointer = DeleteFnPtr<RSA, RSA_free>;
 using DsaPointer = DeleteFnPtr<DSA, DSA_free>;
-using EcdsaSigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
+using DsaSigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 
 // Our custom implementation of the certificate verify callback
 // used when establishing a TLS handshake. Because we cannot perform
@@ -79,6 +85,8 @@ using EcdsaSigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
 // that the user user Connection::VerifyError after the `secure`
 // callback has been made.
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
+
+bool ProcessFipsOptions();
 
 void InitCryptoOnce();
 
@@ -153,14 +161,54 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   }
 }
 
+#define NODE_CRYPTO_ERROR_CODES_MAP(V)                                        \
+    V(CIPHER_JOB_FAILED, "Cipher job failed")                                 \
+    V(DERIVING_BITS_FAILED, "Deriving bits failed")                           \
+    V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                        \
+    V(INVALID_KEY_TYPE, "Invalid key type")                                   \
+    V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                 \
+    V(OK, "Ok")                                                               \
+
+enum class NodeCryptoError {
+#define V(CODE, DESCRIPTION) CODE,
+  NODE_CRYPTO_ERROR_CODES_MAP(V)
+#undef V
+};
+
 // Utility struct used to harvest error information from openssl's error stack
-struct CryptoErrorVector : public std::vector<std::string> {
+struct CryptoErrorStore final : public MemoryRetainer {
+ public:
   void Capture();
+
+  bool Empty() const;
+
+  template <typename... Args>
+  void Insert(const NodeCryptoError error, Args&&... args);
 
   v8::MaybeLocal<v8::Value> ToException(
       Environment* env,
       v8::Local<v8::String> exception_string = v8::Local<v8::String>()) const;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CryptoErrorStore)
+  SET_SELF_SIZE(CryptoErrorStore)
+
+ private:
+  std::vector<std::string> errors_;
 };
+
+template <typename... Args>
+void CryptoErrorStore::Insert(const NodeCryptoError error, Args&&... args) {
+  const char* error_string = nullptr;
+  switch (error) {
+#define V(CODE, DESCRIPTION) \
+    case NodeCryptoError::CODE: error_string = DESCRIPTION; break;
+    NODE_CRYPTO_ERROR_CODES_MAP(V)
+#undef V
+  }
+  errors_.emplace_back(SPrintF(error_string,
+                               std::forward<Args>(args)...));
+}
 
 template <typename T>
 T* MallocOpenSSL(size_t count) {
@@ -303,9 +351,27 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     if (status == UV_ECANCELED) return;
     v8::HandleScope handle_scope(env->isolate());
     v8::Context::Scope context_scope(env->context());
+
+    // TODO(tniessen): Remove the exception handling logic here as soon as we
+    // can verify that no code path in ToResult will ever throw an exception.
+    v8::Local<v8::Value> exception;
     v8::Local<v8::Value> args[2];
-    if (ptr->ToResult(&args[0], &args[1]).FromJust())
+    {
+      node::errors::TryCatchScope try_catch(env);
+      v8::Maybe<bool> ret = ptr->ToResult(&args[0], &args[1]);
+      if (!ret.IsJust()) {
+        CHECK(try_catch.HasCaught());
+        exception = try_catch.Exception();
+      } else if (!ret.FromJust()) {
+        return;
+      }
+    }
+
+    if (exception.IsEmpty()) {
       ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
+    } else {
+      ptr->MakeCallback(env->ondone_string(), 1, &exception);
+    }
   }
 
   virtual v8::Maybe<bool> ToResult(
@@ -314,7 +380,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
   CryptoJobMode mode() const { return mode_; }
 
-  CryptoErrorVector* errors() { return &errors_; }
+  CryptoErrorStore* errors() { return &errors_; }
 
   AdditionalParams* params() { return &params_; }
 
@@ -338,7 +404,8 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();
     job->DoThreadPoolWork();
-    if (job->ToResult(&ret[0], &ret[1]).FromJust()) {
+    v8::Maybe<bool> result = job->ToResult(&ret[0], &ret[1]);
+    if (result.IsJust() && result.FromJust()) {
       args.GetReturnValue().Set(
           v8::Array::New(env->isolate(), ret, arraysize(ret)));
     }
@@ -358,7 +425,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
  private:
   const CryptoJobMode mode_;
-  CryptoErrorVector errors_;
+  CryptoErrorStore errors_;
   AdditionalParams params_;
 };
 
@@ -406,10 +473,10 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     if (!DeriveBitsTraits::DeriveBits(
             AsyncWrap::env(),
             *CryptoJob<DeriveBitsTraits>::params(), &out_)) {
-      CryptoErrorVector* errors = CryptoJob<DeriveBitsTraits>::errors();
+      CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
       errors->Capture();
-      if (errors->empty())
-        errors->push_back("Deriving bits failed");
+      if (errors->Empty())
+        errors->Insert(NodeCryptoError::DERIVING_BITS_FAILED);
       return;
     }
     success_ = true;
@@ -419,9 +486,9 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<DeriveBitsTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
     if (success_) {
-      CHECK(errors->empty());
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       return DeriveBitsTraits::EncodeOutput(
           env,
@@ -430,14 +497,14 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
           result);
     }
 
-    if (errors->empty())
+    if (errors->Empty())
       errors->Capture();
-    CHECK(!errors->empty());
+    CHECK(!errors->Empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
 
-  SET_SELF_SIZE(DeriveBitsJob);
+  SET_SELF_SIZE(DeriveBitsJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("out", out_.size());
     CryptoJob<DeriveBitsTraits>::MemoryInfo(tracker);
@@ -499,21 +566,21 @@ struct EnginePointer {
   }
 };
 
-EnginePointer LoadEngineById(const char* id, CryptoErrorVector* errors);
+EnginePointer LoadEngineById(const char* id, CryptoErrorStore* errors);
 
 bool SetEngine(
     const char* id,
     uint32_t flags,
-    CryptoErrorVector* errors = nullptr);
+    CryptoErrorStore* errors = nullptr);
 
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 void SetFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif /* NODE_FIPS_MODE */
+
+void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class CipherPushContext {
  public:
@@ -648,6 +715,7 @@ std::vector<T> CopyBuffer(v8::Local<v8::Value> buf) {
 v8::MaybeLocal<v8::Value> EncodeBignum(
     Environment* env,
     const BIGNUM* bn,
+    int size,
     v8::Local<v8::Value>* error);
 
 v8::Maybe<bool> SetEncodedValue(

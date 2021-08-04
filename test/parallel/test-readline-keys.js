@@ -332,15 +332,15 @@ addTest('\x1bOa\x1bOb\x1bOc\x1bOd\x1bOe', [
 const runKeyIntervalTests = [
   // Escape character
   addKeyIntervalTest('\x1b', [
-    { name: 'escape', sequence: '\x1b', meta: true }
+    { name: 'escape', sequence: '\x1b', meta: true },
   ]),
   // Chain of escape characters.
   addKeyIntervalTest('\x1b\x1b\x1b\x1b'.split(''), [
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true },
-    { name: 'escape', sequence: '\x1b', meta: true }
-  ])
+    { name: 'escape', sequence: '\x1b', meta: true },
+  ]),
 ].reverse().reduce((acc, fn) => fn(acc), () => {});
 
 // Run key interval tests one after another.

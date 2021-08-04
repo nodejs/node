@@ -100,8 +100,10 @@ class CSignatureOf : public CSignature {
     static_assert(
         std::is_same<decltype(*reps_), decltype(*param_types.data())>::value,
         "type mismatch, cannot memcpy");
-    memcpy(storage_ + kReturnCount, param_types.data(),
-           sizeof(*storage_) * kParamCount);
+    if (kParamCount > 0) {
+      memcpy(storage_ + kReturnCount, param_types.data(),
+             sizeof(*storage_) * kParamCount);
+    }
   }
 
  private:

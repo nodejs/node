@@ -26,13 +26,24 @@ class Heap {
 
   const base::AddressRegion& GetCodeRange();
 
+  static bool InSpace(Address address, AllocationSpace space);
+
+  static bool InOldSpace(Address address);
+
   static bool InCodeSpace(Address address);
 
   static bool InReadOnlySpace(Address address);
 
+  static bool InLargeObjectSpace(Address address);
+
   static bool IsValidHeapObject(HeapObject object);
 
+  void ResetIterator();
+  HeapObject NextObject();
+
   bool CollectGarbage();
+
+  size_t Capacity();
 };
 
 }  // namespace third_party_heap

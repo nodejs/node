@@ -18,20 +18,31 @@ tmpdir.refresh();
 
   /* Open the file descriptor. */
   const fd = fs.openSync(filename, 'w');
+  try {
+    /* Write only five characters, so that the position moves to five. */
+    assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
+    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'Hello');
 
-  /* Write only five characters, so that the position moves to five. */
-  assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
-  assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'Hello');
+    /* Write some more with writeFileSync(). */
+    fs.writeFileSync(fd, 'World');
 
-  /* Write some more with writeFileSync(). */
-  fs.writeFileSync(fd, 'World');
-
-  /* New content should be written at position five, instead of zero. */
-  assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
-
-  /* Close the file descriptor. */
-  fs.closeSync(fd);
+    /* New content should be written at position five, instead of zero. */
+    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
+  } finally {
+    fs.closeSync(fd);
+  }
 }
+
+const fdsToCloseOnExit = [];
+process.on('beforeExit', common.mustCall(() => {
+  for (const fd of fdsToCloseOnExit) {
+    try {
+      fs.closeSync(fd);
+    } catch {
+      // Failed to close, ignore
+    }
+  }
+}));
 
 {
   /* writeFile() test. */
@@ -39,6 +50,7 @@ tmpdir.refresh();
 
   /* Open the file descriptor. */
   fs.open(file, 'w', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
     /* Write only five characters, so that the position moves to five. */
     fs.write(fd, 'Hello', common.mustSucceed((bytes) => {
       assert.strictEqual(bytes, 5);
@@ -48,10 +60,37 @@ tmpdir.refresh();
       fs.writeFile(fd, 'World', common.mustSucceed(() => {
         /* New content should be written at position five, instead of zero. */
         assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
-
-        /* Close the file descriptor. */
-        fs.closeSync(fd);
       }));
     }));
   }));
+}
+
+
+// Test read-only file descriptor
+{
+  // TODO(pd4d10): https://github.com/nodejs/node/issues/38607
+  const expectedError = common.isWindows ? /EPERM/ : /EBADF/;
+
+  const file = join(tmpdir.path, 'test.txt');
+
+  fs.open(file, 'r', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
+    fs.writeFile(fd, 'World', common.expectsError(expectedError));
+  }));
+}
+
+// Test with an AbortSignal
+{
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const file = join(tmpdir.path, 'test.txt');
+
+  fs.open(file, 'w', common.mustSucceed((fd) => {
+    fdsToCloseOnExit.push(fd);
+    fs.writeFile(fd, 'World', { signal }, common.expectsError({
+      name: 'AbortError'
+    }));
+  }));
+
+  controller.abort();
 }

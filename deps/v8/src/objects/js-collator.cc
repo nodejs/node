@@ -283,20 +283,11 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 2. If options is undefined, then
-  if (options_obj->IsUndefined(isolate)) {
-    // 2. a. Let options be ObjectCreate(null).
-    options_obj = isolate->factory()->NewJSObjectWithNullProto();
-  } else {
-    // 3. Else
-    // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                               Object::ToObject(isolate, options_obj, service),
-                               JSCollator);
-  }
-
-  // At this point, options_obj can either be a JSObject or a JSProxy only.
-  Handle<JSReceiver> options = Handle<JSReceiver>::cast(options_obj);
+  // 2. Set options to ? CoerceOptionsToObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options,
+      Intl::CoerceOptionsToObject(isolate, options_obj, service), JSCollator);
 
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
@@ -548,7 +539,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSCollator> collator = Handle<JSCollator>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   collator->set_icu_collator(*managed_collator);
   collator->set_locale(*locale_str);
 

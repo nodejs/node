@@ -184,11 +184,15 @@ class TLSWrap : public AsyncWrap,
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetX509Certificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEphemeralKeyInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerX509Certificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);

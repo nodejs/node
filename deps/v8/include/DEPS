@@ -2,5 +2,9 @@ include_rules = [
   # v8-inspector-protocol.h depends on generated files under include/inspector.
   "+inspector",
   "+cppgc/common.h",
+  # Used by v8-cppgc.h to bridge to cppgc.
+  "+cppgc/custom-space.h",
+  "+cppgc/heap-statistics.h",
+  "+cppgc/internal/write-barrier.h",
   "+cppgc/visitor.h",
 ]

@@ -89,3 +89,6 @@ export const stringify = (value, replacer, space) => {
     return after;
   }
 };
+
+export const toJSON = any => $parse(stringify(any));
+export const fromJSON = any => parse($stringify(any));

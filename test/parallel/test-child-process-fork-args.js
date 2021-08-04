@@ -19,7 +19,7 @@ const expectedEnv = { foo: 'bar' };
     [],
     {},
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidModulePath.forEach((modulePath) => {
     assert.throws(() => fork(modulePath), {
@@ -46,7 +46,7 @@ const expectedEnv = { foo: 'bar' };
     0,
     true,
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidSecondArgs.forEach((arg) => {
     assert.throws(
@@ -89,7 +89,7 @@ const expectedEnv = { foo: 'bar' };
     0,
     true,
     () => {},
-    Symbol('t')
+    Symbol('t'),
   ];
   invalidThirdArgs.forEach((arg) => {
     assert.throws(

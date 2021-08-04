@@ -246,7 +246,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
-                                CodeKind::STUB);
+                                CodeKind::FOR_TESTING);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
                           &info, isolate, call_descriptor, graph,
                           AssemblerOptions::Default(isolate), schedule)

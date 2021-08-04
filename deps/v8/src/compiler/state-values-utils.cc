@@ -379,7 +379,10 @@ void StateValuesAccess::iterator::EnsureValid() {
   }
 }
 
-Node* StateValuesAccess::iterator::node() { return Top()->Get(nullptr); }
+Node* StateValuesAccess::iterator::node() {
+  DCHECK(!done());
+  return Top()->Get(nullptr);
+}
 
 MachineType StateValuesAccess::iterator::type() {
   Node* parent = Top()->parent();
@@ -401,6 +404,7 @@ bool StateValuesAccess::iterator::operator!=(iterator const& other) const {
 }
 
 StateValuesAccess::iterator& StateValuesAccess::iterator::operator++() {
+  DCHECK(!done());
   Advance();
   return *this;
 }

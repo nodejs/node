@@ -20,26 +20,21 @@ namespace internal {
 class StringTableKey {
  public:
   virtual ~StringTableKey() = default;
-  inline StringTableKey(uint32_t hash_field, int length);
+  inline StringTableKey(uint32_t raw_hash_field, int length);
 
-  // The individual keys will have their own AsHandle, we shouldn't call the
-  // base version.
-  Handle<String> AsHandle(Isolate* isolate) = delete;
-
-  uint32_t hash_field() const {
-    DCHECK_NE(0, hash_field_);
-    return hash_field_;
+  uint32_t raw_hash_field() const {
+    DCHECK_NE(0, raw_hash_field_);
+    return raw_hash_field_;
   }
 
-  virtual bool IsMatch(String string) = 0;
   inline uint32_t hash() const;
   int length() const { return length_; }
 
  protected:
-  inline void set_hash_field(uint32_t hash_field);
+  inline void set_raw_hash_field(uint32_t raw_hash_field);
 
  private:
-  uint32_t hash_field_ = 0;
+  uint32_t raw_hash_field_ = 0;
   int length_;
 };
 
@@ -68,8 +63,8 @@ class V8_EXPORT_PRIVATE StringTable {
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.
-  template <typename StringTableKey, typename LocalIsolate>
-  Handle<String> LookupKey(LocalIsolate* isolate, StringTableKey* key);
+  template <typename StringTableKey, typename IsolateT>
+  Handle<String> LookupKey(IsolateT* isolate, StringTableKey* key);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either a Smi if the string is an array index, an
@@ -77,7 +72,7 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  void Print(const Isolate* isolate) const;
+  void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
 
   // The following methods must be called either while holding the write lock,
@@ -89,7 +84,7 @@ class V8_EXPORT_PRIVATE StringTable {
  private:
   class Data;
 
-  Data* EnsureCapacity(const Isolate* isolate, int additional_elements);
+  Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::atomic<Data*> data_;
   // Write mutex is mutable so that readers of concurrently mutated values (e.g.

@@ -404,7 +404,7 @@ class MaybeStackBuffer {
     buf_[length] = T();
   }
 
-  // Make derefencing this object return nullptr.
+  // Make dereferencing this object return nullptr.
   // This method can be called multiple times throughout the lifetime of the
   // buffer, but once this has been called AllocateSufficientStorage() cannot
   // be used.
@@ -772,6 +772,7 @@ class PersistentToLocal {
   template <class TypeName>
   static inline v8::Local<TypeName> Strong(
       const v8::PersistentBase<TypeName>& persistent) {
+    DCHECK(!persistent.IsWeak());
     return *reinterpret_cast<v8::Local<TypeName>*>(
         const_cast<v8::PersistentBase<TypeName>*>(&persistent));
   }
@@ -812,6 +813,10 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 }
 
 #define MAYBE_FIELD_PTR(ptr, field) ptr == nullptr ? nullptr : &(ptr->field)
+
+// Returns a non-zero code if it fails to open or read the file,
+// aborts if it fails to close the file.
+int ReadFileSync(std::string* result, const char* path);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

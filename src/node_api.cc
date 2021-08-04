@@ -4,6 +4,7 @@
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
+#include "node_api_internals.h"
 #include "node_binding.h"
 #include "node_buffer.h"
 #include "node_errors.h"
@@ -12,43 +13,39 @@
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
+#include <atomic>
 #include <memory>
 
-struct node_napi_env__ : public napi_env__ {
-  explicit node_napi_env__(v8::Local<v8::Context> context):
-      napi_env__(context) {
-    CHECK_NOT_NULL(node_env());
-  }
+node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
+                                 const std::string& module_filename)
+    : napi_env__(context), filename(module_filename) {
+  CHECK_NOT_NULL(node_env());
+}
 
-  inline node::Environment* node_env() const {
-    return node::Environment::GetCurrent(context());
-  }
+bool node_napi_env__::can_call_into_js() const {
+  return node_env()->can_call_into_js();
+}
 
-  bool can_call_into_js() const override {
-    return node_env()->can_call_into_js();
-  }
+v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
+    v8::Local<v8::ArrayBuffer> ab) const {
+  return ab->SetPrivate(context(),
+                        node_env()->untransferable_object_private_symbol(),
+                        v8::True(isolate));
+}
 
-  v8::Maybe<bool> mark_arraybuffer_as_untransferable(
-      v8::Local<v8::ArrayBuffer> ab) const override {
-    return ab->SetPrivate(
-        context(),
-        node_env()->untransferable_object_private_symbol(),
-        v8::True(isolate));
-  }
-
-  void CallFinalizer(napi_finalize cb, void* data, void* hint) override {
-    napi_env env = static_cast<napi_env>(this);
-    node_env()->SetImmediate([=](node::Environment* node_env) {
-      v8::HandleScope handle_scope(env->isolate);
-      v8::Context::Scope context_scope(env->context());
-      env->CallIntoModule([&](napi_env env) {
-        cb(env, data, hint);
+void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
+  // we need to keep the env live until the finalizer has been run
+  // EnvRefHolder provides an exception safe wrapper to Ref and then
+  // Unref once the lamba is freed
+  EnvRefHolder liveEnv(static_cast<napi_env>(this));
+  node_env()->SetImmediate(
+      [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
+        napi_env env = liveEnv.env();
+        v8::HandleScope handle_scope(env->isolate);
+        v8::Context::Scope context_scope(env->context());
+        env->CallIntoModule([&](napi_env env) { cb(env, data, hint); });
       });
-    });
-  }
-};
-
-typedef node_napi_env__* node_napi_env;
+}
 
 namespace v8impl {
 
@@ -87,10 +84,11 @@ class BufferFinalizer : private Finalizer {
   };
 };
 
-static inline napi_env NewEnv(v8::Local<v8::Context> context) {
+static inline napi_env
+NewEnv(v8::Local<v8::Context> context, const std::string& module_filename) {
   node_napi_env result;
 
-  result = new node_napi_env__(context);
+  result = new node_napi_env__(context, module_filename);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
   // However, as long as N-API addons using this napi_env are in place,
@@ -131,6 +129,7 @@ class ThreadSafeFunction : public node::AsyncResource {
                                    *v8::String::Utf8Value(env_->isolate, name)),
       thread_count(thread_count_),
       is_closing(false),
+      dispatch_state(kDispatchIdle),
       context(context_),
       max_queue_size(max_queue_size_),
       env(env_),
@@ -170,10 +169,8 @@ class ThreadSafeFunction : public node::AsyncResource {
         return napi_closing;
       }
     } else {
-      if (uv_async_send(&async) != 0) {
-        return napi_generic_failure;
-      }
       queue.push(data);
+      Send();
       return napi_ok;
     }
   }
@@ -205,9 +202,7 @@ class ThreadSafeFunction : public node::AsyncResource {
         if (is_closing && max_queue_size > 0) {
           cond->Signal(lock);
         }
-        if (uv_async_send(&async) != 0) {
-          return napi_generic_failure;
-        }
+        Send();
       }
     }
 
@@ -232,7 +227,6 @@ class ThreadSafeFunction : public node::AsyncResource {
         cond = std::make_unique<node::ConditionVariable>();
       }
       if (max_queue_size == 0 || cond) {
-        CHECK_EQ(0, uv_idle_init(loop, &idle));
         return napi_ok;
       }
 
@@ -257,21 +251,46 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Unref() {
     uv_unref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_unref(reinterpret_cast<uv_handle_t*>(&idle));
 
     return napi_ok;
   }
 
   napi_status Ref() {
     uv_ref(reinterpret_cast<uv_handle_t*>(&async));
-    uv_ref(reinterpret_cast<uv_handle_t*>(&idle));
 
     return napi_ok;
   }
 
-  void DispatchOne() {
+  inline void* Context() {
+    return context;
+  }
+
+ protected:
+  void Dispatch() {
+    bool has_more = true;
+
+    // Limit maximum synchronous iteration count to prevent event loop
+    // starvation. See `src/node_messaging.cc` for an inspiration.
+    unsigned int iterations_left = kMaxIterationCount;
+    while (has_more && --iterations_left != 0) {
+      dispatch_state = kDispatchRunning;
+      has_more = DispatchOne();
+
+      // Send() was called while we were executing the JS function
+      if (dispatch_state.exchange(kDispatchIdle) != kDispatchRunning) {
+        has_more = true;
+      }
+    }
+
+    if (has_more) {
+      Send();
+    }
+  }
+
+  bool DispatchOne() {
     void* data = nullptr;
     bool popped_value = false;
+    bool has_more = false;
 
     {
       node::Mutex::ScopedLock lock(this->mutex);
@@ -296,9 +315,9 @@ class ThreadSafeFunction : public node::AsyncResource {
               cond->Signal(lock);
             }
             CloseHandlesAndMaybeDelete();
-          } else {
-            CHECK_EQ(0, uv_idle_stop(&idle));
           }
+        } else {
+          has_more = true;
         }
       }
     }
@@ -316,6 +335,8 @@ class ThreadSafeFunction : public node::AsyncResource {
         call_js_cb(env, js_callback, context, data);
       });
     }
+
+    return has_more;
   }
 
   void Finalize() {
@@ -327,10 +348,6 @@ class ThreadSafeFunction : public node::AsyncResource {
       });
     }
     EmptyQueueAndDelete();
-  }
-
-  inline void* Context() {
-    return context;
   }
 
   void CloseHandlesAndMaybeDelete(bool set_closing = false) {
@@ -352,16 +369,18 @@ class ThreadSafeFunction : public node::AsyncResource {
           ThreadSafeFunction* ts_fn =
               node::ContainerOf(&ThreadSafeFunction::async,
                                 reinterpret_cast<uv_async_t*>(handle));
-          v8::HandleScope scope(ts_fn->env->isolate);
-          ts_fn->env->node_env()->CloseHandle(
-              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
-              [](uv_handle_t* handle) -> void {
-                ThreadSafeFunction* ts_fn =
-                    node::ContainerOf(&ThreadSafeFunction::idle,
-                                      reinterpret_cast<uv_idle_t*>(handle));
-                ts_fn->Finalize();
-              });
+          ts_fn->Finalize();
         });
+  }
+
+  void Send() {
+    // Ask currently running Dispatch() to make one more iteration
+    unsigned char current_state = dispatch_state.fetch_or(kDispatchPending);
+    if ((current_state & kDispatchRunning) == kDispatchRunning) {
+      return;
+    }
+
+    CHECK_EQ(0, uv_async_send(&async));
   }
 
   // Default way of calling into JavaScript. Used when ThreadSafeFunction is
@@ -387,16 +406,10 @@ class ThreadSafeFunction : public node::AsyncResource {
     }
   }
 
-  static void IdleCb(uv_idle_t* idle) {
-    ThreadSafeFunction* ts_fn =
-        node::ContainerOf(&ThreadSafeFunction::idle, idle);
-    ts_fn->DispatchOne();
-  }
-
   static void AsyncCb(uv_async_t* async) {
     ThreadSafeFunction* ts_fn =
         node::ContainerOf(&ThreadSafeFunction::async, async);
-    CHECK_EQ(0, uv_idle_start(&ts_fn->idle, IdleCb));
+    ts_fn->Dispatch();
   }
 
   static void Cleanup(void* data) {
@@ -405,14 +418,20 @@ class ThreadSafeFunction : public node::AsyncResource {
   }
 
  private:
+  static const unsigned char kDispatchIdle = 0;
+  static const unsigned char kDispatchRunning = 1 << 0;
+  static const unsigned char kDispatchPending = 1 << 1;
+
+  static const unsigned int kMaxIterationCount = 1000;
+
   // These are variables protected by the mutex.
   node::Mutex mutex;
   std::unique_ptr<node::ConditionVariable> cond;
   std::queue<void*> queue;
   uv_async_t async;
-  uv_idle_t idle;
   size_t thread_count;
   bool is_closing;
+  std::atomic_uchar dispatch_state;
 
   // These are variables set once, upon creation, and then never again, which
   // means we don't need the mutex to read them.
@@ -552,16 +571,35 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
                                     napi_addon_register_func init) {
+  node::Environment* node_env = node::Environment::GetCurrent(context);
+  std::string module_filename = "";
   if (init == nullptr) {
-    node::Environment* node_env = node::Environment::GetCurrent(context);
     CHECK_NOT_NULL(node_env);
     node_env->ThrowError(
         "Module has no declared entry point.");
     return;
   }
 
+  // We set `env->filename` from `module.filename` here, but we could just as
+  // easily add a private property to `exports` in `process.dlopen`, which
+  // receives the file name from JS, and retrieve *that* here. Thus, we are not
+  // endorsing commonjs here by making use of `module.filename`.
+  v8::Local<v8::Value> filename_js;
+  v8::Local<v8::Object> modobj;
+  if (module->ToObject(context).ToLocal(&modobj) &&
+      modobj->Get(context, node_env->filename_string()).ToLocal(&filename_js) &&
+      filename_js->IsString()) {
+    node::Utf8Value filename(node_env->isolate(), filename_js);  // Cast
+
+    // Turn the absolute path into a URL. Currently the absolute path is always
+    // a file system path.
+    // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
+    // receive it as a URL already.
+    module_filename = std::string("file://") + (*filename);
+  }
+
   // Create a new napi_env for this specific module.
-  napi_env env = v8impl::NewEnv(context);
+  napi_env env = v8impl::NewEnv(context, module_filename);
 
   napi_value _exports;
   env->CallIntoModule([&](napi_env env) {
@@ -646,7 +684,8 @@ struct napi_async_cleanup_hook_handle__ {
   }
 
   static void Hook(void* data, void (*done_cb)(void*), void* done_data) {
-    auto handle = static_cast<napi_async_cleanup_hook_handle__*>(data);
+    napi_async_cleanup_hook_handle__* handle =
+        static_cast<napi_async_cleanup_hook_handle__*>(data);
     handle->done_cb_ = done_cb;
     handle->done_data_ = done_data;
     handle->user_hook_(handle, handle->user_data_);
@@ -780,7 +819,7 @@ napi_status napi_async_init(napi_env env,
   v8::Local<v8::String> v8_resource_name;
   CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
 
-  auto async_context =
+  v8impl::AsyncContext* async_context =
       new v8impl::AsyncContext(reinterpret_cast<node_napi_env>(env),
                                v8_resource,
                                v8_resource_name,
@@ -836,7 +875,7 @@ napi_status napi_make_callback(napi_env env,
         reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)),
         {0, 0});
   } else {
-    auto node_async_context =
+    v8impl::AsyncContext* node_async_context =
         reinterpret_cast<v8impl::AsyncContext*>(async_context);
     callback_result = node_async_context->MakeCallback(
         v8recv,
@@ -865,7 +904,7 @@ napi_status napi_create_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  auto maybe = node::Buffer::New(env->isolate, length);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::New(env->isolate, length);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
@@ -896,11 +935,12 @@ napi_status napi_create_external_buffer(napi_env env,
       env, finalize_cb, nullptr, finalize_hint,
       v8impl::Finalizer::kKeepEnvReference);
 
-  auto maybe = node::Buffer::New(isolate,
-                                static_cast<char*>(data),
-                                length,
-                                v8impl::BufferFinalizer::FinalizeBufferCallback,
-                                finalizer);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::New(
+      isolate,
+      static_cast<char*>(data),
+      length,
+      v8impl::BufferFinalizer::FinalizeBufferCallback,
+      finalizer);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
@@ -920,8 +960,9 @@ napi_status napi_create_buffer_copy(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-  auto maybe = node::Buffer::Copy(env->isolate,
-    static_cast<const char*>(data), length);
+  v8::MaybeLocal<v8::Object> maybe = node::Buffer::Copy(
+      env->isolate,
+      static_cast<const char*>(data), length);
 
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
@@ -1256,4 +1297,12 @@ napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
   CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
+}
+
+napi_status node_api_get_module_file_name(napi_env env, const char** result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  *result = static_cast<node_napi_env>(env)->GetFilename();
+  return napi_clear_last_error(env);
 }

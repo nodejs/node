@@ -22,7 +22,7 @@ const net = require('net');
   const expected = [
     Buffer.from('a'),
     Buffer.from('b'),
-    Buffer.from('c')
+    Buffer.from('c'),
   ];
 
   const read = new Readable({
@@ -347,7 +347,7 @@ const net = require('net');
 
   const expected = [
     Buffer.from('hello'),
-    Buffer.from('world')
+    Buffer.from('world'),
   ];
 
   const rs = new Readable({
@@ -467,6 +467,76 @@ const net = require('net');
   }
 
   run();
+}
+
+{
+  // Check aborted signal without values
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    async function* producer() {
+      ac.abort();
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Check aborted signal after init.
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    async function* producer() {
+      yield '5';
+      await Promise.resolve();
+      ac.abort();
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Check pre-aborted signal
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const signal = AbortSignal.abort();
+    async function* producer() {
+      yield '5';
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
 }
 
 {
@@ -965,7 +1035,7 @@ const net = require('net');
   const dst = new PassThrough();
   dst.readable = false;
   pipeline(src, dst, common.mustSucceed(() => {
-    assert.strictEqual(dst.destroyed, false);
+    assert.strictEqual(dst.destroyed, true);
   }));
   src.end();
 }
@@ -1299,5 +1369,21 @@ const net = require('net');
   });
   pipeline(['1', '2', '3'], w, common.mustSucceed(() => {
     assert.strictEqual(res, '123');
+  }));
+}
+
+{
+  const content = 'abc';
+  pipeline(Buffer.from(content), PassThrough({ objectMode: true }),
+           common.mustSucceed(() => {}));
+
+  let res = '';
+  pipeline(Buffer.from(content), async function*(previous) {
+    for await (const val of previous) {
+      res += String.fromCharCode(val);
+      yield val;
+    }
+  }, common.mustSucceed(() => {
+    assert.strictEqual(res, content);
   }));
 }

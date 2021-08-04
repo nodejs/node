@@ -12,6 +12,7 @@
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
@@ -47,9 +48,9 @@ class Writer {
       : debug_object_(debug_object),
         position_(0),
         capacity_(1024),
-        buffer_(reinterpret_cast<byte*>(malloc(capacity_))) {}
+        buffer_(reinterpret_cast<byte*>(base::Malloc(capacity_))) {}
 
-  ~Writer() { free(buffer_); }
+  ~Writer() { base::Free(buffer_); }
 
   uintptr_t position() const { return position_; }
 
@@ -98,7 +99,7 @@ class Writer {
   void Ensure(uintptr_t pos) {
     if (capacity_ < pos) {
       while (capacity_ < pos) capacity_ *= 2;
-      buffer_ = reinterpret_cast<byte*>(realloc(buffer_, capacity_));
+      buffer_ = reinterpret_cast<byte*>(base::Realloc(buffer_, capacity_));
     }
   }
 
@@ -628,7 +629,7 @@ class ELF {
 #else
 #error Unsupported target architecture.
 #endif
-    memcpy(header->ident, ident, 16);
+    base::Memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32
     header->machine = 3;
@@ -1741,8 +1742,8 @@ void __gdb_print_v8_object(Object object) {
 
 static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
                                      uintptr_t symfile_size) {
-  JITCodeEntry* entry =
-      static_cast<JITCodeEntry*>(malloc(sizeof(JITCodeEntry) + symfile_size));
+  JITCodeEntry* entry = static_cast<JITCodeEntry*>(
+      base::Malloc(sizeof(JITCodeEntry) + symfile_size));
 
   entry->symfile_addr_ = reinterpret_cast<Address>(entry + 1);
   entry->symfile_size_ = symfile_size;
@@ -1754,7 +1755,7 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
   return entry;
 }
 
-static void DestroyCodeEntry(JITCodeEntry* entry) { free(entry); }
+static void DestroyCodeEntry(JITCodeEntry* entry) { base::Free(entry); }
 
 static void RegisterCodeEntry(JITCodeEntry* entry) {
   entry->next_ = __jit_debug_descriptor.first_entry_;
@@ -1977,7 +1978,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
 static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
                     LineInfo* lineinfo) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   CodeMap* code_map = GetCodeMap();
   AddressRange range;

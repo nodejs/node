@@ -38,7 +38,7 @@ const fs = require("fs");
 const path = require("path");
 const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const { Minimatch } = require("minimatch");
 
 const {
@@ -433,9 +433,14 @@ class FileEnumerator {
         // Enumerate the files of this directory.
         for (const entry of readdirSafeSync(directoryPath)) {
             const filePath = path.join(directoryPath, entry.name);
+            const fileInfo = entry.isSymbolicLink() ? statSafeSync(filePath) : entry;
+
+            if (!fileInfo) {
+                continue;
+            }
 
             // Check if the file is matched.
-            if (entry.isFile()) {
+            if (fileInfo.isFile()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,
@@ -471,7 +476,7 @@ class FileEnumerator {
                 }
 
             // Dive into the sub directory.
-            } else if (options.recursive && entry.isDirectory()) {
+            } else if (options.recursive && fileInfo.isDirectory()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,

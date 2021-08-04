@@ -25,6 +25,16 @@ class JSArray : public JSObject {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
+  DECL_RELAXED_GETTER(length, Object)
+
+  // Acquire/release semantics on this field are explicitly forbidden to avoid
+  // confusion, since the default setter uses relaxed semantics. If
+  // acquire/release semantics ever become necessary, the default setter should
+  // be reverted to non-atomic behavior, and setters with explicit tags
+  // introduced and used when required.
+  Object length(PtrComprCageBase cage_base, AcquireLoadTag tag) const = delete;
+  void set_length(Object value, ReleaseStoreTag tag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   // Overload the length setter to skip write barrier when the length
   // is set to a smi. This matches the set function on FixedArray.
@@ -48,8 +58,8 @@ class JSArray : public JSObject {
   // Initializes the array to a certain length.
   inline bool AllowsSetLength();
 
-  V8_EXPORT_PRIVATE static void SetLength(Handle<JSArray> array,
-                                          uint32_t length);
+  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Handle<JSArray> array,
+                                                 uint32_t length);
 
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,
@@ -116,8 +126,15 @@ class JSArray : public JSObject {
   // Max. number of elements being copied in Array builtins.
   static const int kMaxCopyElements = 100;
 
+  // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
+  static constexpr uint32_t kMaxArrayLength = JSObject::kMaxElementCount;
+  static constexpr uint32_t kMaxArrayIndex = JSObject::kMaxElementIndex;
+  STATIC_ASSERT(kMaxArrayLength == kMaxUInt32);
+  STATIC_ASSERT(kMaxArrayIndex == kMaxUInt32 - 1);
+
   // This constant is somewhat arbitrary. Any large enough value would work.
-  static const uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  static constexpr uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  STATIC_ASSERT(kMaxFastArrayLength <= kMaxArrayLength);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
@@ -126,9 +143,6 @@ class JSArray : public JSObject {
       (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kHeaderSize -
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
-
-  // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
-  static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
 
   OBJECT_CONSTRUCTORS(JSArray, JSObject);
 };

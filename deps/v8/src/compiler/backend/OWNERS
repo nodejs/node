@@ -6,5 +6,3 @@ zhin@chromium.org
 
 per-file register-allocator*=thibaudm@chromium.org
 per-file spill-placer*=thibaudm@chromium.org
-
-# COMPONENT: Blink>JavaScript>Compiler

@@ -39,8 +39,8 @@ void SealCurrentObjects(Heap* heap) {
 }
 
 int FixedArrayLenFromSize(int size) {
-  return Min((size - FixedArray::kHeaderSize) / kTaggedSize,
-             FixedArray::kMaxRegularLength);
+  return std::min({(size - FixedArray::kHeaderSize) / kTaggedSize,
+                   FixedArray::kMaxRegularLength});
 }
 
 std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
@@ -122,7 +122,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
     CHECK((allocation == AllocationType::kYoung &&
            heap->new_space()->Contains(*handles.back())) ||
           (allocation == AllocationType::kOld &&
-           heap->InOldSpace(*handles.back())));
+           heap->InOldSpace(*handles.back())) ||
+          FLAG_single_generation);
     free_memory -= handles.back()->Size();
   }
   return handles;
@@ -172,9 +173,6 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   if (collector->sweeping_in_progress()) {
     SafepointScope scope(heap);
     collector->EnsureSweepingCompleted();
-  }
-  if (marking->IsSweeping()) {
-    marking->FinalizeSweeping();
   }
   CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
   if (marking->IsStopped()) {
@@ -246,15 +244,11 @@ bool InCorrectGeneration(HeapObject object) {
                                 : i::Heap::InYoungGeneration(object);
 }
 
-void EnsureFlagLocalHeapsEnabled() {
-  // Avoid data race in concurrent thread by only setting the flag to true if
-  // not already enabled.
-  if (!FLAG_local_heaps) FLAG_local_heaps = true;
-}
-
 void GrowNewSpace(Heap* heap) {
   SafepointScope scope(heap);
-  heap->new_space()->Grow();
+  if (!heap->new_space()->IsAtMaximumCapacity()) {
+    heap->new_space()->Grow();
+  }
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {

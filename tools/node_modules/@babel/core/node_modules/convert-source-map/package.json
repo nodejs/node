@@ -1,6 +1,6 @@
 {
   "name": "convert-source-map",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Converts a source-map from/to  different formats and allows adding/changing properties.",
   "main": "index.js",
   "scripts": {

@@ -4061,7 +4061,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
         // * do NOT require that match limit be on a breakIter boundary
 
         //  Advance the match end position to the first acceptable match boundary.
-        //    This advances the index over any combining charcters.
+        //    This advances the index over any combining characters.
         mLimit = maxLimit;
         if (minLimit < maxLimit) {
             // When the last CE's low index is same with its high index, the CE is likely

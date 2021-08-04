@@ -68,6 +68,8 @@ class MemoryOptimizer final {
   void EnqueueUses(Node*, AllocationState const*);
   void EnqueueUse(Node*, int, AllocationState const*);
 
+  void ReplaceUsesAndKillNode(Node* node, Node* replacement);
+
   // Returns true if the AllocationType of the current AllocateRaw node that we
   // are visiting needs to be updated to kOld, due to propagation of tenuring
   // from outer to inner allocations.

@@ -71,7 +71,7 @@ const tests = [
     output: '',
     checkTerminalCodes: false,
     event: null,
-  }
+  },
 ];
 
 tests.forEach(run);
@@ -121,7 +121,7 @@ const codeAlignmentTests = [
     input: ' let i = 1;\n let j = 2\n',
     cursor: 2,
     line: '  '
-  }
+  },
 ];
 
 codeAlignmentTests.forEach(testCodeAlignment);

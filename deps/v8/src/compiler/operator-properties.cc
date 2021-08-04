@@ -193,16 +193,17 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCloneObject:
 
     // Property access operations
+    case IrOpcode::kJSDeleteProperty:
+    case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSLoadNamedFromSuper:
-    case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSLoadProperty:
-    case IrOpcode::kJSStoreProperty:
-    case IrOpcode::kJSLoadGlobal:
-    case IrOpcode::kJSStoreGlobal:
-    case IrOpcode::kJSStoreNamedOwn:
     case IrOpcode::kJSStoreDataPropertyInLiteral:
-    case IrOpcode::kJSDeleteProperty:
+    case IrOpcode::kJSStoreInArrayLiteral:
+    case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreNamedOwn:
+    case IrOpcode::kJSStoreProperty:
 
     // Conversions
     case IrOpcode::kJSToLength:
@@ -223,6 +224,9 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCall:
     case IrOpcode::kJSCallWithArrayLike:
     case IrOpcode::kJSCallWithSpread:
+#if V8_ENABLE_WEBASSEMBLY
+    case IrOpcode::kJSWasmCall:
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // Misc operations
     case IrOpcode::kJSAsyncFunctionEnter:

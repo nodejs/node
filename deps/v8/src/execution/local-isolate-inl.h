@@ -12,12 +12,12 @@
 namespace v8 {
 namespace internal {
 
-Address LocalIsolate::isolate_root() const { return isolate_->isolate_root(); }
-ReadOnlyHeap* LocalIsolate::read_only_heap() {
+Address LocalIsolate::cage_base() const { return isolate_->cage_base(); }
+ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
 }
 
-Object LocalIsolate::root(RootIndex index) {
+Object LocalIsolate::root(RootIndex index) const {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   return isolate_->root(index);
 }

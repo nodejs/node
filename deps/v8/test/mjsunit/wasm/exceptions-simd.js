@@ -36,13 +36,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprTry, kWasmS128,
           kExprLocalGet, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kExprLocalGet, 0,
         kSimdPrefix, kExprI32x4Eq,
-        kSimdPrefix, kExprV8x16AllTrue,
+        kSimdPrefix, kExprI8x16AllTrue,
       ])
       .exportFunc();
   var instance = builder.instantiate();
@@ -65,9 +63,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Const, in_idx,
           kSimdPrefix, kExprS128LoadMem, 0, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kSimdPrefix, kExprS128StoreMem, 0, 0,
       ])

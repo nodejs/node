@@ -80,7 +80,7 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
-### `--conditions=condition`
+### `-C=condition`, `--conditions=condition`
 <!-- YAML
 added:
   - v14.9.0
@@ -89,13 +89,19 @@ added:
 
 > Stability: 1 - Experimental
 
-Enable experimental support for custom conditional exports resolution
+Enable experimental support for custom [conditional exports][] resolution
 conditions.
 
 Any number of custom string condition names are permitted.
 
 The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 `"require"` will always apply as defined.
+
+For example, to run a module with "development" resolutions:
+
+```console
+$ node -C=development app.js
+```
 
 ### `--cpu-prof`
 <!-- YAML
@@ -181,29 +187,51 @@ Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
 
+### `--dns-result-order=order`
+<!-- YAML
+added: v16.4.0
+-->
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+priority than `--dns-result-order`.
+
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`.)
+Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
+against FIPS-compatible OpenSSL.)
 
 ### `--enable-source-maps`
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: v15.11.0
+    pr-url: https://github.com/nodejs/node/pull/37362
+    description: This API is no longer experimental.
 -->
 
-> Stability: 1 - Experimental
+Enable [Source Map v3][Source Map] support for stack traces.
 
-Enable experimental Source Map v3 support for stack traces.
+When using a transpiler, such as TypeScript, stack traces thrown by an
+application reference the transpiled code, not the original source position.
+`--enable-source-maps` enables caching of Source Maps and makes a best
+effort to report stack traces relative to the original source file.
 
-Currently, overriding `Error.prepareStackTrace` is ignored when the
-`--enable-source-maps` flag is set.
+Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
+modifying the stack trace.
 
 ### `--experimental-abortcontroller`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/33527
@@ -251,12 +279,11 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
-### `--experimental-repl-await`
+### `--no-experimental-repl-await`
 <!-- YAML
-added: v10.0.0
--->
-
-Enable experimental top-level `await` keyword support in REPL.
+added: v16.6.0
+ -->
+ Use this flag to disable top-level await in REPL.
 
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
@@ -355,9 +382,9 @@ Node.js instance runs out of memory when `max_count` is greater than `0`.
 
 Generating V8 snapshots takes time and memory (both memory managed by the
 V8 heap and native memory outside the V8 heap). The bigger the heap is,
-the more resources it needs. Node.js will adjust the V8 heap to accommondate
+the more resources it needs. Node.js will adjust the V8 heap to accommodate
 the additional V8 heap memory overhead, and try its best to avoid using up
-all the memory avialable to the process. When the process uses
+all the memory available to the process. When the process uses
 more memory than the system deems appropriate, the process may be terminated
 abruptly by the system, depending on the system configuration.
 
@@ -558,10 +585,10 @@ added:
 changes:
   - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32520
-    description: Change maximum default size of HTTP headers from 8KB to 16KB.
+    description: Change maximum default size of HTTP headers from 8 KB to 16 KB.
 -->
 
-Specify the maximum size, in bytes, of HTTP headers. Defaults to 16KB.
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KB.
 
 ### `--napi-modules`
 <!-- YAML
@@ -606,8 +633,8 @@ added: v6.9.0
 -->
 
 Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+used to enable FIPS-compliant crypto if Node.js is built
+against FIPS-enabled OpenSSL.
 
 ### `--pending-deprecation`
 <!-- YAML
@@ -850,7 +877,7 @@ environment data.
 
 ### `--secure-heap=n`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 Initializes an OpenSSL secure heap of `n` bytes. When initialized, the
@@ -874,7 +901,7 @@ See [`CRYPTO_secure_malloc_init`][] for more details.
 
 ### `--secure-heap-min=n`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 When using `--secure-heap`, the `--secure-heap-min` flag specifies the
@@ -1257,6 +1284,19 @@ Print node's version.
 
 ## Environment variables
 
+### `FORCE_COLOR=[1, 2, 3]`
+
+The `FORCE_COLOR` environment variable is used to
+enable ANSI colorized output. The value may be:
+
+* `1`, `true`, or the empty string `''` indicate 16-color support,
+* `2` to indicate 256-color support, or
+* `3` to indicate 16 million-color support.
+
+When `FORCE_COLOR` is used and set to a supported value, both the `NO_COLOR`,
+and `NODE_DISABLE_COLORS` environment variables are ignored.
+
+Any other value will result in colorized output being disabled.
 ### `NODE_DEBUG=module[,…]`
 <!-- YAML
 added: v0.1.32
@@ -1291,6 +1331,10 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 
 This environment variable is ignored when `node` runs as setuid root or
 has Linux file capabilities set.
+
+The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
+process is first launched. Changing the value at runtime using
+`process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
 
 ### `NODE_ICU_DATA=file`
 <!-- YAML
@@ -1344,9 +1388,10 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-* `--conditions`
+* `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
+* `--dns-result-order`
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
@@ -1355,7 +1400,6 @@ Node.js options that are allowed are:
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-policy`
-* `--experimental-repl-await`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -1377,6 +1421,7 @@ Node.js options that are allowed are:
 * `--max-http-header-size`
 * `--napi-modules`
 * `--no-deprecation`
+* `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
 * `--node-memory-debug`
@@ -1602,6 +1647,11 @@ and the line lengths of the source file (in the key `lineLengths`).
 }
 ```
 
+### `NO_COLOR=<any>`
+
+[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+environment variable is arbitrary.
+
 ### `OPENSSL_CONF=file`
 <!-- YAML
 added: v6.11.0
@@ -1637,6 +1687,37 @@ containing trusted certificates.
 Be aware that unless the child environment is explicitly set, this environment
 variable will be inherited by any child processes, and if they use OpenSSL, it
 may cause them to trust the same CAs as node.
+
+### `TZ`
+<!-- YAML
+added: v0.0.1
+changes:
+  - version:
+     - v16.2.0
+    pr-url: https://github.com/nodejs/node/pull/38642
+    description:
+      Changing the TZ variable using process.env.TZ = changes the timezone
+      on Windows as well.
+  - version:
+     - v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/20026
+    description:
+      Changing the TZ variable using process.env.TZ = changes the timezone
+      on POSIX systems.
+-->
+
+The `TZ` environment variable is used to specify the timezone configuration.
+
+While the Node.js support for `TZ` will not handle all of the various
+[ways that `TZ` is handled in other environments][], it will support basic
+[timezone IDs][] (such as `'Etc/UTC'`, `'Europe/Paris'` or `'America/New_York'`.
+It may support a few other abbreviations or aliases, but these are strongly
+discouraged and not guaranteed.
+
+```console
+$ TZ=Europe/Dublin node -pe "new Date().toString()"
+Wed May 12 2021 20:30:48 GMT+0100 (Irish Standard Time)
+```
 
 ### `UV_THREADPOOL_SIZE=size`
 
@@ -1678,8 +1759,8 @@ Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
-On a machine with 2GB of memory, consider setting this to
-1536 (1.5GB) to leave some memory for other uses and avoid swapping.
+On a machine with 2 GB of memory, consider setting this to
+1536 (1.5 GB) to leave some memory for other uses and avoid swapping.
 
 ```console
 $ node --max-old-space-size=1536 index.js
@@ -1697,12 +1778,17 @@ $ node --max-old-space-size=1536 index.js
 [`Buffer`]: buffer.md#buffer_class_buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #cli_node_options_options
+[`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
+[`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
+[`dns.setDefaultResultOrder()`]: dns.md#dns_dns_setdefaultresultorder_order
+[`dnsPromises.lookup()`]: dns.md#dns_dnspromises_lookup_hostname_options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
 [`unhandledRejection`]: process.md#process_event_unhandledrejection
 [`worker_threads.threadId`]: worker_threads.md#worker_threads_worker_threadid
+[conditional exports]: packages.md#packages_conditional_exports
 [context-aware]: addons.md#addons_context_aware_addons
 [customizing ESM specifier resolution]: esm.md#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.md
@@ -1711,3 +1797,5 @@ $ node --max-old-space-size=1536 index.js
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+[ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

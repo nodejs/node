@@ -149,8 +149,8 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
+  RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::FormatToParts(
+                                        isolate, dtf, date_value, false));
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
@@ -220,6 +220,7 @@ BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
 }
 
 namespace {
+
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Builtins::Name builtin_id, int len) {
@@ -238,11 +239,9 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
   info->set_internal_formal_parameter_count(len);
   info->set_length(len);
 
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
-  return new_bound_function;
+  return Factory::JSFunctionBuilder{isolate, info, context}
+      .set_map(isolate->strict_function_without_prototype_map())
+      .Build();
 }
 
 /**
@@ -281,16 +280,14 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   // 4. Let this be the this value.
   if (args.new_target()->IsUndefined(isolate)) {
     Handle<Object> receiver = args.receiver();
-
-    // 5. If NewTarget is undefined and ? InstanceofOperator(this, %<T>%)
+    // 5. If NewTarget is undefined and ? OrdinaryHasInstance(%<T>%, this)
     // is true, then Look up the intrinsic value that has been stored on
     // the context.
-    Handle<Object> is_instance_of_obj;
+    Handle<Object> ordinary_has_instance_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, is_instance_of_obj,
-        Object::InstanceOf(isolate, receiver, constructor));
-
-    if (is_instance_of_obj->BooleanValue(isolate)) {
+        isolate, ordinary_has_instance_obj,
+        Object::OrdinaryHasInstance(isolate, constructor, receiver));
+    if (ordinary_has_instance_obj->BooleanValue(isolate)) {
       if (!receiver->IsJSReceiver()) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,
@@ -381,6 +378,7 @@ Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate,
   RETURN_RESULT_OR_FAILURE(isolate,
                            T::New(isolate, map, locales, options, method));
 }
+
 }  // namespace
 
 // Intl.DisplayNames
@@ -610,11 +608,12 @@ BUILTIN(LocaleConstructor) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocale);
 
+  const char* method = "Intl.Locale";
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Intl.Locale")));
+        isolate,
+        NewTypeError(MessageTemplate::kConstructorNotFunction,
+                     isolate->factory()->NewStringFromAsciiChecked(method)));
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
@@ -647,16 +646,11 @@ BUILTIN(LocaleConstructor) {
                                        Object::ToString(isolate, tag));
   }
 
+  // 10. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options_object;
-  // 10. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Let options be ! ObjectCreate(null).
-    options_object = isolate->factory()->NewJSObjectWithNullProto();
-  } else {  // 11. Else
-    // a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_object,
-                                       Object::ToObject(isolate, options));
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, options_object,
+      Intl::CoerceOptionsToObject(isolate, options, method));
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSLocale::New(isolate, map, locale_string, options_object));
@@ -672,6 +666,49 @@ BUILTIN(LocalePrototypeMinimize) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.minimize");
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Minimize(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeCalendars) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.calendars");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Calendars(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeCollations) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.collations");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Collations(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeHourCycles) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.hourCycles");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::HourCycles(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeNumberingSystems) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.numberingSystems");
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSLocale::NumberingSystems(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeTextInfo) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.textInfo");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::TextInfo(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeTimeZones) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.timeZones");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::TimeZones(isolate, locale));
+}
+
+BUILTIN(LocalePrototypeWeekInfo) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.weekInfo");
+  RETURN_RESULT_OR_FAILURE(isolate, JSLocale::WeekInfo(isolate, locale));
 }
 
 BUILTIN(RelativeTimeFormatSupportedLocalesOf) {

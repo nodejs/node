@@ -7,14 +7,14 @@
 #include <cinttypes>
 
 #include "include/v8-profiler.h"
+#include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
 #include "src/profiler/profiler-stats.h"
-#include "src/sanitizer/asan.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -125,6 +125,13 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
   state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
   state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
   state->lr = reinterpret_cast<void*>(simulator->get_register(Simulator::ra));
+#elif V8_TARGET_ARCH_RISCV64
+  if (!simulator->has_bad_pc()) {
+    state->pc = reinterpret_cast<void*>(simulator->get_pc());
+  }
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
+  state->lr = reinterpret_cast<void*>(simulator->get_register(Simulator::ra));
 #endif
   if (state->sp == 0 || state->fp == 0) {
     // It possible that the simulator is interrupted while it is updating
@@ -156,17 +163,21 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   SampleInfo info;
   RegisterState regs = reg_state;
   if (!GetStackSample(v8_isolate, &regs, record_c_entry_frame, stack,
-                      kMaxFramesCount, &info, use_simulator_reg_state)) {
+                      kMaxFramesCount, &info, &state,
+                      use_simulator_reg_state)) {
     // It is executing JS but failed to collect a stack trace.
     // Mark the sample as spoiled.
     pc = nullptr;
     return;
   }
 
-  state = info.vm_state;
+  if (state != StateTag::EXTERNAL) {
+    state = info.vm_state;
+  }
   pc = regs.pc;
   frames_count = static_cast<unsigned>(info.frames_count);
   has_external_callback = info.external_callback_entry != nullptr;
+  context = info.context;
   if (has_external_callback) {
     external_callback_entry = info.external_callback_entry;
   } else if (frames_count) {
@@ -193,11 +204,13 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
                                 v8::SampleInfo* sample_info,
+                                StateTag* out_state,
                                 bool use_simulator_reg_state) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
+  sample_info->context = nullptr;
   if (sample_info->vm_state == GC) return true;
 
   i::Address js_entry_sp = isolate->js_entry_sp();
@@ -221,7 +234,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // TODO(petermarshall): Code range is always null on ia32 so this check for
   // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range().contains(
+      isolate->heap()->code_region().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
@@ -243,12 +256,36 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
             ? nullptr
             : reinterpret_cast<void*>(*external_callback_entry_ptr);
   }
+  // 'Fast API calls' are similar to fast C calls (see frames.cc) in that
+  // they don't build an exit frame when entering C from JS. They have the
+  // added speciality of having separate "fast" and "default" callbacks, the
+  // latter being the regular API callback called before the JS function is
+  // optimized. When TurboFan optimizes the JS caller, the fast callback
+  // gets executed instead of the default one, therefore we need to store
+  // its address in the sample.
+  IsolateData* isolate_data = isolate->isolate_data();
+  Address fast_c_fp = isolate_data->fast_c_call_caller_fp();
+  if (fast_c_fp != kNullAddress &&
+      isolate_data->fast_api_call_target() != kNullAddress) {
+    sample_info->external_callback_entry =
+        reinterpret_cast<void*>(isolate_data->fast_api_call_target());
+    if (out_state) {
+      *out_state = StateTag::EXTERNAL;
+    }
+  }
 
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->pc),
                                reinterpret_cast<i::Address>(regs->fp),
                                reinterpret_cast<i::Address>(regs->sp),
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
+
+  Context top_context = isolate->context();
+  if (top_context.ptr() != i::Context::kNoContext &&
+      top_context.ptr() != i::Context::kInvalidContext) {
+    NativeContext top_native_context = top_context.native_context();
+    sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
+  }
 
   if (it.done()) return true;
 
@@ -259,15 +296,18 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
     i++;
   }
-
+#ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
+#endif  // V8_RUNTIME_CALL_STATS
   for (; !it.done() && i < frames_limit; it.Advance()) {
+#ifdef V8_RUNTIME_CALL_STATS
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
+#endif  // V8_RUNTIME_CALL_STATS
     if (i == frames_limit) break;
 
     if (it.frame()->is_interpreted()) {

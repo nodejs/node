@@ -14,7 +14,7 @@ new RuleTester().run('alphabetize-errors', rule, {
       E('AAA', 'foo');
       E('BBB', 'bar');
       E('CCC', 'baz');
-    `
+    `,
   ],
   invalid: [
     {
@@ -24,6 +24,6 @@ new RuleTester().run('alphabetize-errors', rule, {
         E('CCC', 'baz');
       `,
       errors: [{ message: 'Out of ASCIIbetical order - BBB >= AAA', line: 3 }]
-    }
+    },
   ]
 });

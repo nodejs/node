@@ -45,7 +45,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
@@ -151,14 +151,14 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,
-                                CodeKind::OPTIMIZED_FUNCTION);
+                                CodeKind::TURBOFAN);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
   return function;
 }
 

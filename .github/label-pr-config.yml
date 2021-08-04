@@ -1,0 +1,196 @@
+## Order of entries in this map *does* matter for the resolved labels
+## earlier entries override later entries
+subSystemLabels:
+  # src subsystems
+  /^src\/async-wrap/: c++, async_wrap
+  /^src\/(?:base64|node_buffer|string_)/: c++, buffer
+  /^src\/cares/: c++, cares
+  /^src\/(?:process_wrap|spawn_)/: c++, child_process
+  /^src\/(?:node_)?crypto/: c++, crypto
+  /^src\/(?:debug-|node_debug)/: c++, debugger
+  /^src\/udp_/: c++, dgram
+  /^src\/(?:fs_|node_file|node_stat_watcher)/: c++, fs
+  /^src\/node_http_parser/: c++, http_parser
+  /^src\/node_i18n/: c++, i18n-api
+  /^src\/uv\./: c++, libuv
+  /^src\/(?:connect(?:ion)?|pipe|tcp)_/: c++, net
+  /^src\/node_os/: c++, os
+  /^src\/(?:node_main|signal_)/: c++, process
+  /^src\/timer_/: c++, timers
+  /^src\/(?:CNNICHashWhitelist|node_root_certs|tls_)/: c++, tls
+  /^src\/tty_/: c++, tty
+  /^src\/node_url/: c++, whatwg-url
+  /^src\/node_util/: c++, util
+  /^src\/(?:node_v8|v8abbr)/: c++, v8 engine
+  /^src\/node_contextify/: c++, vm
+  /^src\/.*win32.*/: c++, windows
+  /^src\/node_zlib/: c++, zlib
+  /^src\/tracing/: c++, tracing
+  /^src\/node_api/: c++, node-api
+  /^src\/node_http2/: c++, http2
+  /^src\/node_report/: c++, report
+  /^src\/node_wasi/: c++, wasi
+  /^src\/node_worker/: c++, worker
+  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
+
+  # don't label python files as c++
+  /^src\/.+\.py$/: python, needs-ci
+
+  # properly label changes to v8 inspector integration-related files
+  /^src\/inspector_/: c++, inspector, needs-ci
+
+  # don't want to label it a c++ update when we're "only" bumping the Node.js version
+  /^src\/(?!node_version\.h)/: c++
+  # BUILDING.md should be marked as 'build' in addition to 'doc'
+  /^BUILDING\.md$/: build, doc
+  # meta is a very specific label for things that are policy and or meta-info related
+  /^([A-Z]+$|CODE_OF_CONDUCT|ROADMAP|WORKING_GROUPS|GOVERNANCE|CHANGELOG|\.mail|\.git.+)/: meta
+  # things that edit top-level .md files are always a doc change
+  /^\w+\.md$/: doc
+  # different variants of *Makefile and build files
+  /^(tools\/)?(Makefile|BSDmakefile|create_android_makefiles|\.travis\.yml)$/: build, needs-ci
+  /^tools\/(install\.py|genv8constants\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, python, needs-ci
+  /^vcbuild\.bat$/: build, windows, needs-ci
+  /^(android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
+  # more specific tools
+  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x, dont-land-on-v12.x
+  /^tools\/doc\//: tools, doc
+  /^tools\/icu\//: tools, i18n-api, icu, needs-ci
+  /^tools\/(?:osx-pkg\.pmdoc|pkgsrc)\//: tools, macos, install
+  /^tools\/(?:(?:mac)?osx-)/: tools, macos
+  /^tools\/test-npm/: tools, test, npm
+  /^tools\/test/: tools, test
+  /^tools\/(?:certdata|mkssldef|mk-ca-bundle)/: tools, openssl, tls
+  /^tools\/msvs\//: tools, windows, install, needs-ci
+  /^tools\/[^/]+\.bat$/: tools, windows, needs-ci
+  /^tools\/make-v8/: tools, v8 engine, needs-ci
+  /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
+  /^tools\/(code_cache|snapshot)/: needs-ci
+  /^tools\/build-addons.js/: needs-ci
+  # all other tool changes should be marked as such
+  /^tools\//: tools
+  /^\.eslint|\.remark|\.editorconfig/: tools
+
+  ## Dependencies
+  # libuv needs an explicit mapping, as the ordinary /deps/ mapping below would
+  # end up as libuv changes labeled with "uv" (which is a non-existing label)
+  /^deps\/uv\//: libuv
+  /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
+  /^deps\/v8\//: v8 engine
+  /^deps\/uvwasi\//: wasi
+  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
+  /^deps\/nghttp2\//: http2
+  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/([^/]+)/: $1
+
+  ## JS subsystems
+  # Oddities first
+  /^lib\/(punycode|\w+\/freelist|sys\.js)/: ''
+  /^lib\/constants\.js$/: lib / src
+  /^lib\/_(debug_agent|debugger)\.js$/: debugger
+  /^lib(\/\w+)?\/(_)?link(ed)?list/: timers
+  /^lib\/\w+\/bootstrap_node/: lib / src
+  /^lib\/\w+\/v8_prof_/: tools
+  /^lib\/\w+\/socket_list/: net
+  /^lib\/\w+\/streams$/: stream
+  /^lib\/.*http2/: http2
+  /^lib\/worker_threads.js$/: worker
+  /^lib\/internal\/url\.js$/: whatwg-url
+  /^lib\/internal\/modules\/esm/: esm
+  /^lib\/internal\/quic\/*/: quic, dont-land-on-v14.x, dont-land-on-v12.x
+
+  # All other lib/ files map directly
+  /^lib\/_(\w+)_\w+\.js?$/: $1 # e.g. _(stream)_wrap
+  /^lib(\/internal)?\/(\w+)\.js?$/: $2 # other .js files
+  /^lib\/internal\/(\w+)(?:\/|$)/: $1 # internal subfolders
+
+exlusiveLabels:
+  # more specific tests
+  /^test\/addons\//: test, addons
+  /^test\/debugger\//: test, debugger
+  /^test\/doctool\//: test, doc, tools
+  /^test\/timers\//: test, timers
+  /^test\/pseudo-tty\//: test, tty
+  /^test\/inspector\//: test, inspector
+  /^test\/cctest\/test_inspector/: test, inspector
+  /^test\/cctest\/test_url/: test, whatwg-url
+  /^test\/addons-napi\//: test, node-api
+  /^test\/async-hooks\//: test, async_hooks
+  /^test\/report\//: test, report
+  /^test\/fixtures\/es-module/: test, esm
+  /^test\/es-module\//: test, esm
+
+  /^test\//: test
+
+    # specific map for webcrypto.md as it should be labeled 'crypto'
+  /^doc\/api\/webcrypto.md$/: doc, crypto
+    # specific map for modules.md as it should be labeled 'module' not 'modules'
+  /^doc\/api\/modules.md$/: doc, module
+    # node-api is treated separately since it is not a JS core module but is still
+    # considered a subsystem of sorts
+  /^doc\/api\/n-api.md$/: doc, node-api
+    # quic
+  /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
+    # add worker label to PRs that affect doc/api/worker_threads.md
+  /^doc\/api\/worker_threads.md$/: doc, worker
+    # automatically tag JS subsystem-specific API doc changes
+  /^doc\/api\/(\w+)\.md$/: doc, $1
+    # add deprecations label to PRs that affect doc/api/deprecations.md
+  /^doc\/api\/deprecations.md$/: doc, deprecations
+  /^doc\/changelogs\//: release
+
+  /^doc\//: doc
+
+    # more specific benchmarks
+  /^benchmark\/buffers\//: benchmark, buffer
+  /^benchmark\/(?:arrays|es)\//: benchmark, v8 engine
+  /^benchmark\/_http/: benchmark, http
+  /^benchmark\/(?:misc|fixtures)\//: benchmark
+  /^benchmark\/streams\//: benchmark, stream
+  /^benchmark\/([^/]+)\//: benchmark, $1
+
+  /^benchmark\//: benchmark
+
+allJsSubSystems:
+  - assert
+  - async_hooks
+  - buffer
+  - child_process
+  - cluster
+  - console
+  - crypto
+  - debugger
+  - dgram
+  - dns
+  - domain
+  - events
+  - esm
+  - fs
+  - http
+  - https
+  - http2
+  - module
+  - net
+  - os
+  - path
+  - process
+  - querystring
+  - quic
+  - readline
+  - repl
+  - report
+  - stream
+  - string_decoder
+  - timers
+  - tls
+  - tty
+  - url
+  - util
+  - v8
+  - vm
+  - wasi
+  - worker
+  - zlib

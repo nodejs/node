@@ -20,7 +20,7 @@ async function testArg(argValue) {
   const nodeProcess = spawnSync(process.execPath, [
     '--inspect=0',
     `--inspect-publish-uid=${argValue}`,
-    '-e', `(${scriptMain.toString()})(${hasHttp ? 200 : 404})`
+    '-e', `(${scriptMain.toString()})(${hasHttp ? 200 : 404})`,
   ]);
   const hasWebSocketInStderr = checkStdError(
     nodeProcess.stderr.toString('utf8'));

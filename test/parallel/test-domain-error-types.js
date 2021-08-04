@@ -11,7 +11,7 @@ const domain = require('domain');
 // https://github.com/nodejs/node/issues/28275 is fixed in debug mode.
 
 for (const something of [
-  42, null, undefined, false, () => {}, 'string', Symbol('foo')
+  42, null, undefined, false, () => {}, 'string', Symbol('foo'),
 ]) {
   const d = new domain.Domain();
   d.run(common.mustCall(() => {

@@ -30,6 +30,16 @@ void PrintStackTrace() {
   v8::base::debug::DisableSignalStackDump();
 }
 
+constexpr int kMaxThreadPoolSize = 16;
+
+int GetActualThreadPoolSize(int thread_pool_size) {
+  DCHECK_GE(thread_pool_size, 0);
+  if (thread_pool_size < 1) {
+    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
+  }
+  return std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
+}
+
 }  // namespace
 
 std::unique_ptr<v8::Platform> NewDefaultPlatform(
@@ -39,9 +49,21 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
     v8::base::debug::EnableInProcessStackDumping();
   }
+  thread_pool_size = GetActualThreadPoolSize(thread_pool_size);
   auto platform = std::make_unique<DefaultPlatform>(
       thread_pool_size, idle_task_support, std::move(tracing_controller));
-  platform->EnsureBackgroundTaskRunnerInitialized();
+  return platform;
+}
+
+std::unique_ptr<v8::Platform> NewSingleThreadedDefaultPlatform(
+    IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping,
+    std::unique_ptr<v8::TracingController> tracing_controller) {
+  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
+    v8::base::debug::EnableInProcessStackDumping();
+  }
+  auto platform = std::make_unique<DefaultPlatform>(
+      0, idle_task_support, std::move(tracing_controller));
   return platform;
 }
 
@@ -75,22 +97,10 @@ void NotifyIsolateShutdown(v8::Platform* platform, Isolate* isolate) {
   static_cast<DefaultPlatform*>(platform)->NotifyIsolateShutdown(isolate);
 }
 
-namespace {
-constexpr int kMaxThreadPoolSize = 16;
-
-int GetActualThreadPoolSize(int thread_pool_size) {
-  DCHECK_GE(thread_pool_size, 0);
-  if (thread_pool_size < 1) {
-    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
-  }
-  return std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
-}
-}  // namespace
-
 DefaultPlatform::DefaultPlatform(
     int thread_pool_size, IdleTaskSupport idle_task_support,
     std::unique_ptr<v8::TracingController> tracing_controller)
-    : thread_pool_size_(GetActualThreadPoolSize(thread_pool_size)),
+    : thread_pool_size_(thread_pool_size),
       idle_task_support_(idle_task_support),
       tracing_controller_(std::move(tracing_controller)),
       page_allocator_(std::make_unique<v8::base::PageAllocator>()) {
@@ -100,6 +110,9 @@ DefaultPlatform::DefaultPlatform(
     controller->Initialize(nullptr);
 #endif
     tracing_controller_.reset(controller);
+  }
+  if (thread_pool_size_ > 0) {
+    EnsureBackgroundTaskRunnerInitialized();
   }
 }
 
@@ -121,14 +134,13 @@ double DefaultTimeFunction() {
 }  // namespace
 
 void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
-  base::MutexGuard guard(&lock_);
-  if (!worker_threads_task_runner_) {
-    worker_threads_task_runner_ =
-        std::make_shared<DefaultWorkerThreadsTaskRunner>(
-            thread_pool_size_, time_function_for_testing_
-                                   ? time_function_for_testing_
-                                   : DefaultTimeFunction);
-  }
+  DCHECK_NULL(worker_threads_task_runner_);
+  worker_threads_task_runner_ =
+      std::make_shared<DefaultWorkerThreadsTaskRunner>(
+          thread_pool_size_, time_function_for_testing_
+                                 ? time_function_for_testing_
+                                 : DefaultTimeFunction);
+  DCHECK_NOT_NULL(worker_threads_task_runner_);
 }
 
 void DefaultPlatform::SetTimeFunctionForTesting(
@@ -196,13 +208,23 @@ std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
 }
 
 void DefaultPlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
-  EnsureBackgroundTaskRunnerInitialized();
+  // If this DCHECK fires, then this means that either
+  // - V8 is running without the --single-threaded flag but
+  //   but the platform was created as a single-threaded platform.
+  // - or some component in V8 is ignoring --single-threaded
+  //   and posting a background task.
+  DCHECK_NOT_NULL(worker_threads_task_runner_);
   worker_threads_task_runner_->PostTask(std::move(task));
 }
 
 void DefaultPlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
                                                 double delay_in_seconds) {
-  EnsureBackgroundTaskRunnerInitialized();
+  // If this DCHECK fires, then this means that either
+  // - V8 is running without the --single-threaded flag but
+  //   but the platform was created as a single-threaded platform.
+  // - or some component in V8 is ignoring --single-threaded
+  //   and posting a background task.
+  DCHECK_NOT_NULL(worker_threads_task_runner_);
   worker_threads_task_runner_->PostDelayedTask(std::move(task),
                                                delay_in_seconds);
 }

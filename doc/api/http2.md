@@ -2,7 +2,9 @@
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v15.3.0
+  - version:
+      - v15.3.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36070
     description: It is possible to abort a request with an AbortSignal.
   - version: v15.0.0
@@ -1473,7 +1475,7 @@ changes:
     - v14.5.0
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33160
-    description: Allow explicity setting date headers.
+    description: Allow explicitly setting date headers.
 -->
 
 * `headers` {HTTP/2 Headers Object}
@@ -1522,7 +1524,7 @@ changes:
     - v14.5.0
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33160
-    description: Allow explicity setting date headers.
+    description: Allow explicitly setting date headers.
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29876
     description: The `fd` option may now be a `FileHandle`.
@@ -1625,7 +1627,7 @@ changes:
     - v14.5.0
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33160
-    description: Allow explicity setting date headers.
+    description: Allow explicitly setting date headers.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18936
     description: Any readable file, not necessarily a
@@ -1669,10 +1671,17 @@ server.on('stream', (stream) => {
   }
 
   function onError(err) {
-    if (err.code === 'ENOENT') {
-      stream.respond({ ':status': 404 });
-    } else {
-      stream.respond({ ':status': 500 });
+    // stream.respond() can throw if the stream has been destroyed by
+    // the other side.
+    try {
+      if (err.code === 'ENOENT') {
+        stream.respond({ ':status': 404 });
+      } else {
+        stream.respond({ ':status': 500 });
+      }
+    } catch (err) {
+      // Perform actual error handling.
+      console.log(err);
     }
     stream.end();
   }
@@ -1769,7 +1778,7 @@ the request body.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: `'connection'`
+#### Event: `'connection'`
 <!-- YAML
 added: v8.4.0
 -->
@@ -1815,8 +1824,16 @@ an `Http2Session` object associated with the `Http2Server`.
 added: v8.4.0
 -->
 
+* `stream` {Http2Stream} A reference to the stream
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
+* `rawHeaders` {Array} An array containing the raw header names followed by
+  their respective values.
+
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
+
+See also [`Http2Session`'s `'stream'` event][].
 
 ```js
 const http2 = require('http2');
@@ -1913,7 +1930,9 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -1957,7 +1976,7 @@ the request body.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: `'connection'`
+#### Event: `'connection'`
 <!-- YAML
 added: v8.4.0
 -->
@@ -2003,8 +2022,16 @@ an `Http2Session` object associated with the `Http2SecureServer`.
 added: v8.4.0
 -->
 
+* `stream` {Http2Stream} A reference to the stream
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
+* `rawHeaders` {Array} An array containing the raw header names followed by
+  their respective values.
+
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
+
+See also [`Http2Session`'s `'stream'` event][].
 
 ```js
 const http2 = require('http2');
@@ -2048,7 +2075,9 @@ added: v8.4.0
 The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
-the connection is terminated. See the [Compatibility API][].
+the connection is terminated. A timeout may be specified using the
+`'unknownProtocolTimeout'` option passed to [`http2.createSecureServer()`][].
+See the [Compatibility API][].
 
 #### `server.close([callback])`
 <!-- YAML
@@ -2105,7 +2134,9 @@ value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -2120,6 +2151,13 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version:
+      - v15.10.0
+      - v14.16.0
+      - v12.21.0
+      - v10.24.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/246
+    description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
      - v14.4.0
      - v12.18.0
@@ -2226,6 +2264,10 @@ changes:
     `Http2ServerResponse` class to use.
     Useful for extending the original `Http2ServerResponse`.
     **Default:** `Http2ServerResponse`.
+  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+    a server should wait when an [`'unknownProtocol'`][] is emitted. If the
+    socket has not been destroyed by that time the server will destroy it.
+    **Default:** `10000`.
   * ...: Any [`net.createServer()`][] option can be provided.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
@@ -2262,6 +2304,13 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version:
+      - v15.10.0
+      - v14.16.0
+      - v12.21.0
+      - v10.24.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/246
+    description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
      - v14.4.0
      - v12.18.0
@@ -2358,6 +2407,10 @@ changes:
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
   * `origins` {string[]} An array of origin strings to send within an `ORIGIN`
     frame immediately following creation of a new server `Http2Session`.
+  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+    a server should wait when an [`'unknownProtocol'`][] event is emitted. If
+    the socket has not been destroyed by that time the server will destroy it.
+    **Default:** `10000`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
 
@@ -2391,6 +2444,13 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version:
+      - v15.10.0
+      - v14.16.0
+      - v12.21.0
+      - v10.24.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/246
+    description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
      - v14.4.0
      - v12.18.0
@@ -2474,6 +2534,10 @@ changes:
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
+  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+    a server should wait when an [`'unknownProtocol'`][] event is emitted. If
+    the socket has not been destroyed by that time the server will destroy it.
+    **Default:** `10000`.
 * `listener` {Function} Will be registered as a one-time listener of the
   [`'connect'`][] event.
 * Returns: {ClientHttp2Session}
@@ -3437,6 +3501,15 @@ Removes a header that has been queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
+### `response.req`
+<!-- YAML
+added: v15.7.0
+-->
+
+* {http2.Http2ServerRequest}
+
+A reference to the original HTTP2 `request` object.
+
 #### `response.sendDate`
 <!-- YAML
 added: v8.4.0
@@ -3666,7 +3739,8 @@ will be emitted.
 const body = 'hello world';
 response.writeHead(200, {
   'Content-Length': Buffer.byteLength(body),
-  'Content-Type': 'text/plain; charset=utf-8' });
+  'Content-Type': 'text/plain; charset=utf-8',
+});
 ```
 
 `Content-Length` is given in bytes not characters. The
@@ -3769,7 +3843,7 @@ for instance).
 The compatibility API falls back to `host` if `:authority` is not
 present. See [`request.authority`][] for more information. However,
 if you don't use the compatibility API (or use `req.headers` directly),
-you need to implement any fall-back behaviour yourself.
+you need to implement any fall-back behavior yourself.
 
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #http2_alpn_negotiation
@@ -3784,6 +3858,7 @@ you need to implement any fall-back behaviour yourself.
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
+[Sensitive headers]: #http2_sensitive_headers
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
@@ -3793,6 +3868,7 @@ you need to implement any fall-back behaviour yourself.
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2ServerResponse`]: #http2_class_http2_http2serverresponse
 [`Http2Session` and Sockets]: #http2_http2session_and_sockets
+[`Http2Session`'s `'stream'` event]: #http2_event_stream
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.md#errors_class_typeerror
@@ -3812,8 +3888,8 @@ you need to implement any fall-back behaviour yourself.
 [`net.connect()`]: net.md#net_net_connect
 [`net.createServer()`]: net.md#net_net_createserver_options_connectionlistener
 [`request.authority`]: #http2_request_authority
-[`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.md#tls_tlssocket_getpeercertificate_detailed
+[`request.socket`]: #http2_request_socket
 [`response.end()`]: #http2_response_end_data_encoding_callback
 [`response.setHeader()`]: #http2_response_setheader_name_value
 [`response.socket`]: #http2_response_socket
@@ -3828,4 +3904,3 @@ you need to implement any fall-back behaviour yourself.
 [`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
 [`writable.writableFinished`]: stream.md#stream_writable_writablefinished
 [error code]: #http2_error_codes_for_rst_stream_and_goaway
-[Sensitive headers]: #http2_sensitive_headers

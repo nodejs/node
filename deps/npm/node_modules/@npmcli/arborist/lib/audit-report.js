@@ -12,7 +12,7 @@ const _fixAvailable = Symbol('fixAvailable')
 const _checkTopNode = Symbol('checkTopNode')
 const _init = Symbol('init')
 const _omit = Symbol('omit')
-const procLog = require('./proc-log.js')
+const procLog = require('proc-log')
 
 const fetch = require('npm-registry-fetch')
 
@@ -78,7 +78,7 @@ class AuditReport extends Map {
     }
 
     obj.vulnerabilities = vulnerabilities
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => a.localeCompare(b, 'en'))
       .reduce((set, [name, vuln]) => {
         set[name] = vuln
         return set
@@ -89,7 +89,8 @@ class AuditReport extends Map {
 
   constructor (tree, opts = {}) {
     super()
-    this[_omit] = new Set(opts.omit || [])
+    const { omit } = opts
+    this[_omit] = new Set(omit || [])
     this.topVulns = new Map()
 
     this.calculator = new Calculator(opts)
@@ -97,17 +98,19 @@ class AuditReport extends Map {
     this.options = opts
     this.log = opts.log || procLog
     this.tree = tree
+    this.filterSet = opts.filterSet
   }
 
   async run () {
     this.report = await this[_getReport]()
+    this.log.silly('audit report', this.report)
     if (this.report)
       await this[_init]()
     return this
   }
 
   isVulnerable (node) {
-    const vuln = this.get(node.package.name)
+    const vuln = this.get(node.packageName)
     return !!(vuln && vuln.isVulnerable(node))
   }
 
@@ -144,8 +147,8 @@ class AuditReport extends Map {
       super.set(name, vuln)
 
       const p = []
-      for (const node of this.tree.inventory.query('name', name)) {
-        if (shouldOmit(node, this[_omit]))
+      for (const node of this.tree.inventory.query('packageName', name)) {
+        if (!shouldAudit(node, this[_omit], this.filterSet))
           continue
 
         // if not vulnerable by this advisory, keep searching
@@ -167,7 +170,7 @@ class AuditReport extends Map {
             this[_checkTopNode](dep, vuln, spec)
           else {
             // calculate a metavuln, if necessary
-            p.push(this.calculator.calculate(dep.name, advisory).then(meta => {
+            p.push(this.calculator.calculate(dep.packageName, advisory).then(meta => {
               if (meta.testVersion(dep.version, spec))
                 advisories.add(meta)
             }))
@@ -228,6 +231,9 @@ class AuditReport extends Map {
     if (!specObj.registry)
       return false
 
+    if (specObj.subSpec)
+      spec = specObj.subSpec.rawSpec
+
     // We don't provide fixes for top nodes other than root, but we
     // still check to see if the node is fixable with a different version,
     // and if that is a semver major bump.
@@ -268,8 +274,8 @@ class AuditReport extends Map {
         id,
         url,
         title,
-        severity,
-        vulnerable_versions,
+        severity = 'high',
+        vulnerable_versions = '*',
         module_name: name,
       } = advisory
       bulk[name] = bulk[name] || []
@@ -288,7 +294,8 @@ class AuditReport extends Map {
     try {
       try {
         // first try the super fast bulk advisory listing
-        const body = prepareBulkData(this.tree, this[_omit])
+        const body = prepareBulkData(this.tree, this[_omit], this.filterSet)
+        this.log.silly('audit', 'bulk request', body)
 
         // no sense asking if we don't have anything to audit,
         // we know it'll be empty
@@ -304,7 +311,8 @@ class AuditReport extends Map {
         })
 
         return await res.json()
-      } catch (_) {
+      } catch (er) {
+        this.log.silly('audit', 'bulk request failed', String(er.body))
         // that failed, try the quick audit endpoint
         const body = prepareData(this.tree, this.options)
         const res = await fetch('/-/npm/v1/security/audits/quick', {
@@ -327,21 +335,25 @@ class AuditReport extends Map {
   }
 }
 
-// return true if we should ignore this one
-const shouldOmit = (node, omit) =>
-  !node.version ? true
-  : omit.size === 0 ? false
-  : node.dev && omit.has('dev') ||
+// return true if we should audit this one
+const shouldAudit = (node, omit, filterSet) =>
+  !node.version ? false
+  : node.isRoot ? false
+  : filterSet && filterSet.size !== 0 && !filterSet.has(node) ? false
+  : omit.size === 0 ? true
+  : !( // otherwise, just ensure we're not omitting this one
+    node.dev && omit.has('dev') ||
     node.optional && omit.has('optional') ||
     node.devOptional && omit.has('dev') && omit.has('optional') ||
     node.peer && omit.has('peer')
+  )
 
-const prepareBulkData = (tree, omit) => {
+const prepareBulkData = (tree, omit, filterSet) => {
   const payload = {}
-  for (const name of tree.inventory.query('name')) {
+  for (const name of tree.inventory.query('packageName')) {
     const set = new Set()
-    for (const node of tree.inventory.query('name', name)) {
-      if (shouldOmit(node, omit))
+    for (const node of tree.inventory.query('packageName', name)) {
+      if (!shouldAudit(node, omit, filterSet))
         continue
 
       set.add(node.version)

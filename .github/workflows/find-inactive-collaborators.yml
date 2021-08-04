@@ -1,0 +1,30 @@
+name: Find inactive collaborators
+
+on:
+  schedule:
+    # Run on the 15th day of the month at 4:05 AM UTC.
+    - cron: '5 4 15 * *'
+
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 16.x
+  NUM_COMMITS: 5000
+
+jobs:
+  find:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: ${{ env.NUM_COMMITS }}
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Find inactive collaborators
+        run: tools/find-inactive-collaborators.mjs ${{ env.NUM_COMMITS }}

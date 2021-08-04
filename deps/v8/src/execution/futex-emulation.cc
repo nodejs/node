@@ -27,6 +27,8 @@ using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
 class FutexWaitList {
  public:
   FutexWaitList() = default;
+  FutexWaitList(const FutexWaitList&) = delete;
+  FutexWaitList& operator=(const FutexWaitList&) = delete;
 
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
@@ -95,8 +97,6 @@ class FutexWaitList {
   // Isolate* -> linked list of Nodes which are waiting for their Promises to
   // be resolved.
   std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitList);
 };
 
 namespace {
@@ -130,7 +130,7 @@ void FutexWaitListNode::NotifyWake() {
   // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
   // locked it yet. In that case, we set the interrupted_
   // flag to true, which will be tested after the mutex locked by a future wait.
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   // if not waiting, this will not have any effect.
   cond_.NotifyOne();
@@ -247,7 +247,7 @@ void AtomicsWaitWakeHandle::Wake() {
   // The split lock by itself isn’t an issue, as long as the caller properly
   // synchronizes this with the closing `AtomicsWaitCallback`.
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
     stopped_ = true;
   }
   isolate_->futex_wait_list_node()->NotifyWake();
@@ -380,7 +380,7 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   do {  // Not really a loop, just makes it easier to break out early.
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     std::shared_ptr<BackingStore> backing_store =
         array_buffer->GetBackingStore();
@@ -517,13 +517,6 @@ FutexWaitListNode::FutexWaitListNode(
       Utils::ToLocal(Handle<Context>::cast(native_context));
   native_context_.Reset(v8_isolate, local_native_context);
   native_context_.SetWeak();
-
-  // Add the Promise into the NativeContext's atomics_waitasync_promises set, so
-  // that the list keeps it alive.
-  Handle<OrderedHashSet> promises(native_context->atomics_waitasync_promises(),
-                                  isolate);
-  promises = OrderedHashSet::Add(isolate, promises, promise).ToHandleChecked();
-  native_context->set_atomics_waitasync_promises(*promises);
 }
 
 template <typename T>
@@ -531,83 +524,112 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
                                  Handle<JSArrayBuffer> array_buffer,
                                  size_t addr, T value, bool use_timeout,
                                  int64_t rel_timeout_ns) {
-  DCHECK(FLAG_harmony_atomics_waitasync);
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
   Factory* factory = isolate->factory();
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
-
-  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-
-  // 17. Let w be ! AtomicLoad(typedArray, i).
-  std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
-      static_cast<int8_t*>(backing_store->buffer_start()) + addr);
-  if (p->load() != value) {
-    // 18. If v is not equal to w, then
-    //   a. Perform LeaveCriticalSection(WL).
-    //   ...
-    //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
-    //   d. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
-    //     "not-equal").
-    //   e. Return resultObject.
-    CHECK(
-        JSReceiver::CreateDataProperty(isolate, result, factory->async_string(),
-                                       factory->false_value(), Just(kDontThrow))
-            .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, result, factory->value_string(),
-              factory->not_equal_string(), Just(kDontThrow))
-              .FromJust());
-    return *result;
-  }
-
-  if (use_timeout && rel_timeout_ns == 0) {
-    // 19. If t is 0 and mode is async, then
-    //   ...
-    //   b. Perform LeaveCriticalSection(WL).
-    //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
-    //   d. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
-    //     "timed-out").
-    //   e. Return resultObject.
-    CHECK(
-        JSReceiver::CreateDataProperty(isolate, result, factory->async_string(),
-                                       factory->false_value(), Just(kDontThrow))
-            .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, result, factory->value_string(),
-              factory->timed_out_string(), Just(kDontThrow))
-              .FromJust());
-    return *result;
-  }
-
   Handle<JSObject> promise_capability = factory->NewJSPromise();
-  FutexWaitListNode* node =
-      new FutexWaitListNode(backing_store, addr, promise_capability, isolate);
 
+  enum { kNotEqual, kTimedOut, kAsync } result_kind;
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
-    g_wait_list.Pointer()->AddNode(node);
-  }
-  if (use_timeout) {
-    node->async_timeout_time_ = base::TimeTicks::Now() + rel_timeout;
-    auto task = std::make_unique<AsyncWaiterTimeoutTask>(
-        node->cancelable_task_manager_, node);
-    node->timeout_task_id_ = task->id();
-    node->task_runner_->PostNonNestableDelayedTask(std::move(task),
-                                                   rel_timeout.InSecondsF());
+    // 16. Perform EnterCriticalSection(WL).
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
+
+    std::shared_ptr<BackingStore> backing_store =
+        array_buffer->GetBackingStore();
+
+    // 17. Let w be ! AtomicLoad(typedArray, i).
+    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
+        static_cast<int8_t*>(backing_store->buffer_start()) + addr);
+    if (p->load() != value) {
+      result_kind = kNotEqual;
+    } else if (use_timeout && rel_timeout_ns == 0) {
+      result_kind = kTimedOut;
+    } else {
+      result_kind = kAsync;
+
+      FutexWaitListNode* node = new FutexWaitListNode(
+          backing_store, addr, promise_capability, isolate);
+
+      if (use_timeout) {
+        node->async_timeout_time_ = base::TimeTicks::Now() + rel_timeout;
+        auto task = std::make_unique<AsyncWaiterTimeoutTask>(
+            node->cancelable_task_manager_, node);
+        node->timeout_task_id_ = task->id();
+        node->task_runner_->PostNonNestableDelayedTask(
+            std::move(task), rel_timeout.InSecondsF());
+      }
+
+      g_wait_list.Pointer()->AddNode(node);
+    }
+
+    // Leaving the block collapses the following steps:
+    // 18.a. Perform LeaveCriticalSection(WL).
+    // 19.b. Perform LeaveCriticalSection(WL).
+    // 24. Perform LeaveCriticalSection(WL).
   }
 
-  // 26. Perform ! CreateDataPropertyOrThrow(resultObject, "async", true).
-  // 27. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
-  // promiseCapability.[[Promise]]).
-  // 28. Return resultObject.
-  CHECK(JSReceiver::CreateDataProperty(isolate, result, factory->async_string(),
-                                       factory->true_value(), Just(kDontThrow))
-            .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(isolate, result, factory->value_string(),
-                                       promise_capability, Just(kDontThrow))
-            .FromJust());
+  switch (result_kind) {
+    case kNotEqual:
+      // 18. If v is not equal to w, then
+      //   ...
+      //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
+      //   d. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
+      //     "not-equal").
+      //   e. Return resultObject.
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, result, factory->async_string(),
+                factory->false_value(), Just(kDontThrow))
+                .FromJust());
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, result, factory->value_string(),
+                factory->not_equal_string(), Just(kDontThrow))
+                .FromJust());
+      break;
+
+    case kTimedOut:
+      // 19. If t is 0 and mode is async, then
+      //   ...
+      //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
+      //   d. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
+      //     "timed-out").
+      //   e. Return resultObject.
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, result, factory->async_string(),
+                factory->false_value(), Just(kDontThrow))
+                .FromJust());
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, result, factory->value_string(),
+                factory->timed_out_string(), Just(kDontThrow))
+                .FromJust());
+      break;
+
+    case kAsync:
+      // Add the Promise into the NativeContext's atomics_waitasync_promises
+      // set, so that the list keeps it alive.
+      Handle<NativeContext> native_context(isolate->native_context());
+      Handle<OrderedHashSet> promises(
+          native_context->atomics_waitasync_promises(), isolate);
+      promises = OrderedHashSet::Add(isolate, promises, promise_capability)
+                     .ToHandleChecked();
+      native_context->set_atomics_waitasync_promises(*promises);
+
+      // 26. Perform ! CreateDataPropertyOrThrow(resultObject, "async", true).
+      // 27. Perform ! CreateDataPropertyOrThrow(resultObject, "value",
+      // promiseCapability.[[Promise]]).
+      // 28. Return resultObject.
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, result, factory->async_string(), factory->true_value(),
+                Just(kDontThrow))
+                .FromJust());
+      CHECK(JSReceiver::CreateDataProperty(isolate, result,
+                                           factory->value_string(),
+                                           promise_capability, Just(kDontThrow))
+                .FromJust());
+      break;
+  }
+
   return *result;
 }
 
@@ -619,7 +641,7 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
   auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   auto& location_lists = g_wait_list.Pointer()->location_lists_;
   auto it = location_lists.find(wait_location);
@@ -706,7 +728,6 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate. This function
   // may allocate memory. To avoid deadlocks, we shouldn't be holding g_mutex.
 
-  DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
 
   Isolate* isolate = node->isolate_for_async_waiters_;
@@ -737,7 +758,6 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
 
 void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
 
   auto v8_isolate =
       reinterpret_cast<v8::Isolate*>(node->isolate_for_async_waiters_);
@@ -779,11 +799,10 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
 
 void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
   // This function must run in the main thread of isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
 
   FutexWaitListNode* node;
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
     auto it = isolate_map.find(isolate);
@@ -813,11 +832,10 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
 
 void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
 
   {
-    NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+    NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
     node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
     if (!node->waiting_) {
@@ -838,7 +856,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
 }
 
 void FutexEmulation::IsolateDeinit(Isolate* isolate) {
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   // Iterate all locations to find nodes belonging to "isolate" and delete them.
   // The Isolate is going away; don't bother cleaning up the Promises in the
@@ -883,7 +901,7 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
   auto& location_lists = g_wait_list.Pointer()->location_lists_;
@@ -907,7 +925,7 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
 }
 
 Object FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
   for (const auto& it : g_wait_list.Pointer()->location_lists_) {
@@ -928,7 +946,7 @@ Object FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  NoHeapAllocationMutexGuard lock_guard(g_mutex.Pointer());
+  NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
   auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
@@ -966,7 +984,6 @@ void FutexWaitList::VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
   }
 
   if (node->async_timeout_time_ != base::TimeTicks()) {
-    DCHECK(FLAG_harmony_atomics_waitasync);
     DCHECK(node->IsAsync());
   }
 

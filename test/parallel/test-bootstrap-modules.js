@@ -17,12 +17,17 @@ const expectedModules = new Set([
   'Internal Binding credentials',
   'Internal Binding fs',
   'Internal Binding fs_dir',
+  'Internal Binding fs_event_wrap',
+  'Internal Binding heap_utils',
   'Internal Binding messaging',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
   'Internal Binding options',
+  'Internal Binding performance',
   'Internal Binding process_methods',
   'Internal Binding report',
+  'Internal Binding serdes',
+  'Internal Binding stream_wrap',
   'Internal Binding string_decoder',
   'Internal Binding symbols',
   'Internal Binding task_queue',
@@ -31,6 +36,8 @@ const expectedModules = new Set([
   'Internal Binding types',
   'Internal Binding url',
   'Internal Binding util',
+  'Internal Binding uv',
+  'Internal Binding v8',
   'Internal Binding worker',
   'NativeModule buffer',
   'NativeModule events',
@@ -50,7 +57,11 @@ const expectedModules = new Set([
   'NativeModule internal/fs/dir',
   'NativeModule internal/fs/utils',
   'NativeModule internal/fs/promises',
+  'NativeModule internal/fs/read_file_context',
   'NativeModule internal/fs/rimraf',
+  'NativeModule internal/fs/watchers',
+  'NativeModule internal/heap_utils',
+  'NativeModule internal/histogram',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
   'NativeModule internal/modules/run_main',
@@ -68,6 +79,15 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/translators',
   'NativeModule internal/process/esm_loader',
   'NativeModule internal/options',
+  'NativeModule internal/perf/event_loop_delay',
+  'NativeModule internal/perf/event_loop_utilization',
+  'NativeModule internal/perf/nodetiming',
+  'NativeModule internal/perf/observe',
+  'NativeModule internal/perf/performance',
+  'NativeModule internal/perf/performance_entry',
+  'NativeModule internal/perf/timerify',
+  'NativeModule internal/perf/usertiming',
+  'NativeModule internal/perf/utils',
   'NativeModule internal/priority_queue',
   'NativeModule internal/process/execution',
   'NativeModule internal/process/per_thread',
@@ -78,17 +98,21 @@ const expectedModules = new Set([
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
   'NativeModule internal/source_map/source_map_cache',
+  'NativeModule internal/stream_base_commons',
   'NativeModule internal/streams/add-abort-signal',
   'NativeModule internal/streams/buffer_list',
+  'NativeModule internal/streams/compose',
   'NativeModule internal/streams/destroy',
   'NativeModule internal/streams/duplex',
   'NativeModule internal/streams/end-of-stream',
+  'NativeModule internal/streams/from',
   'NativeModule internal/streams/legacy',
   'NativeModule internal/streams/passthrough',
   'NativeModule internal/streams/pipeline',
   'NativeModule internal/streams/readable',
   'NativeModule internal/streams/state',
   'NativeModule internal/streams/transform',
+  'NativeModule internal/streams/utils',
   'NativeModule internal/streams/writable',
   'NativeModule internal/timers',
   'NativeModule internal/url',
@@ -97,15 +121,27 @@ const expectedModules = new Set([
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/iterable_weak_map',
   'NativeModule internal/util/types',
+  'NativeModule internal/webstreams/util',
+  'NativeModule internal/webstreams/writablestream',
+  'NativeModule internal/webstreams/readablestream',
+  'NativeModule internal/webstreams/queuingstrategies',
+  'NativeModule internal/webstreams/adapters',
   'NativeModule internal/validators',
   'NativeModule internal/vm/module',
   'NativeModule internal/worker/io',
   'NativeModule internal/worker/js_transferable',
+  'NativeModule internal/blob',
+  'NativeModule async_hooks',
   'NativeModule path',
+  'NativeModule perf_hooks',
+  'NativeModule querystring',
   'NativeModule stream',
+  'NativeModule stream/promises',
+  'NativeModule string_decoder',
   'NativeModule timers',
   'NativeModule url',
   'NativeModule util',
+  'NativeModule v8',
   'NativeModule vm',
 ]);
 
@@ -138,13 +174,14 @@ if (!common.isMainThread) {
 if (common.hasIntl) {
   expectedModules.add('Internal Binding icu');
 } else {
-  expectedModules.add('NativeModule punycode');
+  expectedModules.add('NativeModule url');
 }
 
 if (process.features.inspector) {
   expectedModules.add('Internal Binding inspector');
   expectedModules.add('NativeModule internal/inspector_async_hook');
   expectedModules.add('NativeModule internal/util/inspector');
+  expectedModules.add('Internal Binding profiler');
 }
 
 if (process.env.NODE_V8_COVERAGE) {

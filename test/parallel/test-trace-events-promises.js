@@ -6,8 +6,6 @@ const fs = require('fs');
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
-common.disableCrashOnUnhandledRejection();
-
 if (process.argv[2] === 'child') {
   const p = Promise.reject(1);  // Handled later
   Promise.reject(2);  // Unhandled
@@ -23,7 +21,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--no-warnings',
                            '--trace-event-categories',
-                           'node.promises.rejections'
+                           'node.promises.rejections',
                          ]
                        });
 

@@ -11,8 +11,6 @@ struct Arguments {
 
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
 extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
-const kNoArgumentsAdaptor:
-    constexpr bool generates 'kNoArgumentsAdaptor';
 
 struct ArgumentsIterator {
   macro Next(): Object labels NoMore {
@@ -49,30 +47,13 @@ macro GetFrameWithArgumentsInfo(implicit context: Context)():
   const shared: SharedFunctionInfo = f.shared_function_info;
   const formalParameterCount: bint =
       Convert<bint>(Convert<int32>(shared.formal_parameter_count));
-  if constexpr (kNoArgumentsAdaptor) {
-    // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
-    // FrameWithArgumentsInfo can be simplified, since the frame field already
-    // contains the argument count.
-    const argumentCount: bint = Convert<bint>(frame.argument_count);
-    return FrameWithArgumentsInfo{
-      frame,
-      argument_count: argumentCount,
-      formal_parameter_count: formalParameterCount
-    };
-  } else {
-    const argumentCount: bint = formalParameterCount;
-
-    const adaptor = Cast<ArgumentsAdaptorFrame>(frame.caller)
-        otherwise return FrameWithArgumentsInfo{
-      frame,
-      argument_count: argumentCount,
-      formal_parameter_count: formalParameterCount
-    };
-
-    return FrameWithArgumentsInfo{
-      frame: adaptor,
-      argument_count: Convert<bint>(adaptor.length),
-      formal_parameter_count: formalParameterCount
-    };
-  }
+  // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
+  // FrameWithArgumentsInfo can be simplified, since the frame field already
+  // contains the argument count.
+  const argumentCount: bint = Convert<bint>(frame.argument_count);
+  return FrameWithArgumentsInfo{
+    frame,
+    argument_count: argumentCount,
+    formal_parameter_count: formalParameterCount
+  };
 }

@@ -233,9 +233,7 @@ Maybe<bool> HashTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset]);
   params->digest = EVP_get_digestbyname(*digest);
   if (UNLIKELY(params->digest == nullptr)) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "Invalid digest: %s", *digest);
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<bool>();
   }
 

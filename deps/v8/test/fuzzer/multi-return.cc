@@ -165,7 +165,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (param_count > Code::kMaxArguments) return 0;
 
   size_t return_count = input.NumNonZeroBytes(param_count + 1, kNumTypes);
-  if (return_count > wasm::kV8MaxWasmFunctionMultiReturns) return 0;
+  if (return_count > wasm::kV8MaxWasmFunctionReturns) return 0;
 
   CallDescriptor* desc =
       CreateRandomCallDescriptor(&zone, return_count, param_count, &input);
@@ -239,7 +239,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, CodeKind::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
+                                CodeKind::FOR_TESTING);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
@@ -285,7 +286,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
-                                        CodeKind::STUB);
+                                        CodeKind::FOR_TESTING);
   Handle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),

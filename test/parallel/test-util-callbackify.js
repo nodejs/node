@@ -20,7 +20,7 @@ const values = [
   Symbol('I am a symbol'),
   function ok() {},
   ['array', 'with', 4, 'values'],
-  new Error('boo')
+  new Error('boo'),
 ];
 
 {

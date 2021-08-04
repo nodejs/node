@@ -20,8 +20,6 @@ class ExitPoint;
 
 class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  public:
-  using Node = compiler::Node;
-
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
@@ -31,30 +29,42 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC_NoFeedback();
   void GenerateLoadGlobalIC_NoFeedback();
   void GenerateLoadICTrampoline();
+  void GenerateLoadICBaseline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateLoadSuperIC();
+  void GenerateLoadSuperICBaseline();
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
   void GenerateKeyedLoadICTrampoline();
+  void GenerateKeyedLoadICBaseline();
   void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
+  void GenerateStoreICBaseline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
+  void GenerateStoreGlobalICBaseline();
   void GenerateCloneObjectIC();
+  void GenerateCloneObjectICBaseline();
   void GenerateCloneObjectIC_Slow();
   void GenerateKeyedHasIC();
+  void GenerateKeyedHasICBaseline();
   void GenerateKeyedHasIC_Megamorphic();
   void GenerateKeyedHasIC_PolymorphicName();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
+  void GenerateLoadGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupContextBaseline(TypeofMode typeof_mode);
 
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
+  void GenerateKeyedStoreICBaseline();
 
   void GenerateStoreInArrayLiteralIC();
+  void GenerateStoreInArrayLiteralICBaseline();
 
   void TryProbeStubCache(StubCache* stub_cache,
                          TNode<Object> lookup_start_object, TNode<Name> name,
@@ -243,6 +253,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                          TNode<Object> value, Label* slow,
                                          bool do_transitioning_store);
 
+  TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
+
   void CheckFieldType(TNode<DescriptorArray> descriptors,
                       TNode<IntPtrT> name_index, TNode<Word32T> representation,
                       TNode<Object> value, Label* bailout);
@@ -298,6 +310,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                              TNode<WeakFixedArray> feedback, Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
                              Label* if_miss);
+
+  void TryMegaDOMCase(TNode<Object> lookup_start_object,
+                      TNode<Map> lookup_start_object_map,
+                      TVariable<MaybeObject>* var_handler, TNode<Object> vector,
+                      TNode<TaggedIndex> slot, Label* miss,
+                      ExitPoint* exit_point);
 
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
@@ -418,7 +436,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
   using OnFoundOnLookupStartObject = std::function<void(
-      TNode<NameDictionary> properties, TNode<IntPtrT> name_index)>;
+      TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index)>;
 
   template <typename ICHandler, typename ICParameters>
   TNode<Object> HandleProtoHandler(
@@ -454,7 +472,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point,
                        LoadAccessMode access_mode = LoadAccessMode::kLoad);
-  TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
 
   // Stub cache access helpers.
 

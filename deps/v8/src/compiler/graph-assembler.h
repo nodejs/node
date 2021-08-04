@@ -27,6 +27,7 @@ namespace compiler {
 
 class Schedule;
 class BasicBlock;
+class Reducer;
 
 #define PURE_ASSEMBLER_MACH_UNOP_LIST(V) \
   V(BitcastFloat32ToInt32)               \
@@ -34,6 +35,7 @@ class BasicBlock;
   V(BitcastInt32ToFloat32)               \
   V(BitcastWord32ToWord64)               \
   V(BitcastInt64ToFloat64)               \
+  V(ChangeFloat32ToFloat64)              \
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
   V(ChangeFloat64ToUint32)               \
@@ -47,7 +49,8 @@ class BasicBlock;
   V(Float64ExtractLowWord32)             \
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
-  V(TruncateFloat64ToInt64)              \
+  V(RoundInt32ToFloat32)                 \
+  V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
   V(Word32ReverseBytes)                  \
@@ -89,6 +92,10 @@ class BasicBlock;
   V(Word64And)                            \
   V(Word64Equal)                          \
   V(Word64Or)                             \
+  V(Word64Sar)                            \
+  V(Word64SarShiftOutZeros)               \
+  V(Word64Shl)                            \
+  V(Word64Shr)                            \
   V(WordAnd)                              \
   V(WordEqual)                            \
   V(WordOr)                               \
@@ -104,8 +111,12 @@ class BasicBlock;
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \
   V(Int32SubWithOverflow)                    \
+  V(Int64Div)                                \
+  V(Int64Mod)                                \
   V(Uint32Div)                               \
-  V(Uint32Mod)
+  V(Uint32Mod)                               \
+  V(Uint64Div)                               \
+  V(Uint64Mod)
 
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
   V(AllocateInOldGenerationStub, Code)          \
@@ -236,6 +247,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   // Value creation.
   Node* IntPtrConstant(intptr_t value);
+  Node* UintPtrConstant(uintptr_t value);
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -258,6 +270,12 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   PURE_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
+
+#ifdef V8_MAP_PACKING
+  Node* PackMapWord(TNode<Map> map);
+  TNode<Map> UnpackMapWord(Node* map_word);
+#endif
+  TNode<Map> LoadMap(Node* object);
 
   Node* DebugBreak();
 
@@ -282,6 +300,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
+  Node* TruncateFloat64ToInt64(Node* value, TruncateKind kind);
 
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastWordToTaggedSigned(Node* value);
@@ -302,6 +321,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
   Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
+
+  Node* ProtectedStore(MachineRepresentation rep, Node* object, Node* offset,
+                       Node* value);
+  Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
@@ -324,6 +347,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DynamicCheckMapsWithDeoptUnless(Node* condition, Node* slot_index,
+                                        Node* map, Node* handler,
+                                        Node* frame_state);
   TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,
                      Node** inputs);
   TNode<Object> Call(const Operator* op, int inputs_size, Node** inputs);
@@ -359,6 +385,22 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                       BranchHint hint, Vars...);
 
   // Control helpers.
+
+  // {GotoIf(c, l, h)} is equivalent to {BranchWithHint(c, l, templ, h);
+  // Bind(templ)}.
+  template <typename... Vars>
+  void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+              BranchHint hint, Vars...);
+
+  // {GotoIfNot(c, l, h)} is equivalent to {BranchWithHint(c, templ, l, h);
+  // Bind(templ)}.
+  // The branch hint refers to the expected outcome of the provided condition,
+  // so {GotoIfNot(..., BranchHint::kTrue)} means "optimize for the case where
+  // the branch is *not* taken".
+  template <typename... Vars>
+  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+                 BranchHint hint, Vars...);
+
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.
   template <typename... Vars>
   void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
@@ -401,6 +443,16 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   void ConnectUnreachableToEnd();
 
+  // Add an inline reducers such that nodes added to the graph will be run
+  // through the reducers and possibly further lowered. Each reducer should
+  // operate on independent node types since once a reducer changes a node we
+  // no longer run any other reducers on that node. The reducers should also
+  // only generate new nodes that wouldn't be further reduced, as new nodes
+  // generated by a reducer won't be passed through the reducers again.
+  void AddInlineReducer(Reducer* reducer) {
+    inline_reducers_.push_back(reducer);
+  }
+
   Control control() const { return Control(control_); }
   Effect effect() const { return Effect(effect_); }
 
@@ -429,11 +481,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // All labels created while a LoopScope is live are considered to be inside
   // the loop.
   template <MachineRepresentation... Reps>
-  class LoopScope final {
+  class V8_NODISCARD LoopScope final {
    private:
     // The internal scope is only here to increment the graph assembler's
     // nesting level prior to `loop_header_label` creation below.
-    class LoopScopeInternal {
+    class V8_NODISCARD LoopScopeInternal {
      public:
       explicit LoopScopeInternal(GraphAssembler* gasm)
           : previous_loop_nesting_level_(gasm->loop_nesting_level_),
@@ -480,7 +532,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   };
 
   // Upon destruction, restores effect and control to the state at construction.
-  class RestoreEffectControlScope {
+  class V8_NODISCARD RestoreEffectControlScope {
    public:
     explicit RestoreEffectControlScope(GraphAssembler* gasm)
         : gasm_(gasm), effect_(gasm->effect()), control_(gasm->control()) {}
@@ -497,6 +549,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   };
 
  private:
+  class BlockInlineReduction;
+
   template <typename... Vars>
   void BranchImpl(Node* condition,
                   GraphAssemblerLabel<sizeof...(Vars)>* if_true,
@@ -515,6 +569,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // subgraph created by the graph assembler changes.
   base::Optional<NodeChangedCallback> node_changed_callback_;
   std::unique_ptr<BasicBlockUpdater> block_updater_;
+
+  // Inline reducers enable reductions to be performed to nodes as they are
+  // added to the graph with the graph assembler.
+  ZoneVector<Reducer*> inline_reducers_;
+  bool inline_reductions_blocked_;
 
   // Track loop information in order to properly mark loop exits with
   // {LoopExit,LoopExitEffect,LoopExitValue} nodes. The outermost level has
@@ -560,8 +619,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                              *loop_headers_.back()));
     AddNode(graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
     for (size_t i = 0; i < kVarCount; i++) {
-      var_array[i] = AddNode(
-          graph()->NewNode(common()->LoopExitValue(), var_array[i], control()));
+      var_array[i] = AddNode(graph()->NewNode(
+          common()->LoopExitValue(MachineRepresentation::kTagged), var_array[i],
+          control()));
     }
   }
 
@@ -736,9 +796,7 @@ void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
 template <typename... Vars>
 void GraphAssembler::GotoIf(Node* condition,
                             GraphAssemblerLabel<sizeof...(Vars)>* label,
-                            Vars... vars) {
-  BranchHint hint =
-      label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
+                            BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   control_ = graph()->NewNode(common()->IfTrue(), branch);
@@ -751,8 +809,7 @@ void GraphAssembler::GotoIf(Node* condition,
 template <typename... Vars>
 void GraphAssembler::GotoIfNot(Node* condition,
                                GraphAssemblerLabel<sizeof...(Vars)>* label,
-                               Vars... vars) {
-  BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
+                               BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   control_ = graph()->NewNode(common()->IfFalse(), branch);
@@ -760,6 +817,23 @@ void GraphAssembler::GotoIfNot(Node* condition,
 
   GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfFalse);
   control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
+}
+
+template <typename... Vars>
+void GraphAssembler::GotoIf(Node* condition,
+                            GraphAssemblerLabel<sizeof...(Vars)>* label,
+                            Vars... vars) {
+  BranchHint hint =
+      label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
+  return GotoIf(condition, label, hint, vars...);
+}
+
+template <typename... Vars>
+void GraphAssembler::GotoIfNot(Node* condition,
+                               GraphAssemblerLabel<sizeof...(Vars)>* label,
+                               Vars... vars) {
+  BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
+  return GotoIfNot(condition, label, hint, vars...);
 }
 
 template <typename... Args>

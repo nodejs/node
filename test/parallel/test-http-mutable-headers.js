@@ -36,7 +36,7 @@ let test = 'headers';
 const content = 'hello world\n';
 const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
-  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
+  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT',
 ];
 
 const s = http.createServer(common.mustCall((req, res) => {
@@ -47,6 +47,7 @@ const s = http.createServer(common.mustCall((req, res) => {
       const exoticObj = Object.create(null);
       assert.deepStrictEqual(headers, exoticObj);
       assert.deepStrictEqual(res.getHeaderNames(), []);
+      assert.deepStrictEqual(res.getRawHeaderNames(), []);
       assert.deepStrictEqual(res.hasHeader('Connection'), false);
       assert.deepStrictEqual(res.getHeader('Connection'), undefined);
 
@@ -108,6 +109,10 @@ const s = http.createServer(common.mustCall((req, res) => {
                              ['x-test-header', 'x-test-header2',
                               'set-cookie', 'x-test-array-header']);
 
+      assert.deepStrictEqual(res.getRawHeaderNames(),
+                             ['x-test-header', 'X-TEST-HEADER2',
+                              'set-cookie', 'x-test-array-header']);
+
       assert.strictEqual(res.hasHeader('x-test-header2'), true);
       assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), true);
       assert.strictEqual(res.hasHeader('X-Test-Header2'), true);
@@ -117,7 +122,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         true,
         {},
         { toString: () => 'X-TEST-HEADER2' },
-        () => { }
+        () => { },
       ].forEach((val) => {
         assert.throws(
           () => res.hasHeader(val),
@@ -171,7 +176,10 @@ function nextTest() {
 
   let bufferedResponse = '';
 
-  http.get({ port: s.address().port }, common.mustCall((response) => {
+  const req = http.get({
+    port: s.address().port,
+    headers: { 'X-foo': 'bar' }
+  }, common.mustCall((response) => {
     switch (test) {
       case 'headers':
         assert.strictEqual(response.statusCode, 201);
@@ -214,4 +222,10 @@ function nextTest() {
       common.mustCall(nextTest)();
     }));
   }));
+
+  assert.deepStrictEqual(req.getHeaderNames(),
+                         ['x-foo', 'host']);
+
+  assert.deepStrictEqual(req.getRawHeaderNames(),
+                         ['X-foo', 'Host']);
 }

@@ -89,6 +89,19 @@ class JSHeapBroker;
   static void Test##Name()
 #endif
 
+// Similar to TEST, but used when test definitions appear as members of a
+// (probably parameterized) class. This allows re-using the given tests multiple
+// times. For this to work, the following conditions must hold:
+//   1. The class has a template parameter named kTestFileName of type  char
+//      const*, which is instantiated with __FILE__ at the *use site*, in order
+//      to correctly associate the tests with the test suite using them.
+//   2. To actually execute the tests, create an instance of the class
+//      containing the MEMBER_TESTs.
+#define MEMBER_TEST(Name)                                   \
+  CcTest register_test_##Name =                             \
+      CcTest(Test##Name, kTestFileName, #Name, true, true); \
+  static void Test##Name()
+
 #define EXTENSION_LIST(V)                                                      \
   V(GC_EXTENSION,       "v8/gc")                                               \
   V(PRINT_EXTENSION,    "v8/print")                                            \
@@ -365,6 +378,10 @@ static inline v8::Local<v8::Integer> v8_int(int32_t x) {
   return v8::Integer::New(v8::Isolate::GetCurrent(), x);
 }
 
+static inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {
+  return v8::BigInt::New(v8::Isolate::GetCurrent(), x);
+}
+
 static inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
@@ -408,26 +425,25 @@ static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
-    v8::Local<v8::Boolean> is_shared_cross_origin) {
-  v8::ScriptOrigin origin(origin_url, v8::Local<v8::Integer>(),
-                          v8::Local<v8::Integer>(), is_shared_cross_origin);
+    bool is_shared_cross_origin) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
   v8::ScriptCompiler::Source script_source(source, origin);
-  return v8::ScriptCompiler::Compile(
-             v8::Isolate::GetCurrent()->GetCurrentContext(), &script_source)
+  return v8::ScriptCompiler::Compile(isolate->GetCurrentContext(),
+                                     &script_source)
       .ToLocalChecked();
 }
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, const char* origin_url,
     bool is_shared_cross_origin) {
-  return CompileWithOrigin(source, v8_str(origin_url),
-                           v8_bool(is_shared_cross_origin));
+  return CompileWithOrigin(source, v8_str(origin_url), is_shared_cross_origin);
 }
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     const char* source, const char* origin_url, bool is_shared_cross_origin) {
   return CompileWithOrigin(v8_str(source), v8_str(origin_url),
-                           v8_bool(is_shared_cross_origin));
+                           is_shared_cross_origin);
 }
 
 // Helper functions that compile and run the source.
@@ -488,9 +504,8 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::ScriptOrigin origin(v8_str(origin_url),
-                          v8::Integer::New(isolate, line_number),
-                          v8::Integer::New(isolate, column_number));
+  v8::ScriptOrigin origin(isolate, v8_str(origin_url), line_number,
+                          column_number);
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
@@ -502,7 +517,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(
-      source, v8::ScriptOrigin(v8_str(origin_url)));
+      source, v8::ScriptOrigin(isolate, v8_str(origin_url)));
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
 }
@@ -602,9 +617,9 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
 
 class InitializedHandleScopeImpl;
 
-class InitializedHandleScope {
+class V8_NODISCARD InitializedHandleScope {
  public:
-  InitializedHandleScope();
+  explicit InitializedHandleScope(i::Isolate* isolate = nullptr);
   ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -615,7 +630,7 @@ class InitializedHandleScope {
   std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
-class HandleAndZoneScope : public InitializedHandleScope {
+class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
   explicit HandleAndZoneScope(bool support_zone_compression = false);
   ~HandleAndZoneScope();
@@ -642,7 +657,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
-class ManualGCScope {
+class V8_NODISCARD ManualGCScope {
  public:
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
@@ -685,6 +700,9 @@ class ManualGCScope {
 // of construction.
 class TestPlatform : public v8::Platform {
  public:
+  TestPlatform(const TestPlatform&) = delete;
+  TestPlatform& operator=(const TestPlatform&) = delete;
+
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override {
     return old_platform_->GetPageAllocator();
@@ -746,8 +764,6 @@ class TestPlatform : public v8::Platform {
 
  private:
   v8::Platform* old_platform_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
 
 #if defined(USE_SIMULATOR)
@@ -810,5 +826,27 @@ class SimulatorHelper {
   v8::internal::Simulator* simulator_;
 };
 #endif  // USE_SIMULATOR
+
+// The following should correspond to Chromium's kV8DOMWrapperTypeIndex and
+// kV8DOMWrapperObjectIndex.
+static const int kV8WrapperTypeIndex = 0;
+static const int kV8WrapperObjectIndex = 1;
+
+enum class ApiCheckerResult : uint8_t {
+  kNotCalled = 0,
+  kSlowCalled = 1 << 0,
+  kFastCalled = 1 << 1,
+};
+using ApiCheckerResultFlags = v8::base::Flags<ApiCheckerResult>;
+DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
+
+bool IsValidUnwrapObject(v8::Object* object);
+
+template <typename T>
+T* GetInternalField(v8::Object* wrapper) {
+  assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
+  return reinterpret_cast<T*>(
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+}
 
 #endif  // ifndef CCTEST_H_

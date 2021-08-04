@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 #define V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 
@@ -215,6 +219,11 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   static constexpr int kJumpTableSlotSize = 8 * kInstrSize;
   static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 8 * kInstrSize;
+#elif V8_TARGET_ARCH_RISCV64
+  static constexpr int kJumpTableLineSize = 6 * kInstrSize;
+  static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kLazyCompileTableSlotSize = 10 * kInstrSize;
 #else
 #error Unknown architecture.
 #endif

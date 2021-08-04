@@ -88,14 +88,14 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 
 }  // namespace
 
-BailoutId Builtins::GetContinuationBailoutId(Name name) {
+BytecodeOffset Builtins::GetContinuationBytecodeOffset(Name name) {
   DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
          Builtins::KindOf(name) == TFS);
-  return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
+  return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId + name);
 }
 
-Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
-  int builtin_index = id.ToInt() - BailoutId::kFirstBuiltinContinuationId;
+Builtins::Name Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
+  int builtin_index = id.ToInt() - BytecodeOffset::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
          Builtins::KindOf(builtin_index) == TFC ||
          Builtins::KindOf(builtin_index) == TFS);
@@ -106,13 +106,13 @@ void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-  if (!maybe_builtin.is_null()) return name(maybe_builtin.builtin_index());
+  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  if (Builtins::IsBuiltinId(builtin)) return name(builtin);
 
   // May be called during initialization (disassembler).
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
-      if (isolate_->heap()->builtin(i).contains(pc)) return name(i);
+      if (isolate_->heap()->builtin(i).contains(isolate_, pc)) return name(i);
     }
   }
   return nullptr;
@@ -287,7 +287,7 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 
 // static
 void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
   Address* builtin_entry_table = isolate->builtin_entry_table();
   for (int i = 0; i < builtin_count; i++) {
     // TODO(jgruber,chromium:1020986): Remove the CHECK once the linked issue is
@@ -335,7 +335,8 @@ class OffHeapTrampolineGenerator {
  public:
   explicit OffHeapTrampolineGenerator(Isolate* isolate)
       : isolate_(isolate),
-        masm_(isolate, CodeObjectRequired::kYes,
+        masm_(isolate, AssemblerOptions::DefaultForOffHeapTrampoline(isolate),
+              CodeObjectRequired::kYes,
               ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
 
   CodeDesc Generate(Address off_heap_entry, TrampolineType type) {
@@ -347,6 +348,7 @@ class OffHeapTrampolineGenerator {
         masm_.CodeEntry();
         masm_.JumpToInstructionStream(off_heap_entry);
       } else {
+        DCHECK_EQ(type, TrampolineType::kAbort);
         masm_.Trap();
       }
     }
@@ -481,9 +483,11 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kCall_ReceiverIsNullOrUndefined:
     case Builtins::kCall_ReceiverIsNotNullOrUndefined:
     case Builtins::kCall_ReceiverIsAny:
-    case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+#if V8_ENABLE_WEBASSEMBLY
+    case Builtins::kGenericJSToWasmWrapper:
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.

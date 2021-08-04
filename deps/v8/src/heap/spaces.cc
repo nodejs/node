@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
@@ -31,7 +32,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 
@@ -269,8 +269,8 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     // Use uint64_t to avoid overflow on 32-bit
     uint64_t step_end =
-        static_cast<uint64_t>(start) + Max(min_size, rounded_step);
-    uint64_t new_end = Min(step_end, static_cast<uint64_t>(end));
+        static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
+    uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
   } else {
     // The entire node can be used as the linear allocation area.

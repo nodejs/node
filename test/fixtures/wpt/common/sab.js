@@ -5,6 +5,9 @@ const createBuffer = (() => {
     if (type === "ArrayBuffer") {
       return new ArrayBuffer(length);
     } else if (type === "SharedArrayBuffer") {
+      if (sabConstructor.name !== "SharedArrayBuffer") {
+        throw new Error("WebAssembly.Memory does not support shared:true");
+      }
       return new sabConstructor(length);
     } else {
       throw new Error("type has to be ArrayBuffer or SharedArrayBuffer");

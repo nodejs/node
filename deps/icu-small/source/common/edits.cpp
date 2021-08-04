@@ -86,6 +86,7 @@ Edits &Edits::moveArray(Edits &src) U_NOEXCEPT {
 }
 
 Edits &Edits::operator=(const Edits &other) {
+    if (this == &other) { return *this; }  // self-assignment: no-op
     length = other.length;
     delta = other.delta;
     numChanges = other.numChanges;

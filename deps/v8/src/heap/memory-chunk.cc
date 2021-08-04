@@ -5,6 +5,7 @@
 #include "src/heap/memory-chunk.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -89,8 +90,13 @@ void MemoryChunk::SetReadAndWritable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
+    // We may use RWX pages to write code. Some CPUs have optimisations to push
+    // updates to code to the icache through a fast path, and they may filter
+    // updates based on the written memory being executable.
     CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
-                                      PageAllocator::kReadWrite));
+                                      FLAG_write_code_using_rwx
+                                          ? PageAllocator::kReadWriteExecute
+                                          : PageAllocator::kReadWrite));
   }
 }
 
@@ -154,6 +160,9 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
   }
 
   chunk->possibly_empty_buckets_.Initialize();
+
+  // All pages of a shared heap need to be marked with this flag.
+  if (heap->IsShared()) chunk->SetFlag(IN_SHARED_HEAP);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
@@ -378,12 +387,13 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
 
 void MemoryChunk::AllocateYoungGenerationBitmap() {
   DCHECK_NULL(young_generation_bitmap_);
-  young_generation_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
+  young_generation_bitmap_ =
+      static_cast<Bitmap*>(base::Calloc(1, Bitmap::kSize));
 }
 
 void MemoryChunk::ReleaseYoungGenerationBitmap() {
   DCHECK_NOT_NULL(young_generation_bitmap_);
-  free(young_generation_bitmap_);
+  base::Free(young_generation_bitmap_);
   young_generation_bitmap_ = nullptr;
 }
 

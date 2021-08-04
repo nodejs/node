@@ -167,7 +167,6 @@ class ObjectStats {
   size_t tagged_fields_count_;
   size_t embedder_fields_count_;
   size_t inobject_smi_fields_count_;
-  size_t unboxed_double_fields_count_;
   size_t boxed_double_fields_count_;
   size_t string_data_count_;
   size_t raw_fields_count_;

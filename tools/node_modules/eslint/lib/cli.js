@@ -32,6 +32,7 @@ const debug = require("debug")("eslint:cli");
 /** @typedef {import("./eslint/eslint").ESLintOptions} ESLintOptions */
 /** @typedef {import("./eslint/eslint").LintMessage} LintMessage */
 /** @typedef {import("./eslint/eslint").LintResult} LintResult */
+/** @typedef {import("./options").ParsedCLIOptions} ParsedCLIOptions */
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,7 +55,7 @@ function quietFixPredicate(message) {
 
 /**
  * Translates the CLI options into the options expected by the CLIEngine.
- * @param {Object} cliOptions The CLI options to translate.
+ * @param {ParsedCLIOptions} cliOptions The CLI options to translate.
  * @returns {ESLintOptions} The options object for the CLIEngine.
  * @private
  */
@@ -62,6 +63,7 @@ function translateOptions({
     cache,
     cacheFile,
     cacheLocation,
+    cacheStrategy,
     config,
     env,
     errorOnUnmatchedPattern,
@@ -88,6 +90,7 @@ function translateOptions({
         allowInlineConfig: inlineConfig,
         cache,
         cacheLocation: cacheLocation || cacheFile,
+        cacheStrategy,
         errorOnUnmatchedPattern,
         extensions: ext,
         fix: (fix || fixDryRun) && (quiet ? quietFixPredicate : true),
@@ -128,14 +131,16 @@ function translateOptions({
  */
 function countErrors(results) {
     let errorCount = 0;
+    let fatalErrorCount = 0;
     let warningCount = 0;
 
     for (const result of results) {
         errorCount += result.errorCount;
+        fatalErrorCount += result.fatalErrorCount;
         warningCount += result.warningCount;
     }
 
-    return { errorCount, warningCount };
+    return { errorCount, fatalErrorCount, warningCount };
 }
 
 /**
@@ -219,6 +224,8 @@ const cli = {
         if (Array.isArray(args)) {
             debug("CLI args: %o", args.slice(2));
         }
+
+        /** @type {ParsedCLIOptions} */
         let options;
 
         try {
@@ -299,21 +306,32 @@ const cli = {
             await ESLint.outputFixes(results);
         }
 
+        let resultsToPrint = results;
+
         if (options.quiet) {
             debug("Quiet mode enabled - filtering out warnings");
-            results = ESLint.getErrorResults(results);
+            resultsToPrint = ESLint.getErrorResults(resultsToPrint);
         }
 
-        if (await printResults(engine, results, options.format, options.outputFile)) {
-            const { errorCount, warningCount } = countErrors(results);
+        if (await printResults(engine, resultsToPrint, options.format, options.outputFile)) {
+
+            // Errors and warnings from the original unfiltered results should determine the exit code
+            const { errorCount, fatalErrorCount, warningCount } = countErrors(results);
+
             const tooManyWarnings =
                 options.maxWarnings >= 0 && warningCount > options.maxWarnings;
+            const shouldExitForFatalErrors =
+                options.exitOnFatalError && fatalErrorCount > 0;
 
             if (!errorCount && tooManyWarnings) {
                 log.error(
                     "ESLint found too many warnings (maximum: %s).",
                     options.maxWarnings
                 );
+            }
+
+            if (shouldExitForFatalErrors) {
+                return 2;
             }
 
             return (errorCount || tooManyWarnings) ? 1 : 0;

@@ -51,7 +51,7 @@ main().catch(mustNotCall);
   );
   [
     '--experimental-specifier-resolution',
-    '--es-module-specifier-resolution'
+    '--es-module-specifier-resolution',
   ].forEach((option) => {
     spawn(process.execPath,
           [`${option}=node`, modulePath],

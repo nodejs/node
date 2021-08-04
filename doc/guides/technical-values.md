@@ -43,7 +43,7 @@ Some key elements of this include:
 * Stable releases on a predictable schedule
 * A strong safety net, including testing how changes
   in Node.js affect popular packages
-* Careful consideration of what goes into long term support (LTS) releases
+* Careful consideration of what goes into Long Term Support (LTS) releases
 
 ### 3 - Operational qualities
 We value keeping Node.js safe, performant, and lightweight.
@@ -65,7 +65,7 @@ Some key elements of this include:
 * Low-friction policies and processes
 * Good CI and tooling to make maintainers productive
 
-### 5 - Up to date Technology and APIs
+### 5 - Up to date technology and APIs
 We value providing developers with modern APIs and technologies
 following existing standards whenever possible.
 Some key elements of this include:

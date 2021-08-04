@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --enable-experimental-regexp-engine
+// Flags: --allow-natives-syntax --default-to-experimental-regexp-engine
 
 function Test(regexp, subject, expectedResult, expectedLastIndex) {
   assertEquals(%RegexpTypeTag(regexp), "EXPERIMENTAL");

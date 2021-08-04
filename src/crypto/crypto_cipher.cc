@@ -6,7 +6,7 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "node_process.h"
+#include "node_process-inl.h"
 #include "v8.h"
 
 namespace node {
@@ -62,7 +62,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     cipher = EVP_get_cipherbyname(*name);
   } else {
     int nid = args[1].As<Int32>()->Value();
-    cipher = EVP_get_cipherbyname(OBJ_nid2sn(nid));
+    cipher = EVP_get_cipherbynid(nid);
   }
 
   if (cipher == nullptr)
@@ -145,10 +145,14 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
+  // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
   if (info->Set(
           env->context(),
           env->name_string(),
-          OneByteString(env->isolate(), EVP_CIPHER_name(cipher))).IsNothing()) {
+          OneByteString(
+            env->isolate(),
+            OBJ_nid2sn(EVP_CIPHER_nid(cipher)))).IsNothing()) {
     return;
   }
 
@@ -342,13 +346,14 @@ void CipherBase::Init(const char* cipher_type,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
-
-#ifdef NODE_FIPS_MODE
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (EVP_default_properties_is_fips_enabled(nullptr)) {
+#else
   if (FIPS_mode()) {
+#endif
     return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
         "crypto.createCipher() is not supported in FIPS mode.");
   }
-#endif  // NODE_FIPS_MODE
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr)
@@ -510,10 +515,10 @@ bool CipherBase::InitAuthenticated(
   if (mode == EVP_CIPH_GCM_MODE) {
     if (auth_tag_len != kNoAuthTagLength) {
       if (!IsValidGCMTagLength(auth_tag_len)) {
-        char msg[50];
-        snprintf(msg, sizeof(msg),
-            "Invalid authentication tag length: %u", auth_tag_len);
-        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env(), msg);
+        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(),
+          "Invalid authentication tag length: %u",
+          auth_tag_len);
         return false;
       }
 
@@ -522,20 +527,23 @@ bool CipherBase::InitAuthenticated(
     }
   } else {
     if (auth_tag_len == kNoAuthTagLength) {
-      char msg[128];
-      snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env(), msg);
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+        env(), "authTagLength required for %s", cipher_type);
       return false;
     }
 
-#ifdef NODE_FIPS_MODE
     // TODO(tniessen) Support CCM decryption in FIPS mode
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher &&
+        EVP_default_properties_is_fips_enabled(nullptr)) {
+#else
     if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher && FIPS_mode()) {
+#endif
       THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
           "CCM encryption not supported in FIPS mode");
       return false;
     }
-#endif
 
     // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
@@ -628,10 +636,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!is_valid) {
-    char msg[50];
-    snprintf(msg, sizeof(msg),
-        "Invalid authentication tag length: %u", tag_len);
-    return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env, msg);
+    return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+      env, "Invalid authentication tag length: %u", tag_len);
   }
 
   cipher->auth_tag_len_ = tag_len;
@@ -839,9 +845,9 @@ bool CipherBase::Final(AllocatedBuffer* out) {
         CHECK(mode == EVP_CIPH_GCM_MODE);
         auth_tag_len_ = sizeof(auth_tag_);
       }
-      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
-                      auth_tag_len_,
-                      reinterpret_cast<unsigned char*>(auth_tag_)));
+      ok = (1 == EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
+                     auth_tag_len_,
+                     reinterpret_cast<unsigned char*>(auth_tag_)));
     }
   }
 
@@ -904,7 +910,7 @@ bool PublicKeyCipher::Cipher(
     void* label = OPENSSL_memdup(oaep_label.data(), oaep_label.size());
     CHECK_NOT_NULL(label);
     if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(),
-                reinterpret_cast<unsigned char*>(label),
+                     static_cast<unsigned char*>(label),
                                       oaep_label.size())) {
       OPENSSL_free(label);
       return false;

@@ -123,17 +123,24 @@ BUILTIN(ConsoleTimeStamp) {
 }
 
 namespace {
+
 void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
                             const char* name, Builtins::Name builtin_id,
                             int context_id, Handle<Object> context_name) {
   Factory* const factory = isolate->factory();
 
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<Map> map = isolate->sloppy_function_without_prototype_map();
+
   Handle<String> name_string =
       Name::ToFunctionName(isolate, factory->InternalizeUtf8String(name))
           .ToHandleChecked();
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name_string, builtin_id, i::LanguageMode::kSloppy);
-  Handle<JSFunction> fun = factory->NewFunction(args);
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin_id);
+  info->set_language_mode(LanguageMode::kSloppy);
+
+  Handle<JSFunction> fun =
+      Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
 
   fun->shared().set_native(true);
   fun->shared().DontAdaptArguments();
@@ -147,6 +154,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
   }
   JSObject::AddProperty(isolate, target, name_string, fun, NONE);
 }
+
 }  // namespace
 
 BUILTIN(ConsoleContext) {
@@ -154,9 +162,13 @@ BUILTIN(ConsoleContext) {
 
   Factory* const factory = isolate->factory();
   Handle<String> name = factory->InternalizeUtf8String("Context");
-  NewFunctionArgs arguments = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate->sloppy_function_map(), LanguageMode::kSloppy);
-  Handle<JSFunction> cons = factory->NewFunction(arguments);
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+  info->set_language_mode(LanguageMode::kSloppy);
+
+  Handle<JSFunction> cons =
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .Build();
 
   Handle<JSObject> prototype = factory->NewJSObject(isolate->object_function());
   JSFunction::SetPrototype(cons, prototype);

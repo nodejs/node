@@ -413,6 +413,55 @@ void Initialize(Local<Object> target,
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
+If the C++ binding is loaded during bootstrap, it needs to be registered
+with the utilities in `node_external_reference.h`, like this:
+
+```cpp
+namespace node {
+namespace utils {
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetHiddenValue);
+  registry->Register(SetHiddenValue);
+  // ... register all C++ functions used to create FunctionTemplates.
+}
+}  // namespace util
+}  // namespace node
+
+// The first argument passed to `NODE_MODULE_EXTERNAL_REFERENCE`,
+// which is `util` here, needs to be added to the
+// `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
+NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+```
+
+Otherwise, you might see an error message like this when building the
+executables:
+
+```console
+FAILED: gen/node_snapshot.cc
+cd ../../; out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+Unknown external reference 0x107769200.
+<unresolved>
+/bin/sh: line 1:  6963 Illegal instruction: 4  out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+```
+
+You can try using a debugger to symbolicate the external reference. For example,
+with lldb's `image lookup --address` command (with gdb it's `info symbol`):
+
+```console
+$ lldb -- out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+(lldb) run
+Process 7012 launched: '/Users/joyee/projects/node/out/Release/node_mksnapshot' (x86_64)
+Unknown external reference 0x1004c8200.
+<unresolved>
+Process 7012 stopped
+(lldb) image lookup --address 0x1004c8200
+      Address: node_mksnapshot[0x00000001004c8200] (node_mksnapshot.__TEXT.__text + 5009920)
+      Summary: node_mksnapshot`node::util::GetHiddenValue(v8::FunctionCallbackInfo<v8::Value> const&) at node_util.cc:159
+```
+
+Which explains that the unregistered external reference is
+`node::util::GetHiddenValue` defined in `node_util.cc`.
+
 <a id="per-binding-state"></a>
 #### Per-binding state
 
@@ -422,7 +471,7 @@ that state is through the use of `Environment::AddBindingData`, which gives
 binding functions access to an object for storing such state.
 That object is always a [`BaseObject`][].
 
-Its class needs to have a static `binding_data_name` field based on a
+Its class needs to have a static `type_name` field based on a
 constant string, in order to disambiguate it from other classes of this type,
 and which could e.g. match the binding’s name (in the example above, that would
 be `cares_wrap`).
@@ -433,7 +482,7 @@ class BindingData : public BaseObject {
  public:
   BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
 
-  static constexpr FastStringKey binding_data_name { "http_parser" };
+  static constexpr FastStringKey type_name { "http_parser" };
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -462,6 +511,12 @@ void InitializeHttpParser(Local<Object> target,
   ...
 }
 ```
+
+If the binding is loaded during bootstrap, add it to the
+`SERIALIZABLE_OBJECT_TYPES` list in `src/node_snapshotable.h` and
+inherit from the `SnapshotableObject` class instead. See the comments
+of `SnapshotableObject` on how to implement its serialization and
+deserialization.
 
 <a id="exception-handling"></a>
 ### Exception handling
@@ -757,7 +812,7 @@ reference to its associated JavaScript object. This can be useful when one
 `BaseObject` refers to another `BaseObject` and wants to make sure it stays
 alive during the lifetime of that reference.
 
-A `BaseObject` can be “detached” throught the `BaseObject::Detach()` method.
+A `BaseObject` can be “detached” through the `BaseObject::Detach()` method.
 In this case, it will be deleted once the last `BaseObjectPtr` referring to
 it is destroyed. There must be at least one such pointer when `Detach()` is
 called. This can be useful when one `BaseObject` fully owns another
@@ -981,7 +1036,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [exception handling]: #exception-handling
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
+[libuv]: https://libuv.org/
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
-[libuv]: https://libuv.org/
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/

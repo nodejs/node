@@ -15,7 +15,7 @@
 namespace node {
 namespace crypto {
 enum RSAKeyVariant {
-  kKeyVariantRSA_SSA_PKCS1_V1_5,
+  kKeyVariantRSA_SSA_PKCS1_v1_5,
   kKeyVariantRSA_PSS,
   kKeyVariantRSA_OAEP
 };
@@ -31,8 +31,8 @@ struct RsaKeyPairParams final : public MemoryRetainer {
   int saltlen = 0;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(RsaKeyPairParams);
-  SET_SELF_SIZE(RsaKeyPairParams);
+  SET_MEMORY_INFO_NAME(RsaKeyPairParams)
+  SET_SELF_SIZE(RsaKeyPairParams)
 };
 
 using RsaKeyPairGenConfig = KeyPairGenConfig<RsaKeyPairParams>;
@@ -53,7 +53,7 @@ struct RsaKeyGenTraits final {
 using RSAKeyPairGenJob = KeyGenJob<KeyPairGenTraits<RsaKeyGenTraits>>;
 
 struct RSAKeyExportConfig final : public MemoryRetainer {
-  RSAKeyVariant variant = kKeyVariantRSA_SSA_PKCS1_V1_5;
+  RSAKeyVariant variant = kKeyVariantRSA_SSA_PKCS1_v1_5;
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RSAKeyExportConfig)
   SET_SELF_SIZE(RSAKeyExportConfig)
@@ -88,8 +88,8 @@ struct RSACipherConfig final : public MemoryRetainer {
   RSACipherConfig(RSACipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(RSACipherConfig);
-  SET_SELF_SIZE(RSACipherConfig);
+  SET_MEMORY_INFO_NAME(RSACipherConfig)
+  SET_SELF_SIZE(RSACipherConfig)
 };
 
 struct RSACipherTraits final {

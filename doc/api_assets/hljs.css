@@ -8,7 +8,8 @@
 }
 
 .hljs-attribute,
-.hljs-keyword {
+.hljs-keyword,
+.hljs-type {
   color: #338;
 }
 
@@ -35,8 +36,10 @@
   color: var(--green4);
 }
 
+.dark-mode .hljs-attribute,
+.dark-mode .hljs-doctag,
 .dark-mode .hljs-keyword,
-.dark-mode .hljs-attribute {
+.dark-mode .hljs-type {
   color: #66d9ef;
 }
 

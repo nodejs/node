@@ -157,12 +157,20 @@ def files(action):
   headers(action)
 
 def headers(action):
-  def ignore_inspector_headers(files_arg, dest):
-    inspector_headers = [
-      'deps/v8/include/v8-inspector.h',
-      'deps/v8/include/v8-inspector-protocol.h'
+  def wanted_v8_headers(files_arg, dest):
+    v8_headers = [
+      'deps/v8/include/cppgc/common.h',
+      'deps/v8/include/libplatform/libplatform.h',
+      'deps/v8/include/libplatform/libplatform-export.h',
+      'deps/v8/include/libplatform/v8-tracing.h',
+      'deps/v8/include/v8.h',
+      'deps/v8/include/v8-internal.h',
+      'deps/v8/include/v8-platform.h',
+      'deps/v8/include/v8-profiler.h',
+      'deps/v8/include/v8-version.h',
+      'deps/v8/include/v8config.h',
     ]
-    files_arg = [name for name in files_arg if name not in inspector_headers]
+    files_arg = [name for name in files_arg if name in v8_headers]
     action(files_arg, dest)
 
   action([
@@ -182,7 +190,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
+  subdir_files('deps/v8/include', 'include/node/', wanted_v8_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)

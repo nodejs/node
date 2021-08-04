@@ -31,7 +31,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
-  static FieldAccess ForMap();
+  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier);
 
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
@@ -58,7 +58,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectElements();
 
   // Provides access to JSObject inobject property fields.
-  static FieldAccess ForJSObjectInObjectProperty(const MapRef& map, int index);
+  static FieldAccess ForJSObjectInObjectProperty(
+      const MapRef& map, int index,
+      MachineType machine_type = MachineType::AnyTagged());
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
@@ -221,8 +223,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Module::regular_imports() field.
   static FieldAccess ForModuleRegularImports();
 
-  // Provides access to Name::hash_field() field.
-  static FieldAccess ForNameHashField();
+  // Provides access to Name::raw_hash_field() field.
+  static FieldAccess ForNameRawHashField();
 
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();
@@ -344,8 +346,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFeedbackCellInterruptBudget();
 
   // Provides access to a FeedbackVector fields.
+  static FieldAccess ForFeedbackVectorInvocationCount();
+  static FieldAccess ForFeedbackVectorFlags();
   static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
-  static FieldAccess ForFeedbackVectorOptimizedCodeWeakOrSmi();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

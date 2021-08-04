@@ -5,6 +5,7 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -65,9 +66,7 @@ struct IntrinsicFunctionIdentifier {
     const IntrinsicFunctionIdentifier* rhs =
         static_cast<IntrinsicFunctionIdentifier*>(key2);
     if (lhs->length_ != rhs->length_) return false;
-    return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs->data_),
-                                reinterpret_cast<const uint8_t*>(rhs->data_),
-                                rhs->length_) == 0;
+    return CompareCharsEqual(lhs->data_, rhs->data_, rhs->length_);
   }
 
   uint32_t Hash() {
@@ -139,8 +138,10 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowUnsupportedSuperError:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return false;
     default:
       return true;
@@ -174,8 +175,10 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowConstAssignError:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     default:
       return false;
@@ -206,6 +209,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kOptimizeFunctionOnNextCall:
     case Runtime::kOptimizeOsr:
     case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kPretenureAllocationSite:
     case Runtime::kSetAllocationTimeout:
     case Runtime::kSimulateNewspaceFull:
       return true;
@@ -215,7 +219,11 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
+    case Runtime::kVerifyType:
       return !FLAG_allow_natives_for_differential_fuzzing;
+    case Runtime::kCompileBaseline:
+    case Runtime::kBaselineOsr:
+      return FLAG_sparkplug;
     default:
       return false;
   }
@@ -256,8 +264,8 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
   if (!isolate->runtime_state()->redirected_intrinsic_functions()) {
     size_t function_count = arraysize(kIntrinsicFunctions);
     Function* redirected_functions = new Function[function_count];
-    memcpy(redirected_functions, kIntrinsicFunctions,
-           sizeof(kIntrinsicFunctions));
+    base::Memcpy(redirected_functions, kIntrinsicFunctions,
+                 sizeof(kIntrinsicFunctions));
     for (size_t i = 0; i < function_count; i++) {
       ExternalReference redirected_entry =
           ExternalReference::Create(static_cast<Runtime::FunctionId>(i));

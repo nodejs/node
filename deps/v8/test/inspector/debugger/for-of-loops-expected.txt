@@ -2,8 +2,6 @@ Tests breakable locations in for-of loops.
 
 Running test: testBreakLocations
 
-Running test: testStepInto
-
 function testFunction() {
   var obj = |_|{a : 1};
   var arr = |_|[1];
@@ -33,6 +31,8 @@ function testFunction() {
   for (let |C|k of |_|iterable) { all.|C|push(k); }
 |R|}
 
+
+Running test: testStepInto
 (anonymous) (expr.js:0:0)
 
 
@@ -404,4 +404,26 @@ testFunction (test.js:25:11)
         next() {
           if (this.#i < 1) {
             return { value: this.i++, done: false };
+
+
+Running test: testSetBreakpoint
+Setting breakpoint at test.js:25:0
+  };
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:25:11
+  };
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:25:16
+  };
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:25:28
+  };
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
 

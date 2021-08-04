@@ -14,12 +14,13 @@ const { subtle } = require('crypto').webcrypto;
 (async function() {
 
   const key = await subtle.generateKey({
-    name: 'hmac',
-    length: 123
+    name: 'HMAC',
+    hash: 'SHA-256',
+    length: 256
   }, true, ['sign', 'verify']);
 
   const digest = await subtle.sign({
-    name: 'hmac'
+    name: 'HMAC'
   }, key, 'I love cupcakes');
 
 })();
@@ -62,6 +63,26 @@ async function generateEcKey(namedCurve = 'P-521') {
   }, true, ['sign', 'verify']);
 
   return { publicKey, privateKey };
+}
+```
+
+#### ED25519/ED448/X25519/X448 Elliptic curve key pairs
+
+```js
+const { subtle } = require('crypto').webcrypto;
+
+async function generateEd25519Key() {
+  return subtle.generateKey({
+    name: 'NODE-ED25519',
+    namedCurve: 'NODE-ED25519',
+  }, true, ['sign', 'verify']);
+}
+
+async function generateX25519Key() {
+  return subtle.generateKey({
+    name: 'ECDH',
+    namedCurve: 'NODE-X25519',
+  }, true, ['deriveKey']);
 }
 ```
 
@@ -166,7 +187,7 @@ const { subtle } = require('crypto').webcrypto;
 async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
   const [
     key,
-    wrappingKey
+    wrappingKey,
   ] = await Promise.all([
     subtle.generateKey({
       name: 'HMAC', hash
@@ -174,7 +195,7 @@ async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
     subtle.generateKey({
       name: 'AES-KW',
       length: 256
-    }, true, ['wrapKey', 'unwrapKey'])
+    }, true, ['wrapKey', 'unwrapKey']),
   ]);
 
   const wrappedKey = await subtle.wrapKey(format, key, wrappingKey, 'AES-KW');
@@ -254,7 +275,7 @@ async function pbkdf2Key(pass, salt, iterations = 1000, length = 256) {
     ec.encode(pass),
     'PBKDF2',
     false,
-    ['deriveBits']);
+    ['deriveKey']);
   const key = await subtle.deriveKey({
     name: 'PBKDF2',
     hash: 'SHA-512',
@@ -305,6 +326,8 @@ implementation and the APIs supported for each:
 | `'SHA-512'`           |   |   |   |   |   |   |   |   |   |   |   | ✔ |
 | `'NODE-DSA'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
 | `'NODE-DH'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   | ✔ | ✔ |   |   |   |
+| `'NODE-ED25519'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
+| `'NODE-ED448'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -420,6 +443,8 @@ Valid key usages depend on the key algorithm (identified by
 | `'NODE-DSA'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
 | `'NODE-DH'` <sup>1</sup> |   |   |   |   | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   |   | ✔ | ✔ |   |   |
+| `'NODE-ED25519'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
+| `'NODE-ED448'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
 
 <sup>1</sup> Node.js-specific extension.
 
@@ -511,7 +536,7 @@ added: v15.0.0
 * `derivedKeyAlgorithm`: {HmacKeyGenParams|AesKeyGenParams}
 * `extractable`: {boolean}
 * `keyUsages`: {string[]} See [Key usages][].
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} containing {CryptoKey}
 <!--lint enable maximum-line-length remark-lint-->
 
 Using the method and parameters specified in `algorithm`, and the keying
@@ -580,13 +605,17 @@ The algorithms currently supported include:
 ### `subtle.exportKey(format, key)`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: v15.9.0
+    pr-url: https://github.com/nodejs/node/pull/37203
+    description: Removed `'NODE-DSA'` JWK export.
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
-  `node.keyObject`.
+  `'node.keyObject'`.
 * `key`: {CryptoKey}
 * Returns: {Promise} containing {ArrayBuffer}, or, if `format` is
-  `node.keyObject`, a {KeyObject}.
+  `'node.keyObject'`, a {KeyObject}.
 
 Exports the given key into the specified format, if supported.
 
@@ -617,9 +646,11 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 | `'RSA-OAEP'`          | ✔ | ✔ | ✔ |   |
 | `'RSA-PSS'`           | ✔ | ✔ | ✔ |   |
 | `'RSASSA-PKCS1-v1_5'` | ✔ | ✔ | ✔ |   |
-| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
+| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   |   |
+| `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
+| `'NODE-ED448'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -629,7 +660,7 @@ added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
-* `algorithm`: {RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* `algorithm`: {RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams|NodeEdKeyGenParams}
 <!--lint enable maximum-line-length remark-lint-->
 * `extractable`: {boolean}
 * `keyUsages`: {string[]} See [Key usages][].
@@ -649,6 +680,8 @@ include:
 * `'ECDH'`
 * `'NODE-DSA'` <sup>1</sup>
 * `'NODE-DH'` <sup>1</sup>
+* `'NODE-ED25519'` <sup>1</sup>
+* `'NODE-ED448'` <sup>1</sup>
 
 The {CryptoKey} (secret key) generating algorithms supported include:
 
@@ -663,13 +696,17 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 ### `subtle.importKey(format, keyData, algorithm, extractable, keyUsages)`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: v15.9.0
+    pr-url: https://github.com/nodejs/node/pull/37203
+    description: Removed `'NODE-DSA'` JWK import.
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
-  `node.keyObject`.
+  `'node.keyObject'`.
 * `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|KeyObject}
 <!--lint disable maximum-line-length remark-lint-->
-* `algorithm`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams|Pbkdf2ImportParams|NodeDsaImportParams|NodeDhImportParams|NodeScryptImportParams}
+* `algorithm`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams|Pbkdf2ImportParams|NodeDsaImportParams|NodeDhImportParams|NodeScryptImportParams|NodeEdKeyImportParams}
 <!--lint enable maximum-line-length remark-lint-->
 * `extractable`: {boolean}
 * `keyUsages`: {string[]} See [Key usages][].
@@ -701,9 +738,11 @@ The algorithms currently supported include:
 | `'RSA-OAEP'`          | ✔ | ✔ | ✔ |   |
 | `'RSA-PSS'`           | ✔ | ✔ | ✔ |   |
 | `'RSASSA-PKCS1-v1_5'` | ✔ | ✔ | ✔ |   |
-| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
+| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   | ✔ |
+| `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
+| `'NODE-ED448'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -731,8 +770,10 @@ The algorithms currently supported include:
 * `'ECDSA'`
 * `'HMAC'`
 * `'NODE-DSA'`<sup>1</sup>
+* `'NODE-ED25519'`<sup>1</sup>
+* `'NODE-ED448'`<sup>1</sup>
 
-<sup>1</sup> Non-standadrd Node.js extension
+<sup>1</sup> Non-standard Node.js extension
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
 <!-- YAML
@@ -809,6 +850,8 @@ The algorithms currently supported include:
 * `'ECDSA'`
 * `'HMAC'`
 * `'NODE-DSA'`<sup>1</sup>
+* `'NODE-ED25519'`<sup>1</sup>
+* `'NODE-ED448'`<sup>1</sup>
 
 <sup>1</sup> Non-standard Node.js extension
 
@@ -942,14 +985,14 @@ added: v15.0.0
 
 * Type: {number} The size in bits of the generated authentication tag.
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
-  `128`. **Default**: `128`.
+  `128`. **Default:** `128`.
 
 ### Class: `AesImportParams`
 <!-- YAML
 added: v15.0.0
 -->
 
-#### 'aesImportParams.name`
+#### `aesImportParams.name`
 <!-- YAML
 added: v15.0.0
 -->
@@ -1062,7 +1105,8 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
+* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`,
+  `'NODE-ED25519'`, `'NODE-ED448'`, `'NODE-X25519'`, or `'NODE-X448'`.
 
 ### Class: `EcKeyImportParams`
 <!-- YAML
@@ -1081,7 +1125,8 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
+* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`,
+  `'NODE-ED25519'`, `'NODE-ED448'`, `'NODE-X25519'`, or `'NODE-X448'`.
 
 ### Class: `HkdfParams`
 <!-- YAML
@@ -1130,7 +1175,7 @@ added: v15.0.0
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
 
 The salt value significantly improves the strength of the HKDF algorithm.
-It should be random or pseudo-random and should be the same length as the
+It should be random or pseudorandom and should be the same length as the
 output of the digest function (for instance, if using `'SHA-256'` as the
 digest, the salt should be 256-bits of random data).
 
@@ -1282,7 +1327,7 @@ added: v15.0.0
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
 
-Should be at least 16 random or pseudo-random bytes.
+Should be at least 16 random or pseudorandom bytes.
 
 ### Class: `RsaHashedImportParams`
 <!-- YAML
@@ -1428,7 +1473,7 @@ added: v15.0.0
 
 The Node.js Web Crypto API extends various aspects of the Web Crypto API.
 These extensions are consistently identified by prepending names with the
-`node.` prefix. For instance, the `node.keyObject` key format can be
+`node.` prefix. For instance, the `'node.keyObject'` key format can be
 used with the `subtle.exportKey()` and `subtle.importKey()` methods to
 convert between a WebCrypto {CryptoKey} object and a Node.js {KeyObject}.
 
@@ -1598,6 +1643,63 @@ added: v15.0.0
 
 * Type: {string} Must be `'NODE-DSA'`
 
+### `NODE-ED25519` and `NODE-ED448` Algorithms
+<!-- YAML
+added: v15.8.0
+-->
+
+#### Class: `NodeEdKeyGenParams`
+<!-- YAML
+added: v15.8.0
+-->
+
+##### `nodeEdKeyGenParams.name`
+<!-- YAML
+added: v15.8.0
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'` or `'ECDH'`.
+
+##### `nodeEdKeyGenParams.namedCurve`
+<!-- YAML
+added: v15.8.0
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
+  `'NODE-X25519'`, or `'NODE-X448'`.
+
+#### Class: `NodeEdKeyImportParams`
+<!-- YAML
+added: v15.8.0
+-->
+
+##### `nodeEdKeyImportParams.name`
+<!-- YAML
+added: v15.8.0
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'` or `'NODE-ED448'`
+  if importing an `Ed25519` or `Ed448` key, or `'ECDH'` if importing
+  an `X25519` or `X448` key.
+
+##### `nodeEdKeyImportParams.namedCurve`
+<!-- YAML
+added: v15.8.0
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
+  `'NODE-X25519'`, or `'NODE-X448'`.
+
+##### `nodeEdKeyImportParams.public`
+<!-- YAML
+added: v15.8.0
+-->
+
+* Type: {boolean}
+
+The `public` parameter is used to specify that the `'raw'` format key is to be
+interpreted as a public key. **Default:** `false`.
+
 ### `NODE-SCRYPT` Algorithm
 <!-- YAML
 added: v15.0.0
@@ -1644,21 +1746,21 @@ added: v15.0.0
 -->
 
 * Type: {number} The CPU/memory cost parameter. Must e a power of two
-  greater than 1. **Default** `16384`.
+  greater than 1. **Default:** `16384`.
 
 ##### `nodeScryptParams.p`
 <!-- YAML
 added: v15.0.0
 -->
 
-* Type: {number} Parallelization parameter. **Default** `1`.
+* Type: {number} Parallelization parameter. **Default:** `1`.
 
 ##### `nodeScryptParams.r`
 <!-- YAML
 added: v15.0.0
 -->
 
-* Type: {number} Block size parameter. **Default**: `8`.
+* Type: {number} Block size parameter. **Default:** `8`.
 
 ##### `nodeScryptParams.salt`
 <!-- YAML

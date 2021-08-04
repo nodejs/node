@@ -5,7 +5,7 @@
 
 "use strict";
 
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const astUtils = require("./utils/ast-utils");
 
 const CHAR_LIMIT = 40;

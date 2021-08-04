@@ -27,16 +27,18 @@ JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
     : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(broker()->is_concurrent_inlining());
-
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
-  if (f->function_id == Runtime::kTurbofanStaticAssert) {
-    return ReduceTurbofanStaticAssert(node);
-  }
-  if (f->function_id == Runtime::kIsBeingInterpreted) {
-    return ReduceIsBeingInterpreted(node);
+  switch (f->function_id) {
+    case Runtime::kIsBeingInterpreted:
+      return ReduceIsBeingInterpreted(node);
+    case Runtime::kTurbofanStaticAssert:
+      return ReduceTurbofanStaticAssert(node);
+    case Runtime::kVerifyType:
+      return ReduceVerifyType(node);
+    default:
+      break;
   }
   if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
@@ -82,8 +84,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToLength(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
-    case Runtime::kInlineToString:
-      return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
     case Runtime::kInlineIncBlockCounter:
@@ -292,6 +292,10 @@ Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
   return Changed(jsgraph_->UndefinedConstant());
 }
 
+Reduction JSIntrinsicLowering::ReduceVerifyType(Node* node) {
+  return Change(node, simplified()->VerifyType());
+}
+
 Reduction JSIntrinsicLowering::ReduceIsBeingInterpreted(Node* node) {
   RelaxEffectsAndControls(node);
   return Changed(jsgraph_->FalseConstant());
@@ -323,7 +327,7 @@ Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
 Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
   // ToString is unnecessary if the input is a string.
   HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
-  if (m.HasValue() && m.Ref(broker()).IsString()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
     ReplaceWithValue(node, m.node());
     return Replace(m.node());
   }

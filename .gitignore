@@ -117,7 +117,7 @@ tools/*/*.i.tmp
 /build
 /coverage
 
-# === Rules for XCode artifacts ===
+# === Rules for Xcode artifacts ===
 *.xcodeproj
 *.xcworkspace
 *.pbxproj
@@ -133,11 +133,20 @@ tools/*/*.i.tmp
 /deps/uv/.github/
 /deps/uv/docs/code/
 /deps/uv/docs/src/guide/
-# Ignore dependencies fetched by deps/v8/tools/node/fetch_deps.py
+# Ignore dependencies fetched by tools/v8/fetch_deps.py
 /deps/.cipd
 
 # === Rules for Windows vcbuild.bat ===
 /temp-vcbuild
+
+# === Rules for CMake ===
+cmake-build-debug/
+CMakeCache.txt
+CMakeFiles
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+*.cbp
 
 # === Global Rules ===
 # Keep last to avoid being excluded

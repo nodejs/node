@@ -15,7 +15,8 @@
     "requires": ["small-icu"]
   },
   "textdecoder-streaming.any.js": {
-    "requires": ["small-icu"]
+    "requires": ["small-icu"],
+    "fail": "WebAssembly.Memory does not support shared:true"
   },
   "textdecoder-utf16-surrogates.any.js": {
     "requires": ["small-icu"]
@@ -50,5 +51,22 @@
   },
   "streams/*.js": {
     "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  },
+  "encodeInto.any.js": {
+    "fail": "WebAssembly.Memory does not support shared:true"
+  },
+  "textdecoder-copy.any.js": {
+    "fail": "WebAssembly.Memory does not support shared:true"
+  },
+  "legacy-mb-schinese/gbk/gbk-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gbk encoding is not supported"
+  },
+  "legacy-mb-schinese/gb18030/gb18030-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gb18030 encoding is not supported"
+  },
+  "textdecoder-arguments.any.js": {
+    "fail": "Does not support flushing an incomplete sequence"
   }
 }
