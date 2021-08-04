@@ -19,12 +19,13 @@ Last update:
 - html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
-- interfaces: https://github.com/web-platform-tests/wpt/tree/80a4176623/interfaces
+- interfaces: https://github.com/web-platform-tests/wpt/tree/fc086c82d5/interfaces
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
 - resources: https://github.com/web-platform-tests/wpt/tree/972ca5b669/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/8f60d94439/streams
 - url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
+- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/cdd0f03df4/WebCryptoAPI
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt
