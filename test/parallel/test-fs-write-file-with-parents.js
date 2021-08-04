@@ -78,7 +78,7 @@ tmpdir.refresh();
       path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test3.txt'),
       path.join(tmpdir.path, functionName + 'Promisified/mkdirp/test4.txt'),
     ].forEach((pathname) => {
-      fs.promises.[functionName](
+      fs.promises[functionName](
         pathname,
         'hello world!',
         { parents: true }

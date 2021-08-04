@@ -23,6 +23,12 @@
 'use strict';
 
 
+(function () {
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+}());
+
+
 // Copied from /test/parallel/test-fs-open.js using options-signature
 (function() {
   const common = require('../common');
@@ -112,22 +118,19 @@
     assert.throws(
       () => fs.open(__filename, { flags: 'r', mode }, common.mustNotCall()),
       {
-        message: /'mode' must be a 32-bit/,
-        code: 'ERR_INVALID_ARG_VALUE'
+        code: 'ERR_INVALID_ARG_TYPE'
       }
     );
     assert.throws(
       () => fs.openSync(__filename, { flags: 'r', mode }, common.mustNotCall()),
       {
-        message: /'mode' must be a 32-bit/,
-        code: 'ERR_INVALID_ARG_VALUE'
+        code: 'ERR_INVALID_ARG_TYPE'
       }
     );
     assert.rejects(
       fs.promises.open(__filename, { flags: 'r', mode }),
       {
-        message: /'mode' must be a 32-bit/,
-        code: 'ERR_INVALID_ARG_VALUE'
+        code: 'ERR_INVALID_ARG_TYPE'
       }
     );
   });
@@ -147,7 +150,7 @@
 
   if (common.isLinux || common.isOSX) {
     const tmpdir = require('../common/tmpdir');
-    tmpdir.refresh();
+    // tmpdir.refresh();
     const file = path.join(tmpdir.path, 'a.js');
     fs.copyFileSync(fixtures.path('a.js'), file);
     fs.open(file, { flags: fs.constants.O_DSYNC }, common.mustSucceed((fd) => {
@@ -180,7 +183,7 @@
 
     {
       const file = path.join(tmpdir.path, `openSync-${suffix}.txt`);
-      const fd = fs.openSync(file, { flags: 'w+', mask: input });
+      const fd = fs.openSync(file, { flags: 'w+', mode: input });
       assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
       fs.closeSync(fd);
       assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
@@ -188,7 +191,7 @@
 
     {
       const file = path.join(tmpdir.path, `open-${suffix}.txt`);
-      fs.open(file, { flags: 'w+', mask: input }, common.mustSucceed((fd) => {
+      fs.open(file, { flags: 'w+', mode: input }, common.mustSucceed((fd) => {
         assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode);
         fs.closeSync(fd);
         assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
@@ -218,15 +221,20 @@
   const tmpdir = require('../common/tmpdir');
   // tmpdir.refresh();
 
-  {
-    fs.open(`${tmpdir.path}/dummy`, {
-      flags: 'wx+'
-    }, common.mustCall((err, fd) => {
-      debuglog('fs open() callback');
-      assert.ifError(err);
-    }));
-    debuglog('waiting for callback');
-  }
+  let openFd;
+
+  fs.open(`${tmpdir.path}/dummy`, {flags: 'wx+'}, common.mustCall((err, fd) => {
+    debuglog('fs open() callback');
+    assert.ifError(err);
+    openFd = fd;
+  }));
+  debuglog('waiting for callback');
+
+  process.on('beforeExit', common.mustCall(() => {
+    if (openFd) {
+      fs.closeSync(openFd);
+    }
+  }));
 }());
 
 
