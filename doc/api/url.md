@@ -1169,7 +1169,7 @@ expected by the [`http.request()`][] and [`https.request()`][] APIs.
 import { urlToHttpOptions } from 'url';
 const myURL = new URL('https://a:b@測試?abc#foo');
 
-console.log(urlToHttpOptions(myUrl));
+console.log(urlToHttpOptions(myURL));
 /**
 {
   protocol: 'https:',
