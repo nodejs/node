@@ -599,12 +599,14 @@ setTimeout(() => ac.abort(), 10000);
 added: REPLACEME
 -->
 
-#### `new readlinePromises.Readline(stream)`
+#### `new readlinePromises.Readline(stream[, options])`
 <!-- YAML
 added: REPLACEME
 -->
 
 * `stream` {stream.Writable} A [TTY][] stream.
+* `options` {Object}
+  * `autoCommit` {boolean} If `true`, no need to call `rl.commit()`.
 
 #### `rl.clearLine(dir)`
 <!-- YAML
@@ -620,7 +622,8 @@ added: REPLACEME
 The `rl.clearLine()` method adds to the internal list of pending action an
 action that clears current line of the associated `stream` in a specified
 direction identified by `dir`.
-You need to call `rl.commit()` to see the effect of this method.
+Call `rl.commit()` to see the effect of this method, unless `autoCommit: true`
+was passed to the constructor.
 
 #### `rl.clearScreenDown()`
 <!-- YAML
@@ -632,7 +635,8 @@ added: REPLACEME
 The `rl.clearScreenDown()` method adds to the internal list of pending action an
 action that clears the associated stream from the current position of the
 cursor down.
-You need to call `rl.commit()` to see the effect of this method.
+Call `rl.commit()` to see the effect of this method, unless `autoCommit: true`
+was passed to the constructor.
 
 #### `rl.commit()`
 <!-- YAML
@@ -655,7 +659,8 @@ added: REPLACEME
 
 The `rl.cursorTo()` method adds to the internal list of pending action an action
 that moves cursor to the specified position in the associated `stream`.
-You need to call `rl.commit()` to see the effect of this method.
+Call `rl.commit()` to see the effect of this method, unless `autoCommit: true`
+was passed to the constructor.
 
 #### `rl.moveCursor(dx, dy)`
 <!-- YAML
@@ -669,7 +674,8 @@ added: REPLACEME
 The `rl.moveCursor()` method adds to the internal list of pending action an
 action that moves the cursor *relative* to its current position in the
 associated `stream`.
-You need to call `rl.commit()` to see the effect of this method.
+Call `rl.commit()` to see the effect of this method, unless `autoCommit: true`
+was passed to the constructor.
 
 #### `rl.rollback()`
 <!-- YAML
