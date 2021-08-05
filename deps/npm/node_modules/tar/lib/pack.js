@@ -134,9 +134,6 @@ const Pack = warner(class Pack extends MiniPass {
 
   [ADDTARENTRY] (p) {
     const absolute = path.resolve(this.cwd, p.path)
-    if (this.prefix)
-      p.path = this.prefix + '/' + p.path.replace(/^\.(\/+|$)/, '')
-
     // in this case, we don't have to wait for the stat
     if (!this.filter(p.path, p))
       p.resume()
@@ -153,9 +150,6 @@ const Pack = warner(class Pack extends MiniPass {
 
   [ADDFSENTRY] (p) {
     const absolute = path.resolve(this.cwd, p)
-    if (this.prefix)
-      p = this.prefix + '/' + p.replace(/^\.(\/+|$)/, '')
-
     this[QUEUE].push(new PackJob(p, absolute))
     this[PROCESS]()
   }
@@ -298,6 +292,7 @@ const Pack = warner(class Pack extends MiniPass {
       statCache: this.statCache,
       noMtime: this.noMtime,
       mtime: this.mtime,
+      prefix: this.prefix,
     }
   }
 
@@ -323,10 +318,7 @@ const Pack = warner(class Pack extends MiniPass {
 
     if (job.readdir) {
       job.readdir.forEach(entry => {
-        const p = this.prefix ?
-          job.path.slice(this.prefix.length + 1) || './'
-          : job.path
-
+        const p = job.path
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })
@@ -381,10 +373,7 @@ class PackSync extends Pack {
 
     if (job.readdir) {
       job.readdir.forEach(entry => {
-        const p = this.prefix ?
-          job.path.slice(this.prefix.length + 1) || './'
-          : job.path
-
+        const p = job.path
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })

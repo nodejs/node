@@ -22,7 +22,7 @@ class Set extends BaseCommand {
 
   exec (args, cb) {
     if (!args.length)
-      return cb(this.usage)
+      return cb(this.usageError())
     this.npm.commands.config(['set'].concat(args), cb)
   }
 }
