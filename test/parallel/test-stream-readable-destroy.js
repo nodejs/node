@@ -325,13 +325,14 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
   read.on('data', common.mustNotCall());
   read.on('error', common.mustCall((e) => {
+    read.push('asd');
     read.read();
   }));
   read.on('close', common.mustCall((e) => {
+    read.push('asd');
     read.read();
   }));
   read.destroy(new Error('asd'));
@@ -342,10 +343,10 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
   read.on('data', common.mustNotCall());
   read.on('close', common.mustCall((e) => {
+    read.push('asd');
     read.read();
   }));
   read.destroy();
@@ -356,10 +357,10 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
   read.on('data', common.mustNotCall());
   read.on('close', common.mustCall((e) => {
+    read.push('asd');
     read.unshift('asd');
   }));
   read.destroy();
@@ -370,7 +371,6 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
   read.on('data', common.mustNotCall());
   read.destroy();
@@ -382,8 +382,8 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
+  read.resume();
   read.on('data', common.mustNotCall());
   read.on('close', common.mustCall((e) => {
     read.push('asd');
@@ -396,7 +396,6 @@ const assert = require('assert');
     read() {
     },
   });
-  read.push('asd');
 
   read.on('data', common.mustNotCall());
   read.destroy();
