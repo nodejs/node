@@ -6,20 +6,22 @@
 
 <!-- type=misc -->
 
-Node.js includes an out-of-process debugging utility accessible via a
-[V8 Inspector][] and built-in debugging client. To use it, start Node.js
-with the `inspect` argument followed by the path to the script to debug; a
-prompt will be displayed indicating successful launch of the debugger:
+Node.js includes a command-line debugging utility. To use it, start Node.js
+with the `inspect` argument followed by the path to the script to debug.
 
 ```console
 $ node inspect myscript.js
-< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
-Break on start in myscript.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-  3   console.log('world');
+<
+ ok
+Break on start in myscript.js:2
+  1 // myscript.js
+> 2 global.x = 5;
+  3 setTimeout(() => {
+  4   debugger;
 debug>
 ```
 
@@ -44,28 +46,33 @@ Once the debugger is run, a breakpoint will occur at line 3:
 
 ```console
 $ node inspect myscript.js
-< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
-Break on start in myscript.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-  3   debugger;
+<
+ ok
+Break on start in myscript.js:2
+  1 // myscript.js
+> 2 global.x = 5;
+  3 setTimeout(() => {
+  4   debugger;
 debug> cont
 < hello
-break in myscript.js:3
-  1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-> 3   debugger;
-  4   console.log('world');
-  5 }, 1000);
-debug> next
+<
 break in myscript.js:4
-  2 setTimeout(() => {
-  3   debugger;
-> 4   console.log('world');
-  5 }, 1000);
-  6 console.log('hello');
+  2 global.x = 5;
+  3 setTimeout(() => {
+> 4   debugger;
+  5   console.log('world');
+  6 }, 1000);
+debug> next
+break in myscript.js:5
+  3 setTimeout(() => {
+  4   debugger;
+> 5   console.log('world');
+  6 }, 1000);
+  7 console.log('hello');
 debug> repl
 Press Ctrl+C to leave debug repl
 > x
@@ -74,13 +81,15 @@ Press Ctrl+C to leave debug repl
 4
 debug> next
 < world
-break in myscript.js:5
-  3   debugger;
-  4   console.log('world');
-> 5 }, 1000);
-  6 console.log('hello');
-  7
+<
+break in myscript.js:6
+  4   debugger;
+  5   console.log('world');
+> 6 }, 1000);
+  7 console.log('hello');
+  8
 debug> .exit
+$
 ```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
@@ -129,11 +138,14 @@ is not loaded yet:
 
 ```console
 $ node inspect main.js
-< Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
+< Debugger listening on ws://127.0.0.1:9229/48a5b28a-550c-471b-b5e1-d13dd7165df9
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
+<
+ ok
 Break on start in main.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
+> 1 const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
 debug> setBreakpoint('mod.js', 22)
@@ -239,6 +251,5 @@ Chrome DevTools doesn't support debugging [worker threads][] yet.
 [ndb][] can be used to debug them.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
 [worker threads]: worker_threads.md
