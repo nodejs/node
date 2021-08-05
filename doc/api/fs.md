@@ -172,7 +172,7 @@ added: v15.4.0
 The `'close'` event is emitted when the {FileHandle} has been closed and can no
 longer be used.
 
-#### `filehandle.appendFile(data[, options])`
+#### `filehandle.appendFile(data,[ options])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -371,7 +371,7 @@ If one or more `filehandle.read()` calls are made on a file handle and then a
 position till the end of the file. It doesn't always read from the beginning
 of the file.
 
-#### `filehandle.readv(buffers[, position])`
+#### `filehandle.readv(buffers,[position])`
 <!-- YAML
 added:
  - v13.13.0
@@ -459,7 +459,7 @@ added: v10.0.0
 Change the file system timestamps of the object referenced by the {FileHandle}
 then resolves the promise with no arguments upon success.
 
-#### `filehandle.write(buffer[, offset[, length[, position]]])`
+#### `filehandle.write(buffer,[offset,[length,[position]]])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -503,7 +503,7 @@ On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-#### `filehandle.write(string[, position[, encoding]])`
+#### `filehandle.write(string,[position, [encoding]])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -577,7 +577,7 @@ If one or more `filehandle.write()` calls are made on a file handle and then a
 current position till the end of the file. It doesn't always write from the
 beginning of the file.
 
-#### `filehandle.writev(buffers[, position])`
+#### `filehandle.writev(buffers,[position])`
 <!-- YAML
 added: v12.9.0
 -->
@@ -603,7 +603,7 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-### `fsPromises.access(path[, mode])`
+### `fsPromises.access(path,[mode])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -641,7 +641,7 @@ condition, since other processes may change the file's state between the two
 calls. Instead, user code should open/read/write the file directly and handle
 the error raised if the file is not accessible.
 
-### `fsPromises.appendFile(path, data[, options])`
+### `fsPromises.appendFile(path, data,[ options])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -685,7 +685,7 @@ added: v10.0.0
 
 Changes the ownership of a file.
 
-### `fsPromises.copyFile(src, dest[, mode])`
+### `fsPromises.copyFile(src, dest[mode])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -797,7 +797,7 @@ added: v10.0.0
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail.
 
-### `fsPromises.lstat(path[, options])`
+### `fsPromises.lstat(path,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -818,7 +818,7 @@ Equivalent to [`fsPromises.stat()`][] unless `path` refers to a symbolic link,
 in which case the link itself is stat-ed, not the file that it refers to.
 Refer to the POSIX lstat(2) document for more detail.
 
-### `fsPromises.mkdir(path[, options])`
+### `fsPromises.mkdir(path,[options])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -838,7 +838,7 @@ property indicating whether parent directories should be created. Calling
 `fsPromises.mkdir()` when `path` is a directory that exists results in a
 rejection only when `recursive` is false.
 
-### `fsPromises.mkdtemp(prefix[, options])`
+### `fsPromises.mkdtemp(prefix,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -878,7 +878,7 @@ characters directly to the `prefix` string. For instance, given a directory
 `prefix` must end with a trailing platform-specific path separator
 (`require('path').sep`).
 
-### `fsPromises.open(path, flags[, mode])`
+### `fsPromises.open(path, flags,[mode])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -903,7 +903,7 @@ by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
-### `fsPromises.opendir(path[, options])`
+### `fsPromises.opendir(path, [options])`
 <!-- YAML
 added: v12.12.0
 changes:
@@ -948,7 +948,7 @@ try {
 When using the async iterator, the {fs.Dir} object will be automatically
 closed after the iterator exits.
 
-### `fsPromises.readdir(path[, options])`
+### `fsPromises.readdir(path,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -986,7 +986,7 @@ try {
 }
 ```
 
-### `fsPromises.readFile(path[, options])`
+### `fsPromises.readFile(path,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1041,7 +1041,7 @@ system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified {FileHandle} has to support reading.
 
-### `fsPromises.readlink(path[, options])`
+### `fsPromises.readlink(path,[options])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1059,7 +1059,7 @@ object with an `encoding` property specifying the character encoding to use for
 the link path returned. If the `encoding` is set to `'buffer'`, the link path
 returned will be passed as a {Buffer} object.
 
-### `fsPromises.realpath(path[, options])`
+### `fsPromises.realpath(path,[options])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1094,7 +1094,7 @@ added: v10.0.0
 
 Renames `oldPath` to `newPath`.
 
-### `fsPromises.rmdir(path[, options])`
+### `fsPromises.rmdir(path,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1151,7 +1151,7 @@ error on POSIX.
 To get a behavior similar to the `rm -rf` Unix command, use
 [`fsPromises.rm()`][] with options `{ recursive: true, force: true }`.
 
-### `fsPromises.rm(path[, options])`
+### `fsPromises.rm(path,[options])`
 <!-- YAML
 added: v14.14.0
 -->
@@ -1174,7 +1174,7 @@ added: v14.14.0
 
 Removes files and directories (modeled on the standard POSIX `rm` utility).
 
-### `fsPromises.stat(path[, options])`
+### `fsPromises.stat(path,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1208,7 +1208,7 @@ The `type` argument is only used on Windows platforms and can be one of `'dir'`,
 to be absolute. When using `'junction'`, the `target` argument will
 automatically be normalized to absolute path.
 
-### `fsPromises.truncate(path[, len])`
+### `fsPromises.truncate(path,[len])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1252,7 +1252,7 @@ The `atime` and `mtime` arguments follow these rules:
 * If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
-### `fsPromises.watch(filename[, options])`
+### `fsPromises.watch(filename,[options])`
 <!-- YAML
 added: v15.9.0
 -->
@@ -1301,7 +1301,7 @@ disappears in the directory.
 
 All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 
-### `fsPromises.writeFile(file, data[, options])`
+### `fsPromises.writeFile(file, data,[options])`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1387,7 +1387,7 @@ system operations off the event loop thread. These operations are not
 synchronized or threadsafe. Care must be taken when performing multiple
 concurrent modifications on the same file or data corruption may occur.
 
-### `fs.access(path[, mode], callback)`
+### `fs.access(path,[ mode], callback)`
 <!-- YAML
 added: v0.11.15
 changes:
@@ -1574,7 +1574,7 @@ a file or directory. The `fs.access()` function, however, does not check the
 ACL and therefore may report that a path is accessible even if the ACL restricts
 the user from reading or writing to it.
 
-### `fs.appendFile(path, data[, options], callback)`
+### `fs.appendFile(path, data,[ options], callback)`
 <!-- YAML
 added: v0.6.7
 changes:
@@ -1798,7 +1798,7 @@ through any other `fs` operation may lead to undefined behavior.
 
 See the POSIX close(2) documentation for more detail.
 
-### `fs.copyFile(src, dest[, mode], callback)`
+### `fs.copyFile(src, dest,[ mode], callback)`
 <!-- YAML
 added: v8.5.0
 changes:
@@ -1848,7 +1848,7 @@ copyFile('source.txt', 'destination.txt', callback);
 copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 ```
 
-### `fs.createReadStream(path[, options])`
+### `fs.createReadStream(path,[ options])`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -1965,7 +1965,7 @@ createReadStream('sample.txt', { start: 90, end: 99 });
 
 If `options` is a string, then it specifies the encoding.
 
-### `fs.createWriteStream(path[, options])`
+### `fs.createWriteStream(path,[ options])`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -2259,7 +2259,7 @@ operating system's synchronized I/O completion state. Refer to the POSIX
 fdatasync(2) documentation for details. No arguments other than a possible
 exception are given to the completion callback.
 
-### `fs.fstat(fd[, options], callback)`
+### `fs.fstat(fd,[ options], callback)`
 <!-- YAML
 added: v0.1.95
 changes:
@@ -2312,7 +2312,7 @@ device. The specific implementation is operating system and device specific.
 Refer to the POSIX fsync(2) documentation for more detail. No arguments other
 than a possible exception are given to the completion callback.
 
-### `fs.ftruncate(fd[, len], callback)`
+### `fs.ftruncate(fd,[ len], callback)`
 <!-- YAML
 added: v0.8.6
 changes:
@@ -2506,7 +2506,7 @@ Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail. No arguments other than a possible
 exception are given to the completion callback.
 
-### `fs.lstat(path[, options], callback)`
+### `fs.lstat(path,[ options], callback)`
 <!-- YAML
 added: v0.1.30
 changes:
@@ -2543,7 +2543,7 @@ link, then the link itself is stat-ed, not the file that it refers to.
 
 See the POSIX lstat(2) documentation for more details.
 
-### `fs.mkdir(path[, options], callback)`
+### `fs.mkdir(path,[ options], callback)`
 <!-- YAML
 added: v0.1.8
 changes:
@@ -2613,7 +2613,7 @@ mkdir('/', { recursive: true }, (err) => {
 
 See the POSIX mkdir(2) documentation for more details.
 
-### `fs.mkdtemp(prefix[, options], callback)`
+### `fs.mkdtemp(prefix,[ options], callback)`
 <!-- YAML
 added: v5.10.0
 changes:
@@ -2697,7 +2697,7 @@ mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
 });
 ```
 
-### `fs.open(path[, flags[, mode]], callback)`
+### `fs.open(path,[ flags,[ mode]], callback)`
 <!-- YAML
 added: v0.0.2
 changes:
@@ -2809,7 +2809,7 @@ number of bytes read is zero.
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a promise for an `Object` with `bytesRead` and `buffer` properties.
 
-### `fs.read(fd, [options,] callback)`
+### `fs.read(fd, [options], callback)`
 <!-- YAML
 added:
  - v13.11.0
@@ -2883,7 +2883,7 @@ the filenames returned will be passed as {Buffer} objects.
 If `options.withFileTypes` is set to `true`, the `files` array will contain
 {fs.Dirent} objects.
 
-### `fs.readFile(path[, options], callback)`
+### `fs.readFile(path,[ options], callback)`
 <!-- YAML
 added: v0.1.29
 changes:
@@ -3023,7 +3023,7 @@ The Node.js GitHub issue [#25741][] provides more information and a detailed
 analysis on the performance of `fs.readFile()` for multiple file sizes in
 different Node.js versions.
 
-### `fs.readlink(path[, options], callback)`
+### `fs.readlink(path,[ options], callback)`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -3058,7 +3058,7 @@ object with an `encoding` property specifying the character encoding to use for
 the link path passed to the callback. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a {Buffer} object.
 
-### `fs.readv(fd, buffers[, position], callback)`
+### `fs.readv(fd, buffers,[ position], callback)`
 <!-- YAML
 added:
  - v13.13.0
@@ -3086,7 +3086,7 @@ The callback will be given three arguments: `err`, `bytesRead`, and
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a promise for an `Object` with `bytesRead` and `buffers` properties.
 
-### `fs.realpath(path[, options], callback)`
+### `fs.realpath(path,[ options], callback)`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -3147,7 +3147,7 @@ the path returned will be passed as a {Buffer} object.
 If `path` resolves to a socket or a pipe, the function will return a system
 dependent name for that object.
 
-### `fs.realpath.native(path[, options], callback)`
+### `fs.realpath.native(path,[ options], callback)`
 <!-- YAML
 added: v9.2.0
 -->
@@ -3215,7 +3215,7 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 });
 ```
 
-### `fs.rmdir(path[, options], callback)`
+### `fs.rmdir(path,[ options], callback)`
 <!-- YAML
 added: v0.0.2
 changes:
@@ -3285,7 +3285,7 @@ Windows and an `ENOTDIR` error on POSIX.
 To get a behavior similar to the `rm -rf` Unix command, use [`fs.rm()`][]
 with options `{ recursive: true, force: true }`.
 
-### `fs.rm(path[, options], callback)`
+### `fs.rm(path,[ options], callback)`
 <!-- YAML
 added: v14.14.0
 -->
@@ -3311,7 +3311,7 @@ Asynchronously removes files and directories (modeled on the standard POSIX `rm`
 utility). No arguments other than a possible exception are given to the
 completion callback.
 
-### `fs.stat(path[, options], callback)`
+### `fs.stat(path,[ options], callback)`
 <!-- YAML
 added: v0.0.2
 changes:
@@ -3625,7 +3625,7 @@ The `atime` and `mtime` arguments follow these rules:
 * If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
-### `fs.watch(filename[, options][, listener])`
+### `fs.watch(filename,[ options],[ listener])`
 <!-- YAML
 added: v0.5.10
 changes:
@@ -3753,7 +3753,7 @@ watch('somedir', (eventType, filename) => {
 });
 ```
 
-### `fs.watchFile(filename[, options], listener)`
+### `fs.watchFile(filename,[options], listener)`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -3823,7 +3823,7 @@ This happens when:
 * the file is deleted, followed by a restore
 * the file is renamed and then renamed a second time back to its original name
 
-### `fs.write(fd, buffer[, offset[, length[, position]]], callback)`
+### `fs.write(fd, buffer,[offset,[ length,[ position]]], callback)`
 <!-- YAML
 added: v0.0.2
 changes:
@@ -3889,7 +3889,7 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-### `fs.write(fd, string[, position[, encoding]], callback)`
+### `fs.write(fd, string,[ position,[ encoding]], callback)`
 <!-- YAML
 added: v0.11.5
 changes:
@@ -3952,7 +3952,7 @@ It is possible to configure the console to render UTF-8 properly by changing the
 active codepage with the `chcp 65001` command. See the [chcp][] docs for more
 details.
 
-### `fs.writeFile(file, data[, options], callback)`
+### `fs.writeFile(file, data,[ options], callback)`
 <!-- YAML
 added: v0.1.29
 changes:
@@ -4093,7 +4093,7 @@ on the size of the original file, and the position of the file descriptor). If
 a file name had been used instead of a descriptor, the file would be guaranteed
 to contain only `', World'`.
 
-### `fs.writev(fd, buffers[, position], callback)`
+### `fs.writev(fd, buffers,[ position], callback)`
 <!-- YAML
 added: v12.9.0
 -->
@@ -4131,7 +4131,7 @@ the end of the file.
 The synchronous APIs perform all operations synchronously, blocking the
 event loop until the operation completes or fails.
 
-### `fs.accessSync(path[, mode])`
+### `fs.accessSync(path,[ mode])`
 <!-- YAML
 added: v0.11.15
 changes:
@@ -4165,7 +4165,7 @@ try {
 }
 ```
 
-### `fs.appendFileSync(path, data[, options])`
+### `fs.appendFileSync(path, data,[ options])`
 <!-- YAML
 added: v0.6.7
 changes:
@@ -4277,7 +4277,7 @@ through any other `fs` operation may lead to undefined behavior.
 
 See the POSIX close(2) documentation for more detail.
 
-### `fs.copyFileSync(src, dest[, mode])`
+### `fs.copyFileSync(src, dest,[ mode])`
 <!-- YAML
 added: v8.5.0
 changes:
@@ -4386,7 +4386,7 @@ Forces all currently queued I/O operations associated with the file to the
 operating system's synchronized I/O completion state. Refer to the POSIX
 fdatasync(2) documentation for details. Returns `undefined`.
 
-### `fs.fstatSync(fd[, options])`
+### `fs.fstatSync(fd,[options])`
 <!-- YAML
 added: v0.1.95
 changes:
@@ -4417,7 +4417,7 @@ Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
 Refer to the POSIX fsync(2) documentation for more detail. Returns `undefined`.
 
-### `fs.ftruncateSync(fd[, len])`
+### `fs.ftruncateSync(fd,[ len])`
 <!-- YAML
 added: v0.8.6
 -->
@@ -4510,7 +4510,7 @@ changes:
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail. Returns `undefined`.
 
-### `fs.lstatSync(path[, options])`
+### `fs.lstatSync(path,[ options])`
 <!-- YAML
 added: v0.1.30
 changes:
@@ -4541,7 +4541,7 @@ Retrieves the {fs.Stats} for the symbolic link referred to by `path`.
 
 See the POSIX lstat(2) documentation for more details.
 
-### `fs.mkdirSync(path[, options])`
+### `fs.mkdirSync(path,[options])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4572,7 +4572,7 @@ This is the synchronous version of [`fs.mkdir()`][].
 
 See the POSIX mkdir(2) documentation for more details.
 
-### `fs.mkdtempSync(prefix[, options])`
+### `fs.mkdtempSync(prefix,[ options])`
 <!-- YAML
 added: v5.10.0
 changes:
@@ -4594,7 +4594,7 @@ this API: [`fs.mkdtemp()`][].
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-### `fs.opendirSync(path[, options])`
+### `fs.opendirSync(path,[ options])`
 <!-- YAML
 added: v12.12.0
 changes:
@@ -4621,7 +4621,7 @@ and cleaning up the directory.
 The `encoding` option sets the encoding for the `path` while opening the
 directory and subsequent read operations.
 
-### `fs.openSync(path[, flags[, mode]])`
+### `fs.openSync(path,[flags,[mode]])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4648,7 +4648,7 @@ Returns an integer representing the file descriptor.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.open()`][].
 
-### `fs.readdirSync(path[, options])`
+### `fs.readdirSync(path,[ options])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4679,7 +4679,7 @@ the filenames returned will be passed as {Buffer} objects.
 If `options.withFileTypes` is set to `true`, the result will contain
 {fs.Dirent} objects.
 
-### `fs.readFileSync(path[, options])`
+### `fs.readFileSync(path,[ options])`
 <!-- YAML
 added: v0.1.8
 changes:
@@ -4720,7 +4720,7 @@ readFileSync('<directory>');
 readFileSync('<directory>'); // => <data>
 ```
 
-### `fs.readlinkSync(path[, options])`
+### `fs.readlinkSync(path,[options])`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -4799,7 +4799,7 @@ If no `options` object is specified, it will default with the above values.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.read()`][].
 
-### `fs.readvSync(fd, buffers[, position])`
+### `fs.readvSync(fd, buffers,[ position])`
 <!-- YAML
 added:
  - v13.13.0
@@ -4814,7 +4814,7 @@ added:
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.readv()`][].
 
-### `fs.realpathSync(path[, options])`
+### `fs.realpathSync(path,[ options])`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -4844,7 +4844,7 @@ Returns the resolved pathname.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.realpath()`][].
 
-### `fs.realpathSync.native(path[, options])`
+### `fs.realpathSync.native(path,[ options])`
 <!-- YAML
 added: v9.2.0
 -->
@@ -4885,7 +4885,7 @@ Renames the file from `oldPath` to `newPath`. Returns `undefined`.
 
 See the POSIX rename(2) documentation for more details.
 
-### `fs.rmdirSync(path[, options])`
+### `fs.rmdirSync(path,[ options])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4944,7 +4944,7 @@ on Windows and an `ENOTDIR` error on POSIX.
 To get a behavior similar to the `rm -rf` Unix command, use [`fs.rmSync()`][]
 with options `{ recursive: true, force: true }`.
 
-### `fs.rmSync(path[, options])`
+### `fs.rmSync(path,[ options])`
 <!-- YAML
 added: v14.14.0
 -->
@@ -4967,7 +4967,7 @@ added: v14.14.0
 Synchronously removes files and directories (modeled on the standard POSIX `rm`
 utility). Returns `undefined`.
 
-### `fs.statSync(path[, options])`
+### `fs.statSync(path,[options])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -4996,7 +4996,7 @@ changes:
 
 Retrieves the {fs.Stats} for the path.
 
-### `fs.symlinkSync(target, path[, type])`
+### `fs.symlinkSync(target, path,[type])`
 <!-- YAML
 added: v0.1.31
 changes:
@@ -5020,7 +5020,7 @@ Returns `undefined`.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.symlink()`][].
 
-### `fs.truncateSync(path[, len])`
+### `fs.truncateSync(path,[ len])`
 <!-- YAML
 added: v0.8.6
 -->
@@ -5075,7 +5075,7 @@ Returns `undefined`.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.utimes()`][].
 
-### `fs.writeFileSync(file, data[, options])`
+### `fs.writeFileSync(file, data,[ options])`
 <!-- YAML
 added: v0.1.29
 changes:
@@ -5114,7 +5114,7 @@ function property.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
 
-### `fs.writeSync(fd, buffer[, offset[, length[, position]]])`
+### `fs.writeSync(fd, buffer,[ offset,[ length,[ position]]])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -5151,7 +5151,7 @@ function property.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, buffer...)`][].
 
-### `fs.writeSync(fd, string[, position[, encoding]])`
+### `fs.writeSync(fd, string,[ position,[ encoding]])`
 <!-- YAML
 added: v0.11.5
 changes:
@@ -5180,7 +5180,7 @@ function property.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, string...)`][].
 
-### `fs.writevSync(fd, buffers[, position])`
+### `fs.writevSync(fd, buffers,[ position])`
 <!-- YAML
 added: v12.9.0
 -->
