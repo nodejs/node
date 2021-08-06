@@ -198,3 +198,21 @@ assert.throws(() => new Blob({}), {
                      'Blob { size: 0, type: \'\' }');
   assert.strictEqual(inspect(b, { depth: -1 }), '[Blob]');
 }
+
+{
+  // The Blob has to be over a specific size for the data to
+  // be copied asynchronously..
+  const b = new Blob(['hello', 'there'.repeat(820)]);
+  assert.strictEqual(b.arrayBuffer(), b.arrayBuffer());
+  b.arrayBuffer().then(common.mustCall());
+}
+
+(async () => {
+  const b = new Blob(['hello']);
+  const reader = b.stream().getReader();
+  let res = await reader.read();
+  assert.strictEqual(res.value.byteLength, 5);
+  assert(!res.done);
+  res = await reader.read();
+  assert(res.done);
+})().then(common.mustCall());
