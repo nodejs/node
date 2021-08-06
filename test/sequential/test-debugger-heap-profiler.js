@@ -3,24 +3,21 @@ const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-if (!common.isMainThread) {
-  common.skip('process.chdir() is not available in workers');
-}
-
 const fixtures = require('../common/fixtures');
 const startCLI = require('../common/debugger');
 const tmpdir = require('../common/tmpdir');
+const path = require('path');
 
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 const { readFileSync } = require('fs');
 
-const filename = 'node.heapsnapshot';
+const filename = path.join(tmpdir.path, 'node.heapsnapshot');
 
 // Heap profiler take snapshot.
 {
-  const cli = startCLI([fixtures.path('debugger/empty.js')]);
+  const opts = { cwd: tmpdir.path };
+  const cli = startCLI([fixtures.path('debugger/empty.js')], [], opts);
 
   function onFatal(error) {
     cli.quit();
