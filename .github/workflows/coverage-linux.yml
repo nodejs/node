@@ -46,6 +46,8 @@ jobs:
         run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
+        env:
+           NODE_OPTIONS: --max-old-space-size=8192
       - name: Report C++
         run: cd out && gcovr --gcov-exclude='.*\b(deps|usr|out|obj|cctest|embedding)\b' -v -r Release/obj.target --xml -o ../coverage/coverage-cxx.xml --root=$(cd ../ && pwd)
       # Clean temporary output from gcov and c8, so that it's not uploaded:
