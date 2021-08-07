@@ -92,7 +92,7 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
-void InitializeContextRuntime(v8::Local<v8::Context>);
+v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
 bool InitializePrimordials(v8::Local<v8::Context> context);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
