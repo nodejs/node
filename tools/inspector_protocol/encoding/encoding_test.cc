@@ -252,7 +252,8 @@ TEST(EncodeDecodeInt32Test, RoundtripsInt32Min) {
   EXPECT_EQ(std::numeric_limits<int32_t>::min(), tokenizer.GetInt32());
   // It's nice to see how the min int32 value reads in hex:
   // That is, -1 minus the unsigned payload (0x7fffffff, see above).
-  EXPECT_EQ(-0x80000000l, tokenizer.GetInt32());
+  int32_t expected = -1 - 0x7fffffff;
+  EXPECT_EQ(expected, tokenizer.GetInt32());
   tokenizer.Next();
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
 }
