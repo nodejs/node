@@ -235,7 +235,9 @@ TEST(EncodeDecodeInt32Test, RoundtripsInt32Max) {
 }
 
 TEST(EncodeDecodeInt32Test, RoundtripsInt32Min) {
-  // std::numeric_limits<int32_t> is encoded as a uint32 after the initial byte.
+  // std::numeric_limits<int32_t> is encoded as a uint32 (4 unsigned bytes)
+  // after the initial byte, which effectively carries the sign by
+  // designating the token as NEGATIVE.
   std::vector<uint8_t> encoded;
   EncodeInt32(std::numeric_limits<int32_t>::min(), &encoded);
   // 1 for initial byte, 4 for the uint32.
@@ -248,6 +250,9 @@ TEST(EncodeDecodeInt32Test, RoundtripsInt32Min) {
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::INT32, tokenizer.TokenTag());
   EXPECT_EQ(std::numeric_limits<int32_t>::min(), tokenizer.GetInt32());
+  // It's nice to see how the min int32 value reads in hex:
+  // That is, -1 minus the unsigned payload (0x7fffffff, see above).
+  EXPECT_EQ(-0x80000000l, tokenizer.GetInt32());
   tokenizer.Next();
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
 }
