@@ -103,6 +103,17 @@ def read_config():
             ".lib": False,
             ".lib.export_macro": "",
             ".lib.export_header": False,
+            # The encoding lib consists of encoding/encoding.h and
+            # encoding/encoding.cc in its subdirectory, which binaries
+            # may link / depend on, instead of relying on the
+            # JINJA2 templates lib/encoding_{h,cc}.template.
+            # In that case, |header| identifies the include file
+            # and |namespace| is the namespace it's using. Usually
+            # inspector_protocol_encoding but for v8's copy it's
+            # v8_inspector_protocol_encoding.
+            # TODO(johannes): Migrate away from lib/encoding_{h,cc}.template
+            #                 in favor of this.
+            ".encoding_lib": { "header": "", "namespace": []},
         }
         for key_value in config_values:
             parts = key_value.split("=")
