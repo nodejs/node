@@ -36,6 +36,7 @@ function checkDataKeys(node) {
         "data-expected-scroll-width",
         "data-expected-scroll-height",
         "data-expected-bounding-client-rect-width",
+        "data-expected-bounding-client-rect-height",
         "data-total-x",
         "data-total-y",
         "data-expected-display",
@@ -105,6 +106,11 @@ function checkExpectedValues(t, node, prefix)
     var expectedWidth = checkAttribute(output, node, "data-expected-bounding-client-rect-width");
     if (expectedWidth) {
         assert_tolerance(node.getBoundingClientRect().width, expectedWidth, prefix + "getBoundingClientRect().width");
+    }
+
+    var expectedHeight = checkAttribute(output, node, "data-expected-bounding-client-rect-height");
+    if (expectedHeight) {
+        assert_tolerance(node.getBoundingClientRect().height, expectedHeight, prefix + "getBoundingClientRect().height");
     }
 
     var expectedOffset = checkAttribute(output, node, "data-total-x");

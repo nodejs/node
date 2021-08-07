@@ -1,6 +1,6 @@
 {
   "common": {
-    "commit": "bb97a689743eb5e3bc0bc92ac41ab266c54c134e",
+    "commit": "03c5072affa496c5fd2a506e5c40d23e36b5e3aa",
     "path": "common"
   },
   "console": {
@@ -44,7 +44,7 @@
     "path": "performance-timeline"
   },
   "resources": {
-    "commit": "972ca5b6693bffebebc5805e1b9da68a6876e1f6",
+    "commit": "fbee645164468c030072c46a934e2c876b143f8e",
     "path": "resources"
   },
   "streams": {
