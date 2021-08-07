@@ -846,10 +846,12 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
           // inspector_protocol, it's not a CBOR limitation); in CBOR, the
           // negative values for INT32 are represented as NEGATIVE, that is, -1
           // INT32 is represented as 1 << 5 | 0 (major type 1, additional info
-          // value 0). The minimal allowed INT32 value in our protocol is
-          // std::numeric_limits<int32_t>::min(). We check for it by directly
-          // checking the payload against the maximal allowed signed (!) int32
-          // value.
+          // value 0).
+          // The represented allowed values range is -1 to -2^31.
+          // They are mapped into the encoded range of 0 to 2^31-1.
+          // We check the the payload in token_start_internal_value_ against
+          // that range (2^31-1 is also known as
+          // std::numeric_limits<int32_t>::max()).
           if (!success || token_start_internal_value_ >
                               std::numeric_limits<int32_t>::max()) {
             SetError(Error::CBOR_INVALID_INT32);
