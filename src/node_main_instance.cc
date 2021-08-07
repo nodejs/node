@@ -198,7 +198,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
 
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
-    InitializeContextRuntime(context);
+    CHECK(InitializeContextRuntime(context).IsJust());
     SetIsolateErrorHandlers(isolate_, {});
     env->InitializeMainContext(context, env_info);
 #if HAVE_INSPECTOR

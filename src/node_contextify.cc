@@ -210,7 +210,9 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   if (ctx.IsEmpty()) return MaybeLocal<Context>();
   // Only partially initialize the context - the primordials are left out
   // and only initialized when necessary.
-  InitializeContextRuntime(ctx);
+  if (InitializeContextRuntime(ctx).IsNothing()) {
+    return MaybeLocal<Context>();
+  }
 
   if (ctx.IsEmpty()) {
     return MaybeLocal<Context>();
