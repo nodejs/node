@@ -6,6 +6,10 @@
 
 //#include "Values.h"
 
+{% if config.encoding_lib.header %}
+#include "{{config.encoding_lib.header}}"
+{% endif %}
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
@@ -63,6 +67,30 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 // When parsing CBOR, we limit recursion depth for objects and arrays
 // to this constant.
 static constexpr int kStackLimitValues = 1000;
+
+{% if config.encoding_lib.namespace %}
+using {{"::".join(config.encoding_lib.namespace)}}::Error;
+using {{"::".join(config.encoding_lib.namespace)}}::Status;
+using {{"::".join(config.encoding_lib.namespace)}}::span;
+namespace cbor {
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::CBORTokenTag;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::CBORTokenizer;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeBinary;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeDouble;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFalse;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFromLatin1;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFromUTF16;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeIndefiniteLengthArrayStart;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeIndefiniteLengthMapStart;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeInt32;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeNull;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeStop;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeString8;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeTrue;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EnvelopeEncoder;
+using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::InitialByteForEnvelope;
+}  // namespace cbor
+{% endif %}
 
 // Below are three parsing routines for CBOR, which cover enough
 // to roundtrip JSON messages.
