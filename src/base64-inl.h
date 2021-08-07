@@ -6,6 +6,23 @@
 #include "base64.h"
 #include "util.h"
 
+#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) ||                             \
+    defined(__LITTLE_ENDIAN__) ||                                              \
+    _MSC_VER
+// Little Endian
+#ifdef _MSC_VER
+#define NODE_BSWAP32(x) _byteswap_ulong(x)
+#define NODE_BSWAP64(x) _byteswap_uint64(x)
+#else
+#define NODE_BSWAP32(x) __builtin_bswap32(x)
+#define NODE_BSWAP64(x) __builtin_bswap64(x)
+#endif
+#else
+// Big Endian
+#define NODE_BSWAP32(x) (x)
+#define NODE_BSWAP64(x) (x)
+#endif
+
 namespace node {
 
 extern const int8_t unbase64_table[256];
@@ -136,29 +153,50 @@ inline size_t base64_encode(const char* src,
   unsigned c;
   unsigned i;
   unsigned k;
-  unsigned n;
+  unsigned n32;
+  unsigned n64;
 
   const char* table = base64_select_table(mode);
 
   i = 0;
   k = 0;
-  n = slen / 3 * 3;
+  n32 = (slen >= 4 ? ((slen - 1) / 3) * 3 : 0);
+  n64 = (slen >= 8 ? ((slen - 2) / 6) * 3 : 0);
 
-  while (i < n) {
-    a = src[i + 0] & 0xff;
-    b = src[i + 1] & 0xff;
-    c = src[i + 2] & 0xff;
+  // Read in chunks of 8 bytes for as long as possible
+  while (i < n64) {
+    const uint64_t dword = *reinterpret_cast<const uint64_t*>(src + i);
+    const uint64_t swapped = NODE_BSWAP64(dword);
 
-    dst[k + 0] = table[a >> 2];
-    dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
-    dst[k + 2] = table[((b & 0x0f) << 2) | (c >> 6)];
-    dst[k + 3] = table[c & 0x3f];
+    dst[k + 0] = table[(swapped >> 58) & 0x3f];
+    dst[k + 1] = table[(swapped >> 52) & 0x3f];
+    dst[k + 2] = table[(swapped >> 46) & 0x3f];
+    dst[k + 3] = table[(swapped >> 40) & 0x3f];
+    dst[k + 4] = table[(swapped >> 34) & 0x3f];
+    dst[k + 5] = table[(swapped >> 28) & 0x3f];
+    dst[k + 6] = table[(swapped >> 22) & 0x3f];
+    dst[k + 7] = table[(swapped >> 16) & 0x3f];
+
+    i += 6;
+    k += 8;
+  }
+
+  // Read in chunks of 4 bytes for as long as possible
+  while (i < n32) {
+    const uint32_t dword = *reinterpret_cast<const uint32_t*>(src + i);
+    const uint32_t swapped = NODE_BSWAP32(dword);
+
+    dst[k + 0] = table[(swapped >> 26) & 0x3f];
+    dst[k + 1] = table[(swapped >> 20) & 0x3f];
+    dst[k + 2] = table[(swapped >> 14) & 0x3f];
+    dst[k + 3] = table[(swapped >> 8) & 0x3f];
 
     i += 3;
     k += 4;
   }
 
-  switch (slen - n) {
+  // Deal with leftover bytes
+  switch (slen - n32) {
     case 1:
       a = src[i + 0] & 0xff;
       dst[k + 0] = table[a >> 2];
@@ -176,6 +214,15 @@ inline size_t base64_encode(const char* src,
       dst[k + 2] = table[(b & 0x0f) << 2];
       if (mode == Base64Mode::NORMAL)
         dst[k + 3] = '=';
+      break;
+    case 3:
+      a = src[i + 0] & 0xff;
+      b = src[i + 1] & 0xff;
+      c = src[i + 2] & 0xff;
+      dst[k + 0] = table[a >> 2];
+      dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
+      dst[k + 2] = table[((b & 0x0f) << 2) | (c >> 6)];
+      dst[k + 3] = table[c & 0x3f];
       break;
   }
 
