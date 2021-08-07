@@ -26,12 +26,26 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::String;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
-void Blob::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void Blob::Initialize(
+    Local<Object> target,
+    Local<Value> unused,
+    Local<Context> context,
+    void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+
+  BlobBindingData* const binding_data =
+      env->AddBindingData<BlobBindingData>(context, target);
+  if (binding_data == nullptr) return;
+
   env->SetMethod(target, "createBlob", New);
+  env->SetMethod(target, "storeDataObject", StoreDataObject);
+  env->SetMethod(target, "getDataObject", GetDataObject);
+  env->SetMethod(target, "revokeDataObject", RevokeDataObject);
   FixedSizeBlobCopyJob::Initialize(env, target);
 }
 
@@ -220,6 +234,78 @@ std::unique_ptr<worker::TransferData> Blob::CloneForMessaging() const {
   return std::make_unique<BlobTransferData>(store_, length_);
 }
 
+void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  BlobBindingData* binding_data =
+      Environment::GetBindingData<BlobBindingData>(args);
+
+  CHECK(args[0]->IsString());  // ID key
+  CHECK(Blob::HasInstance(env, args[1]));  // Blob
+  CHECK(args[2]->IsUint32());  // Length
+  CHECK(args[3]->IsString());  // Type
+
+  Utf8Value key(env->isolate(), args[0]);
+  Blob* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args[1]);
+
+  size_t length = args[2].As<Uint32>()->Value();
+  Utf8Value type(env->isolate(), args[3]);
+
+  binding_data->store_data_object(
+      std::string(*key, key.length()),
+      BlobBindingData::StoredDataObject(
+        BaseObjectPtr<Blob>(blob),
+        length,
+        std::string(*type, type.length())));
+}
+
+void Blob::RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  BlobBindingData* binding_data =
+      Environment::GetBindingData<BlobBindingData>(args);
+
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());  // ID key
+
+  Utf8Value key(env->isolate(), args[0]);
+
+  binding_data->revoke_data_object(std::string(*key, key.length()));
+}
+
+void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  BlobBindingData* binding_data =
+      Environment::GetBindingData<BlobBindingData>(args);
+
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+
+  Utf8Value key(env->isolate(), args[0]);
+
+  BlobBindingData::StoredDataObject stored =
+      binding_data->get_data_object(std::string(*key, key.length()));
+  if (stored.blob) {
+    Local<Value> type;
+    if (!String::NewFromUtf8(
+            env->isolate(),
+            stored.type.c_str(),
+            v8::NewStringType::kNormal,
+            static_cast<int>(stored.type.length())).ToLocal(&type)) {
+      return;
+    }
+
+    Local<Value> values[] = {
+      stored.blob->object(),
+      Uint32::NewFromUnsigned(env->isolate(), stored.length),
+      type
+    };
+
+    args.GetReturnValue().Set(
+        Array::New(
+            env->isolate(),
+            values,
+            arraysize(values)));
+  }
+}
+
 FixedSizeBlobCopyJob::FixedSizeBlobCopyJob(
     Environment* env,
     Local<Object> object,
@@ -328,10 +414,88 @@ void FixedSizeBlobCopyJob::RegisterExternalReferences(
   registry->Register(Run);
 }
 
+void BlobBindingData::StoredDataObject::MemoryInfo(
+    MemoryTracker* tracker) const {
+  tracker->TrackField("blob", blob);
+  tracker->TrackFieldWithSize("type", type.length());
+}
+
+BlobBindingData::StoredDataObject::StoredDataObject(
+    const BaseObjectPtr<Blob>& blob_,
+    size_t length_,
+    const std::string& type_)
+    : blob(blob_),
+      length(length_),
+      type(type_) {}
+
+BlobBindingData::BlobBindingData(Environment* env, Local<Object> wrap)
+    : SnapshotableObject(env, wrap, type_int) {
+  MakeWeak();
+}
+
+void BlobBindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("data_objects", data_objects_);
+}
+
+void BlobBindingData::store_data_object(
+    const std::string& uuid,
+    const BlobBindingData::StoredDataObject& object) {
+  data_objects_[uuid] = object;
+}
+
+void BlobBindingData::revoke_data_object(const std::string& uuid) {
+  CHECK_NE(data_objects_.find(uuid), data_objects_.end());
+  data_objects_.erase(uuid);
+  CHECK_EQ(data_objects_.find(uuid), data_objects_.end());
+}
+
+BlobBindingData::StoredDataObject BlobBindingData::get_data_object(
+    const std::string& uuid) {
+  auto entry = data_objects_.find(uuid);
+  if (entry == data_objects_.end())
+    return BlobBindingData::StoredDataObject {};
+  return entry->second;
+}
+
+void BlobBindingData::Deserialize(
+    Local<Context> context,
+    Local<Object> holder,
+    int index,
+    InternalFieldInfo* info) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  HandleScope scope(context->GetIsolate());
+  Environment* env = Environment::GetCurrent(context);
+  BlobBindingData* binding =
+      env->AddBindingData<BlobBindingData>(context, holder);
+  CHECK_NOT_NULL(binding);
+}
+
+void BlobBindingData::PrepareForSerialization(
+    Local<Context> context,
+    v8::SnapshotCreator* creator) {
+  // Stored blob objects are not actually persisted.
+}
+
+InternalFieldInfo* BlobBindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  return info;
+}
+
+constexpr FastStringKey BlobBindingData::type_name;
+
 void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::New);
   registry->Register(Blob::ToArrayBuffer);
   registry->Register(Blob::ToSlice);
+  registry->Register(Blob::StoreDataObject);
+  registry->Register(Blob::GetDataObject);
+  registry->Register(Blob::RevokeDataObject);
+
+  FixedSizeBlobCopyJob::RegisterExternalReferences(registry);
 }
 
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(blob, node::Blob::Initialize);
+NODE_MODULE_EXTERNAL_REFERENCE(blob, node::Blob::RegisterExternalReferences);

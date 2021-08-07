@@ -608,6 +608,53 @@ console.log(JSON.stringify(myURLs));
 // Prints ["https://www.example.com/","https://test.example.org/"]
 ```
 
+#### `URL.createObjectURL(blob)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `blob` {Blob}
+* Returns: {string}
+
+Creates a `'blob:nodedata:...'` URL string that represents the given {Blob}
+object and can be used to retrieve the `Blob` later.
+
+```js
+const {
+  Blob,
+  resolveObjectURL,
+} = require('buffer');
+
+const blob = new Blob(['hello']);
+const id = URL.createObjectURL(blob);
+
+// later...
+
+const otherBlob = resolveObjectURL(id);
+console.log(otherBlob.size);
+```
+
+The data stored by the registered {Blob} will be retained in memory until
+`URL.revokeObjectURL()` is called to remove it.
+
+`Blob` objects are registered within the current thread. If using Worker
+Threads, `Blob` objects registered within one Worker will not be available
+to other workers or the main thread.
+
+#### `URL.revokeObjectURL(id)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
+  `URL.createObjectURL()`.
+
+Removes the stored {Blob} identified by the given ID.
+
 ### Class: `URLSearchParams`
 <!-- YAML
 added:

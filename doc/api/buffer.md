@@ -4952,6 +4952,20 @@ added: v3.0.0
 
 An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
+### `buffer.resolveObjectURL(id)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
+  `URL.createObjectURL()`.
+* Returns: {Blob}
+
+Resolves a `'blob:nodedata:...'` an associated {Blob} object registered using
+a prior call to `URL.createObjectURL()`.
+
 ### `buffer.transcode(source, fromEnc, toEnc)`
 <!-- YAML
 added: v7.1.0
