@@ -5,6 +5,7 @@
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "node_blob.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
