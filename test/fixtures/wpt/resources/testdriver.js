@@ -277,7 +277,7 @@
          * @returns {Promise} fulfilled after the permission is set, or rejected if setting the
          *                    permission fails
          */
-        set_permission: function(descriptor, state, one_realm, context=null) {
+        set_permission: function(descriptor, state, one_realm=false, context=null) {
             let permission_params = {
               descriptor,
               state,
