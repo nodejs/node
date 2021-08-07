@@ -12,7 +12,7 @@ Last update:
 
 - common: https://github.com/web-platform-tests/wpt/tree/03c5072aff/common
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
-- dom/abort: https://github.com/web-platform-tests/wpt/tree/1728d198c9/dom/abort
+- dom/abort: https://github.com/web-platform-tests/wpt/tree/c49cafb491/dom/abort
 - encoding: https://github.com/web-platform-tests/wpt/tree/35f70910d3/encoding
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/9910784394/hr-time
