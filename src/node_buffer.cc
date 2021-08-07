@@ -1266,8 +1266,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
 
   env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
-
-  Blob::Initialize(env, target);
 }
 
 }  // anonymous namespace
@@ -1311,9 +1309,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(DetachArrayBuffer);
   registry->Register(CopyArrayBuffer);
-
-  Blob::RegisterExternalReferences(registry);
-  FixedSizeBlobCopyJob::RegisterExternalReferences(registry);
 }
 
 }  // namespace Buffer

@@ -8,9 +8,12 @@
 #include "env.h"
 #include "memory_tracker.h"
 #include "node_internals.h"
+#include "node_snapshotable.h"
 #include "node_worker.h"
 #include "v8.h"
 
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace node {
@@ -25,11 +28,19 @@ class Blob : public BaseObject {
  public:
   static void RegisterExternalReferences(
       ExternalReferenceRegistry* registry);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+
+  static void Initialize(
+      v8::Local<v8::Object> target,
+      v8::Local<v8::Value> unused,
+      v8::Local<v8::Context> context,
+      void* priv);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToSlice(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -129,6 +140,49 @@ class FixedSizeBlobCopyJob : public AsyncWrap, public ThreadPoolWork {
   std::vector<BlobEntry> source_;
   std::shared_ptr<v8::BackingStore> destination_;
   size_t length_ = 0;
+};
+
+class BlobBindingData : public SnapshotableObject {
+ public:
+  explicit BlobBindingData(Environment* env, v8::Local<v8::Object> wrap);
+
+  SERIALIZABLE_OBJECT_METHODS()
+
+  static constexpr FastStringKey type_name{"node::BlobBindingData"};
+  static constexpr EmbedderObjectType type_int =
+      EmbedderObjectType::k_blob_binding_data;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_SELF_SIZE(BlobBindingData)
+  SET_MEMORY_INFO_NAME(BlobBindingData)
+
+  struct StoredDataObject : public MemoryRetainer {
+    BaseObjectPtr<Blob> blob;
+    size_t length;
+    std::string type;
+
+    StoredDataObject() = default;
+
+    StoredDataObject(
+        const BaseObjectPtr<Blob>& blob_,
+        size_t length_,
+        const std::string& type_);
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_SELF_SIZE(StoredDataObject)
+    SET_MEMORY_INFO_NAME(StoredDataObject)
+  };
+
+  void store_data_object(
+      const std::string& uuid,
+      const StoredDataObject& object);
+
+  void revoke_data_object(const std::string& uuid);
+
+  StoredDataObject get_data_object(const std::string& uuid);
+
+ private:
+  std::unordered_map<std::string, StoredDataObject> data_objects_;
 };
 
 }  // namespace node
