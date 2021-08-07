@@ -427,7 +427,7 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    std::string* cbor);
 
 namespace internals {  // Exposed only for writing tests.
-int8_t ReadTokenStart(span<uint8_t> bytes,
+size_t ReadTokenStart(span<uint8_t> bytes,
                       cbor::MajorType* type,
                       uint64_t* value);
 
