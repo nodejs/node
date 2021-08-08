@@ -601,7 +601,9 @@ Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 
 ### `watcher.ref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -616,7 +618,9 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -629,7 +633,9 @@ no effect.
 
 ## Class: `fs.StatWatcher`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Extends {EventEmitter}
@@ -639,7 +645,9 @@ object.
 
 ### `watcher.ref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.StatWatcher}
@@ -654,7 +662,9 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: v14.3.0
+added:
+  - v14.3.0
+  - v12.20.0
 -->
 
 * Returns: {fs.StatWatcher}
@@ -1612,7 +1622,7 @@ See also: chown(2).
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: v14.17.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -1758,10 +1768,16 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 <!-- YAML
 added: v0.1.31
 changes:
+  - version:
+     - v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/35922
+    description: The `fd` option accepts FileHandle arguments.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31408
     description: Change `emitClose` default to `true`.
-  - version: v13.6.0
+  - version:
+     - v13.6.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29083
     description: The `fs` options allow overriding the used `fs`
                  implementation.
@@ -1790,7 +1806,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'r'`.
   * `encoding` {string} **Default:** `null`
-  * `fd` {integer} **Default:** `null`
+  * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
@@ -1866,10 +1882,16 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version:
+     - v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/35922
+    description: The `fd` option accepts FileHandle arguments.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31408
     description: Change `emitClose` default to `true`.
-  - version: v13.6.0
+  - version:
+     - v13.6.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29083
     description: The `fs` options allow overriding the used `fs`
                  implementation.
@@ -1896,7 +1918,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'w'`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `fd` {integer} **Default:** `null`
+  * `fd` {integer|FileHandle} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
@@ -2447,7 +2469,9 @@ Synchronous lchown(2). Returns `undefined`.
 
 ## `fs.lutimes(path, atime, mtime, callback)`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -2466,7 +2490,9 @@ callback.
 
 ## `fs.lutimesSync(path, atime, mtime)`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -2559,6 +2585,10 @@ not the file that it refers to.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: v15.3.0
+    pr-url: https://github.com/nodejs/node/pull/33716
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -2584,7 +2614,9 @@ Synchronous lstat(2).
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: v13.11.0
+  - version:
+     - v13.11.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31530
     description: In `recursive` mode, the callback now receives the first
                  created path as an argument.
@@ -2648,7 +2680,9 @@ See also: mkdir(2).
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v13.11.0
+  - version:
+     - v13.11.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31530
     description: In `recursive` mode, the first created path is returned now.
   - version: v10.12.0
@@ -2939,9 +2973,13 @@ a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## `fs.read(fd, [options,] callback)`
 <!-- YAML
-added: v13.11.0
+added:
+ - v13.11.0
+ - v12.17.0
 changes:
-  - version: v13.11.0
+  - version:
+     - v13.11.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
                  to make Buffer, offset, length and position optional.
@@ -3037,7 +3075,7 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v14.17.0
+  - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -3280,9 +3318,13 @@ this API: [`fs.read()`][].
 
 ## `fs.readSync(fd, buffer, [options])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 changes:
-  - version: v14.0.0
+  - version:
+     - v13.13.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
                  to make offset, length and position optional.
@@ -3306,7 +3348,9 @@ this API: [`fs.read()`][].
 
 ## `fs.readv(fd, buffers[, position], callback)`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 -->
 
 * `fd` {integer}
@@ -3332,7 +3376,9 @@ a `Promise` for an `Object` with `bytesRead` and `buffers` properties.
 
 ## `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 -->
 
 * `fd` {integer}
@@ -3812,6 +3858,10 @@ Stats {
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: v15.3.0
+    pr-url: https://github.com/nodejs/node/pull/33716
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -4089,7 +4139,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: v14.17.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
@@ -4164,11 +4214,11 @@ to be notified of filesystem changes.
   directories.
 * On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
 * On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
-* On AIX systems, this feature depends on [`AHAFS`][], which must be enabled.
+* On Aix systems, this feature depends on [`AHAFS`][], which must be enabled.
 * On IBM i systems, this feature is not supported.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch()` will not be able to function and may throw an exception.
+`fs.watch()` will not be able to function and may thrown an exception.
 For example, watching files or directories can be unreliable, and in some
 cases impossible, on network file systems (NFS, SMB, etc) or host file systems
 when using virtualization software such as Vagrant or Docker.
@@ -4411,7 +4461,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v14.17.0
+  - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -4717,6 +4767,14 @@ the promise-based API uses the `FileHandle` class in order to help avoid
 accidental leaking of unclosed file descriptors after a `Promise` is fulfilled
 or rejected.
 
+#### Event: `'close'`
+<!-- YAML
+added: v15.4.0
+-->
+
+The `'close'` event is emitted when the `FileHandle` and any of its underlying
+resources (a file descriptor, for example) have been closed.
+
 #### `filehandle.appendFile(data, options)`
 <!-- YAML
 added: v10.0.0
@@ -4831,7 +4889,9 @@ number of bytes read is zero.
 
 #### `filehandle.read(options)`
 <!-- YAML
-added: v13.11.0
+added:
+ - v13.11.0
+ - v12.17.0
 -->
 * `options` {Object}
   * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`
@@ -4867,7 +4927,9 @@ of the file.
 
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 -->
 
 * `buffers` {ArrayBufferView[]}
@@ -5307,7 +5369,9 @@ no arguments upon success.
 
 ### `fsPromises.lutimes(path, atime, mtime)`
 <!-- YAML
-added: v14.5.0
+added:
+  - v14.5.0
+  - v12.19.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -5512,7 +5576,7 @@ print('./').catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v14.17.0
+  - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -5762,7 +5826,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v14.17.0
+  - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
