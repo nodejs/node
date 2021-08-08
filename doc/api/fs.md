@@ -174,14 +174,6 @@ helping to prevent memory leaks. Please do not rely on this behavior because
 it can be unreliable and the file may not be closed. Instead, always explicitly
 close {FileHandle}s. Node.js may change this behavior in the future.
 
-#### Event: `'close'`
-<!-- YAML
-added: v15.4.0
--->
-
-The `'close'` event is emitted when the {FileHandle} has been closed and can no
-longer be used.
-
 #### `filehandle.appendFile(data[, options])`
 <!-- YAML
 added: v10.0.0
@@ -334,9 +326,7 @@ of the file.
 
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
-added:
- - v13.13.0
- - v12.17.0
+added: v14.0.0
 -->
 
 * `buffers` {Buffer[]|TypedArray[]|DataView[]}
@@ -940,7 +930,7 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v15.2.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -1193,7 +1183,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v15.2.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -1650,7 +1640,7 @@ See the POSIX chown(2) documentation for more detail.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -1729,10 +1719,6 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v0.1.31
 changes:
-  - version:
-     - v15.4.0
-    pr-url: https://github.com/nodejs/node/pull/35922
-    description: The `fd` option accepts FileHandle arguments.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31408
     description: Change `emitClose` default to `true`.
@@ -1767,7 +1753,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'r'`.
   * `encoding` {string} **Default:** `null`
-  * `fd` {integer|FileHandle} **Default:** `null`
+  * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
@@ -1846,10 +1832,6 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version:
-     - v15.4.0
-    pr-url: https://github.com/nodejs/node/pull/35922
-    description: The `fd` option accepts FileHandle arguments.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31408
     description: Change `emitClose` default to `true`.
@@ -1882,7 +1864,7 @@ changes:
   * `flags` {string} See [support of file system `flags`][]. **Default:**
     `'w'`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `fd` {integer|FileHandle} **Default:** `null`
+  * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
@@ -2756,7 +2738,7 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v15.2.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -3459,7 +3441,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
@@ -3534,11 +3516,11 @@ to be notified of filesystem changes.
   directories.
 * On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
 * On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
-* On Aix systems, this feature depends on [`AHAFS`][], which must be enabled.
+* On AIX systems, this feature depends on [`AHAFS`][], which must be enabled.
 * On IBM i systems, this feature is not supported.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch()` will not be able to function and may thrown an exception.
+`fs.watch()` will not be able to function and may throw an exception.
 For example, watching files or directories can be unreliable, and in some
 cases impossible, on network file systems (NFS, SMB, etc) or host file systems
 when using virtualization software such as Vagrant or Docker.
@@ -3784,7 +3766,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v15.2.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -4331,7 +4313,7 @@ link(2) documentation for more detail. Returns `undefined`.
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: v15.3.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/33716
     description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
@@ -4584,13 +4566,9 @@ this API: [`fs.read()`][].
 
 ### `fs.readSync(fd, buffer, [options])`
 <!-- YAML
-added:
- - v13.13.0
- - v12.17.0
+added: v14.0.0
 changes:
-  - version:
-     - v13.13.0
-     - v12.17.0
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
                  to make offset, length and position optional.
@@ -4614,9 +4592,7 @@ this API: [`fs.read()`][].
 
 ### `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
-added:
- - v13.13.0
- - v12.17.0
+added: v14.0.0
 -->
 
 * `fd` {integer}
@@ -4773,7 +4749,7 @@ utility). Returns `undefined`.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v15.3.0
+  - version: v14.17.0
     pr-url: https://github.com/nodejs/node/pull/33716
     description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
