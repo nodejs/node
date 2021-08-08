@@ -1115,6 +1115,74 @@ added: v14.0.0
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
 
+<a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
+### `ERR_FS_CP_DIR_TO_NON_DIR`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy a directory to a non-directory (file, symlink,
+etc.) using [`fs.cp()`][].
+
+<a id="ERR_FS_CP_EEXIST"></a>
+### `ERR_FS_CP_EEXIST`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy over a file that already existed with
+[`fs.cp()`][], with the `force` and `errorOnExist` set to `true`.
+
+<a id="ERR_FS_CP_EINVAL"></a>
+### `ERR_FS_CP_EINVAL`
+<!--
+added: REPLACEME
+-->
+
+When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
+
+<a id="ERR_FS_CP_FIFO_PIPE"></a>
+### `ERR_FS_CP_FIFO_PIPE`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy a named pipe with [`fs.cp()`][].
+
+<a id="ERR_FS_CP_NON_DIR_TO_DIR"></a>
+### `ERR_FS_CP_NON_DIR_TO_DIR`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy a non-directory (file, symlink, etc.) to a directory
+using [`fs.cp()`][].
+
+<a id="ERR_FS_CP_SOCKET"></a>
+### `ERR_FS_CP_SOCKET`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy to a socket with [`fs.cp()`][].
+
+<a id="ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY"></a>
+### `ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY`
+<!--
+added: REPLACEME
+-->
+
+When using [`fs.cp()`][], a symlink in `dest` pointed to a subdirectory
+of `src`.
+
+<a id="ERR_FS_CP_UNKNOWN"></a>
+### `ERR_FS_CP_UNKNOWN`
+<!--
+added: REPLACEME
+-->
+
+An attempt was made to copy to an unknown file type with [`fs.cp()`][].
+
 <a id="ERR_FS_EISDIR"></a>
 ### `ERR_FS_EISDIR`
 
@@ -2822,6 +2890,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`dgram.remoteAddress()`]: dgram.md#dgram_socket_remoteaddress
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
 [`fs.Dir`]: fs.md#fs_class_fs_dir
+[`fs.cp()`]: fs.md#fs_fs_cp_src_dest_options_callback
 [`fs.readFileSync`]: fs.md#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.md#fs_fs_readdir_path_options_callback
 [`fs.symlink()`]: fs.md#fs_fs_symlink_target_path_type_callback
