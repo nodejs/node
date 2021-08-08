@@ -1,9 +1,11 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
 const { Blob } = require('buffer');
 const { inspect } = require('util');
+const { EOL } = require('os');
 
 {
   const b = new Blob();
@@ -43,15 +45,6 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(new Blob([], { type: 1 }).type, '1');
   assert.strictEqual(new Blob([], { type: false }).type, 'false');
   assert.strictEqual(new Blob([], { type: {} }).type, '[object object]');
-}
-
-{
-  const b = new Blob(['616263'], { encoding: 'hex', type: 'foo' });
-  assert.strictEqual(b.size, 3);
-  assert.strictEqual(b.type, 'foo');
-  b.text().then(common.mustCall((text) => {
-    assert.strictEqual(text, 'abc');
-  }));
 }
 
 {
@@ -216,3 +209,14 @@ assert.throws(() => new Blob({}), {
   res = await reader.read();
   assert(res.done);
 })().then(common.mustCall());
+
+{
+  const b = new Blob(['hello\n'], { endings: 'native' });
+  assert.strictEqual(b.size, EOL.length + 5);
+
+  [1, {}, 'foo'].forEach((endings) => {
+    assert.throws(() => new Blob([], { endings }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+  });
+}
