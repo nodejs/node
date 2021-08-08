@@ -733,6 +733,9 @@ chained.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: v14.17.0
+    pr-url: https://github.com/nodejs/node/pull/37026
+    description: AbortSignal support was added.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23798
     description: The `ipv6Only` option is supported.
