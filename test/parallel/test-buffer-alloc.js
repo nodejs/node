@@ -345,7 +345,7 @@ const base64flavors = ['base64', 'base64url'];
   assert.strictEqual(Buffer.from(quote).toString('base64'), expected);
   assert.strictEqual(
     Buffer.from(quote).toString('base64url'),
-    expected.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+    expected.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
   );
 
   base64flavors.forEach((encoding) => {
