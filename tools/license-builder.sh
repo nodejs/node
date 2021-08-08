@@ -112,4 +112,7 @@ addlicense "uvwasi" "deps/uvwasi" "$(cat "${rootdir}"/deps/uvwasi/LICENSE)"
 addlicense "ngtcp2" "deps/ngtcp2/ngtcp2/" "$(cat "${rootdir}"/deps/ngtcp2/LICENSE_ngtcp2)"
 addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$(cat "${rootdir}"/deps/ngtcp2/LICENSE_nghttp3)"
 
+addlicense "node-fs-extra" "lib/internal/fs/cp" \
+           "$(curl -sL https://raw.githubusercontent.com/jprichardson/node-fs-extra/b34da2762a4865b025cac06d02d6a2f1f1027b65/LICENSE)"
+
 mv "$tmplicense" "$licensefile"

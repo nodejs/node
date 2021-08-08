@@ -739,6 +739,37 @@ try {
 }
 ```
 
+### `fsPromises.cp(src, dest[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `src` {string|URL} source path to copy.
+* `dest` {string|URL} destination path to copy to.
+* `options` {Object}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    that resolves to `true` or `false` **Default:** `undefined`.
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `true`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+  * `recursive` {boolean} copy directories recursively **Default:** `false`
+* Returns: {Promise} Fulfills with `undefined` upon success.
+
+Asynchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+When copying a directory to another directory, globs are not supported and
+behavior is similar to `cp dir1/ dir2/`.
+
 ### `fsPromises.lchmod(path, mode)`
 <!-- YAML
 deprecated: v10.0.0
@@ -1847,6 +1878,37 @@ copyFile('source.txt', 'destination.txt', callback);
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
 copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 ```
+
+### `fs.cp(src, dest[, options], callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `src` {string|URL} source path to copy.
+* `dest` {string|URL} destination path to copy to.
+* `options` {Object}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. Can also return a `Promise`
+    that resolves to `true` or `false` **Default:** `undefined`.
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `true`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+  * `recursive` {boolean} copy directories recursively **Default:** `false`
+* `callback` {Function}
+
+Asynchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+When copying a directory to another directory, globs are not supported and
+behavior is similar to `cp dir1/ dir2/`.
 
 ### `fs.createReadStream(path[, options])`
 <!-- YAML
@@ -4320,6 +4382,35 @@ console.log('source.txt was copied to destination.txt');
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
 copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 ```
+
+### `fs.cpSync(src, dest[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `src` {string|URL} source path to copy.
+* `dest` {string|URL} destination path to copy to.
+* `options` {Object}
+  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+    exists, throw an error. **Default:** `false`.
+  * `filter` {Function} Function to filter copied files/directories. Return
+    `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+  * `force` {boolean} overwrite existing file or directory. _The copy
+    operation will ignore errors if you set this to false and the destination
+    exists. Use the `errorOnExist` option to change this behavior.
+    **Default:** `true`.
+  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+    be preserved. **Default:** `false`.
+  * `recursive` {boolean} copy directories recursively **Default:** `false`
+
+Synchronously copies the entire directory structure from `src` to `dest`,
+including subdirectories and files.
+
+When copying a directory to another directory, globs are not supported and
+behavior is similar to `cp dir1/ dir2/`.
 
 ### `fs.existsSync(path)`
 <!-- YAML
