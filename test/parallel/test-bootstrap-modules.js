@@ -86,6 +86,7 @@ const expectedModules = new Set([
   'NativeModule internal/validators',
   'NativeModule internal/vm/module',
   'NativeModule internal/worker/js_transferable',
+  'NativeModule internal/blob',
   'NativeModule path',
   'NativeModule timers',
   'NativeModule url',

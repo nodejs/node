@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "allocated_buffer-inl.h"
 #include "node.h"
+#include "node_blob.h"
 #include "node_errors.h"
 #include "node_internals.h"
 
@@ -1176,6 +1177,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "hexWrite", StringWrite<HEX>);
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
+
+  Blob::Initialize(env, target);
 
   // It can be a nullptr when running inside an isolate where we
   // do not own the ArrayBuffer allocator.
