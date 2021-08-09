@@ -7,6 +7,10 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
+  if (typeof SharedArrayBuffer === 'undefined') {
+    throw new Error('SharedArrayBuffers must be enabled to run this benchmark');
+  }
+
   const i32arr = new Int32Array(new SharedArrayBuffer(4));
   bench.start();
   for (let i = 0; i < n; i++)
