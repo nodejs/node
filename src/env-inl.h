@@ -877,6 +877,10 @@ inline bool Environment::tracks_unmanaged_fds() const {
   return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
 }
 
+inline bool Environment::hide_console_windows() const {
+  return flags_ & EnvironmentFlags::kHideConsoleWindows;
+}
+
 bool Environment::filehandle_close_warning() const {
   return emit_filehandle_warning_;
 }
