@@ -238,6 +238,10 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_WINDOWS_HIDE;
     }
 
+    if (env->hide_console_windows()) {
+      options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
+    }
+
     // options.windows_verbatim_arguments
     Local<Value> wva_v =
         js_options->Get(context, env->windows_verbatim_arguments_string())
