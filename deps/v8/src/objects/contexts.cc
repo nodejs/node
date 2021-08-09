@@ -545,7 +545,15 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
 
   Handle<Object> receiver = isolate->global_proxy();
 
-  if (Execution::Call(isolate, hook, receiver, argc, argv).is_null()) {
+  StackLimitCheck check(isolate);
+  bool failed = false;
+  if (check.HasOverflowed()) {
+    isolate->StackOverflow();
+    failed = true;
+  } else {
+    failed = Execution::Call(isolate, hook, receiver, argc, argv).is_null();
+  }
+  if (failed) {
     DCHECK(isolate->has_pending_exception());
     Handle<Object> exception(isolate->pending_exception(), isolate);
 
