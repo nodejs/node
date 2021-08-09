@@ -558,6 +558,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
   if (args[4]->IsTrue() || env->tracks_unmanaged_fds())
     worker->environment_flags_ |= EnvironmentFlags::kTrackUnmanagedFds;
+  if (env->hide_console_windows())
+    worker->environment_flags_ |= EnvironmentFlags::kHideConsoleWindows;
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {

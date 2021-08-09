@@ -403,7 +403,11 @@ enum Flags : uint64_t {
   kNoRegisterESMLoader = 1 << 3,
   // Set this flag to make Node.js track "raw" file descriptors, i.e. managed
   // by fs.open() and fs.close(), and close them during FreeEnvironment().
-  kTrackUnmanagedFds = 1 << 4
+  kTrackUnmanagedFds = 1 << 4,
+  // Set this flag to force hiding console windows when spawning child
+  // processes. This is usually used when embedding Node.js in GUI programs on
+  // Windows.
+  kHideConsoleWindows = 1 << 5
 };
 }  // namespace EnvironmentFlags
 
