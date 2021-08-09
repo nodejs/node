@@ -273,3 +273,11 @@ exceptions();
 
   d8.promise.setHooks();
 })();
+
+(function overflow(){
+  d8.promise.setHooks(() => { new Promise(()=>{}) });
+  // Trigger overflow from JS code:
+  Promise.all([Promise.resolve(1)]);
+  %PerformMicrotaskCheckpoint();
+  d8.promise.setHooks();
+});
