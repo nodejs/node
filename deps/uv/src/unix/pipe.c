@@ -160,11 +160,17 @@ int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
     return err;
 #endif /* defined(__APPLE__) */
 
+#ifdef __Fuchsia__
+  // TODO(victor): fcntl is not returning the correct mode.
+  // As a temporary hack, we set both flags.
+  flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
+#else
   mode &= O_ACCMODE;
   if (mode != O_WRONLY)
     flags |= UV_HANDLE_READABLE;
   if (mode != O_RDONLY)
     flags |= UV_HANDLE_WRITABLE;
+#endif
 
   return uv__stream_open((uv_stream_t*)handle, fd, flags);
 }

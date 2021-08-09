@@ -34,6 +34,11 @@
 #include <fcntl.h>
 #include <poll.h>
 
+#ifdef __Fuchsia__
+# include <lib/fdio/spawn.h>
+# include <zircon/syscalls.h>
+#endif
+
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
@@ -49,6 +54,30 @@ extern char **environ;
 # include "zos-base.h"
 #endif
 
+uv_pid_t uv__waitpid(uv_pid_t pid, int *status, int options) {
+#ifdef __Fuchsia__
+  // TODO(victor): ignoring options for now
+  assert(options == 0);
+
+  zx_status_t result = zx_object_wait_one(pid, ZX_TASK_TERMINATED, ZX_TIME_INFINITE, NULL);
+  if (result != ZX_OK)
+    goto error;
+
+  zx_info_process_t proc_info;
+  result = zx_object_get_info(pid, ZX_INFO_PROCESS, &proc_info, sizeof(proc_info), NULL, NULL);
+  if (result != ZX_OK)
+    goto error;
+
+  *status = proc_info.return_code;
+  return 0;
+
+error:
+  errno = ECHILD;
+  return -1;
+#else
+  return waitpid(pid, status, options);
+#endif
+}
 
 static void uv__chld(uv_signal_t* handle, int signum) {
   uv_process_t* process;
@@ -56,7 +85,7 @@ static void uv__chld(uv_signal_t* handle, int signum) {
   int exit_status;
   int term_signal;
   int status;
-  pid_t pid;
+  uv_pid_t pid;
   QUEUE pending;
   QUEUE* q;
   QUEUE* h;
@@ -73,7 +102,7 @@ static void uv__chld(uv_signal_t* handle, int signum) {
     q = QUEUE_NEXT(q);
 
     do
-      pid = waitpid(process->pid, &status, WNOHANG);
+      pid = uv__waitpid(process->pid, &status, WNOHANG);
     while (pid == -1 && errno == EINTR);
 
     if (pid == 0)
@@ -188,6 +217,7 @@ static void uv__process_close_stream(uv_stdio_container_t* container) {
 }
 
 
+#ifndef __Fuchsia__
 static void uv__write_int(int fd, int val) {
   ssize_t n;
 
@@ -200,6 +230,7 @@ static void uv__write_int(int fd, int val) {
 
   assert(n == sizeof(val));
 }
+#endif
 
 
 static void uv__write_errno(int error_fd) {
@@ -208,7 +239,7 @@ static void uv__write_errno(int error_fd) {
 }
 
 
-#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
+#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)) && !defined(__Fuchsia__)
 /* execvp is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED, so must be
  * avoided. Since this isn't called on those targets, the function
  * doesn't even need to be defined for them.
@@ -340,7 +371,6 @@ static void uv__process_child_init(const uv_process_options_t* options,
 }
 #endif
 
-
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
              const uv_process_options_t* options) {
@@ -355,7 +385,7 @@ int uv_spawn(uv_loop_t* loop,
   int (*pipes)[2];
   int stdio_count;
   ssize_t r;
-  pid_t pid;
+  uv_pid_t pid;
   int err;
   int exec_errorno;
   int i;
@@ -425,6 +455,29 @@ int uv_spawn(uv_loop_t* loop,
   /* Acquire write lock to prevent opening new fds in worker threads */
   uv_rwlock_wrlock(&loop->cloexec_lock);
 
+#ifdef __Fuchsia__
+  const char *executable_path;
+  if (*options->file == 0) {
+    // TODO(victor): This is not necessarilly the name of the process!!
+    executable_path = "/pkg/uv_tests";
+  } else {
+    executable_path = options->file;
+  }
+
+  // TODO(victor): missing uv_process_child_init logic before spawning.
+  char err_msg_out[FDIO_SPAWN_ERR_MSG_MAX_LENGTH];
+  zx_status_t zx_status = fdio_spawn_etc(ZX_HANDLE_INVALID, FDIO_SPAWN_CLONE_ALL, executable_path,
+    (const char* const *)options->args,
+    (const char* const *)options->env, 0, NULL,
+    &pid, err_msg_out);
+  if (zx_status != ZX_OK) {
+    err = UV__ERR(ENOENT);
+    uv_rwlock_wrunlock(&loop->cloexec_lock);
+    uv__close(signal_pipe[0]);
+    uv__close(signal_pipe[1]);
+    goto error;
+  }
+#else
   /* Start the child with most signals blocked, to avoid any issues before we
    * can reset them, but allow program failures to exit (and not hang). */
   sigfillset(&signewset);
@@ -448,6 +501,7 @@ int uv_spawn(uv_loop_t* loop,
 
   if (pthread_sigmask(SIG_SETMASK, &sigoldset, NULL) != 0)
     abort();
+#endif
 
   /* Release lock in parent process */
   uv_rwlock_wrunlock(&loop->cloexec_lock);
@@ -469,12 +523,12 @@ int uv_spawn(uv_loop_t* loop,
     ; /* okay, EOF */
   else if (r == sizeof(exec_errorno)) {
     do
-      err = waitpid(pid, &status, 0); /* okay, read errorno */
+      err = uv__waitpid(pid, &status, 0); /* okay, read errorno */
     while (err == -1 && errno == EINTR);
     assert(err == pid);
   } else if (r == -1 && errno == EPIPE) {
     do
-      err = waitpid(pid, &status, 0); /* okay, got EPIPE */
+      err = uv__waitpid(pid, &status, 0); /* okay, got EPIPE */
     while (err == -1 && errno == EINTR);
     assert(err == pid);
   } else

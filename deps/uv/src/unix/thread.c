@@ -27,7 +27,10 @@
 #include <errno.h>
 
 #include <sys/time.h>
+#ifndef __Fuchsia__
 #include <sys/resource.h>  /* getrlimit() */
+#endif
+
 #include <unistd.h>  /* getpagesize() */
 
 #include <limits.h>

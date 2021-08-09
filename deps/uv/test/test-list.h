@@ -74,7 +74,9 @@ TEST_DECLARE   (tty_full_reset)
 TEST_DECLARE   (tty_escape_sequence_processing)
 #endif
 TEST_DECLARE   (tty_file)
+#ifndef __Fuchsia__
 TEST_DECLARE   (tty_pty)
+#endif
 TEST_DECLARE   (stdio_over_pipes)
 TEST_DECLARE   (stdio_emulate_iocp)
 TEST_DECLARE   (ip6_pton)
@@ -230,7 +232,9 @@ TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
 TEST_DECLARE   (walk_handles)
+#ifndef __Fuchsia__
 TEST_DECLARE   (watcher_cross_stop)
+#endif
 TEST_DECLARE   (ref)
 TEST_DECLARE   (idle_ref)
 TEST_DECLARE   (async_ref)
@@ -259,7 +263,9 @@ TEST_DECLARE   (pipe_close_stdout_read_stdin)
 TEST_DECLARE   (pipe_set_non_blocking)
 TEST_DECLARE   (pipe_set_chmod)
 TEST_DECLARE   (process_ref)
+#ifndef __Fuchsia__
 TEST_DECLARE   (process_priority)
+#endif
 TEST_DECLARE   (has_ref)
 TEST_DECLARE   (active)
 TEST_DECLARE   (embed)
@@ -481,7 +487,9 @@ TEST_DECLARE   (spawn_with_an_odd_path)
 TEST_DECLARE   (ipc_listen_after_bind_twice)
 TEST_DECLARE   (win32_signum_number)
 #else
+#ifndef __Fuchsia__
 TEST_DECLARE   (emfile)
+#endif
 TEST_DECLARE   (spawn_setuid_setgid)
 TEST_DECLARE   (we_get_signal)
 TEST_DECLARE   (we_get_signals)
@@ -531,9 +539,11 @@ TEST_DECLARE  (fork_threadpool_queue_work_simple)
 #endif
 #endif
 
+#ifndef __Fuchsia__
 TEST_DECLARE  (idna_toascii)
 TEST_DECLARE  (utf8_decode1)
 TEST_DECLARE  (utf8_decode1_overrun)
+#endif
 TEST_DECLARE  (uname)
 
 TEST_DECLARE  (metrics_idle_time)
@@ -610,7 +620,9 @@ TASK_LIST_START
   TEST_ENTRY  (tty_escape_sequence_processing)
 #endif
   TEST_ENTRY  (tty_file)
+#ifndef __Fuchsia__
   TEST_ENTRY  (tty_pty)
+#endif
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (stdio_emulate_iocp)
   TEST_ENTRY  (ip6_pton)
@@ -848,13 +860,17 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_ref4)
   TEST_HELPER (pipe_ref4, pipe_echo_server)
   TEST_ENTRY  (process_ref)
+#ifndef __Fuchsia__
   TEST_ENTRY  (process_priority)
+#endif
   TEST_ENTRY  (has_ref)
 
   TEST_ENTRY  (loop_handles)
   TEST_ENTRY  (walk_handles)
 
+#ifndef __Fuchsia__
   TEST_ENTRY  (watcher_cross_stop)
+#endif
 
   TEST_ENTRY  (active)
 
@@ -977,7 +993,9 @@ TASK_LIST_START
   TEST_ENTRY  (ipc_listen_after_bind_twice)
   TEST_ENTRY  (win32_signum_number)
 #else
+#ifndef __Fuchsia__
   TEST_ENTRY  (emfile)
+#endif
   TEST_ENTRY  (spawn_setuid_setgid)
   TEST_ENTRY  (we_get_signal)
   TEST_ENTRY  (we_get_signals)
@@ -1087,7 +1105,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_get_system_error)
   TEST_ENTRY  (get_osfhandle_valid_handle)
   TEST_ENTRY  (open_osfhandle_valid_handle)
+#ifndef __Fuchsia__
   TEST_ENTRY  (strscpy)
+#endif
   TEST_ENTRY  (threadpool_queue_work_simple)
   TEST_ENTRY  (threadpool_queue_work_einval)
   TEST_ENTRY_CUSTOM (threadpool_multiple_event_loops, 0, 0, 60000)
@@ -1136,12 +1156,14 @@ TASK_LIST_START
 #endif
 #endif
 
+#ifndef __Fuchsia__
   TEST_ENTRY  (utf8_decode1)
   TEST_ENTRY  (utf8_decode1_overrun)
+#endif
   TEST_ENTRY  (uname)
 
 /* Doesn't work on z/OS because that platform uses EBCDIC, not ASCII. */
-#ifndef __MVS__
+#if !defined(__MVS__) && !defined(__Fuchsia__) 
   TEST_ENTRY  (idna_toascii)
 #endif
 

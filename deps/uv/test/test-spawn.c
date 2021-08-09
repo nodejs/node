@@ -214,7 +214,7 @@ TEST_IMPL(spawn_fails_check_for_waitpid_cleanup) {
 
   /* verify the child is successfully cleaned up within libuv */
   do
-    err = waitpid(process.pid, &status, 0);
+    err = uv__waitpid(process.pid, &status, 0);
   while (err == -1 && errno == EINTR);
 
   ASSERT(err == -1);

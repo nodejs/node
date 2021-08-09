@@ -21,6 +21,7 @@
 
 #include "runner-unix.h"
 #include "runner.h"
+#include "uv.h"
 
 #include <limits.h>
 #include <stdint.h> /* uintptr_t */
@@ -39,6 +40,11 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <pthread.h>
+
+#ifdef __Fuchsia__
+# include <lib/fdio/spawn.h>
+# include <zircon/syscalls.h>
+#endif
 
 extern char** environ;
 
@@ -75,22 +81,22 @@ void platform_init(int argc, char **argv) {
   snprintf(executable_path, sizeof(executable_path), "%s", argv[0]);
 }
 
-
 /* Invoke "argv[0] test-name [test-part]". Store process info in *p. Make sure
  * that all stdio output of the processes is buffered up. */
 int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   FILE* stdout_file;
   int stdout_fd;
-  const char* arg;
-  char* args[16];
+  const char* args[16];
   int pipefd[2];
   char fdstr[8];
   ssize_t rc;
   int n;
-  pid_t pid;
 
-  arg = getenv("UV_USE_VALGRIND");
   n = 0;
+
+#ifndef __Fuchsia__
+  const char* arg;
+  arg = getenv("UV_USE_VALGRIND");
 
   /* Disable valgrind for helpers, it complains about helpers leaking memory.
    * They're killed after the test and as such never get a chance to clean up.
@@ -102,6 +108,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
     args[n++] = "--show-reachable=yes";
     args[n++] = "--error-exitcode=125";
   }
+#endif
 
   args[n++] = executable_path;
   args[n++] = name;
@@ -122,6 +129,7 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
     }
 
     snprintf(fdstr, sizeof(fdstr), "%d", pipefd[1]);
+    printf("setting UV_TEST_RUNNER_FD\n");
     if (setenv("UV_TEST_RUNNER_FD", fdstr, /* overwrite */ 1)) {
       perror("setenv");
       return -1;
@@ -130,6 +138,17 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
 
   p->terminated = 0;
   p->status = 0;
+
+#ifdef __Fuchsia__
+  zx_status_t status;
+  
+  status = fdio_spawn(ZX_HANDLE_INVALID, FDIO_SPAWN_CLONE_ALL, executable_path, args, &p->pid);
+  if (status != ZX_OK) {
+    perror("fdio_spawn");
+    return -1;
+  }
+#else
+  pid_t pid;
 
   pid = fork();
 
@@ -151,6 +170,8 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
 
   /* parent */
   p->pid = pid;
+#endif
+
   p->name = strdup(name);
   p->stdout_file = stdout_file;
 
@@ -179,7 +200,6 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   return 0;
 }
 
-
 typedef struct {
   int pipe[2];
   process_info_t* vec;
@@ -199,7 +219,7 @@ static void* dowait(void* data) {
   for (i = 0; i < args->n; i++) {
     p = &args->vec[i];
     if (p->terminated) continue;
-    r = waitpid(p->pid, &p->status, 0);
+    r = uv__waitpid(p->pid, &p->status, 0);
     if (r < 0) {
       perror("waitpid");
       return NULL;
@@ -218,7 +238,6 @@ static void* dowait(void* data) {
 
   return NULL;
 }
-
 
 /* Wait for all `n` processes in `vec` to terminate. Time out after `timeout`
  * msec, or never if timeout == -1. Return 0 if all processes are terminated,
@@ -324,7 +343,11 @@ int process_wait(process_info_t* vec, int n, int timeout) {
     /* Timeout. Kill all the children. */
     for (i = 0; i < n; i++) {
       p = &vec[i];
+#ifdef __Fuchsia__
+      assert(0 && "kill not supported!");
+#else
       kill(p->pid, SIGTERM);
+#endif
     }
     retval = -2;
   }
@@ -414,7 +437,12 @@ char* process_get_name(process_info_t *p) {
 
 /* Terminate process `p`. */
 int process_terminate(process_info_t *p) {
+#ifdef __Fuchsia__
+  assert(0 && "kill not supported");
+  return -1;
+#else
   return kill(p->pid, SIGTERM);
+#endif
 }
 
 
