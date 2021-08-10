@@ -8,7 +8,6 @@ on:
       - 'benchmark/**'
       - 'deps/**'
       - 'doc/**'
-      - 'tools/**'
   push:
     branches:
       - master
@@ -18,7 +17,6 @@ on:
       - 'benchmark/**'
       - 'deps/**'
       - 'doc/**'
-      - 'tools/**'
 
 env:
   PYTHON_VERSION: 3.9
