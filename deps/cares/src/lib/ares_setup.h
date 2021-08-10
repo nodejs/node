@@ -178,8 +178,11 @@
 /*
  * Android does have the arpa/nameser.h header which is detected by configure
  * but it appears to be empty with recent NDK r7b / r7c, so we undefine here.
+ * z/OS does have the arpa/nameser.h header which is detected by configure
+ * but it is not fully implemented and missing identifiers, so udefine here.
  */
-#if (defined(ANDROID) || defined(__ANDROID__)) && defined(HAVE_ARPA_NAMESER_H)
+#if (defined(ANDROID) || defined(__ANDROID__) || defined(__MVS__)) && \
+    defined(HAVE_ARPA_NAMESER_H)
 #  undef HAVE_ARPA_NAMESER_H
 #endif
 
