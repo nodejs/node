@@ -7,6 +7,9 @@ const dns = require('dns');
 const TRIES = 1;
 const IMPRECISION_MS = 100;
 
+// Tests for dns.Resolver option `tries`.
+// This will roughly test if a single try fails after the set `timeout`.
+
 for (const ctor of [dns.Resolver, dns.promises.Resolver]) {
   for (const tries of [null, true, false, '', '2']) {
     assert.throws(() => new ctor({ tries }), {
