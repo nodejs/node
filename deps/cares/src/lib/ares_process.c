@@ -32,14 +32,8 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
 
-#include "nameser.h"
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
@@ -611,8 +605,7 @@ static void process_answer(ares_channel channel, unsigned char *abuf,
   packetsz = PACKETSZ;
   /* If we use EDNS and server answers with FORMERR without an OPT RR, the protocol
    * extension is not understood by the responder. We must retry the query
-   * without EDNS enabled.
-   */
+   * without EDNS enabled. */
   if (channel->flags & ARES_FLAG_EDNS)
   {
       packetsz = channel->ednspsz;
