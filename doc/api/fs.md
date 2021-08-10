@@ -1112,6 +1112,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fsPromises.rm` instead.
   - version:
      - v13.3.0
      - v12.16.0
@@ -3233,6 +3236,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fs.rm` instead.
   - version:
      - v13.3.0
      - v12.16.0
@@ -4903,6 +4909,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fs.rmSync` instead.
   - version:
      - v13.3.0
      - v12.16.0
