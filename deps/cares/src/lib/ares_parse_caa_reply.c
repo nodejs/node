@@ -25,14 +25,8 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
@@ -42,10 +36,6 @@
 #include "ares_dns.h"
 #include "ares_data.h"
 #include "ares_private.h"
-
-#ifndef T_CAA
-#  define T_CAA    257 /* Certification Authority Authorization */
-#endif
 
 int
 ares_parse_caa_reply (const unsigned char *abuf, int alen,
