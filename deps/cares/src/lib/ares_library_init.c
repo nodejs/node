@@ -40,13 +40,18 @@ static unsigned int ares_initialized;
 static int          ares_init_flags;
 
 /* library-private global vars with visibility across the whole library */
+
+/* Some systems may return either NULL or a valid pointer on malloc(0).  c-ares should
+ * never call malloc(0) so lets return NULL so we're more likely to find an issue if it
+ * were to occur. */
+
+static void *default_malloc(size_t size) { if (size == 0) { return NULL; } return malloc(size); }
+
 #if defined(WIN32)
 /* We need indirections to handle Windows DLL rules. */
-static void *default_malloc(size_t size) { return malloc(size); }
 static void *default_realloc(void *p, size_t size) { return realloc(p, size); }
 static void default_free(void *p) { free(p); }
 #else
-# define default_malloc malloc
 # define default_realloc realloc
 # define default_free free
 #endif

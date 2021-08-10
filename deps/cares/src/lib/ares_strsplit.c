@@ -13,6 +13,10 @@
  * without express or implied warranty.
  */
 
+#if defined(__MVS__)
+#include <strings.h>
+#endif
+
 #include "ares_setup.h"
 #include "ares_strsplit.h"
 #include "ares.h"

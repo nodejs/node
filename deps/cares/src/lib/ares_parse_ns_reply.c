@@ -29,14 +29,8 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #include "ares.h"
 #include "ares_dns.h"
@@ -68,7 +62,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
 
   /* Expand the name from the question, and skip past the question. */
   aptr = abuf + HFIXEDSZ;
-  status = ares__expand_name_for_response( aptr, abuf, alen, &hostname, &len);
+  status = ares__expand_name_for_response( aptr, abuf, alen, &hostname, &len, 0);
   if ( status != ARES_SUCCESS )
     return status;
   if ( aptr + len + QFIXEDSZ > abuf + alen )
@@ -91,7 +85,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
   for ( i = 0; i < ( int ) ancount; i++ )
   {
     /* Decode the RR up to the data field. */
-    status = ares__expand_name_for_response( aptr, abuf, alen, &rr_name, &len );
+    status = ares__expand_name_for_response( aptr, abuf, alen, &rr_name, &len, 0);
     if ( status != ARES_SUCCESS )
       break;
     aptr += len;
@@ -116,7 +110,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
     {
       /* Decode the RR data and add it to the nameservers list */
       status = ares__expand_name_for_response( aptr, abuf, alen, &rr_data,
-                                               &len);
+                                               &len, 1);
       if ( status != ARES_SUCCESS )
       {
         ares_free(rr_name);
