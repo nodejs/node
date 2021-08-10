@@ -748,8 +748,20 @@ void ChannelWrap::StartTimer() {
   }
   int timeout = timeout_;
   if (timeout == 0) timeout = 1;
-  if (timeout < 0 || timeout > 1000) timeout = 1000;
-  uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
+  /* -1 implies the default c-ares value, that is 5000, thus checking each
+   * second */
+  if (timeout <= -1) timeout = 1000;
+  if (timeout >= 1000) {
+    int thousands = (timeout / 1000) * 1000;
+    /* Pure seconds should be checked every second (for example 1000, 2000,
+     * 5000) */
+    if (timeout - thousands == 0) timeout = 1000;
+    /* If it's not just seconds (for example 1200, 1050, 2500) check for an
+     * entire 100ms */
+    else
+      timeout = 100;
+  }
+  uv_timer_start(timer_handle_, AresTimeout, 0, timeout);
 }
 
 void ChannelWrap::CloseTimer() {
