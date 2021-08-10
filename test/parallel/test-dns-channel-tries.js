@@ -5,7 +5,7 @@ const dgram = require('dgram');
 const dns = require('dns');
 
 const TRIES = 1;
-const IMPRECISION_MS = 100;
+const IMPRECISION_MS = 500;
 
 // Tests for dns.Resolver option `tries`.
 // This will roughly test if a single try fails after the set `timeout`.
@@ -36,17 +36,16 @@ for (let timeout of [-1, 1000, 1500, 50]) {
 
     const timeStart = performance.now();
     resolver.resolve4('nodejs.org', common.mustCall((err) => {
-      const timeEnd = performance.now();
-
       assert.throws(() => { throw err; }, {
         code: 'ETIMEOUT',
         name: 'Error',
       });
+      const timeEnd = performance.now();
 
       // c-ares default (-1): 5000ms
       if (timeout === -1) timeout = 5000;
 
-      // Adding 100 due to imprecisions
+      // Adding 500ms due to imprecisions
       const elapsedMs = (timeEnd - timeStart);
       assert(elapsedMs <= timeout + IMPRECISION_MS, `The expected timeout did not occur. Expecting: ${timeout + IMPRECISION_MS} But got: ${elapsedMs}`);
 
@@ -71,7 +70,7 @@ for (let timeout of [-1, 1000, 1500, 50]) {
       // c-ares default (-1): 5000ms
       if (timeout === -1) timeout = 5000;
 
-      // Adding 100 due to imprecisions
+      // Adding 500ms due to imprecisions
       const elapsedMs = (timeEnd - timeStart);
       assert(elapsedMs <= timeout + IMPRECISION_MS, `The expected timeout did not occur. Expecting: ${timeout + IMPRECISION_MS} But got: ${elapsedMs}`);
 
