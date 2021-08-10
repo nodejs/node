@@ -453,6 +453,10 @@ int ares__sortaddrinfo(ares_channel channel, struct ares_addrinfo_node *list_sen
       ++nelem;
       cur = cur->ai_next;
     }
+
+  if (!nelem)
+      return ARES_ENODATA;
+
   elems = (struct addrinfo_sort_elem *)ares_malloc(
       nelem * sizeof(struct addrinfo_sort_elem));
   if (!elems)

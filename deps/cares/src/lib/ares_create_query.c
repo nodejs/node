@@ -19,22 +19,13 @@
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_private.h"
 
-#ifndef T_OPT
-#  define T_OPT  41 /* EDNS0 option (meta-RR) */
-#endif
 
 /* Header format, from RFC 1035:
  *                                  1  1  1  1  1  1
@@ -57,7 +48,7 @@
  * of the remaining fields:
  *      ID      Identifier to match responses with queries
  *      QR      Query (0) or response (1)
- *      Opcode  For our purposes, always QUERY
+ *      Opcode  For our purposes, always O_QUERY
  *      RD      Recursion desired
  *      Z       Reserved (zero)
  *      QDCOUNT Number of queries
@@ -116,7 +107,7 @@ int ares_create_query(const char *name, int dnsclass, int type,
   q = buf;
   memset(q, 0, HFIXEDSZ);
   DNS_HEADER_SET_QID(q, id);
-  DNS_HEADER_SET_OPCODE(q, QUERY);
+  DNS_HEADER_SET_OPCODE(q, O_QUERY);
   if (rd) {
     DNS_HEADER_SET_RD(q, 1);
   }
