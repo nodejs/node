@@ -22,14 +22,8 @@
 #ifdef HAVE_NETDB_H
 #  include <netdb.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
@@ -48,7 +42,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
   long len;
   const unsigned char *aptr;
   char *ptrname, *hostname, *rr_name, *rr_data;
-  struct hostent *hostent;
+  struct hostent *hostent = NULL;
   int aliascnt = 0;
   int alias_alloc = 8;
   char ** aliases;
@@ -69,7 +63,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
 
   /* Expand the name from the question, and skip past the question. */
   aptr = abuf + HFIXEDSZ;
-  status = ares__expand_name_for_response(aptr, abuf, alen, &ptrname, &len);
+  status = ares__expand_name_for_response(aptr, abuf, alen, &ptrname, &len, 0);
   if (status != ARES_SUCCESS)
     return status;
   if (aptr + len + QFIXEDSZ > abuf + alen)
@@ -90,7 +84,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
   for (i = 0; i < (int)ancount; i++)
     {
       /* Decode the RR up to the data field. */
-      status = ares__expand_name_for_response(aptr, abuf, alen, &rr_name, &len);
+      status = ares__expand_name_for_response(aptr, abuf, alen, &rr_name, &len, 0);
       if (status != ARES_SUCCESS)
         break;
       aptr += len;
@@ -116,7 +110,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
         {
           /* Decode the RR data and set hostname to it. */
           status = ares__expand_name_for_response(aptr, abuf, alen, &rr_data,
-                                                  &len);
+                                                  &len, 1);
           if (status != ARES_SUCCESS)
             {
               ares_free(rr_name);
@@ -152,7 +146,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
         {
           /* Decode the RR data and replace ptrname with it. */
           status = ares__expand_name_for_response(aptr, abuf, alen, &rr_data,
-                                                  &len);
+                                                  &len, 1);
           if (status != ARES_SUCCESS)
             {
               ares_free(rr_name);
@@ -175,41 +169,54 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
     status = ARES_ENODATA;
   if (status == ARES_SUCCESS)
     {
-      /* We got our answer.  Allocate memory to build the host entry. */
-      hostent = ares_malloc(sizeof(struct hostent));
-      if (hostent)
-        {
-          hostent->h_addr_list = ares_malloc(2 * sizeof(char *));
-          if (hostent->h_addr_list)
-            {
-              hostent->h_addr_list[0] = ares_malloc(addrlen);
-              if (hostent->h_addr_list[0])
-                {
-                  hostent->h_aliases = ares_malloc((aliascnt+1) * sizeof (char *));
-                  if (hostent->h_aliases)
-                    {
-                      /* Fill in the hostent and return successfully. */
-                      hostent->h_name = hostname;
-                      for (i=0 ; i<aliascnt ; i++)
-                        hostent->h_aliases[i] = aliases[i];
-                      hostent->h_aliases[aliascnt] = NULL;
-                      hostent->h_addrtype = aresx_sitoss(family);
-                      hostent->h_length = aresx_sitoss(addrlen);
-                      memcpy(hostent->h_addr_list[0], addr, addrlen);
-                      hostent->h_addr_list[1] = NULL;
-                      *host = hostent;
-                      ares_free(aliases);
-                      ares_free(ptrname);
-                      return ARES_SUCCESS;
-                    }
-                  ares_free(hostent->h_addr_list[0]);
-                }
-              ares_free(hostent->h_addr_list);
-            }
-          ares_free(hostent);
-        }
+      /* If we don't reach the end, we must have failed due to out of memory */
       status = ARES_ENOMEM;
+
+      /* We got our answer.  Allocate memory to build the host entry. */
+      hostent = ares_malloc(sizeof(*hostent));
+      if (!hostent)
+        goto fail;
+
+      /* If we don't memset here, cleanups may fail */
+      memset(hostent, 0, sizeof(*hostent));
+
+      hostent->h_addr_list = ares_malloc(2 * sizeof(char *));
+      if (!hostent->h_addr_list)
+        goto fail;
+
+
+      if (addr && addrlen) {
+        hostent->h_addr_list[0] = ares_malloc(addrlen);
+        if (!hostent->h_addr_list[0])
+          goto fail;
+      } else {
+        hostent->h_addr_list[0] = NULL;
+      }
+
+      hostent->h_aliases = ares_malloc((aliascnt+1) * sizeof (char *));
+      if (!hostent->h_aliases)
+        goto fail;
+
+      /* Fill in the hostent and return successfully. */
+      hostent->h_name = hostname;
+      for (i=0 ; i<aliascnt ; i++)
+        hostent->h_aliases[i] = aliases[i];
+      hostent->h_aliases[aliascnt] = NULL;
+      hostent->h_addrtype = aresx_sitoss(family);
+      hostent->h_length = aresx_sitoss(addrlen);
+      if (addr && addrlen)
+        memcpy(hostent->h_addr_list[0], addr, addrlen);
+      hostent->h_addr_list[1] = NULL;
+      *host = hostent;
+      ares_free(aliases);
+      ares_free(ptrname);
+
+      return ARES_SUCCESS;
     }
+
+fail:
+  ares_free_hostent(hostent);
+
   for (i=0 ; i<aliascnt ; i++)
     if (aliases[i])
       ares_free(aliases[i]);

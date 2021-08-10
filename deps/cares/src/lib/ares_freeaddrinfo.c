@@ -51,6 +51,8 @@ void ares__freeaddrinfo_nodes(struct ares_addrinfo_node *head)
 
 void ares_freeaddrinfo(struct ares_addrinfo *ai)
 {
+  if (ai == NULL)
+    return;
   ares__freeaddrinfo_cnames(ai->cnames);
   ares__freeaddrinfo_nodes(ai->nodes);
   ares_free(ai);

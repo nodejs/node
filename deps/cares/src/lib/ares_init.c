@@ -33,14 +33,7 @@
 #include <arpa/inet.h>
 #endif
 
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+#include "ares_nameser.h"
 
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <sys/system_properties.h>
@@ -1472,6 +1465,57 @@ static int init_by_resolv_conf(ares_channel channel)
     /* Catch the case when all the above checks fail (which happens when there
        is no network card or the cable is unplugged) */
     status = ARES_EFILE;
+#elif defined(__MVS__)
+
+  struct __res_state *res = 0;
+  int count4, count6;
+  __STATEEXTIPV6 *v6;
+  struct server_state *pserver
+  if (0 == res) {
+    int rc = res_init();
+    while (rc == -1 && h_errno == TRY_AGAIN) {
+      rc = res_init();
+    }
+    if (rc == -1) {
+      return ARES_ENOMEM;
+    }
+    res = __res();
+  }
+
+  v6 = res->__res_extIPv6;
+  count4 = res->nscount;
+  if (v6) {
+    count6 = v6->__stat_nscount;
+  } else {
+    count6 = 0;
+  }
+
+  nservers = count4 + count6;
+  servers = ares_malloc(nservers * sizeof(struct server_state));
+  if (!servers)
+    return ARES_ENOMEM;
+
+  memset(servers, 0, nservers * sizeof(struct server_state));
+
+  pserver = servers;
+  for (int i = 0; i < count4; ++i, ++pserver) {
+    struct sockaddr_in *addr_in = &(res->nsaddr_list[i]);
+    pserver->addr.addrV4.s_addr = addr_in->sin_addr.s_addr;
+    pserver->addr.family = AF_INET;
+    pserver->addr.udp_port = addr_in->sin_port;
+    pserver->addr.tcp_port = addr_in->sin_port;
+  }
+
+  for (int j = 0; j < count6; ++j, ++pserver) {
+    struct sockaddr_in6 *addr_in = &(v6->__stat_nsaddr_list[j]);
+    memcpy(&(pserver->addr.addr.addr6), &(addr_in->sin6_addr),
+           sizeof(addr_in->sin6_addr));
+    pserver->addr.family = AF_INET6;
+    pserver->addr.udp_port = addr_in->sin6_port;
+    pserver->addr.tcp_port = addr_in->sin6_port;
+  }
+
+  status = ARES_EOF;
 
 #elif defined(__riscos__)
 
@@ -1621,17 +1665,18 @@ static int init_by_resolv_conf(ares_channel channel)
       int entries = 0;
       while ((entries < MAXDNSRCH) && res.dnsrch[entries])
         entries++;
-
-      channel->domains = ares_malloc(entries * sizeof(char *));
-      if (!channel->domains) {
-        status = ARES_ENOMEM;
-      } else {
-        int i;
-        channel->ndomains = entries;
-        for (i = 0; i < channel->ndomains; ++i) {
-          channel->domains[i] = ares_strdup(res.dnsrch[i]);
-          if (!channel->domains[i])
-            status = ARES_ENOMEM;
+      if(entries) {
+        channel->domains = ares_malloc(entries * sizeof(char *));
+        if (!channel->domains) {
+          status = ARES_ENOMEM;
+        } else {
+          int i;
+          channel->ndomains = entries;
+          for (i = 0; i < channel->ndomains; ++i) {
+            channel->domains[i] = ares_strdup(res.dnsrch[i]);
+            if (!channel->domains[i])
+              status = ARES_ENOMEM;
+          }
         }
       }
     }
@@ -2470,9 +2515,10 @@ static void randomize_key(unsigned char* key,int key_data_len)
         randomized = 1;
     }
 #else /* !WIN32 */
-#ifdef RANDOM_FILE
-  FILE *f = fopen(RANDOM_FILE, "rb");
+#ifdef CARES_RANDOM_FILE
+  FILE *f = fopen(CARES_RANDOM_FILE, "rb");
   if(f) {
+    setvbuf(f, NULL, _IONBF, 0);
     counter = aresx_uztosi(fread(key, 1, key_data_len, f));
     fclose(f);
   }

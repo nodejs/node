@@ -34,14 +34,8 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
@@ -399,7 +393,7 @@ static void end_hquery(struct host_query *hquery, int status)
   struct ares_addrinfo_node *next;
   if (status == ARES_SUCCESS)
     {
-      if (!(hquery->hints.ai_flags & ARES_AI_NOSORT))
+      if (!(hquery->hints.ai_flags & ARES_AI_NOSORT) && hquery->ai->nodes)
         {
           sentinel.ai_next = hquery->ai->nodes;
           ares__sortaddrinfo(hquery->channel, &sentinel);
@@ -550,11 +544,6 @@ static void host_callback(void *arg, int status, int timeouts,
     {
       addinfostatus = ares__parse_into_addrinfo(abuf, alen, hquery->ai);
     }
-  else if (status == ARES_EDESTRUCTION)
-    {
-      end_hquery(hquery, status);
-      return;
-    }
 
   if (!hquery->remaining)
     {
@@ -571,6 +560,13 @@ static void host_callback(void *arg, int status, int timeouts,
       else if (status == ARES_ENOTFOUND)
         {
           next_lookup(hquery, status);
+        }
+      else if (status == ARES_EDESTRUCTION)
+        {
+          /* NOTE: Could also be ARES_EDESTRUCTION.  We need to only call this
+           * once all queries (there can be multiple for getaddrinfo) are
+           * terminated.  */
+          end_hquery(hquery, status);
         }
       else
         {

@@ -26,14 +26,8 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
@@ -113,7 +107,7 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
       while (next_cname)
         {
           if(next_cname->alias)
-            aliases[alias++] = strdup(next_cname->alias);
+            aliases[alias++] = ares_strdup(next_cname->alias);
           if(next_cname->ttl < cname_ttl)
             cname_ttl = next_cname->ttl;
           next_cname = next_cname->next;
@@ -135,7 +129,7 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
 
   if (ai.cnames)
     {
-      hostent->h_name = strdup(ai.cnames->name);
+      hostent->h_name = ares_strdup(ai.cnames->name);
       ares_free(question_hostname);
     }
   else
