@@ -1055,6 +1055,9 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fsPromises.rm` instead.
   - version:
      - v13.3.0
      - v12.16.0
@@ -3153,6 +3156,9 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fs.rm` instead.
   - version:
      - v13.3.0
      - v12.16.0
@@ -4803,6 +4809,9 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: v14.14.0
+    pr-url: https://github.com/nodejs/node/pull/35579
+    description: The `recursive` option is deprecated, use `fs.rmSync` instead.
   - version:
      - v13.3.0
      - v12.16.0
