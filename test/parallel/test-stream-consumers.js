@@ -232,3 +232,17 @@ const kArrayBuffer =
   stream.write({});
   stream.end({});
 }
+
+{
+  const stream = new TransformStream();
+  text(stream.readable).then(common.mustCall((str) => {
+    // Incomplete utf8 character is flushed as a replacement char
+    assert.strictEqual(str.charCodeAt(0), 0xfffd);
+  }));
+  const writer = stream.writable.getWriter();
+  Promise.all([
+    writer.write(new Uint8Array([0xe2])),
+    writer.write(new Uint8Array([0x82])),
+    writer.close(),
+  ]).then(common.mustCall());
+}
