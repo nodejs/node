@@ -231,7 +231,7 @@
             '<(generate_bytecode_builtins_list_output)',
           ],
           'action': [
-            'python',
+            '<(python)',
             '<(V8_ROOT)/tools/run.py',
             '<@(_inputs)',
             '<@(_outputs)',
@@ -1535,7 +1535,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/src/regexp/special-case.cc',
           ],
           'action': [
-            'python',
+            '<(python)',
             '<(V8_ROOT)/tools/run.py',
             '<@(_inputs)',
             '<@(_outputs)',
