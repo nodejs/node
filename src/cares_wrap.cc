@@ -63,7 +63,10 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::String;
@@ -1443,7 +1446,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status == 0) {
     Local<Array> results = Array::New(env->isolate());
 
-    auto add = [&] (bool want_ipv4, bool want_ipv6) {
+    auto add = [&] (bool want_ipv4, bool want_ipv6) -> Maybe<bool> {
       for (auto p = res; p != nullptr; p = p->ai_next) {
         CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
@@ -1463,14 +1466,19 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(env->context(), n, s).Check();
+        if (results->Set(env->context(), n, s).IsNothing())
+          return Nothing<bool>();
         n++;
       }
+      return Just(true);
     };
 
-    add(true, verbatim);
-    if (verbatim == false)
-      add(false, true);
+    if (add(true, verbatim).IsNothing())
+      return;
+    if (verbatim == false) {
+      if (add(false, true).IsNothing())
+        return;
+    }
 
     // No responses were found to return
     if (n == 0) {
