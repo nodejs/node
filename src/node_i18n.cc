@@ -442,11 +442,24 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
   UErrorCode status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> result;
   MaybeLocal<Object> ret;
-  size_t limit = converter->min_char_size() * input.length();
+
+  UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
+
+  // When flushing the final chunk, the limit is the maximum
+  // of either the input buffer length or the number of pending
+  // characters times the min char size.
+  size_t limit = converter->min_char_size() *
+      (!flush ?
+          input.length() :
+          std::max(
+              input.length(),
+              static_cast<size_t>(
+                  ucnv_toUCountPending(converter->conv(), &status))));
+  status = U_ZERO_ERROR;
+
   if (limit > 0)
     result.AllocateSufficientStorage(limit);
 
-  UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
   auto cleanup = OnScopeLeave([&]() {
     if (flush) {
       // Reset the converter state.
