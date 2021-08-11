@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.5">12.22.5</a><br/>
 <a href="#12.22.4">12.22.4</a><br/>
 <a href="#12.22.3">12.22.3</a><br/>
 <a href="#12.22.2">12.22.2</a><br/>
@@ -77,6 +78,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.5"></a>
+## 2021-08-11, Version 12.22.5 'Erbium' (LTS), @BethGriggs
+
+This is a security release.
+
+### Notable Changes
+
+* **CVE-2021-3672/CVE-2021-22931**: Improper handling of untypical characters in domain names (High)
+  * Node.js was vulnerable to Remote Code Execution, XSS, application crashes due to missing input validation of hostnames returned by Domain Name Servers in the Node.js DNS library which can lead to the output of wrong hostnames (leading to Domain Hijacking) and injection vulnerabilities in applications using the library. You can read more about it at https://nvd.nist.gov/vuln/detail/CVE-2021-22931.
+* **CVE-2021-22930**: Use after free on close http2 on stream canceling (High)
+  * Node.js was vulnerable to a use after free attack where an attacker might be able to exploit memory corruption to change process behavior. This release includes a follow-up fix for CVE-2021-22930 as the issue was not completely resolved by the previous fix. You can read more about it at https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22930.
+* **CVE-2021-22939**: Incomplete validation of rejectUnauthorized parameter (Low)
+  * If the Node.js HTTPS API was used incorrectly and "undefined" was in passed for the "rejectUnauthorized" parameter, no error was returned and connections to servers with an expired certificate would have been accepted. You can read more about it at https://nvd.nist.gov/vuln/detail/CVE-2021-22939.
+
+### Commits
+
+* [[`5f947db68c`](https://github.com/nodejs/node/commit/5f947db68c)] - **deps**: update c-ares to 1.17.2 (Beth Griggs) [#39724](https://github.com/nodejs/node/pull/39724)
+* [[`42695ea34b`](https://github.com/nodejs/node/commit/42695ea34b)] - **deps**: reflect c-ares source tree (Beth Griggs) [#39653](https://github.com/nodejs/node/pull/39653)
+* [[`e4c9156b32`](https://github.com/nodejs/node/commit/e4c9156b32)] - **deps**: apply missed updates from c-ares 1.17.1 (Beth Griggs) [#39653](https://github.com/nodejs/node/pull/39653)
+* [[`9cd1f53103`](https://github.com/nodejs/node/commit/9cd1f53103)] - **http2**: add tests for cancel event while client is paused reading (Akshay K) [#39622](https://github.com/nodejs/node/pull/39622)
+* [[`2008c9722f`](https://github.com/nodejs/node/commit/2008c9722f)] - **http2**: update handling of rst\_stream with error code NGHTTP2\_CANCEL (Akshay K) [#39622](https://github.com/nodejs/node/pull/39622)
+* [[`1780bbc329`](https://github.com/nodejs/node/commit/1780bbc329)] - **tls**: validate "rejectUnauthorized: undefined" (Matteo Collina) [nodejs-private/node-private#276](https://github.com/nodejs-private/node-private/pull/276)
 
 <a id="12.22.4"></a>
 ## 2021-07-29, Version 12.22.4 'Erbium' (LTS), @richardlau
