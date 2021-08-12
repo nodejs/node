@@ -17,9 +17,9 @@ internal core modules. User code cannot use or rely on primordials. It is
 usually fine to rely on ECMAScript built-ins and assume that it will behave as
 specified.
 
-If you'd like to access the `primordials` object to help you with Node.js core
-development or for tinkering, you can expose it on the global scope using this
-combination of CLI flags:
+If you would like to access the `primordials` object to help you with Node.js
+core development or for tinkering, you can expose it on the global scope using
+this combination of CLI flags:
 
 ```bash
 node --expose-internals -r internal/test/binding
@@ -132,9 +132,9 @@ path, use extra caution and run extensive benchmarks.
 
 There are many usual practices in JavaScript that rely on iteration. It's useful
 to be aware of them when dealing with arrays (or `TypedArray`s) in core as array
-iteration typically calls several user-mutable methods. This sections lists most
-common patterns when ECMAScript code relies non-explicitly on array iteration
-and how to avoid it.
+iteration typically calls several user-mutable methods. This sections lists the
+most common patterns in which ECMAScript code relies non-explicitly on array
+iteration and how to avoid it.
 
 <details>
 
@@ -288,7 +288,9 @@ ReflectApply(func, null, array);
 {
   // Safe example without using `SafeArrayIterator`:
   const obj = {};
-  for (let i = 0; i < array.length; i++) obj[array[i][0]] = array[i][1];
+  for (let i = 0; i < array.length; i++) {
+    obj[array[i][0]] = array[i][1];
+  }
   // In a hot code path, this would be the preferred method.
 }
 ```
