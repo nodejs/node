@@ -54,7 +54,7 @@ information described.
 * [ ] CC `oss-security@lists.openwall.com` on pre-release
 
 The google groups UI does not support adding a CC, until we figure
-out a better way forward the email you receive to
+out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
 * [ ] Pre-release announcement to nodejs.org blog: ***LINK TO BLOG***
