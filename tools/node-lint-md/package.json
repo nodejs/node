@@ -1,0 +1,12 @@
+{
+  "name": "node-lint-md",
+  "description": "Node.js Markdown linting",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "remark": "^14.0.1",
+    "remark-gfm": "^2.0.0",
+    "remark-preset-lint-node": "^3.0.0",
+    "unified-args": "^9.0.2"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "minimist",
+  "version": "1.2.5",
+  "description": "parse argument options",
+  "main": "index.js",
+  "devDependencies": {
+    "covert": "^1.0.0",
+    "tap": "~0.4.0",
+    "tape": "^3.5.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js",
+    "coverage": "covert test/*.js"
+  },
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/6..latest",
+      "ff/5",
+      "firefox/latest",
+      "chrome/10",
+      "chrome/latest",
+      "safari/5.1",
+      "safari/latest",
+      "opera/12"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/minimist.git"
+  },
+  "homepage": "https://github.com/substack/minimist",
+  "keywords": [
+    "argv",
+    "getopt",
+    "parser",
+    "optimist"
+  ],
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "license": "MIT"
+}

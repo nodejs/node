@@ -1,0 +1,95 @@
+{
+  "name": "micromark-extension-gfm",
+  "version": "1.0.0",
+  "description": "micromark extension to support GFM (GitHub Flavored Markdown)",
+  "license": "MIT",
+  "keywords": [
+    "micromark",
+    "micromark-extension",
+    "table",
+    "strikethrough",
+    "tasklist",
+    "autolink",
+    "tagfilter",
+    "github",
+    "gfm",
+    "markdown",
+    "unified"
+  ],
+  "repository": "micromark/micromark-extension-gfm",
+  "bugs": "https://github.com/micromark/micromark-extension-gfm/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/unified"
+  },
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "dependencies": {
+    "micromark-extension-gfm-autolink-literal": "^1.0.0",
+    "micromark-extension-gfm-strikethrough": "^1.0.0",
+    "micromark-extension-gfm-table": "^1.0.0",
+    "micromark-extension-gfm-tagfilter": "^1.0.0",
+    "micromark-extension-gfm-task-list-item": "^1.0.0",
+    "micromark-util-combine-extensions": "^1.0.0",
+    "micromark-util-types": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/hast": "^2.3.1",
+    "@types/node-fetch": "^2.5.10",
+    "@types/tape": "^4.0.0",
+    "c8": "^7.0.0",
+    "hast-util-select": "^5.0.0",
+    "hast-util-to-text": "^3.0.0",
+    "micromark": "^3.0.0",
+    "node-fetch": "^2.0.0",
+    "prettier": "^2.0.0",
+    "rehype-parse": "^7.0.0",
+    "remark-cli": "^9.0.0",
+    "remark-preset-wooorm": "^8.0.0",
+    "rimraf": "^3.0.0",
+    "tape": "^5.0.0",
+    "type-coverage": "^2.0.0",
+    "typescript": "^4.0.0",
+    "unified": "^9.0.0",
+    "xo": "^0.39.0"
+  },
+  "scripts": {
+    "build": "rimraf \"*.d.ts\" \"script/**/*.d.ts\" \"test/**/*.d.ts\" && tsc && type-coverage",
+    "format": "remark . -qfo && prettier . -w --loglevel warn && xo --fix",
+    "test-api": "node --conditions development test/index.js",
+    "test-coverage": "c8 --check-coverage --branches 100 --functions 100 --lines 100 --statements 100 --reporter lcov node --conditions development test/index.js",
+    "test": "npm run build && npm run format && npm run test-coverage"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "semi": false,
+    "trailingComma": "none"
+  },
+  "xo": {
+    "prettier": true
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "typeCoverage": {
+    "atLeast": 100,
+    "detail": true,
+    "strict": true,
+    "ignoreCatch": true
+  }
+}

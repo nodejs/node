@@ -1,0 +1,31 @@
+{
+  "name": "figgy-pudding",
+  "version": "3.5.2",
+  "description": "Delicious, festive, cascading config/opts definitions",
+  "main": "index.js",
+  "files": [
+    "*.js",
+    "lib"
+  ],
+  "scripts": {
+    "prerelease": "npm t",
+    "postrelease": "npm publish && git push --follow-tags",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --100 --coverage test/*.js"
+  },
+  "repository": "https://github.com/npm/figgy-pudding",
+  "keywords": [
+    "config",
+    "options",
+    "yummy"
+  ],
+  "author": "Kat Marchán <kzm@sykosomatic.org>",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "standard": "^11.0.1",
+    "standard-version": "^4.4.0",
+    "tap": "^12.0.1"
+  }
+}

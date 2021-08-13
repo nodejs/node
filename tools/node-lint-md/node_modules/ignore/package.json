@@ -1,0 +1,70 @@
+{
+  "name": "ignore",
+  "version": "5.1.8",
+  "description": "Ignore is a manager and filter for .gitignore rules, the one used by eslint, gitbook and many others.",
+  "files": [
+    "legacy.js",
+    "index.js",
+    "index.d.ts",
+    "LICENSE-MIT"
+  ],
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "babel -o legacy.js index.js",
+    "test:lint": "eslint .",
+    "test:tsc": "tsc ./test/ts/simple.ts --lib ES6",
+    "test:ts": "node ./test/ts/simple.js",
+    "test:git": "tap test/git-check-ignore.js",
+    "test:ignore": "tap test/ignore.js",
+    "test:others": "tap test/others.js",
+    "test:cases": "tap test/*.js --coverage",
+    "test:only": "npm run test:lint && npm run test:tsc && npm run test:ts && npm run test:cases",
+    "test": "npm run test:only",
+    "test:win32": "IGNORE_TEST_WIN32=1 npm run test",
+    "posttest": "tap --coverage-report=html && codecov"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:kaelzhang/node-ignore.git"
+  },
+  "keywords": [
+    "ignore",
+    ".gitignore",
+    "gitignore",
+    "npmignore",
+    "rules",
+    "manager",
+    "filter",
+    "regexp",
+    "regex",
+    "fnmatch",
+    "glob",
+    "asterisks",
+    "regular-expression"
+  ],
+  "author": "kael",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kaelzhang/node-ignore/issues"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "codecov": "^3.7.0",
+    "debug": "^4.1.1",
+    "eslint": "^7.0.0",
+    "eslint-config-ostai": "^3.0.0",
+    "eslint-plugin-import": "^2.20.2",
+    "mkdirp": "^1.0.4",
+    "pre-suf": "^1.1.1",
+    "rimraf": "^3.0.2",
+    "spawn-sync": "^2.0.0",
+    "tap": "^14.10.7",
+    "tmp": "0.2.1",
+    "typescript": "^3.9.3"
+  },
+  "engines": {
+    "node": ">= 4"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "name": "hastscript",
+  "version": "7.0.2",
+  "description": "hast utility to create trees",
+  "license": "MIT",
+  "keywords": [
+    "unist",
+    "hast",
+    "hast-util",
+    "util",
+    "utility",
+    "html",
+    "rehype",
+    "vdom",
+    "virtual",
+    "dom",
+    "hyperscript",
+    "dsl"
+  ],
+  "repository": "syntax-tree/hastscript",
+  "bugs": "https://github.com/syntax-tree/hastscript/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/unified"
+  },
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": "./index.js",
+    "./index.js": "./index.js",
+    "./html.js": "./html.js",
+    "./svg.js": "./svg.js",
+    "./jsx-runtime": "./jsx-runtime.js",
+    "./html/jsx-runtime": "./html/jsx-runtime.js",
+    "./svg/jsx-runtime": "./svg/jsx-runtime.js"
+  },
+  "files": [
+    "lib/",
+    "html/",
+    "svg/",
+    "html.d.ts",
+    "html.js",
+    "svg.d.ts",
+    "svg.js",
+    "jsx-runtime.d.ts",
+    "jsx-runtime.js",
+    "index.d.ts",
+    "index.js"
+  ],
+  "dependencies": {
+    "@types/hast": "^2.0.0",
+    "comma-separated-tokens": "^2.0.0",
+    "hast-util-parse-selector": "^3.0.0",
+    "property-information": "^6.0.0",
+    "space-separated-tokens": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-syntax-jsx": "^7.0.0",
+    "@babel/plugin-transform-react-jsx": "^7.0.0",
+    "@types/babel__core": "^7.0.0",
+    "@types/tape": "^4.0.0",
+    "acorn": "^8.0.0",
+    "acorn-jsx": "^5.0.0",
+    "astring": "^1.0.0",
+    "c8": "^7.0.0",
+    "estree-util-build-jsx": "^2.0.0",
+    "prettier": "^2.0.0",
+    "remark-cli": "^9.0.0",
+    "remark-preset-wooorm": "^8.0.0",
+    "rimraf": "^3.0.0",
+    "svg-tag-names": "^3.0.0",
+    "tape": "^5.0.0",
+    "tsd": "^0.17.0",
+    "type-coverage": "^2.0.0",
+    "typescript": "^4.0.0",
+    "unist-builder": "^3.0.0",
+    "xo": "^0.42.0"
+  },
+  "scripts": {
+    "prepack": "npm run build && npm run format",
+    "build": "rimraf \"{script/**,test/**,}*.d.ts\" \"lib/{core,html,index,runtime-html,runtime-svg,runtime,svg-case-sensitive-tag-names,svg}.d.ts\" && tsc && tsd && type-coverage",
+    "generate": "node script/generate-jsx && node script/build",
+    "format": "remark . -qfo && prettier . -w --loglevel warn && xo --fix",
+    "test-api": "node test/index.js",
+    "test-coverage": "c8 --check-coverage --branches 100 --functions 100 --lines 100 --statements 100 --reporter lcov node test/index.js",
+    "test": "npm run build && npm run generate && npm run format && npm run test-coverage"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "semi": false,
+    "trailingComma": "none"
+  },
+  "xo": {
+    "prettier": true
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "typeCoverage": {
+    "atLeast": 100,
+    "detail": true,
+    "strict": true
+  }
+}

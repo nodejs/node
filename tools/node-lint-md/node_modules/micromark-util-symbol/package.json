@@ -1,0 +1,60 @@
+{
+  "name": "micromark-util-symbol",
+  "version": "1.0.0",
+  "description": "micromark utility with symbols",
+  "license": "MIT",
+  "keywords": [
+    "micromark",
+    "util",
+    "utility",
+    "symbol"
+  ],
+  "repository": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol",
+  "bugs": "https://github.com/micromark/micromark/issues",
+  "funding": [
+    {
+      "type": "GitHub Sponsors",
+      "url": "https://github.com/sponsors/unifiedjs"
+    },
+    {
+      "type": "OpenCollective",
+      "url": "https://opencollective.com/unified"
+    }
+  ],
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "files": [
+    "codes.d.ts",
+    "codes.js",
+    "constants.d.ts",
+    "constants.js",
+    "types.d.ts",
+    "types.js",
+    "values.d.ts",
+    "values.js"
+  ],
+  "exports": {
+    "./codes": "./codes.js",
+    "./codes.js": "./codes.js",
+    "./constants": "./constants.js",
+    "./constants.js": "./constants.js",
+    "./types": "./types.js",
+    "./types.js": "./types.js",
+    "./values": "./values.js",
+    "./values.js": "./values.js"
+  },
+  "scripts": {
+    "build": "rimraf \"*.d.ts\" && tsc && type-coverage"
+  },
+  "xo": false,
+  "typeCoverage": {
+    "atLeast": 100,
+    "detail": true,
+    "strict": true,
+    "ignoreCatch": true
+  }
+}

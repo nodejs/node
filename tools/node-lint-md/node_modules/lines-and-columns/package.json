@@ -1,0 +1,45 @@
+{
+  "name": "lines-and-columns",
+  "description": "Maps lines and columns to character offsets and back.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "lint": "tslint --config tslint.json --project tsconfig.json --type-check",
+    "lint-fix": "tslint --config tslint.json --project tsconfig.json --type-check --fix",
+    "prebuild": "rm -rf dist",
+    "build": "./script/build",
+    "pretest": "npm run build",
+    "test": "mocha",
+    "prepublish": "npm run lint && npm run build",
+    "semantic-release": "semantic-release pre && npm publish && semantic-release post"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eventualbuddha/lines-and-columns.git"
+  },
+  "keywords": [
+    "lines",
+    "columns",
+    "parser"
+  ],
+  "author": "Brian Donovan <me@brian-donovan.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eventualbuddha/lines-and-columns/issues"
+  },
+  "homepage": "https://github.com/eventualbuddha/lines-and-columns#readme",
+  "devDependencies": {
+    "@types/mocha": "^2.2.34",
+    "@types/node": "^6.0.52",
+    "mocha": "^3.2.0",
+    "semantic-release": "^6.3.2",
+    "ts-node": "^1.7.2",
+    "tslint": "^4.1.1",
+    "typescript": "^2.1.4"
+  },
+  "version": "1.1.6"
+}

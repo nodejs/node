@@ -1,0 +1,38 @@
+{
+  "name": "libnpmconfig",
+  "version": "1.2.1",
+  "description": "Standalone library for reading/writing/managing npm configurations",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech",
+    "twitter": "maybekatz"
+  },
+  "license": "ISC",
+  "scripts": {
+    "prerelease": "npm t",
+    "release": "standard-version -s",
+    "postrelease": "npm publish && git push --follow-tags",
+    "pretest": "standard",
+    "test": "tap -J --100 test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "devDependencies": {
+    "weallbehave": "*",
+    "weallcontribute": "*",
+    "standard": "*",
+    "standard-version": "*",
+    "tap": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/libnpmconfig.git"
+  },
+  "bugs": "https://github.com/npm/libnpmconfig/issues",
+  "homepage": "https://npmjs.com/package/libnpmconfig",
+  "dependencies": {
+    "figgy-pudding": "^3.5.1",
+    "find-up": "^3.0.0",
+    "ini": "^1.3.5"
+  }
+}

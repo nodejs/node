@@ -1,0 +1,24 @@
+{
+    "name": "@types/ms",
+    "version": "0.7.31",
+    "description": "TypeScript definitions for ms",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Zhiyuan Wang",
+            "url": "https://github.com/danny8002",
+            "githubUsername": "danny8002"
+        }
+    ],
+    "main": "",
+    "types": "index",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/ms"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "ff2ed90b1d3539f07c5e91fe5cac8d4aa504a3290632a4e76a02d1684dcfabfc",
+    "typeScriptVersion": "2.0"
+}

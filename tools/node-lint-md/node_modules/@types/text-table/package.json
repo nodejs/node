@@ -1,0 +1,25 @@
+{
+    "name": "@types/text-table",
+    "version": "0.2.2",
+    "description": "TypeScript definitions for text-table",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/text-table",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Saad Quadri",
+            "url": "https://github.com/saadq",
+            "githubUsername": "saadq"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/text-table"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "aadf009e5184c718caaa4134249e034a6a321067cccf61fba97fb9310055efc9",
+    "typeScriptVersion": "3.6"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "wrapped",
+  "version": "1.0.1",
+  "license": "MIT",
+  "description": "consistent interface for ",
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "browser",
+    "wrap",
+    "generator"
+  ],
+  "author": "Matthew Mueller <mattmuelle@gmail.com>",
+  "repository": "MatthewMueller/wrapped",
+  "dependencies": {
+    "co": "3.1.0",
+    "sliced": "^1.0.1"
+  },
+  "devDependencies": {
+    "generator-support": "0.0.1"
+  },
+  "files": [
+    "index.js"
+  ]
+}

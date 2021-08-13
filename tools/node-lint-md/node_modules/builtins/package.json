@@ -1,0 +1,22 @@
+{
+  "name": "builtins",
+  "version": "4.0.0",
+  "description": "List of node.js builtin modules",
+  "repository": "juliangruber/builtins",
+  "license": "MIT",
+  "main": "index.js",
+  "files": [],
+  "scripts": {
+    "release": "np",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "semver": "^7.0.0"
+  },
+  "devDependencies": {
+    "np": "^6.1.0",
+    "prettier-standard": "^15.0.0",
+    "standard": "^14.0.2",
+    "tape": "^4.11.0"
+  }
+}

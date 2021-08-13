@@ -1,0 +1,25 @@
+{
+  "name": "is-empty",
+  "version": "1.2.0",
+  "description": "Check whether a value is \"empty\".",
+  "repository": "https://github.com/ianstormtaylor/is-empty.git",
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "mocha": "^3.2.0"
+  },
+  "keywords": [
+    "array",
+    "check",
+    "empty",
+    "file",
+    "is",
+    "map",
+    "object",
+    "set",
+    "value"
+  ]
+}

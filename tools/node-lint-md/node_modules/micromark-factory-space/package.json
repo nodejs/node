@@ -1,0 +1,54 @@
+{
+  "name": "micromark-factory-space",
+  "version": "1.0.0",
+  "description": "micromark factory to parse markdown space (found in lots of places)",
+  "license": "MIT",
+  "keywords": [
+    "micromark",
+    "factory",
+    "space"
+  ],
+  "repository": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space",
+  "bugs": "https://github.com/micromark/micromark/issues",
+  "funding": [
+    {
+      "type": "GitHub Sponsors",
+      "url": "https://github.com/sponsors/unifiedjs"
+    },
+    {
+      "type": "OpenCollective",
+      "url": "https://opencollective.com/unified"
+    }
+  ],
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "main": "index.js",
+  "types": "dev/index.d.ts",
+  "files": [
+    "dev/",
+    "index.d.ts",
+    "index.js"
+  ],
+  "exports": {
+    "development": "./dev/index.js",
+    "default": "./index.js"
+  },
+  "dependencies": {
+    "micromark-util-character": "^1.0.0",
+    "micromark-util-types": "^1.0.0"
+  },
+  "scripts": {
+    "build": "rimraf \"*.d.ts\" \"{dev/,lib/}**/*.d.ts\" && tsc && micromark-build && type-coverage"
+  },
+  "xo": false,
+  "typeCoverage": {
+    "atLeast": 100,
+    "detail": true,
+    "strict": true,
+    "ignoreCatch": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+    "name": "@types/supports-color",
+    "version": "8.1.1",
+    "description": "TypeScript definitions for supports-color",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/supports-color",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Melvin Groenhoff",
+            "url": "https://github.com/mgroenhoff",
+            "githubUsername": "mgroenhoff"
+        },
+        {
+            "name": "Matt Traynham",
+            "url": "https://github.com/mtraynham",
+            "githubUsername": "mtraynham"
+        },
+        {
+            "name": "Piotr Błażejewicz",
+            "url": "https://github.com/peterblazejewicz",
+            "githubUsername": "peterblazejewicz"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/supports-color"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "8f4b3d7a61f7b3a823dca9b392e2ee071f9f3d48d008634c6291e0e0429176cc",
+    "typeScriptVersion": "3.6"
+}

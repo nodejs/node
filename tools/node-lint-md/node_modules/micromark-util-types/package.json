@@ -1,0 +1,42 @@
+{
+  "name": "micromark-util-types",
+  "version": "1.0.1",
+  "description": "micromark utility with a couple of typescript types",
+  "license": "MIT",
+  "keywords": [
+    "micromark",
+    "util",
+    "utility",
+    "typescript",
+    "types"
+  ],
+  "repository": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-types",
+  "bugs": "https://github.com/micromark/micromark/issues",
+  "funding": [
+    {
+      "type": "GitHub Sponsors",
+      "url": "https://github.com/sponsors/unifiedjs"
+    },
+    {
+      "type": "OpenCollective",
+      "url": "https://opencollective.com/unified"
+    }
+  ],
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "exports": "./index.js",
+  "scripts": {
+    "build": "rimraf \"*.d.ts\" && tsc"
+  },
+  "xo": false
+}

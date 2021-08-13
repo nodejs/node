@@ -1,0 +1,104 @@
+{
+  "name": "unist-util-visit-parents",
+  "version": "4.1.1",
+  "description": "unist utility to recursively walk over nodes, with ancestral information",
+  "license": "MIT",
+  "keywords": [
+    "unist",
+    "unist-util",
+    "util",
+    "utility",
+    "tree",
+    "ast",
+    "visit",
+    "traverse",
+    "walk",
+    "check",
+    "parent",
+    "parents"
+  ],
+  "repository": "syntax-tree/unist-util-visit-parents",
+  "bugs": "https://github.com/syntax-tree/unist-util-visit-parents/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/unified"
+  },
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "sideEffects": false,
+  "type": "module",
+  "main": "index.js",
+  "browser": {
+    "./color.js": "./color.browser.js"
+  },
+  "react-native": {
+    "./color.js": "./color.browser.js"
+  },
+  "types": "index.d.ts",
+  "files": [
+    "color.d.ts",
+    "color.js",
+    "color.browser.d.ts",
+    "color.browser.js",
+    "index.d.ts",
+    "index.js"
+  ],
+  "dependencies": {
+    "@types/unist": "^2.0.0",
+    "unist-util-is": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/mdast": "^3.0.3",
+    "@types/tape": "^4.0.0",
+    "c8": "^7.0.0",
+    "prettier": "^2.0.0",
+    "remark": "^13.0.0",
+    "remark-cli": "^9.0.0",
+    "remark-gfm": "^1.0.0",
+    "remark-preset-wooorm": "^8.0.0",
+    "rimraf": "^3.0.0",
+    "strip-ansi": "^7.0.0",
+    "tape": "^5.0.0",
+    "tsd": "^0.14.0",
+    "type-coverage": "^2.0.0",
+    "typescript": "^4.0.0",
+    "xo": "^0.39.0"
+  },
+  "scripts": {
+    "prepack": "npm run build && npm run format",
+    "build": "rimraf \"*.d.ts\" && tsc && tsd && type-coverage",
+    "format": "remark . -qfo && prettier . --write --loglevel warn && xo --fix",
+    "test-api": "node test.js",
+    "test-coverage": "c8 --check-coverage --branches 100 --functions 100 --lines 100 --statements 100 --reporter lcov node test.js",
+    "test": "npm run build && npm run format && npm run test-coverage"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "semi": false,
+    "trailingComma": "none"
+  },
+  "xo": {
+    "prettier": true,
+    "rules": {
+      "eslint-comments/disable-enable-pair": "off",
+      "no-var": "off",
+      "prefer-arrow-callback": "off"
+    }
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "typeCoverage": {
+    "atLeast": 100,
+    "detail": true,
+    "strict": true,
+    "ignoreCatch": true
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "unified-lint-rule",
+  "version": "1.0.6",
+  "description": "unified plugin to make it a bit easier to create linting rules",
+  "license": "MIT",
+  "keywords": [
+    "unified",
+    "unified-plugin",
+    "plugin",
+    "lint",
+    "rule"
+  ],
+  "repository": "https://github.com/remarkjs/remark-lint/tree/main/packages/unified-lint-rule",
+  "bugs": "https://github.com/remarkjs/remark-lint/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/unified"
+  },
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "wrapped": "^1.0.1"
+  },
+  "xo": false
+}

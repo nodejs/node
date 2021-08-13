@@ -1,0 +1,49 @@
+{
+	"name": "has-flag",
+	"version": "5.0.1",
+	"description": "Check if argv has a specific flag",
+	"license": "MIT",
+	"repository": "sindresorhus/has-flag",
+	"funding": "https://github.com/sponsors/sindresorhus",
+	"author": {
+		"name": "Sindre Sorhus",
+		"email": "sindresorhus@gmail.com",
+		"url": "https://sindresorhus.com"
+	},
+	"type": "module",
+	"exports": "./index.js",
+	"engines": {
+		"node": ">=12"
+	},
+	"scripts": {
+		"test": "xo && ava && tsd"
+	},
+	"files": [
+		"index.js",
+		"index.d.ts"
+	],
+	"keywords": [
+		"has",
+		"check",
+		"detect",
+		"contains",
+		"find",
+		"flag",
+		"cli",
+		"command-line",
+		"argv",
+		"process",
+		"arg",
+		"args",
+		"argument",
+		"arguments",
+		"getopt",
+		"minimist",
+		"optimist"
+	],
+	"devDependencies": {
+		"ava": "^3.15.0",
+		"tsd": "^0.14.0",
+		"xo": "^0.38.2"
+	}
+}
