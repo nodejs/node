@@ -1,0 +1,133 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  makefile-test:
+    name: makefile-${{ matrix.runner }}-amd64-${{ matrix.compiler }} ${{ ((matrix.openmp == 1) && '+openmp') || '' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ["ubuntu-18.04"]
+        compiler: ["gcc", "clang"]
+        openmp: ["0", "1"]
+        include:
+          - runner: "macos-11"
+            compiler: "clang"
+            openmp: "0"
+    env:
+      OPENMP: ${{ matrix.openmp }}
+      OMP_NUM_THREADS: ${{ ((matrix.openmp == 1) && '2') || '0' }}
+      CC: ${{ matrix.compiler }}
+      OBJCOPY: ${{ (startsWith(matrix.runner, 'macos') && 'echo') || 'objcopy' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Run tests
+        run: ./test/ci/test.sh
+
+  cmake-test:
+    name: cmake-${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ["ubuntu-18.04", "macos-11", "windows-2019"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: CMake Configure
+        run: >
+          cmake
+          -B out
+          -Werror=dev
+          -DBASE64_BUILD_TESTS=ON
+          ${{ runner.os != 'Windows' && '-DCMAKE_BUILD_TYPE=Release' || '' }}
+          ${{ runner.os == 'macOS' && '-DBASE64_WITH_AVX2=OFF' || '' }}
+      - name: CMake Build
+        run: cmake --build out --config Release --verbose
+      - name: CTest
+        run: ctest --no-tests=error --test-dir out -VV --build-config Release
+
+  alpine-makefile-test:
+    name: makefile-alpine-amd64-gcc
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.12
+      env:
+        CC: gcc
+    steps:
+      - name: Install deps
+        run: apk add --update bash build-base git
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Run tests
+        run: ./test/ci/test.sh
+
+  alpine-cmake-test:
+    name: cmake-alpine-amd64-gcc
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.12
+    steps:
+      - name: Install deps
+        run: apk add --update bash build-base cmake git
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: CMake Configure
+        run: cmake -B out -Werror=dev -DBASE64_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+      - name: CMake Build
+        run: cmake --build out --config Release --verbose
+      - name: CTest
+        run: ctest --no-tests=error -VV --build-config Release
+        working-directory: ./out
+
+  alpine-alt-arch-makefile-test:
+    name: makefile-alpine-${{matrix.arch}}-${{matrix.cc}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armv7, aarch64, s390x, ppc64le]
+        cc: [gcc, clang]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: ${{matrix.arch}}
+          distro: alpine_latest
+          env: |
+            CC: ${{matrix.cc}}
+          install: apk add --update bash build-base cmake git ${{matrix.cc}}
+          run: ./test/ci/test.sh
+
+  alpine-alt-arch-cmake-test:
+    name: cmake-alpine-${{matrix.arch}}-${{matrix.cc}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armv7, aarch64, s390x, ppc64le]
+        cc: [gcc, clang]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: ${{matrix.arch}}
+          distro: alpine_latest
+          env: |
+            CC: ${{matrix.cc}}
+          install: apk add --update bash build-base cmake git ${{matrix.cc}}
+          run: |
+            echo "::group::CMake Configure"
+            cmake -B out -Werror=dev -DBASE64_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+            echo "::endgroup::CMake Configure"
+            echo "::group::CMake Build"
+            cmake --build out --config Release --verbose
+            echo "::endgroup::CMake Build"
+            echo "::group::CTest"
+            ctest --no-tests=error --test-dir out -VV --build-config Release
+            echo "::endgroup::CTest"

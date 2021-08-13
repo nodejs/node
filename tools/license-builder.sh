@@ -136,4 +136,6 @@ addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/jprichardson/node-fs-extra/b34da2762a4865b025cac06d02d6a2f1f1027b65/LICENSE)"
 addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 
+addlicense "base64" "deps/base64/base64/" "$(cat "${rootdir}"/deps/base64/base64/LICENSE)"
+
 mv "$tmplicense" "$licensefile"

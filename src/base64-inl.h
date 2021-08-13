@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base64.h"
+#include "libbase64.h"
 #include "util.h"
 
 namespace node {
@@ -130,6 +131,11 @@ inline size_t base64_encode(const char* src,
         "not enough space provided for base64 encode");
 
   dlen = base64_encoded_size(slen, mode);
+
+  if (mode == Base64Mode::NORMAL) {
+    ::base64_encode(src, slen, dst, &dlen, 0);
+    return dlen;
+  }
 
   unsigned a;
   unsigned b;
