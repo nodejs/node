@@ -613,6 +613,8 @@ maintaining the Node.js project.
 
 * [Ayase-252](https://github.com/Ayase-252) -
 **Qingyu Deng** &lt;i@ayase-lab.com&gt;
+* [himadriganguly](https://github.com/himadriganguly) -
+**Himadri Ganguly** &lt;himadri.tech@gmail.com&gt; (he/him)
 * [marsonya](https://github.com/marsonya) -
 **Akhil Marsonya** &lt;akhil.marsonya27@gmail.com&gt; (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
