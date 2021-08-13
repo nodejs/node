@@ -572,6 +572,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     worker->environment_flags_ |= EnvironmentFlags::kHideConsoleWindows;
   if (env->no_native_addons())
     worker->environment_flags_ |= EnvironmentFlags::kNoNativeAddons;
+  if (env->no_global_search_paths())
+    worker->environment_flags_ |= EnvironmentFlags::kNoGlobalSearchPaths;
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
