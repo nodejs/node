@@ -413,7 +413,12 @@ enum Flags : uint64_t {
   // so that a worker thread can't load a native addon even if `execArgv`
   // is overwritten and `--no-addons` is not specified but was specified
   // for this Environment instance.
-  kNoNativeAddons = 1 << 6
+  kNoNativeAddons = 1 << 6,
+  // Set this flag to disable searching modules from global paths like
+  // $HOME/.node_modules and $NODE_PATH. This is used by standalone apps that
+  // do not expect to have their behaviors changed because of globally
+  // installed modules.
+  kNoGlobalSearchPaths = 1 << 7
 };
 }  // namespace EnvironmentFlags
 

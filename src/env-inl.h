@@ -886,6 +886,10 @@ inline bool Environment::hide_console_windows() const {
   return flags_ & EnvironmentFlags::kHideConsoleWindows;
 }
 
+inline bool Environment::no_global_search_paths() const {
+  return flags_ & EnvironmentFlags::kNoGlobalSearchPaths;
+}
+
 bool Environment::filehandle_close_warning() const {
   return emit_filehandle_warning_;
 }
