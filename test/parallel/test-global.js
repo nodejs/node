@@ -51,6 +51,7 @@ builtinModules.forEach((moduleName) => {
     'setImmediate',
     'setInterval',
     'setTimeout',
+    'structuredClone',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }
