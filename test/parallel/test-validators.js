@@ -55,9 +55,9 @@ const invalidArgValueError = {
       }, invalidArgTypeError);
     });
 
-  validateArray([1], 'foo', { minLength: 1 });
+  validateArray([1], 'foo', 1);
   assert.throws(() => {
-    validateArray([], 'foo', { minLength: 1 });
+    validateArray([], 'foo', 1);
   }, invalidArgValueError);
 }
 
