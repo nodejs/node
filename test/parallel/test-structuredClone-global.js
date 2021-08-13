@@ -4,7 +4,9 @@
 
 require('../common');
 
-const { structuredClone: _structuredClone } = require('internal/structuredClone');
+const {
+  structuredClone: _structuredClone
+} = require('internal/structuredClone');
 const {
   strictEqual
 } = require('assert');
@@ -12,7 +14,6 @@ const {
 strictEqual(globalThis.structuredClone, _structuredClone);
 structuredClone = undefined;
 strictEqual(globalThis.structuredClone, undefined);
-strictEqual(typeof perf_hooks.performance.now, 'function');
 
 // Restore the value of performance for the known globals check
 structuredClone = _structuredClone;
