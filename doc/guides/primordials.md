@@ -95,7 +95,7 @@ dealing with objects that are accessible from user-land.
 There are some built-in functions that accept a variable number of arguments
 (e.g.: `Math.max`, `%Array.prototype.push%`). It is sometimes useful to provide
 the list of arguments as an array. You can use primordial function with the
-suffix `Apply` (e.g.: `MathMaxApply`, `FunctionPrototypePushApply`) to do that.
+suffix `Apply` (e.g.: `MathMaxApply`, `ArrayPrototypePushApply`) to do that.
 
 ## Primordials with known performance issues
 
