@@ -31,6 +31,10 @@
     "commit": "2c5c3c4c27d27a419c1fdba3e9879c2d22037074",
     "path": "html/webappapis/microtask-queuing"
   },
+  "html/webappapis/structured-clone": {
+    "commit": "47d3fb280c9c632e684dee3b78ae1f4c5d5ba640",
+    "path": "html/webappapis/structured-clone"
+  },
   "html/webappapis/timers": {
     "commit": "5873f2d8f1f7bbb9c64689e52d04498614632906",
     "path": "html/webappapis/timers"
