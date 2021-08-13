@@ -362,6 +362,6 @@ module.exports = {
     btoa: 'readable',
     atob: 'readable',
     performance: 'readable',
-    structuredClone: 'readable'
+    structuredClone: 'readable',
   },
 };
