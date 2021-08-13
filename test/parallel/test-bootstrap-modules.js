@@ -114,6 +114,7 @@ const expectedModules = new Set([
   'NativeModule internal/streams/transform',
   'NativeModule internal/streams/utils',
   'NativeModule internal/streams/writable',
+  'NativeModule internal/structured_clone',
   'NativeModule internal/timers',
   'NativeModule internal/url',
   'NativeModule internal/util',

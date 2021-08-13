@@ -293,6 +293,13 @@ if (global.PerformanceMeasure) {
   knownGlobals.push(global.PerformanceMeasure);
 }
 
+// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
+// until v16.x is EOL. Once all supported versions have structuredClone we
+// can add this to the list above instead.
+if (global.structuredClone) {
+  knownGlobals.push(global.structuredClone);
+}
+
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
 }

@@ -81,6 +81,8 @@ rules:
       message: "Use `const { performance } = require('perf_hooks');` instead of the global."
     - name: queueMicrotask
       message: "Use `const { queueMicrotask } = require('internal/process/task_queues');` instead of the global."
+    - name: structuredClone
+      message: "Use `const { structuredClone } = require('internal/structured_clone');` instead of the global."
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
