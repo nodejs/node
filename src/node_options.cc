@@ -1078,6 +1078,12 @@ void Initialize(Local<Object> target,
             Boolean::New(isolate, env->should_not_register_esm_loader()))
       .Check();
 
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
+            Boolean::New(isolate, env->no_global_search_paths()))
+      .Check();
+
   Local<Object> types = Object::New(isolate);
   NODE_DEFINE_CONSTANT(types, kNoOp);
   NODE_DEFINE_CONSTANT(types, kV8Option);
