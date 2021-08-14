@@ -1278,7 +1278,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'HMAC`.
+* Type: {string} Must be `'HMAC'`.
 
 ### Class: `Pbkdf2ImportParams`
 <!-- YAML
