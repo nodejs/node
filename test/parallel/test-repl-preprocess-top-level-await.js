@@ -54,11 +54,12 @@ const testCases = [
     '(async () => { return (console.log(`${(await { a: 1 }).a}`)) })()' ],
   /* eslint-enable no-template-curly-in-string */
   [ 'await 0; function foo() {}',
-    'var foo; (async () => { await 0; foo=function foo() {} })()' ],
+    'var foo; (async () => { await 0; this.foo = foo; function foo() {} })()' ],
   [ 'await 0; class Foo {}',
     'let Foo; (async () => { await 0; Foo=class Foo {} })()' ],
   [ 'if (await true) { function foo() {} }',
-    'var foo; (async () => { if (await true) { foo=function foo() {} } })()' ],
+    'var foo; (async () => { ' +
+      'if (await true) { this.foo = foo; function foo() {} } })()' ],
   [ 'if (await true) { class Foo{} }',
     '(async () => { if (await true) { class Foo{} } })()' ],
   [ 'if (await true) { var a = 1; }',
@@ -116,6 +117,9 @@ const testCases = [
     '(async () => { for (let i in {x:1}) { await 1 } })()'],
   [ 'for (const i in {x:1}) { await 1 }',
     '(async () => { for (const i in {x:1}) { await 1 } })()'],
+  [ 'var x = await foo(); async function foo() { return Promise.resolve(1);}',
+    'var x; var foo; (async () => { void (x = await foo()); this.foo = foo; ' +
+      'async function foo() { return Promise.resolve(1);} })()'],
 ];
 
 for (const [input, expected] of testCases) {
