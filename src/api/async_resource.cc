@@ -62,10 +62,8 @@ async_id AsyncResource::get_trigger_async_id() const {
   return async_context_.trigger_async_id;
 }
 
-// TODO(addaleax): We shouldn’t need to use env_->isolate() if we’re just going
-// to end up using the Isolate* to figure out the Environment* again.
 AsyncResource::CallbackScope::CallbackScope(AsyncResource* res)
-    : node::CallbackScope(res->env_->isolate(),
+    : node::CallbackScope(res->env_,
                           res->resource_.Get(res->env_->isolate()),
                           res->async_context_) {}
 
