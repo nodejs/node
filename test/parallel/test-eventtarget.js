@@ -191,6 +191,22 @@ let asyncTest = Promise.resolve();
   strictEqual(event.target, eventTarget2);
   deepStrictEqual(event.composedPath(), []);
 }
+{
+  // Same event dispatched multiple times, without listeners added.
+  const event = new Event('foo');
+  const eventTarget1 = new EventTarget();
+  const eventTarget2 = new EventTarget();
+
+  eventTarget1.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget1);
+  deepStrictEqual(event.composedPath(), []);
+
+  eventTarget2.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget2);
+  deepStrictEqual(event.composedPath(), []);
+}
 
 {
   const eventTarget = new EventTarget();
