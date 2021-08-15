@@ -26,6 +26,16 @@ CallbackScope::CallbackScope(Isolate* isolate,
   try_catch_.SetVerbose(true);
 }
 
+CallbackScope::CallbackScope(Environment* env,
+                             Local<Object> object,
+                             async_context asyncContext)
+  : private_(new InternalCallbackScope(env,
+                                       object,
+                                       asyncContext)),
+    try_catch_(env->isolate()) {
+  try_catch_.SetVerbose(true);
+}
+
 CallbackScope::~CallbackScope() {
   if (try_catch_.HasCaught())
     private_->MarkAsFailed();

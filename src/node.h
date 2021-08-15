@@ -1008,6 +1008,9 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(v8::Isolate* isolate,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
+  CallbackScope(Environment* env,
+                v8::Local<v8::Object> resource,
+                async_context asyncContext);
   ~CallbackScope();
 
   void operator=(const CallbackScope&) = delete;
