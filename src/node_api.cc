@@ -539,7 +539,7 @@ class AsyncContext {
   class CallbackScope : public node::CallbackScope {
    public:
     explicit CallbackScope(AsyncContext* async_context)
-        : node::CallbackScope(async_context->node_env()->isolate(),
+        : node::CallbackScope(async_context->node_env(),
                               async_context->resource_.Get(
                                   async_context->node_env()->isolate()),
                               async_context->async_context()) {}
