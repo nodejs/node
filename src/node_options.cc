@@ -407,6 +407,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::allow_native_addons,
             kAllowedInEnvironment,
             true);
+  AddOption("--global-search-paths",
+            "disable global module search paths",
+            &EnvironmentOptions::global_search_paths,
+            kAllowedInEnvironment,
+            true);
   AddOption("--warnings",
             "silence all process warnings",
             &EnvironmentOptions::warnings,

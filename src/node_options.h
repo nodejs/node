@@ -122,6 +122,7 @@ class EnvironmentOptions : public Options {
   bool deprecation = true;
   bool force_async_hooks_checks = true;
   bool allow_native_addons = true;
+  bool global_search_paths = true;
   bool warnings = true;
   bool force_context_aware = false;
   bool pending_deprecation = false;
