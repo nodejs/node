@@ -590,6 +590,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvironment);
+  AddOption(
+    "--worker-extension-check",
+    "disable file extension check for worker thread",
+    &EnvironmentOptions::worker_extension_check,
+    kAllowedInEnvironment,
+    true
+  );
 }
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
