@@ -1118,7 +1118,7 @@ to the current platform which is running Node.js is used.
 <a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy a directory to a non-directory (file, symlink,
@@ -1127,7 +1127,7 @@ etc.) using [`fs.cp()`][].
 <a id="ERR_FS_CP_EEXIST"></a>
 ### `ERR_FS_CP_EEXIST`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy over a file that already existed with
@@ -1136,7 +1136,7 @@ An attempt was made to copy over a file that already existed with
 <a id="ERR_FS_CP_EINVAL"></a>
 ### `ERR_FS_CP_EINVAL`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
@@ -1144,7 +1144,7 @@ When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 <a id="ERR_FS_CP_FIFO_PIPE"></a>
 ### `ERR_FS_CP_FIFO_PIPE`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy a named pipe with [`fs.cp()`][].
@@ -1152,7 +1152,7 @@ An attempt was made to copy a named pipe with [`fs.cp()`][].
 <a id="ERR_FS_CP_NON_DIR_TO_DIR"></a>
 ### `ERR_FS_CP_NON_DIR_TO_DIR`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy a non-directory (file, symlink, etc.) to a directory
@@ -1161,7 +1161,7 @@ using [`fs.cp()`][].
 <a id="ERR_FS_CP_SOCKET"></a>
 ### `ERR_FS_CP_SOCKET`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy to a socket with [`fs.cp()`][].
@@ -1169,7 +1169,7 @@ An attempt was made to copy to a socket with [`fs.cp()`][].
 <a id="ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY"></a>
 ### `ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 When using [`fs.cp()`][], a symlink in `dest` pointed to a subdirectory
@@ -1178,7 +1178,7 @@ of `src`.
 <a id="ERR_FS_CP_UNKNOWN"></a>
 ### `ERR_FS_CP_UNKNOWN`
 <!--
-added: REPLACEME
+added: v16.7.0
 -->
 
 An attempt was made to copy to an unknown file type with [`fs.cp()`][].

@@ -460,7 +460,7 @@ multiple worker threads.
 <!-- YAML
 added: v15.7.0
 changes:
-  - version: REPLACEME
+  - version: v16.7.0
     pr-url: https://github.com/nodejs/node/pull/39708
     description: Added the standard `endings` option to replace line-endings,
                  and removed the non-standard `encoding` option.
@@ -517,7 +517,7 @@ data. The original `Blob` is not altered.
 
 ### `blob.stream()`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Returns: {ReadableStream}
@@ -4962,7 +4962,7 @@ An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
 ### `buffer.resolveObjectURL(id)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental
