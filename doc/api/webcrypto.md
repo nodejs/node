@@ -363,7 +363,7 @@ An error will be thrown if the given `typedArray` is larger than 65,536 bytes.
 
 ### `crypto.randomUUID()`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Returns: {string}

@@ -1274,7 +1274,7 @@ Returns whether the stream was destroyed or errored before emitting `'end'`.
 
 ##### `readable.readableDidRead`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental

@@ -610,7 +610,7 @@ console.log(JSON.stringify(myURLs));
 
 #### `URL.createObjectURL(blob)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -645,7 +645,7 @@ to other workers or the main thread.
 
 #### `URL.revokeObjectURL(id)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental

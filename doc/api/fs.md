@@ -741,7 +741,7 @@ try {
 
 ### `fsPromises.cp(src, dest[, options])`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -1884,7 +1884,7 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 
 ### `fs.cp(src, dest[, options], callback)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -4391,7 +4391,7 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 
 ### `fs.cpSync(src, dest[, options])`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 > Stability: 1 - Experimental
