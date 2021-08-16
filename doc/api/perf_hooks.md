@@ -585,7 +585,7 @@ Disconnects the `PerformanceObserver` instance from all notifications.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.7.0
     pr-url: https://github.com/nodejs/node/pull/39297
     description: Updated to conform to Performance Timeline Level 2. The
                  buffered option has been added back.

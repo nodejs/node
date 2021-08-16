@@ -1221,58 +1221,58 @@ added: v16.6.0
 
 ### Class: `CompressionStream`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 #### `new CompressionStream(format)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `format` {string} One of either `'deflate'` or `'gzip'`.
 
 #### `compressionStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Type: {ReadableStream}
 
 #### `compressionStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Type: {WritableStream}
 
 ### Class: `DecompressionStream`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 #### `new DecompressionStream(format)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `format` {string} One of either `'deflate'` or `'gzip'`.
 
 #### `decompressionStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Type: {ReadableStream}
 
 #### `deccompressionStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * Type: {WritableStream}
 
 ### Utility Consumers
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 The utility consumer functions provide common options for consuming
@@ -1300,7 +1300,7 @@ const {
 
 #### `streamConsumers.arrayBuffer(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}
@@ -1309,7 +1309,7 @@ added: REPLACEME
 
 #### `streamConsumers.blob(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}
@@ -1318,7 +1318,7 @@ added: REPLACEME
 
 #### `streamConsumers.buffer(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}
@@ -1327,7 +1327,7 @@ added: REPLACEME
 
 #### `streamConsumers.json(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}
@@ -1336,7 +1336,7 @@ added: REPLACEME
 
 #### `streamConsumers.text(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.7.0
 -->
 
 * `stream` {ReadableStream|stream.Readable|AsyncIterator}

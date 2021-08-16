@@ -97,7 +97,7 @@ The following methods from the `dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: REPLACEME
+  - version: v16.7.0
     pr-url: https://github.com/nodejs/node/pull/39610
     description: The `options` object now accepts a `tries` option.
   - version: v12.18.3
