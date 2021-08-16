@@ -619,6 +619,14 @@ added: v9.0.0
 Disables runtime checks for `async_hooks`. These will still be enabled
 dynamically when `async_hooks` is enabled.
 
+### `--no-global-search-paths`
+<!-- YAML
+added: REPLACEME
+-->
+
+Do not search modules from global paths like `$HOME/.node_modules` and
+`$NODE_PATH`.
+
 ### `--no-warnings`
 <!-- YAML
 added: v6.0.0
@@ -1431,6 +1439,7 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
+* `--no-global-search-paths`
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`
