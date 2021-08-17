@@ -720,12 +720,12 @@ code will also work:
 }
 ```
 
-```js
+```cjs
 // ./index.js
 module.exports = 42;
 ```
 
-```js
+```cjs
 // ./other.js
 console.log(require('@my/package'));
 ```
