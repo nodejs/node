@@ -2836,6 +2836,16 @@ Used when a given value is out of the accepted range.
 
 The module must be successfully linked before instantiation.
 
+<a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
+### `ERR_WORKER_UNSUPPORTED_EXTENSION`
+<!-- YAML
+added: v11.0.0
+removed: REPLACEME
+-->
+
+The pathname used for the main script of a worker has an
+unknown file extension.
+
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### `ERR_ZLIB_BINDING_CLOSED`
 <!-- YAML
