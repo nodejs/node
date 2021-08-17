@@ -2510,12 +2510,6 @@ nor a relative path starting with `./` or `../`.
 
 All attempts at serializing an uncaught exception from a worker thread failed.
 
-<a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
-### `ERR_WORKER_UNSUPPORTED_EXTENSION`
-
-The pathname used for the main script of a worker has an
-unknown file extension.
-
 <a id="ERR_WORKER_UNSUPPORTED_OPERATION"></a>
 ### `ERR_WORKER_UNSUPPORTED_OPERATION`
 
