@@ -1305,12 +1305,16 @@ Becomes `true` when [`'end'`][] event is emitted.
 ##### `readable.readableFlowing`
 <!-- YAML
 added: v9.4.0
+deprecated: REPLACEME
 -->
+> Stability: 0 - Deprecated
 
 * {boolean}
 
 This property reflects the current state of a `Readable` stream as described
 in the [Three states][] section.
+
+The setter is deprecated.
 
 ##### `readable.readableHighWaterMark`
 <!-- YAML
