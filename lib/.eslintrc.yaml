@@ -57,6 +57,8 @@ rules:
       # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer
       message: "Use `const { SharedArrayBuffer } = globalThis;` instead of the global."
+    - name: StructuredClone
+      message: "Use `const { structuredClone } = require('internal/structured_clone');` instead of the global."
     - name: TextDecoder
       message: "Use `const { TextDecoder } = require('internal/encoding');` instead of the global."
     - name: TextEncoder
