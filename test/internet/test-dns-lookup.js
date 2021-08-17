@@ -44,3 +44,18 @@ dns.lookup(addresses.NOT_FOUND, {
   assert.strictEqual(error.syscall, 'getaddrinfo');
   assert.strictEqual(error.hostname, addresses.NOT_FOUND);
 }));
+
+common.expectWarning('DeprecationWarning',
+                     'Type coercion of dns.lookup options is deprecated',
+                     'DEP0153');
+
+assert.rejects(
+  dnsPromises.lookup(addresses.NOT_FOUND, {
+    family: 'IPv4',
+    all: 'all'
+  }),
+  {
+    code: 'ENOTFOUND',
+    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`
+  }
+);

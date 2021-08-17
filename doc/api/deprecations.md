@@ -2789,12 +2789,15 @@ deprecated and should no longer be used.
 ### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39793
+    description: Runtime deprecation.
   - version: v16.8.0
     pr-url: https://github.com/nodejs/node/pull/38906
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Using a non-nullish non-integer value for `family` option, a non-nullish
 non-number value for `hints` option, a non-nullish non-boolean value for `all`
