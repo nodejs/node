@@ -1,18 +1,16 @@
-'use strict';
-
 // To aid in future maintenance, this layout closely matches remark-cli/cli.js.
-// https://github.com/remarkjs/remark/blob/master/packages/remark-cli/cli.js
+// https://github.com/remarkjs/remark/blob/HEAD/packages/remark-cli/cli.js
 
-const start = require('unified-args');
-const extensions = require('markdown-extensions');
-const processor = require('remark');
-const proc = require('remark/package.json');
-const cli = require('../package.json');
-const lintNode = require('remark-preset-lint-node');
-const gfm = require('remark-gfm');
+import { args } from 'unified-args';
+import extensions from 'markdown-extensions';
+import { remark } from 'remark';
+import proc from 'remark/package.json';
+import cli from '../package.json';
+import lintNode from 'remark-preset-lint-node';
+import gfm from 'remark-gfm';
 
-start({
-  processor: processor().use(gfm).use(lintNode),
+args({
+  processor: remark().use(gfm).use(lintNode),
   name: proc.name,
   description: cli.description,
   version: [
