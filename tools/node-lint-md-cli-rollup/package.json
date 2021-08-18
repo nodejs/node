@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "markdown-extensions": "^1.1.1",
-    "remark": "^13.0.0",
+    "remark": "^14.0.0",
     "remark-gfm": "^2.0.0",
     "remark-preset-lint-node": "^3.0.0",
-    "unified-args": "^8.1.0"
+    "unified-args": "^9.0.0"
   },
   "main": "dist/index.js",
   "scripts": {
