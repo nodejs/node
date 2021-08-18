@@ -497,5 +497,5 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(blob, node::Blob::Initialize);
-NODE_MODULE_EXTERNAL_REFERENCE(blob, node::Blob::RegisterExternalReferences);
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(blob, node::Blob::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(blob, node::Blob::RegisterExternalReferences)
