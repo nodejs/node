@@ -11,7 +11,7 @@ var require$$1 = require('tty');
 var require$$0$8 = require('fs');
 var require$$1$1 = require('module');
 var require$$0$9 = require('events');
-var require$$6$1 = require('assert');
+var require$$5$2 = require('assert');
 var url = require('url');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
@@ -44,7 +44,7 @@ var require$$1__default = /*#__PURE__*/_interopDefaultLegacy(require$$1);
 var require$$0__default$3 = /*#__PURE__*/_interopDefaultLegacy(require$$0$8);
 var require$$1__default$1 = /*#__PURE__*/_interopDefaultLegacy(require$$1$1);
 var require$$0__default$4 = /*#__PURE__*/_interopDefaultLegacy(require$$0$9);
-var require$$6__default = /*#__PURE__*/_interopDefaultLegacy(require$$6$1);
+var require$$5__default = /*#__PURE__*/_interopDefaultLegacy(require$$5$2);
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -118,20 +118,20 @@ function statistics$2(files) {
   }
 }
 
-var slice$6 = [].slice;
+var slice$4 = [].slice;
 
-var wrap_1$1 = wrap$5;
+var wrap_1 = wrap$3;
 
 // Wrap `fn`.
 // Can be sync or async; return a promise, receive a completion handler, return
 // new values and errors.
-function wrap$5(fn, callback) {
+function wrap$3(fn, callback) {
   var invoked;
 
   return wrapped
 
   function wrapped() {
-    var params = slice$6.call(arguments, 0);
+    var params = slice$4.call(arguments, 0);
     var callback = fn.length > params.length;
     var result;
 
@@ -181,16 +181,16 @@ function wrap$5(fn, callback) {
   }
 }
 
-var wrap$4 = wrap_1$1;
+var wrap$2 = wrap_1;
 
-var trough_1$1 = trough$5;
+var trough_1 = trough$4;
 
-trough$5.wrap = wrap$4;
+trough$4.wrap = wrap$2;
 
-var slice$5 = [].slice;
+var slice$3 = [].slice;
 
 // Create new middleware.
-function trough$5() {
+function trough$4() {
   var fns = [];
   var middleware = {};
 
@@ -202,7 +202,7 @@ function trough$5() {
   // Run `fns`.  Last argument must be a completion handler.
   function run() {
     var index = -1;
-    var input = slice$5.call(arguments, 0, -1);
+    var input = slice$3.call(arguments, 0, -1);
     var done = arguments[arguments.length - 1];
 
     if (typeof done !== 'function') {
@@ -214,7 +214,7 @@ function trough$5() {
     // Run the next `fn`, if any.
     function next(err) {
       var fn = fns[++index];
-      var params = slice$5.call(arguments, 0);
+      var params = slice$3.call(arguments, 0);
       var values = params.slice(1);
       var length = input.length;
       var pos = -1;
@@ -235,7 +235,7 @@ function trough$5() {
 
       // Next or done.
       if (fn) {
-        wrap$4(fn, next).apply(null, input);
+        wrap$2(fn, next).apply(null, input);
       } else {
         done.apply(null, [null].concat(input));
       }
@@ -4842,7 +4842,7 @@ for (var key$1 in cssKeywords$1) {
 	}
 }
 
-var convert$H = conversions$5.exports = {
+var convert$6 = conversions$5.exports = {
 	rgb: {channels: 3, labels: 'rgb'},
 	hsl: {channels: 3, labels: 'hsl'},
 	hsv: {channels: 3, labels: 'hsv'},
@@ -4861,30 +4861,30 @@ var convert$H = conversions$5.exports = {
 };
 
 // hide .channels and .labels properties
-for (var model in convert$H) {
-	if (convert$H.hasOwnProperty(model)) {
-		if (!('channels' in convert$H[model])) {
+for (var model in convert$6) {
+	if (convert$6.hasOwnProperty(model)) {
+		if (!('channels' in convert$6[model])) {
 			throw new Error('missing channels property: ' + model);
 		}
 
-		if (!('labels' in convert$H[model])) {
+		if (!('labels' in convert$6[model])) {
 			throw new Error('missing channel labels property: ' + model);
 		}
 
-		if (convert$H[model].labels.length !== convert$H[model].channels) {
+		if (convert$6[model].labels.length !== convert$6[model].channels) {
 			throw new Error('channel and label counts mismatch: ' + model);
 		}
 
-		var channels = convert$H[model].channels;
-		var labels$1 = convert$H[model].labels;
-		delete convert$H[model].channels;
-		delete convert$H[model].labels;
-		Object.defineProperty(convert$H[model], 'channels', {value: channels});
-		Object.defineProperty(convert$H[model], 'labels', {value: labels$1});
+		var channels = convert$6[model].channels;
+		var labels$1 = convert$6[model].labels;
+		delete convert$6[model].channels;
+		delete convert$6[model].labels;
+		Object.defineProperty(convert$6[model], 'channels', {value: channels});
+		Object.defineProperty(convert$6[model], 'labels', {value: labels$1});
 	}
 }
 
-convert$H.rgb.hsl = function (rgb) {
+convert$6.rgb.hsl = function (rgb) {
 	var r = rgb[0] / 255;
 	var g = rgb[1] / 255;
 	var b = rgb[2] / 255;
@@ -4924,7 +4924,7 @@ convert$H.rgb.hsl = function (rgb) {
 	return [h, s * 100, l * 100];
 };
 
-convert$H.rgb.hsv = function (rgb) {
+convert$6.rgb.hsv = function (rgb) {
 	var rdif;
 	var gdif;
 	var bdif;
@@ -4969,11 +4969,11 @@ convert$H.rgb.hsv = function (rgb) {
 	];
 };
 
-convert$H.rgb.hwb = function (rgb) {
+convert$6.rgb.hwb = function (rgb) {
 	var r = rgb[0];
 	var g = rgb[1];
 	var b = rgb[2];
-	var h = convert$H.rgb.hsl(rgb)[0];
+	var h = convert$6.rgb.hsl(rgb)[0];
 	var w = 1 / 255 * Math.min(r, Math.min(g, b));
 
 	b = 1 - 1 / 255 * Math.max(r, Math.max(g, b));
@@ -4981,7 +4981,7 @@ convert$H.rgb.hwb = function (rgb) {
 	return [h, w * 100, b * 100];
 };
 
-convert$H.rgb.cmyk = function (rgb) {
+convert$6.rgb.cmyk = function (rgb) {
 	var r = rgb[0] / 255;
 	var g = rgb[1] / 255;
 	var b = rgb[2] / 255;
@@ -5009,7 +5009,7 @@ function comparativeDistance$1(x, y) {
 	);
 }
 
-convert$H.rgb.keyword = function (rgb) {
+convert$6.rgb.keyword = function (rgb) {
 	var reversed = reverseKeywords$1[rgb];
 	if (reversed) {
 		return reversed;
@@ -5036,11 +5036,11 @@ convert$H.rgb.keyword = function (rgb) {
 	return currentClosestKeyword;
 };
 
-convert$H.keyword.rgb = function (keyword) {
+convert$6.keyword.rgb = function (keyword) {
 	return cssKeywords$1[keyword];
 };
 
-convert$H.rgb.xyz = function (rgb) {
+convert$6.rgb.xyz = function (rgb) {
 	var r = rgb[0] / 255;
 	var g = rgb[1] / 255;
 	var b = rgb[2] / 255;
@@ -5057,8 +5057,8 @@ convert$H.rgb.xyz = function (rgb) {
 	return [x * 100, y * 100, z * 100];
 };
 
-convert$H.rgb.lab = function (rgb) {
-	var xyz = convert$H.rgb.xyz(rgb);
+convert$6.rgb.lab = function (rgb) {
+	var xyz = convert$6.rgb.xyz(rgb);
 	var x = xyz[0];
 	var y = xyz[1];
 	var z = xyz[2];
@@ -5081,7 +5081,7 @@ convert$H.rgb.lab = function (rgb) {
 	return [l, a, b];
 };
 
-convert$H.hsl.rgb = function (hsl) {
+convert$6.hsl.rgb = function (hsl) {
 	var h = hsl[0] / 360;
 	var s = hsl[1] / 100;
 	var l = hsl[2] / 100;
@@ -5130,7 +5130,7 @@ convert$H.hsl.rgb = function (hsl) {
 	return rgb;
 };
 
-convert$H.hsl.hsv = function (hsl) {
+convert$6.hsl.hsv = function (hsl) {
 	var h = hsl[0];
 	var s = hsl[1] / 100;
 	var l = hsl[2] / 100;
@@ -5148,7 +5148,7 @@ convert$H.hsl.hsv = function (hsl) {
 	return [h, sv * 100, v * 100];
 };
 
-convert$H.hsv.rgb = function (hsv) {
+convert$6.hsv.rgb = function (hsv) {
 	var h = hsv[0] / 60;
 	var s = hsv[1] / 100;
 	var v = hsv[2] / 100;
@@ -5176,7 +5176,7 @@ convert$H.hsv.rgb = function (hsv) {
 	}
 };
 
-convert$H.hsv.hsl = function (hsv) {
+convert$6.hsv.hsl = function (hsv) {
 	var h = hsv[0];
 	var s = hsv[1] / 100;
 	var v = hsv[2] / 100;
@@ -5196,7 +5196,7 @@ convert$H.hsv.hsl = function (hsv) {
 };
 
 // http://dev.w3.org/csswg/css-color/#hwb-to-rgb
-convert$H.hwb.rgb = function (hwb) {
+convert$6.hwb.rgb = function (hwb) {
 	var h = hwb[0] / 360;
 	var wh = hwb[1] / 100;
 	var bl = hwb[2] / 100;
@@ -5239,7 +5239,7 @@ convert$H.hwb.rgb = function (hwb) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$H.cmyk.rgb = function (cmyk) {
+convert$6.cmyk.rgb = function (cmyk) {
 	var c = cmyk[0] / 100;
 	var m = cmyk[1] / 100;
 	var y = cmyk[2] / 100;
@@ -5255,7 +5255,7 @@ convert$H.cmyk.rgb = function (cmyk) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$H.xyz.rgb = function (xyz) {
+convert$6.xyz.rgb = function (xyz) {
 	var x = xyz[0] / 100;
 	var y = xyz[1] / 100;
 	var z = xyz[2] / 100;
@@ -5287,7 +5287,7 @@ convert$H.xyz.rgb = function (xyz) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$H.xyz.lab = function (xyz) {
+convert$6.xyz.lab = function (xyz) {
 	var x = xyz[0];
 	var y = xyz[1];
 	var z = xyz[2];
@@ -5310,7 +5310,7 @@ convert$H.xyz.lab = function (xyz) {
 	return [l, a, b];
 };
 
-convert$H.lab.xyz = function (lab) {
+convert$6.lab.xyz = function (lab) {
 	var l = lab[0];
 	var a = lab[1];
 	var b = lab[2];
@@ -5336,7 +5336,7 @@ convert$H.lab.xyz = function (lab) {
 	return [x, y, z];
 };
 
-convert$H.lab.lch = function (lab) {
+convert$6.lab.lch = function (lab) {
 	var l = lab[0];
 	var a = lab[1];
 	var b = lab[2];
@@ -5356,7 +5356,7 @@ convert$H.lab.lch = function (lab) {
 	return [l, c, h];
 };
 
-convert$H.lch.lab = function (lch) {
+convert$6.lch.lab = function (lch) {
 	var l = lch[0];
 	var c = lch[1];
 	var h = lch[2];
@@ -5371,11 +5371,11 @@ convert$H.lch.lab = function (lch) {
 	return [l, a, b];
 };
 
-convert$H.rgb.ansi16 = function (args) {
+convert$6.rgb.ansi16 = function (args) {
 	var r = args[0];
 	var g = args[1];
 	var b = args[2];
-	var value = 1 in arguments ? arguments[1] : convert$H.rgb.hsv(args)[2]; // hsv -> ansi16 optimization
+	var value = 1 in arguments ? arguments[1] : convert$6.rgb.hsv(args)[2]; // hsv -> ansi16 optimization
 
 	value = Math.round(value / 50);
 
@@ -5395,13 +5395,13 @@ convert$H.rgb.ansi16 = function (args) {
 	return ansi;
 };
 
-convert$H.hsv.ansi16 = function (args) {
+convert$6.hsv.ansi16 = function (args) {
 	// optimization here; we already know the value and don't need to get
 	// it converted for us.
-	return convert$H.rgb.ansi16(convert$H.hsv.rgb(args), args[2]);
+	return convert$6.rgb.ansi16(convert$6.hsv.rgb(args), args[2]);
 };
 
-convert$H.rgb.ansi256 = function (args) {
+convert$6.rgb.ansi256 = function (args) {
 	var r = args[0];
 	var g = args[1];
 	var b = args[2];
@@ -5428,7 +5428,7 @@ convert$H.rgb.ansi256 = function (args) {
 	return ansi;
 };
 
-convert$H.ansi16.rgb = function (args) {
+convert$6.ansi16.rgb = function (args) {
 	var color = args % 10;
 
 	// handle greyscale
@@ -5450,7 +5450,7 @@ convert$H.ansi16.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$H.ansi256.rgb = function (args) {
+convert$6.ansi256.rgb = function (args) {
 	// handle greyscale
 	if (args >= 232) {
 		var c = (args - 232) * 10 + 8;
@@ -5467,7 +5467,7 @@ convert$H.ansi256.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$H.rgb.hex = function (args) {
+convert$6.rgb.hex = function (args) {
 	var integer = ((Math.round(args[0]) & 0xFF) << 16)
 		+ ((Math.round(args[1]) & 0xFF) << 8)
 		+ (Math.round(args[2]) & 0xFF);
@@ -5476,7 +5476,7 @@ convert$H.rgb.hex = function (args) {
 	return '000000'.substring(string.length) + string;
 };
 
-convert$H.hex.rgb = function (args) {
+convert$6.hex.rgb = function (args) {
 	var match = args.toString(16).match(/[a-f0-9]{6}|[a-f0-9]{3}/i);
 	if (!match) {
 		return [0, 0, 0];
@@ -5498,7 +5498,7 @@ convert$H.hex.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$H.rgb.hcg = function (rgb) {
+convert$6.rgb.hcg = function (rgb) {
 	var r = rgb[0] / 255;
 	var g = rgb[1] / 255;
 	var b = rgb[2] / 255;
@@ -5532,7 +5532,7 @@ convert$H.rgb.hcg = function (rgb) {
 	return [hue * 360, chroma * 100, grayscale * 100];
 };
 
-convert$H.hsl.hcg = function (hsl) {
+convert$6.hsl.hcg = function (hsl) {
 	var s = hsl[1] / 100;
 	var l = hsl[2] / 100;
 	var c = 1;
@@ -5551,7 +5551,7 @@ convert$H.hsl.hcg = function (hsl) {
 	return [hsl[0], c * 100, f * 100];
 };
 
-convert$H.hsv.hcg = function (hsv) {
+convert$6.hsv.hcg = function (hsv) {
 	var s = hsv[1] / 100;
 	var v = hsv[2] / 100;
 
@@ -5565,7 +5565,7 @@ convert$H.hsv.hcg = function (hsv) {
 	return [hsv[0], c * 100, f * 100];
 };
 
-convert$H.hcg.rgb = function (hcg) {
+convert$6.hcg.rgb = function (hcg) {
 	var h = hcg[0] / 360;
 	var c = hcg[1] / 100;
 	var g = hcg[2] / 100;
@@ -5604,7 +5604,7 @@ convert$H.hcg.rgb = function (hcg) {
 	];
 };
 
-convert$H.hcg.hsv = function (hcg) {
+convert$6.hcg.hsv = function (hcg) {
 	var c = hcg[1] / 100;
 	var g = hcg[2] / 100;
 
@@ -5618,7 +5618,7 @@ convert$H.hcg.hsv = function (hcg) {
 	return [hcg[0], f * 100, v * 100];
 };
 
-convert$H.hcg.hsl = function (hcg) {
+convert$6.hcg.hsl = function (hcg) {
 	var c = hcg[1] / 100;
 	var g = hcg[2] / 100;
 
@@ -5635,14 +5635,14 @@ convert$H.hcg.hsl = function (hcg) {
 	return [hcg[0], s * 100, l * 100];
 };
 
-convert$H.hcg.hwb = function (hcg) {
+convert$6.hcg.hwb = function (hcg) {
 	var c = hcg[1] / 100;
 	var g = hcg[2] / 100;
 	var v = c + g * (1.0 - c);
 	return [hcg[0], (v - c) * 100, (1 - v) * 100];
 };
 
-convert$H.hwb.hcg = function (hwb) {
+convert$6.hwb.hcg = function (hwb) {
 	var w = hwb[1] / 100;
 	var b = hwb[2] / 100;
 	var v = 1 - b;
@@ -5656,35 +5656,35 @@ convert$H.hwb.hcg = function (hwb) {
 	return [hwb[0], c * 100, g * 100];
 };
 
-convert$H.apple.rgb = function (apple) {
+convert$6.apple.rgb = function (apple) {
 	return [(apple[0] / 65535) * 255, (apple[1] / 65535) * 255, (apple[2] / 65535) * 255];
 };
 
-convert$H.rgb.apple = function (rgb) {
+convert$6.rgb.apple = function (rgb) {
 	return [(rgb[0] / 255) * 65535, (rgb[1] / 255) * 65535, (rgb[2] / 255) * 65535];
 };
 
-convert$H.gray.rgb = function (args) {
+convert$6.gray.rgb = function (args) {
 	return [args[0] / 100 * 255, args[0] / 100 * 255, args[0] / 100 * 255];
 };
 
-convert$H.gray.hsl = convert$H.gray.hsv = function (args) {
+convert$6.gray.hsl = convert$6.gray.hsv = function (args) {
 	return [0, 0, args[0]];
 };
 
-convert$H.gray.hwb = function (gray) {
+convert$6.gray.hwb = function (gray) {
 	return [0, 100, gray[0]];
 };
 
-convert$H.gray.cmyk = function (gray) {
+convert$6.gray.cmyk = function (gray) {
 	return [0, 0, 0, gray[0]];
 };
 
-convert$H.gray.lab = function (gray) {
+convert$6.gray.lab = function (gray) {
 	return [gray[0], 0, 0];
 };
 
-convert$H.gray.hex = function (gray) {
+convert$6.gray.hex = function (gray) {
 	var val = Math.round(gray[0] / 100 * 255) & 0xFF;
 	var integer = (val << 16) + (val << 8) + val;
 
@@ -5692,7 +5692,7 @@ convert$H.gray.hex = function (gray) {
 	return '000000'.substring(string.length) + string;
 };
 
-convert$H.rgb.gray = function (rgb) {
+convert$6.rgb.gray = function (rgb) {
 	var val = (rgb[0] + rgb[1] + rgb[2]) / 3;
 	return [val / 255 * 100];
 };
@@ -5797,7 +5797,7 @@ var route$3 = function (fromModel) {
 var conversions$3 = conversions$5.exports;
 var route$2 = route$3;
 
-var convert$G = {};
+var convert$5 = {};
 
 var models$4 = Object.keys(conversions$3);
 
@@ -5855,10 +5855,10 @@ function wrapRounded$1(fn) {
 }
 
 models$4.forEach(function (fromModel) {
-	convert$G[fromModel] = {};
+	convert$5[fromModel] = {};
 
-	Object.defineProperty(convert$G[fromModel], 'channels', {value: conversions$3[fromModel].channels});
-	Object.defineProperty(convert$G[fromModel], 'labels', {value: conversions$3[fromModel].labels});
+	Object.defineProperty(convert$5[fromModel], 'channels', {value: conversions$3[fromModel].channels});
+	Object.defineProperty(convert$5[fromModel], 'labels', {value: conversions$3[fromModel].labels});
 
 	var routes = route$2(fromModel);
 	var routeModels = Object.keys(routes);
@@ -5866,12 +5866,12 @@ models$4.forEach(function (fromModel) {
 	routeModels.forEach(function (toModel) {
 		var fn = routes[toModel];
 
-		convert$G[fromModel][toModel] = wrapRounded$1(fn);
-		convert$G[fromModel][toModel].raw = wrapRaw$1(fn);
+		convert$5[fromModel][toModel] = wrapRounded$1(fn);
+		convert$5[fromModel][toModel].raw = wrapRaw$1(fn);
 	});
 });
 
-var colorConvert$1 = convert$G;
+var colorConvert$1 = convert$5;
 
 (function (module) {
 const colorConvert = colorConvert$1;
@@ -8900,7 +8900,7 @@ function resolvePlugin(name, options) {
   return null
 }
 
-var isPlainObj$1 = value => {
+var isPlainObj = value => {
 	if (Object.prototype.toString.call(value) !== '[object Object]') {
 		return false;
 	}
@@ -9059,7 +9059,7 @@ var fs$f = require$$0__default$3['default'];
 var path$g = require$$0__default$2['default'];
 var fault$2 = fault_1;
 var debug$d = src.exports('unified-engine:find-up');
-var wrap$3 = wrap_1$1;
+var wrap$1 = wrap_1;
 
 var findUp = FindUp$2;
 
@@ -9126,7 +9126,7 @@ function load$4(filePath, callback) {
       result.syscall = error.syscall;
       loaded(result);
     } else {
-      wrap$3(self.create, onparse)(buf, self.givenFilePath);
+      wrap$1(self.create, onparse)(buf, self.givenFilePath);
     }
 
     function onparse(error, result) {
@@ -9199,7 +9199,7 @@ function load$4(filePath, callback) {
         )
       }
 
-      wrap$3(self.create, onparse)(buf, fp);
+      wrap$1(self.create, onparse)(buf, fp);
 
       function onparse(error, result) {
         if (error) {
@@ -9254,13 +9254,13 @@ var yaml = jsYaml$1;
 var json$2 = parseJson_1;
 var debug$c = src.exports('unified-engine:configuration');
 var loadPlugin = loadPlugin_1;
-var plain$1 = isPlainObj$1;
+var plain$1 = isPlainObj;
 var fault$1 = fault_1;
 var FindUp$1 = findUp;
 
 var configuration = Config;
 
-var own$h = {}.hasOwnProperty;
+var own$f = {}.hasOwnProperty;
 
 var loaders = {
   '.json': loadJson,
@@ -9515,7 +9515,7 @@ function find$2(entries, plugin) {
 
 function failingModule(id, error) {
   var cache = failingModule.cache || (failingModule.cache = {});
-  var submodule = own$h.call(cache, id) ? cache[id] : (cache[id] = fail);
+  var submodule = own$f.call(cache, id) ? cache[id] : (cache[id] = fail);
   return submodule
   function fail() {
     throw error
@@ -10120,19 +10120,19 @@ class Ignore$2 {
   }
 }
 
-const factory$4 = options => new Ignore$2(options);
+const factory$5 = options => new Ignore$2(options);
 
 const returnFalse = () => false;
 
 const isPathValid = path =>
   checkPath(path && checkPath.convert(path), path, returnFalse);
 
-factory$4.isPathValid = isPathValid;
+factory$5.isPathValid = isPathValid;
 
 // Fixes typescript
-factory$4.default = factory$4;
+factory$5.default = factory$5;
 
-var ignore$2 = factory$4;
+var ignore$2 = factory$5;
 
 // Windows
 // --------------------------------------------------------------
@@ -10541,7 +10541,7 @@ var origRealpath = fs$d.realpath;
 var origRealpathSync = fs$d.realpathSync;
 
 var version$2 = process.version;
-var ok$D = /^v[0-5]\./.test(version$2);
+var ok$2 = /^v[0-5]\./.test(version$2);
 var old = old$1;
 
 function newError (er) {
@@ -10553,7 +10553,7 @@ function newError (er) {
 }
 
 function realpath$2 (p, cache, cb) {
-  if (ok$D) {
+  if (ok$2) {
     return origRealpath(p, cache, cb)
   }
 
@@ -10571,7 +10571,7 @@ function realpath$2 (p, cache, cb) {
 }
 
 function realpathSync (p, cache) {
-  if (ok$D) {
+  if (ok$2) {
     return origRealpathSync(p, cache)
   }
 
@@ -10639,6 +10639,9 @@ function range$3(a, b, str) {
   var i = ai;
 
   if (ai >= 0 && bi > 0) {
+    if(a===b) {
+      return [ai, bi];
+    }
     begs = [];
     left = str.length;
 
@@ -11855,8 +11858,6 @@ pathIsAbsolute.exports.win32 = win32;
 
 var common$3 = {};
 
-common$3.alphasort = alphasort;
-common$3.alphasorti = alphasorti;
 common$3.setopts = setopts$2;
 common$3.ownProp = ownProp$2;
 common$3.makeAbs = makeAbs;
@@ -11874,12 +11875,8 @@ var minimatch$2 = minimatch_1;
 var isAbsolute$2 = pathIsAbsolute.exports;
 var Minimatch = minimatch$2.Minimatch;
 
-function alphasorti (a, b) {
-  return a.toLowerCase().localeCompare(b.toLowerCase())
-}
-
 function alphasort (a, b) {
-  return a.localeCompare(b)
+  return a.localeCompare(b, 'en')
 }
 
 function setupIgnores (self, options) {
@@ -12007,7 +12004,7 @@ function finish (self) {
     all = Object.keys(all);
 
   if (!self.nosort)
-    all = all.sort(self.nocase ? alphasorti : alphasort);
+    all = all.sort(alphasort);
 
   // at *some* point we statted all of these
   if (self.mark) {
@@ -12103,11 +12100,9 @@ var fs$c = require$$0__default$3['default'];
 var rp$1 = fs_realpath;
 var minimatch$1 = minimatch_1;
 var path$b = require$$0__default$2['default'];
-var assert$1 = require$$6__default['default'];
+var assert$1 = require$$5__default['default'];
 var isAbsolute$1 = pathIsAbsolute.exports;
 var common$2 = common$3;
-common$2.alphasort;
-common$2.alphasorti;
 var setopts$1 = common$2.setopts;
 var ownProp$1 = common$2.ownProp;
 var childrenIgnored$1 = common$2.childrenIgnored;
@@ -12675,7 +12670,7 @@ function makeres (key) {
   return once$1(function RES () {
     var cbs = reqs[key];
     var len = cbs.length;
-    var args = slice$4(arguments);
+    var args = slice$2(arguments);
 
     // XXX It's somewhat ambiguous whether a new callback added in this
     // pass should be queued for later execution if something in the
@@ -12702,7 +12697,7 @@ function makeres (key) {
   })
 }
 
-function slice$4 (args) {
+function slice$2 (args) {
   var length = args.length;
   var array = [];
 
@@ -12758,12 +12753,10 @@ var minimatch = minimatch_1;
 var inherits$2 = inherits$3.exports;
 var EE = require$$0__default$4['default'].EventEmitter;
 var path$a = require$$0__default$2['default'];
-var assert = require$$6__default['default'];
+var assert = require$$5__default['default'];
 var isAbsolute = pathIsAbsolute.exports;
 var globSync = sync$3;
 var common$1 = common$3;
-common$1.alphasort;
-common$1.alphasorti;
 var setopts = common$1.setopts;
 var ownProp = common$1.ownProp;
 var inflight = inflight_1;
@@ -13506,56 +13499,56 @@ var isBuffer = function isBuffer (obj) {
     typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
 };
 
-var own$g = {}.hasOwnProperty;
+var own$e = {}.hasOwnProperty;
 
-var unistUtilStringifyPosition$3 = stringify$h;
+var unistUtilStringifyPosition = stringify$e;
 
-function stringify$h(value) {
+function stringify$e(value) {
   // Nothing.
   if (!value || typeof value !== 'object') {
     return ''
   }
 
   // Node.
-  if (own$g.call(value, 'position') || own$g.call(value, 'type')) {
-    return position$6(value.position)
+  if (own$e.call(value, 'position') || own$e.call(value, 'type')) {
+    return position$4(value.position)
   }
 
   // Position.
-  if (own$g.call(value, 'start') || own$g.call(value, 'end')) {
-    return position$6(value)
+  if (own$e.call(value, 'start') || own$e.call(value, 'end')) {
+    return position$4(value)
   }
 
   // Point.
-  if (own$g.call(value, 'line') || own$g.call(value, 'column')) {
-    return point$v(value)
+  if (own$e.call(value, 'line') || own$e.call(value, 'column')) {
+    return point$3(value)
   }
 
   // ?
   return ''
 }
 
-function point$v(point) {
+function point$3(point) {
   if (!point || typeof point !== 'object') {
     point = {};
   }
 
-  return index$4(point.line) + ':' + index$4(point.column)
+  return index$2(point.line) + ':' + index$2(point.column)
 }
 
-function position$6(pos) {
+function position$4(pos) {
   if (!pos || typeof pos !== 'object') {
     pos = {};
   }
 
-  return point$v(pos.start) + '-' + point$v(pos.end)
+  return point$3(pos.start) + '-' + point$3(pos.end)
 }
 
-function index$4(value) {
+function index$2(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
-var stringify$g = unistUtilStringifyPosition$3;
+var stringify$d = unistUtilStringifyPosition;
 
 var vfileMessage$1 = VMessage$3;
 
@@ -13592,7 +13585,7 @@ function VMessage$3(reason, position, origin) {
   }
 
   parts = parseOrigin$1(origin);
-  range = stringify$g(position) || '1:1';
+  range = stringify$d(position) || '1:1';
 
   location = {
     start: {line: null, column: null},
@@ -13658,7 +13651,7 @@ var buffer$5 = isBuffer;
 
 var core$3 = VFile$3;
 
-var own$f = {}.hasOwnProperty;
+var own$d = {}.hasOwnProperty;
 
 // Order of setting (least specific to most), we need this because otherwise
 // `{stem: 'a', path: '~/b.js'}` would throw, as a path is needed before a
@@ -13719,7 +13712,7 @@ function VFile$3(options) {
   while (++index < order$4.length) {
     prop = order$4[index];
 
-    if (own$f.call(options, prop)) {
+    if (own$d.call(options, prop)) {
       this[prop] = options[prop];
     }
   }
@@ -15253,7 +15246,7 @@ function stdin$1(context, settings, next) {
 
 var events = require$$0__default$4['default'];
 var inherits = require$$0__default['default'].inherits;
-var trough$4 = trough_1$1;
+var trough$3 = trough_1;
 var vfile$2 = toVfile;
 
 var fileSet = FileSet$1;
@@ -15268,7 +15261,7 @@ function FileSet$1() {
   self.expected = 0;
   self.actual = 0;
 
-  self.pipeline = trough$4();
+  self.pipeline = trough$3();
   self.plugins = [];
 
   events.init.call(self);
@@ -15658,16 +15651,16 @@ function queue$1(context, file, fileSet, next) {
 var isEmpty = lib$5;
 
 // Detect color support.
-var color$E = true;
+var color$4 = true;
 
 try {
-  color$E = 'inspect' in require$$0__default['default'];
+  color$4 = 'inspect' in require$$0__default['default'];
 } catch (_) {
   /* istanbul ignore next - browser */
-  color$E = false;
+  color$4 = false;
 }
 
-var unistUtilInspect = color$E ? inspect$2 : /* istanbul ignore next */ noColor;
+var unistUtilInspect = color$4 ? inspect$2 : /* istanbul ignore next */ noColor;
 
 inspect$2.color = inspect$2;
 noColor.color = inspect$2;
@@ -15772,7 +15765,7 @@ function compile$2(pos) {
 }
 
 // Compile a location.
-function stringify$f(start, end) {
+function stringify$c(start, end) {
   var values = [];
   var positions = [];
   var offsets = [];
@@ -15808,7 +15801,7 @@ function stringify$f(start, end) {
 function formatNode(node) {
   var log = node.type;
   var location = node.position || {};
-  var position = stringify$f(location.start, location.end);
+  var position = stringify$c(location.start, location.end);
   var key;
   var values = [];
   var value;
@@ -15864,10 +15857,10 @@ var buffer$3 = isBuffer;
 var stats$2 = vfileStatistics;
 var inspect$1 = unistUtilInspect;
 
-var stringify_1 = stringify$e;
+var stringify_1 = stringify$b;
 
 // Stringify a tree.
-function stringify$e(context, file) {
+function stringify$b(context, file) {
   var value;
 
   if (stats$2(file).fatal) {
@@ -16039,23 +16032,23 @@ function fileSystem$2(context, file, fileSet, next) {
   fs$4.writeFile(destinationPath, file.toString(), next);
 }
 
-var trough$3 = trough_1$1;
+var trough$2 = trough_1;
 var read$1 = read_1;
 var configure$4 = configure_1$1;
 var parse$9 = parse_1$4;
 var transform$4 = transform_1$1;
 var queue = queue_1;
-var stringify$d = stringify_1;
+var stringify$a = stringify_1;
 var copy$3 = copy_1;
 var stdout = stdout_1;
 var fileSystem$1 = fileSystem_1;
 
 // This pipeline ensures each of the pipes always runs: even if the read pipe
 // fails, queue and write run.
-var filePipeline$1 = trough$3()
-  .use(chunk(trough$3().use(read$1).use(configure$4).use(parse$9).use(transform$4)))
-  .use(chunk(trough$3().use(queue)))
-  .use(chunk(trough$3().use(stringify$d).use(copy$3).use(stdout).use(fileSystem$1)));
+var filePipeline$1 = trough$2()
+  .use(chunk(trough$2().use(read$1).use(configure$4).use(parse$9).use(transform$4)))
+  .use(chunk(trough$2().use(queue)))
+  .use(chunk(trough$2().use(stringify$a).use(copy$3).use(stdout).use(fileSystem$1)));
 
 // Factory to run a pipe.
 // Wraps a pipe to trigger an error on the `file` in `context`, but still call
@@ -16408,55 +16401,6 @@ stringWidth$1.exports = stringWidth;
 // TODO: remove this in the next major version
 stringWidth$1.exports.default = stringWidth;
 
-var own$e = {}.hasOwnProperty;
-
-var unistUtilStringifyPosition$2 = stringify$c;
-
-function stringify$c(value) {
-  // Nothing.
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-
-  // Node.
-  if (own$e.call(value, 'position') || own$e.call(value, 'type')) {
-    return position$5(value.position)
-  }
-
-  // Position.
-  if (own$e.call(value, 'start') || own$e.call(value, 'end')) {
-    return position$5(value)
-  }
-
-  // Point.
-  if (own$e.call(value, 'line') || own$e.call(value, 'column')) {
-    return point$u(value)
-  }
-
-  // ?
-  return ''
-}
-
-function point$u(point) {
-  if (!point || typeof point !== 'object') {
-    point = {};
-  }
-
-  return index$3(point.line) + ':' + index$3(point.column)
-}
-
-function position$5(pos) {
-  if (!pos || typeof pos !== 'object') {
-    pos = {};
-  }
-
-  return point$u(pos.start) + '-' + point$u(pos.end)
-}
-
-function index$3(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
 /*!
  * repeat-string <https://github.com/jonschlinkert/repeat-string>
  *
@@ -16562,7 +16506,7 @@ function compare$3(a, b, property) {
 
 var supported = supportsColor_1.stderr.hasBasic;
 var width = stringWidth$1.exports;
-var stringify$b = unistUtilStringifyPosition$2;
+var stringify$9 = unistUtilStringifyPosition;
 var repeat$6 = repeatString;
 var statistics$1 = vfileStatistics;
 var sort = vfileSort;
@@ -16632,7 +16576,7 @@ function transform$2(files, options) {
         all.push(message);
 
         row = {
-          location: stringify$b(
+          location: stringify$9(
             message.location.end.line && message.location.end.column
               ? message.location
               : message.location.start
@@ -16838,14 +16782,14 @@ function given(file) {
   return file.data.unifiedEngineGiven
 }
 
-var trough$2 = trough_1$1;
+var trough$1 = trough_1;
 var configure$3 = configure_1$2;
 var fileSystem = fileSystem_1$1;
 var stdin = stdin_1;
 var transform$1 = transform_1;
 var log = log_1;
 
-var fileSetPipeline$1 = trough$2()
+var fileSetPipeline$1 = trough$1()
   .use(configure$3)
   .use(fileSystem)
   .use(stdin)
@@ -17169,7 +17113,7 @@ for (const key of Object.keys(cssKeywords)) {
 	reverseKeywords[cssKeywords[key]] = key;
 }
 
-const convert$F = {
+const convert$4 = {
 	rgb: {channels: 3, labels: 'rgb'},
 	hsl: {channels: 3, labels: 'hsl'},
 	hsv: {channels: 3, labels: 'hsv'},
@@ -17187,30 +17131,30 @@ const convert$F = {
 	gray: {channels: 1, labels: ['gray']}
 };
 
-var conversions$2 = convert$F;
+var conversions$2 = convert$4;
 
 // Hide .channels and .labels properties
-for (const model of Object.keys(convert$F)) {
-	if (!('channels' in convert$F[model])) {
+for (const model of Object.keys(convert$4)) {
+	if (!('channels' in convert$4[model])) {
 		throw new Error('missing channels property: ' + model);
 	}
 
-	if (!('labels' in convert$F[model])) {
+	if (!('labels' in convert$4[model])) {
 		throw new Error('missing channel labels property: ' + model);
 	}
 
-	if (convert$F[model].labels.length !== convert$F[model].channels) {
+	if (convert$4[model].labels.length !== convert$4[model].channels) {
 		throw new Error('channel and label counts mismatch: ' + model);
 	}
 
-	const {channels, labels} = convert$F[model];
-	delete convert$F[model].channels;
-	delete convert$F[model].labels;
-	Object.defineProperty(convert$F[model], 'channels', {value: channels});
-	Object.defineProperty(convert$F[model], 'labels', {value: labels});
+	const {channels, labels} = convert$4[model];
+	delete convert$4[model].channels;
+	delete convert$4[model].labels;
+	Object.defineProperty(convert$4[model], 'channels', {value: channels});
+	Object.defineProperty(convert$4[model], 'labels', {value: labels});
 }
 
-convert$F.rgb.hsl = function (rgb) {
+convert$4.rgb.hsl = function (rgb) {
 	const r = rgb[0] / 255;
 	const g = rgb[1] / 255;
 	const b = rgb[2] / 255;
@@ -17249,7 +17193,7 @@ convert$F.rgb.hsl = function (rgb) {
 	return [h, s * 100, l * 100];
 };
 
-convert$F.rgb.hsv = function (rgb) {
+convert$4.rgb.hsv = function (rgb) {
 	let rdif;
 	let gdif;
 	let bdif;
@@ -17296,11 +17240,11 @@ convert$F.rgb.hsv = function (rgb) {
 	];
 };
 
-convert$F.rgb.hwb = function (rgb) {
+convert$4.rgb.hwb = function (rgb) {
 	const r = rgb[0];
 	const g = rgb[1];
 	let b = rgb[2];
-	const h = convert$F.rgb.hsl(rgb)[0];
+	const h = convert$4.rgb.hsl(rgb)[0];
 	const w = 1 / 255 * Math.min(r, Math.min(g, b));
 
 	b = 1 - 1 / 255 * Math.max(r, Math.max(g, b));
@@ -17308,7 +17252,7 @@ convert$F.rgb.hwb = function (rgb) {
 	return [h, w * 100, b * 100];
 };
 
-convert$F.rgb.cmyk = function (rgb) {
+convert$4.rgb.cmyk = function (rgb) {
 	const r = rgb[0] / 255;
 	const g = rgb[1] / 255;
 	const b = rgb[2] / 255;
@@ -17332,7 +17276,7 @@ function comparativeDistance(x, y) {
 	);
 }
 
-convert$F.rgb.keyword = function (rgb) {
+convert$4.rgb.keyword = function (rgb) {
 	const reversed = reverseKeywords[rgb];
 	if (reversed) {
 		return reversed;
@@ -17357,11 +17301,11 @@ convert$F.rgb.keyword = function (rgb) {
 	return currentClosestKeyword;
 };
 
-convert$F.keyword.rgb = function (keyword) {
+convert$4.keyword.rgb = function (keyword) {
 	return cssKeywords[keyword];
 };
 
-convert$F.rgb.xyz = function (rgb) {
+convert$4.rgb.xyz = function (rgb) {
 	let r = rgb[0] / 255;
 	let g = rgb[1] / 255;
 	let b = rgb[2] / 255;
@@ -17378,8 +17322,8 @@ convert$F.rgb.xyz = function (rgb) {
 	return [x * 100, y * 100, z * 100];
 };
 
-convert$F.rgb.lab = function (rgb) {
-	const xyz = convert$F.rgb.xyz(rgb);
+convert$4.rgb.lab = function (rgb) {
+	const xyz = convert$4.rgb.xyz(rgb);
 	let x = xyz[0];
 	let y = xyz[1];
 	let z = xyz[2];
@@ -17399,7 +17343,7 @@ convert$F.rgb.lab = function (rgb) {
 	return [l, a, b];
 };
 
-convert$F.hsl.rgb = function (hsl) {
+convert$4.hsl.rgb = function (hsl) {
 	const h = hsl[0] / 360;
 	const s = hsl[1] / 100;
 	const l = hsl[2] / 100;
@@ -17447,7 +17391,7 @@ convert$F.hsl.rgb = function (hsl) {
 	return rgb;
 };
 
-convert$F.hsl.hsv = function (hsl) {
+convert$4.hsl.hsv = function (hsl) {
 	const h = hsl[0];
 	let s = hsl[1] / 100;
 	let l = hsl[2] / 100;
@@ -17463,7 +17407,7 @@ convert$F.hsl.hsv = function (hsl) {
 	return [h, sv * 100, v * 100];
 };
 
-convert$F.hsv.rgb = function (hsv) {
+convert$4.hsv.rgb = function (hsv) {
 	const h = hsv[0] / 60;
 	const s = hsv[1] / 100;
 	let v = hsv[2] / 100;
@@ -17491,7 +17435,7 @@ convert$F.hsv.rgb = function (hsv) {
 	}
 };
 
-convert$F.hsv.hsl = function (hsv) {
+convert$4.hsv.hsl = function (hsv) {
 	const h = hsv[0];
 	const s = hsv[1] / 100;
 	const v = hsv[2] / 100;
@@ -17510,7 +17454,7 @@ convert$F.hsv.hsl = function (hsv) {
 };
 
 // http://dev.w3.org/csswg/css-color/#hwb-to-rgb
-convert$F.hwb.rgb = function (hwb) {
+convert$4.hwb.rgb = function (hwb) {
 	const h = hwb[0] / 360;
 	let wh = hwb[1] / 100;
 	let bl = hwb[2] / 100;
@@ -17552,7 +17496,7 @@ convert$F.hwb.rgb = function (hwb) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$F.cmyk.rgb = function (cmyk) {
+convert$4.cmyk.rgb = function (cmyk) {
 	const c = cmyk[0] / 100;
 	const m = cmyk[1] / 100;
 	const y = cmyk[2] / 100;
@@ -17565,7 +17509,7 @@ convert$F.cmyk.rgb = function (cmyk) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$F.xyz.rgb = function (xyz) {
+convert$4.xyz.rgb = function (xyz) {
 	const x = xyz[0] / 100;
 	const y = xyz[1] / 100;
 	const z = xyz[2] / 100;
@@ -17597,7 +17541,7 @@ convert$F.xyz.rgb = function (xyz) {
 	return [r * 255, g * 255, b * 255];
 };
 
-convert$F.xyz.lab = function (xyz) {
+convert$4.xyz.lab = function (xyz) {
 	let x = xyz[0];
 	let y = xyz[1];
 	let z = xyz[2];
@@ -17617,7 +17561,7 @@ convert$F.xyz.lab = function (xyz) {
 	return [l, a, b];
 };
 
-convert$F.lab.xyz = function (lab) {
+convert$4.lab.xyz = function (lab) {
 	const l = lab[0];
 	const a = lab[1];
 	const b = lab[2];
@@ -17643,7 +17587,7 @@ convert$F.lab.xyz = function (lab) {
 	return [x, y, z];
 };
 
-convert$F.lab.lch = function (lab) {
+convert$4.lab.lch = function (lab) {
 	const l = lab[0];
 	const a = lab[1];
 	const b = lab[2];
@@ -17661,7 +17605,7 @@ convert$F.lab.lch = function (lab) {
 	return [l, c, h];
 };
 
-convert$F.lch.lab = function (lch) {
+convert$4.lch.lab = function (lch) {
 	const l = lch[0];
 	const c = lch[1];
 	const h = lch[2];
@@ -17673,9 +17617,9 @@ convert$F.lch.lab = function (lch) {
 	return [l, a, b];
 };
 
-convert$F.rgb.ansi16 = function (args, saturation = null) {
+convert$4.rgb.ansi16 = function (args, saturation = null) {
 	const [r, g, b] = args;
-	let value = saturation === null ? convert$F.rgb.hsv(args)[2] : saturation; // Hsv -> ansi16 optimization
+	let value = saturation === null ? convert$4.rgb.hsv(args)[2] : saturation; // Hsv -> ansi16 optimization
 
 	value = Math.round(value / 50);
 
@@ -17695,13 +17639,13 @@ convert$F.rgb.ansi16 = function (args, saturation = null) {
 	return ansi;
 };
 
-convert$F.hsv.ansi16 = function (args) {
+convert$4.hsv.ansi16 = function (args) {
 	// Optimization here; we already know the value and don't need to get
 	// it converted for us.
-	return convert$F.rgb.ansi16(convert$F.hsv.rgb(args), args[2]);
+	return convert$4.rgb.ansi16(convert$4.hsv.rgb(args), args[2]);
 };
 
-convert$F.rgb.ansi256 = function (args) {
+convert$4.rgb.ansi256 = function (args) {
 	const r = args[0];
 	const g = args[1];
 	const b = args[2];
@@ -17728,7 +17672,7 @@ convert$F.rgb.ansi256 = function (args) {
 	return ansi;
 };
 
-convert$F.ansi16.rgb = function (args) {
+convert$4.ansi16.rgb = function (args) {
 	let color = args % 10;
 
 	// Handle greyscale
@@ -17750,7 +17694,7 @@ convert$F.ansi16.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$F.ansi256.rgb = function (args) {
+convert$4.ansi256.rgb = function (args) {
 	// Handle greyscale
 	if (args >= 232) {
 		const c = (args - 232) * 10 + 8;
@@ -17767,7 +17711,7 @@ convert$F.ansi256.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$F.rgb.hex = function (args) {
+convert$4.rgb.hex = function (args) {
 	const integer = ((Math.round(args[0]) & 0xFF) << 16)
 		+ ((Math.round(args[1]) & 0xFF) << 8)
 		+ (Math.round(args[2]) & 0xFF);
@@ -17776,7 +17720,7 @@ convert$F.rgb.hex = function (args) {
 	return '000000'.substring(string.length) + string;
 };
 
-convert$F.hex.rgb = function (args) {
+convert$4.hex.rgb = function (args) {
 	const match = args.toString(16).match(/[a-f0-9]{6}|[a-f0-9]{3}/i);
 	if (!match) {
 		return [0, 0, 0];
@@ -17798,7 +17742,7 @@ convert$F.hex.rgb = function (args) {
 	return [r, g, b];
 };
 
-convert$F.rgb.hcg = function (rgb) {
+convert$4.rgb.hcg = function (rgb) {
 	const r = rgb[0] / 255;
 	const g = rgb[1] / 255;
 	const b = rgb[2] / 255;
@@ -17832,7 +17776,7 @@ convert$F.rgb.hcg = function (rgb) {
 	return [hue * 360, chroma * 100, grayscale * 100];
 };
 
-convert$F.hsl.hcg = function (hsl) {
+convert$4.hsl.hcg = function (hsl) {
 	const s = hsl[1] / 100;
 	const l = hsl[2] / 100;
 
@@ -17846,7 +17790,7 @@ convert$F.hsl.hcg = function (hsl) {
 	return [hsl[0], c * 100, f * 100];
 };
 
-convert$F.hsv.hcg = function (hsv) {
+convert$4.hsv.hcg = function (hsv) {
 	const s = hsv[1] / 100;
 	const v = hsv[2] / 100;
 
@@ -17860,7 +17804,7 @@ convert$F.hsv.hcg = function (hsv) {
 	return [hsv[0], c * 100, f * 100];
 };
 
-convert$F.hcg.rgb = function (hcg) {
+convert$4.hcg.rgb = function (hcg) {
 	const h = hcg[0] / 360;
 	const c = hcg[1] / 100;
 	const g = hcg[2] / 100;
@@ -17901,7 +17845,7 @@ convert$F.hcg.rgb = function (hcg) {
 	];
 };
 
-convert$F.hcg.hsv = function (hcg) {
+convert$4.hcg.hsv = function (hcg) {
 	const c = hcg[1] / 100;
 	const g = hcg[2] / 100;
 
@@ -17915,7 +17859,7 @@ convert$F.hcg.hsv = function (hcg) {
 	return [hcg[0], f * 100, v * 100];
 };
 
-convert$F.hcg.hsl = function (hcg) {
+convert$4.hcg.hsl = function (hcg) {
 	const c = hcg[1] / 100;
 	const g = hcg[2] / 100;
 
@@ -17932,14 +17876,14 @@ convert$F.hcg.hsl = function (hcg) {
 	return [hcg[0], s * 100, l * 100];
 };
 
-convert$F.hcg.hwb = function (hcg) {
+convert$4.hcg.hwb = function (hcg) {
 	const c = hcg[1] / 100;
 	const g = hcg[2] / 100;
 	const v = c + g * (1.0 - c);
 	return [hcg[0], (v - c) * 100, (1 - v) * 100];
 };
 
-convert$F.hwb.hcg = function (hwb) {
+convert$4.hwb.hcg = function (hwb) {
 	const w = hwb[1] / 100;
 	const b = hwb[2] / 100;
 	const v = 1 - b;
@@ -17953,37 +17897,37 @@ convert$F.hwb.hcg = function (hwb) {
 	return [hwb[0], c * 100, g * 100];
 };
 
-convert$F.apple.rgb = function (apple) {
+convert$4.apple.rgb = function (apple) {
 	return [(apple[0] / 65535) * 255, (apple[1] / 65535) * 255, (apple[2] / 65535) * 255];
 };
 
-convert$F.rgb.apple = function (rgb) {
+convert$4.rgb.apple = function (rgb) {
 	return [(rgb[0] / 255) * 65535, (rgb[1] / 255) * 65535, (rgb[2] / 255) * 65535];
 };
 
-convert$F.gray.rgb = function (args) {
+convert$4.gray.rgb = function (args) {
 	return [args[0] / 100 * 255, args[0] / 100 * 255, args[0] / 100 * 255];
 };
 
-convert$F.gray.hsl = function (args) {
+convert$4.gray.hsl = function (args) {
 	return [0, 0, args[0]];
 };
 
-convert$F.gray.hsv = convert$F.gray.hsl;
+convert$4.gray.hsv = convert$4.gray.hsl;
 
-convert$F.gray.hwb = function (gray) {
+convert$4.gray.hwb = function (gray) {
 	return [0, 100, gray[0]];
 };
 
-convert$F.gray.cmyk = function (gray) {
+convert$4.gray.cmyk = function (gray) {
 	return [0, 0, 0, gray[0]];
 };
 
-convert$F.gray.lab = function (gray) {
+convert$4.gray.lab = function (gray) {
 	return [gray[0], 0, 0];
 };
 
-convert$F.gray.hex = function (gray) {
+convert$4.gray.hex = function (gray) {
 	const val = Math.round(gray[0] / 100 * 255) & 0xFF;
 	const integer = (val << 16) + (val << 8) + val;
 
@@ -17991,7 +17935,7 @@ convert$F.gray.hex = function (gray) {
 	return '000000'.substring(string.length) + string;
 };
 
-convert$F.rgb.gray = function (rgb) {
+convert$4.rgb.gray = function (rgb) {
 	const val = (rgb[0] + rgb[1] + rgb[2]) / 3;
 	return [val / 255 * 100];
 };
@@ -18096,7 +18040,7 @@ var route$1 = function (fromModel) {
 const conversions = conversions$2;
 const route = route$1;
 
-const convert$E = {};
+const convert$3 = {};
 
 const models$3 = Object.keys(conversions);
 
@@ -18157,10 +18101,10 @@ function wrapRounded(fn) {
 }
 
 models$3.forEach(fromModel => {
-	convert$E[fromModel] = {};
+	convert$3[fromModel] = {};
 
-	Object.defineProperty(convert$E[fromModel], 'channels', {value: conversions[fromModel].channels});
-	Object.defineProperty(convert$E[fromModel], 'labels', {value: conversions[fromModel].labels});
+	Object.defineProperty(convert$3[fromModel], 'channels', {value: conversions[fromModel].channels});
+	Object.defineProperty(convert$3[fromModel], 'labels', {value: conversions[fromModel].labels});
 
 	const routes = route(fromModel);
 	const routeModels = Object.keys(routes);
@@ -18168,12 +18112,12 @@ models$3.forEach(fromModel => {
 	routeModels.forEach(toModel => {
 		const fn = routes[toModel];
 
-		convert$E[fromModel][toModel] = wrapRounded(fn);
-		convert$E[fromModel][toModel].raw = wrapRaw(fn);
+		convert$3[fromModel][toModel] = wrapRounded(fn);
+		convert$3[fromModel][toModel].raw = wrapRaw(fn);
 	});
 });
 
-var colorConvert = convert$E;
+var colorConvert = convert$3;
 
 (function (module) {
 
@@ -19025,7 +18969,8 @@ const depth = token => {
 /**
  * Quickly scans a glob pattern and returns an object with a handful of
  * useful properties, like `isGlob`, `path` (the leading non-glob, if it exists),
- * `glob` (the actual pattern), and `negated` (true if the path starts with `!`).
+ * `glob` (the actual pattern), `negated` (true if the path starts with `!` but not
+ * with `!(`) and `negatedExtglob` (true if the path starts with `!(`).
  *
  * ```js
  * const pm = require('picomatch');
@@ -19059,6 +19004,7 @@ const scan$1 = (input, options) => {
   let braceEscaped = false;
   let backslashes = false;
   let negated = false;
+  let negatedExtglob = false;
   let finished = false;
   let braces = 0;
   let prev;
@@ -19170,6 +19116,9 @@ const scan$1 = (input, options) => {
         isGlob = token.isGlob = true;
         isExtglob = token.isExtglob = true;
         finished = true;
+        if (code === CHAR_EXCLAMATION_MARK && index === start) {
+          negatedExtglob = true;
+        }
 
         if (scanToEnd === true) {
           while (eos() !== true && (code = advance())) {
@@ -19224,13 +19173,15 @@ const scan$1 = (input, options) => {
           isBracket = token.isBracket = true;
           isGlob = token.isGlob = true;
           finished = true;
-
-          if (scanToEnd === true) {
-            continue;
-          }
           break;
         }
       }
+
+      if (scanToEnd === true) {
+        continue;
+      }
+
+      break;
     }
 
     if (opts.nonegate !== true && code === CHAR_EXCLAMATION_MARK && index === start) {
@@ -19321,7 +19272,8 @@ const scan$1 = (input, options) => {
     isGlob,
     isExtglob,
     isGlobstar,
-    negated
+    negated,
+    negatedExtglob
   };
 
   if (opts.tokens === true) {
@@ -19467,7 +19419,7 @@ const parse$8 = (input, options) => {
     START_ANCHOR
   } = PLATFORM_CHARS;
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
 
@@ -19517,12 +19469,13 @@ const parse$8 = (input, options) => {
 
   const eos = () => state.index === len - 1;
   const peek = state.peek = (n = 1) => input[state.index + n];
-  const advance = state.advance = () => input[++state.index];
+  const advance = state.advance = () => input[++state.index] || '';
   const remaining = () => input.slice(state.index + 1);
   const consume = (value = '', num = 0) => {
     state.consumed += value;
     state.index += num;
   };
+
   const append = token => {
     state.output += token.output != null ? token.output : token.value;
     consume(token.value);
@@ -19578,7 +19531,7 @@ const parse$8 = (input, options) => {
       }
     }
 
-    if (extglobs.length && tok.type !== 'paren' && !EXTGLOB_CHARS[tok.value]) {
+    if (extglobs.length && tok.type !== 'paren') {
       extglobs[extglobs.length - 1].inner += tok.value;
     }
 
@@ -19610,6 +19563,7 @@ const parse$8 = (input, options) => {
 
   const extglobClose = token => {
     let output = token.close + (opts.capture ? ')' : '');
+    let rest;
 
     if (token.type === 'negate') {
       let extglobStar = star;
@@ -19622,7 +19576,11 @@ const parse$8 = (input, options) => {
         output = token.close = `)$))${extglobStar}`;
       }
 
-      if (token.prev.type === 'bos' && eos()) {
+      if (token.inner.includes('*') && (rest = remaining()) && /^\.[^\\/.]+$/.test(rest)) {
+        output = token.close = `)${rest})${extglobStar})`;
+      }
+
+      if (token.prev.type === 'bos') {
         state.negatedExtglob = true;
       }
     }
@@ -19731,9 +19689,9 @@ const parse$8 = (input, options) => {
       }
 
       if (opts.unescape === true) {
-        value = advance() || '';
+        value = advance();
       } else {
-        value += advance() || '';
+        value += advance();
       }
 
       if (state.brackets === 0) {
@@ -20397,7 +20355,7 @@ parse$8.fastpaths = (input, options) => {
     star = `(${star})`;
   }
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     if (opts.noglobstar === true) return star;
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
@@ -20683,6 +20641,40 @@ picomatch$3.parse = (pattern, options) => {
 picomatch$3.scan = (input, options) => scan(input, options);
 
 /**
+ * Compile a regular expression from the `state` object returned by the
+ * [parse()](#parse) method.
+ *
+ * @param {Object} `state`
+ * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Intended for implementors, this argument allows you to return the raw output from the parser.
+ * @param {Boolean} `returnState` Adds the state to a `state` property on the returned regex. Useful for implementors and debugging.
+ * @return {RegExp}
+ * @api public
+ */
+
+picomatch$3.compileRe = (state, options, returnOutput = false, returnState = false) => {
+  if (returnOutput === true) {
+    return state.output;
+  }
+
+  const opts = options || {};
+  const prepend = opts.contains ? '' : '^';
+  const append = opts.contains ? '' : '$';
+
+  let source = `${prepend}(?:${state.output})${append}`;
+  if (state && state.negated === true) {
+    source = `^(?!${source}).*$`;
+  }
+
+  const regex = picomatch$3.toRegex(source, options);
+  if (returnState === true) {
+    regex.state = state;
+  }
+
+  return regex;
+};
+
+/**
  * Create a regular expression from a parsed glob pattern.
  *
  * ```js
@@ -20695,56 +20687,25 @@ picomatch$3.scan = (input, options) => scan(input, options);
  * ```
  * @param {String} `state` The object returned from the `.parse` method.
  * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Implementors may use this argument to return the compiled output, instead of a regular expression. This is not exposed on the options to prevent end-users from mutating the result.
+ * @param {Boolean} `returnState` Implementors may use this argument to return the state from the parsed glob with the returned regular expression.
  * @return {RegExp} Returns a regex created from the given pattern.
  * @api public
  */
 
-picomatch$3.compileRe = (parsed, options, returnOutput = false, returnState = false) => {
-  if (returnOutput === true) {
-    return parsed.output;
-  }
-
-  const opts = options || {};
-  const prepend = opts.contains ? '' : '^';
-  const append = opts.contains ? '' : '$';
-
-  let source = `${prepend}(?:${parsed.output})${append}`;
-  if (parsed && parsed.negated === true) {
-    source = `^(?!${source}).*$`;
-  }
-
-  const regex = picomatch$3.toRegex(source, options);
-  if (returnState === true) {
-    regex.state = parsed;
-  }
-
-  return regex;
-};
-
-picomatch$3.makeRe = (input, options, returnOutput = false, returnState = false) => {
+picomatch$3.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
   if (!input || typeof input !== 'string') {
     throw new TypeError('Expected a non-empty string');
   }
 
-  const opts = options || {};
   let parsed = { negated: false, fastpaths: true };
-  let prefix = '';
-  let output;
 
-  if (input.startsWith('./')) {
-    input = input.slice(2);
-    prefix = parsed.prefix = './';
+  if (options.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
+    parsed.output = parse$7.fastpaths(input, options);
   }
 
-  if (opts.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
-    output = parse$7.fastpaths(input, options);
-  }
-
-  if (output === undefined) {
+  if (!parsed.output) {
     parsed = parse$7(input, options);
-    parsed.prefix = prefix + (parsed.prefix || '');
-  } else {
-    parsed.output = output;
   }
 
   return picomatch$3.compileRe(parsed, options, returnOutput, returnState);
@@ -21448,7 +21409,7 @@ exports.flatten = (...args) => {
 
 const utils$2 = utils$3;
 
-var stringify$a = (ast, options = {}) => {
+var stringify$8 = (ast, options = {}) => {
   let stringify = (node, parent = {}) => {
     let invalidBlock = options.escapeInvalid && utils$2.isInvalidBrace(parent);
     let invalidNode = node.invalid === true && options.escapeInvalid === true;
@@ -21811,7 +21772,7 @@ const zeros = input => {
   return index > 0;
 };
 
-const stringify$9 = (start, end, options) => {
+const stringify$7 = (start, end, options) => {
   if (typeof start === 'string' || typeof end === 'string') {
     return true;
   }
@@ -21928,7 +21889,7 @@ const fillNumbers = (start, end, step = 1, options = {}) => {
 
   let padded = zeros(startString) || zeros(endString) || zeros(stepString);
   let maxLen = padded ? Math.max(startString.length, endString.length, stepString.length) : 0;
-  let toNumber = padded === false && stringify$9(start, end, options) === false;
+  let toNumber = padded === false && stringify$7(start, end, options) === false;
   let format = options.transform || transform(toNumber);
 
   if (options.toRegex && step === 1) {
@@ -22085,7 +22046,7 @@ const compile$1 = (ast, options = {}) => {
 var compile_1 = compile$1;
 
 const fill = fillRange;
-const stringify$8 = stringify$a;
+const stringify$6 = stringify$8;
 const utils = utils$3;
 
 const append = (queue = '', stash = '', enclose = false) => {
@@ -22129,7 +22090,7 @@ const expand$1 = (ast, options = {}) => {
     }
 
     if (node.invalid || node.dollar) {
-      q.push(append(q.pop(), stringify$8(node, options)));
+      q.push(append(q.pop(), stringify$6(node, options)));
       return;
     }
 
@@ -22147,7 +22108,7 @@ const expand$1 = (ast, options = {}) => {
 
       let range = fill(...args, options);
       if (range.length === 0) {
-        range = stringify$8(node, options);
+        range = stringify$6(node, options);
       }
 
       q.push(append(q.pop(), range));
@@ -22252,7 +22213,7 @@ var constants$2 = {
   CHAR_ZERO_WIDTH_NOBREAK_SPACE: '\uFEFF' /* \uFEFF */
 };
 
-const stringify$7 = stringify$a;
+const stringify$5 = stringify$8;
 
 /**
  * Constants
@@ -22495,7 +22456,7 @@ const parse$6 = (input, options = {}) => {
       if (block.ranges > 0) {
         block.ranges = 0;
         let open = block.nodes.shift();
-        block.nodes = [open, { type: 'text', value: stringify$7(block) }];
+        block.nodes = [open, { type: 'text', value: stringify$5(block) }];
       }
 
       push({ type: 'comma', value });
@@ -22581,7 +22542,7 @@ const parse$6 = (input, options = {}) => {
 
 var parse_1$2 = parse$6;
 
-const stringify$6 = stringify$a;
+const stringify$4 = stringify$8;
 const compile = compile_1;
 const expand = expand_1;
 const parse$5 = parse_1$2;
@@ -22654,9 +22615,9 @@ braces$1.parse = (input, options = {}) => parse$5(input, options);
 
 braces$1.stringify = (input, options = {}) => {
   if (typeof input === 'string') {
-    return stringify$6(braces$1.parse(input, options), options);
+    return stringify$4(braces$1.parse(input, options), options);
   }
-  return stringify$6(input, options);
+  return stringify$4(input, options);
 };
 
 /**
@@ -26761,7 +26722,7 @@ function syntaxError (message) {
     return err
 }
 
-var stringify$5 = function stringify (value, replacer, space) {
+var stringify$3 = function stringify (value, replacer, space) {
     const stack = [];
     let indent = '';
     let propertyList;
@@ -27023,7 +26984,7 @@ var stringify$5 = function stringify (value, replacer, space) {
 
 const JSON5 = {
     parse: parse$4,
-    stringify: stringify$5,
+    stringify: stringify$3,
 };
 
 var lib$3 = JSON5;
@@ -27279,7 +27240,7 @@ function options$1(flags, configuration) {
     silentlyIgnore: config.silentlyIgnore,
     detectIgnore: config.ignore,
     pluginPrefix: configuration.pluginPrefix,
-    plugins: plugins$1(config.use),
+    plugins: plugins(config.use),
     reporter: report[0],
     reporterOptions: report[1],
     color: config.color,
@@ -27309,7 +27270,7 @@ function commaSeparated(value) {
 }
 
 // Parse `plugins`.
-function plugins$1(value) {
+function plugins(value) {
   var result = {};
 
   normalize(value)
@@ -27773,201 +27734,7 @@ var extend$2 = function extend() {
 	return target;
 };
 
-var isPlainObj = value => {
-	if (Object.prototype.toString.call(value) !== '[object Object]') {
-		return false;
-	}
-
-	const prototype = Object.getPrototypeOf(value);
-	return prototype === null || prototype === Object.prototype;
-};
-
-var slice$3 = [].slice;
-
-var wrap_1 = wrap$2;
-
-// Wrap `fn`.
-// Can be sync or async; return a promise, receive a completion handler, return
-// new values and errors.
-function wrap$2(fn, callback) {
-  var invoked;
-
-  return wrapped
-
-  function wrapped() {
-    var params = slice$3.call(arguments, 0);
-    var callback = fn.length > params.length;
-    var result;
-
-    if (callback) {
-      params.push(done);
-    }
-
-    try {
-      result = fn.apply(null, params);
-    } catch (error) {
-      // Well, this is quite the pickle.
-      // `fn` received a callback and invoked it (thus continuing the pipeline),
-      // but later also threw an error.
-      // We’re not about to restart the pipeline again, so the only thing left
-      // to do is to throw the thing instead.
-      if (callback && invoked) {
-        throw error
-      }
-
-      return done(error)
-    }
-
-    if (!callback) {
-      if (result && typeof result.then === 'function') {
-        result.then(then, done);
-      } else if (result instanceof Error) {
-        done(result);
-      } else {
-        then(result);
-      }
-    }
-  }
-
-  // Invoke `next`, only once.
-  function done() {
-    if (!invoked) {
-      invoked = true;
-
-      callback.apply(null, arguments);
-    }
-  }
-
-  // Invoke `done` with one value.
-  // Tracks if an error is passed, too.
-  function then(value) {
-    done(null, value);
-  }
-}
-
-var wrap$1 = wrap_1;
-
-var trough_1 = trough$1;
-
-trough$1.wrap = wrap$1;
-
-var slice$2 = [].slice;
-
-// Create new middleware.
-function trough$1() {
-  var fns = [];
-  var middleware = {};
-
-  middleware.run = run;
-  middleware.use = use;
-
-  return middleware
-
-  // Run `fns`.  Last argument must be a completion handler.
-  function run() {
-    var index = -1;
-    var input = slice$2.call(arguments, 0, -1);
-    var done = arguments[arguments.length - 1];
-
-    if (typeof done !== 'function') {
-      throw new Error('Expected function as last argument, not ' + done)
-    }
-
-    next.apply(null, [null].concat(input));
-
-    // Run the next `fn`, if any.
-    function next(err) {
-      var fn = fns[++index];
-      var params = slice$2.call(arguments, 0);
-      var values = params.slice(1);
-      var length = input.length;
-      var pos = -1;
-
-      if (err) {
-        done(err);
-        return
-      }
-
-      // Copy non-nully input into values.
-      while (++pos < length) {
-        if (values[pos] === null || values[pos] === undefined) {
-          values[pos] = input[pos];
-        }
-      }
-
-      input = values;
-
-      // Next or done.
-      if (fn) {
-        wrap$1(fn, next).apply(null, input);
-      } else {
-        done.apply(null, [null].concat(input));
-      }
-    }
-  }
-
-  // Add `fn` to the list.
-  function use(fn) {
-    if (typeof fn !== 'function') {
-      throw new Error('Expected `fn` to be a function, not ' + fn)
-    }
-
-    fns.push(fn);
-
-    return middleware
-  }
-}
-
-var own$d = {}.hasOwnProperty;
-
-var unistUtilStringifyPosition$1 = stringify$4;
-
-function stringify$4(value) {
-  // Nothing.
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-
-  // Node.
-  if (own$d.call(value, 'position') || own$d.call(value, 'type')) {
-    return position$4(value.position)
-  }
-
-  // Position.
-  if (own$d.call(value, 'start') || own$d.call(value, 'end')) {
-    return position$4(value)
-  }
-
-  // Point.
-  if (own$d.call(value, 'line') || own$d.call(value, 'column')) {
-    return point$t(value)
-  }
-
-  // ?
-  return ''
-}
-
-function point$t(point) {
-  if (!point || typeof point !== 'object') {
-    point = {};
-  }
-
-  return index$2(point.line) + ':' + index$2(point.column)
-}
-
-function position$4(pos) {
-  if (!pos || typeof pos !== 'object') {
-    pos = {};
-  }
-
-  return point$t(pos.start) + '-' + point$t(pos.end)
-}
-
-function index$2(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
-var stringify$3 = unistUtilStringifyPosition$1;
+var stringify$2 = unistUtilStringifyPosition;
 
 var vfileMessage = VMessage$1;
 
@@ -28004,7 +27771,7 @@ function VMessage$1(reason, position, origin) {
   }
 
   parts = parseOrigin(origin);
-  range = stringify$3(position) || '1:1';
+  range = stringify$2(position) || '1:1';
 
   location = {
     start: {line: null, column: null},
@@ -42891,69 +42658,20 @@ function decodeEntity$1(characters) {
     : false
 }
 
-var own$7 = {}.hasOwnProperty;
-
-var unistUtilStringifyPosition = stringify$2;
-
-function stringify$2(value) {
-  // Nothing.
-  if (!value || typeof value !== 'object') {
-    return ''
-  }
-
-  // Node.
-  if (own$7.call(value, 'position') || own$7.call(value, 'type')) {
-    return position$3(value.position)
-  }
-
-  // Position.
-  if (own$7.call(value, 'start') || own$7.call(value, 'end')) {
-    return position$3(value)
-  }
-
-  // Point.
-  if (own$7.call(value, 'line') || own$7.call(value, 'column')) {
-    return point$s(value)
-  }
-
-  // ?
-  return ''
-}
-
-function point$s(point) {
-  if (!point || typeof point !== 'object') {
-    point = {};
-  }
-
-  return index$1(point.line) + ':' + index$1(point.column)
-}
-
-function position$3(pos) {
-  if (!pos || typeof pos !== 'object') {
-    pos = {};
-  }
-
-  return point$s(pos.start) + '-' + point$s(pos.end)
-}
-
-function index$1(value) {
-  return value && typeof value === 'number' ? value : 1
-}
-
 var dist = fromMarkdown$1;
 
 // These three are compiled away in the `dist/`
 
 var toString$4 = mdastUtilToString$1;
 var assign = assign_1;
-var own$6 = hasOwnProperty$2;
+var own$7 = hasOwnProperty$2;
 var normalizeIdentifier$1 = normalizeIdentifier_1;
 var safeFromInt = safeFromInt_1;
 var parser = parse_1$1;
 var preprocessor = preprocess_1;
 var postprocess = postprocess_1;
 var decode$1 = decodeEntity_1$1;
-var stringifyPosition$1 = unistUtilStringifyPosition;
+var stringifyPosition$2 = unistUtilStringifyPosition;
 
 function fromMarkdown$1(value, encoding, options) {
   if (typeof encoding !== 'string') {
@@ -43127,7 +42845,7 @@ function compiler(options) {
     while (++index < events.length) {
       handler = config[events[index][0]];
 
-      if (own$6.call(handler, events[index][1].type)) {
+      if (own$7.call(handler, events[index][1].type)) {
         handler[events[index][1].type].call(
           assign({sliceSerialize: events[index][2].sliceSerialize}, context),
           events[index][1]
@@ -43140,7 +42858,7 @@ function compiler(options) {
         'Cannot close document, a token (`' +
           tokenStack[tokenStack.length - 1].type +
           '`, ' +
-          stringifyPosition$1({
+          stringifyPosition$2({
             start: tokenStack[tokenStack.length - 1].start,
             end: tokenStack[tokenStack.length - 1].end
           }) +
@@ -43348,7 +43066,7 @@ function compiler(options) {
         'Cannot close `' +
           token.type +
           '` (' +
-          stringifyPosition$1({start: token.start, end: token.end}) +
+          stringifyPosition$2({start: token.start, end: token.end}) +
           '): it’s not open'
       )
     } else if (open.type !== token.type) {
@@ -43356,11 +43074,11 @@ function compiler(options) {
         'Cannot close `' +
           token.type +
           '` (' +
-          stringifyPosition$1({start: token.start, end: token.end}) +
+          stringifyPosition$2({start: token.start, end: token.end}) +
           '): a different token (`' +
           open.type +
           '`, ' +
-          stringifyPosition$1({start: open.start, end: open.end}) +
+          stringifyPosition$2({start: open.start, end: open.end}) +
           ') is open'
       )
     }
@@ -43748,7 +43466,7 @@ function extension(config, extension) {
   var left;
 
   for (key in extension) {
-    left = own$6.call(config, key) ? config[key] : (config[key] = {});
+    left = own$7.call(config, key) ? config[key] : (config[key] = {});
 
     if (key === 'canContainEols' || key === 'transforms') {
       config[key] = [].concat(left, extension[key]);
@@ -43783,21 +43501,21 @@ function parse$2(options) {
   }
 }
 
-var zwitch$1 = factory$3;
+var zwitch$1 = factory$4;
 
 var noop$1 = Function.prototype;
-var own$5 = {}.hasOwnProperty;
+var own$6 = {}.hasOwnProperty;
 
 // Handle values based on a property.
-function factory$3(key, options) {
+function factory$4(key, options) {
   var settings = options || {};
 
   function one(value) {
     var fn = one.invalid;
     var handlers = one.handlers;
 
-    if (value && own$5.call(value, key)) {
-      fn = own$5.call(handlers, value[key]) ? handlers[value[key]] : one.unknown;
+    if (value && own$6.call(value, key)) {
+      fn = own$6.call(handlers, value[key]) ? handlers[value[key]] : one.unknown;
     }
 
     return (fn || noop$1).apply(this, arguments)
@@ -48726,10 +48444,10 @@ var characterEntities = require$$0;
 
 var decodeEntity_1 = decodeEntity;
 
-var own$4 = {}.hasOwnProperty;
+var own$5 = {}.hasOwnProperty;
 
 function decodeEntity(characters) {
-  return own$4.call(characterEntities, characters)
+  return own$5.call(characterEntities, characters)
     ? characterEntities[characters]
     : false
 }
@@ -49913,7 +49631,7 @@ var require$$4 = {
  *
  * @param {string|Uint8Array|VFile} file
  */
-function location$5(file) {
+function location(file) {
   var value = String(file);
   /** @type {Array.<number>} */
   var indices = [];
@@ -49990,7 +49708,7 @@ function location$5(file) {
  * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
  */
 
-const convert$D =
+const convert$2 =
   /**
    * @type {(
    *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
@@ -50010,19 +49728,19 @@ const convert$D =
      */
     function (test) {
       if (test === undefined || test === null) {
-        return ok$C
+        return ok$1
       }
 
       if (typeof test === 'string') {
-        return typeFactory$C(test)
+        return typeFactory$1(test)
       }
 
       if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$C(test) : propsFactory$B(test)
+        return Array.isArray(test) ? anyFactory$1(test) : propsFactory(test)
       }
 
       if (typeof test === 'function') {
-        return castFactory$B(test)
+        return castFactory(test)
       }
 
       throw new Error('Expected function, string, or object as test')
@@ -50032,16 +49750,16 @@ const convert$D =
  * @param {Array.<Type|Props|TestFunctionAnything>} tests
  * @returns {AssertAnything}
  */
-function anyFactory$C(tests) {
+function anyFactory$1(tests) {
   /** @type {Array.<AssertAnything>} */
   const checks = [];
   let index = -1;
 
   while (++index < tests.length) {
-    checks[index] = convert$D(tests[index]);
+    checks[index] = convert$2(tests[index]);
   }
 
-  return castFactory$B(any)
+  return castFactory(any)
 
   /**
    * @this {unknown}
@@ -50066,8 +49784,8 @@ function anyFactory$C(tests) {
  * @param {Props} check
  * @returns {AssertAnything}
  */
-function propsFactory$B(check) {
-  return castFactory$B(all)
+function propsFactory(check) {
+  return castFactory(all)
 
   /**
    * @param {Node} node
@@ -50093,8 +49811,8 @@ function propsFactory$B(check) {
  * @param {Type} check
  * @returns {AssertAnything}
  */
-function typeFactory$C(check) {
-  return castFactory$B(type)
+function typeFactory$1(check) {
+  return castFactory(type)
 
   /**
    * @param {Node} node
@@ -50110,7 +49828,7 @@ function typeFactory$C(check) {
  * @param {TestFunctionAnything} check
  * @returns {AssertAnything}
  */
-function castFactory$B(check) {
+function castFactory(check) {
   return assertion
 
   /**
@@ -50125,7 +49843,7 @@ function castFactory$B(check) {
 }
 
 // Utility to return true.
-function ok$C() {
+function ok$1() {
   return true
 }
 
@@ -50133,7 +49851,7 @@ function ok$C() {
  * @param {string} d
  * @returns {string}
  */
-function color$D(d) {
+function color$3(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
@@ -50146,17 +49864,17 @@ function color$D(d) {
 /**
  * Continue traversing as normal
  */
-const CONTINUE$D = true;
+const CONTINUE$3 = true;
 /**
  * Do not traverse this node’s children
  */
-const SKIP$D = 'skip';
+const SKIP$3 = 'skip';
 /**
  * Stop traversing immediately
  */
-const EXIT$D = false;
+const EXIT$3 = false;
 
-const visitParents$D =
+const visitParents$3 =
   /**
    * @type {(
    *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
@@ -50181,7 +49899,7 @@ const visitParents$D =
         test = null;
       }
 
-      var is = convert$D(test);
+      var is = convert$2(test);
       var step = reverse ? -1 : 1;
 
       factory(tree, null, [])();
@@ -50208,7 +49926,7 @@ const visitParents$D =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color$D(value.type + (name ? '<' + name + '>' : '')) +
+              color$3(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -50226,14 +49944,14 @@ const visitParents$D =
           var grandparents;
 
           if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$C(visitor(node, parents));
+            result = toResult$2(visitor(node, parents));
 
-            if (result[0] === EXIT$D) {
+            if (result[0] === EXIT$3) {
               return result
             }
           }
 
-          if (node.children && result[0] !== SKIP$D) {
+          if (node.children && result[0] !== SKIP$3) {
             // @ts-ignore looks like a parent.
             offset = (reverse ? node.children.length : -1) + step;
             // @ts-ignore looks like a parent.
@@ -50243,7 +49961,7 @@ const visitParents$D =
             while (offset > -1 && offset < node.children.length) {
               subresult = factory(node.children[offset], offset, grandparents)();
 
-              if (subresult[0] === EXIT$D) {
+              if (subresult[0] === EXIT$3) {
                 return subresult
               }
 
@@ -50262,13 +49980,13 @@ const visitParents$D =
  * @param {VisitorResult} value
  * @returns {ActionTuple}
  */
-function toResult$C(value) {
+function toResult$2(value) {
   if (Array.isArray(value)) {
     return value
   }
 
   if (typeof value === 'number') {
-    return [CONTINUE$D, value]
+    return [CONTINUE$3, value]
   }
 
   return [value]
@@ -50281,7 +49999,7 @@ function toResult$C(value) {
  * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
  */
 
-const visit$C =
+const visit$3 =
   /**
    * @type {(
    *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
@@ -50305,7 +50023,7 @@ const visit$C =
         test = null;
       }
 
-      visitParents$D(tree, test, overload, reverse);
+      visitParents$3(tree, test, overload, reverse);
 
       /**
        * @param {Node} node
@@ -50395,7 +50113,7 @@ const visit$C =
  * @property {boolean} state
  */
 
-const own$3 = {}.hasOwnProperty;
+const own$4 = {}.hasOwnProperty;
 
 /**
  * @type {import('unified').Plugin<[Options]>}
@@ -50429,7 +50147,7 @@ function messageControl(options) {
    * @param {VFile} file
    */
   function transformer(tree, file) {
-    const toOffset = location$5(file).toOffset;
+    const toOffset = location(file).toOffset;
     const initial = !reset;
     const gaps = detectGaps(tree, file);
     /** @type {Record<string, Mark[]>} */
@@ -50437,7 +50155,7 @@ function messageControl(options) {
     /** @type {Mark[]} */
     const globals = [];
 
-    visit$C(tree, options.test, visitor);
+    visit$3(tree, options.test, visitor);
 
     file.messages = file.messages.filter((m) => filter(m));
 
@@ -50605,7 +50323,7 @@ function messageControl(options) {
       // Toggle all known rules.
       if (!ruleId) {
         for (ruleId in scope) {
-          if (own$3.call(scope, ruleId)) {
+          if (own$4.call(scope, ruleId)) {
             toggle(point, state, ruleId);
           }
         }
@@ -50672,7 +50390,7 @@ function detectGaps(tree, file) {
   let gap;
 
   // Find all gaps.
-  visit$C(tree, one);
+  visit$3(tree, one);
 
   // Get the end of the document.
   // This detects if the last node was the last node.
@@ -50990,13 +50708,13 @@ function wrap(middleware, callback) {
  * @returns {void}
  */
 
-const primitives$F = new Set(['string', 'number', 'boolean']);
+const primitives = new Set(['string', 'number', 'boolean']);
 
 /**
  * @param {string} id
  * @param {Rule} rule
  */
-function lintRule$F(id, rule) {
+function lintRule(id, rule) {
   const parts = id.split(':');
   // Possibly useful if externalised later.
   /* c8 ignore next */
@@ -51009,7 +50727,7 @@ function lintRule$F(id, rule) {
 
   /** @type {import('unified').Plugin<[unknown]|void[]>} */
   function plugin(raw) {
-    const [severity, options] = coerce$G(ruleId, raw);
+    const [severity, options] = coerce$2(ruleId, raw);
 
     if (!severity) return
 
@@ -51048,7 +50766,7 @@ function lintRule$F(id, rule) {
  * @param {unknown} value
  * @returns {SeverityTuple}
  */
-function coerce$G(name, value) {
+function coerce$2(name, value) {
   /** @type {unknown[]} */
   let result;
 
@@ -51060,7 +50778,7 @@ function coerce$G(name, value) {
     Array.isArray(value) &&
     // `isArray(unknown)` is turned into `any[]`:
     // type-coverage:ignore-next-line
-    primitives$F.has(typeof value[0])
+    primitives.has(typeof value[0])
   ) {
     // `isArray(unknown)` is turned into `any[]`:
     // type-coverage:ignore-next-line
@@ -51155,7 +50873,7 @@ function coerce$G(name, value) {
  *   ```
  */
 
-const remarkLintFinalNewline = lintRule$F(
+const remarkLintFinalNewline = lintRule(
   'remark-lint:final-newline',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -51168,133 +50886,7 @@ const remarkLintFinalNewline = lintRule$F(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$E = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$E(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$F(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$F(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$E.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var remarkLintFinalNewline$1 = remarkLintFinalNewline;
 
 var pluralize = {exports: {}};
 
@@ -51802,159 +51394,10 @@ var pluralize = {exports: {}};
 var plural = pluralize.exports;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$C =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$B
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$B(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$B(test) : propsFactory$A(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$A(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$B(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$C(tests[index]);
-  }
-
-  return castFactory$A(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$A(check) {
-  return castFactory$A(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$B(check) {
-  return castFactory$A(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$A(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$B() {
-  return true
-}
-
-/**
  * @param {string} d
  * @returns {string}
  */
-function color$C(d) {
+function color$2(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
@@ -51967,15 +51410,15 @@ function color$C(d) {
 /**
  * Continue traversing as normal
  */
-const CONTINUE$C = true;
+const CONTINUE$2 = true;
 /**
  * Do not traverse this node’s children
  */
-const SKIP$C = 'skip';
+const SKIP$2 = 'skip';
 /**
  * Stop traversing immediately
  */
-const EXIT$C = false;
+const EXIT$2 = false;
 
 /**
  * Visit children of tree which pass a test
@@ -51985,7 +51428,7 @@ const EXIT$C = false;
  * @param visitor Function to run for each node
  * @param reverse Visit the tree in reverse order, defaults to false
  */
-const visitParents$C =
+const visitParents$2 =
   /**
    * @type {(
    *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
@@ -52007,7 +51450,7 @@ const visitParents$C =
         test = null;
       }
 
-      const is = convert$C(test);
+      const is = convert$2(test);
       const step = reverse ? -1 : 1;
 
       factory(tree, null, [])();
@@ -52035,7 +51478,7 @@ const visitParents$C =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color$C(value.type + (name ? '<' + name + '>' : '')) +
+              color$2(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -52053,15 +51496,15 @@ const visitParents$C =
           let grandparents;
 
           if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$B(visitor(node, parents));
+            result = toResult$1(visitor(node, parents));
 
-            if (result[0] === EXIT$C) {
+            if (result[0] === EXIT$2) {
               return result
             }
           }
 
           // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$C) {
+          if (node.children && result[0] !== SKIP$2) {
             // @ts-expect-error looks like a parent.
             offset = (reverse ? node.children.length : -1) + step;
             // @ts-expect-error looks like a parent.
@@ -52072,7 +51515,7 @@ const visitParents$C =
               // @ts-expect-error looks like a parent.
               subresult = factory(node.children[offset], offset, grandparents)();
 
-              if (subresult[0] === EXIT$C) {
+              if (subresult[0] === EXIT$2) {
                 return subresult
               }
 
@@ -52091,13 +51534,13 @@ const visitParents$C =
  * @param {VisitorResult} value
  * @returns {ActionTuple}
  */
-function toResult$B(value) {
+function toResult$1(value) {
   if (Array.isArray(value)) {
     return value
   }
 
   if (typeof value === 'number') {
-    return [CONTINUE$C, value]
+    return [CONTINUE$2, value]
   }
 
   return [value]
@@ -52118,7 +51561,7 @@ function toResult$B(value) {
  * @param visitor Function to run for each node
  * @param reverse Fisit the tree in reverse, defaults to false
  */
-const visit$B =
+const visit$2 =
   /**
    * @type {(
    *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
@@ -52139,7 +51582,7 @@ const visit$B =
         test = null;
       }
 
-      visitParents$C(tree, test, overload, reverse);
+      visitParents$2(tree, test, overload, reverse);
 
       /**
        * @param {Node} node
@@ -52195,11 +51638,11 @@ const visit$B =
  *   4:2: Incorrect indentation before bullet: remove 1 space
  */
 
-const remarkLintListItemBulletIndent = lintRule$E(
+const remarkLintListItemBulletIndent = lintRule(
   'remark-lint:list-item-bullet-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$B(tree, 'list', (list, _, grandparent) => {
+    visit$2(tree, 'list', (list, _, grandparent) => {
       let index = -1;
 
       while (++index < list.children.length) {
@@ -52231,488 +51674,7 @@ const remarkLintListItemBulletIndent = lintRule$E(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$D = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$D(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$E(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$E(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$D.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$B =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$A
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$A(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$A(test) : propsFactory$z(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$z(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$A(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$B(tests[index]);
-  }
-
-  return castFactory$z(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$z(check) {
-  return castFactory$z(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$A(check) {
-  return castFactory$z(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$z(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$A() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$B(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$B = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$B = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$B = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$B =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$B(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$B(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$A(visitor(node, parents));
-
-            if (result[0] === EXIT$B) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$B) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$B) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$A(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$B, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$A =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$B(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
 
 /**
  * @typedef {import('unist').Position} Position
@@ -52728,14 +51690,15 @@ const visit$A =
  * @property {PositionLike} [position]
  */
 
-var pointStart$q = point$r('start');
+var pointStart = point$2('start');
+var pointEnd = point$2('end');
 
 /**
  * Get the positional info of `node`.
  *
  * @param {'start'|'end'} type
  */
-function point$r(type) {
+function point$2(type) {
   return point
 
   /**
@@ -52905,7 +51868,7 @@ function generated(node) {
  *    1:1: Incorrect list-item indent style `💩`: use either `'tab-size'`, `'space'`, or `'mixed'`
  */
 
-const remarkLintListItemIndent = lintRule$D(
+const remarkLintListItemIndent = lintRule(
   'remark-lint:list-item-indent',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'tab-size') => {
@@ -52919,7 +51882,7 @@ const remarkLintListItemIndent = lintRule$D(
       );
     }
 
-    visit$A(tree, 'list', (node) => {
+    visit$2(tree, 'list', (node) => {
       if (generated(node)) return
 
       const spread = node.spread;
@@ -52928,10 +51891,10 @@ const remarkLintListItemIndent = lintRule$D(
       while (++index < node.children.length) {
         const item = node.children[index];
         const head = item.children[0];
-        const final = pointStart$q(head);
+        const final = pointStart(head);
 
         const marker = value
-          .slice(pointStart$q(item).offset, final.offset)
+          .slice(pointStart(item).offset, final.offset)
           .replace(/\[[x ]?]\s*$/i, '');
 
         const bulletSize = marker.replace(/\s+$/, '').length;
@@ -52960,532 +51923,7 @@ const remarkLintListItemIndent = lintRule$D(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$C = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$C(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$D(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$D(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$C.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$A =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$z
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$z(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$z(test) : propsFactory$y(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$y(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$z(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$A(tests[index]);
-  }
-
-  return castFactory$y(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$y(check) {
-  return castFactory$y(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$z(check) {
-  return castFactory$y(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$y(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$z() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$A(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$A = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$A = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$A = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$A =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$A(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$A(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$z(visitor(node, parents));
-
-            if (result[0] === EXIT$A) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$A) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$A) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$z(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$A, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$z =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$A(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$p = point$q('start');
-var pointEnd$e = point$q('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$q(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 
 /**
  * @typedef Options
@@ -53585,16 +52023,16 @@ function all(values, includeImageAlt) {
 // See: <https://en.wikipedia.org/wiki/URI_scheme#Generic_syntax>.
 const protocol = /^[a-z][a-z+.-]+:\/?/i;
 
-const remarkLintNoAutoLinkWithoutProtocol = lintRule$C(
+const remarkLintNoAutoLinkWithoutProtocol = lintRule(
   'remark-lint:no-auto-link-without-protocol',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$z(tree, 'link', (node) => {
+    visit$2(tree, 'link', (node) => {
       if (
         !generated(node) &&
-        pointStart$p(node).column === pointStart$p(node.children[0]).column - 1 &&
-        pointEnd$e(node).column ===
-          pointEnd$e(node.children[node.children.length - 1]).column + 1 &&
+        pointStart(node).column === pointStart(node.children[0]).column - 1 &&
+        pointEnd(node).column ===
+          pointEnd(node.children[node.children.length - 1]).column + 1 &&
         !protocol.test(toString(node))
       ) {
         file.message('All automatic links must start with a protocol', node);
@@ -53603,613 +52041,7 @@ const remarkLintNoAutoLinkWithoutProtocol = lintRule$C(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$B = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$B(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$C(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$C(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$B.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
- */
-
-/**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
- */
-function location$4(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
-
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
-  /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
-   *
-   * @param {Offset} offset
-   * @returns {FullPoint}
-   */
-  function toPoint(offset) {
-    var index = -1;
-
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
-          }
-        }
-      }
-    }
-
-    return {line: undefined, column: undefined, offset: undefined}
-  }
-
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
-    }
-
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
-  }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$z =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$y
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$y(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$y(test) : propsFactory$x(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$x(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$y(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$z(tests[index]);
-  }
-
-  return castFactory$x(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$x(check) {
-  return castFactory$x(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$y(check) {
-  return castFactory$x(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$x(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$y() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$z(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$z = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$z = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$z = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$z =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$z(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$z(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$y(visitor(node, parents));
-
-            if (result[0] === EXIT$z) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$z) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$z) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$y(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$z, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$y =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$z(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$o = point$p('start');
-var pointEnd$d = point$p('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$p(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintNoAutoLinkWithoutProtocol$1 = remarkLintNoAutoLinkWithoutProtocol;
 
 /**
  * @author Titus Wormer
@@ -54268,23 +52100,23 @@ function point$p(type) {
  *   3:1: Missing marker in block quote
  */
 
-const remarkLintNoBlockquoteWithoutMarker = lintRule$B(
+const remarkLintNoBlockquoteWithoutMarker = lintRule(
   'remark-lint:no-blockquote-without-marker',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
-    const loc = location$4(file);
+    const loc = location(file);
 
-    visit$y(tree, 'blockquote', (node) => {
+    visit$2(tree, 'blockquote', (node) => {
       let index = -1;
 
       while (++index < node.children.length) {
         const child = node.children[index];
 
         if (child.type === 'paragraph' && !generated(child)) {
-          const end = pointEnd$d(child).line;
-          const column = pointStart$o(child).column;
-          let line = pointStart$o(child).line;
+          const end = pointEnd(child).line;
+          const column = pointStart(child).column;
+          let line = pointStart(child).line;
 
           // Skip past the first line.
           while (++line <= end) {
@@ -54306,532 +52138,7 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule$B(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$A = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$A(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$B(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$B(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$A.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$y =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$x
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$x(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$x(test) : propsFactory$w(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$w(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$x(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$y(tests[index]);
-  }
-
-  return castFactory$w(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$w(check) {
-  return castFactory$w(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$x(check) {
-  return castFactory$w(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$w(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$x() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$y(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$y = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$y = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$y = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$y =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$y(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$y(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$x(visitor(node, parents));
-
-            if (result[0] === EXIT$y) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$y) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$y) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$x(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$y, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$x =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$y(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$n = point$o('start');
-var pointEnd$c = point$o('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$o(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
 
 /**
  * @author Titus Wormer
@@ -54869,18 +52176,18 @@ function point$o(type) {
  *   1:1-1:19: Don’t use literal URLs without angle brackets
  */
 
-const remarkLintNoLiteralUrls = lintRule$A(
+const remarkLintNoLiteralUrls = lintRule(
   'remark-lint:no-literal-urls',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$x(tree, 'link', (node) => {
+    visit$2(tree, 'link', (node) => {
       const value = toString(node);
 
       if (
         !generated(node) &&
-        pointStart$n(node).column === pointStart$n(node.children[0]).column &&
-        pointEnd$c(node).column ===
-          pointEnd$c(node.children[node.children.length - 1]).column &&
+        pointStart(node).column === pointStart(node.children[0]).column &&
+        pointEnd(node).column ===
+          pointEnd(node.children[node.children.length - 1]).column &&
         (node.url === 'mailto:' + value || node.url === value)
       ) {
         file.message('Don’t use literal URLs without angle brackets', node);
@@ -54889,531 +52196,7 @@ const remarkLintNoLiteralUrls = lintRule$A(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$z = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$z(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$A(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$A(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$z.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$x =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$w
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$w(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$w(test) : propsFactory$v(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$v(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$w(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$x(tests[index]);
-  }
-
-  return castFactory$v(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$v(check) {
-  return castFactory$v(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$w(check) {
-  return castFactory$v(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$v(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$w() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$x(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$x = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$x = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$x = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$x =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$x(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$x(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$w(visitor(node, parents));
-
-            if (result[0] === EXIT$x) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$x) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$x) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$w(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$x, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$w =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$x(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$m = point$n('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$n(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
 
 /**
  * @author Titus Wormer
@@ -55472,7 +52255,7 @@ function point$n(type) {
  *   1:1: Incorrect ordered list item marker style `💩`: use either `'.'` or `')'`
  */
 
-const remarkLintOrderedListMarkerStyle = lintRule$z(
+const remarkLintOrderedListMarkerStyle = lintRule(
   'remark-lint:ordered-list-marker-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -55486,7 +52269,7 @@ const remarkLintOrderedListMarkerStyle = lintRule$z(
       );
     }
 
-    visit$w(tree, 'list', (node) => {
+    visit$2(tree, 'list', (node) => {
       let index = -1;
 
       if (!node.ordered) return
@@ -55498,8 +52281,8 @@ const remarkLintOrderedListMarkerStyle = lintRule$z(
           const marker = /** @type {Marker} */ (
             value
               .slice(
-                pointStart$m(child).offset,
-                pointStart$m(child.children[0]).offset
+                pointStart(child).offset,
+                pointStart(child.children[0]).offset
               )
               .replace(/\s|\d/g, '')
               .replace(/\[[x ]?]\s*$/i, '')
@@ -55516,532 +52299,7 @@ const remarkLintOrderedListMarkerStyle = lintRule$z(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$y = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$y(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$z(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$z(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$y.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$w =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$v
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$v(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$v(test) : propsFactory$u(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$u(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$v(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$w(tests[index]);
-  }
-
-  return castFactory$u(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$u(check) {
-  return castFactory$u(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$v(check) {
-  return castFactory$u(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$u(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$v() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$w(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$w = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$w = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$w = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$w =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$w(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$w(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$v(visitor(node, parents));
-
-            if (result[0] === EXIT$w) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$w) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$w) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$v(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$w, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$v =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$w(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$l = point$m('start');
-var pointEnd$b = point$m('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$m(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
 
 /**
  * @author Titus Wormer
@@ -56069,16 +52327,16 @@ function point$m(type) {
  *   1:12-2:1: Use two spaces for hard line breaks
  */
 
-const remarkLintHardBreakSpaces = lintRule$y(
+const remarkLintHardBreakSpaces = lintRule(
   'remark-lint:hard-break-spaces',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit$v(tree, 'break', (node) => {
+    visit$2(tree, 'break', (node) => {
       if (!generated(node)) {
         const slice = value
-          .slice(pointStart$l(node).offset, pointEnd$b(node).offset)
+          .slice(pointStart(node).offset, pointEnd(node).offset)
           .split('\n', 1)[0]
           .replace(/\r$/, '');
 
@@ -56090,178 +52348,9 @@ const remarkLintHardBreakSpaces = lintRule$y(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
+var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
 
-const primitives$x = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$x(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$y(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$y(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$x.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$k = point$l('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$l(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
-
-var own$2 = {}.hasOwnProperty;
+var own$3 = {}.hasOwnProperty;
 
 /**
  * @typedef {import('unist').Node} Node
@@ -56276,28 +52365,28 @@ var own$2 = {}.hasOwnProperty;
  * @param {Node|Position|Point} [value]
  * @returns {string}
  */
-function stringifyPosition(value) {
+function stringifyPosition$1(value) {
   // Nothing.
   if (!value || typeof value !== 'object') {
     return ''
   }
 
   // Node.
-  if (own$2.call(value, 'position') || own$2.call(value, 'type')) {
+  if (own$3.call(value, 'position') || own$3.call(value, 'type')) {
     // @ts-ignore looks like a node.
-    return position$2(value.position)
+    return position$3(value.position)
   }
 
   // Position.
-  if (own$2.call(value, 'start') || own$2.call(value, 'end')) {
+  if (own$3.call(value, 'start') || own$3.call(value, 'end')) {
     // @ts-ignore looks like a position.
-    return position$2(value)
+    return position$3(value)
   }
 
   // Point.
-  if (own$2.call(value, 'line') || own$2.call(value, 'column')) {
+  if (own$3.call(value, 'line') || own$3.call(value, 'column')) {
     // @ts-ignore looks like a point.
-    return point$k(value)
+    return point$1(value)
   }
 
   // ?
@@ -56308,380 +52397,25 @@ function stringifyPosition(value) {
  * @param {Point} point
  * @returns {string}
  */
-function point$k(point) {
-  return index(point && point.line) + ':' + index(point && point.column)
+function point$1(point) {
+  return index$1(point && point.line) + ':' + index$1(point && point.column)
 }
 
 /**
  * @param {Position} pos
  * @returns {string}
  */
-function position$2(pos) {
-  return point$k(pos && pos.start) + '-' + point$k(pos && pos.end)
+function position$3(pos) {
+  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
 }
 
 /**
  * @param {number} value
  * @returns {number}
  */
-function index(value) {
+function index$1(value) {
   return value && typeof value === 'number' ? value : 1
 }
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$v =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$u
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$u(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$u(test) : propsFactory$t(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$t(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$u(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$v(tests[index]);
-  }
-
-  return castFactory$t(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$t(check) {
-  return castFactory$t(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$u(check) {
-  return castFactory$t(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$t(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$u() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$v(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$v = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$v = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$v = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$v =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$v(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$v(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$u(visitor(node, parents));
-
-            if (result[0] === EXIT$v) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$v) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$v) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$u(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$v, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$u =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$v(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
 
 /**
  * @author Titus Wormer
@@ -56709,14 +52443,14 @@ const visit$u =
  *   2:1-2:11: Do not use definitions with the same identifier (1:1)
  */
 
-const remarkLintNoDuplicateDefinitions = lintRule$x(
+const remarkLintNoDuplicateDefinitions = lintRule(
   'remark-lint:no-duplicate-definitions',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, string>} */
     const map = Object.create(null);
 
-    visit$u(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -56733,494 +52467,13 @@ const remarkLintNoDuplicateDefinitions = lintRule$x(
           );
         }
 
-        map[identifier] = stringifyPosition(pointStart$k(node));
+        map[identifier] = stringifyPosition$1(pointStart(node));
       }
     });
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$w = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$w(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$x(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$x(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$w.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$u =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$t
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$t(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$t(test) : propsFactory$s(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$s(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$t(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$u(tests[index]);
-  }
-
-  return castFactory$s(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$s(check) {
-  return castFactory$s(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$t(check) {
-  return castFactory$s(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$s(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$t() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$u(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$u = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$u = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$u = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$u =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$u(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$u(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$t(visitor(node, parents));
-
-            if (result[0] === EXIT$u) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$u) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$u) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$t(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$u, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$t =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$u(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
 
 /**
  * @typedef {import('mdast').Heading} Heading
@@ -57280,50 +52533,6 @@ function consolidate(depth, relative) {
 }
 
 /**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$j = point$j('start');
-var pointEnd$a = point$j('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$j(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -57375,11 +52584,11 @@ function point$j(type) {
  *   #··
  */
 
-const remarkLintNoHeadingContentIndent = lintRule$w(
+const remarkLintNoHeadingContentIndent = lintRule(
   'remark-lint:no-heading-content-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$t(tree, 'heading', (node) => {
+    visit$2(tree, 'heading', (node) => {
       if (generated(node)) {
         return
       }
@@ -57387,14 +52596,14 @@ const remarkLintNoHeadingContentIndent = lintRule$w(
       const type = headingStyle(node, 'atx');
 
       if (type === 'atx' || type === 'atx-closed') {
-        const head = pointStart$j(node.children[0]).column;
+        const head = pointStart(node.children[0]).column;
 
         // Ignore empty headings.
         if (!head) {
           return
         }
 
-        const diff = head - pointStart$j(node).column - 1 - node.depth;
+        const diff = head - pointStart(node).column - 1 - node.depth;
 
         if (diff) {
           file.message(
@@ -57403,7 +52612,7 @@ const remarkLintNoHeadingContentIndent = lintRule$w(
               ' ' +
               plural('space', Math.abs(diff)) +
               ' before this heading’s content',
-            pointStart$j(node.children[0])
+            pointStart(node.children[0])
           );
         }
       }
@@ -57411,8 +52620,8 @@ const remarkLintNoHeadingContentIndent = lintRule$w(
       // Closed ATX headings always must have a space between their content and
       // the final hashes, thus, there is no `add x spaces`.
       if (type === 'atx-closed') {
-        const final = pointEnd$a(node.children[node.children.length - 1]);
-        const diff = pointEnd$a(node).column - final.column - 1 - node.depth;
+        const final = pointEnd(node.children[node.children.length - 1]);
+        const diff = pointEnd(node).column - final.column - 1 - node.depth;
 
         if (diff) {
           file.message(
@@ -57429,488 +52638,7 @@ const remarkLintNoHeadingContentIndent = lintRule$w(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$v = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$v(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$w(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$w(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$v.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$t =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$s
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$s(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$s(test) : propsFactory$r(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$r(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$s(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$t(tests[index]);
-  }
-
-  return castFactory$r(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$r(check) {
-  return castFactory$r(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$s(check) {
-  return castFactory$r(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$r(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$s() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$t(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$t = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$t = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$t = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$t =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$t(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$t(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$s(visitor(node, parents));
-
-            if (result[0] === EXIT$t) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$t) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$t) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$s(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$t, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$s =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$t(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
 /**
  * @author Titus Wormer
@@ -57939,13 +52667,13 @@ const visit$s =
  *   1:7-1:38: Don’t pad `link` with inner spaces
  */
 
-const remarkLintNoInlinePadding = lintRule$v(
+const remarkLintNoInlinePadding = lintRule(
   'remark-lint:no-inline-padding',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     // Note: `emphasis`, `strong`, `delete` (GFM) can’t have padding anymore
     // since CM.
-    visit$s(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         (node.type === 'link' || node.type === 'linkReference') &&
         !generated(node)
@@ -57960,488 +52688,7 @@ const remarkLintNoInlinePadding = lintRule$v(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$u = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$u(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$v(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$v(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$u.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$s =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$r
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$r(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$r(test) : propsFactory$q(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$q(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$r(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$s(tests[index]);
-  }
-
-  return castFactory$q(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$q(check) {
-  return castFactory$q(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$r(check) {
-  return castFactory$q(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$q(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$r() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$s(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$s = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$s = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$s = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$s =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$s(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$s(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$r(visitor(node, parents));
-
-            if (result[0] === EXIT$s) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$s) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$s) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$r(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$s, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$r =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$s(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
 
 /**
  * @author Titus Wormer
@@ -58477,11 +52724,11 @@ const visit$r =
  *   1:1-1:7: Use the trailing [] on reference images
  */
 
-const remarkLintNoShortcutReferenceImage = lintRule$u(
+const remarkLintNoShortcutReferenceImage = lintRule(
   'remark-lint:no-shortcut-reference-image',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$r(tree, 'imageReference', (node) => {
+    visit$2(tree, 'imageReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing [] on reference images', node);
       }
@@ -58489,488 +52736,7 @@ const remarkLintNoShortcutReferenceImage = lintRule$u(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$t = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$t(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$u(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$u(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$t.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$r =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$q
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$q(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$q(test) : propsFactory$p(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$p(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$q(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$r(tests[index]);
-  }
-
-  return castFactory$p(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$p(check) {
-  return castFactory$p(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$q(check) {
-  return castFactory$p(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$p(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$q() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$r(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$r = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$r = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$r = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$r =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$r(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$r(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$q(visitor(node, parents));
-
-            if (result[0] === EXIT$r) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$r) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$r) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$q(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$r, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$q =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$r(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
 
 /**
  * @author Titus Wormer
@@ -59006,17 +52772,19 @@ const visit$q =
  *   1:1-1:6: Use the trailing `[]` on reference links
  */
 
-const remarkLintNoShortcutReferenceLink = lintRule$t(
+const remarkLintNoShortcutReferenceLink = lintRule(
   'remark-lint:no-shortcut-reference-link',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$q(tree, 'linkReference', (node) => {
+    visit$2(tree, 'linkReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing `[]` on reference links', node);
       }
     });
   }
 );
+
+var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
 
 /**
  * Normalize an identifier (such as used in definitions).
@@ -59038,614 +52806,6 @@ function normalizeIdentifier(value) {
       .toUpperCase()
   )
 }
-
-/**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
- */
-
-/**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
- */
-function location$3(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
-
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
-  /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
-   *
-   * @param {Offset} offset
-   * @returns {FullPoint}
-   */
-  function toPoint(offset) {
-    var index = -1;
-
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
-          }
-        }
-      }
-    }
-
-    return {line: undefined, column: undefined, offset: undefined}
-  }
-
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
-    }
-
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
-  }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$s = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$s(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$t(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$t(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$s.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$i = point$i('start');
-var pointEnd$9 = point$i('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$i(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$q =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$p
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$p(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$p(test) : propsFactory$o(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$o(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$p(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$q(tests[index]);
-  }
-
-  return castFactory$o(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$o(check) {
-  return castFactory$o(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$p(check) {
-  return castFactory$o(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$o(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$p() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$q(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$q = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$q = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$q = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$q =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$q(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$q(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$p(visitor(node, parents));
-
-            if (result[0] === EXIT$q) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$q) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$q) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$p(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$q, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$p =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$q(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
 
 /**
  * @author Titus Wormer
@@ -59715,12 +52875,12 @@ const visit$p =
  *   17:23-17:26: Found reference to undefined definition
  */
 
-const remarkLintNoUndefinedReferences = lintRule$s(
+const remarkLintNoUndefinedReferences = lintRule(
   'remark-lint:no-undefined-references',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = {}) => {
     const contents = String(file);
-    const loc = location$3(file);
+    const loc = location(file);
     const lineEnding = /(\r?\n|\r)[\t ]*(>[\t ]*)*/g;
     const allow = new Set(
       (option.allow || []).map((d) => normalizeIdentifier(d))
@@ -59728,7 +52888,7 @@ const remarkLintNoUndefinedReferences = lintRule$s(
     /** @type {Record<string, boolean>} */
     const map = Object.create(null);
 
-    visit$p(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -59737,7 +52897,7 @@ const remarkLintNoUndefinedReferences = lintRule$s(
       }
     });
 
-    visit$p(tree, (node) => {
+    visit$2(tree, (node) => {
       // CM specifiers that references only form when defined.
       // Still, they could be added by plugins, so let’s keep it.
       /* c8 ignore next 10 */
@@ -59764,25 +52924,25 @@ const remarkLintNoUndefinedReferences = lintRule$s(
       /** @type {Range[]} */
       let ranges = [];
 
-      visit$p(node, (child) => {
+      visit$2(node, (child) => {
         // Ignore the node itself.
         if (child === node) return
 
         // Can’t have links in links, so reset ranges.
         if (child.type === 'link' || child.type === 'linkReference') {
           ranges = [];
-          return SKIP$q
+          return SKIP$2
         }
 
         // Enter non-text.
         if (child.type !== 'text') return
 
-        const start = pointStart$i(child).offset;
-        const end = pointEnd$9(child).offset;
+        const start = pointStart(child).offset;
+        const end = pointEnd(child).offset;
 
         // Bail if there’s no positional info.
         if (typeof start !== 'number' || typeof end !== 'number') {
-          return EXIT$q
+          return EXIT$2
         }
 
         const source = contents.slice(start, end);
@@ -59880,7 +53040,7 @@ const remarkLintNoUndefinedReferences = lintRule$s(
         handleRange(ranges[index]);
       }
 
-      return SKIP$q
+      return SKIP$2
 
       /**
        * @param {Range} range
@@ -59913,488 +53073,7 @@ const remarkLintNoUndefinedReferences = lintRule$s(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$r = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$r(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$s(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$s(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$r.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$p =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$o
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$o(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$o(test) : propsFactory$n(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$n(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$o(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$p(tests[index]);
-  }
-
-  return castFactory$n(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$n(check) {
-  return castFactory$n(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$o(check) {
-  return castFactory$n(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$n(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$o() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$p(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$p = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$p = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$p = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$p =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$p(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$p(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$o(visitor(node, parents));
-
-            if (result[0] === EXIT$p) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$p) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$p) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$o(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$p, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$o =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$p(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 
 /**
  * @author Titus Wormer
@@ -60422,16 +53101,16 @@ const visit$o =
  *   1:1-1:27: Found unused definition
  */
 
-const own$1 = {}.hasOwnProperty;
+const own$2 = {}.hasOwnProperty;
 
-const remarkLintNoUnusedDefinitions = lintRule$r(
+const remarkLintNoUnusedDefinitions = lintRule(
   'remark-lint:no-unused-definitions',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, {node: DefinitionContent, used: boolean}>} */
     const map = Object.create(null);
 
-    visit$o(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -60440,7 +53119,7 @@ const remarkLintNoUnusedDefinitions = lintRule$r(
       }
     });
 
-    visit$o(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         node.type === 'imageReference' ||
         node.type === 'linkReference' ||
@@ -60458,7 +53137,7 @@ const remarkLintNoUnusedDefinitions = lintRule$r(
     let identifier;
 
     for (identifier in map) {
-      if (own$1.call(map, identifier)) {
+      if (own$2.call(map, identifier)) {
         const entry = map[identifier];
 
         if (!entry.used) {
@@ -60469,562 +53148,41 @@ const remarkLintNoUnusedDefinitions = lintRule$r(
   }
 );
 
+var remarkLintNoUnusedDefinitions$1 = remarkLintNoUnusedDefinitions;
+
 /**
  * @fileoverview
  *   remark preset to configure `remark-lint` with settings that prevent
  *   mistakes or stuff that fails across vendors.
  */
 
-const plugins = [
-  remarkLint,
-  // Unix compatibility.
-  remarkLintFinalNewline,
-  // Rendering across vendors differs greatly if using other styles.
-  remarkLintListItemBulletIndent,
-  [remarkLintListItemIndent, 'tab-size'],
-  // Differs or unsupported across vendors.
-  remarkLintNoAutoLinkWithoutProtocol,
-  remarkLintNoBlockquoteWithoutMarker,
-  remarkLintNoLiteralUrls,
-  [remarkLintOrderedListMarkerStyle, '.'],
-  // Mistakes.
-  remarkLintHardBreakSpaces,
-  remarkLintNoDuplicateDefinitions,
-  remarkLintNoHeadingContentIndent,
-  remarkLintNoInlinePadding,
-  remarkLintNoShortcutReferenceImage,
-  remarkLintNoShortcutReferenceLink,
-  remarkLintNoUndefinedReferences,
-  remarkLintNoUnusedDefinitions
-];
-
-const remarkPresetLintRecommended = {plugins};
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$q = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$q(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$r(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$r(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$q.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$o =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$n
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$n(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$n(test) : propsFactory$m(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$m(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$n(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$o(tests[index]);
-  }
-
-  return castFactory$m(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$m(check) {
-  return castFactory$m(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$n(check) {
-  return castFactory$m(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$m(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$n() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$o(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$o = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$o = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$o = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$o =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$o(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$o(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$n(visitor(node, parents));
-
-            if (result[0] === EXIT$o) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$o) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$o) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$n(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$o, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$n =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$o(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$h = point$h('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$h(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+/** @type {Preset} */
+const remarkPresetLintRecommended = {
+  plugins: [
+    remarkLint,
+    // Unix compatibility.
+    remarkLintFinalNewline$1,
+    // Rendering across vendors differs greatly if using other styles.
+    remarkLintListItemBulletIndent$1,
+    [remarkLintListItemIndent$1, 'tab-size'],
+    // Differs or unsupported across vendors.
+    remarkLintNoAutoLinkWithoutProtocol$1,
+    remarkLintNoBlockquoteWithoutMarker$1,
+    remarkLintNoLiteralUrls$1,
+    [remarkLintOrderedListMarkerStyle$1, '.'],
+    // Mistakes.
+    remarkLintHardBreakSpaces$1,
+    remarkLintNoDuplicateDefinitions$1,
+    remarkLintNoHeadingContentIndent$1,
+    remarkLintNoInlinePadding$1,
+    remarkLintNoShortcutReferenceImage$1,
+    remarkLintNoShortcutReferenceLink$1,
+    remarkLintNoUndefinedReferences$1,
+    remarkLintNoUnusedDefinitions$1
+  ]
+};
+
+var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
 
 /**
  * @author Titus Wormer
@@ -61076,11 +53234,11 @@ function point$h(type) {
  *   9:3: Add 1 space between block quote and content
  */
 
-const remarkLintBlockquoteIndentation = lintRule$q(
+const remarkLintBlockquoteIndentation = lintRule(
   'remark-lint:blockquote-indentation',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
-    visit$n(tree, 'blockquote', (node) => {
+    visit$2(tree, 'blockquote', (node) => {
       if (generated(node) || node.children.length === 0) {
         return
       }
@@ -61100,7 +53258,7 @@ const remarkLintBlockquoteIndentation = lintRule$q(
               ' ' +
               plural('space', abs) +
               ' between block quote and content',
-            pointStart$h(node.children[0])
+            pointStart(node.children[0])
           );
         }
       }
@@ -61108,538 +53266,14 @@ const remarkLintBlockquoteIndentation = lintRule$q(
   }
 );
 
+var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
+
 /**
  * @param {Blockquote} node
  * @returns {number}
  */
 function check(node) {
-  return pointStart$h(node.children[0]).column - pointStart$h(node).column
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$p = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$p(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$q(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$q(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$p.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$n =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$m
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$m(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$m(test) : propsFactory$l(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$l(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$m(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$n(tests[index]);
-  }
-
-  return castFactory$l(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$l(check) {
-  return castFactory$l(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$m(check) {
-  return castFactory$l(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$l(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$m() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$n(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$n = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$n = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$n = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$n =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$n(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$n(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$m(visitor(node, parents));
-
-            if (result[0] === EXIT$n) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$n) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$n) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$m(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$n, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$m =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$n(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$g = point$g('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$g(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
+  return pointStart(node.children[0]).column - pointStart(node).column
 }
 
 /**
@@ -61721,7 +53355,7 @@ function point$g(type) {
  *   1:1: Incorrect checked checkbox marker `💩`: use either `'x'`, or `'X'`
  */
 
-const remarkLintCheckboxCharacterStyle = lintRule$p(
+const remarkLintCheckboxCharacterStyle = lintRule(
   'remark-lint:checkbox-character-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -61752,9 +53386,9 @@ const remarkLintCheckboxCharacterStyle = lintRule$p(
       );
     }
 
-    visit$m(tree, 'listItem', (node) => {
+    visit$2(tree, 'listItem', (node) => {
       const head = node.children[0];
-      const point = pointStart$g(head);
+      const point = pointStart(head);
 
       // Exit early for items without checkbox.
       // A list item cannot be checked and empty, according to GFM.
@@ -61802,612 +53436,7 @@ const remarkLintCheckboxCharacterStyle = lintRule$p(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$o = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$o(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$p(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$p(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$o.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
- */
-
-/**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
- */
-function location$2(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
-
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
-  /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
-   *
-   * @param {Offset} offset
-   * @returns {FullPoint}
-   */
-  function toPoint(offset) {
-    var index = -1;
-
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
-          }
-        }
-      }
-    }
-
-    return {line: undefined, column: undefined, offset: undefined}
-  }
-
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
-    }
-
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
-  }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$m =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$l
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$l(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$l(test) : propsFactory$k(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$k(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$l(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$m(tests[index]);
-  }
-
-  return castFactory$k(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$k(check) {
-  return castFactory$k(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$l(check) {
-  return castFactory$k(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$k(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$l() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$m(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$m = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$m = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$m = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$m =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$m(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$m(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$l(visitor(node, parents));
-
-            if (result[0] === EXIT$m) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$m) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$m) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$l(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$m, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$l =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$m(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$f = point$f('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$f(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
 
 /**
  * @author Titus Wormer
@@ -62441,16 +53470,16 @@ function point$f(type) {
  *   4:7-4:10: Checkboxes should be followed by a single character
  */
 
-const remarkLintCheckboxContentIndent = lintRule$o(
+const remarkLintCheckboxContentIndent = lintRule(
   'remark-lint:checkbox-content-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
-    const loc = location$2(file);
+    const loc = location(file);
 
-    visit$l(tree, 'listItem', (node) => {
+    visit$2(tree, 'listItem', (node) => {
       const head = node.children[0];
-      const point = pointStart$f(head);
+      const point = pointStart(head);
 
       // Exit early for items without checkbox.
       // A list item cannot be checked and empty, according to GFM.
@@ -62487,532 +53516,7 @@ const remarkLintCheckboxContentIndent = lintRule$o(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$n = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$n(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$o(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$o(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$n.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$l =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$k
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$k(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$k(test) : propsFactory$j(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$j(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$k(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$l(tests[index]);
-  }
-
-  return castFactory$j(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$j(check) {
-  return castFactory$j(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$k(check) {
-  return castFactory$j(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$j(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$k() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$l(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$l = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$l = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$l = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$l =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$l(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$l(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$k(visitor(node, parents));
-
-            if (result[0] === EXIT$l) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$l) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$l) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$k(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$l, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$k =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$l(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$e = point$e('start');
-var pointEnd$8 = point$e('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$e(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
 
 /**
  * @author Titus Wormer
@@ -63117,7 +53621,7 @@ function point$e(type) {
  *   1:1: Incorrect code block style `💩`: use either `'consistent'`, `'fenced'`, or `'indented'`
  */
 
-const remarkLintCodeBlockStyle = lintRule$n(
+const remarkLintCodeBlockStyle = lintRule(
   'remark-lint:code-block-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -63135,13 +53639,13 @@ const remarkLintCodeBlockStyle = lintRule$n(
       );
     }
 
-    visit$k(tree, 'code', (node) => {
+    visit$2(tree, 'code', (node) => {
       if (generated(node)) {
         return
       }
 
-      const initial = pointStart$e(node).offset;
-      const final = pointEnd$8(node).offset;
+      const initial = pointStart(node).offset;
+      const final = pointEnd(node).offset;
 
       const current =
         node.lang || /^\s*([~`])\1{2,}/.test(value.slice(initial, final))
@@ -63157,532 +53661,7 @@ const remarkLintCodeBlockStyle = lintRule$n(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$m = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$m(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$n(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$n(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$m.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$k =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$j
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$j(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$j(test) : propsFactory$i(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$i(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$j(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$k(tests[index]);
-  }
-
-  return castFactory$i(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$i(check) {
-  return castFactory$i(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$j(check) {
-  return castFactory$i(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$i(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$j() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$k(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$k = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$k = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$k = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$k =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$k(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$k(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$j(visitor(node, parents));
-
-            if (result[0] === EXIT$k) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$k) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$k) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$j(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$k, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$j =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$k(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$d = point$d('start');
-var pointEnd$7 = point$d('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$d(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
 
 /**
  * @author Titus Wormer
@@ -63710,16 +53689,16 @@ function point$d(type) {
 
 const label = /^\s*\[((?:\\[\s\S]|[^[\]])+)]/;
 
-const remarkLintDefinitionSpacing = lintRule$m(
+const remarkLintDefinitionSpacing = lintRule(
   'remark-lint:definition-spacing',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit$j(tree, (node) => {
+    visit$2(tree, (node) => {
       if (node.type === 'definition' || node.type === 'footnoteDefinition') {
-        const start = pointStart$d(node).offset;
-        const end = pointEnd$7(node).offset;
+        const start = pointStart(node).offset;
+        const end = pointEnd(node).offset;
 
         if (typeof start === 'number' && typeof end === 'number') {
           const match = value.slice(start, end).match(label);
@@ -63736,532 +53715,7 @@ const remarkLintDefinitionSpacing = lintRule$m(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$l = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$l(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$m(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$m(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$l.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$j =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$i
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$i(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$i(test) : propsFactory$h(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$h(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$i(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$j(tests[index]);
-  }
-
-  return castFactory$h(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$h(check) {
-  return castFactory$h(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$i(check) {
-  return castFactory$h(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$h(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$i() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$j(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$j = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$j = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$j = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$j =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$j(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$j(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$i(visitor(node, parents));
-
-            if (result[0] === EXIT$j) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$j) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$j) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$i(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$j, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$i =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$j(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$c = point$c('start');
-var pointEnd$6 = point$c('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$c(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
 
 /**
  * @author Titus Wormer
@@ -64347,7 +53801,7 @@ function point$c(type) {
 
 const fence = /^ {0,3}([~`])\1{2,}/;
 
-const remarkLintFencedCodeFlag = lintRule$l(
+const remarkLintFencedCodeFlag = lintRule(
   'remark-lint:fenced-code-flag',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option) => {
@@ -64368,7 +53822,7 @@ const remarkLintFencedCodeFlag = lintRule$l(
       }
     }
 
-    visit$i(tree, 'code', (node) => {
+    visit$2(tree, 'code', (node) => {
       if (!generated(node)) {
         if (node.lang) {
           if (allowed.length > 0 && !allowed.includes(node.lang)) {
@@ -64376,8 +53830,8 @@ const remarkLintFencedCodeFlag = lintRule$l(
           }
         } else {
           const slice = value.slice(
-            pointStart$c(node).offset,
-            pointEnd$6(node).offset
+            pointStart(node).offset,
+            pointEnd(node).offset
           );
 
           if (!allowEmpty && fence.test(slice)) {
@@ -64389,531 +53843,7 @@ const remarkLintFencedCodeFlag = lintRule$l(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$k = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$k(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$l(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$l(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$k.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$i =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$h
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$h(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$h(test) : propsFactory$g(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$g(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$h(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$i(tests[index]);
-  }
-
-  return castFactory$g(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$g(check) {
-  return castFactory$g(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$h(check) {
-  return castFactory$g(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$g(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$h() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$i(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$i = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$i = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$i = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$i =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$i(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$i(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$h(visitor(node, parents));
-
-            if (result[0] === EXIT$i) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$i) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$i) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$h(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$i, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$h =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$i(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$b = point$b('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$b(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
 
 /**
  * @author Titus Wormer
@@ -65006,7 +53936,7 @@ function point$b(type) {
  *   1:1: Incorrect fenced code marker `💩`: use either `'consistent'`, `` '`' ``, or `'~'`
  */
 
-const remarkLintFencedCodeMarker = lintRule$k(
+const remarkLintFencedCodeMarker = lintRule(
   'remark-lint:fenced-code-marker',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -65020,8 +53950,8 @@ const remarkLintFencedCodeMarker = lintRule$k(
       );
     }
 
-    visit$h(tree, 'code', (node) => {
-      const start = pointStart$b(node).offset;
+    visit$2(tree, 'code', (node) => {
+      const start = pointStart(node).offset;
 
       if (typeof start === 'number') {
         const marker = contents
@@ -65047,133 +53977,7 @@ const remarkLintFencedCodeMarker = lintRule$k(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$j = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$j(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$k(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$k(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$j.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
 
 /**
  * @author Titus Wormer
@@ -65203,7 +54007,7 @@ function coerce$k(name, value) {
  *   {"name": "readme.mkd", "setting": "mkd"}
  */
 
-const remarkLintFileExtension = lintRule$j(
+const remarkLintFileExtension = lintRule(
   'remark-lint:file-extension',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (_, file, option = 'md') => {
@@ -65215,531 +54019,7 @@ const remarkLintFileExtension = lintRule$j(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$i = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$i(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$j(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$j(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$i.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$h =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$g
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$g(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$g(test) : propsFactory$f(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$f(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$g(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$h(tests[index]);
-  }
-
-  return castFactory$f(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$f(check) {
-  return castFactory$f(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$g(check) {
-  return castFactory$f(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$f(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$g() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$h(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$h = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$h = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$h = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$h =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$h(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$h(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$g(visitor(node, parents));
-
-            if (result[0] === EXIT$h) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$h) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$h) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$g(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$h, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$g =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$h(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$a = point$a('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$a(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintFileExtension$1 = remarkLintFileExtension;
 
 /**
  * @author Titus Wormer
@@ -65783,13 +54063,13 @@ function point$a(type) {
  *   [example-2]: http://example.com/two/
  */
 
-const remarkLintFinalDefinition = lintRule$i(
+const remarkLintFinalDefinition = lintRule(
   'remark-lint:final-definition',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     let last = 0;
 
-    visit$g(
+    visit$2(
       tree,
       (node) => {
         // Ignore generated and HTML comment nodes.
@@ -65801,7 +54081,7 @@ const remarkLintFinalDefinition = lintRule$i(
           return
         }
 
-        const line = pointStart$a(node).line;
+        const line = pointStart(node).line;
 
         if (node.type === 'definition') {
           if (last && last > line) {
@@ -65821,488 +54101,7 @@ const remarkLintFinalDefinition = lintRule$i(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$h = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$h(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$i(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$i(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$h.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$g =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$f
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$f(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$f(test) : propsFactory$e(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$e(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$f(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$g(tests[index]);
-  }
-
-  return castFactory$e(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$e(check) {
-  return castFactory$e(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$f(check) {
-  return castFactory$e(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$e(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$f() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$g(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$g = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$g = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$g = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$g =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$g(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$g(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$f(visitor(node, parents));
-
-            if (result[0] === EXIT$g) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$g) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$g) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$f(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$g, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$f =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$g(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
 
 /**
  * @author Titus Wormer
@@ -66398,11 +54197,11 @@ const visit$f =
 
 const re$3 = /<h([1-6])/;
 
-const remarkLintFirstHeadingLevel = lintRule$h(
+const remarkLintFirstHeadingLevel = lintRule(
   'remark-lint:first-heading-level',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
-    visit$f(tree, (node) => {
+    visit$2(tree, (node) => {
       if (!generated(node)) {
         /** @type {Depth|undefined} */
         let rank;
@@ -66418,12 +54217,14 @@ const remarkLintFirstHeadingLevel = lintRule$h(
             file.message('First heading level should be `' + option + '`', node);
           }
 
-          return EXIT$g
+          return EXIT$2
         }
       }
     });
   }
 );
+
+var remarkLintFirstHeadingLevel$1 = remarkLintFirstHeadingLevel;
 
 /**
  * @param {HTML} node
@@ -66434,489 +54235,6 @@ function infer(node) {
   // @ts-expect-error: can be castes fine.
   return results ? Number(results[1]) : undefined
 }
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$g = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$g(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$h(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$h(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$g.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$f =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$e
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$e(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$e(test) : propsFactory$d(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$d(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$e(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$f(tests[index]);
-  }
-
-  return castFactory$d(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$d(check) {
-  return castFactory$d(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$e(check) {
-  return castFactory$d(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$d(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$e() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$f(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$f = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$f = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$f = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$f =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$f(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$f(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$e(visitor(node, parents));
-
-            if (result[0] === EXIT$f) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$f) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$f) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$e(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$f, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$e =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$f(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
 
 /**
  * @author Titus Wormer
@@ -66996,7 +54314,7 @@ const visit$e =
  *   1:1: Incorrect heading style type `💩`: use either `'consistent'`, `'atx'`, `'atx-closed'`, or `'setext'`
  */
 
-const remarkLintHeadingStyle = lintRule$g(
+const remarkLintHeadingStyle = lintRule(
   'remark-lint:heading-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -67013,7 +54331,7 @@ const remarkLintHeadingStyle = lintRule$g(
       );
     }
 
-    visit$e(tree, 'heading', (node) => {
+    visit$2(tree, 'heading', (node) => {
       if (!generated(node)) {
         if (option === 'consistent') {
           // Funky nodes perhaps cannot be detected.
@@ -67027,532 +54345,7 @@ const remarkLintHeadingStyle = lintRule$g(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$f = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$f(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$g(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$g(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$f.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$e =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$d
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$d(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$d(test) : propsFactory$c(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$c(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$d(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$e(tests[index]);
-  }
-
-  return castFactory$c(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$c(check) {
-  return castFactory$c(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$d(check) {
-  return castFactory$c(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$c(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$d() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$e(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$e = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$e = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$e = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$e =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$e(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$e(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$d(visitor(node, parents));
-
-            if (result[0] === EXIT$e) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$e) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$e) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$d(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$e, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$d =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$e(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$9 = point$9('start');
-var pointEnd$5 = point$9('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$9(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
 
 /**
  * @author Titus Wormer
@@ -67652,14 +54445,14 @@ function point$9(type) {
  *   4:12: Line must be at most 10 characters
  */
 
-const remarkLintMaximumLineLength = lintRule$f(
+const remarkLintMaximumLineLength = lintRule(
   'remark-lint:maximum-line-length',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 80) => {
     const value = String(file);
     const lines = value.split(/\r?\n/);
 
-    visit$d(tree, (node) => {
+    visit$2(tree, (node) => {
       if (
         (node.type === 'heading' ||
           node.type === 'table' ||
@@ -67673,7 +54466,7 @@ const remarkLintMaximumLineLength = lintRule$f(
           node.type === 'toml') &&
         !generated(node)
       ) {
-        allowList(pointStart$9(node).line - 1, pointEnd$5(node).line);
+        allowList(pointStart(node).line - 1, pointEnd(node).line);
       }
     });
 
@@ -67681,7 +54474,7 @@ const remarkLintMaximumLineLength = lintRule$f(
     // the wrap.
     // However, when they do, and there’s whitespace after it, they are not
     // allowed.
-    visit$d(tree, (node, pos, parent_) => {
+    visit$2(tree, (node, pos, parent_) => {
       const parent = /** @type {Parent} */ (parent_);
 
       if (
@@ -67692,8 +54485,8 @@ const remarkLintMaximumLineLength = lintRule$f(
         parent &&
         typeof pos === 'number'
       ) {
-        const initial = pointStart$9(node);
-        const final = pointEnd$5(node);
+        const initial = pointStart(node);
+        const final = pointEnd(node);
 
         // Not allowing when starting after the border, or ending before it.
         if (initial.column > option || final.column < option) {
@@ -67705,7 +54498,7 @@ const remarkLintMaximumLineLength = lintRule$f(
         // Not allowing when there’s whitespace after the link.
         if (
           next &&
-          pointStart$9(next).line === initial.line &&
+          pointStart(next).line === initial.line &&
           (!('value' in next) || /^(.+?[ \t].+?)/.test(next.value))
         ) {
           return
@@ -67743,532 +54536,7 @@ const remarkLintMaximumLineLength = lintRule$f(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$e = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$e(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$f(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$f(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$e.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$d =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$c
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$c(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$c(test) : propsFactory$b(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$b(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$c(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$d(tests[index]);
-  }
-
-  return castFactory$b(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$b(check) {
-  return castFactory$b(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$c(check) {
-  return castFactory$b(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$b(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$c() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$d(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$d = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$d = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$d = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$d =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$d(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$d(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$c(visitor(node, parents));
-
-            if (result[0] === EXIT$d) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$d) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$d) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$c(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$d, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$c =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$d(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$8 = point$8('start');
-var pointEnd$4 = point$8('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$8(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
 
 /**
  * @author Titus Wormer
@@ -68316,17 +54584,17 @@ function point$8(type) {
  *   4:5: Remove 2 lines after node
  */
 
-const remarkLintNoConsecutiveBlankLines = lintRule$e(
+const remarkLintNoConsecutiveBlankLines = lintRule(
   'remark-lint:no-consecutive-blank-lines',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$c(tree, (node) => {
+    visit$2(tree, (node) => {
       if (!generated(node) && 'children' in node) {
         const head = node.children[0];
 
         if (head && !generated(head)) {
           // Compare parent and first child.
-          compare(pointStart$8(node), pointStart$8(head), 0);
+          compare(pointStart(node), pointStart(head), 0);
 
           // Compare between each child.
           let index = -1;
@@ -68336,7 +54604,7 @@ const remarkLintNoConsecutiveBlankLines = lintRule$e(
             const child = node.children[index];
 
             if (previous && !generated(previous) && !generated(child)) {
-              compare(pointEnd$4(previous), pointStart$8(child), 2);
+              compare(pointEnd(previous), pointStart(child), 2);
             }
           }
 
@@ -68344,7 +54612,7 @@ const remarkLintNoConsecutiveBlankLines = lintRule$e(
 
           // Compare parent and last child.
           if (tail !== head && !generated(tail)) {
-            compare(pointEnd$4(node), pointEnd$4(tail), 1);
+            compare(pointEnd(node), pointEnd(tail), 1);
           }
         }
       }
@@ -68378,133 +54646,7 @@ const remarkLintNoConsecutiveBlankLines = lintRule$e(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$d = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$d(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$e(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$e(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$d.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
 
 /**
  * @author Titus Wormer
@@ -68538,7 +54680,7 @@ function coerce$e(name, value) {
  *   1:1: Do not start file names with `an`
  */
 
-const remarkLintNoFileNameArticles = lintRule$d(
+const remarkLintNoFileNameArticles = lintRule(
   'remark-lint:no-file-name-articles',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -68550,133 +54692,7 @@ const remarkLintNoFileNameArticles = lintRule$d(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$c = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$c(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$d(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$d(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$c.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
 
 /**
  * @author Titus Wormer
@@ -68695,7 +54711,7 @@ function coerce$d(name, value) {
  *   1:1: Do not use consecutive dashes in a file name
  */
 
-const remarkLintNoFileNameConsecutiveDashes = lintRule$c(
+const remarkLintNoFileNameConsecutiveDashes = lintRule(
   'remark-lint:no-file-name-consecutive-dashes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -68705,133 +54721,7 @@ const remarkLintNoFileNameConsecutiveDashes = lintRule$c(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$b = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$b(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$c(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$c(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$b.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDashes;
 
 /**
  * @author Titus Wormer
@@ -68855,7 +54745,7 @@ function coerce$c(name, value) {
  *   1:1: Do not use initial or final dashes in a file name
  */
 
-const remarkLintNofileNameOuterDashes = lintRule$b(
+const remarkLintNofileNameOuterDashes = lintRule(
   'remark-lint:no-file-name-outer-dashes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -68865,531 +54755,7 @@ const remarkLintNofileNameOuterDashes = lintRule$b(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$a = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$a(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$b(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$b(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$a.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$c =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$b
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$b(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$b(test) : propsFactory$a(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$a(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$b(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$c(tests[index]);
-  }
-
-  return castFactory$a(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$a(check) {
-  return castFactory$a(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$b(check) {
-  return castFactory$a(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$a(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$b() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$c(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$c = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$c = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$c = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$c =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$c(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$c(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$b(visitor(node, parents));
-
-            if (result[0] === EXIT$c) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$c) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$c) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$b(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$c, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$b =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$c(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$7 = point$7('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$7(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
 
 /**
  * @author Titus Wormer
@@ -69442,18 +54808,18 @@ function point$7(type) {
  *   8:4: Remove 3 spaces before this heading
  */
 
-const remarkLintNoHeadingIndent = lintRule$a(
+const remarkLintNoHeadingIndent = lintRule(
   'remark-lint:no-heading-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$b(tree, 'heading', (node, _, parent) => {
+    visit$2(tree, 'heading', (node, _, parent) => {
       // Note: it’s rather complex to detect what the expected indent is in block
       // quotes and lists, so let’s only do directly in root for now.
       if (generated(node) || (parent && parent.type !== 'root')) {
         return
       }
 
-      const diff = pointStart$7(node).column - 1;
+      const diff = pointStart(node).column - 1;
 
       if (diff) {
         file.message(
@@ -69462,537 +54828,80 @@ const remarkLintNoHeadingIndent = lintRule$a(
             ' ' +
             plural('space', diff) +
             ' before this heading',
-          pointStart$7(node)
+          pointStart(node)
         );
       }
     });
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
+var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
 
-const primitives$9 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$9(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$a(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$a(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$9.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
+var own$1 = {}.hasOwnProperty;
 
 /**
  * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$b =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$a
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$a(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$a(test) : propsFactory$9(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$9(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$a(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$b(tests[index]);
-  }
-
-  return castFactory$9(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$9(check) {
-  return castFactory$9(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$a(check) {
-  return castFactory$9(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$9(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$a() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$b(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$b = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$b = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$b = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$b =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$b(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$b(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$a(visitor(node, parents));
-
-            if (result[0] === EXIT$b) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$b) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$b) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$a(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$b, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$a =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$b(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
  * @typedef {import('unist').Position} Position
  * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
  */
-
-var pointStart$6 = point$6('start');
 
 /**
- * Get the positional info of `node`.
+ * Stringify one point, a position (start and end points), or a node’s
+ * positional information.
  *
- * @param {'start'|'end'} type
+ * @param {Node|Position|Point} [value]
+ * @returns {string}
  */
-function point$6(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
+function stringifyPosition(value) {
+  // Nothing.
+  if (!value || typeof value !== 'object') {
+    return ''
   }
+
+  // Node.
+  if (own$1.call(value, 'position') || own$1.call(value, 'type')) {
+    // @ts-ignore looks like a node.
+    return position$2(value.position)
+  }
+
+  // Position.
+  if (own$1.call(value, 'start') || own$1.call(value, 'end')) {
+    // @ts-ignore looks like a position.
+    return position$2(value)
+  }
+
+  // Point.
+  if (own$1.call(value, 'line') || own$1.call(value, 'column')) {
+    // @ts-ignore looks like a point.
+    return point(value)
+  }
+
+  // ?
+  return ''
+}
+
+/**
+ * @param {Point} point
+ * @returns {string}
+ */
+function point(point) {
+  return index(point && point.line) + ':' + index(point && point.column)
+}
+
+/**
+ * @param {Position} pos
+ * @returns {string}
+ */
+function position$2(pos) {
+  return point(pos && pos.start) + '-' + point(pos && pos.end)
+}
+
+/**
+ * @param {number} value
+ * @returns {number}
+ */
+function index(value) {
+  return value && typeof value === 'number' ? value : 1
 }
 
 /**
@@ -70025,14 +54934,14 @@ function point$6(type) {
  *   3:1-3:6: Don’t use multiple top level headings (1:1)
  */
 
-const remarkLintNoMultipleToplevelHeadings = lintRule$9(
+const remarkLintNoMultipleToplevelHeadings = lintRule(
   'remark-lint:no-multiple-toplevel-headings',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
     /** @type {string|undefined} */
     let duplicate;
 
-    visit$a(tree, 'heading', (node) => {
+    visit$2(tree, 'heading', (node) => {
       if (!generated(node) && node.depth === option) {
         if (duplicate) {
           file.message(
@@ -70040,495 +54949,14 @@ const remarkLintNoMultipleToplevelHeadings = lintRule$9(
             node
           );
         } else {
-          duplicate = stringifyPosition(pointStart$6(node));
+          duplicate = stringifyPosition(pointStart(node));
         }
       }
     });
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$8 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$8(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$9(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$9(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$8.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$a =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$9
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$9(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$9(test) : propsFactory$8(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$8(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$9(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$a(tests[index]);
-  }
-
-  return castFactory$8(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$8(check) {
-  return castFactory$8(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$9(check) {
-  return castFactory$8(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$8(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$9() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$a(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$a = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$a = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$a = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$a =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$a(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$a(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$9(visitor(node, parents));
-
-            if (result[0] === EXIT$a) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$a) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$a) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$9(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$a, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$9 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$a(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
+var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
 
 /**
  * @author Titus Wormer
@@ -70604,11 +55032,11 @@ const flags = new Set([
   'zsh'
 ]);
 
-const remarkLintNoShellDollars = lintRule$8(
+const remarkLintNoShellDollars = lintRule(
   'remark-lint:no-shell-dollars',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit$9(tree, 'code', (node) => {
+    visit$2(tree, 'code', (node) => {
       // Check both known shell code and unknown code.
       if (!generated(node) && node.lang && flags.has(node.lang)) {
         const lines = node.value
@@ -70634,613 +55062,7 @@ const remarkLintNoShellDollars = lintRule$8(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$7 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$7(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$8(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$8(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$7.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$9 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$8
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$8(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$8(test) : propsFactory$7(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$7(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$8(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$9(tests[index]);
-  }
-
-  return castFactory$7(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$7(check) {
-  return castFactory$7(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$8(check) {
-  return castFactory$7(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$7(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$8() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$9(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$9 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$9 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$9 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$9 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$9(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$9(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$8(visitor(node, parents));
-
-            if (result[0] === EXIT$9) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$9) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$9) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$8(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$9, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$8 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$9(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$5 = point$5('start');
-var pointEnd$3 = point$5('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$5(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
-
-/**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
- */
-
-/**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
- */
-function location$1(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
-
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
-  /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
-   *
-   * @param {Offset} offset
-   * @returns {FullPoint}
-   */
-  function toPoint(offset) {
-    var index = -1;
-
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
-          }
-        }
-      }
-    }
-
-    return {line: undefined, column: undefined, offset: undefined}
-  }
-
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
-    }
-
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
-  }
-}
+var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
 
 /**
  * @author Titus Wormer
@@ -71308,24 +55130,24 @@ function location$1(file) {
  *   3:6: Do not indent table rows
  */
 
-const remarkLintNoTableIndentation = lintRule$7(
+const remarkLintNoTableIndentation = lintRule(
   'remark-lint:no-table-indentation',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
-    const loc = location$1(value);
+    const loc = location(value);
 
-    visit$8(tree, 'table', (node, _, parent) => {
-      const end = pointEnd$3(node).line;
-      let line = pointStart$5(node).line;
+    visit$2(tree, 'table', (node, _, parent) => {
+      const end = pointEnd(node).line;
+      let line = pointStart(node).line;
       let column = 0;
 
       if (parent && parent.type === 'root') {
         column = 1;
       } else if (parent && parent.type === 'blockquote') {
-        column = pointStart$5(parent).column + 2;
+        column = pointStart(parent).column + 2;
       } else if (parent && parent.type === 'listItem') {
-        column = pointStart$5(parent.children[0]).column;
+        column = pointStart(parent.children[0]).column;
 
         // Skip past the first line if we’re the first child of a list item.
         /* c8 ignore next 3 */
@@ -71362,219 +55184,12 @@ const remarkLintNoTableIndentation = lintRule$7(
         line++;
       }
 
-      return SKIP$9
+      return SKIP$2
     });
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$6 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$6(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$7(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$7(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$6.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
- */
-
-/**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
- */
-function location(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
-
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
-  /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
-   *
-   * @param {Offset} offset
-   * @returns {FullPoint}
-   */
-  function toPoint(offset) {
-    var index = -1;
-
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
-          }
-        }
-      }
-    }
-
-    return {line: undefined, column: undefined, offset: undefined}
-  }
-
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
-    }
-
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
-  }
-}
+var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
 
 /**
  * @author Titus Wormer
@@ -71631,7 +55246,7 @@ function location(file) {
  *   13:41: Use spaces instead of tabs
  */
 
-const remarkLintNoTabs = lintRule$6(
+const remarkLintNoTabs = lintRule(
   'remark-lint:no-tabs',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -71645,6 +55260,8 @@ const remarkLintNoTabs = lintRule$6(
     }
   }
 );
+
+var remarkLintNoTabs$1 = remarkLintNoTabs;
 
 /**
  * An Array.prototype.slice.call(arguments) alternative
@@ -71984,7 +55601,7 @@ var co = co_1;
  * Export `wrapped`
  */
 
-var wrapped_1 = wrapped$1;
+var wrapped_1 = wrapped$2;
 
 /**
  * Wrap a function to support
@@ -71995,7 +55612,7 @@ var wrapped_1 = wrapped$1;
  * @api public
  */
 
-function wrapped$1(fn) {
+function wrapped$2(fn) {
   function wrap() {
     var args = sliced(arguments);
     var last = args[args.length - 1];
@@ -72085,15 +55702,15 @@ function promise(value) {
   return value && 'function' == typeof value.then;
 }
 
-var wrapped = wrapped_1;
+var wrapped$1 = wrapped_1;
 
-var unifiedLintRule = factory$2;
+var unifiedLintRule$1 = factory$3;
 
-function factory$2(id, rule) {
+function factory$3(id, rule) {
   var parts = id.split(':');
   var source = parts[0];
   var ruleId = parts[1];
-  var fn = wrapped(rule);
+  var fn = wrapped$1(rule);
 
   /* istanbul ignore if - possibly useful if externalised later. */
   if (!ruleId) {
@@ -72106,7 +55723,7 @@ function factory$2(id, rule) {
   return attacher
 
   function attacher(raw) {
-    var config = coerce$6(ruleId, raw);
+    var config = coerce$1(ruleId, raw);
     var severity = config[0];
     var options = config[1];
     var fatal = severity === 2;
@@ -72146,7 +55763,7 @@ function factory$2(id, rule) {
 }
 
 // Coerce a value to a severity--options tuple.
-function coerce$6(name, value) {
+function coerce$1(name, value) {
   var def = 1;
   var result;
   var level;
@@ -72200,7 +55817,7 @@ function coerce$6(name, value) {
   return result
 }
 
-var rule$1 = unifiedLintRule;
+var rule$1 = unifiedLintRule$1;
 
 var remarkLintNoTrailingSpaces = rule$1('remark-lint:no-trailing-spaces', noTrailingSpaces);
 
@@ -72223,134 +55840,6 @@ function noTrailingSpaces(ast, file) {
       });
     }
   }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$5 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$5(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$5(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$5(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$5.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
 }
 
 function* getLinksRecursively(node) {
@@ -72392,7 +55881,7 @@ function validateLinks(tree, vfile) {
   }
 }
 
-const remarkLintNodejsLinks = lintRule$5(
+const remarkLintNodejsLinks = lintRule(
   "remark-lint:nodejs-links",
   validateLinks
 );
@@ -76245,361 +59734,6 @@ var jsYaml = {
 	safeDump: safeDump
 };
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$8 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$7
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$7(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$7(test) : propsFactory$6(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$6(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$7(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$8(tests[index]);
-  }
-
-  return castFactory$6(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$6(check) {
-  return castFactory$6(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$7(check) {
-  return castFactory$6(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$6(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$7() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$8(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$8 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$8 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$8 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$8 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$8(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$8(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$7(visitor(node, parents));
-
-            if (result[0] === EXIT$8) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$8) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$8) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$7(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$8, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$7 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$8(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
 // Note: this is the semver.org version of the spec that it implements
 // Not necessarily the package version of this code.
 const SEMVER_SPEC_VERSION = '2.0.0';
@@ -77395,7 +60529,7 @@ function validateMeta(node, file, meta) {
 }
 
 function validateYAMLComments(tree, file) {
-  visit$7(tree, "html", function visitor(node) {
+  visit$2(tree, "html", function visitor(node) {
     if (node.value.startsWith("<!--YAML\n"))
       file.message(
         "Expected `<!-- YAML`, found `<!--YAML`. Please add a space",
@@ -77412,7 +60546,7 @@ function validateYAMLComments(tree, file) {
   });
 }
 
-const remarkLintNodejsYamlComments = lintRule$5(
+const remarkLintNodejsYamlComments = lintRule(
   "remark-lint:nodejs-yaml-comments",
   validateYAMLComments
 );
@@ -77429,8 +60563,8 @@ var escapeStringRegexp$2 = string => {
 		.replace(/-/g, '\\x2d');
 };
 
-var start$2 = factory$1('start');
-var end = factory$1('end');
+var start$2 = factory$2('start');
+var end = factory$2('end');
 
 var unistUtilPosition = position$1;
 
@@ -77441,7 +60575,7 @@ function position$1(node) {
   return {start: start$2(node), end: end(node)}
 }
 
-function factory$1(type) {
+function factory$2(type) {
   point.displayName = type;
 
   return point
@@ -77457,19 +60591,134 @@ function factory$1(type) {
   }
 }
 
-var convert_1 = convert$7;
+var wrapped = wrapped_1;
 
-function convert$7(test) {
+var unifiedLintRule = factory$1;
+
+function factory$1(id, rule) {
+  var parts = id.split(':');
+  var source = parts[0];
+  var ruleId = parts[1];
+  var fn = wrapped(rule);
+
+  /* istanbul ignore if - possibly useful if externalised later. */
+  if (!ruleId) {
+    ruleId = source;
+    source = null;
+  }
+
+  attacher.displayName = id;
+
+  return attacher
+
+  function attacher(raw) {
+    var config = coerce(ruleId, raw);
+    var severity = config[0];
+    var options = config[1];
+    var fatal = severity === 2;
+
+    return severity ? transformer : undefined
+
+    function transformer(tree, file, next) {
+      var index = file.messages.length;
+
+      fn(tree, file, options, done);
+
+      function done(err) {
+        var messages = file.messages;
+        var message;
+
+        // Add the error, if not already properly added.
+        /* istanbul ignore if - only happens for incorrect plugins */
+        if (err && messages.indexOf(err) === -1) {
+          try {
+            file.fail(err);
+          } catch (_) {}
+        }
+
+        while (index < messages.length) {
+          message = messages[index];
+          message.ruleId = ruleId;
+          message.source = source;
+          message.fatal = fatal;
+
+          index++;
+        }
+
+        next();
+      }
+    }
+  }
+}
+
+// Coerce a value to a severity--options tuple.
+function coerce(name, value) {
+  var def = 1;
+  var result;
+  var level;
+
+  /* istanbul ignore if - Handled by unified in v6.0.0 */
+  if (typeof value === 'boolean') {
+    result = [value];
+  } else if (value == null) {
+    result = [def];
+  } else if (
+    typeof value === 'object' &&
+    (typeof value[0] === 'number' ||
+      typeof value[0] === 'boolean' ||
+      typeof value[0] === 'string')
+  ) {
+    result = value.concat();
+  } else {
+    result = [1, value];
+  }
+
+  level = result[0];
+
+  if (typeof level === 'boolean') {
+    level = level ? 1 : 0;
+  } else if (typeof level === 'string') {
+    if (level === 'off') {
+      level = 0;
+    } else if (level === 'on' || level === 'warn') {
+      level = 1;
+    } else if (level === 'error') {
+      level = 2;
+    } else {
+      level = 1;
+      result = [level, result];
+    }
+  }
+
+  if (level < 0 || level > 2) {
+    throw new Error(
+      'Incorrect severity `' +
+        level +
+        '` for `' +
+        name +
+        '`, ' +
+        'expected 0, 1, or 2'
+    )
+  }
+
+  result[0] = level;
+
+  return result
+}
+
+var convert_1 = convert$1;
+
+function convert$1(test) {
   if (test == null) {
-    return ok$6
+    return ok
   }
 
   if (typeof test === 'string') {
-    return typeFactory$6(test)
+    return typeFactory(test)
   }
 
   if (typeof test === 'object') {
-    return 'length' in test ? anyFactory$6(test) : allFactory(test)
+    return 'length' in test ? anyFactory(test) : allFactory(test)
   }
 
   if (typeof test === 'function') {
@@ -77495,12 +60744,12 @@ function allFactory(test) {
   }
 }
 
-function anyFactory$6(tests) {
+function anyFactory(tests) {
   var checks = [];
   var index = -1;
 
   while (++index < tests.length) {
-    checks[index] = convert$7(tests[index]);
+    checks[index] = convert$1(tests[index]);
   }
 
   return any
@@ -77520,7 +60769,7 @@ function anyFactory$6(tests) {
 
 // Utility to convert a string into a function which checks a given node’s type
 // for said string.
-function typeFactory$6(test) {
+function typeFactory(test) {
   return type
 
   function type(node) {
@@ -77529,29 +60778,29 @@ function typeFactory$6(test) {
 }
 
 // Utility to return true.
-function ok$6() {
+function ok() {
   return true
 }
 
-var color_1 = color$7;
-function color$7(d) {
+var color_1 = color$1;
+function color$1(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
-var unistUtilVisitParents = visitParents$7;
+var unistUtilVisitParents = visitParents$1;
 
-var convert$6 = convert_1;
-var color$6 = color_1;
+var convert = convert_1;
+var color = color_1;
 
-var CONTINUE$7 = true;
-var SKIP$7 = 'skip';
-var EXIT$7 = false;
+var CONTINUE$1 = true;
+var SKIP$1 = 'skip';
+var EXIT$1 = false;
 
-visitParents$7.CONTINUE = CONTINUE$7;
-visitParents$7.SKIP = SKIP$7;
-visitParents$7.EXIT = EXIT$7;
+visitParents$1.CONTINUE = CONTINUE$1;
+visitParents$1.SKIP = SKIP$1;
+visitParents$1.EXIT = EXIT$1;
 
-function visitParents$7(tree, test, visitor, reverse) {
+function visitParents$1(tree, test, visitor, reverse) {
   var step;
   var is;
 
@@ -77561,7 +60810,7 @@ function visitParents$7(tree, test, visitor, reverse) {
     test = null;
   }
 
-  is = convert$6(test);
+  is = convert(test);
   step = reverse ? -1 : 1;
 
   factory(tree, null, [])();
@@ -77579,7 +60828,7 @@ function visitParents$7(tree, test, visitor, reverse) {
           : undefined;
 
       visit.displayName =
-        'node (' + color$6(value.type + (name ? '<' + name + '>' : '')) + ')';
+        'node (' + color(value.type + (name ? '<' + name + '>' : '')) + ')';
     }
 
     return visit
@@ -77591,20 +60840,20 @@ function visitParents$7(tree, test, visitor, reverse) {
       var offset;
 
       if (!test || is(node, index, parents[parents.length - 1] || null)) {
-        result = toResult$6(visitor(node, parents));
+        result = toResult(visitor(node, parents));
 
-        if (result[0] === EXIT$7) {
+        if (result[0] === EXIT$1) {
           return result
         }
       }
 
-      if (node.children && result[0] !== SKIP$7) {
+      if (node.children && result[0] !== SKIP$1) {
         offset = (reverse ? node.children.length : -1) + step;
 
         while (offset > -1 && offset < node.children.length) {
           subresult = factory(node.children[offset], offset, grandparents)();
 
-          if (subresult[0] === EXIT$7) {
+          if (subresult[0] === EXIT$1) {
             return subresult
           }
 
@@ -77618,38 +60867,38 @@ function visitParents$7(tree, test, visitor, reverse) {
   }
 }
 
-function toResult$6(value) {
+function toResult(value) {
   if (value !== null && typeof value === 'object' && 'length' in value) {
     return value
   }
 
   if (typeof value === 'number') {
-    return [CONTINUE$7, value]
+    return [CONTINUE$1, value]
   }
 
   return [value]
 }
 
-var unistUtilVisit = visit$6;
+var unistUtilVisit = visit$1;
 
-var visitParents$6 = unistUtilVisitParents;
+var visitParents = unistUtilVisitParents;
 
-var CONTINUE$6 = visitParents$6.CONTINUE;
-var SKIP$6 = visitParents$6.SKIP;
-var EXIT$6 = visitParents$6.EXIT;
+var CONTINUE = visitParents.CONTINUE;
+var SKIP = visitParents.SKIP;
+var EXIT = visitParents.EXIT;
 
-visit$6.CONTINUE = CONTINUE$6;
-visit$6.SKIP = SKIP$6;
-visit$6.EXIT = EXIT$6;
+visit$1.CONTINUE = CONTINUE;
+visit$1.SKIP = SKIP;
+visit$1.EXIT = EXIT;
 
-function visit$6(tree, test, visitor, reverse) {
+function visit$1(tree, test, visitor, reverse) {
   if (typeof test === 'function' && typeof visitor !== 'function') {
     reverse = visitor;
     visitor = test;
     test = null;
   }
 
-  visitParents$6(tree, test, overload, reverse);
+  visitParents(tree, test, overload, reverse);
 
   function overload(node, parents) {
     var parent = parents[parents.length - 1];
@@ -77714,7 +60963,7 @@ function factory(file) {
 const escapeStringRegexp$1 = escapeStringRegexp$2;
 const position = unistUtilPosition;
 const rule = unifiedLintRule;
-const visit$5 = unistUtilVisit;
+const visit = unistUtilVisit;
 const vfileLocation = vfileLocation$1;
 
 const start$1 = position.start;
@@ -77733,6 +60982,7 @@ function testProhibited (val, content) {
   let regexpString = '(?<!\\.|@[a-zA-Z0-9/-]*)';
 
   const ignoreNextTo = val.ignoreNextTo ? escapeStringRegexp$1(val.ignoreNextTo) : '';
+  const replaceCaptureGroups = !!val.replaceCaptureGroups;
 
   // If it starts with a letter, make sure it is a word break.
   if (/^\b/.test(no)) {
@@ -77759,7 +61009,11 @@ function testProhibited (val, content) {
   let result = re.exec(content);
   while (result) {
     if (result[1] !== val.yes) {
-      results.push({ result: result[1], index: result.index });
+      let yes = val.yes;
+      if (replaceCaptureGroups) {
+        yes = result[1].replace(new RegExp(no), yes);
+      }
+      results.push({ result: result[1], index: result.index, yes: yes });
     }
     result = re.exec(content);
   }
@@ -77770,7 +61024,7 @@ function testProhibited (val, content) {
 function prohibitedStrings (ast, file, strings) {
   const location = vfileLocation(file);
 
-  visit$5(ast, 'text', checkText);
+  visit(ast, 'text', checkText);
 
   function checkText (node) {
     const content = node.value;
@@ -77779,8 +61033,8 @@ function prohibitedStrings (ast, file, strings) {
     strings.forEach((val) => {
       const results = testProhibited(val, content);
       if (results.length) {
-        results.forEach(({ result, index }) => {
-          const message = val.yes ? `Use "${val.yes}" instead of "${result}"` : `Do not use "${result}"`;
+        results.forEach(({ result, index, yes }) => {
+          const message = val.yes ? `Use "${yes}" instead of "${result}"` : `Do not use "${result}"`;
           file.message(message, {
             start: location.toPoint(initial + index),
             end: location.toPoint(initial + index + [...result].length)
@@ -77788,533 +61042,6 @@ function prohibitedStrings (ast, file, strings) {
         });
       }
     });
-  }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$4 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$4(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$4(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$4(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$4.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$5 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$5
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$5(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$5(test) : propsFactory$5(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$5(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$5(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$5(tests[index]);
-  }
-
-  return castFactory$5(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$5(check) {
-  return castFactory$5(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$5(check) {
-  return castFactory$5(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$5(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$5() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$5(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$5 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$5 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$5 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$5 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$5(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$5(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$5(visitor(node, parents));
-
-            if (result[0] === EXIT$5) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$5) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$5) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$5(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$5, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$4 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$5(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$4 = point$4('start');
-var pointEnd$2 = point$4('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$4(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
   }
 }
 
@@ -78380,7 +61107,7 @@ function point$4(type) {
  *   1:1: Incorrect preferred rule style: provide a correct markdown rule or `'consistent'`
  */
 
-const remarkLintRuleStyle = lintRule$4(
+const remarkLintRuleStyle = lintRule(
   'remark-lint:rule-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -78392,9 +61119,9 @@ const remarkLintRuleStyle = lintRule$4(
       );
     }
 
-    visit$4(tree, 'thematicBreak', (node) => {
-      const initial = pointStart$4(node).offset;
-      const final = pointEnd$2(node).offset;
+    visit$2(tree, 'thematicBreak', (node) => {
+      const initial = pointStart(node).offset;
+      const final = pointEnd(node).offset;
 
       if (typeof initial === 'number' && typeof final === 'number') {
         const rule = value.slice(initial, final);
@@ -78409,531 +61136,7 @@ const remarkLintRuleStyle = lintRule$4(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$3 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$3(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$3(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$3(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$3.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$4 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$4
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$4(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$4(test) : propsFactory$4(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$4(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$4(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$4(tests[index]);
-  }
-
-  return castFactory$4(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$4(check) {
-  return castFactory$4(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$4(check) {
-  return castFactory$4(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$4(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$4() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$4(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$4 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$4 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$4 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$4 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$4(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$4(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$4(visitor(node, parents));
-
-            if (result[0] === EXIT$4) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$4) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$4) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$4(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$4, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$3 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$4(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$3 = point$3('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$3(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintRuleStyle$1 = remarkLintRuleStyle;
 
 /**
  * @author Titus Wormer
@@ -78995,7 +61198,7 @@ function point$3(type) {
  *   1:1: Incorrect strong marker `💩`: use either `'consistent'`, `'*'`, or `'_'`
  */
 
-const remarkLintStrongMarker = lintRule$3(
+const remarkLintStrongMarker = lintRule(
   'remark-lint:strong-marker',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -79009,8 +61212,8 @@ const remarkLintStrongMarker = lintRule$3(
       );
     }
 
-    visit$3(tree, 'strong', (node) => {
-      const start = pointStart$3(node).offset;
+    visit$2(tree, 'strong', (node) => {
+      const start = pointStart(node).offset;
 
       if (typeof start === 'number') {
         const marker = /** @type {Marker} */ (value.charAt(start));
@@ -79025,532 +61228,7 @@ const remarkLintStrongMarker = lintRule$3(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$2 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$2(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$2(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$2(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$2.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$3 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$3
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$3(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$3(test) : propsFactory$3(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$3(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$3(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$3(tests[index]);
-  }
-
-  return castFactory$3(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$3(check) {
-  return castFactory$3(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$3(check) {
-  return castFactory$3(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$3(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$3() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$3(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$3 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$3 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$3 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$3 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$3(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$3(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$3(visitor(node, parents));
-
-            if (result[0] === EXIT$3) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$3) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$3) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$3(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$3, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$2 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$3(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$2 = point$2('start');
-var pointEnd$1 = point$2('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$2(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintStrongMarker$1 = remarkLintStrongMarker;
 
 /**
  * @author Titus Wormer
@@ -79724,7 +61402,7 @@ function point$2(type) {
  *   | Echo  | Foxtrot |
  */
 
-const remarkLintTableCellPadding = lintRule$2(
+const remarkLintTableCellPadding = lintRule(
   'remark-lint:table-cell-padding',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -79761,10 +61439,10 @@ const remarkLintTableCellPadding = lintRule$2(
           const cell = row.children[column];
 
           if (cell.children.length > 0) {
-            const cellStart = pointStart$2(cell).offset;
-            const cellEnd = pointEnd$1(cell).offset;
-            const contentStart = pointStart$2(cell.children[0]).offset;
-            const contentEnd = pointEnd$1(
+            const cellStart = pointStart(cell).offset;
+            const cellEnd = pointEnd(cell).offset;
+            const contentStart = pointStart(cell.children[0]).offset;
+            const contentEnd = pointEnd(
               cell.children[cell.children.length - 1]
             ).offset;
 
@@ -79809,7 +61487,7 @@ const remarkLintTableCellPadding = lintRule$2(
         checkSide('end', entries[index], style, sizes);
       }
 
-      return SKIP$3
+      return SKIP$2
     });
 
     /**
@@ -79853,7 +61531,7 @@ const remarkLintTableCellPadding = lintRule$2(
       let point;
 
       if (side === 'start') {
-        point = pointStart$2(cell);
+        point = pointStart(cell);
         if (!column) {
           point.column++;
 
@@ -79862,7 +61540,7 @@ const remarkLintTableCellPadding = lintRule$2(
           }
         }
       } else {
-        point = pointEnd$1(cell);
+        point = pointEnd(cell);
         point.column--;
 
         if (typeof point.offset === 'number') {
@@ -79875,543 +61553,18 @@ const remarkLintTableCellPadding = lintRule$2(
   }
 );
 
+var remarkLintTableCellPadding$1 = remarkLintTableCellPadding;
+
 /**
  * @param {TableCell} node
  * @returns {number}
  */
 function size(node) {
-  const head = pointStart$2(node.children[0]).offset;
-  const tail = pointEnd$1(node.children[node.children.length - 1]).offset;
+  const head = pointStart(node.children[0]).offset;
+  const tail = pointEnd(node.children[node.children.length - 1]).offset;
   // Only called when we’re sure offsets exist.
   /* c8 ignore next */
   return typeof head === 'number' && typeof tail === 'number' ? tail - head : 0
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$1 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$1(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$1(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$1(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$1.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$2 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$2
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$2(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$2(test) : propsFactory$2(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$2(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$2(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$2(tests[index]);
-  }
-
-  return castFactory$2(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$2(check) {
-  return castFactory$2(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$2(check) {
-  return castFactory$2(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$2(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$2() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$2(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$2 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$2 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$2 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$2 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$2(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$2(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$2(visitor(node, parents));
-
-            if (result[0] === EXIT$2) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$2) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$2) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$2(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$2, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit$1 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$2(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart$1 = point$1('start');
-var pointEnd = point$1('end');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point$1(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
 }
 
 /**
@@ -80456,18 +61609,18 @@ function point$1(type) {
 const reasonStart = 'Missing initial pipe in table fence';
 const reasonEnd = 'Missing final pipe in table fence';
 
-const remarkLintTablePipes = lintRule$1(
+const remarkLintTablePipes = lintRule(
   'remark-lint:table-pipes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit$1(tree, 'table', (node) => {
+    visit$2(tree, 'table', (node) => {
       let index = -1;
 
       while (++index < node.children.length) {
         const row = node.children[index];
-        const start = pointStart$1(row);
+        const start = pointStart(row);
         const end = pointEnd(row);
 
         if (
@@ -80488,531 +61641,7 @@ const remarkLintTablePipes = lintRule$1(
   }
 );
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert$1 =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok$1
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory$1(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory$1(test) : propsFactory$1(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory$1(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory$1(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert$1(tests[index]);
-  }
-
-  return castFactory$1(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory$1(check) {
-  return castFactory$1(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory$1(check) {
-  return castFactory$1(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory$1(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok$1() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color$1(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$1 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$1 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$1 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$1 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert$1(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$1(visitor(node, parents));
-
-            if (result[0] === EXIT$1) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$1) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$1) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$1(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$1, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$1(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
- * @typedef {import('unist').Position} Position
- * @typedef {import('unist').Point} Point
- *
- * @typedef {Partial<Point>} PointLike
- *
- * @typedef {Object} PositionLike
- * @property {PointLike} [start]
- * @property {PointLike} [end]
- *
- * @typedef {Object} NodeLike
- * @property {PositionLike} [position]
- */
-
-var pointStart = point('start');
-
-/**
- * Get the positional info of `node`.
- *
- * @param {'start'|'end'} type
- */
-function point(type) {
-  return point
-
-  /**
-   * Get the positional info of `node`.
-   *
-   * @param {NodeLike} [node]
-   * @returns {Point}
-   */
-  function point(node) {
-    /** @type {Point} */
-    // @ts-ignore looks like a point
-    var point = (node && node.position && node.position[type]) || {};
-
-    return {
-      line: point.line || null,
-      column: point.column || null,
-      offset: point.offset > -1 ? point.offset : null
-    }
-  }
-}
+var remarkLintTablePipes$1 = remarkLintTablePipes;
 
 /**
  * @author Titus Wormer
@@ -81105,7 +61734,7 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
       );
     }
 
-    visit(tree, 'list', (node) => {
+    visit$2(tree, 'list', (node) => {
       if (node.ordered) return
 
       let index = -1;
@@ -81135,19 +61764,21 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
   }
 );
 
+var remarkLintUnorderedListMarkerStyle$1 = remarkLintUnorderedListMarkerStyle;
+
 // @see https://github.com/nodejs/node/blob/master/doc/guides/doc-style-guide.md
 
 // Add in rules alphabetically
 const remarkPresetLintNode = [
   // Leave preset at the top so it can be overridden
-  remarkPresetLintRecommended,
-  [remarkLintBlockquoteIndentation, 2],
-  [remarkLintCheckboxCharacterStyle, { checked: "x", unchecked: " " }],
-  remarkLintCheckboxContentIndent,
-  [remarkLintCodeBlockStyle, "fenced"],
-  remarkLintDefinitionSpacing,
+  remarkPresetLintRecommended$1,
+  [remarkLintBlockquoteIndentation$1, 2],
+  [remarkLintCheckboxCharacterStyle$1, { checked: "x", unchecked: " " }],
+  remarkLintCheckboxContentIndent$1,
+  [remarkLintCodeBlockStyle$1, "fenced"],
+  remarkLintDefinitionSpacing$1,
   [
-    remarkLintFencedCodeFlag,
+    remarkLintFencedCodeFlag$1,
     {
       flags: [
         "bash",
@@ -81168,22 +61799,22 @@ const remarkPresetLintNode = [
       ],
     },
   ],
-  [remarkLintFencedCodeMarker, "`"],
-  [remarkLintFileExtension, "md"],
-  remarkLintFinalDefinition,
-  [remarkLintFirstHeadingLevel, 1],
-  [remarkLintHeadingStyle, "atx"],
-  [remarkLintListItemIndent, "space"],
-  remarkLintMaximumLineLength,
-  remarkLintNoConsecutiveBlankLines,
-  remarkLintNoFileNameArticles,
-  remarkLintNoFileNameConsecutiveDashes,
-  remarkLintNofileNameOuterDashes,
-  remarkLintNoHeadingIndent,
-  remarkLintNoMultipleToplevelHeadings,
-  remarkLintNoShellDollars,
-  remarkLintNoTableIndentation,
-  remarkLintNoTabs,
+  [remarkLintFencedCodeMarker$1, "`"],
+  [remarkLintFileExtension$1, "md"],
+  remarkLintFinalDefinition$1,
+  [remarkLintFirstHeadingLevel$1, 1],
+  [remarkLintHeadingStyle$1, "atx"],
+  [remarkLintListItemIndent$1, "space"],
+  remarkLintMaximumLineLength$1,
+  remarkLintNoConsecutiveBlankLines$1,
+  remarkLintNoFileNameArticles$1,
+  remarkLintNoFileNameConsecutiveDashes$1,
+  remarkLintNofileNameOuterDashes$1,
+  remarkLintNoHeadingIndent$1,
+  remarkLintNoMultipleToplevelHeadings$1,
+  remarkLintNoShellDollars$1,
+  remarkLintNoTableIndentation$1,
+  remarkLintNoTabs$1,
   remarkLintNoTrailingSpaces,
   remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
@@ -81206,11 +61837,11 @@ const remarkPresetLintNode = [
       { yes: "V8" },
     ],
   ],
-  remarkLintRuleStyle,
-  [remarkLintStrongMarker, "*"],
-  [remarkLintTableCellPadding, "padded"],
-  remarkLintTablePipes,
-  [remarkLintUnorderedListMarkerStyle, "*"],
+  remarkLintRuleStyle$1,
+  [remarkLintStrongMarker$1, "*"],
+  [remarkLintTableCellPadding$1, "padded"],
+  remarkLintTablePipes$1,
+  [remarkLintUnorderedListMarkerStyle$1, "*"],
 ];
 
 var remarkPresetLintNode$1 = /*#__PURE__*/Object.freeze({
@@ -83659,300 +64290,6 @@ function escapeStringRegexp(string) {
 }
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory(test) : propsFactory(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert(tests[index]);
-  }
-
-  return castFactory(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory(check) {
-  return castFactory(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory(check) {
-  return castFactory(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok() {
-  return true
-}
-
-/**
- * @param {string} d
- * @returns {string}
- */
-function color(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT = false;
-
-const visitParents =
-  /**
-   * @type {(
-   *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
-   *   ((tree: Node, test: Test, visitor: Visitor<Node>, reverse?: boolean) => void) &
-   *   ((tree: Node, visitor: Visitor<Node>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * Visit children of tree which pass a test
-     *
-     * @param {Node} tree Abstract syntax tree to walk
-     * @param {Test} test test Test node
-     * @param {Visitor<Node>} visitor Function to run for each node
-     * @param {boolean} [reverse] Fisit the tree in reverse, defaults to false
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-ignore no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      var is = convert(test);
-      var step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        var value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string} */
-        var name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          var result = [];
-          /** @type {ActionTuple} */
-          var subresult;
-          /** @type {number} */
-          var offset;
-          /** @type {Array.<Parent>} */
-          var grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult(visitor(node, parents));
-
-            if (result[0] === EXIT) {
-              return result
-            }
-          }
-
-          if (node.children && result[0] !== SKIP) {
-            // @ts-ignore looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-ignore looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-ignore looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE, value]
-  }
-
-  return [value]
-}
-
-/**
  * @typedef Options Configuration.
  * @property {Test} [ignore] `unist-util-is` test used to assert parents
  *
@@ -84027,12 +64364,12 @@ const findAndReplace =
         settings = {};
       }
 
-      const ignored = convert(settings.ignore || []);
+      const ignored = convert$2(settings.ignore || []);
       const pairs = toPairs(schema);
       let pairIndex = -1;
 
       while (++pairIndex < pairs.length) {
-        visitParents(tree, 'text', visitor);
+        visitParents$3(tree, 'text', visitor);
       }
 
       return tree
@@ -84189,6 +64526,7 @@ function toFunction(replace) {
 }
 
 /**
+ * @typedef {import('mdast').Link} Link
  * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
  * @typedef {import('mdast-util-from-markdown').Transform} FromMarkdownTransform
  * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
@@ -84241,7 +64579,6 @@ const gfmAutolinkLiteralToMarkdown = {
 
 /** @type {FromMarkdownHandle} */
 function enterLiteralAutolink(token) {
-  // @ts-expect-error: `null` is fine.
   this.enter({type: 'link', title: null, url: '', children: []}, token);
 }
 
@@ -84258,7 +64595,8 @@ function exitLiteralAutolinkHttp(token) {
 /** @type {FromMarkdownHandle} */
 function exitLiteralAutolinkWww(token) {
   this.config.exit.data.call(this, token);
-  this.stack[this.stack.length - 1].url = 'http://' + this.sliceSerialize(token);
+  const node = /** @type {Link} */ (this.stack[this.stack.length - 1]);
+  node.url = 'http://' + this.sliceSerialize(token);
 }
 
 /** @type {FromMarkdownHandle} */
@@ -84276,8 +64614,8 @@ function transformGfmAutolinkLiterals(tree) {
   findAndReplace(
     tree,
     [
-      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/i, findUrl],
-      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/, findEmail]
+      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
     ],
     {ignore: ['link', 'linkReference']}
   );
@@ -84316,7 +64654,6 @@ function findUrl(_, protocol, domain, path, match) {
   if (!parts[0]) return false
 
   /** @type {PhrasingContent} */
-  // @ts-expect-error: `null` is fine.
   const result = {
     type: 'link',
     title: null,
@@ -84346,7 +64683,6 @@ function findEmail(_, atext, label, match) {
 
   return {
     type: 'link',
-    // @ts-expect-error: `null` is fine.
     title: null,
     url: 'mailto:' + atext + '@' + label,
     children: [{type: 'text', value: atext + '@' + label}]

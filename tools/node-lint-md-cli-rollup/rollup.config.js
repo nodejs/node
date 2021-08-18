@@ -40,13 +40,15 @@ module.exports = {
             'fsevents = require(\'fsevents\');', 'fsevents = undefined;'
           );
         }
+        // Remove circular dependency in glob that messes up rollup
+        return code.replace("var Glob = require('./glob.js').Glob", '');
       }
     },
     json({
       preferConst: true
     }),
     nodeResolve(), // tells Rollup how to find date-fns in node_modules
-    commonjs(), // Converts date-fns to ES modules
+    commonjs(),
     {
       name: 'banner',
       renderChunk(code) {
