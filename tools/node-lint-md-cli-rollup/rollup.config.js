@@ -5,12 +5,12 @@ const commonjs = require('@rollup/plugin-commonjs');
 const json = require('@rollup/plugin-json');
 
 module.exports = {
-  input: 'src/cli-entry.js',
+  input: 'src/cli-entry.mjs',
   output: {
     file: 'dist/index.js',
     format: 'cjs',
     sourcemap: false,
-    exports: 'default',
+    exports: 'none',
   },
   external: [
     'stream',
