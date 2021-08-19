@@ -155,7 +155,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // No extension lookups
     ['pkgexports/no-ext', `pkgexports${sep}asdf`],
     // Pattern specificity
-    ['pkgexports/dir2/trailer', 'subpath/dir2.js'],
+    ['pkgexports/dir2/trailer', `subpath${sep}dir2.js`],
   ]);
 
   if (!isRequire) {
