@@ -1,7 +1,7 @@
 const tar = require('tar')
 const ssri = require('ssri')
 const npmlog = require('npmlog')
-const byteSize = require('byte-size')
+const formatBytes = require('./format-bytes.js')
 const columnify = require('columnify')
 
 const logTar = (tarball, opts = {}) => {
@@ -11,9 +11,9 @@ const logTar = (tarball, opts = {}) => {
   log.notice('=== Tarball Contents ===')
   if (tarball.files.length) {
     log.notice('', columnify(tarball.files.map((f) => {
-      const bytes = byteSize(f.size)
+      const bytes = formatBytes(f.size, false)
       return (/^node_modules\//.test(f.path)) ? null
-        : { path: f.path, size: `${bytes.value}${bytes.unit}` }
+        : { path: f.path, size: `${bytes}` }
     }).filter(f => f), {
       include: ['size', 'path'],
       showHeaders: false,
@@ -28,8 +28,8 @@ const logTar = (tarball, opts = {}) => {
     { name: 'name:', value: tarball.name },
     { name: 'version:', value: tarball.version },
     tarball.filename && { name: 'filename:', value: tarball.filename },
-    { name: 'package size:', value: byteSize(tarball.size) },
-    { name: 'unpacked size:', value: byteSize(tarball.unpackedSize) },
+    { name: 'package size:', value: formatBytes(tarball.size) },
+    { name: 'unpacked size:', value: formatBytes(tarball.unpackedSize) },
     { name: 'shasum:', value: tarball.shasum },
     {
       name: 'integrity:',

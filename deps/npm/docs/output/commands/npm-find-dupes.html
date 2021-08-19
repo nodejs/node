@@ -153,6 +153,7 @@ duplications, without actually changing the package tree.</p>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="global-style"><code>global-style</code></h4>
 <ul>
 <li>Default: false</li>
@@ -164,6 +165,8 @@ direct dependencies will show in <code>node_modules</code> and everything they d
 on will be flattened in their <code>node_modules</code> folders. This obviously will
 eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
 will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
@@ -173,6 +176,8 @@ will be preferred.</p>
 such as the one included with node 0.8, can install the package. This
 eliminates all automatic deduping. If used with <code>global-style</code> this option
 will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -189,6 +194,8 @@ the range set in their package’s <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="package-lock"><code>package-lock</code></h4>
 <ul>
 <li>Default: true</li>
@@ -199,6 +206,8 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 <p>When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use <code>npm prune</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
@@ -213,6 +222,8 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -223,6 +234,8 @@ variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -232,6 +245,8 @@ will <em>not</em> run any pre- or post-scripts.</p>
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -242,6 +257,8 @@ executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
 fact that some file systems don’t support symlinks, even on ostensibly Unix
 systems.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="fund"><code>fund</code></h4>
 <ul>
 <li>Default: true</li>
@@ -249,6 +266,8 @@ systems.</p>
 </ul>
 <p>When “true” displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -268,6 +287,8 @@ nested workspaces)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: false</li>
@@ -276,6 +297,8 @@ brand new workspace within the project.</p>
 <p>Enable running a command in the context of <strong>all</strong> the configured
 workspaces.</p>
 <p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>

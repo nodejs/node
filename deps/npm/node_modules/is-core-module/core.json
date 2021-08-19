@@ -100,6 +100,8 @@
 	"node:_stream_writable": ">= 16",
 	"stream": true,
 	"node:stream": ">= 16",
+	"stream/consumers": ">= 16.7",
+	"node:stream/consumers": ">= 16.7",
 	"stream/promises": ">= 15",
 	"node:stream/promises": ">= 16",
 	"stream/web": ">= 16.5",

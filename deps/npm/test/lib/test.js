@@ -1,38 +1,36 @@
 const t = require('tap')
-let RUN_ARGS = null
-const npm = {
-  commands: {
-    'run-script': (args, cb) => {
-      RUN_ARGS = args
-      cb()
-    },
-  },
-}
-const Test = require('../../lib/test.js')
-const test = new Test(npm)
+const spawk = require('spawk')
+const { real: mockNpm } = require('../fixtures/mock-npm')
 
-t.test('run a test', t => {
-  test.exec([], (er) => {
-    t.strictSame(RUN_ARGS, ['test'], 'added "test" to the args')
-  })
-  test.exec(['hello', 'world'], (er) => {
-    t.strictSame(RUN_ARGS, ['test', 'hello', 'world'], 'added positional args')
-  })
+spawk.preventUnmatched()
+t.teardown(() => {
+  spawk.unload()
+})
 
-  const lcErr = Object.assign(new Error('should not see this'), {
-    code: 'ELIFECYCLE',
-  })
-  const otherErr = new Error('should see this')
+// TODO this ... smells.  npm "script-shell" config mentions defaults but those
+// are handled by run-script, not npm.  So for now we have to tie tests to some
+// pretty specific internals of runScript
+const makeSpawnArgs = require('@npmcli/run-script/lib/make-spawn-args.js')
 
-  npm.commands['run-script'] = (args, cb) => cb(lcErr)
-  test.exec([], (er) => {
-    t.equal(er, 'Test failed.  See above for more details.')
+t.test('should run stop script from package.json', async t => {
+  const prefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'x',
+      version: '1.2.3',
+      scripts: {
+        test: 'node ./test-test.js',
+      },
+    }),
   })
-
-  npm.commands['run-script'] = (args, cb) => cb(otherErr)
-  test.exec([], (er) => {
-    t.match(er, { message: 'should see this' })
+  const { command, npm } = mockNpm(t)
+  await npm.load()
+  npm.log.level = 'silent'
+  npm.localPrefix = prefix
+  const [scriptShell] = makeSpawnArgs({ path: prefix })
+  const script = spawk.spawn(scriptShell, (args) => {
+    t.ok(args.includes('node ./test-test.js "foo"'), 'ran test script with extra args')
+    return true
   })
-
-  t.end()
+  await command('test', ['foo'])
+  t.ok(script.called, 'script ran')
 })

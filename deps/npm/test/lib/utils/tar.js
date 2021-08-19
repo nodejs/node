@@ -57,6 +57,8 @@ t.test('should log tarball contents with unicode', async (t) => {
   logTar({
     files: [],
     bundled: [],
+    size: 0,
+    unpackedSize: 0,
     integrity: '',
   }, { unicode: true })
   t.end()
@@ -75,6 +77,8 @@ t.test('should default to npmlog', async (t) => {
   logTar({
     files: [],
     bundled: [],
+    size: 0,
+    unpackedSize: 0,
     integrity: '',
   })
   t.end()

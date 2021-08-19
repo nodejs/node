@@ -73,8 +73,10 @@ class CanPlaceDep {
       if (!edge)
         throw new Error('no edge provided to CanPlaceDep')
 
-      this._nodeSnapshot = JSON.stringify(dep)
-      this._treeSnapshot = JSON.stringify(target.root)
+      this._treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
+        .map(([loc, {packageName, version, resolved}]) => {
+          return [loc, packageName, version, resolved]
+        }).sort(([a], [b]) => a.localeCompare(b, 'en')))
     })
 
     // the result of whether we can place it or not
@@ -110,15 +112,10 @@ class CanPlaceDep {
       this.canPlaceSelf = this.canPlace
 
     debug(() => {
-      const nodeSnapshot = JSON.stringify(dep)
-      const treeSnapshot = JSON.stringify(target.root)
-      /* istanbul ignore if */
-      if (this._nodeSnapshot !== nodeSnapshot) {
-        throw Object.assign(new Error('dep changed in CanPlaceDep'), {
-          expect: this._nodeSnapshot,
-          actual: nodeSnapshot,
-        })
-      }
+      const treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
+        .map(([loc, {packageName, version, resolved}]) => {
+          return [loc, packageName, version, resolved]
+        }).sort(([a], [b]) => a.localeCompare(b, 'en')))
       /* istanbul ignore if */
       if (this._treeSnapshot !== treeSnapshot) {
         throw Object.assign(new Error('tree changed in CanPlaceDep'), {

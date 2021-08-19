@@ -99,9 +99,9 @@ module.exports = (er, npm) => {
 
     case 'EJSONPARSE':
       // Check whether we ran into a conflict in our own package.json
-      if (er.file === resolve(npm.prefix, 'package.json')) {
+      if (er.path === resolve(npm.prefix, 'package.json')) {
         const { isDiff } = require('parse-conflict-json')
-        const txt = require('fs').readFileSync(er.file, 'utf8')
+        const txt = require('fs').readFileSync(er.path, 'utf8')
           .replace(/\r\n/g, '\n')
         if (isDiff(txt)) {
           detail.push([
@@ -109,9 +109,7 @@ module.exports = (er, npm) => {
             [
               'Merge conflict detected in your package.json.',
               '',
-              'Please resolve the package.json conflict and retry the command:',
-              '',
-              `$ ${process.argv.join(' ')}`,
+              'Please resolve the package.json conflict and retry.',
             ].join('\n'),
           ])
           break

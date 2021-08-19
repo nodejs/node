@@ -249,6 +249,7 @@ built.</p>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="tag"><code>tag</code></h4>
 <ul>
 <li>Default: “latest”</li>
@@ -260,6 +261,8 @@ then it will install the specified tag.</p>
 command, if no explicit tag is given.</p>
 <p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="access"><code>access</code></h4>
 <ul>
 <li>Default: ‘restricted’ for scoped packages, ‘public’ for unscoped packages</li>
@@ -269,6 +272,13 @@ tarball that will be compared with the local files by default.</p>
 If you want your scoped package to be publicly viewable (and installable)
 set <code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
 <code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
+<p>Note: Using the <code>--access</code> flag on the <code>npm publish</code> command will only set
+the package access level on the initial publish of the package. Any
+subsequent <code>npm publish</code> commands using the <code>--access</code> flag will not have an
+effect to the access level. To make changes to the access level after the
+initial publish use <code>npm access</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
@@ -280,6 +290,8 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
 <p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
 <code>owner</code>, etc.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="otp"><code>otp</code></h4>
 <ul>
 <li>Default: null</li>
@@ -289,6 +301,8 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -308,6 +322,8 @@ nested workspaces)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: false</li>
@@ -316,6 +332,8 @@ brand new workspace within the project.</p>
 <p>Enable running a command in the context of <strong>all</strong> the configured
 workspaces.</p>
 <p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>

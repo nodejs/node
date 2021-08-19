@@ -1,24 +1,26 @@
 const t = require('tap')
 
-const FindDupes = require('../../lib/find-dupes.js')
+const { real: mockNpm } = require('../fixtures/mock-npm')
 
-t.test('should run dedupe in dryRun mode', (t) => {
-  t.plan(3)
-  const findDupesTest = new FindDupes({
-    config: {
-      set: (k, v) => {
-        t.match(k, 'dry-run')
-        t.match(v, true)
-      },
+t.test('should run dedupe in dryRun mode', async (t) => {
+  t.plan(5)
+  const { npm, command } = mockNpm(t, {
+    '@npmcli/arborist': function (args) {
+      t.ok(args, 'gets options object')
+      t.ok(args.path, 'gets path option')
+      t.ok(args.dryRun, 'is called in dryRun mode')
+      this.dedupe = () => {
+        t.ok(true, 'dedupe is called')
+      }
     },
-    commands: {
-      dedupe: (args, cb) => {
-        t.match(args, [])
-        cb()
-      },
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
+      t.ok(arb, 'gets arborist tree')
     },
   })
-  findDupesTest.exec({}, () => {
-    t.end()
-  })
+  await npm.load()
+  // explicitly set to false so we can be 100% sure it's always true when it
+  // hits arborist
+  npm.config.set('dry-run', false)
+  npm.config.set('prefix', 'foo')
+  await command('find-dupes')
 })

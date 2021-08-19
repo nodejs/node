@@ -5,7 +5,7 @@
 const deepestNestingTarget = (start, name) => {
   for (const target of start.ancestry()) {
     // note: this will skip past the first target if edge is peer
-    if (target.isProjectRoot || !target.resolveParent)
+    if (target.isProjectRoot || !target.resolveParent || target.globalTop)
       return target
     const targetEdge = target.edgesOut.get(name)
     if (!targetEdge || !targetEdge.peer)

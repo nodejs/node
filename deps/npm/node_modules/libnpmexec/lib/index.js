@@ -165,6 +165,8 @@ const exec = async (opts) => {
           const prompt = `Need to install the following packages:\n${
           addList
         }Ok to proceed? `
+          if (typeof log.clearProgress === 'function')
+            log.clearProgress()
           const confirm = await read({ prompt, default: 'y' })
           if (confirm.trim().toLowerCase().charAt(0) !== 'y')
             throw new Error('canceled')

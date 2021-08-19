@@ -219,6 +219,8 @@ t.test('limit depth', async t => {
     [
       ['bar', '-g'],
       ['foo', '-g'],
+      // XXX https://github.com/npm/statusboard/issues/380
+      ['a-bar', '-g'],
       'a', 'b',
       'c', 'ch',
       'd', 'e',
@@ -248,6 +250,8 @@ t.test('limit depth as global', async t => {
     [
       'bar',
       'foo',
+      // https://github.com/npm/statusboard/issues/380
+      'a-bar',
     ],
     'should reorder so that packages above that level depth goes last'
   )
