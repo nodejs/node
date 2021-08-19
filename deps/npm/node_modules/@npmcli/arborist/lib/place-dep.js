@@ -16,6 +16,7 @@ const {
 } = CanPlaceDep
 const debug = require('./debug.js')
 
+const Link = require('./link.js')
 const gatherDepSet = require('./gather-dep-set.js')
 const peerEntrySets = require('./peer-entry-sets.js')
 
@@ -256,6 +257,20 @@ class PlaceDep {
       return
     }
 
+    // we were told to place it here in the target, so either it does not
+    // already exist in the tree, OR it's shadowed.
+    // handle otherwise unresolvable dependency nesting loops by
+    // creating a symbolic link
+    // a1 -> b1 -> a2 -> b2 -> a1 -> ...
+    // instead of nesting forever, when the loop occurs, create
+    // a symbolic link to the earlier instance
+    for (let p = target; p; p = p.resolveParent) {
+      if (p.matches(dep) && !p.isTop) {
+        this.placed = new Link({ parent: target, target: p })
+        return
+      }
+    }
+
     // XXX if we are replacing SOME of a peer entry group, we will need to
     // remove any that are not being replaced and will now be invalid, and
     // re-evaluate them deeper into the tree.
@@ -268,7 +283,7 @@ class PlaceDep {
       integrity: dep.integrity,
       legacyPeerDeps: this.legacyPeerDeps,
       error: dep.errors[0],
-      ...(dep.isLink ? { target: dep.target, realpath: dep.target.path } : {}),
+      ...(dep.isLink ? { target: dep.target, realpath: dep.realpath } : {}),
     })
 
     this.oldDep = target.children.get(this.name)

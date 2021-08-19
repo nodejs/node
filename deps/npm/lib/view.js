@@ -1,6 +1,5 @@
 // npm view [pkg [pkg ...]]
 
-const byteSize = require('byte-size')
 const color = require('ansicolors')
 const columns = require('cli-columns')
 const fs = require('fs')
@@ -8,6 +7,7 @@ const jsonParse = require('json-parse-even-better-errors')
 const log = require('npmlog')
 const npa = require('npm-package-arg')
 const { resolve } = require('path')
+const formatBytes = require('./utils/format-bytes.js')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
 const style = require('ansistyles')
@@ -315,7 +315,7 @@ class View extends BaseCommand {
       tags.push(`${style.bright(color.green(t))}: ${version}`)
     })
     const unpackedSize = manifest.dist.unpackedSize &&
-      byteSize(manifest.dist.unpackedSize)
+      formatBytes(manifest.dist.unpackedSize, true)
     const licenseField = manifest.license || 'Proprietary'
     const info = {
       name: color.green(manifest.name),
@@ -356,7 +356,7 @@ class View extends BaseCommand {
         manifest.dist.integrity && color.yellow(manifest.dist.integrity),
       fileCount:
         manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
-      unpackedSize: unpackedSize && color.yellow(unpackedSize.value) + ' ' + unpackedSize.unit,
+      unpackedSize: unpackedSize && color.yellow(unpackedSize),
     }
     if (info.license.toLowerCase().trim() === 'proprietary')
       info.license = style.bright(color.red(info.license))

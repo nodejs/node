@@ -27,7 +27,8 @@ module.exports = async (process) => {
   if (process.argv[1][process.argv[1].length - 1] === 'g')
     process.argv.splice(1, 1, 'npm', '-g')
 
-  log.verbose('cli', process.argv)
+  const replaceInfo = require('../lib/utils/replace-info.js')
+  log.verbose('cli', replaceInfo(process.argv))
 
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)

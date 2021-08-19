@@ -1,10 +1,10 @@
-const leven = require('leven')
+const { distance } = require('fastest-levenshtein')
 const readJson = require('read-package-json-fast')
 const { cmdList } = require('./cmd-list.js')
 
 const didYouMean = async (npm, path, scmd) => {
   const bestCmd = cmdList
-    .filter(cmd => leven(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
+    .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
     .map(str => `    npm ${str} # ${npm.commands[str].description}`)
 
   const pkg = await readJson(`${path}/package.json`)
@@ -12,13 +12,13 @@ const didYouMean = async (npm, path, scmd) => {
   // We would already be suggesting this in `npm x` so omit them here
   const runScripts = ['stop', 'start', 'test', 'restart']
   const bestRun = Object.keys(scripts || {})
-    .filter(cmd => leven(scmd, cmd) < scmd.length * 0.4 &&
+    .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 &&
       !runScripts.includes(cmd))
     .map(str => `    npm run ${str} # run the "${str}" package script`)
 
   const { bin } = pkg
   const bestBin = Object.keys(bin || {})
-    .filter(cmd => leven(scmd, cmd) < scmd.length * 0.4)
+    .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4)
     .map(str => `    npm exec ${str} # run the "${str}" command from either this or a remote npm package`)
 
   const best = [...bestCmd, ...bestRun, ...bestBin]

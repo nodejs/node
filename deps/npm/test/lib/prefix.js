@@ -1,19 +1,13 @@
 const t = require('tap')
+const { real: mockNpm } = require('../fixtures/mock-npm')
 
-t.test('prefix', (t) => {
-  t.plan(3)
-  const dir = '/prefix/dir'
-
-  const Prefix = require('../../lib/prefix.js')
-  const prefix = new Prefix({
-    prefix: dir,
-    output: (output) => {
-      t.equal(output, dir, 'prints the correct directory')
-    },
-  })
-
-  prefix.exec([], (err) => {
-    t.error(err, 'npm prefix')
-    t.ok('should have printed directory')
-  })
+t.test('prefix', async (t) => {
+  const { joinedOutput, command, npm } = mockNpm(t)
+  await npm.load()
+  await command('prefix')
+  t.equal(
+    joinedOutput(),
+    npm.prefix,
+    'outputs npm.prefix'
+  )
 })
