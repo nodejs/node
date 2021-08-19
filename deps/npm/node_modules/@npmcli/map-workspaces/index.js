@@ -129,7 +129,12 @@ async function mapWorkspaces (opts = {}) {
         if (seen.has(name) && seen.get(name) !== packagePathname) {
           throw getError({
             Type: Error,
-            message: 'must not have multiple workspaces with the same name',
+            message: [
+              'must not have multiple workspaces with the same name',
+              `package '${name}' has conflicts in the following paths:`,
+              '    ' + seen.get(name),
+              '    ' + packagePathname
+            ].join('\n'),
             code: 'EDUPLICATEWORKSPACE'
           })
         }

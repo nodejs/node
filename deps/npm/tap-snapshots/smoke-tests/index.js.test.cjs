@@ -340,6 +340,7 @@ exports[`smoke-tests/index.js TAP npm install dev dep > should have expected dev
   "requires": true,
   "packages": {
     "": {
+      "name": "project",
       "version": "1.0.0",
       "license": "ISC",
       "dependencies": {
@@ -426,6 +427,7 @@ exports[`smoke-tests/index.js TAP npm install prodDep@version > should have expe
   "requires": true,
   "packages": {
     "": {
+      "name": "project",
       "version": "1.0.0",
       "license": "ISC",
       "dependencies": {
@@ -614,6 +616,7 @@ exports[`smoke-tests/index.js TAP npm uninstall > should have expected uninstall
   "requires": true,
   "packages": {
     "": {
+      "name": "project",
       "version": "1.0.0",
       "license": "ISC",
       "dependencies": {
@@ -671,6 +674,7 @@ exports[`smoke-tests/index.js TAP npm update dep > should have expected update l
   "requires": true,
   "packages": {
     "": {
+      "name": "project",
       "version": "1.0.0",
       "license": "ISC",
       "dependencies": {

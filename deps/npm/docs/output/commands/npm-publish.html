@@ -269,6 +269,10 @@ tarball that will be compared with the local files by default.</p>
 If you want your scoped package to be publicly viewable (and installable)
 set <code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
 <code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
+<p>Note: Using the <code>--access</code> flag on the <code>npm publish</code> command will only set
+the package access level on the initial publish of the package. Any subsequent <code>npm publish</code>
+commands using the <code>--access</code> flag will not have an effect to the access level.
+To make changes to the access level after the initial publish use <code>npm access</code>.</p>
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>

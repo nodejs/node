@@ -1,4 +1,4 @@
-.TH "NPM\-PUBLISH" "1" "July 2021" "" ""
+.TH "NPM\-PUBLISH" "1" "August 2021" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SS Synopsis
@@ -137,6 +137,11 @@ When publishing scoped packages, the access level defaults to \fBrestricted\fP\|
 If you want your scoped package to be publicly viewable (and installable)
 set \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
 \fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+.P
+Note: Using the \fB\-\-access\fP flag on the \fBnpm publish\fP command will only set
+the package access level on the initial publish of the package\. Any subsequent \fBnpm publish\fP
+commands using the \fB\-\-access\fP flag will not have an effect to the access level\.
+To make changes to the access level after the initial publish use \fBnpm access\fP\|\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2

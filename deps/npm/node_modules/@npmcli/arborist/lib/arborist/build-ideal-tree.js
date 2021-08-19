@@ -982,7 +982,6 @@ This is a one-time fix-up, please be patient...
     // Note that the virtual root will also have virtual copies of the
     // targets of any child Links, so that they resolve appropriately.
     const parent = parent_ || this[_virtualRoot](edge.from)
-    const realParent = edge.peer ? edge.from.resolveParent : edge.from
 
     const spec = npa.resolve(edge.name, edge.spec, edge.from.path)
     const first = await this[_nodeFromSpec](edge.name, spec, parent, edge)
@@ -1012,16 +1011,6 @@ This is a one-time fix-up, please be patient...
         secondEdge && (
           required.has(secondEdge.from) && secondEdge.type !== 'peerOptional'))
       required.add(node)
-
-    // handle otherwise unresolvable dependency nesting loops by
-    // creating a symbolic link
-    // a1 -> b1 -> a2 -> b2 -> a1 -> ...
-    // instead of nesting forever, when the loop occurs, create
-    // a symbolic link to the earlier instance
-    for (let p = edge.from.resolveParent; p; p = p.resolveParent) {
-      if (p.matches(node) && !p.isTop)
-        return new Link({ parent: realParent, target: p })
-    }
 
     // keep track of the thing that caused this node to be included.
     const src = parent.sourceReference
