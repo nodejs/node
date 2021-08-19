@@ -77,7 +77,7 @@ class Edge {
   }
 
   satisfiedBy (node) {
-    return depValid(node, this.spec, this.accept, this.from)
+    return node.name === this.name && depValid(node, this.spec, this.accept, this.from)
   }
 
   explain (seen = []) {
@@ -167,7 +167,7 @@ class Edge {
   [_loadError] () {
     return !this[_to] ? (this.optional ? null : 'MISSING')
       : this.peer && this.from === this.to.parent && !this.from.isTop ? 'PEER LOCAL'
-      : !depValid(this.to, this.spec, this.accept, this.from) ? 'INVALID'
+      : !this.satisfiedBy(this.to) ? 'INVALID'
       : 'OK'
   }
 

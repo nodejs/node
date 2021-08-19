@@ -19,15 +19,5 @@ class Test extends LifecycleCmd {
       'script-shell',
     ]
   }
-
-  exec (args, cb) {
-    super.exec(args, er => {
-      if (er && er.code === 'ELIFECYCLE') {
-        /* eslint-disable standard/no-callback-literal */
-        cb('Test failed.  See above for more details.')
-      } else
-        cb(er)
-    })
-  }
 }
 module.exports = Test

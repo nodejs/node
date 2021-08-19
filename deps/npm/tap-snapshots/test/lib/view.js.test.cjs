@@ -77,7 +77,7 @@ dist
 .tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -94,7 +94,7 @@ dist
 .tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -118,7 +118,7 @@ dist
 .tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dependencies:
 [33mred[39m: 1.0.0
@@ -178,7 +178,7 @@ dist
 .tarball:[36mhttp://hm.orange.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -200,7 +200,7 @@ dist
 .tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dependencies:
 [33mred[39m: 1.0.0
@@ -223,7 +223,7 @@ dist
 .tarball:[36mhttp://hm.pink.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -238,7 +238,7 @@ dist
 .tarball:[36mhttp://hm.black.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dependencies:
 [33m0[39m: 1.0.0
@@ -280,7 +280,7 @@ dist
 .tarball:[36mhttp://hm.cyan.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -297,7 +297,7 @@ dist
 .tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -401,7 +401,7 @@ dist
 .tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dependencies:
 [33mred[39m: 1.0.0
@@ -421,7 +421,7 @@ dist
 .tarball:[36mhttp://hm.orange.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -469,7 +469,7 @@ dist
 .tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dependencies:
 [33mred[39m: 1.0.0
@@ -496,7 +496,7 @@ dist
 .tarball:[36mhttp://hm.pink.com/1.0.0.tgz[39m
 .shasum:[33m123[39m
 .integrity:[33m---[39m
-.unpackedSize:[33m1[39m B
+.unpackedSize:[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0

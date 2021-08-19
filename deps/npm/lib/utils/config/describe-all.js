@@ -11,6 +11,9 @@ const describeAll = () => {
   }
   return Object.entries(definitions).sort(sort)
     .map(([key, def]) => def.describe())
-    .join('\n\n')
+    .join(
+      '\n\n<!-- automatically generated, do not edit manually -->\n' +
+        '<!-- see lib/utils/config/definitions.js -->\n\n'
+    )
 }
 module.exports = describeAll
