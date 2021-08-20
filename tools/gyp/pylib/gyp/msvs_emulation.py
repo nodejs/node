@@ -7,6 +7,7 @@ This module helps emulate Visual Studio 2008 behavior on top of other
 build systems, primarily ninja.
 """
 
+import collections
 import os
 import re
 import subprocess
@@ -19,7 +20,7 @@ import gyp.MSVSVersion
 windows_quoter_regex = re.compile(r'(\\*)"')
 
 
-def QuoteForRspFile(arg):
+def QuoteForRspFile(arg, quote_cmd=True):
     """Quote a command line argument so that it appears as one argument when
     processed via cmd.exe and parsed by CommandLineToArgvW (as is typical for
     Windows programs)."""
@@ -36,7 +37,8 @@ def QuoteForRspFile(arg):
     # For a literal quote, CommandLineToArgvW requires 2n+1 backslashes
     # preceding it, and results in n backslashes + the quote. So we substitute
     # in 2* what we match, +1 more, plus the quote.
-    arg = windows_quoter_regex.sub(lambda mo: 2 * mo.group(1) + '\\"', arg)
+    if quote_cmd:
+        arg = windows_quoter_regex.sub(lambda mo: 2 * mo.group(1) + '\\"', arg)
 
     # %'s also need to be doubled otherwise they're interpreted as batch
     # positional arguments. Also make sure to escape the % so that they're
@@ -48,12 +50,17 @@ def QuoteForRspFile(arg):
     # These commands are used in rsp files, so no escaping for the shell (via ^)
     # is necessary.
 
-    # Finally, wrap the whole thing in quotes so that the above quote rule
-    # applies and whitespace isn't a word break.
-    return '"' + arg + '"'
+    # As a workaround for programs that don't use CommandLineToArgvW, gyp
+    # supports msvs_quote_cmd=0, which simply disables all quoting.
+    if quote_cmd:
+        # Finally, wrap the whole thing in quotes so that the above quote rule
+        # applies and whitespace isn't a word break.
+        return f'"{arg}"'
+
+    return arg
 
 
-def EncodeRspFileList(args):
+def EncodeRspFileList(args, quote_cmd):
     """Process a list of arguments using QuoteCmdExeArgument."""
     # Note that the first argument is assumed to be the command. Don't add
     # quotes around it because then built-ins like 'echo', etc. won't work.
@@ -67,7 +74,8 @@ def EncodeRspFileList(args):
         program = call + " " + os.path.normpath(program)
     else:
         program = os.path.normpath(args[0])
-    return program + " " + " ".join(QuoteForRspFile(arg) for arg in args[1:])
+    return (program + " " +
+            " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:]))
 
 
 def _GenericRetrieve(root, default, path):
@@ -933,13 +941,22 @@ class MsvsSettings:
         )
         return cmd
 
-    def IsRuleRunUnderCygwin(self, rule):
-        """Determine if an action should be run under cygwin. If the variable is
-        unset, or set to 1 we use cygwin."""
-        return (
-            int(rule.get("msvs_cygwin_shell", self.spec.get("msvs_cygwin_shell", 1)))
-            != 0
-        )
+    RuleShellFlags = collections.namedtuple("RuleShellFlags", ["cygwin", "quote"])
+
+    def GetRuleShellFlags(self, rule):
+        """Return RuleShellFlags about how the given rule should be run. This
+        includes whether it should run under cygwin (msvs_cygwin_shell), and
+        whether the commands should be quoted (msvs_quote_cmd)."""
+        # If the variable is unset, or set to 1 we use cygwin
+        cygwin = int(rule.get("msvs_cygwin_shell",
+                              self.spec.get("msvs_cygwin_shell", 1))) != 0
+        # Default to quoting. There's only a few special instances where the
+        # target command uses non-standard command line parsing and handle quotes
+        # and quote escaping differently.
+        quote_cmd = int(rule.get("msvs_quote_cmd", 1))
+        assert quote_cmd != 0 or cygwin != 1, \
+               "msvs_quote_cmd=0 only applicable for msvs_cygwin_shell=0"
+        return MsvsSettings.RuleShellFlags(cygwin, quote_cmd)
 
     def _HasExplicitRuleForExtension(self, spec, extension):
         """Determine if there's an explicit rule for a particular extension."""
