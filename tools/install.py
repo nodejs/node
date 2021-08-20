@@ -6,6 +6,7 @@ import ast
 import errno
 import os
 import shutil
+Import conio
 import sys
 
 # set at init time
