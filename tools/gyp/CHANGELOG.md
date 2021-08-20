@@ -1,5 +1,21 @@
 # Changelog
 
+### [0.9.5](https://www.github.com/nodejs/gyp-next/compare/v0.9.4...v0.9.5) (2021-08-18)
+
+
+### Bug Fixes
+
+* add python 3.6 to node-gyp integration test ([3462d4c](https://www.github.com/nodejs/gyp-next/commit/3462d4ce3c31cce747513dc7ca9760c81d57c60e))
+* revert for windows compatibility ([d078e7d](https://www.github.com/nodejs/gyp-next/commit/d078e7d7ae080ddae243188f6415f940376a7368))
+* support msvs_quote_cmd in ninja generator ([#117](https://www.github.com/nodejs/gyp-next/issues/117)) ([46486ac](https://www.github.com/nodejs/gyp-next/commit/46486ac6e9329529d51061e006a5b39631e46729))
+
+### [0.9.4](https://www.github.com/nodejs/gyp-next/compare/v0.9.3...v0.9.4) (2021-08-09)
+
+
+### Bug Fixes
+
+* .S is an extension for asm file on Windows ([#115](https://www.github.com/nodejs/gyp-next/issues/115)) ([d2fad44](https://www.github.com/nodejs/gyp-next/commit/d2fad44ef3a79ca8900f1307060153ded57053fc))
+
 ### [0.9.3](https://www.github.com/nodejs/gyp-next/compare/v0.9.2...v0.9.3) (2021-07-07)
 
 

@@ -654,10 +654,10 @@ class NinjaWriter:
             description = self.GenerateDescription(
                 "ACTION", action.get("message", None), name
             )
-            is_cygwin = (
-                self.msvs_settings.IsRuleRunUnderCygwin(action)
+            win_shell_flags = (
+                self.msvs_settings.GetRuleShellFlags(action)
                 if self.flavor == "win"
-                else False
+                else None
             )
             args = action["action"]
             depfile = action.get("depfile", None)
@@ -665,7 +665,7 @@ class NinjaWriter:
                 depfile = self.ExpandSpecial(depfile, self.base_to_build)
             pool = "console" if int(action.get("ninja_use_console", 0)) else None
             rule_name, _ = self.WriteNewNinjaRule(
-                name, args, description, is_cygwin, env, pool, depfile=depfile
+                name, args, description, win_shell_flags, env, pool, depfile=depfile
             )
 
             inputs = [self.GypPathToNinja(i, env) for i in action["inputs"]]
@@ -707,14 +707,14 @@ class NinjaWriter:
                 rule.get("message", None),
                 ("%s " + generator_default_variables["RULE_INPUT_PATH"]) % name,
             )
-            is_cygwin = (
-                self.msvs_settings.IsRuleRunUnderCygwin(rule)
+            win_shell_flags = (
+                self.msvs_settings.GetRuleShellFlags(rule)
                 if self.flavor == "win"
-                else False
+                else None
             )
             pool = "console" if int(rule.get("ninja_use_console", 0)) else None
             rule_name, args = self.WriteNewNinjaRule(
-                name, args, description, is_cygwin, env, pool
+                name, args, description, win_shell_flags, env, pool
             )
 
             # TODO: if the command references the outputs directly, we should
@@ -733,7 +733,7 @@ class NinjaWriter:
 
             def cygwin_munge(path):
                 # pylint: disable=cell-var-from-loop
-                if is_cygwin:
+                if win_shell_flags and win_shell_flags.cygwin:
                     return path.replace("\\", "/")
                 return path
 
@@ -1221,7 +1221,7 @@ class NinjaWriter:
                 command = "cc_s"
             elif (
                 self.flavor == "win"
-                and ext == "asm"
+                and ext in ("asm", "S")
                 and not self.msvs_settings.HasExplicitAsmRules(spec)
             ):
                 command = "asm"
@@ -1899,7 +1899,7 @@ class NinjaWriter:
         ninja_file.variable(var, " ".join(values))
 
     def WriteNewNinjaRule(
-        self, name, args, description, is_cygwin, env, pool, depfile=None
+        self, name, args, description, win_shell_flags, env, pool, depfile=None
     ):
         """Write out a new ninja "rule" statement for a given command.
 
@@ -1946,13 +1946,14 @@ class NinjaWriter:
         if self.flavor == "win":
             rspfile = rule_name + ".$unique_name.rsp"
             # The cygwin case handles this inside the bash sub-shell.
-            run_in = "" if is_cygwin else " " + self.build_to_base
-            if is_cygwin:
+            run_in = "" if win_shell_flags.cygwin else " " + self.build_to_base
+            if win_shell_flags.cygwin:
                 rspfile_content = self.msvs_settings.BuildCygwinBashCommandLine(
                     args, self.build_to_base
                 )
             else:
-                rspfile_content = gyp.msvs_emulation.EncodeRspFileList(args)
+                rspfile_content = gyp.msvs_emulation.EncodeRspFileList(
+                    args, win_shell_flags.quote)
             command = (
                 "%s gyp-win-tool action-wrapper $arch " % sys.executable
                 + rspfile
