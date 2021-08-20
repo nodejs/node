@@ -15,6 +15,6 @@ if (isMainThread) {
   process.stdin.on('data', () => {});
 
   for (let i = 0; i < 10; ++i) {
-    process.stdout.write(`processing(${i})\n`, common.mustCall());
+    process.stdout.write(`processing(${i})\n`, common.mustSucceed());
   }
 }

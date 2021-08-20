@@ -12,9 +12,13 @@
 #endif
 
 #if V8_OS_MACOSX
-#include <dispatch/dispatch.h>  // NOLINT
+#include <dispatch/dispatch.h>
 #elif V8_OS_POSIX
-#include <semaphore.h>  // NOLINT
+#include <semaphore.h>
+#endif
+
+#if V8_OS_STARBOARD
+#include "starboard/common/semaphore.h"
 #endif
 
 namespace v8 {
@@ -35,6 +39,8 @@ class TimeDelta;
 class V8_BASE_EXPORT Semaphore final {
  public:
   explicit Semaphore(int count);
+  Semaphore(const Semaphore&) = delete;
+  Semaphore& operator=(const Semaphore&) = delete;
   ~Semaphore();
 
   // Increments the semaphore counter.
@@ -55,6 +61,8 @@ class V8_BASE_EXPORT Semaphore final {
   using NativeHandle = sem_t;
 #elif V8_OS_WIN
   using NativeHandle = HANDLE;
+#elif V8_OS_STARBOARD
+  using NativeHandle = starboard::Semaphore;
 #endif
 
   NativeHandle& native_handle() {
@@ -66,8 +74,6 @@ class V8_BASE_EXPORT Semaphore final {
 
  private:
   NativeHandle native_handle_;
-
-  DISALLOW_COPY_AND_ASSIGN(Semaphore);
 };
 
 

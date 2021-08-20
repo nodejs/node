@@ -86,22 +86,22 @@ namespace {
 
 /* Set the more significant 32 bits of a double from an int.  */
 
-#define SET_HIGH_WORD(d, v)                          \
-  do {                                               \
-    uint64_t bits = bit_cast<uint64_t>(d);           \
-    bits &= V8_2PART_UINT64_C(0x00000000, FFFFFFFF); \
-    bits |= static_cast<uint64_t>(v) << 32;          \
-    (d) = bit_cast<double>(bits);                    \
+#define SET_HIGH_WORD(d, v)                 \
+  do {                                      \
+    uint64_t bits = bit_cast<uint64_t>(d);  \
+    bits &= 0x0000'0000'FFFF'FFFF;          \
+    bits |= static_cast<uint64_t>(v) << 32; \
+    (d) = bit_cast<double>(bits);           \
   } while (false)
 
 /* Set the less significant 32 bits of a double from an int.  */
 
-#define SET_LOW_WORD(d, v)                           \
-  do {                                               \
-    uint64_t bits = bit_cast<uint64_t>(d);           \
-    bits &= V8_2PART_UINT64_C(0xFFFFFFFF, 00000000); \
-    bits |= static_cast<uint32_t>(v);                \
-    (d) = bit_cast<double>(bits);                    \
+#define SET_LOW_WORD(d, v)                 \
+  do {                                     \
+    uint64_t bits = bit_cast<uint64_t>(d); \
+    bits &= 0xFFFF'FFFF'0000'0000;         \
+    bits |= static_cast<uint32_t>(v);      \
+    (d) = bit_cast<double>(bits);          \
   } while (false)
 
 int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;

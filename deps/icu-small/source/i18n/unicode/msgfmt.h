@@ -132,7 +132,7 @@ class NumberFormat;
  *   <li>messageText can contain quoted literal strings including syntax characters.
  *       A quoted literal string begins with an ASCII apostrophe and a syntax character
  *       (usually a {curly brace}) and continues until the next single apostrophe.
- *       A double ASCII apostrohpe inside or outside of a quoted string represents
+ *       A double ASCII apostrophe inside or outside of a quoted string represents
  *       one literal apostrophe.
  *   <li>Quotable syntax characters are the {curly braces} in all messageText parts,
  *       plus the '#' sign in a messageText immediately inside a pluralStyle,
@@ -255,7 +255,7 @@ class NumberFormat;
  * or preformatted values, but not pattern strings or custom format objects.</p>
  *
  * <p>For more details, see the
- * <a href="http://userguide.icu-project.org/formatparse/messages">ICU User Guide</a>.</p>
+ * <a href="https://unicode-org.github.io/icu/userguide/format_parse/messages">ICU User Guide</a>.</p>
  *
  * <h4>Usage Information</h4>
  *
@@ -920,7 +920,7 @@ private:
     int32_t            argTypeCapacity;
 
     /**
-     * TRUE if there are different argTypes for the same argument.
+     * true if there are different argTypes for the same argument.
      * This only matters when the MessageFormat is used in the plain C (umsg_xxx) API
      * where the pattern argTypes determine how the va_arg list is read.
      */

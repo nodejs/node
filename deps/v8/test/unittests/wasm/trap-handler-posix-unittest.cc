@@ -53,7 +53,8 @@ TEST_F(SignalHandlerFallbackTest, DoTest) {
   const int save_sigs = 1;
   if (!sigsetjmp(continuation_, save_sigs)) {
     constexpr bool use_default_signal_handler = true;
-    CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
+    EXPECT_TRUE(
+        v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
     CrashOnPurpose();
     FAIL();
   } else {

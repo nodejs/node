@@ -461,6 +461,9 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
     IF[{- !$disabled{ec} -}]
       PROGRAMS_NO_INST=ec_internal_test curve448_internal_test
     ENDIF
+    IF[{- !$disabled{cmac} -}]
+      PROGRAMS_NO_INST=cmactest
+    ENDIF
 
     SOURCE[poly1305_internal_test]=poly1305_internal_test.c
     INCLUDE[poly1305_internal_test]=.. ../include
@@ -493,6 +496,12 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
     SOURCE[ctype_internal_test]=ctype_internal_test.c
     INCLUDE[ctype_internal_test]=.. ../include
     DEPEND[ctype_internal_test]=../libcrypto.a libtestutil.a
+
+    IF[{- !$disabled{cmac} -}]
+      SOURCE[cmactest]=cmactest.c
+      INCLUDE[cmactest]=../include
+      DEPEND[cmactest]=../libcrypto.a libtestutil.a
+    ENDIF
 
     SOURCE[siphash_internal_test]=siphash_internal_test.c
     INCLUDE[siphash_internal_test]=.. ../include
@@ -558,7 +567,6 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
   SOURCE[gosttest]=gosttest.c ssltestlib.c
   INCLUDE[gosttest]=../include ..
   DEPEND[gosttest]=../libcrypto ../libssl libtestutil.a
-ENDIF
 
   SOURCE[ssl_ctx_test]=ssl_ctx_test.c
   INCLUDE[ssl_ctx_test]=../include
@@ -600,3 +608,4 @@ _____
 _____
    }
 -}
+ENDIF

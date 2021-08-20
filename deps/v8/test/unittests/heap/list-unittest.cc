@@ -12,6 +12,7 @@ namespace heap {
 class TestChunk {
  public:
   heap::ListNode<TestChunk>& list_node() { return list_node_; }
+  const heap::ListNode<TestChunk>& list_node() const { return list_node_; }
   heap::ListNode<TestChunk> list_node_;
 };
 

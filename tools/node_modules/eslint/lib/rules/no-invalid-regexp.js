@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const RegExpValidator = require("regexpp").RegExpValidator;
-const validator = new RegExpValidator({ ecmaVersion: 2018 });
+const validator = new RegExpValidator();
 const validFlags = /[gimuys]/gu;
 const undefined1 = void 0;
 
@@ -70,6 +70,28 @@ module.exports = {
         }
 
         /**
+         * Gets flags of a regular expression created by the given `RegExp()` or `new RegExp()` call
+         * Examples:
+         *     new RegExp(".")         // => ""
+         *     new RegExp(".", "gu")   // => "gu"
+         *     new RegExp(".", flags)  // => null
+         * @param {ASTNode} node `CallExpression` or `NewExpression` node
+         * @returns {string|null} flags if they can be determined, `null` otherwise
+         * @private
+         */
+        function getFlags(node) {
+            if (node.arguments.length < 2) {
+                return "";
+            }
+
+            if (isString(node.arguments[1])) {
+                return node.arguments[1].value;
+            }
+
+            return null;
+        }
+
+        /**
          * Check syntax error in a given pattern.
          * @param {string} pattern The RegExp pattern to validate.
          * @param {boolean} uFlag The Unicode flag.
@@ -104,18 +126,23 @@ module.exports = {
                     return;
                 }
                 const pattern = node.arguments[0].value;
-                let flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
+                let flags = getFlags(node);
 
-                if (allowedFlags) {
+                if (flags && allowedFlags) {
                     flags = flags.replace(allowedFlags, "");
                 }
 
-                // If flags are unknown, check both are errored or not.
-                const message = validateRegExpFlags(flags) || (
-                    flags
-                        ? validateRegExpPattern(pattern, flags.indexOf("u") !== -1)
-                        : validateRegExpPattern(pattern, true) && validateRegExpPattern(pattern, false)
-                );
+                const message =
+                    (
+                        flags && validateRegExpFlags(flags)
+                    ) ||
+                    (
+
+                        // If flags are unknown, report the regex only if its pattern is invalid both with and without the "u" flag
+                        flags === null
+                            ? validateRegExpPattern(pattern, true) && validateRegExpPattern(pattern, false)
+                            : validateRegExpPattern(pattern, flags.includes("u"))
+                    );
 
                 if (message) {
                     context.report({

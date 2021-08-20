@@ -14,7 +14,7 @@ namespace internal {
 template <typename sinkchar>
 void StringBuilderConcatHelper(String special, sinkchar* sink,
                                FixedArray fixed_array, int array_length) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object element = fixed_array.get(i);
@@ -55,7 +55,7 @@ template void StringBuilderConcatHelper<uc16>(String special, uc16* sink,
 
 int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -200,7 +200,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         isolate, seq, isolate->factory()->NewRawOneByteString(character_count_),
         String);
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uint8_t* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
@@ -212,7 +212,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         isolate, seq, isolate->factory()->NewRawTwoByteString(character_count_),
         String);
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
@@ -224,7 +224,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
 void ReplacementStringBuilder::AddElement(Handle<Object> element) {
   DCHECK(element->IsSmi() || element->IsString());
   EnsureCapacity(1);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   array_builder_.Add(*element);
 }
 
@@ -304,7 +304,7 @@ void IncrementalStringBuilder::AppendStringByCopy(Handle<String> string) {
   Handle<SeqOneByteString> part =
       Handle<SeqOneByteString>::cast(current_part());
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::WriteToFlat(*string, part->GetChars(no_gc) + current_index_, 0,
                         string->length());
   }

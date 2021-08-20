@@ -66,24 +66,24 @@ const { contextGroup, Protocol } = InspectorTest.start(
     async function testInvalidFrame() {
       let result = await Protocol.Debugger.setVariableValue({ scopeNumber: 0, variableName: 'num', newValue: { unserializableValue: 'NaN' }, callFrameId: 'fakeCallFrame' });
       InspectorTest.log('setVariableValue with invalid callFrameId');
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
       result = await Protocol.Debugger.setVariableValue({ scopeNumber: 'invalidScopeType', variableName: 'num', newValue: { unserializableValue: 'NaN' }, callFrameId });
       InspectorTest.log('setVariableValue with invalid scopeNumber')
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
       result = await Protocol.Debugger.setVariableValue({ scopeNumber: 1000, variableName: 'num', newValue: { unserializableValue: 'NaN' }, callFrameId });
       InspectorTest.log('setVariableValue with invalid scopeNumber');
       InspectorTest.logMessage(result);
       result = await Protocol.Debugger.setVariableValue({ scopeNumber: 0, variableName: 'FakeObjectName', newValue: { unserializableValue: 'NaN' }, callFrameId });
       InspectorTest.log('setVariableValue with invalid variableName');
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
     },
     async function testNewValueErrors() {
       let result = await Protocol.Debugger.setVariableValue({ scopeNumber: 0, variableName: 'num', newValue: { unserializableValue: 'not unserializable value' }, callFrameId });
       InspectorTest.log('setVariableValue with invalid unserializableValue');
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
       result = await Protocol.Debugger.setVariableValue({ scopeNumber: 0, variableName: 'num', newValue: { objectId: 2000 }, callFrameId });
       InspectorTest.log('setVariableValue with invalid objectId');
-      InspectorTest.logMessage(result);
+      InspectorTest.logMessage(InspectorTest.trimErrorMessage(result));
     }
   ]);
 

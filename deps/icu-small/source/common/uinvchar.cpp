@@ -579,7 +579,7 @@ uprv_ebcdicToLowercaseAscii(char c) {
     return (char)lowercaseAsciiFromEbcdic[(uint8_t)c];
 }
 
-U_INTERNAL uint8_t* U_EXPORT2
+U_CAPI uint8_t* U_EXPORT2
 uprv_aestrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;
@@ -600,7 +600,7 @@ uprv_aestrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
   return orig_dst;
 }
 
-U_INTERNAL uint8_t* U_EXPORT2
+U_CAPI uint8_t* U_EXPORT2
 uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
 {
   uint8_t *orig_dst = dst;

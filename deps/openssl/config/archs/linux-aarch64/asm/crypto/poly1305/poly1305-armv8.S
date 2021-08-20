@@ -4,10 +4,14 @@
 
 // forward "declarations" are required for Apple
 
-.globl	poly1305_blocks
-.globl	poly1305_emit
-
+.hidden	OPENSSL_armcap_P
 .globl	poly1305_init
+.hidden	poly1305_init
+.globl	poly1305_blocks
+.hidden	poly1305_blocks
+.globl	poly1305_emit
+.hidden	poly1305_emit
+
 .type	poly1305_init,%function
 .align	5
 poly1305_init:
@@ -795,8 +799,8 @@ poly1305_blocks_neon:
 	st1	{v23.s}[0],[x0]
 
 .Lno_data_neon:
-.inst	0xd50323bf		// autiasp
 	ldr	x29,[sp],#80
+.inst	0xd50323bf		// autiasp
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 

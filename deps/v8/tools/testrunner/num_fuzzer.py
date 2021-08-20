@@ -5,13 +5,14 @@
 # found in the LICENSE file.
 
 # for py2/py3 compatibility
+from __future__ import absolute_import
 from __future__ import print_function
 
 import random
 import sys
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-import base_runner
+from . import base_runner
 
 from testrunner.local import utils
 
@@ -115,6 +116,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
+
+  def _runner_flags(self):
+    """Extra default flags specific to the test runner implementation."""
+    return ['--no-abort-on-contradictory-flags']
 
   def _get_statusfile_variables(self, options):
     variables = (

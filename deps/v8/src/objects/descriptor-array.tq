@@ -16,8 +16,9 @@ struct DescriptorEntry {
   value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
 }
 
-@generateCppClass
-extern class DescriptorArray extends HeapObject {
+@export
+@customCppClass
+class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
   raw_number_of_marked_descriptors: uint16;
@@ -25,3 +26,6 @@ extern class DescriptorArray extends HeapObject {
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }
+
+// A descriptor array where all values are held strongly.
+class StrongDescriptorArray extends DescriptorArray {}

@@ -5903,7 +5903,7 @@ var source =
 "    assert(prev_inuse(p));\n" +
 "    assert (next == av->top || inuse(next));\n" +
 "\n" +
-"    /* ... and has minimally sane links */\n" +
+"    /* ... and has minimally sensible links */\n" +
 "    assert(p->fd->bk == p);\n" +
 "    assert(p->bk->fd == p);\n" +
 "  }\n" +
@@ -9097,7 +9097,7 @@ assertEquals(25640, hebrew.length, "hebrew utf8 in source");
 assertEquals(31082, japanese.length, "japanese utf8 in source");
 assertEquals(12291, korean.length, "korean utf8 in source");
 assertEquals(13851, persian.length, "persian utf8 in source");
-assertEquals(177469, source.length, "source utf8 in source");
+assertEquals(177473, source.length, "source utf8 in source");
 assertEquals(18315, thai.length, "thai utf8 in source");
 
 munged_sizes = new Array(17197, 2511, 2645, 3820, 3086, 2609,

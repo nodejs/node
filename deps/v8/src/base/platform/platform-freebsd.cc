@@ -44,7 +44,7 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
@@ -98,7 +98,7 @@ void OS::SignalCodeMovingGC() {}
 void OS::AdjustSchedulingParams() {}
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
   pthread_attr_t attr;
   int error;
   pthread_attr_init(&attr);

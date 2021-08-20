@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-# To promote and sign a release that has been prepared by the build slaves, use:
+# To promote and sign a release that has been prepared by the build jobs, use:
 #  release.sh
 
 # To _only_ sign an existing release, use:
@@ -28,7 +28,7 @@ while getopts ":i:s:" option; do
             echo "Invalid option -$OPTARG."
             exit 1
             ;;
-        :)
+        *)
             echo "Option -$OPTARG takes a parameter."
             exit 1
             ;;
@@ -42,50 +42,45 @@ shift $((OPTIND-1))
 echo "# Selecting GPG key ..."
 
 gpgkey=$(gpg --list-secret-keys --keyid-format SHORT | awk -F'( +|/)' '/^(sec|ssb)/{print $3}')
-keycount=$(echo $gpgkey | wc -w)
+keycount=$(echo "$gpgkey" | wc -w)
 
-if [ $keycount -eq 0 ]; then
+if [ "$keycount" -eq 0 ]; then
+  # shellcheck disable=SC2016
   echo 'Need at least one GPG key, please make one with `gpg --gen-key`'
   echo 'You will also need to submit your key to a public keyserver, e.g.'
   echo '  https://sks-keyservers.net/i/#submit'
   exit 1
-elif [ $keycount -ne 1 ]; then
-  echo -e 'You have multiple GPG keys:\n'
+elif [ "$keycount" -ne 1 ]; then
+  printf "You have multiple GPG keys:\n\n"
 
   gpg --list-secret-keys
 
-  while true; do
-    echo $gpgkey | awk '{ for(i = 1; i <= NF; i++) { print i ") " $i; } }'
-    echo -n 'Select a key: '
-    read keynum
-
-    if $(test "$keynum" -eq "$keynum" > /dev/null 2>&1); then
-      _gpgkey=$(echo $gpgkey | awk '{ print $'${keynum}'}')
-      keycount=$(echo $_gpgkey | wc -w)
-      if [ $keycount -eq 1 ]; then
-        echo ""
-        gpgkey=$_gpgkey
-        break
-      fi
-    fi
+  keynum=
+  while [ -z "${keynum##*[!0-9]*}" ] || [ "$keynum" -le 0 ] || [ "$keynum" -gt "$keycount" ]; do
+    echo "$gpgkey" | awk '{ print NR ") " $0; }'
+    printf 'Select a key: '
+    read -r keynum
   done
+  echo ""
+  gpgkey=$(echo "$gpgkey" | sed -n "${keynum}p")
 fi
 
-gpgfing=$(gpg --keyid-format 0xLONG --fingerprint $gpgkey | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
+gpgfing=$(gpg --keyid-format 0xLONG --fingerprint "$gpgkey" | grep 'Key fingerprint =' | awk -F' = ' '{print $2}' | tr -d ' ')
 
-if ! test "$(grep $gpgfing README.md)"; then
-  echo 'Error: this GPG key fingerprint is not listed in ./README.md'
-  exit 1
-fi
+grep -q "$gpgfing" README.md || (\
+  echo 'Error: this GPG key fingerprint is not listed in ./README.md' && \
+  exit 1 \
+)
+
 
 echo "Using GPG key: $gpgkey"
 echo "  Fingerprint: $gpgfing"
 
-function checktag {
-  local version=$1
+checktag() {
+  # local version=$1
 
-  if ! git tag -v $version 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
-    echo "Could not find signed tag for \"${version}\" or GPG key is not yours"
+  if ! git tag -v "$1" 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
+    echo "Could not find signed tag for \"$1\" or GPG key is not yours"
     exit 1
   fi
 }
@@ -93,58 +88,63 @@ function checktag {
 ################################################################################
 ## Create and sign checksums file for a given version
 
-function sign {
-  echo -e "\n# Creating SHASUMS256.txt ..."
+sign() {
+  printf "\n# Creating SHASUMS256.txt ...\n"
 
-  local version=$1
+  # local version=$1
 
-  ghtaggedversion=$(curl -sL https://raw.githubusercontent.com/nodejs/node/${version}/src/node_version.h \
+  ghtaggedversion=$(curl -sL "https://raw.githubusercontent.com/nodejs/node/$1/src/node_version.h" \
       | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
-  if [ "${version}" != "${ghtaggedversion}" ]; then
+  if [ "$1" != "${ghtaggedversion}" ]; then
     echo "Could not find tagged version on github.com/nodejs/node, did you push your tag?"
     exit 1
   fi
 
-  shapath=$(ssh ${customsshkey} ${webuser}@${webhost} $signcmd nodejs $version)
+  # shellcheck disable=SC2086,SC2029
+  shapath=$(ssh ${customsshkey} "${webuser}@${webhost}" $signcmd nodejs $1)
 
-  if ! [[ ${shapath} =~ ^/.+/SHASUMS256.txt$ ]]; then
-    echo 'Error: No SHASUMS file returned by sign!'
-    exit 1
-  fi
+  echo "${shapath}" | grep -q '^/.*/SHASUMS256.txt$' || (\
+    echo 'Error: No SHASUMS file returned by sign!' &&\
+    exit 1)
 
-  echo -e "\n# Signing SHASUMS for ${version}..."
+  echo ""
+  echo "# Signing SHASUMS for $1..."
 
-  shafile=$(basename $shapath)
-  shadir=$(dirname $shapath)
+  shafile=$(basename "$shapath")
+  shadir=$(dirname "$shapath")
   tmpdir="/tmp/_node_release.$$"
 
   mkdir -p $tmpdir
 
-  scp ${customsshkey} ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
+  # shellcheck disable=SC2086
+  scp ${customsshkey} "${webuser}@${webhost}:${shapath}" "${tmpdir}/${shafile}"
 
-  gpg --default-key $gpgkey --clearsign --digest-algo SHA256 ${tmpdir}/${shafile}
-  gpg --default-key $gpgkey --detach-sign --digest-algo SHA256 ${tmpdir}/${shafile}
+  gpg --default-key "$gpgkey" --clearsign --digest-algo SHA256 "${tmpdir}/${shafile}"
+  gpg --default-key "$gpgkey" --detach-sign --digest-algo SHA256 "${tmpdir}/${shafile}"
 
   echo "Wrote to ${tmpdir}/"
 
-  echo -e "Your signed ${shafile}.asc:\n"
+  echo "Your signed ${shafile}.asc:"
+  echo ""
 
-  cat ${tmpdir}/${shafile}.asc
+  cat "${tmpdir}/${shafile}.asc"
 
   echo ""
 
   while true; do
-    echo -n "Upload files? [y/n] "
+    printf "Upload files? [y/n] "
     yorn=""
-    read yorn
+    read -r yorn
 
-    if [ "X${yorn}" == "Xn" ]; then
+    if [ "X${yorn}" = "Xn" ]; then
       break
     fi
 
-    if [ "X${yorn}" == "Xy" ]; then
-      scp ${customsshkey} ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
-      ssh ${customsshkey} ${webuser}@${webhost} chmod 644 ${shadir}/${shafile}.asc ${shadir}/${shafile}.sig
+    if [ "X${yorn}" = "Xy" ]; then
+      # shellcheck disable=SC2086
+      scp ${customsshkey} "${tmpdir}/${shafile}" "${tmpdir}/${shafile}.asc" "${tmpdir}/${shafile}.sig" "${webuser}@${webhost}:${shadir}/"
+      # shellcheck disable=SC2086,SC2029
+      ssh ${customsshkey} "${webuser}@${webhost}" chmod 644 "${shadir}/${shafile}.asc" "${shadir}/${shafile}.sig"
       break
     fi
   done
@@ -154,8 +154,8 @@ function sign {
 
 
 if [ -n "${signversion}" ]; then
-		checktag $signversion
-    sign $signversion
+		checktag "$signversion"
+    sign "$signversion"
     exit 0
 fi
 
@@ -164,16 +164,18 @@ fi
 ################################################################################
 ## Look for releases to promote
 
-echo -e "\n# Checking for releases ..."
+printf "\n# Checking for releases ...\n"
 
-promotable=$(ssh ${customsshkey} ${webuser}@${webhost} $promotablecmd nodejs)
+# shellcheck disable=SC2086,SC2029
+promotable=$(ssh ${customsshkey} "$webuser@$webhost" $promotablecmd nodejs)
 
-if [ "X${promotable}" == "X" ]; then
+if [ "X${promotable}" = "X" ]; then
   echo "No releases to promote!"
   exit 0
 fi
 
-echo -e "Found the following releases / builds ready to promote:\n"
+echo "Found the following releases / builds ready to promote:"
+echo ""
 echo "$promotable" | sed 's/^/ * /'
 echo ""
 
@@ -184,12 +186,12 @@ versions=$(echo "$promotable" | cut -d: -f1)
 
 for version in $versions; do
   while true; do
-    files=$(echo "$promotable" | grep "^${version}" | sed 's/^'${version}': //')
-    echo -n "Promote ${version} files (${files})? [y/n] "
+    files=$(echo "$promotable" | grep "^${version}" | sed 's/^'"${version}"': //')
+    printf "Promote %s files (%s)? [y/n] " "${version}" "${files}"
     yorn=""
-    read yorn
+    read -r yorn
 
-    if [ "X${yorn}" == "Xn" ]; then
+    if [ "X${yorn}" = "Xn" ]; then
       break
     fi
 
@@ -197,15 +199,14 @@ for version in $versions; do
       continue
     fi
 
-		checktag $version
+		checktag "$version"
 
-    echo -e "\n# Promoting ${version}..."
+    echo ""
+    echo "# Promoting ${version}..."
 
-    ssh ${customsshkey} ${webuser}@${webhost} $promotecmd nodejs $version
-
-    if [ $? -eq 0 ];then
-      sign $version
-    fi
+    # shellcheck disable=SC2086,SC2029
+    ssh ${customsshkey} "$webuser@$webhost" $promotecmd nodejs $version && \
+      sign "$version"
 
     break
   done

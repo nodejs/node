@@ -101,9 +101,10 @@ public:
      * Multiple calls to buildUnicodeString() set the UnicodeStrings to the
      * builder's same char16_t array, without rebuilding.
      * If buildUnicodeString() is called after build(), the trie will be
-     * re-serialized into a new array.
-     * If build() is called after buildUnicodeString(), the trie object will become
-     * the owner of the previously returned array.
+     * re-serialized into a new array (because build() passes on ownership).
+     * If build() is called after buildUnicodeString(), the trie object returned
+     * by build() will become the owner of the underlying data for the
+     * previously returned UnicodeString.
      * After clear() has been called, a new array will be used as well.
      * @param buildOption Build option, see UStringTrieBuildOption.
      * @param result A UnicodeString which will be set to the char16_t-serialized
@@ -147,7 +148,7 @@ private:
     virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t unitIndex, int32_t count) const;
     virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, char16_t unit) const;
 
-    virtual UBool matchNodesCanHaveValues() const { return TRUE; }
+    virtual UBool matchNodesCanHaveValues() const { return true; }
 
     virtual int32_t getMaxBranchLinearSubNodeLength() const { return UCharsTrie::kMaxBranchLinearSubNodeLength; }
     virtual int32_t getMinLinearMatch() const { return UCharsTrie::kMinLinearMatch; }

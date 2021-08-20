@@ -17,6 +17,10 @@ template <typename T>
 MaybeHandle<T>::MaybeHandle(T object, Isolate* isolate)
     : MaybeHandle(handle(object, isolate)) {}
 
+template <typename T>
+MaybeHandle<T>::MaybeHandle(T object, LocalHeap* local_heap)
+    : MaybeHandle(handle(object, local_heap)) {}
+
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   HeapObject heap_object;
   DCHECK(!object->IsCleared());
@@ -29,12 +33,29 @@ MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   }
 }
 
+MaybeObjectHandle::MaybeObjectHandle(MaybeObject object,
+                                     LocalHeap* local_heap) {
+  HeapObject heap_object;
+  DCHECK(!object->IsCleared());
+  if (object->GetHeapObjectIfWeak(&heap_object)) {
+    handle_ = handle(heap_object, local_heap);
+    reference_type_ = HeapObjectReferenceType::WEAK;
+  } else {
+    handle_ = handle(object->cast<Object>(), local_heap);
+    reference_type_ = HeapObjectReferenceType::STRONG;
+  }
+}
+
 MaybeObjectHandle::MaybeObjectHandle(Handle<Object> object)
     : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
 
 MaybeObjectHandle::MaybeObjectHandle(Object object, Isolate* isolate)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, isolate) {}
+
+MaybeObjectHandle::MaybeObjectHandle(Object object, LocalHeap* local_heap)
+    : reference_type_(HeapObjectReferenceType::STRONG),
+      handle_(object, local_heap) {}
 
 MaybeObjectHandle::MaybeObjectHandle(Object object,
                                      HeapObjectReferenceType reference_type,
@@ -51,6 +72,15 @@ MaybeObjectHandle MaybeObjectHandle::Weak(Handle<Object> object) {
 
 MaybeObjectHandle MaybeObjectHandle::Weak(Object object, Isolate* isolate) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK, isolate);
+}
+
+bool MaybeObjectHandle::is_identical_to(const MaybeObjectHandle& other) const {
+  Handle<Object> this_handle;
+  Handle<Object> other_handle;
+  return reference_type_ == other.reference_type_ &&
+         handle_.ToHandle(&this_handle) ==
+             other.handle_.ToHandle(&other_handle) &&
+         this_handle.is_identical_to(other_handle);
 }
 
 MaybeObject MaybeObjectHandle::operator*() const {
@@ -75,6 +105,10 @@ Handle<Object> MaybeObjectHandle::object() const {
 
 inline MaybeObjectHandle handle(MaybeObject object, Isolate* isolate) {
   return MaybeObjectHandle(object, isolate);
+}
+
+inline MaybeObjectHandle handle(MaybeObject object, LocalHeap* local_heap) {
+  return MaybeObjectHandle(object, local_heap);
 }
 
 }  // namespace internal

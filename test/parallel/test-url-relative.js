@@ -7,9 +7,7 @@ const url = require('url');
 // When source is false
 assert.strictEqual(url.resolveObject('', 'foo'), 'foo');
 
-/*
- [from, path, expected]
-*/
+// [from, path, expected]
 const relativeTests = [
   ['/foo/bar/baz', 'quux', '/foo/bar/quux'],
   ['/foo/bar/baz', 'quux/asdf', '/foo/bar/quux/asdf'],
@@ -54,7 +52,7 @@ const relativeTests = [
    'http://example.com/a/b/c/d'],
   ['/foo/bar/baz', '/../etc/passwd', '/etc/passwd'],
   ['http://localhost', 'file:///Users/foo', 'file:///Users/foo'],
-  ['http://localhost', 'file://foo/Users', 'file://foo/Users']
+  ['http://localhost', 'file://foo/Users', 'file://foo/Users'],
 ];
 relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
@@ -78,7 +76,7 @@ const bases = [
   'http://a/b/c/d;p?q=1/2',
   'http://a/b/c/d;p=1/2?q',
   'fred:///s//a/b/c',
-  'http:///s//a/b/c'
+  'http:///s//a/b/c',
 ];
 
 // [to, from, result]
@@ -373,7 +371,7 @@ const relativeTests2 = [
    'https://user:password@example.com/foo'],
 
   // No path at all
-  ['#hash1', '#hash2', '#hash1']
+  ['#hash1', '#hash2', '#hash1'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);

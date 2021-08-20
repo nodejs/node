@@ -45,9 +45,9 @@ public:
     static UBool appendUnchanged(const uint8_t *s, int32_t length,
                                  ByteSink &sink, uint32_t options, Edits *edits,
                                  UErrorCode &errorCode) {
-        if (U_FAILURE(errorCode)) { return FALSE; }
+        if (U_FAILURE(errorCode)) { return false; }
         if (length > 0) { appendNonEmptyUnchanged(s, length, sink, options, edits); }
-        return TRUE;
+        return true;
     }
 
     static UBool appendUnchanged(const uint8_t *s, const uint8_t *limit,

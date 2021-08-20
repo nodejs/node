@@ -33,15 +33,15 @@ error occurs if B<a> is shorter than B<n> bits.
 BN_is_bit_set() tests if bit B<n> in B<a> is set.
 
 BN_mask_bits() truncates B<a> to an B<n> bit number
-(C<a&=~((~0)E<gt>E<gt>n)>).  An error occurs if B<a> already is
+(C<a&=~((~0)E<lt>E<lt>n)>).  An error occurs if B<a> already is
 shorter than B<n> bits.
 
 BN_lshift() shifts B<a> left by B<n> bits and places the result in
-B<r> (C<r=a*2^n>). Note that B<n> must be non-negative. BN_lshift1() shifts
+B<r> (C<r=a*2^n>). Note that B<n> must be nonnegative. BN_lshift1() shifts
 B<a> left by one and places the result in B<r> (C<r=2*a>).
 
 BN_rshift() shifts B<a> right by B<n> bits and places the result in
-B<r> (C<r=a/2^n>). Note that B<n> must be non-negative. BN_rshift1() shifts
+B<r> (C<r=a/2^n>). Note that B<n> must be nonnegative. BN_rshift1() shifts
 B<a> right by one and places the result in B<r> (C<r=a/2>).
 
 For the shift functions, B<r> and B<a> may be the same variable.
@@ -59,7 +59,7 @@ L<BN_num_bytes(3)>, L<BN_add(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

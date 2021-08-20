@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,14 @@
 #include <openssl/crypto.h>
 #include "modes_local.h"
 #include <string.h>
+
+#ifndef STRICT_ALIGNMENT
+# ifdef __GNUC__
+typedef u64 u64_a1 __attribute((__aligned__(1)));
+# else
+typedef u64 u64_a1;
+# endif
+#endif
 
 /*
  * First you setup M and L parameters and pass the key schedule. This is
@@ -170,8 +178,8 @@ int CRYPTO_ccm128_encrypt(CCM128_CONTEXT *ctx,
         ctx->cmac.u[0] ^= temp.u[0];
         ctx->cmac.u[1] ^= temp.u[1];
 #else
-        ctx->cmac.u[0] ^= ((u64 *)inp)[0];
-        ctx->cmac.u[1] ^= ((u64 *)inp)[1];
+        ctx->cmac.u[0] ^= ((u64_a1 *)inp)[0];
+        ctx->cmac.u[1] ^= ((u64_a1 *)inp)[1];
 #endif
         (*block) (ctx->cmac.c, ctx->cmac.c, key);
         (*block) (ctx->nonce.c, scratch.c, key);
@@ -181,8 +189,8 @@ int CRYPTO_ccm128_encrypt(CCM128_CONTEXT *ctx,
         temp.u[1] ^= scratch.u[1];
         memcpy(out, temp.c, 16);
 #else
-        ((u64 *)out)[0] = scratch.u[0] ^ ((u64 *)inp)[0];
-        ((u64 *)out)[1] = scratch.u[1] ^ ((u64 *)inp)[1];
+        ((u64_a1 *)out)[0] = scratch.u[0] ^ ((u64_a1 *)inp)[0];
+        ((u64_a1 *)out)[1] = scratch.u[1] ^ ((u64_a1 *)inp)[1];
 #endif
         inp += 16;
         out += 16;
@@ -254,8 +262,10 @@ int CRYPTO_ccm128_decrypt(CCM128_CONTEXT *ctx,
         ctx->cmac.u[1] ^= (scratch.u[1] ^= temp.u[1]);
         memcpy(out, scratch.c, 16);
 #else
-        ctx->cmac.u[0] ^= (((u64 *)out)[0] = scratch.u[0] ^ ((u64 *)inp)[0]);
-        ctx->cmac.u[1] ^= (((u64 *)out)[1] = scratch.u[1] ^ ((u64 *)inp)[1]);
+        ctx->cmac.u[0] ^= (((u64_a1 *)out)[0]
+                            = scratch.u[0] ^ ((u64_a1 *)inp)[0]);
+        ctx->cmac.u[1] ^= (((u64_a1 *)out)[1]
+                            = scratch.u[1] ^ ((u64_a1 *)inp)[1]);
 #endif
         (*block) (ctx->cmac.c, ctx->cmac.c, key);
 

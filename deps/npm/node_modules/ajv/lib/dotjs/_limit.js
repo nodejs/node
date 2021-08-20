@@ -24,6 +24,12 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
     $op = $isMax ? '<' : '>',
     $notOp = $isMax ? '>' : '<',
     $errorKeyword = undefined;
+  if (!($isData || typeof $schema == 'number' || $schema === undefined)) {
+    throw new Error($keyword + ' must be number');
+  }
+  if (!($isDataExcl || $schemaExcl === undefined || typeof $schemaExcl == 'number' || typeof $schemaExcl == 'boolean')) {
+    throw new Error($exclusiveKeyword + ' must be number or boolean');
+  }
   if ($isDataExcl) {
     var $schemaValueExcl = it.util.getData($schemaExcl.$data, $dataLvl, it.dataPathArr),
       $exclusive = 'exclusive' + $lvl,
@@ -52,7 +58,8 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
     }
     var __err = out;
     out = $$outStack.pop();
-    if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+    if (!it.compositeRule && $breakOnError) {
+      /* istanbul ignore if */
       if (it.async) {
         out += ' throw new ValidationError([' + (__err) + ']); ';
       } else {
@@ -65,7 +72,13 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
     if ($isData) {
       out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'number\') || ';
     }
-    out += ' ' + ($exclType) + ' == \'number\' ? ( (' + ($exclusive) + ' = ' + ($schemaValue) + ' === undefined || ' + ($schemaValueExcl) + ' ' + ($op) + '= ' + ($schemaValue) + ') ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValueExcl) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) : ( (' + ($exclusive) + ' = ' + ($schemaValueExcl) + ' === true) ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValue) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) || ' + ($data) + ' !== ' + ($data) + ') { var op' + ($lvl) + ' = ' + ($exclusive) + ' ? \'' + ($op) + '\' : \'' + ($op) + '=\';';
+    out += ' ' + ($exclType) + ' == \'number\' ? ( (' + ($exclusive) + ' = ' + ($schemaValue) + ' === undefined || ' + ($schemaValueExcl) + ' ' + ($op) + '= ' + ($schemaValue) + ') ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValueExcl) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) : ( (' + ($exclusive) + ' = ' + ($schemaValueExcl) + ' === true) ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValue) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) || ' + ($data) + ' !== ' + ($data) + ') { var op' + ($lvl) + ' = ' + ($exclusive) + ' ? \'' + ($op) + '\' : \'' + ($op) + '=\'; ';
+    if ($schema === undefined) {
+      $errorKeyword = $exclusiveKeyword;
+      $errSchemaPath = it.errSchemaPath + '/' + $exclusiveKeyword;
+      $schemaValue = $schemaValueExcl;
+      $isData = $isDataExcl;
+    }
   } else {
     var $exclIsNumber = typeof $schemaExcl == 'number',
       $opStr = $op;
@@ -132,7 +145,8 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
   }
   var __err = out;
   out = $$outStack.pop();
-  if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+  if (!it.compositeRule && $breakOnError) {
+    /* istanbul ignore if */
     if (it.async) {
       out += ' throw new ValidationError([' + (__err) + ']); ';
     } else {

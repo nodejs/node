@@ -9,6 +9,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/string-set-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +17,7 @@ namespace internal {
 Handle<ScriptContextTable> ScriptContextTable::Extend(
     Handle<ScriptContextTable> table, Handle<Context> script_context) {
   Handle<ScriptContextTable> result;
-  int used = table->used();
+  int used = table->synchronized_used();
   int length = table->length();
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + kFirstContextSlotIndex == length) {
@@ -29,10 +30,10 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   } else {
     result = table;
   }
-  result->set_used(used + 1);
-
   DCHECK(script_context->IsScriptContext());
   result->set(used + kFirstContextSlotIndex, *script_context);
+
+  result->synchronized_set_used(used + 1);
   return result;
 }
 
@@ -48,12 +49,13 @@ void Context::Initialize(Isolate* isolate) {
 
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
                                 String name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Static variables cannot be in script contexts.
   IsStaticFlag is_static_flag;
-  for (int i = 0; i < table.used(); i++) {
+  for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
+    result->is_repl_mode = context.scope_info().IsReplModeScope();
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag, &is_static_flag);
@@ -159,13 +161,13 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
                               isolate->factory()->unscopables_symbol()),
       Nothing<bool>());
   if (!unscopables->IsJSReceiver()) return Just(true);
-  Handle<Object> blacklist;
+  Handle<Object> blocklist;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, blacklist,
+      isolate, blocklist,
       JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(unscopables),
                               it->name()),
       Nothing<bool>());
-  return Just(!blacklist->BooleanValue(isolate));
+  return Just(!blocklist->BooleanValue(isolate));
 }
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
@@ -215,7 +217,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         if (FLAG_trace_contexts) {
           PrintF(" - trying other script contexts\n");
         }
@@ -286,7 +288,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     if (context->IsFunctionContext() || context->IsBlockContext() ||
         context->IsScriptContext() || context->IsEvalContext() ||
         context->IsModuleContext() || context->IsCatchContext()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       ScopeInfo scope_info = context->scope_info();
@@ -377,12 +379,12 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         }
       }
 
-      // Check blacklist. Names that are listed, cannot be resolved further.
-      Object blacklist = context->get(BLACK_LIST_INDEX);
-      if (blacklist.IsStringSet() &&
-          StringSet::cast(blacklist).Has(isolate, name)) {
+      // Check blocklist. Names that are listed, cannot be resolved further.
+      Object blocklist = context->get(BLOCK_LIST_INDEX);
+      if (blocklist.IsStringSet() &&
+          StringSet::cast(blocklist).Has(isolate, name)) {
         if (FLAG_trace_contexts) {
-          PrintF(" - name is blacklisted. Aborting.\n");
+          PrintF(" - name is blocklisted. Aborting.\n");
         }
         break;
       }
@@ -411,14 +413,14 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 }
 
 void NativeContext::AddOptimizedCode(Code code) {
-  DCHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(get(OPTIMIZED_CODE_LIST));
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::OptimizedCodeListHead() {
@@ -426,7 +428,7 @@ Object NativeContext::OptimizedCodeListHead() {
 }
 
 void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::DeoptimizedCodeListHead() {
@@ -509,6 +511,62 @@ STATIC_ASSERT(NativeContext::kMicrotaskQueueOffset ==
 STATIC_ASSERT(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
+
+void NativeContext::RunPromiseHook(PromiseHookType type,
+                                   Handle<JSPromise> promise,
+                                   Handle<Object> parent) {
+  Isolate* isolate = promise->GetIsolate();
+  DCHECK(isolate->HasContextPromiseHooks());
+  int contextSlot;
+
+  switch (type) {
+    case PromiseHookType::kInit:
+      contextSlot = PROMISE_HOOK_INIT_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kResolve:
+      contextSlot = PROMISE_HOOK_RESOLVE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kBefore:
+      contextSlot = PROMISE_HOOK_BEFORE_FUNCTION_INDEX;
+      break;
+    case PromiseHookType::kAfter:
+      contextSlot = PROMISE_HOOK_AFTER_FUNCTION_INDEX;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<Object> hook(isolate->native_context()->get(contextSlot), isolate);
+  if (hook->IsUndefined()) return;
+
+  int argc = type == PromiseHookType::kInit ? 2 : 1;
+  Handle<Object> argv[2] = {
+    Handle<Object>::cast(promise),
+    parent
+  };
+
+  Handle<Object> receiver = isolate->global_proxy();
+
+  StackLimitCheck check(isolate);
+  bool failed = false;
+  if (check.HasOverflowed()) {
+    isolate->StackOverflow();
+    failed = true;
+  } else {
+    failed = Execution::Call(isolate, hook, receiver, argc, argv).is_null();
+  }
+  if (failed) {
+    DCHECK(isolate->has_pending_exception());
+    Handle<Object> exception(isolate->pending_exception(), isolate);
+
+    MessageLocation* no_location = nullptr;
+    Handle<JSMessageObject> message =
+        isolate->CreateMessageOrAbort(exception, no_location);
+    MessageHandler::ReportMessage(isolate, no_location, message);
+
+    isolate->clear_pending_exception();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

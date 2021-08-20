@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include "cbor.h"
-#include "glue.h"
+#include "maybe.h"
 #include "span.h"
 
 namespace v8_crdtp {
@@ -124,9 +124,9 @@ struct FieldSerializerTraits {
 };
 
 template <typename T>
-struct FieldSerializerTraits<glue::detail::PtrMaybe<T>> {
+struct FieldSerializerTraits<detail::PtrMaybe<T>> {
   static void Serialize(span<uint8_t> field_name,
-                        const glue::detail::PtrMaybe<T>& field_value,
+                        const detail::PtrMaybe<T>& field_value,
                         std::vector<uint8_t>* out) {
     if (!field_value.isJust())
       return;
@@ -136,9 +136,9 @@ struct FieldSerializerTraits<glue::detail::PtrMaybe<T>> {
 };
 
 template <typename T>
-struct FieldSerializerTraits<glue::detail::ValueMaybe<T>> {
+struct FieldSerializerTraits<detail::ValueMaybe<T>> {
   static void Serialize(span<uint8_t> field_name,
-                        const glue::detail::ValueMaybe<T>& field_value,
+                        const detail::ValueMaybe<T>& field_value,
                         std::vector<uint8_t>* out) {
     if (!field_value.isJust())
       return;

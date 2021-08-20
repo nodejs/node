@@ -26,11 +26,13 @@ namespace U_ICU_NAMESPACE {
 class UnicodeString;
 namespace number {
 class LocalizedNumberFormatter;
-}  //  namespace number
-}  //  namespace U_ICU_NAMESPACE
+}  // namespace number
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-number-format-tq.inc"
 
 class JSNumberFormat
     : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {

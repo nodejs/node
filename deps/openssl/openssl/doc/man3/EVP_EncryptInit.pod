@@ -120,7 +120,7 @@ EVP_enc_null
 
 =head1 DESCRIPTION
 
-The EVP cipher routines are a high level interface to certain
+The EVP cipher routines are a high-level interface to certain
 symmetric ciphers.
 
 EVP_CIPHER_CTX_new() creates a cipher context.
@@ -146,10 +146,15 @@ appropriate.
 EVP_EncryptUpdate() encrypts B<inl> bytes from the buffer B<in> and
 writes the encrypted version to B<out>. This function can be called
 multiple times to encrypt successive blocks of data. The amount
-of data written depends on the block alignment of the encrypted data:
-as a result the amount of data written may be anything from zero bytes
-to (inl + cipher_block_size - 1) so B<out> should contain sufficient
-room. The actual number of bytes written is placed in B<outl>. It also
+of data written depends on the block alignment of the encrypted data.
+For most ciphers and modes, the amount of data written can be anything
+from zero bytes to (inl + cipher_block_size - 1) bytes.
+For wrap cipher modes, the amount of data written can be anything
+from zero bytes to (inl + cipher_block_size) bytes.
+For stream ciphers, the amount of data written can be anything from zero
+bytes to inl bytes.
+Thus, B<out> should contain sufficient room for the operation being performed.
+The actual number of bytes written is placed in B<outl>. It also
 checks if B<in> and B<out> are partially overlapping, and if they are
 0 is returned to indicate failure.
 
@@ -422,8 +427,8 @@ Sets the CCM B<L> value. If not set a default is used (8 for AES).
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL)
 
-Sets the CCM nonce (IV) length. This call can only be made before specifying an
-nonce value. The nonce length is given by B<15 - L> so it is 7 by default for
+Sets the CCM nonce (IV) length. This call can only be made before specifying 
+a nonce value. The nonce length is given by B<15 - L> so it is 7 by default for
 AES.
 
 =back
@@ -463,10 +468,10 @@ This call is only valid when decrypting data.
 =head1 NOTES
 
 Where possible the B<EVP> interface to symmetric ciphers should be used in
-preference to the low level interfaces. This is because the code then becomes
+preference to the low-level interfaces. This is because the code then becomes
 transparent to the cipher used and much more flexible. Additionally, the
 B<EVP> interface will ensure the use of platform specific cryptographic
-acceleration such as AES-NI (the low level interfaces do not provide the
+acceleration such as AES-NI (the low-level interfaces do not provide the
 guarantee).
 
 PKCS padding works by adding B<n> padding bytes of value B<n> to make the total
@@ -591,7 +596,7 @@ with a 128-bit key:
 
      /* Don't set key or IV right away; we want to check lengths */
      ctx = EVP_CIPHER_CTX_new();
-     EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
+     EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
                        do_encrypt);
      OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) == 16);
      OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
@@ -654,7 +659,7 @@ EVP_CIPHER_CTX_reset().
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

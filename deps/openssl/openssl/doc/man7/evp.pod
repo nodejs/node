@@ -25,7 +25,7 @@ functions.
 Symmetric encryption is available with the L<B<EVP_Encrypt>I<XXX>|EVP_EncryptInit(3)>
 functions.  The L<B<EVP_Digest>I<XXX>|EVP_DigestInit(3)> functions provide message digests.
 
-The B<EVP_PKEY>I<XXX> functions provide a high level interface to
+The B<EVP_PKEY>I<XXX> functions provide a high-level interface to
 asymmetric algorithms. To create a new EVP_PKEY see
 L<EVP_PKEY_new(3)>. EVP_PKEYs can be associated
 with a private key of a particular algorithm by using the functions
@@ -43,7 +43,7 @@ The EVP_PKEY functions support the full range of asymmetric algorithm operations
 =item For signing and verifying see L<EVP_PKEY_sign(3)>,
 L<EVP_PKEY_verify(3)> and L<EVP_PKEY_verify_recover(3)>.
 However, note that
-these functions do not perform a digest of the data to be signed. Therefore
+these functions do not perform a digest of the data to be signed. Therefore,
 normally you would use the L<EVP_DigestSignInit(3)>
 functions for this purpose.
 
@@ -72,12 +72,12 @@ as defaults, then the various EVP functions will automatically use those
 implementations automatically in preference to built in software
 implementations. For more information, consult the engine(3) man page.
 
-Although low level algorithm specific functions exist for many algorithms
+Although low-level algorithm specific functions exist for many algorithms
 their use is discouraged. They cannot be used with an ENGINE and ENGINE
-versions of new algorithms cannot be accessed using the low level functions.
+versions of new algorithms cannot be accessed using the low-level functions.
 Also makes code harder to adapt to new algorithms and some options are not
-cleanly supported at the low level and some operations are more efficient
-using the high level interface.
+cleanly supported at the low-level and some operations are more efficient
+using the high-level interface.
 
 =head1 SEE ALSO
 
@@ -104,7 +104,7 @@ L<ENGINE_by_id(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

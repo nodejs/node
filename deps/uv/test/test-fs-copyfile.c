@@ -25,7 +25,7 @@
 #if defined(__unix__) || defined(__POSIX__) || \
     defined(__APPLE__) || defined(__sun) || \
     defined(_AIX) || defined(__MVS__) || \
-    defined(__HAIKU__)
+    defined(__HAIKU__) || defined(__QNX__)
 #include <unistd.h> /* unlink, etc. */
 #else
 # include <direct.h>
@@ -96,6 +96,9 @@ static void touch_file(const char* name, unsigned int size) {
 
 
 TEST_IMPL(fs_copyfile) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char src[] = "test_file_src";
   uv_loop_t* loop;
   uv_fs_t req;
@@ -124,6 +127,11 @@ TEST_IMPL(fs_copyfile) {
   touch_file(src, 12);
   r = uv_fs_copyfile(NULL, &req, src, src, 0, NULL);
   ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+  /* Verify that the src file did not get truncated. */
+  r = uv_fs_stat(NULL, &req, src, NULL);
+  ASSERT_EQ(r, 0);
+  ASSERT_EQ(req.statbuf.st_size, 12);
   uv_fs_req_cleanup(&req);
   unlink(src);
 

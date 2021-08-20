@@ -34,11 +34,13 @@ class WithFinalizationRegistryMixin : public TMixin {
  public:
   WithFinalizationRegistryMixin() = default;
   ~WithFinalizationRegistryMixin() override = default;
+  WithFinalizationRegistryMixin(const WithFinalizationRegistryMixin&) = delete;
+  WithFinalizationRegistryMixin& operator=(
+      const WithFinalizationRegistryMixin&) = delete;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_harmony_weak_refs = true;
     FLAG_expose_gc = true;
     FLAG_allow_natives_syntax = true;
     TMixin::SetUpTestCase();
@@ -53,8 +55,6 @@ class WithFinalizationRegistryMixin : public TMixin {
 
  private:
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithFinalizationRegistryMixin);
 };
 
 template <typename TMixin>
@@ -248,6 +248,7 @@ TEST_P(MicrotaskQueueTest, VisitRoot) {
 }
 
 TEST_P(MicrotaskQueueTest, PromiseHandlerContext) {
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kExplicit);
   Local<v8::Context> v8_context2 = v8::Context::New(v8_isolate());
   Local<v8::Context> v8_context3 = v8::Context::New(v8_isolate());
   Local<v8::Context> v8_context4 = v8::Context::New(v8_isolate());
@@ -354,6 +355,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_Enqueue) {
 }
 
 TEST_P(MicrotaskQueueTest, DetachGlobal_Run) {
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kExplicit);
   EXPECT_EQ(0, microtask_queue()->size());
 
   // Enqueue microtasks to the current context.
@@ -392,6 +394,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_Run) {
 }
 
 TEST_P(MicrotaskQueueTest, DetachGlobal_PromiseResolveThenableJobTask) {
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kExplicit);
   RunJS(
       "var resolve;"
       "var promise = new Promise(r => { resolve = r; });"
@@ -414,6 +417,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_PromiseResolveThenableJobTask) {
 }
 
 TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kExplicit);
   Handle<JSArray> result = RunJS<JSArray>(
       "let result = [false];"
       "result");
@@ -425,6 +429,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
     // Create a context with its own microtask queue.
     std::unique_ptr<MicrotaskQueue> sub_microtask_queue =
         MicrotaskQueue::New(isolate());
+    sub_microtask_queue->set_microtasks_policy(MicrotasksPolicy::kExplicit);
     Local<v8::Context> sub_context = v8::Context::New(
         v8_isolate(),
         /* extensions= */ nullptr,

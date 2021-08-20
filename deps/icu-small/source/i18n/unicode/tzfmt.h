@@ -295,7 +295,7 @@ public:
      * Return true if the given Format objects are semantically equal.
      * Objects of different subclasses are considered unequal.
      * @param other The object to be compared with.
-     * @return Return TRUE if the given Format objects are semantically equal.
+     * @return Return true if the given Format objects are semantically equal.
      *                Objects of different subclasses are considered unequal.
      * @stable ICU 50
      */
@@ -814,7 +814,7 @@ private:
      * @param str the string
      * @param codeArray receives the result
      * @param capacity the capacity of codeArray
-     * @return TRUE when the specified code array is fully filled with code points
+     * @return true when the specified code array is fully filled with code points
      *         (no under/overflow).
      */
     static UBool toCodePoints(const UnicodeString& str, UChar32* codeArray, int32_t capacity);
@@ -849,8 +849,8 @@ private:
      * @param text the text contains ISO 8601 style time zone string (e.g. "-08:00", "Z")
      *      at the position.
      * @param pos the position, non-negative error index will be set on failure.
-     * @param extendedOnly TRUE if parsing the text as ISO 8601 extended offset format (e.g. "-08:00"),
-     *      or FALSE to evaluate the text as basic format.
+     * @param extendedOnly true if parsing the text as ISO 8601 extended offset format (e.g. "-08:00"),
+     *      or false to evaluate the text as basic format.
      * @param hasDigitOffset receiving if the parsed zone string contains offset digits.
      * @return the offset from GMT(UTC) in milliseconds for the given ISO 8601 style
      *      time zone string.

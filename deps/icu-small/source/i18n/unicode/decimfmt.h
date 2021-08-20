@@ -564,11 +564,11 @@ class NumberParserImpl;
  *
  * <li>In order to enable significant digits formatting, use a pattern
  * containing the <code>'@'</code> pattern character.  Alternatively,
- * call setSignificantDigitsUsed(TRUE).
+ * call setSignificantDigitsUsed(true).
  *
  * <li>In order to disable significant digits formatting, use a
  * pattern that does not contain the <code>'@'</code> pattern
- * character. Alternatively, call setSignificantDigitsUsed(FALSE).
+ * character. Alternatively, call setSignificantDigitsUsed(false).
  *
  * <li>The number of significant digits has no effect on parsing.
  *
@@ -817,8 +817,8 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Sets whether lenient parsing should be enabled (it is off by default).
      *
-     * @param enable \c TRUE if lenient parsing should be used,
-     *               \c FALSE otherwise.
+     * @param enable \c true if lenient parsing should be used,
+     *               \c false otherwise.
      * @stable ICU 4.8
      */
     void setLenient(UBool enable) U_OVERRIDE;
@@ -1507,7 +1507,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
 
     /**
      * Return whether or not scientific notation is used.
-     * @return TRUE if this object formats and parses scientific notation
+     * @return true if this object formats and parses scientific notation
      * @see #setScientificNotation
      * @see #getMinimumExponentDigits
      * @see #setMinimumExponentDigits
@@ -1523,7 +1523,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
      * maximum number of integer digits is set to more than 8, the effective
      * maximum will be 1.  This allows this call to generate a 'default' scientific
      * number format without additional changes.
-     * @param useScientific TRUE if this object formats and parses scientific
+     * @param useScientific true if this object formats and parses scientific
      * notation
      * @see #isScientificNotation
      * @see #getMinimumExponentDigits
@@ -1562,7 +1562,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
 
     /**
      * Return whether the exponent sign is always shown.
-     * @return TRUE if the exponent is always prefixed with either the
+     * @return true if the exponent is always prefixed with either the
      * localized minus sign or the localized plus sign, false if only negative
      * exponents are prefixed with the localized minus sign.
      * @see #setScientificNotation
@@ -1577,7 +1577,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Set whether the exponent sign is always shown.  This has no effect
      * unless scientific notation is in use.
-     * @param expSignAlways TRUE if the exponent is always prefixed with either
+     * @param expSignAlways true if the exponent is always prefixed with either
      * the localized minus sign or the localized plus sign, false if only
      * negative exponents are prefixed with the localized minus sign.
      * @see #setScientificNotation
@@ -1674,8 +1674,15 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     int32_t getMinimumGroupingDigits() const;
 
     /**
-     * Sets the minimum grouping digits. Setting to a value less than or
-     * equal to 1 turns off minimum grouping digits.
+     * Sets the minimum grouping digits. Setting the value to
+     *  - 1: Turns off minimum grouping digits.
+     *  - 0 or -1: The behavior is undefined.
+     *  - UNUM_MINIMUM_GROUPING_DIGITS_AUTO: Display grouping using the default
+     *      strategy for all locales.
+     *  - UNUM_MINIMUM_GROUPING_DIGITS_MIN2: Display grouping using locale
+     *      defaults, except do not show grouping on values smaller than 10000
+     *      (such that there is a minimum of two digits before the first
+     *      separator).
      *
      * For more control over grouping strategies, use NumberFormatter.
      *
@@ -1689,7 +1696,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
      * Allows you to get the behavior of the decimal separator with integers.
      * (The decimal separator will always appear with decimals.)
      *
-     * @return    TRUE if the decimal separator always appear with decimals.
+     * @return    true if the decimal separator always appear with decimals.
      * Example: Decimal ON: 12345 -> 12345.; OFF: 12345 -> 12345
      * @stable ICU 2.0
      */
@@ -1699,7 +1706,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
      * Allows you to set the behavior of the decimal separator with integers.
      * (The decimal separator will always appear with decimals.)
      *
-     * @param newValue    set TRUE if the decimal separator will always appear with decimals.
+     * @param newValue    set true if the decimal separator will always appear with decimals.
      * Example: Decimal ON: 12345 -> 12345.; OFF: 12345 -> 12345
      * @stable ICU 2.0
      */
@@ -1708,7 +1715,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Allows you to get the parse behavior of the pattern decimal mark.
      *
-     * @return    TRUE if input must contain a match to decimal mark in pattern
+     * @return    true if input must contain a match to decimal mark in pattern
      * @stable ICU 54
      */
     UBool isDecimalPatternMatchRequired(void) const;
@@ -1716,10 +1723,10 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Allows you to set the parse behavior of the pattern decimal mark.
      *
-     * if TRUE, the input must have a decimal mark if one was specified in the pattern. When
-     * FALSE the decimal mark may be omitted from the input.
+     * if true, the input must have a decimal mark if one was specified in the pattern. When
+     * false the decimal mark may be omitted from the input.
      *
-     * @param newValue    set TRUE if input must contain a match to decimal mark in pattern
+     * @param newValue    set true if input must contain a match to decimal mark in pattern
      * @stable ICU 54
      */
     virtual void setDecimalPatternMatchRequired(UBool newValue);
@@ -1962,7 +1969,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
      * to one.  If the maximum significant digits count is less than
      * <code>min</code>, then it is set to <code>min</code>.
      * This function also enables the use of significant digits
-     * by this formatter - areSignificantDigitsUsed() will return TRUE.
+     * by this formatter - areSignificantDigitsUsed() will return true.
      * @see #areSignificantDigitsUsed
      * @param min the fewest significant digits to be shown
      * @stable ICU 3.0
@@ -1975,7 +1982,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
      * to one.  If the minimum significant digits count is greater
      * than <code>max</code>, then it is set to <code>max</code>.
      * This function also enables the use of significant digits
-     * by this formatter - areSignificantDigitsUsed() will return TRUE.
+     * by this formatter - areSignificantDigitsUsed() will return true.
      * @see #areSignificantDigitsUsed
      * @param max the most significant digits to be shown
      * @stable ICU 3.0

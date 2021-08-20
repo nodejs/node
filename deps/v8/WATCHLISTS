@@ -51,6 +51,9 @@
                   '|test/cctest/interpreter/' \
                   '|test/unittests/interpreter/',
     },
+    'baseline': {
+      'filepath': 'src/baseline/'
+    },
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
     },
@@ -87,6 +90,14 @@
     'tracing': {
       'filepath': 'src/tracing/',
     },
+    'ieee754': {
+      'filepath': 'src/base/ieee754\.(cc|h)' \
+                  '|src/base/overflowing-math.h' \
+                  '|LICENSE.fdlibm',
+    },
+    'regexp': {
+      'filepath': 'src/.*regexp',
+    }
   },
 
   'WATCHLISTS': {
@@ -104,6 +115,10 @@
     ],
     'interpreter': [
       'rmcilroy@chromium.org',
+    ],
+    'baseline': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
@@ -132,6 +147,14 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
+    ],
+    'ieee754': [
+      'rtoy+watch@chromium.org',
+      'hongchan+watch@chromium.org'
+    ],
+    'regexp': [
+      'jgruber+watch@chromium.org',
+      'pthier+watch@chromium.org'
     ],
   },
 }

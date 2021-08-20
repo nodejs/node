@@ -28,7 +28,11 @@ public:
 
     std::unique_ptr<protocol::DictionaryValue> toValue() const;
     std::unique_ptr<Object> clone() const;
+
 private:
+    Object() = default;
+    friend struct {{config.crdtp.namespace}}::ProtocolTypeTraits<std::unique_ptr<Object>, void>;
+
     std::unique_ptr<protocol::DictionaryValue> m_object;
 };
 

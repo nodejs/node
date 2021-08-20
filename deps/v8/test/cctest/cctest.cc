@@ -25,14 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "include/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
+#include "include/v8.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
+#include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
@@ -44,7 +46,7 @@
 #endif  // V8_USE_PERFETTO
 
 #if V8_OS_WIN
-#include <windows.h>  // NOLINT
+#include <windows.h>
 #if V8_CC_MSVC
 #include <crtdbg.h>
 #endif
@@ -129,8 +131,19 @@ i::ReadOnlyHeap* CcTest::read_only_heap() {
   return i_isolate()->read_only_heap();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space) {
-  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
+                               v8::FunctionCallback callback) {
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate_, callback);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str(name));
+  env->Global()->Set(env, v8_str(name), func).FromJust();
+}
+
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
 void CcTest::CollectAllGarbage(i::Isolate* isolate) {
@@ -148,6 +161,18 @@ void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
   iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                         i::GarbageCollectionReason::kTesting);
+}
+
+i::Handle<i::String> CcTest::MakeString(const char* str) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  return factory->InternalizeUtf8String(str);
+}
+
+i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
+  i::EmbeddedVector<char, 128> buffer;
+  SNPrintF(buffer, "%s%d", str, suffix);
+  return CcTest::MakeString(buffer.begin());
 }
 
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
@@ -211,7 +236,7 @@ void LocalContext::Initialize(v8::Isolate* isolate,
 
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
 // we don't want any unnecessary #includes in cctest.h.
-class InitializedHandleScopeImpl {
+class V8_NODISCARD InitializedHandleScopeImpl {
  public:
   explicit InitializedHandleScopeImpl(i::Isolate* isolate)
       : handle_scope_(isolate) {}
@@ -220,15 +245,16 @@ class InitializedHandleScopeImpl {
   i::HandleScope handle_scope_;
 };
 
-InitializedHandleScope::InitializedHandleScope()
-    : main_isolate_(CcTest::InitIsolateOnce()),
+InitializedHandleScope::InitializedHandleScope(i::Isolate* isolate)
+    : main_isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 
 InitializedHandleScope::~InitializedHandleScope() = default;
 
-HandleAndZoneScope::HandleAndZoneScope()
-    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
+HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
+    : main_zone_(
+          new i::Zone(&allocator_, ZONE_NAME, support_zone_compression)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
@@ -236,27 +262,28 @@ i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
-  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
-        i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
+        i::Compiler::Compile(isolate, function, i::Compiler::CLEAR_EXCEPTION,
                              &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
 
-  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function,
+                                   i::CodeKind::TURBOFAN);
 
-  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
-    info.MarkAsInliningEnabled();
+  if (flags & i::OptimizedCompilationInfo::kInlining) {
+    info.set_inlining();
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function);
+  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
 
   i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
           .ToHandleChecked();
   info.native_context().AddOptimizedCode(*code);
-  function->set_code(*code);
+  function->set_code(*code, v8::kReleaseStore);
 
   return function;
 }
@@ -291,19 +318,11 @@ int main(int argc, char* argv[]) {
 #endif  // V8_CC_MSVC
 #endif  // V8_OS_WIN
 
-  // hack to print cctest specific flags
-  for (int i = 1; i < argc; i++) {
-    char* arg = argv[i];
-    if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
-      printf("Usage: %s [--list] [[V8_FLAGS] CCTEST]\n", argv[0]);
-      printf("\n");
-      printf("Options:\n");
-      printf("  --list:   list all cctests\n");
-      printf("  CCTEST:   cctest identfier returned by --list\n");
-      printf("  D8_FLAGS: see d8 output below\n");
-      printf("\n\n");
-    }
-  }
+  std::string usage = "Usage: " + std::string(argv[0]) + " [--list]" +
+                      " [[V8_FLAGS] CCTEST]\n\n" + "Options:\n" +
+                      "  --list:   list all cctests\n" +
+                      "  CCTEST:   cctest identfier returned by --list\n" +
+                      "  V8_FLAGS: see V8 options below\n\n\n";
 
 #ifdef V8_USE_PERFETTO
   // Set up the in-process backend that the tracing controller will connect to.
@@ -315,14 +334,19 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-  v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  cppgc::InitializeProcess(platform->GetPageAllocator());
+  using HelpOptions = v8::internal::FlagList::HelpOptions;
+  v8::internal::FlagList::SetFlagsFromCommandLine(
+      &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
     constexpr bool use_default_signal_handler = true;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -386,3 +410,11 @@ int main(int argc, char* argv[]) {
 
 RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
+
+bool IsValidUnwrapObject(v8::Object* object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  return (instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSApiObjectType ||
+          instance_type == i::Internals::kJSSpecialApiObjectType);
+}

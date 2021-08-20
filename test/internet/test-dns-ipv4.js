@@ -50,8 +50,7 @@ TEST(async function test_resolve4(done) {
 
   const req = dns.resolve4(
     addresses.INET4_HOST,
-    common.mustCall((err, ips) => {
-      assert.ifError(err);
+    common.mustSucceed((ips) => {
       validateResult(ips);
       done();
     }));
@@ -73,8 +72,7 @@ TEST(async function test_reverse_ipv4(done) {
 
   const req = dns.reverse(
     addresses.INET4_IP,
-    common.mustCall((err, domains) => {
-      assert.ifError(err);
+    common.mustSucceed((domains) => {
       validateResult(domains);
       done();
     }));
@@ -92,8 +90,7 @@ TEST(async function test_lookup_ipv4_explicit(done) {
 
   const req = dns.lookup(
     addresses.INET4_HOST, 4,
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
+    common.mustSucceed((ip, family) => {
       validateResult({ address: ip, family });
       done();
     }));
@@ -111,8 +108,7 @@ TEST(async function test_lookup_ipv4_implicit(done) {
 
   const req = dns.lookup(
     addresses.INET4_HOST,
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
+    common.mustSucceed((ip, family) => {
       validateResult({ address: ip, family });
       done();
     }));
@@ -130,8 +126,7 @@ TEST(async function test_lookup_ipv4_explicit_object(done) {
 
   const req = dns.lookup(addresses.INET4_HOST, {
     family: 4
-  }, common.mustCall((err, ip, family) => {
-    assert.ifError(err);
+  }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
   }));
@@ -151,8 +146,7 @@ TEST(async function test_lookup_ipv4_hint_addrconfig(done) {
 
   const req = dns.lookup(addresses.INET4_HOST, {
     hints: dns.ADDRCONFIG
-  }, common.mustCall((err, ip, family) => {
-    assert.ifError(err);
+  }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
   }));
@@ -169,8 +163,7 @@ TEST(async function test_lookup_ip_ipv4(done) {
   validateResult(await dnsPromises.lookup('127.0.0.1'));
 
   const req = dns.lookup('127.0.0.1',
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
+                         common.mustSucceed((ip, family) => {
                            validateResult({ address: ip, family });
                            done();
                          }));
@@ -187,8 +180,7 @@ TEST(async function test_lookup_localhost_ipv4(done) {
   validateResult(await dnsPromises.lookup('localhost', 4));
 
   const req = dns.lookup('localhost', 4,
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
+                         common.mustSucceed((ip, family) => {
                            validateResult({ address: ip, family });
                            done();
                          }));
@@ -215,8 +207,7 @@ TEST(async function test_lookup_all_ipv4(done) {
   const req = dns.lookup(
     addresses.INET4_HOST,
     { all: true, family: 4 },
-    common.mustCall((err, ips) => {
-      assert.ifError(err);
+    common.mustSucceed((ips) => {
       validateResult(ips);
       done();
     })
@@ -236,8 +227,7 @@ TEST(async function test_lookupservice_ip_ipv4(done) {
 
   const req = dns.lookupService(
     '127.0.0.1', 80,
-    common.mustCall((err, hostname, service) => {
-      assert.ifError(err);
+    common.mustSucceed((hostname, service) => {
       validateResult({ hostname, service });
       done();
     })

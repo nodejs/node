@@ -29,19 +29,28 @@ namespace internal {
   V(r14)                     \
   V(r15)
 
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(rax)                                 \
-  V(rbx)                                 \
-  V(rdx)                                 \
-  V(rcx)                                 \
-  V(rsi)                                 \
-  V(rdi)                                 \
-  V(r8)                                  \
-  V(r9)                                  \
-  V(r11)                                 \
-  V(r12)                                 \
-  V(r14)                                 \
+#define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
+  V(rax)                                        \
+  V(rbx)                                        \
+  V(rdx)                                        \
+  V(rcx)                                        \
+  V(rsi)                                        \
+  V(rdi)                                        \
+  V(r8)                                         \
+  V(r9)                                         \
+  V(r11)                                        \
+  V(r12)                                        \
   V(r15)
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
+#else
+#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V) V(r14)
+#endif
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V)  \
+  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
+  MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -81,6 +90,13 @@ constexpr RegList kJSCallerSaved =
     Register::ListOf(rax, rcx, rdx,
                      rbx,  // used as a caller-saved register in JavaScript code
                      rdi);  // callee function
+
+constexpr RegList kCallerSaved =
+#ifdef V8_TARGET_OS_WIN
+    Register::ListOf(rax, rcx, rdx, r8, r9, r10, r11);
+#else
+    Register::ListOf(rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11);
+#endif  // V8_TARGET_OS_WIN
 
 constexpr int kNumJSCallerSaved = 5;
 
@@ -139,7 +155,12 @@ constexpr Register arg_reg_4 = rcx;
   V(xmm13)                              \
   V(xmm14)
 
-constexpr bool kPadArguments = false;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -191,10 +212,10 @@ constexpr Register kReturnRegister2 = r8;
 constexpr Register kJSFunctionRegister = rdi;
 constexpr Register kContextRegister = rsi;
 constexpr Register kAllocateSizeRegister = rdx;
-constexpr Register kSpeculationPoisonRegister = r12;
+constexpr Register kSpeculationPoisonRegister = r11;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
-constexpr Register kInterpreterBytecodeArrayRegister = r14;
+constexpr Register kInterpreterBytecodeArrayRegister = r12;
 constexpr Register kInterpreterDispatchTableRegister = r15;
 
 constexpr Register kJavaScriptCallArgCountRegister = rax;
@@ -214,6 +235,11 @@ constexpr Register kWasmInstanceRegister = rsi;
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
 constexpr Register kRootRegister = r13;  // callee save
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+constexpr Register kPtrComprCageBaseRegister = r14;  // callee save
+#else
+constexpr Register kPtrComprCageBaseRegister = kRootRegister;
+#endif
 
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 

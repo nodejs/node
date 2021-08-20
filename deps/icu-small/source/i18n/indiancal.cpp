@@ -40,7 +40,7 @@ IndianCalendar* IndianCalendar::clone() const {
 }
 
 IndianCalendar::IndianCalendar(const Locale& aLocale, UErrorCode& success)
-  :   Calendar(TimeZone::createDefault(), aLocale, success)
+  :   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 {
   setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
@@ -83,7 +83,6 @@ static const int32_t LIMITS[UCAL_FIELD_COUNT][4] = {
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // IS_LEAP_MONTH
 };
 
-static const double JULIAN_EPOCH = 1721425.5;
 static const int32_t INDIAN_ERA_START  = 78;
 static const int32_t INDIAN_YEAR_START = 80;
 
@@ -96,7 +95,7 @@ int32_t IndianCalendar::handleGetLimit(UCalendarDateFields field, ELimitType lim
  */
 static UBool isGregorianLeap(int32_t year)
 {
-    return ((year % 4) == 0) && (!(((year % 100) == 0) && ((year % 400) != 0)));
+    return Grego::isLeapYear(year);
 }
 
 //----------------------------------------------------------------------
@@ -137,56 +136,22 @@ int32_t IndianCalendar::handleGetYearLength(int32_t eyear) const {
  * Returns the Julian Day corresponding to gregorian date
  *
  * @param year The Gregorian year
- * @param month The month in Gregorian Year
+ * @param month The month in Gregorian Year, 0 based.
  * @param date The date in Gregorian day in month
  */
 static double gregorianToJD(int32_t year, int32_t month, int32_t date) {
-   double julianDay = (JULIAN_EPOCH - 1) +
-      (365 * (year - 1)) +
-      uprv_floor((year - 1) / 4) +
-      (-uprv_floor((year - 1) / 100)) +
-      uprv_floor((year - 1) / 400) +
-      uprv_floor((((367 * month) - 362) / 12) +
-            ((month <= 2) ? 0 :
-             (isGregorianLeap(year) ? -1 : -2)
-            ) +
-            date);
-
-   return julianDay;
+   return Grego::fieldsToDay(year, month, date) + kEpochStartAsJulianDay - 0.5;
 }
 
 /*
  * Returns the Gregorian Date corresponding to a given Julian Day
+ * Month is 0 based.
  * @param jd The Julian Day
  */
 static int32_t* jdToGregorian(double jd, int32_t gregorianDate[3]) {
-   double wjd, depoch, quadricent, dqc, cent, dcent, quad, dquad, yindex, yearday, leapadj;
-   int32_t year, month, day;
-   wjd = uprv_floor(jd - 0.5) + 0.5;
-   depoch = wjd - JULIAN_EPOCH;
-   quadricent = uprv_floor(depoch / 146097);
-   dqc = (int32_t)uprv_floor(depoch) % 146097;
-   cent = uprv_floor(dqc / 36524);
-   dcent = (int32_t)uprv_floor(dqc) % 36524;
-   quad = uprv_floor(dcent / 1461);
-   dquad = (int32_t)uprv_floor(dcent) % 1461;
-   yindex = uprv_floor(dquad / 365);
-   year = (int32_t)((quadricent * 400) + (cent * 100) + (quad * 4) + yindex);
-   if (!((cent == 4) || (yindex == 4))) {
-      year++;
-   }
-   yearday = wjd - gregorianToJD(year, 1, 1);
-   leapadj = ((wjd < gregorianToJD(year, 3, 1)) ? 0
-         :
-         (isGregorianLeap(year) ? 1 : 2)
-         );
-   month = (int32_t)uprv_floor((((yearday + leapadj) * 12) + 373) / 367);
-   day = (int32_t)(wjd - gregorianToJD(year, month, 1)) + 1;
-
-   gregorianDate[0] = year;
-   gregorianDate[1] = month;
-   gregorianDate[2] = day;
-
+   int32_t gdow;
+   Grego::dayToFields(jd - kEpochStartAsJulianDay,
+                      gregorianDate[0], gregorianDate[1], gregorianDate[2], gdow);
    return gregorianDate;
 }
 
@@ -203,11 +168,11 @@ static double IndianToJD(int32_t year, int32_t month, int32_t date) {
 
    if(isGregorianLeap(gyear)) {
       leapMonth = 31;
-      start = gregorianToJD(gyear, 3, 21);
+      start = gregorianToJD(gyear, 2 /* The third month in 0 based month */, 21);
    }
    else {
       leapMonth = 30;
-      start = gregorianToJD(gyear, 3, 22);
+      start = gregorianToJD(gyear, 2 /* The third month in 0 based month */, 22);
    }
 
    if (month == 1) {
@@ -297,7 +262,7 @@ void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  /* stat
 
     gregorianYear = jdToGregorian(julianDay, gd)[0];          // Gregorian date for Julian day
     IndianYear = gregorianYear - INDIAN_ERA_START;            // Year in Saka era
-    jdAtStartOfGregYear = gregorianToJD(gregorianYear, 1, 1); // JD at start of Gregorian year
+    jdAtStartOfGregYear = gregorianToJD(gregorianYear, 0, 1); // JD at start of Gregorian year
     yday = (int32_t)(julianDay - jdAtStartOfGregYear);        // Day number in Gregorian year (starting from 0)
 
     if (yday < INDIAN_YEAR_START) {

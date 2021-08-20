@@ -59,7 +59,7 @@
   // At this point "array" should have been trimmed from the left with
   // marking bits being correctly transferred to the new object start.
   // Scavenging operations cause concurrent sweeping to advance and verify
-  // that marking bit patterns are still sane.
+  // that marking bit patterns are still sensible.
   for (var i = 0; i < 200; i++) {
     tail[1] = new Array(1000);
     tail = tail[1];

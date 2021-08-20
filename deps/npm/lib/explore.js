@@ -1,60 +1,91 @@
 // npm explore <pkg>[@<version>]
 // open a subshell to the package folder.
 
-module.exports = explore
-explore.usage = 'npm explore <pkg> [ -- <command>]'
-explore.completion = require('./utils/completion/installed-shallow.js')
+const rpj = require('read-package-json-fast')
+const runScript = require('@npmcli/run-script')
+const { join, resolve, relative } = require('path')
+const completion = require('./utils/completion/installed-shallow.js')
+const BaseCommand = require('./base-command.js')
 
-var npm = require('./npm.js')
-var spawn = require('./utils/spawn')
-var path = require('path')
-var fs = require('graceful-fs')
-var isWindows = require('./utils/is-windows.js')
-var escapeExecPath = require('./utils/escape-exec-path.js')
-var escapeArg = require('./utils/escape-arg.js')
-var output = require('./utils/output.js')
-var log = require('npmlog')
-
-function explore (args, cb) {
-  if (args.length < 1 || !args[0]) return cb(explore.usage)
-  var p = args.shift()
-
-  var cwd = path.resolve(npm.dir, p)
-  var opts = {cwd: cwd, stdio: 'inherit'}
-
-  var shellArgs = []
-  if (args.length) {
-    if (isWindows) {
-      var execCmd = escapeExecPath(args.shift())
-      var execArgs = [execCmd].concat(args.map(escapeArg))
-      opts.windowsVerbatimArguments = true
-      shellArgs = ['/d', '/s', '/c'].concat(execArgs)
-    } else {
-      shellArgs = ['-c', args.map(escapeArg).join(' ').trim()]
-    }
+class Explore extends BaseCommand {
+  static get description () {
+    return 'Browse an installed package'
   }
 
-  var sh = npm.config.get('shell')
-  fs.stat(cwd, function (er, s) {
-    if (er || !s.isDirectory()) {
-      return cb(new Error(
-        "It doesn't look like " + p + ' is installed.'
-      ))
-    }
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'explore'
+  }
 
-    if (!shellArgs.length) {
-      output(
-        '\nExploring ' + cwd + '\n' +
-          "Type 'exit' or ^D when finished\n"
-      )
-    }
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['<pkg> [ -- <command>]']
+  }
 
-    log.silly('explore', {sh, shellArgs, opts})
-    var shell = spawn(sh, shellArgs, opts)
-    shell.on('close', function (er) {
-      // only fail if non-interactive.
-      if (!shellArgs.length) return cb()
-      cb(er)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['shell']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
+
+  exec (args, cb) {
+    this.explore(args).then(() => cb()).catch(cb)
+  }
+
+  async explore (args) {
+    if (args.length < 1 || !args[0])
+      throw this.usage
+
+    const pkgname = args.shift()
+
+    // detect and prevent any .. shenanigans
+    const path = join(this.npm.dir, join('/', pkgname))
+    if (relative(path, this.npm.dir) === '')
+      throw this.usage
+
+    // run as if running a script named '_explore', which we set to either
+    // the set of arguments, or the shell config, and let @npmcli/run-script
+    // handle all the escaping and PATH setup stuff.
+
+    const pkg = await rpj(resolve(path, 'package.json')).catch(er => {
+      this.npm.log.error('explore', `It doesn't look like ${pkgname} is installed.`)
+      throw er
     })
-  })
+
+    const { shell } = this.npm.flatOptions
+    pkg.scripts = {
+      ...(pkg.scripts || {}),
+      _explore: args.join(' ').trim() || shell,
+    }
+
+    if (!args.length)
+      this.npm.output(`\nExploring ${path}\nType 'exit' or ^D when finished\n`)
+    this.npm.log.disableProgress()
+    try {
+      return await runScript({
+        ...this.npm.flatOptions,
+        pkg,
+        banner: false,
+        path,
+        stdioString: true,
+        event: '_explore',
+        stdio: 'inherit',
+      }).catch(er => {
+        process.exitCode = typeof er.code === 'number' && er.code !== 0 ? er.code
+          : 1
+        // if it's not an exit error, or non-interactive, throw it
+        const isProcExit = er.message === 'command failed' &&
+          (typeof er.code === 'number' || /^SIG/.test(er.signal || ''))
+        if (args.length || !isProcExit)
+          throw er
+      })
+    } finally {
+      this.npm.log.enableProgress()
+    }
+  }
 }
+module.exports = Explore

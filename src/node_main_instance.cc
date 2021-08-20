@@ -1,10 +1,10 @@
 #include "node_main_instance.h"
-#include <iostream>
 #include <memory>
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 #if defined(LEAK_SANITIZER)
@@ -22,8 +22,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
-using v8::Object;
-using v8::SealHandleScope;
 
 std::unique_ptr<ExternalReferenceRegistry> NodeMainInstance::registry_ =
     nullptr;
@@ -109,6 +107,8 @@ NodeMainInstance::NodeMainInstance(
     // complete.
     SetIsolateErrorHandlers(isolate_, s);
   }
+  isolate_data_->max_young_gen_size =
+      params->constraints.max_young_generation_size_in_bytes();
 }
 
 void NodeMainInstance::Dispose() {
@@ -132,49 +132,24 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
   int exit_code = 0;
   DeleteFnPtr<Environment, FreeEnvironment> env =
       CreateMainEnvironment(&exit_code, env_info);
-
   CHECK_NOT_NULL(env);
-  {
-    Context::Scope context_scope(env->context());
 
-    if (exit_code == 0) {
-      LoadEnvironment(env.get());
+  Context::Scope context_scope(env->context());
+  Run(&exit_code, env.get());
+  return exit_code;
+}
 
-      env->set_trace_sync_io(env->options()->trace_sync_io);
+void NodeMainInstance::Run(int* exit_code, Environment* env) {
+  if (*exit_code == 0) {
+    LoadEnvironment(env, StartExecutionCallback{});
 
-      {
-        SealHandleScope seal(isolate_);
-        bool more;
-        env->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
-        do {
-          uv_run(env->event_loop(), UV_RUN_DEFAULT);
+    *exit_code = SpinEventLoop(env).FromMaybe(1);
+  }
 
-          per_process::v8_platform.DrainVMTasks(isolate_);
+  ResetStdio();
 
-          more = uv_loop_alive(env->event_loop());
-          if (more && !env->is_stopping()) continue;
-
-          if (!uv_loop_alive(env->event_loop())) {
-            EmitBeforeExit(env.get());
-          }
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-        } while (more == true && !env->is_stopping());
-        env->performance_state()->Mark(
-            node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
-      }
-
-      env->set_trace_sync_io(false);
-      exit_code = EmitExit(env.get());
-    }
-
-    ResetStdio();
-
-    // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
-    // make sense here.
+  // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
+  // make sense here.
 #if HAVE_INSPECTOR && defined(__POSIX__) && !defined(NODE_SHARED_MODE)
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -189,21 +164,6 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
-  }
-
-  return exit_code;
-}
-
-void DeserializeNodeInternalFields(Local<Object> holder,
-                                   int index,
-                                   v8::StartupData payload,
-                                   void* env) {
-  if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
-    return;
-  }
-  // No embedder object in the builtin snapshot yet.
-  UNREACHABLE();
 }
 
 DeleteFnPtr<Environment, FreeEnvironment>
@@ -236,10 +196,18 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
                                     {DeserializeNodeInternalFields, env.get()})
                   .ToLocalChecked();
 
-    InitializeContextRuntime(context);
+    CHECK(!context.IsEmpty());
+    Context::Scope context_scope(context);
+    CHECK(InitializeContextRuntime(context).IsJust());
     SetIsolateErrorHandlers(isolate_, {});
+    env->InitializeMainContext(context, env_info);
+#if HAVE_INSPECTOR
+    env->InitializeInspector({});
+#endif
+    env->DoneBootstrapping();
   } else {
     context = NewContext(isolate_);
+    CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
     env.reset(new Environment(isolate_data_.get(),
                               context,
@@ -248,24 +216,14 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
                               nullptr,
                               EnvironmentFlags::kDefaultFlags,
                               {}));
-  }
-
-  CHECK(!context.IsEmpty());
-  Context::Scope context_scope(context);
-
-  env->InitializeMainContext(context, env_info);
-
 #if HAVE_INSPECTOR
-  env->InitializeInspector({});
+    env->InitializeInspector({});
 #endif
-
-  if (!deserialize_mode_ && env->RunBootstrapping().IsEmpty()) {
-    return nullptr;
+    if (env->RunBootstrapping().IsEmpty()) {
+      return nullptr;
+    }
   }
 
-  CHECK(env->req_wrap_queue()->IsEmpty());
-  CHECK(env->handle_wrap_queue()->IsEmpty());
-  env->set_has_run_bootstrapping_code(true);
   return env;
 }
 

@@ -3,11 +3,12 @@
 #include "stream_wrap.h"
 #include "allocated_buffer-inl.h"
 
+#include "env-inl.h"
+#include "js_stream.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "env-inl.h"
-#include "js_stream.h"
+#include "node_external_reference.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -265,7 +266,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
     // Immediate failure or success
     if (err != 0 || count == 0) {
-      SetWriteResult(StreamWriteResult { false, err, nullptr, data_size });
+      SetWriteResult(StreamWriteResult { false, err, nullptr, data_size, {} });
       return err;
     }
 
@@ -337,7 +338,7 @@ MaybeLocal<Value> StreamBase::CallJSOnreadMethod(ssize_t nread,
     }
   }
 
-  env->stream_base_state()[kReadBytesOrError] = nread;
+  env->stream_base_state()[kReadBytesOrError] = static_cast<int32_t>(nread);
   env->stream_base_state()[kArrayBufferOffset] = offset;
 
   Local<Value> argv[] = {
@@ -421,6 +422,29 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
       BaseObject::InternalFieldSet<
           StreamBase::kOnReadFunctionField,
           &Value::IsFunction>);
+}
+
+void StreamBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetFD);
+  registry->Register(GetExternal);
+  registry->Register(GetBytesRead);
+  registry->Register(GetBytesWritten);
+  registry->Register(JSMethod<&StreamBase::ReadStartJS>);
+  registry->Register(JSMethod<&StreamBase::ReadStopJS>);
+  registry->Register(JSMethod<&StreamBase::Shutdown>);
+  registry->Register(JSMethod<&StreamBase::UseUserBuffer>);
+  registry->Register(JSMethod<&StreamBase::Writev>);
+  registry->Register(JSMethod<&StreamBase::WriteBuffer>);
+  registry->Register(JSMethod<&StreamBase::WriteString<ASCII>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<UTF8>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<UCS2>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<LATIN1>>);
+  registry->Register(
+      BaseObject::InternalFieldGet<StreamBase::kOnReadFunctionField>);
+  registry->Register(
+      BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
+                                   &Value::IsFunction>);
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
@@ -621,12 +645,16 @@ StreamResource::~StreamResource() {
 
 ShutdownWrap* StreamBase::CreateShutdownWrap(
     Local<Object> object) {
-  return new SimpleShutdownWrap<AsyncWrap>(this, object);
+  auto* wrap = new SimpleShutdownWrap<AsyncWrap>(this, object);
+  wrap->MakeWeak();
+  return wrap;
 }
 
 WriteWrap* StreamBase::CreateWriteWrap(
     Local<Object> object) {
-  return new SimpleWriteWrap<AsyncWrap>(this, object);
+  auto* wrap = new SimpleWriteWrap<AsyncWrap>(this, object);
+  wrap->MakeWeak();
+  return wrap;
 }
 
 }  // namespace node

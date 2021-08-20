@@ -23,11 +23,11 @@ TEST_F(WasmCapiTest, Memory) {
   byte size_code[] = {WASM_MEMORY_SIZE};
   AddExportedFunction(CStrVector("size"), size_code, sizeof(size_code),
                       &return_i32);
-  byte load_code[] = {WASM_LOAD_MEM(MachineType::Int8(), WASM_GET_LOCAL(0))};
+  byte load_code[] = {WASM_LOAD_MEM(MachineType::Int8(), WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("load"), load_code, sizeof(load_code),
                       &param_i32_return_i32);
-  byte store_code[] = {WASM_STORE_MEM(MachineType::Int8(), WASM_GET_LOCAL(0),
-                                      WASM_GET_LOCAL(1))};
+  byte store_code[] = {WASM_STORE_MEM(MachineType::Int8(), WASM_LOCAL_GET(0),
+                                      WASM_LOCAL_GET(1))};
   AddExportedFunction(CStrVector("store"), store_code, sizeof(store_code),
                       &param_i32_i32);
 

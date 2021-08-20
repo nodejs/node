@@ -44,6 +44,7 @@
         'lib/nghttp2_hd_huffman_data.c',
         'lib/nghttp2_helper.c',
         'lib/nghttp2_http.c',
+        'lib/nghttp2_ksl.c',
         'lib/nghttp2_map.c',
         'lib/nghttp2_mem.c',
         'lib/nghttp2_npn.c',

@@ -29,7 +29,7 @@ server.on('connection', (connection) => {
 });
 
 function shutdown() {
-  server.close(common.mustCall());
+  server.close(common.mustSucceed());
 
   for (const key in connections) {
     connections[key].destroy();

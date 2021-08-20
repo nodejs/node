@@ -63,7 +63,10 @@
 
 
 {{## def.nonEmptySchema:_schema:
-  it.util.schemaHasRules(_schema, it.RULES.all)
+  (it.opts.strictKeywords
+    ? (typeof _schema == 'object' && Object.keys(_schema).length > 0)
+      || _schema === false
+    : it.util.schemaHasRules(_schema, it.RULES.all))
 #}}
 
 
@@ -110,12 +113,6 @@
 #}}
 
 
-{{## def.cleanUp: {{ out = it.util.cleanUpCode(out); }} #}}
-
-
-{{## def.finalCleanUp: {{ out = it.util.finalCleanUpCode(out, $async); }} #}}
-
-
 {{## def.$data:
   {{
     var $isData = it.opts.$data && $schema && $schema.$data
@@ -139,6 +136,13 @@
   if (schema{{=$lvl}} === undefined) {{=$valid}} = true;
   else if (!Array.isArray(schema{{=$lvl}})) {{=$valid}} = false;
   else {
+#}}
+
+
+{{## def.numberKeyword:
+  {{? !($isData || typeof $schema == 'number') }}
+    {{ throw new Error($keyword + ' must be number'); }}
+  {{?}}
 #}}
 
 

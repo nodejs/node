@@ -26,11 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <iostream>  // NOLINT(readability/streams)
+
+#include <iostream>
 
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/init/v8.h"
 #include "src/objects/heap-number.h"
@@ -38,6 +41,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
+#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -88,7 +92,8 @@ TEST(BYTESWAP) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
   for (size_t i = 0; i < arraysize(test_values); i++) {
@@ -197,7 +202,8 @@ TEST(jump_tables4) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -259,7 +265,8 @@ TEST(jump_tables5) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -346,7 +353,8 @@ TEST(jump_tables6) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -370,7 +378,8 @@ static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
 
   CodeDesc desc;
   assembler.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F1>::FromCode(*code);
 
@@ -497,7 +506,8 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
 
@@ -609,7 +619,7 @@ TEST(OverflowInstructions) {
       CodeDesc desc;
       masm->GetCode(isolate, &desc);
       Handle<Code> code =
-          Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+          Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
       auto f = GeneratedCode<F3>::FromCode(*code);
       t.lhs = ii;
       t.rhs = jj;
@@ -731,7 +741,8 @@ TEST(min_max_nan) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputsa[i];
@@ -765,7 +776,8 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
 
@@ -1011,7 +1023,8 @@ bool run_Sltu(uint32_t rs, uint32_t rd, Func GenerateSltuInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F_CVT>::FromCode(*code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(rs, rd, 0, 0, 0));
@@ -1105,7 +1118,8 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(masm->isolate(), desc, Code::STUB).Build();
+      Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
+          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -1246,7 +1260,8 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(masm->isolate(), desc, Code::STUB).Build();
+      Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
+          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -1319,6 +1334,38 @@ TEST(macro_float_minmax_f64) {
   CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
 
 #undef CHECK_MINMAX
+}
+
+TEST(DeoptExitSizeIsFixed) {
+  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      buffer->CreateView());
+  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    Label before_exit;
+    masm.bind(&before_exit);
+    if (kind == DeoptimizeKind::kEagerWithResume) {
+      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
+          DeoptimizeReason::kDynamicCheckMaps);
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 nullptr);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               Deoptimizer::kEagerWithResumeBeforeArgsSize);
+    } else {
+      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 nullptr);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               kind == DeoptimizeKind::kLazy
+                   ? Deoptimizer::kLazyDeoptExitSize
+                   : Deoptimizer::kNonLazyDeoptExitSize);
+    }
+  }
 }
 
 #undef __

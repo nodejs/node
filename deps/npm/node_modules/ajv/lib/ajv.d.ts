@@ -1,12 +1,36 @@
-declare var ajv: { 
+declare var ajv: {
   (options?: ajv.Options): ajv.Ajv;
-  new (options?: ajv.Options): ajv.Ajv;
-  ValidationError: ValidationError;
-  MissingRefError: MissingRefError;
+  new(options?: ajv.Options): ajv.Ajv;
+  ValidationError: typeof AjvErrors.ValidationError;
+  MissingRefError: typeof AjvErrors.MissingRefError;
   $dataMetaSchema: object;
 }
 
+declare namespace AjvErrors {
+  class ValidationError extends Error {
+    constructor(errors: Array<ajv.ErrorObject>);
+
+    message: string;
+    errors: Array<ajv.ErrorObject>;
+    ajv: true;
+    validation: true;
+  }
+
+  class MissingRefError extends Error {
+    constructor(baseId: string, ref: string, message?: string);
+    static message: (baseId: string, ref: string) => string;
+
+    message: string;
+    missingRef: string;
+    missingSchema: string;
+  }
+}
+
 declare namespace ajv {
+  type ValidationError = AjvErrors.ValidationError;
+
+  type MissingRefError = AjvErrors.MissingRefError;
+
   interface Ajv {
     /**
     * Validate data using schema
@@ -15,7 +39,7 @@ declare namespace ajv {
     * @param  {Any} data to be validated
     * @return {Boolean} validation result. Errors from the last validation will be available in `ajv.errors` (and also in compiled schema: `schema.errors`).
     */
-    validate(schemaKeyRef: object | string | boolean, data: any): boolean | Thenable<any>;
+    validate(schemaKeyRef: object | string | boolean, data: any): boolean | PromiseLike<any>;
     /**
     * Create validating function for passed schema.
     * @param  {object|Boolean} schema schema object
@@ -29,9 +53,9 @@ declare namespace ajv {
     * @param {object|Boolean} schema schema object
     * @param {Boolean} meta optional true to compile meta-schema; this parameter can be skipped
     * @param {Function} callback optional node-style callback, it is always called with 2 parameters: error (or null) and validating function.
-    * @return {Thenable<ValidateFunction>} validating function
+    * @return {PromiseLike<ValidateFunction>} validating function
     */
-    compileAsync(schema: object | boolean, meta?: Boolean, callback?: (err: Error, validate: ValidateFunction) => any): Thenable<ValidateFunction>;
+    compileAsync(schema: object | boolean, meta?: Boolean, callback?: (err: Error, validate: ValidateFunction) => any): PromiseLike<ValidateFunction>;
     /**
     * Adds schema to the instance.
     * @param {object|Array} schema schema or array of schemas. If array is passed, `key` and other parameters will be ignored.
@@ -56,9 +80,9 @@ declare namespace ajv {
     /**
     * Get compiled schema from the instance by `key` or `ref`.
     * @param  {string} keyRef `key` that was passed to `addSchema` or full schema reference (`schema.id` or resolved id).
-    * @return {Function} schema validating function (with property `schema`).
+    * @return {Function} schema validating function (with property `schema`). Returns undefined if keyRef can't be resolved to an existing schema.
     */
-    getSchema(keyRef: string): ValidateFunction;
+    getSchema(keyRef: string): ValidateFunction | undefined;
     /**
     * Remove cached schema(s).
     * If no parameter is passed all schemas but meta-schemas are removed.
@@ -98,17 +122,28 @@ declare namespace ajv {
     */
     removeKeyword(keyword: string): Ajv;
     /**
+    * Validate keyword
+    * @this  Ajv
+    * @param {object} definition keyword definition object
+    * @param {boolean} throwError true to throw exception if definition is invalid
+    * @return {boolean} validation result
+    */
+    validateKeyword(definition: KeywordDefinition, throwError: boolean): boolean;
+    /**
     * Convert array of error message objects to string
     * @param  {Array<object>} errors optional array of validation errors, if not passed errors from the instance are used.
     * @param  {object} options optional options with properties `separator` and `dataVar`.
     * @return {string} human readable string with all errors descriptions
     */
-    errorsText(errors?: Array<ErrorObject>, options?: ErrorsTextOptions): string;
-    errors?: Array<ErrorObject>;
+    errorsText(errors?: Array<ErrorObject> | null, options?: ErrorsTextOptions): string;
+    errors?: Array<ErrorObject> | null;
+    _opts: Options;
   }
 
-  interface Thenable <R> {
-    then <U> (onFulfilled?: (value: R) => U | Thenable<U>, onRejected?: (error: any) => U | Thenable<U>): Thenable<U>;
+  interface CustomLogger {
+    log(...args: any[]): any;
+    warn(...args: any[]): any;
+    error(...args: any[]): any;
   }
 
   interface ValidateFunction {
@@ -118,7 +153,7 @@ declare namespace ajv {
       parentData?: object | Array<any>,
       parentDataProperty?: string | number,
       rootData?: object | Array<any>
-    ): boolean | Thenable<any>;
+    ): boolean | PromiseLike<any>;
     schema?: object | boolean;
     errors?: null | Array<ErrorObject>;
     refs?: object;
@@ -135,17 +170,21 @@ declare namespace ajv {
     jsonPointers?: boolean;
     uniqueItems?: boolean;
     unicode?: boolean;
-    format?: string;
+    format?: false | string;
     formats?: object;
+    keywords?: object;
     unknownFormats?: true | string[] | 'ignore';
     schemas?: Array<object> | object;
-    schemaId?: '$id' | 'id';
+    schemaId?: '$id' | 'id' | 'auto';
     missingRefs?: true | 'ignore' | 'fail';
     extendRefs?: true | 'ignore' | 'fail';
-    loadSchema?: (uri: string, cb?: (err: Error, schema: object) => void) => Thenable<object | boolean>;
+    loadSchema?: (uri: string, cb?: (err: Error, schema: object) => void) => PromiseLike<object | boolean>;
     removeAdditional?: boolean | 'all' | 'failing';
-    useDefaults?: boolean | 'shared';
+    useDefaults?: boolean | 'empty' | 'shared';
     coerceTypes?: boolean | 'array';
+    strictDefaults?: boolean | 'log';
+    strictKeywords?: boolean | 'log';
+    strictNumbers?: boolean;
     async?: boolean | string;
     transpile?: string | ((code: string) => string);
     meta?: boolean | object;
@@ -159,17 +198,31 @@ declare namespace ajv {
     errorDataPath?: string,
     messages?: boolean;
     sourceCode?: boolean;
-    processCode?: (code: string) => string;
+    processCode?: (code: string, schema: object) => string;
     cache?: object;
+    logger?: CustomLogger | false;
+    nullable?: boolean;
+    serialize?: ((schema: object | boolean) => any) | false;
   }
 
-  type FormatValidator = string | RegExp | ((data: string) => boolean | Thenable<any>);
+  type FormatValidator = string | RegExp | ((data: string) => boolean | PromiseLike<any>);
+  type NumberFormatValidator = ((data: number) => boolean | PromiseLike<any>);
 
-  interface FormatDefinition {
-    validate: FormatValidator;
-    compare: (data1: string, data2: string) => number;
+  interface NumberFormatDefinition {
+    type: "number",
+    validate: NumberFormatValidator;
+    compare?: (data1: number, data2: number) => number;
     async?: boolean;
   }
+
+  interface StringFormatDefinition {
+    type?: "string",
+    validate: FormatValidator;
+    compare?: (data1: string, data2: string) => number;
+    async?: boolean;
+  }
+
+  type FormatDefinition = NumberFormatDefinition | StringFormatDefinition;
 
   interface KeywordDefinition {
     type?: string | Array<string>;
@@ -179,6 +232,8 @@ declare namespace ajv {
     metaSchema?: object;
     // schema: false makes validate not to expect schema (ValidateFunction)
     schema?: boolean;
+    statements?: boolean;
+    dependencies?: Array<string>;
     modifying?: boolean;
     valid?: boolean;
     // one and only one of the following properties should be present
@@ -191,6 +246,7 @@ declare namespace ajv {
   interface CompilationContext {
     level: number;
     dataLevel: number;
+    dataPathArr: string[];
     schema: any;
     schemaPath: string;
     baseId: string;
@@ -198,6 +254,9 @@ declare namespace ajv {
     opts: Options;
     formats: {
       [index: string]: FormatDefinition | undefined;
+    };
+    keywords: {
+      [index: string]: KeywordDefinition | undefined;
     };
     compositeRule: boolean;
     validate: (schema: object) => boolean;
@@ -227,7 +286,7 @@ declare namespace ajv {
       parentData?: object | Array<any>,
       parentDataProperty?: string | number,
       rootData?: object | Array<any>
-    ): boolean | Thenable<any>;
+    ): boolean | PromiseLike<any>;
     errors?: Array<ErrorObject>;
   }
 
@@ -252,11 +311,11 @@ declare namespace ajv {
   }
 
   type ErrorParameters = RefParams | LimitParams | AdditionalPropertiesParams |
-                          DependenciesParams | FormatParams | ComparisonParams |
-                          MultipleOfParams | PatternParams | RequiredParams |
-                          TypeParams | UniqueItemsParams | CustomParams |
-                          PatternGroupsParams | PatternRequiredParams |
-                          PropertyNamesParams | SwitchParams | NoParams | EnumParams;
+    DependenciesParams | FormatParams | ComparisonParams |
+    MultipleOfParams | PatternParams | RequiredParams |
+    TypeParams | UniqueItemsParams | CustomParams |
+    PatternRequiredParams | PropertyNamesParams |
+    IfParams | SwitchParams | NoParams | EnumParams;
 
   interface RefParams {
     ref: string;
@@ -312,12 +371,6 @@ declare namespace ajv {
     keyword: string;
   }
 
-  interface PatternGroupsParams {
-    reason: string;
-    limit: number;
-    pattern: string;
-  }
-
   interface PatternRequiredParams {
     missingPattern: string;
   }
@@ -326,33 +379,19 @@ declare namespace ajv {
     propertyName: string;
   }
 
+  interface IfParams {
+    failingKeyword: string;
+  }
+
   interface SwitchParams {
     caseIndex: number;
   }
 
-  interface NoParams {}
+  interface NoParams { }
 
   interface EnumParams {
     allowedValues: Array<any>;
   }
-}
-
-declare class ValidationError extends Error {
-  constructor(errors: Array<ajv.ErrorObject>);
-
-  message: string;
-  errors: Array<ajv.ErrorObject>;
-  ajv: true;
-  validation: true;
-}
-
-declare class MissingRefError extends Error {
-  constructor(baseId: string, ref: string, message?: string);
-  static message: (baseId: string, ref: string) => string;
-
-  message: string;
-  missingRef: string;
-  missingSchema: string;
 }
 
 export = ajv;

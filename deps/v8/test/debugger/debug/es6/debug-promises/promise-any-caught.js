@@ -1,8 +1,6 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --harmony-promise-any
 
 // Test debug events when we only listen to uncaught exceptions and a
 // Promise p3 created by Promise.any has a catch handler, and is rejected

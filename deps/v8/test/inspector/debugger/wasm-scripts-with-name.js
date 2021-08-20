@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 InspectorTest.log("Tests how wasm scripts are reported with name");
 
 let contextGroup = new InspectorTest.ContextGroup();
@@ -11,8 +13,6 @@ let sessions = [
   // Main session.
   trackScripts(),
 ];
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);

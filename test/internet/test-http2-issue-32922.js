@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -29,9 +28,7 @@ function normalSession(cb) {
     });
   });
 }
-normalSession(common.mustCall(function(err) {
-  assert.ifError(err);
-}));
+normalSession(common.mustSucceed());
 
 // Create a session using a socket that has not yet finished connecting
 function socketNotFinished(done) {
@@ -52,9 +49,7 @@ function socketNotFinished(done) {
     });
   });
 }
-socketNotFinished(common.mustCall(function(err) {
-  assert.ifError(err);
-}));
+socketNotFinished(common.mustSucceed());
 
 // Create a session using a socket that has finished connecting
 function socketFinished(done) {
@@ -75,6 +70,4 @@ function socketFinished(done) {
     });
   });
 }
-socketFinished(common.mustCall(function(err) {
-  assert.ifError(err);
-}));
+socketFinished(common.mustSucceed());

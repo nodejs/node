@@ -92,9 +92,9 @@ struct CharacterNode {
     UBool    fHasValuesVector;
     UBool    fPadding;
 
-    // No value:   fValues == NULL               and  fHasValuesVector == FALSE
-    // One value:  fValues == value              and  fHasValuesVector == FALSE
-    // >=2 values: fValues == UVector of values  and  fHasValuesVector == TRUE
+    // No value:   fValues == NULL               and  fHasValuesVector == false
+    // One value:  fValues == value              and  fHasValuesVector == false
+    // >=2 values: fValues == UVector of values  and  fHasValuesVector == true
 };
 
 inline UBool CharacterNode::hasValues() const {

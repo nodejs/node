@@ -276,3 +276,9 @@ TestMutateDuringEnumeration();
     assertEquals(result1, result2, `slow Object.values() with ${kind}`);
   }
 })();
+
+
+(function TestGlobalObject() {
+  let values = Object.values(globalThis);
+  assertTrue(values.length > 0);
+})();

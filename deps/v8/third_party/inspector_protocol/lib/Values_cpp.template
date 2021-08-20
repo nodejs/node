@@ -62,7 +62,7 @@ class ValueParserHandler : public ParserHandler {
     DCHECK(stack_.back().is_dict);
     stack_.pop_back();
   }
-  
+
   void HandleArrayBegin() override {
     if (!status_.ok()) return;
     std::unique_ptr<ListValue> list = ListValue::create();
@@ -91,19 +91,19 @@ class ValueParserHandler : public ParserHandler {
     AddValueToParent(
         BinaryValue::create(Binary::fromSpan(bytes.data(), bytes.size())));
   }
-   
+
   void HandleDouble(double value) override {
     AddValueToParent(FundamentalValue::create(value));
   }
-   
+
   void HandleInt32(int32_t value) override {
     AddValueToParent(FundamentalValue::create(value));
   }
-   
+
   void HandleBool(bool value) override {
     AddValueToParent(FundamentalValue::create(value));
   }
-   
+
   void HandleNull() override {
     AddValueToParent(Value::null());
   }
@@ -318,7 +318,6 @@ void EncodeString(const String& s, std::vector<uint8_t>* out) {
   }
 }
 }  // namespace
-
 void StringValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
   EncodeString(m_stringValue, bytes);
 }

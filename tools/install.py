@@ -19,8 +19,8 @@ def abspath(*args):
   return os.path.abspath(path)
 
 def load_config():
-  s = open('config.gypi').read()
-  return ast.literal_eval(s)
+  with open('config.gypi') as f:
+    return ast.literal_eval(f.read())
 
 def try_unlink(path):
   try:
@@ -132,10 +132,6 @@ def files(action):
       output_file += '.dll'
     else:
       output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
-      # GYP will output to lib.target except on OS X, this is hardcoded
-      # in its source - see the _InstallableTargetInstallPath function.
-      if sys.platform != 'darwin':
-        output_prefix += 'lib.target/'
 
   if 'false' == variables.get('node_shared'):
     action([output_prefix + output_file], 'bin/' + output_file)
@@ -161,12 +157,20 @@ def files(action):
   headers(action)
 
 def headers(action):
-  def ignore_inspector_headers(files_arg, dest):
-    inspector_headers = [
-      'deps/v8/include/v8-inspector.h',
-      'deps/v8/include/v8-inspector-protocol.h'
+  def wanted_v8_headers(files_arg, dest):
+    v8_headers = [
+      'deps/v8/include/cppgc/common.h',
+      'deps/v8/include/libplatform/libplatform.h',
+      'deps/v8/include/libplatform/libplatform-export.h',
+      'deps/v8/include/libplatform/v8-tracing.h',
+      'deps/v8/include/v8.h',
+      'deps/v8/include/v8-internal.h',
+      'deps/v8/include/v8-platform.h',
+      'deps/v8/include/v8-profiler.h',
+      'deps/v8/include/v8-version.h',
+      'deps/v8/include/v8config.h',
     ]
-    files_arg = [name for name in files_arg if name not in inspector_headers]
+    files_arg = [name for name in files_arg if name in v8_headers]
     action(files_arg, dest)
 
   action([
@@ -186,7 +190,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
+  subdir_files('deps/v8/include', 'include/node/', wanted_v8_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
@@ -227,11 +231,19 @@ def run(args):
   cmd = args[1] if len(args) > 1 else 'install'
 
   if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
+    if cmd == 'install':
+      headers(install)
+      return
+    if cmd == 'uninstall':
+      headers(uninstall)
+      return
   else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+    if cmd == 'install':
+      files(install)
+      return
+    if cmd == 'uninstall':
+      files(uninstall)
+      return
 
   raise RuntimeError('Bad command: %s\n' % cmd)
 

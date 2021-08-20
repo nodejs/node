@@ -173,6 +173,37 @@ class ObjectPropertiesResult {
   std::vector<const char*> guessed_types_raw_;
 };
 
+class StackFrameResult;
+struct StackFrameResultExtended : public d::StackFrameResult {
+  // Back reference for cleanup.
+  debug_helper_internal::StackFrameResult* base;
+};
+
+// Internal version of API class v8::debug_helper::StackFrameResult.
+class StackFrameResult {
+ public:
+  StackFrameResult(std::vector<std::unique_ptr<ObjectProperty>> properties) {
+    properties_ = std::move(properties);
+  }
+
+  d::StackFrameResult* GetPublicView() {
+    public_view_.num_properties = properties_.size();
+    properties_raw_.clear();
+    for (const auto& property : properties_) {
+      properties_raw_.push_back(property->GetPublicView());
+    }
+    public_view_.properties = properties_raw_.data();
+    public_view_.base = this;
+    return &public_view_;
+  }
+
+ private:
+  std::vector<std::unique_ptr<ObjectProperty>> properties_;
+
+  StackFrameResultExtended public_view_;
+  std::vector<d::ObjectProperty*> properties_raw_;
+};
+
 class TqObjectVisitor;
 
 // Base class representing a V8 object in the debuggee's address space.

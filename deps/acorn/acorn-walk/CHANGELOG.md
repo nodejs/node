@@ -1,3 +1,37 @@
+## 8.1.0 (2021-04-24)
+
+### New features
+
+Support node types for class fields and private methods.
+
+## 8.0.2 (2021-01-25)
+
+### Bug fixes
+
+Adjust package.json to work with Node 12.16.0 and 13.0-13.6.
+
+## 8.0.0 (2021-01-05)
+
+### Bug fixes
+
+Fix a bug where `full` and `fullAncestor` would skip nodes with overridden types.
+
+## 8.0.0 (2020-08-12)
+
+### New features
+
+The package can now be loaded directly as an ECMAScript module in node 13+.
+
+## 7.2.0 (2020-06-17)
+
+### New features
+
+Support optional chaining and nullish coalescing.
+
+Support `import.meta`.
+
+Add support for `export * as ns from "source"`.
+
 ## 7.1.1 (2020-02-13)
 
 ### Bug fixes

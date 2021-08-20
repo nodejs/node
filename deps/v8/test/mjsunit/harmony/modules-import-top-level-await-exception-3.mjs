@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-dynamic-import --harmony-top-level-await
+// Flags: --harmony-dynamic-import --harmony-top-level-await --ignore-unhandled-promises
 
 let ran = false;
 try {

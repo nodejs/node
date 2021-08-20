@@ -251,7 +251,7 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp)                       \
   SPLAY_LEFT(&__node, field) = SPLAY_RIGHT(&__node, field) = NULL;            \
   __left = __right = &__node;                                                 \
                                                                               \
-  while (1) {                                                                 \
+  for (;;) {                                                                  \
     if (__comp < 0) {                                                         \
       __tmp = SPLAY_LEFT((head)->sph_root, field);                            \
       if (__tmp == NULL)                                                      \

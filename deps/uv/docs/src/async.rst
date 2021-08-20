@@ -51,7 +51,7 @@ API
         loop thread.
 
     .. note::
-        :c:func:`uv_async_send` is `async-signal-safe <http://man7.org/linux/man-pages/man7/signal-safety.7.html>`_.
+        :c:func:`uv_async_send` is `async-signal-safe <https://man7.org/linux/man-pages/man7/signal-safety.7.html>`_.
         It's safe to call this function from a signal handler.
 
     .. warning::

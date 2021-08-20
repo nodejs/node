@@ -78,14 +78,12 @@ default.  They are all written in PEM format.
 =item B<-passin arg>
 
 The PKCS#12 file (i.e. input file) password source. For more information about
-the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
-L<openssl(1)>.
+the format of B<arg> see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-passout arg>
 
 Pass phrase source to encrypt any outputted private keys with. For more
-information about the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section
-in L<openssl(1)>.
+information about the format of B<arg> see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-password arg>
 
@@ -206,14 +204,12 @@ displays them.
 =item B<-pass arg>, B<-passout arg>
 
 The PKCS#12 file (i.e. output file) password source. For more information about
-the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
-L<openssl(1)>.
+the format of B<arg> see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-passin password>
 
 Pass phrase source to decrypt any input private keys with. For more information
-about the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
-L<openssl(1)>.
+about the format of B<arg> see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-chain>
 
@@ -245,7 +241,7 @@ This option is only interpreted by MSIE and similar MS software. Normally
 encryption purposes but arbitrary length keys for signing. The B<-keysig>
 option marks the key for signing only. Signing only keys can be used for
 S/MIME signing, authenticode (ActiveX control signing)  and SSL client
-authentication, however due to a bug only MSIE 5.0 and later support
+authentication, however, due to a bug only MSIE 5.0 and later support
 the use of signing only keys for SSL client authentication.
 
 =item B<-macalg digest>
@@ -383,7 +379,7 @@ L<pkcs8(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

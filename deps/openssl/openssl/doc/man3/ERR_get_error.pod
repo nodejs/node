@@ -45,7 +45,7 @@ messages.
 
 ERR_get_error_line(), ERR_peek_error_line() and
 ERR_peek_last_error_line() are the same as the above, but they
-additionally store the file name and line number where
+additionally store the filename and line number where
 the error occurred in *B<file> and *B<line>, unless these are B<NULL>.
 
 ERR_get_error_line_data(), ERR_peek_error_line_data() and
@@ -69,7 +69,7 @@ L<ERR_GET_LIB(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

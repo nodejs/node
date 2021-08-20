@@ -1,12 +1,28 @@
+const BaseCommand = require('./base-command.js')
 
-module.exports = get
+class Get extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Get a value from the npm configuration'
+  }
 
-get.usage = 'npm get <key> <value> (See `npm config`)'
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'get'
+  }
 
-var npm = require('./npm.js')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<key> ...] (See `npm config`)']
+  }
 
-get.completion = npm.commands.config.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return this.npm.commands.config.completion(opts)
+  }
 
-function get (args, cb) {
-  npm.commands.config(['get'].concat(args), cb)
+  exec (args, cb) {
+    this.npm.commands.config(['get'].concat(args), cb)
+  }
 }
+module.exports = Get

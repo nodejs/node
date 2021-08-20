@@ -41,8 +41,10 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 8
 typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
-#endif  // NAPI_EXPERIMENTAL
+typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
+                                        void* data);
+#endif  // NAPI_VERSION >= 8
 
 #endif  // SRC_NODE_API_TYPES_H_

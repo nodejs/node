@@ -39,7 +39,7 @@ FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
                     first_inobject_offset);
 }
 
-// Returns the index format accepted by the HLoadFieldByIndex instruction.
+// Returns the index format accepted by the LoadFieldByIndex instruction.
 // (In-object: zero-based from (object start + JSObject::kHeaderSize),
 // out-of-object: zero-based from FixedArray::kHeaderSize.)
 int FieldIndex::GetLoadByFieldIndex() const {
@@ -61,14 +61,14 @@ int FieldIndex::GetLoadByFieldIndex() const {
 }
 
 FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
-  const Isolate* isolate = GetIsolateForPtrCompr(map);
-  return ForDescriptor(isolate, map, descriptor_index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(map);
+  return ForDescriptor(cage_base, map, descriptor_index);
 }
 
-FieldIndex FieldIndex::ForDescriptor(const Isolate* isolate, Map map,
+FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base, Map map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details =
-      map.instance_descriptors(isolate).GetDetails(descriptor_index);
+  PropertyDetails details = map.instance_descriptors(cage_base, kRelaxedLoad)
+                                .GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

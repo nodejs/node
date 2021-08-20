@@ -23,7 +23,7 @@ class CodeDataContainer;
   V(kStrongRootList, "(Strong roots)")                \
   V(kSmiRootList, "(Smi roots)")                      \
   V(kBootstrapper, "(Bootstrapper)")                  \
-  V(kTop, "(Isolate)")                                \
+  V(kStackRoots, "(Stack roots)")                     \
   V(kRelocatable, "(Relocatable)")                    \
   V(kDebug, "(Debugger)")                             \
   V(kCompilationCache, "(Compilation cache)")         \
@@ -39,6 +39,8 @@ class CodeDataContainer;
   V(kReadOnlyObjectCache, "(Read-only object cache)") \
   V(kWeakCollections, "(Weak collections)")           \
   V(kWrapperTracing, "(Wrapper tracing)")             \
+  V(kWriteBarrier, "(Write barrier)")                 \
+  V(kRetainMaps, "(Retain maps)")                     \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
@@ -70,6 +72,20 @@ class RootVisitor {
   virtual void VisitRootPointer(Root root, const char* description,
                                 FullObjectSlot p) {
     VisitRootPointers(root, description, p, p + 1);
+  }
+
+  // Visits a contiguous arrays of off-heap pointers in the half-open range
+  // [start, end). Any or all of the values may be modified on return.
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 OffHeapObjectSlot start,
+                                 OffHeapObjectSlot end) {
+    // This should be implemented for any visitor that visits the string table.
+    // If we ever add new off-heap data-structures that we want to walk as roots
+    // using this function, we should make it generic, by
+    //
+    //   1) Making this function pure virtual, and
+    //   2) Implementing it for all visitors.
+    UNREACHABLE();
   }
 
   // Intended for serialization/deserialization checking: insert, or
@@ -148,6 +164,9 @@ class ObjectVisitor {
 
   // Visits the relocation info using the given iterator.
   virtual void VisitRelocInfo(RelocIterator* it);
+
+  // Visits the object's map pointer, decoding as necessary
+  virtual void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 };
 
 }  // namespace internal

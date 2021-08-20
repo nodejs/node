@@ -10,6 +10,7 @@
 #include "src/objects/string.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -58,7 +59,7 @@ class Interval {
     else if (from_ == kNone)
       return that;
     else
-      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+      return Interval(std::min(from_, that.from_), std::max(to_, that.to_));
   }
 
   bool Contains(int value) { return (from_ <= value) && (value <= to_); }
@@ -76,9 +77,8 @@ class Interval {
   int to_;
 };
 
-
-// Represents code units in the range from from_ to to_, both ends are
-// inclusive.
+// Represents code points (with values up to 0x10FFFF) in the range from from_
+// to to_, both ends are inclusive.
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) {}
@@ -106,7 +106,7 @@ class CharacterRange {
   static inline ZoneList<CharacterRange>* List(Zone* zone,
                                                CharacterRange range) {
     ZoneList<CharacterRange>* list =
-        new (zone) ZoneList<CharacterRange>(1, zone);
+        zone->New<ZoneList<CharacterRange>>(1, zone);
     list->Add(range, zone);
     return list;
   }
@@ -214,8 +214,7 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os,
-                                        Zone* zone);  // NOLINT
+  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os, Zone* zone);
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
   virtual bool Is##Name();
@@ -443,11 +442,12 @@ class RegExpQuantifier final : public RegExpTree {
   bool IsQuantifier() override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
-  int min() { return min_; }
-  int max() { return max_; }
-  bool is_possessive() { return quantifier_type_ == POSSESSIVE; }
+  int min() const { return min_; }
+  int max() const { return max_; }
+  QuantifierType quantifier_type() const { return quantifier_type_; }
+  bool is_possessive() const { return quantifier_type_ == POSSESSIVE; }
   bool is_non_greedy() { return quantifier_type_ == NON_GREEDY; }
-  bool is_greedy() { return quantifier_type_ == GREEDY; }
+  bool is_greedy() const { return quantifier_type_ == GREEDY; }
   RegExpTree* body() { return body_; }
 
  private:

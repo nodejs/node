@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
 const DEFAULT_TIMEOUT = 30000;
 exports.DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
 // prettier-ignore
@@ -12,6 +13,8 @@ const ERRORS = {
     InvalidSocksClientOptionsProxy: 'Invalid SOCKS proxy details were provided.',
     InvalidSocksClientOptionsTimeout: 'An invalid timeout value was provided. Please enter a value above 0 (in ms).',
     InvalidSocksClientOptionsProxiesLength: 'At least two socks proxies must be provided for chaining.',
+    InvalidSocksClientOptionsCustomAuthRange: 'Custom auth must be a value between 0x80 and 0xFE.',
+    InvalidSocksClientOptionsCustomAuthOptions: 'When a custom_auth_method is provided, custom_auth_request_handler, custom_auth_response_size, and custom_auth_response_handler must also be provided and valid.',
     NegotiationError: 'Negotiation error',
     SocketClosed: 'Socket closed',
     ProxyConnectionTimedOut: 'Proxy connection timed out',
@@ -40,7 +43,7 @@ const SOCKS_INCOMING_PACKET_SIZES = {
     Socks5ResponseIPv6: 22,
     Socks5ResponseHostname: (hostNameLength) => hostNameLength + 7,
     // Command response + incoming connection (bind)
-    Socks4Response: 8 // 2 header + 2 port + 4 ip
+    Socks4Response: 8, // 2 header + 2 port + 4 ip
 };
 exports.SOCKS_INCOMING_PACKET_SIZES = SOCKS_INCOMING_PACKET_SIZES;
 var SocksCommand;
@@ -65,6 +68,12 @@ var Socks5Auth;
     Socks5Auth[Socks5Auth["UserPass"] = 2] = "UserPass";
 })(Socks5Auth || (Socks5Auth = {}));
 exports.Socks5Auth = Socks5Auth;
+const SOCKS5_CUSTOM_AUTH_START = 0x80;
+exports.SOCKS5_CUSTOM_AUTH_START = SOCKS5_CUSTOM_AUTH_START;
+const SOCKS5_CUSTOM_AUTH_END = 0xfe;
+exports.SOCKS5_CUSTOM_AUTH_END = SOCKS5_CUSTOM_AUTH_END;
+const SOCKS5_NO_ACCEPTABLE_AUTH = 0xff;
+exports.SOCKS5_NO_ACCEPTABLE_AUTH = SOCKS5_NO_ACCEPTABLE_AUTH;
 var Socks5Response;
 (function (Socks5Response) {
     Socks5Response[Socks5Response["Granted"] = 0] = "Granted";

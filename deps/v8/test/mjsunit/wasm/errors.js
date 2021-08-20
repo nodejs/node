@@ -110,7 +110,8 @@ function import_error(index, module, func, msg) {
   b = builder();
   msg = import_error(
       0, 'foo', 'bar',
-      'global import must be a number or WebAssembly.Global object');
+      'global import must be a number, valid Wasm reference, '
+        + 'or WebAssembly.Global object');
   b.addImportedGlobal('foo', 'bar', kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();
@@ -153,27 +154,6 @@ function import_error(index, module, func, msg) {
   let b = builder().addFunction("start", kSig_v_v).addBody(
      [kExprUnreachable]).end().addStart(0);
   assertTraps(kTrapUnreachable, () => b.instantiate());
-})();
-
-(function TestConversionError() {
-  print(arguments.callee.name);
-  let b = builder();
-  b.addImport('foo', 'bar', kSig_v_l);
-  let buffer = b.addFunction('run', kSig_v_v)
-                   .addBody([kExprI64Const, 0, kExprCallFunction, 0])
-                   .exportFunc()
-                   .end()
-                   .toBuffer();
-  assertConversionError(
-      buffer, {foo: {bar: (l) => {}}}, kTrapMsgs[kTrapTypeError]);
-
-  buffer = builder()
-               .addFunction('run', kSig_l_v)
-               .addBody([kExprI64Const, 0])
-               .exportFunc()
-               .end()
-               .toBuffer();
-  assertConversionError(buffer, {}, kTrapMsgs[kTrapTypeError]);
 })();
 
 (function InternalDebugTrace() {

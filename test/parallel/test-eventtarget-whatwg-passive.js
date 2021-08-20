@@ -1,12 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 
-const {
-  Event,
-  EventTarget,
-} = require('internal/event_target');
+// Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/AddEventListenerOptions-passive.html
+// in order to define the `document` ourselves
 
 const {
   fail,
@@ -14,7 +11,6 @@ const {
   strictEqual
 } = require('assert');
 
-// Manually ported from WPT AddEventListenerOptions-passive.html
 {
   const document = new EventTarget();
   let supportsPassive = false;

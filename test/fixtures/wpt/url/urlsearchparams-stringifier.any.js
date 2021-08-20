@@ -78,6 +78,9 @@ test(function() {
     params.delete('a');
     params.append('a%b', 'c');
     assert_equals(params + '', 'a%25b=c');
+
+    params = new URLSearchParams('id=0&value=%')
+    assert_equals(params + '', 'id=0&value=%25')
 }, 'Serialize %');
 
 test(function() {
@@ -107,6 +110,15 @@ test(function() {
     // The lone '=' _does_ survive the roundtrip.
     params = new URLSearchParams('a=&a=b');
     assert_equals(params.toString(), 'a=&a=b');
+
+    params = new URLSearchParams('b=%2sf%2a');
+    assert_equals(params.toString(), 'b=%252sf*');
+
+    params = new URLSearchParams('b=%2%2af%2a');
+    assert_equals(params.toString(), 'b=%252*f*');
+
+    params = new URLSearchParams('b=%%2a');
+    assert_equals(params.toString(), 'b=%25*');
 }, 'URLSearchParams.toString');
 
 test(() => {
@@ -121,3 +133,13 @@ test(() => {
     assert_equals(url.toString(), 'http://www.example.com/?a=b%2Cc&x=y');
     assert_equals(params.toString(), 'a=b%2Cc&x=y');
 }, 'URLSearchParams connected to URL');
+
+test(() => {
+    const url = new URL('http://www.example.com/');
+    const params = url.searchParams;
+
+    params.append('a\nb', 'c\rd');
+    params.append('e\n\rf', 'g\r\nh');
+
+    assert_equals(params.toString(), "a%0Ab=c%0Dd&e%0A%0Df=g%0D%0Ah");
+}, 'URLSearchParams must not do newline normalization');

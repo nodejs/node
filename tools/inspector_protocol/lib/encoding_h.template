@@ -5,6 +5,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+{% if config.encoding_lib.header == "" %}
 #ifndef {{"_".join(config.protocol.namespace)}}_encoding_h
 #define {{"_".join(config.protocol.namespace)}}_encoding_h
 
@@ -435,7 +436,7 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    std::string* cbor);
 
 namespace internals {  // Exposed only for writing tests.
-int8_t ReadTokenStart(span<uint8_t> bytes,
+size_t ReadTokenStart(span<uint8_t> bytes,
                       cbor::MajorType* type,
                       uint64_t* value);
 
@@ -518,3 +519,4 @@ Status ConvertJSONToCBOR(const Platform& platform,
 } // namespace {{namespace}}
 {% endfor %}
 #endif // !defined({{"_".join(config.protocol.namespace)}}_encoding_h)
+{% endif %}

@@ -109,6 +109,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceWord64Or(Node* node);
   Reduction ReduceWord32Xor(Node* node);
   Reduction ReduceWord64Xor(Node* node);
+  Reduction ReduceWord32Equal(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);

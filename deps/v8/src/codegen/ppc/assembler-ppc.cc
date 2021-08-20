@@ -54,6 +54,14 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
+  return CpuFeatures::IsSupported(SIMD);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 128;
@@ -67,30 +75,42 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
-  if (cpu.part() == base::CPU::PPC_POWER9) {
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
+  // V8 PPC Simd implementations need P9 at a minimum.
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
+    supported_ |= (1u << SIMD);
+  }
 #endif
-  if (cpu.part() == base::CPU::PPC_POWER6 ||
-      cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::kPPCPower6 ||
+      cpu.part() == base::CPU::kPPCPower7 ||
+      cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << LWSYNC);
   }
-  if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::kPPCPower7 ||
+      cpu.part() == base::CPU::kPPCPower8 ||
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
+  if (!(cpu.part() == base::CPU::kPPCG5 || cpu.part() == base::CPU::kPPCG4)) {
     // Assume support
     supported_ |= (1u << FPU);
   }
-  if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
+  if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
     icache_line_size_ = cpu.icache_line_size();
   }
 #elif V8_OS_AIX
@@ -103,10 +123,17 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << ISELECT);
   supported_ |= (1u << VSX);
   supported_ |= (1u << MODULO);
+  supported_ |= (1u << SIMD);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif
 #endif
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
@@ -248,6 +275,15 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
 
@@ -1457,6 +1493,9 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
+void Assembler::mtcrf(Register src, uint8_t FXM) {
+  emit(MTCRF | src.code() * B21 | FXM * B12);
+}
 #if V8_TARGET_ARCH_PPC64
 void Assembler::mffprd(Register dst, DoubleRegister src) {
   emit(EXT2 | MFVSRD | src.code() * B21 | dst.code() * B16);
@@ -1631,6 +1670,10 @@ void Assembler::fctiw(const DoubleRegister frt, const DoubleRegister frb) {
   emit(EXT4 | FCTIW | frt.code() * B21 | frb.code() * B11);
 }
 
+void Assembler::fctiwuz(const DoubleRegister frt, const DoubleRegister frb) {
+  emit(EXT4 | FCTIWUZ | frt.code() * B21 | frb.code() * B11);
+}
+
 void Assembler::frin(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FRIN | frt.code() * B21 | frb.code() * B11 | rc);
@@ -1758,29 +1801,103 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 // Vector instructions
-void Assembler::mfvsrd(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrd(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRD | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mfvsrwz(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrwz(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRWZ | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mtvsrd(const DoubleRegister rt, const Register ra) {
+void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   int TX = 1;
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
-void Assembler::vor(const DoubleRegister rt, const DoubleRegister ra,
-                    const DoubleRegister rb) {
-  emit(VOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
+                        const Register rb) {
+  int TX = 1;
+  emit(MTVSRDD | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | TX);
 }
 
-void Assembler::vsro(const DoubleRegister rt, const DoubleRegister ra,
-                     const DoubleRegister rb) {
-  emit(VSRO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxvx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsibzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIBZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsihzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIHZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsiwzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIWZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::stxsdx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSDX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsibx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIBX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsihx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIHX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIWX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::stxvx(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVX | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
+  int TX = 1;
+  CHECK(is_uint8(imm.immediate()));
+  emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
 // Pseudo instructions.
@@ -1867,20 +1984,32 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value) {
+void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
 }
 
-void Assembler::dp(uintptr_t data) {
+void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uintptr_t*>(pc_) = data;
   pc_ += sizeof(uintptr_t);
 }

@@ -15,31 +15,32 @@ namespace internal {
 
 class TestingAssemblerBuffer : public AssemblerBuffer {
  public:
-  TestingAssemblerBuffer(size_t requested, void* address) {
+  TestingAssemblerBuffer(
+      size_t requested, void* address,
+      VirtualMemory::JitPermission jit_permission = VirtualMemory::kNoJit) {
     size_t page_size = v8::internal::AllocatePageSize();
     size_t alloc_size = RoundUp(requested, page_size);
     CHECK_GE(kMaxInt, alloc_size);
-    size_ = static_cast<int>(alloc_size);
-    buffer_ = static_cast<byte*>(AllocatePages(GetPlatformPageAllocator(),
-                                               address, alloc_size, page_size,
-                                               v8::PageAllocator::kReadWrite));
-    CHECK_NOT_NULL(buffer_);
+    reservation_ = VirtualMemory(GetPlatformPageAllocator(), alloc_size,
+                                 address, page_size, jit_permission);
+    CHECK(reservation_.IsReserved());
+    MakeWritable();
   }
 
-  ~TestingAssemblerBuffer() {
-    CHECK(FreePages(GetPlatformPageAllocator(), buffer_, size_));
+  ~TestingAssemblerBuffer() { reservation_.Free(); }
+
+  byte* start() const override {
+    return reinterpret_cast<byte*>(reservation_.address());
   }
 
-  byte* start() const override { return buffer_; }
-
-  int size() const override { return size_; }
+  int size() const override { return static_cast<int>(reservation_.size()); }
 
   std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
     FATAL("Cannot grow TestingAssemblerBuffer");
   }
 
   std::unique_ptr<AssemblerBuffer> CreateView() const {
-    return ExternalAssemblerBuffer(buffer_, size_);
+    return ExternalAssemblerBuffer(start(), size());
   }
 
   void MakeExecutable() {
@@ -48,35 +49,36 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     // some older ARM kernels there is a bug which causes an access error on
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    FlushInstructionCache(buffer_, size_);
+    FlushInstructionCache(start(), size());
 
-    bool result = SetPermissions(GetPlatformPageAllocator(), buffer_, size_,
+    bool result = SetPermissions(GetPlatformPageAllocator(), start(), size(),
                                  v8::PageAllocator::kReadExecute);
     CHECK(result);
   }
 
   void MakeWritable() {
-    bool result = SetPermissions(GetPlatformPageAllocator(), buffer_, size_,
+    bool result = SetPermissions(GetPlatformPageAllocator(), start(), size(),
                                  v8::PageAllocator::kReadWrite);
     CHECK(result);
   }
 
   // TODO(wasm): Only needed for the "test-jump-table-assembler.cc" tests.
   void MakeWritableAndExecutable() {
-    bool result = SetPermissions(GetPlatformPageAllocator(), buffer_, size_,
+    bool result = SetPermissions(GetPlatformPageAllocator(), start(), size(),
                                  v8::PageAllocator::kReadWriteExecute);
     CHECK(result);
   }
 
  private:
-  byte* buffer_;
-  int size_;
+  VirtualMemory reservation_;
 };
 
 static inline std::unique_ptr<TestingAssemblerBuffer> AllocateAssemblerBuffer(
     size_t requested = v8::internal::AssemblerBase::kDefaultBufferSize,
-    void* address = nullptr) {
-  return std::make_unique<TestingAssemblerBuffer>(requested, address);
+    void* address = nullptr,
+    VirtualMemory::JitPermission jit_permission = VirtualMemory::kNoJit) {
+  return std::make_unique<TestingAssemblerBuffer>(requested, address,
+                                                  jit_permission);
 }
 
 }  // namespace internal

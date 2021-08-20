@@ -26,11 +26,13 @@ namespace U_ICU_NAMESPACE {
 class PluralRules;
 namespace number {
 class LocalizedNumberFormatter;
-}  //  namespace number
-}  //  namespace U_ICU_NAMESPACE
+}  // namespace number
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-plural-rules-tq.inc"
 
 class JSPluralRules
     : public TorqueGeneratedJSPluralRules<JSPluralRules, JSObject> {

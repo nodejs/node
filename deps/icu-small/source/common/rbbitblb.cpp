@@ -28,6 +28,8 @@
 
 U_NAMESPACE_BEGIN
 
+const int32_t kMaxStateFor8BitsTable = 255;
+
 RBBITableBuilder::RBBITableBuilder(RBBIRuleBuilder *rb, RBBINode **rootNode, UErrorCode &status) :
         fRB(rb),
         fTree(*rootNode),
@@ -149,7 +151,7 @@ void  RBBITableBuilder::buildForwardTable() {
     //
     // calculate the functions nullable, firstpos, lastpos and followpos on
     // nodes in the parse tree.
-    //    See the alogrithm description in Aho.
+    //    See the algorithm description in Aho.
     //    Understanding how this works by looking at the code alone will be
     //       nearly impossible.
     //
@@ -712,7 +714,6 @@ void RBBITableBuilder::mapLookAheadRules() {
         return;
     }
     fLookAheadRuleMap->setSize(fRB->fScanner->numRules() + 1);
-    int32_t laSlotsInUse = 0;
 
     for (int32_t n=0; n<fDStates->size(); n++) {
         RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(n);
@@ -749,7 +750,7 @@ void RBBITableBuilder::mapLookAheadRules() {
         }
 
         if (laSlotForState == 0) {
-            laSlotForState = ++laSlotsInUse;
+            laSlotForState = ++fLASlotsInUse;
         }
 
         // For each look ahead node covered by this state,
@@ -805,23 +806,23 @@ void     RBBITableBuilder::flagAcceptingStates() {
             if (sd->fPositions->indexOf(endMarker) >= 0) {
                 // Any non-zero value for fAccepting means this is an accepting node.
                 // The value is what will be returned to the user as the break status.
-                // If no other value was specified, force it to -1.
+                // If no other value was specified, force it to ACCEPTING_UNCONDITIONAL (1).
 
                 if (sd->fAccepting==0) {
                     // State hasn't been marked as accepting yet.  Do it now.
                     sd->fAccepting = fLookAheadRuleMap->elementAti(endMarker->fVal);
                     if (sd->fAccepting == 0) {
-                        sd->fAccepting = -1;
+                        sd->fAccepting = ACCEPTING_UNCONDITIONAL;
                     }
                 }
-                if (sd->fAccepting==-1 && endMarker->fVal != 0) {
+                if (sd->fAccepting==ACCEPTING_UNCONDITIONAL && endMarker->fVal != 0) {
                     // Both lookahead and non-lookahead accepting for this state.
                     // Favor the look-ahead, because a look-ahead match needs to
                     // immediately stop the run-time engine. First match, not longest.
                     sd->fAccepting = fLookAheadRuleMap->elementAti(endMarker->fVal);
                 }
                 // implicit else:
-                // if sd->fAccepting already had a value other than 0 or -1, leave it be.
+                // if sd->fAccepting already had a value other than 0 or 1, leave it be.
             }
         }
     }
@@ -855,7 +856,7 @@ void     RBBITableBuilder::flagLookAheadStates() {
             int32_t positionsIdx = sd->fPositions->indexOf(lookAheadNode);
             if (positionsIdx >= 0) {
                 U_ASSERT(lookAheadNode == sd->fPositions->elementAt(positionsIdx));
-                int32_t lookaheadSlot = fLookAheadRuleMap->elementAti(lookAheadNode->fVal);
+                uint32_t lookaheadSlot = fLookAheadRuleMap->elementAti(lookAheadNode->fVal);
                 U_ASSERT(sd->fLookAhead == 0 || sd->fLookAhead == lookaheadSlot);
                 // if (sd->fLookAhead != 0 && sd->fLookAhead != lookaheadSlot) {
                 //     printf("%s:%d Bingo. sd->fLookAhead:%d   lookaheadSlot:%d\n",
@@ -1148,7 +1149,13 @@ bool RBBITableBuilder::findDuplCharClassFrom(IntPair *categories) {
     int32_t numCols = fRB->fSetBuilder->getNumCharCategories();
 
     for (; categories->first < numCols-1; categories->first++) {
-        for (categories->second=categories->first+1; categories->second < numCols; categories->second++) {
+        // Note: dictionary & non-dictionary columns cannot be merged.
+        //       The limitSecond value prevents considering mixed pairs.
+        //       Dictionary categories are >= DictCategoriesStart.
+        //       Non dict categories are   <  DictCategoriesStart.
+        int limitSecond = categories->first < fRB->fSetBuilder->getDictCategoriesStart() ?
+            fRB->fSetBuilder->getDictCategoriesStart() : numCols;
+        for (categories->second=categories->first+1; categories->second < limitSecond; categories->second++) {
             // Initialized to different values to prevent returning true if numStates = 0 (implies no duplicates).
             uint16_t table_base = 0;
             uint16_t table_dupl = 1;
@@ -1335,11 +1342,18 @@ int32_t  RBBITableBuilder::getTableSize() const {
     numRows = fDStates->size();
     numCols = fRB->fSetBuilder->getNumCharCategories();
 
-    rowSize = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t)*numCols;
+    if (use8BitsForTable()) {
+        rowSize = offsetof(RBBIStateTableRow8, fNextState) + sizeof(int8_t)*numCols;
+    } else {
+        rowSize = offsetof(RBBIStateTableRow16, fNextState) + sizeof(int16_t)*numCols;
+    }
     size   += numRows * rowSize;
     return size;
 }
 
+bool RBBITableBuilder::use8BitsForTable() const {
+    return fDStates->size() <= kMaxStateFor8BitsTable;
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -1364,27 +1378,48 @@ void RBBITableBuilder::exportTable(void *where) {
         return;
     }
 
-    table->fRowLen    = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t) * catCount;
     table->fNumStates = fDStates->size();
+    table->fDictCategoriesStart = fRB->fSetBuilder->getDictCategoriesStart();
+    table->fLookAheadResultsSize = fLASlotsInUse == ACCEPTING_UNCONDITIONAL ? 0 : fLASlotsInUse + 1;
     table->fFlags     = 0;
+    if (use8BitsForTable()) {
+        table->fRowLen    = offsetof(RBBIStateTableRow8, fNextState) + sizeof(uint8_t) * catCount;
+        table->fFlags  |= RBBI_8BITS_ROWS;
+    } else {
+        table->fRowLen    = offsetof(RBBIStateTableRow16, fNextState) + sizeof(int16_t) * catCount;
+    }
     if (fRB->fLookAheadHardBreak) {
         table->fFlags  |= RBBI_LOOKAHEAD_HARD_BREAK;
     }
     if (fRB->fSetBuilder->sawBOF()) {
         table->fFlags  |= RBBI_BOF_REQUIRED;
     }
-    table->fReserved  = 0;
 
     for (state=0; state<table->fNumStates; state++) {
         RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
         RBBIStateTableRow   *row = (RBBIStateTableRow *)(table->fTableData + state*table->fRowLen);
-        U_ASSERT (-32768 < sd->fAccepting && sd->fAccepting <= 32767);
-        U_ASSERT (-32768 < sd->fLookAhead && sd->fLookAhead <= 32767);
-        row->fAccepting = (int16_t)sd->fAccepting;
-        row->fLookAhead = (int16_t)sd->fLookAhead;
-        row->fTagIdx    = (int16_t)sd->fTagsIdx;
-        for (col=0; col<catCount; col++) {
-            row->fNextState[col] = (uint16_t)sd->fDtran->elementAti(col);
+        if (use8BitsForTable()) {
+            U_ASSERT (sd->fAccepting <= 255);
+            U_ASSERT (sd->fLookAhead <= 255);
+            U_ASSERT (0 <= sd->fTagsIdx && sd->fTagsIdx <= 255);
+            RBBIStateTableRow8 *r8 = (RBBIStateTableRow8*)row;
+            r8->fAccepting = sd->fAccepting;
+            r8->fLookAhead = sd->fLookAhead;
+            r8->fTagsIdx   = sd->fTagsIdx;
+            for (col=0; col<catCount; col++) {
+                U_ASSERT (sd->fDtran->elementAti(col) <= kMaxStateFor8BitsTable);
+                r8->fNextState[col] = sd->fDtran->elementAti(col);
+            }
+        } else {
+            U_ASSERT (sd->fAccepting <= 0xffff);
+            U_ASSERT (sd->fLookAhead <= 0xffff);
+            U_ASSERT (0 <= sd->fTagsIdx && sd->fTagsIdx <= 0xffff);
+            row->r16.fAccepting = sd->fAccepting;
+            row->r16.fLookAhead = sd->fLookAhead;
+            row->r16.fTagsIdx   = sd->fTagsIdx;
+            for (col=0; col<catCount; col++) {
+                row->r16.fNextState[col] = sd->fDtran->elementAti(col);
+            }
         }
     }
 }
@@ -1520,11 +1555,18 @@ int32_t  RBBITableBuilder::getSafeTableSize() const {
     numRows = fSafeTable->size();
     numCols = fRB->fSetBuilder->getNumCharCategories();
 
-    rowSize = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t)*numCols;
+    if (use8BitsForSafeTable()) {
+        rowSize = offsetof(RBBIStateTableRow8, fNextState) + sizeof(int8_t)*numCols;
+    } else {
+        rowSize = offsetof(RBBIStateTableRow16, fNextState) + sizeof(int16_t)*numCols;
+    }
     size   += numRows * rowSize;
     return size;
 }
 
+bool RBBITableBuilder::use8BitsForSafeTable() const {
+    return fSafeTable->size() <= kMaxStateFor8BitsTable;
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -1549,20 +1591,34 @@ void RBBITableBuilder::exportSafeTable(void *where) {
         return;
     }
 
-    table->fRowLen    = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t) * catCount;
     table->fNumStates = fSafeTable->size();
     table->fFlags     = 0;
-    table->fReserved  = 0;
+    if (use8BitsForSafeTable()) {
+        table->fRowLen    = offsetof(RBBIStateTableRow8, fNextState) + sizeof(uint8_t) * catCount;
+        table->fFlags  |= RBBI_8BITS_ROWS;
+    } else {
+        table->fRowLen    = offsetof(RBBIStateTableRow16, fNextState) + sizeof(int16_t) * catCount;
+    }
 
     for (state=0; state<table->fNumStates; state++) {
         UnicodeString *rowString = (UnicodeString *)fSafeTable->elementAt(state);
         RBBIStateTableRow   *row = (RBBIStateTableRow *)(table->fTableData + state*table->fRowLen);
-        row->fAccepting = 0;
-        row->fLookAhead = 0;
-        row->fTagIdx    = 0;
-        row->fReserved  = 0;
-        for (col=0; col<catCount; col++) {
-            row->fNextState[col] = rowString->charAt(col);
+        if (use8BitsForSafeTable()) {
+            RBBIStateTableRow8 *r8 = (RBBIStateTableRow8*)row;
+            r8->fAccepting = 0;
+            r8->fLookAhead = 0;
+            r8->fTagsIdx    = 0;
+            for (col=0; col<catCount; col++) {
+                U_ASSERT(rowString->charAt(col) <= kMaxStateFor8BitsTable);
+                r8->fNextState[col] = static_cast<uint8_t>(rowString->charAt(col));
+            }
+        } else {
+            row->r16.fAccepting = 0;
+            row->r16.fLookAhead = 0;
+            row->r16.fTagsIdx    = 0;
+            for (col=0; col<catCount; col++) {
+                row->r16.fNextState[col] = rowString->charAt(col);
+            }
         }
     }
 }
@@ -1600,12 +1656,12 @@ void RBBITableBuilder::printStates() {
     RBBIDebugPrintf("state |           i n p u t     s y m b o l s \n");
     RBBIDebugPrintf("      | Acc  LA    Tag");
     for (c=0; c<fRB->fSetBuilder->getNumCharCategories(); c++) {
-        RBBIDebugPrintf(" %2d", c);
+        RBBIDebugPrintf(" %3d", c);
     }
     RBBIDebugPrintf("\n");
     RBBIDebugPrintf("      |---------------");
     for (c=0; c<fRB->fSetBuilder->getNumCharCategories(); c++) {
-        RBBIDebugPrintf("---");
+        RBBIDebugPrintf("----");
     }
     RBBIDebugPrintf("\n");
 
@@ -1614,7 +1670,7 @@ void RBBITableBuilder::printStates() {
         RBBIDebugPrintf("  %3d | " , n);
         RBBIDebugPrintf("%3d %3d %5d ", sd->fAccepting, sd->fLookAhead, sd->fTagsIdx);
         for (c=0; c<fRB->fSetBuilder->getNumCharCategories(); c++) {
-            RBBIDebugPrintf(" %2d", sd->fDtran->elementAti(c));
+            RBBIDebugPrintf(" %3d", sd->fDtran->elementAti(c));
         }
         RBBIDebugPrintf("\n");
     }

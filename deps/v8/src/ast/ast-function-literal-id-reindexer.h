@@ -21,6 +21,9 @@ class AstFunctionLiteralIdReindexer final
     : public AstTraversalVisitor<AstFunctionLiteralIdReindexer> {
  public:
   AstFunctionLiteralIdReindexer(size_t stack_limit, int delta);
+  AstFunctionLiteralIdReindexer(const AstFunctionLiteralIdReindexer&) = delete;
+  AstFunctionLiteralIdReindexer& operator=(
+      const AstFunctionLiteralIdReindexer&) = delete;
   ~AstFunctionLiteralIdReindexer();
 
   void Reindex(Expression* pattern);
@@ -42,8 +45,6 @@ class AstFunctionLiteralIdReindexer final
 #else
   void CheckVisited(Expression* expr) {}
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(AstFunctionLiteralIdReindexer);
 };
 
 }  // namespace internal

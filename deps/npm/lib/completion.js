@@ -1,159 +1,219 @@
-module.exports = completion
+// Each command has a completion function that takes an options object and a cb
+// The callback gets called with an error and an array of possible completions.
+// The options object is built up based on the environment variables set by
+// zsh or bash when calling a function for completion, based on the cursor
+// position and the command line thus far.  These are:
+// COMP_CWORD: the index of the "word" in the command line being completed
+// COMP_LINE: the full command line thusfar as a string
+// COMP_POINT: the cursor index at the point of triggering completion
+//
+// We parse the command line with nopt, like npm does, and then create an
+// options object containing:
+// words: array of words in the command line
+// w: the index of the word being completed (ie, COMP_CWORD)
+// word: the word being completed
+// line: the COMP_LINE
+// lineLength
+// point: the COMP_POINT, usually equal to line length, but not always, eg if
+// the user has pressed the left-arrow to complete an earlier word
+// partialLine: the line up to the point
+// partialWord: the word being completed (which might be ''), up to the point
+// conf: a nopt parse of the command line
+//
+// When the implementation completion method returns its list of strings,
+// and arrays of strings, we filter that by any that start with the
+// partialWord, since only those can possibly be valid matches.
+//
+// Matches are wrapped with ' to escape them, if necessary, and then printed
+// one per line for the shell completion method to consume in IFS=$'\n' mode
+// as an array.
+//
 
-completion.usage = 'source <(npm completion)'
+const { definitions, shorthands } = require('./utils/config/index.js')
+const deref = require('./utils/deref-command.js')
+const { aliases, cmdList, plumbing } = require('./utils/cmd-list.js')
+const aliasNames = Object.keys(aliases)
+const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
+const nopt = require('nopt')
+const configNames = Object.keys(definitions)
+const shorthandNames = Object.keys(shorthands)
+const allConfs = configNames.concat(shorthandNames)
+const isWindowsShell = require('./utils/is-windows-shell.js')
+const fileExists = require('./utils/file-exists.js')
 
-var npm = require('./npm.js')
-var npmconf = require('./config/core.js')
-var configDefs = npmconf.defs
-var configTypes = configDefs.types
-var shorthands = configDefs.shorthands
-var nopt = require('nopt')
-var configNames = Object.keys(configTypes)
-  .filter(function (e) { return e.charAt(0) !== '_' })
-var shorthandNames = Object.keys(shorthands)
-var allConfs = configNames.concat(shorthandNames)
-var once = require('once')
-var isWindowsShell = require('./utils/is-windows-shell.js')
-var output = require('./utils/output.js')
+const { promisify } = require('util')
+const BaseCommand = require('./base-command.js')
 
-completion.completion = function (opts, cb) {
-  if (opts.w > 3) return cb()
+class Completion extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Tab Completion for npm'
+  }
 
-  var fs = require('graceful-fs')
-  var path = require('path')
-  var bashExists = null
-  var zshExists = null
-  fs.stat(path.resolve(process.env.HOME, '.bashrc'), function (er) {
-    bashExists = !er
-    next()
-  })
-  fs.stat(path.resolve(process.env.HOME, '.zshrc'), function (er) {
-    zshExists = !er
-    next()
-  })
-  function next () {
-    if (zshExists === null || bashExists === null) return
-    var out = []
-    if (zshExists) out.push('~/.zshrc')
-    if (bashExists) out.push('~/.bashrc')
-    if (opts.w === 2) {
-      out = out.map(function (m) {
-        return ['>>', m]
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'completion'
+  }
+
+  // completion for the completion command
+  async completion (opts) {
+    if (opts.w > 2)
+      return
+
+    const { resolve } = require('path')
+    const [bashExists, zshExists] = await Promise.all([
+      fileExists(resolve(process.env.HOME, '.bashrc')),
+      fileExists(resolve(process.env.HOME, '.zshrc')),
+    ])
+    const out = []
+    if (zshExists)
+      out.push(['>>', '~/.zshrc'])
+
+    if (bashExists)
+      out.push(['>>', '~/.bashrc'])
+
+    return out
+  }
+
+  exec (args, cb) {
+    this.compl(args).then(() => cb()).catch(cb)
+  }
+
+  async compl (args) {
+    if (isWindowsShell) {
+      const msg = 'npm completion supported only in MINGW / Git bash on Windows'
+      throw Object.assign(new Error(msg), {
+        code: 'ENOTSUP',
       })
     }
-    cb(null, out)
-  }
-}
 
-function completion (args, cb) {
-  if (isWindowsShell) {
-    var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
-    e.code = 'ENOTSUP'
-    e.errno = require('constants').ENOTSUP // eslint-disable-line node/no-deprecated-api
-    return cb(e)
-  }
+    const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
 
-  // if the COMP_* isn't in the env, then just dump the script.
-  if (process.env.COMP_CWORD === undefined ||
-      process.env.COMP_LINE === undefined ||
-      process.env.COMP_POINT === undefined) {
-    return dumpScript(cb)
-  }
+    // if the COMP_* isn't in the env, then just dump the script.
+    if (COMP_CWORD === undefined ||
+      COMP_LINE === undefined ||
+      COMP_POINT === undefined)
+      return dumpScript()
 
-  console.error(process.env.COMP_CWORD)
-  console.error(process.env.COMP_LINE)
-  console.error(process.env.COMP_POINT)
+    // ok we're actually looking at the envs and outputting the suggestions
+    // get the partial line and partial word,
+    // if the point isn't at the end.
+    // ie, tabbing at: npm foo b|ar
+    const w = +COMP_CWORD
+    const words = args.map(unescape)
+    const word = words[w]
+    const line = COMP_LINE
+    const point = +COMP_POINT
+    const partialLine = line.substr(0, point)
+    const partialWords = words.slice(0, w)
 
-  // get the partial line and partial word,
-  // if the point isn't at the end.
-  // ie, tabbing at: npm foo b|ar
-  var w = +process.env.COMP_CWORD
-  var words = args.map(unescape)
-  var word = words[w]
-  var line = process.env.COMP_LINE
-  var point = +process.env.COMP_POINT
-  var partialLine = line.substr(0, point)
-  var partialWords = words.slice(0, w)
+    // figure out where in that last word the point is.
+    const partialWordRaw = args[w]
+    let i = partialWordRaw.length
+    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0)
+      i--
 
-  // figure out where in that last word the point is.
-  var partialWord = args[w]
-  var i = partialWord.length
-  while (partialWord.substr(0, i) !== partialLine.substr(-1 * i) && i > 0) {
-    i--
-  }
-  partialWord = unescape(partialWord.substr(0, i))
-  partialWords.push(partialWord)
+    const partialWord = unescape(partialWordRaw.substr(0, i))
+    partialWords.push(partialWord)
 
-  var opts = {
-    words: words,
-    w: w,
-    word: word,
-    line: line,
-    lineLength: line.length,
-    point: point,
-    partialLine: partialLine,
-    partialWords: partialWords,
-    partialWord: partialWord,
-    raw: args
-  }
+    const opts = {
+      words,
+      w,
+      word,
+      line,
+      lineLength: line.length,
+      point,
+      partialLine,
+      partialWords,
+      partialWord,
+      raw: args,
+    }
 
-  cb = wrapCb(cb, opts)
+    if (partialWords.slice(0, -1).indexOf('--') === -1) {
+      if (word.charAt(0) === '-')
+        return this.wrap(opts, configCompl(opts))
 
-  console.error(opts)
-
-  if (partialWords.slice(0, -1).indexOf('--') === -1) {
-    if (word.charAt(0) === '-') return configCompl(opts, cb)
-    if (words[w - 1] &&
+      if (words[w - 1] &&
         words[w - 1].charAt(0) === '-' &&
         !isFlag(words[w - 1])) {
-      // awaiting a value for a non-bool config.
-      // don't even try to do this for now
-      console.error('configValueCompl')
-      return configValueCompl(opts, cb)
+        // awaiting a value for a non-bool config.
+        // don't even try to do this for now
+        return this.wrap(opts, configValueCompl(opts))
+      }
+    }
+
+    // try to find the npm command.
+    // it's the first thing after all the configs.
+    // take a little shortcut and use npm's arg parsing logic.
+    // don't have to worry about the last arg being implicitly
+    // boolean'ed, since the last block will catch that.
+    const types = Object.entries(definitions).reduce((types, [key, def]) => {
+      types[key] = def.type
+      return types
+    }, {})
+    const parsed = opts.conf =
+      nopt(types, shorthands, partialWords.slice(0, -1), 0)
+    // check if there's a command already.
+    const cmd = parsed.argv.remain[1]
+    if (!cmd)
+      return this.wrap(opts, cmdCompl(opts))
+
+    Object.keys(parsed).forEach(k => this.npm.config.set(k, parsed[k]))
+
+    // at this point, if words[1] is some kind of npm command,
+    // then complete on it.
+    // otherwise, do nothing
+    const impl = this.npm.commands[cmd]
+    if (impl && impl.completion) {
+      const comps = await impl.completion(opts)
+      return this.wrap(opts, comps)
     }
   }
 
-  // try to find the npm command.
-  // it's the first thing after all the configs.
-  // take a little shortcut and use npm's arg parsing logic.
-  // don't have to worry about the last arg being implicitly
-  // boolean'ed, since the last block will catch that.
-  var parsed = opts.conf =
-    nopt(configTypes, shorthands, partialWords.slice(0, -1), 0)
-  // check if there's a command already.
-  console.error(parsed)
-  var cmd = parsed.argv.remain[1]
-  if (!cmd) return cmdCompl(opts, cb)
+  // The command should respond with an array.  Loop over that,
+  // wrapping quotes around any that have spaces, and writing
+  // them to stdout.
+  // If any of the items are arrays, then join them with a space.
+  // Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
+  // to: 'a', 'b c', or 'd' 'e'
+  wrap (opts, compls) {
+    if (!Array.isArray(compls))
+      compls = compls ? [compls] : []
 
-  Object.keys(parsed).forEach(function (k) {
-    npm.config.set(k, parsed[k])
-  })
+    compls = compls.map(c =>
+      Array.isArray(c) ? c.map(escape).join(' ') : escape(c))
 
-  // at this point, if words[1] is some kind of npm command,
-  // then complete on it.
-  // otherwise, do nothing
-  cmd = npm.commands[cmd]
-  if (cmd && cmd.completion) return cmd.completion(opts, cb)
+    if (opts.partialWord)
+      compls = compls.filter(c => c.startsWith(opts.partialWord))
 
-  // nothing to do.
-  cb()
+    if (compls.length > 0)
+      this.npm.output(compls.join('\n'))
+  }
 }
 
-function dumpScript (cb) {
-  var fs = require('graceful-fs')
-  var path = require('path')
-  var p = path.resolve(__dirname, 'utils/completion.sh')
+const dumpScript = async () => {
+  const fs = require('fs')
+  const readFile = promisify(fs.readFile)
+  const { resolve } = require('path')
+  const p = resolve(__dirname, 'utils/completion.sh')
 
-  // The Darwin patch below results in callbacks first for the write and then
-  // for the error handler, so make sure we only call our callback once.
-  cb = once(cb)
+  const d = (await readFile(p, 'utf8')).replace(/^#!.*?\n/, '')
+  await new Promise((res, rej) => {
+    let done = false
+    process.stdout.write(d, () => {
+      if (done)
+        return
 
-  fs.readFile(p, 'utf8', function (er, d) {
-    if (er) return cb(er)
-    d = d.replace(/^#!.*?\n/, '')
+      done = true
+      res()
+    })
 
-    process.stdout.write(d, function () { cb() })
-    process.stdout.on('error', function (er) {
+    process.stdout.on('error', er => {
+      if (done)
+        return
+
+      done = true
+
       // Darwin is a pain sometimes.
       //
       // This is necessary because the "source" or "." program in
@@ -164,85 +224,61 @@ function dumpScript (cb) {
       // Really, one should not be tossing away EPIPE errors, or any
       // errors, so casually.  But, without this, `. <(npm completion)`
       // can never ever work on OS X.
-      if (er.errno === 'EPIPE') er = null
-      cb(er)
+      if (er.errno === 'EPIPE')
+        res()
+      else
+        rej(er)
     })
   })
 }
 
-function unescape (w) {
-  if (w.charAt(0) === '\'') return w.replace(/^'|'$/g, '')
-  else return w.replace(/\\ /g, ' ')
-}
+const unescape = w => w.charAt(0) === '\'' ? w.replace(/^'|'$/g, '')
+  : w.replace(/\\ /g, ' ')
 
-function escape (w) {
-  if (!w.match(/\s+/)) return w
-  return '\'' + w + '\''
-}
-
-// The command should respond with an array.  Loop over that,
-// wrapping quotes around any that have spaces, and writing
-// them to stdout.  Use console.log, not the outfd config.
-// If any of the items are arrays, then join them with a space.
-// Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
-// to: 'a', 'b c', or 'd' 'e'
-function wrapCb (cb, opts) {
-  return function (er, compls) {
-    if (!Array.isArray(compls)) compls = compls ? [compls] : []
-    compls = compls.map(function (c) {
-      if (Array.isArray(c)) c = c.map(escape).join(' ')
-      else c = escape(c)
-      return c
-    })
-
-    if (opts.partialWord) {
-      compls = compls.filter(function (c) {
-        return c.indexOf(opts.partialWord) === 0
-      })
-    }
-
-    console.error([er && er.stack, compls, opts.partialWord])
-    if (er || compls.length === 0) return cb(er)
-
-    output(compls.join('\n'))
-    cb()
-  }
-}
+const escape = w => !/\s+/.test(w) ? w
+  : '\'' + w + '\''
 
 // the current word has a dash.  Return the config names,
 // with the same number of dashes as the current word has.
-function configCompl (opts, cb) {
-  var word = opts.word
-  var split = word.match(/^(-+)((?:no-)*)(.*)$/)
-  var dashes = split[1]
-  var no = split[2]
-  var flags = configNames.filter(isFlag)
-  console.error(flags)
-
-  return cb(null, allConfs.map(function (c) {
-    return dashes + c
-  }).concat(flags.map(function (f) {
-    return dashes + (no || 'no-') + f
-  })))
+const configCompl = opts => {
+  const word = opts.word
+  const split = word.match(/^(-+)((?:no-)*)(.*)$/)
+  const dashes = split[1]
+  const no = split[2]
+  const flags = configNames.filter(isFlag)
+  return allConfs.map(c => dashes + c)
+    .concat(flags.map(f => dashes + (no || 'no-') + f))
 }
 
 // expand with the valid values of various config values.
 // not yet implemented.
-function configValueCompl (opts, cb) {
-  console.error('configValue', opts)
-  return cb(null, [])
-}
+const configValueCompl = opts => []
 
 // check if the thing is a flag or not.
-function isFlag (word) {
+const isFlag = word => {
   // shorthands never take args.
-  var split = word.match(/^(-*)((?:no-)+)?(.*)$/)
-  var no = split[2]
-  var conf = split[3]
-  return no || configTypes[conf] === Boolean || shorthands[conf]
+  const split = word.match(/^(-*)((?:no-)+)?(.*)$/)
+  const no = split[2]
+  const conf = split[3]
+  const {type} = definitions[conf]
+  return no ||
+    type === Boolean ||
+    (Array.isArray(type) && type.includes(Boolean)) ||
+    shorthands[conf]
 }
 
 // complete against the npm commands
-function cmdCompl (opts, cb) {
-  return cb(null, npm.fullList)
+// if they all resolve to the same thing, just return the thing it already is
+const cmdCompl = opts => {
+  const matches = fullList.filter(c => c.startsWith(opts.partialWord))
+  if (!matches.length)
+    return matches
+
+  const derefs = new Set([...matches.map(c => deref(c))])
+  if (derefs.size === 1)
+    return [...derefs]
+
+  return fullList
 }
+
+module.exports = Completion

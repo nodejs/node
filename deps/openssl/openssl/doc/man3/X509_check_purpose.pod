@@ -35,7 +35,7 @@ For non-CA checks
 
 =over 4
 
-=item -1 an error condition has occured
+=item -1 an error condition has occurred
 
 =item E<32>1 if the certificate was created to perform the purpose represented by I<id>
 
@@ -47,7 +47,7 @@ For CA checks the below integers could be returned with the following meanings:
 
 =over 4
 
-=item -1 an error condition has occured
+=item -1 an error condition has occurred
 
 =item E<32>0 not a CA or does not have the purpose represented by I<id>
 

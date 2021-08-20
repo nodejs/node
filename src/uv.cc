@@ -22,7 +22,8 @@
 #include "uv.h"
 #include "env-inl.h"
 #include "node.h"
-#include "node_process.h"
+#include "node_external_reference.h"
+#include "node_process-inl.h"
 
 namespace node {
 
@@ -42,7 +43,7 @@ static const struct UVError uv_errors_map[] = {
 };
 }  // namespace per_process
 
-namespace {
+namespace uv {
 
 using v8::Array;
 using v8::Context;
@@ -81,6 +82,8 @@ void GetErrMap(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
+  // This can't return a SafeMap, because the uv binding can be referenced
+  // by user code by using `process.binding('uv').getErrorMap()`:
   Local<Map> err_map = Map::New(isolate);
 
   size_t errors_len = arraysize(per_process::uv_errors_map);
@@ -106,11 +109,10 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)
-                  ->GetFunction(env->context())
-                  .ToLocalChecked()).Check();
+  env->SetConstructorFunction(
+      target,
+      "errname",
+      env->NewFunctionTemplate(ErrName));
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.
@@ -129,7 +131,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getErrorMap", GetErrMap);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(ErrName);
+  registry->Register(GetErrMap);
+}
+}  // namespace uv
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::uv::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(uv, node::uv::RegisterExternalReferences)

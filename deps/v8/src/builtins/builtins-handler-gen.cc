@@ -9,6 +9,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/objects-inl.h"
+#include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -39,158 +40,15 @@ class HandlerBuiltinsAssembler : public CodeStubAssembler {
 
   void Generate_ElementsTransitionAndStore(KeyedAccessStoreMode store_mode);
   void Generate_StoreFastElementIC(KeyedAccessStoreMode store_mode);
-
-  enum class ArgumentsAccessMode { kLoad, kStore, kHas };
-
-  // Emits keyed sloppy arguments has. Returns whether the key is in the
-  // arguments.
-  TNode<Object> HasKeyedSloppyArguments(TNode<JSObject> receiver,
-                                        TNode<Object> key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, base::nullopt, bailout,
-                                    ArgumentsAccessMode::kHas);
-  }
-
-  // Emits keyed sloppy arguments load. Returns either the loaded value.
-  TNode<Object> LoadKeyedSloppyArguments(TNode<JSObject> receiver,
-                                         TNode<Object> key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, base::nullopt, bailout,
-                                    ArgumentsAccessMode::kLoad);
-  }
-
-  // Emits keyed sloppy arguments store.
-  void StoreKeyedSloppyArguments(TNode<JSObject> receiver, TNode<Object> key,
-                                 TNode<Object> value, Label* bailout) {
-    EmitKeyedSloppyArguments(receiver, key, value, bailout,
-                             ArgumentsAccessMode::kStore);
-  }
-
- private:
-  // Emits keyed sloppy arguments load if the |value| is nullopt or store
-  // otherwise. Returns either the loaded value or |value|.
-  TNode<Object> EmitKeyedSloppyArguments(TNode<JSObject> receiver,
-                                         TNode<Object> key,
-                                         base::Optional<TNode<Object>> value,
-                                         Label* bailout,
-                                         ArgumentsAccessMode access_mode);
 };
 
-TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
-    TNode<JSObject> receiver, TNode<Object> tagged_key,
-    base::Optional<TNode<Object>> value, Label* bailout,
-    ArgumentsAccessMode access_mode) {
-  // Mapped arguments are actual arguments. Unmapped arguments are values added
-  // to the arguments object after it was created for the call. Mapped arguments
-  // are stored in the context at indexes given by elements[key + 2]. Unmapped
-  // arguments are stored as regular indexed properties in the arguments array,
-  // held at elements[1]. See NewSloppyArguments() in runtime.cc for a detailed
-  // look at argument object construction.
-  //
-  // The sloppy arguments elements array has a special format:
-  //
-  // 0: context
-  // 1: unmapped arguments array
-  // 2: mapped_index0,
-  // 3: mapped_index1,
-  // ...
-  //
-  // length is 2 + min(number_of_actual_arguments, number_of_formal_arguments).
-  // If key + 2 >= elements.length then attempt to look in the unmapped
-  // arguments array (given by elements[1]) and return the value at key, missing
-  // to the runtime if the unmapped arguments array is not a fixed array or if
-  // key >= unmapped_arguments_array.length.
-  //
-  // Otherwise, t = elements[key + 2]. If t is the hole, then look up the value
-  // in the unmapped arguments array, as described above. Otherwise, t is a Smi
-  // index into the context array given at elements[0]. Return the value at
-  // context[t].
-
-  GotoIfNot(TaggedIsSmi(tagged_key), bailout);
-  TNode<IntPtrT> key = SmiUntag(CAST(tagged_key));
-  GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
-
-  TNode<FixedArray> elements = CAST(LoadElements(receiver));
-  TNode<IntPtrT> elements_length = LoadAndUntagFixedArrayBaseLength(elements);
-
-  TVARIABLE(Object, var_result);
-  if (access_mode == ArgumentsAccessMode::kStore) {
-    var_result = *value;
-  } else {
-    DCHECK(access_mode == ArgumentsAccessMode::kLoad ||
-           access_mode == ArgumentsAccessMode::kHas);
-  }
-  Label if_mapped(this), if_unmapped(this), end(this, &var_result);
-  TNode<IntPtrT> intptr_two = IntPtrConstant(2);
-  TNode<IntPtrT> adjusted_length = IntPtrSub(elements_length, intptr_two);
-
-  GotoIf(UintPtrGreaterThanOrEqual(key, adjusted_length), &if_unmapped);
-
-  TNode<Object> mapped_index =
-      LoadFixedArrayElement(elements, IntPtrAdd(key, intptr_two));
-  Branch(TaggedEqual(mapped_index, TheHoleConstant()), &if_unmapped,
-         &if_mapped);
-
-  BIND(&if_mapped);
-  {
-    TNode<IntPtrT> mapped_index_intptr = SmiUntag(CAST(mapped_index));
-    TNode<Context> the_context = CAST(LoadFixedArrayElement(elements, 0));
-    if (access_mode == ArgumentsAccessMode::kLoad) {
-      TNode<Object> result =
-          LoadContextElement(the_context, mapped_index_intptr);
-      CSA_ASSERT(this, TaggedNotEqual(result, TheHoleConstant()));
-      var_result = result;
-    } else if (access_mode == ArgumentsAccessMode::kHas) {
-      CSA_ASSERT(this, Word32BinaryNot(IsTheHole(LoadContextElement(
-                           the_context, mapped_index_intptr))));
-      var_result = TrueConstant();
-    } else {
-      StoreContextElement(the_context, mapped_index_intptr, *value);
-    }
-    Goto(&end);
-  }
-
-  BIND(&if_unmapped);
-  {
-    TNode<HeapObject> backing_store_ho =
-        CAST(LoadFixedArrayElement(elements, 1));
-    GotoIf(TaggedNotEqual(LoadMap(backing_store_ho), FixedArrayMapConstant()),
-           bailout);
-    TNode<FixedArray> backing_store = CAST(backing_store_ho);
-
-    TNode<IntPtrT> backing_store_length =
-        LoadAndUntagFixedArrayBaseLength(backing_store);
-
-    // Out-of-bounds access may involve prototype chain walk and is handled
-    // in runtime.
-    GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
-
-    // The key falls into unmapped range.
-    if (access_mode == ArgumentsAccessMode::kStore) {
-      StoreFixedArrayElement(backing_store, key, *value);
-    } else {
-      TNode<Object> value = LoadFixedArrayElement(backing_store, key);
-      GotoIf(TaggedEqual(value, TheHoleConstant()), bailout);
-
-      if (access_mode == ArgumentsAccessMode::kHas) {
-        var_result = TrueConstant();
-      } else {
-        DCHECK_EQ(access_mode, ArgumentsAccessMode::kLoad);
-        var_result = value;
-      }
-    }
-    Goto(&end);
-  }
-
-  BIND(&end);
-  return var_result.value();
-}
-
 TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
-  TNode<String> string = CAST(Parameter(Descriptor::kReceiver));
+  auto string = Parameter<String>(Descriptor::kReceiver);
   Return(LoadStringLengthAsSmi(string));
 }
 
 TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
-  TNode<JSPrimitiveWrapper> value = CAST(Parameter(Descriptor::kReceiver));
+  auto value = Parameter<JSPrimitiveWrapper>(Descriptor::kReceiver);
   TNode<String> string = CAST(LoadJSPrimitiveWrapperValue(value));
   Return(LoadStringLengthAsSmi(string));
 }
@@ -272,13 +130,13 @@ void HandlerBuiltinsAssembler::DispatchForElementsKindTransition(
 void HandlerBuiltinsAssembler::Generate_ElementsTransitionAndStore(
     KeyedAccessStoreMode store_mode) {
   using Descriptor = StoreTransitionDescriptor;
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Map> map = CAST(Parameter(Descriptor::kMap));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto map = Parameter<Map>(Descriptor::kMap);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Comment("ElementsTransitionAndStore: store_mode=", store_mode);
 
@@ -325,28 +183,39 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
 
 // All elements kinds handled by EmitElementStore. Specifically, this includes
 // fast elements and fixed typed array elements.
-#define ELEMENTS_KINDS(V)          \
-  V(PACKED_SMI_ELEMENTS)           \
-  V(HOLEY_SMI_ELEMENTS)            \
-  V(PACKED_ELEMENTS)               \
-  V(PACKED_NONEXTENSIBLE_ELEMENTS) \
-  V(PACKED_SEALED_ELEMENTS)        \
-  V(HOLEY_ELEMENTS)                \
-  V(HOLEY_NONEXTENSIBLE_ELEMENTS)  \
-  V(HOLEY_SEALED_ELEMENTS)         \
-  V(PACKED_DOUBLE_ELEMENTS)        \
-  V(HOLEY_DOUBLE_ELEMENTS)         \
-  V(UINT8_ELEMENTS)                \
-  V(INT8_ELEMENTS)                 \
-  V(UINT16_ELEMENTS)               \
-  V(INT16_ELEMENTS)                \
-  V(UINT32_ELEMENTS)               \
-  V(INT32_ELEMENTS)                \
-  V(FLOAT32_ELEMENTS)              \
-  V(FLOAT64_ELEMENTS)              \
-  V(UINT8_CLAMPED_ELEMENTS)        \
-  V(BIGUINT64_ELEMENTS)            \
-  V(BIGINT64_ELEMENTS)
+#define ELEMENTS_KINDS(V)            \
+  V(PACKED_SMI_ELEMENTS)             \
+  V(HOLEY_SMI_ELEMENTS)              \
+  V(PACKED_ELEMENTS)                 \
+  V(PACKED_NONEXTENSIBLE_ELEMENTS)   \
+  V(PACKED_SEALED_ELEMENTS)          \
+  V(HOLEY_ELEMENTS)                  \
+  V(HOLEY_NONEXTENSIBLE_ELEMENTS)    \
+  V(HOLEY_SEALED_ELEMENTS)           \
+  V(PACKED_DOUBLE_ELEMENTS)          \
+  V(HOLEY_DOUBLE_ELEMENTS)           \
+  V(UINT8_ELEMENTS)                  \
+  V(INT8_ELEMENTS)                   \
+  V(UINT16_ELEMENTS)                 \
+  V(INT16_ELEMENTS)                  \
+  V(UINT32_ELEMENTS)                 \
+  V(INT32_ELEMENTS)                  \
+  V(FLOAT32_ELEMENTS)                \
+  V(FLOAT64_ELEMENTS)                \
+  V(UINT8_CLAMPED_ELEMENTS)          \
+  V(BIGUINT64_ELEMENTS)              \
+  V(BIGINT64_ELEMENTS)               \
+  V(RAB_GSAB_UINT8_ELEMENTS)         \
+  V(RAB_GSAB_INT8_ELEMENTS)          \
+  V(RAB_GSAB_UINT16_ELEMENTS)        \
+  V(RAB_GSAB_INT16_ELEMENTS)         \
+  V(RAB_GSAB_UINT32_ELEMENTS)        \
+  V(RAB_GSAB_INT32_ELEMENTS)         \
+  V(RAB_GSAB_FLOAT32_ELEMENTS)       \
+  V(RAB_GSAB_FLOAT64_ELEMENTS)       \
+  V(RAB_GSAB_UINT8_CLAMPED_ELEMENTS) \
+  V(RAB_GSAB_BIGUINT64_ELEMENTS)     \
+  V(RAB_GSAB_BIGINT64_ELEMENTS)
 
 void HandlerBuiltinsAssembler::DispatchByElementsKind(
     TNode<Int32T> elements_kind, const ElementsKindSwitchCase& case_function,
@@ -404,12 +273,12 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
 void HandlerBuiltinsAssembler::Generate_StoreFastElementIC(
     KeyedAccessStoreMode store_mode) {
   using Descriptor = StoreWithVectorDescriptor;
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Comment("StoreFastElementStub: store_mode=", store_mode);
 
@@ -454,11 +323,11 @@ TF_BUILTIN(StoreFastElementIC_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
 }
 
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
-  TNode<JSFunction> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Name> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSFunction>(Descriptor::kReceiver);
+  auto name = Parameter<Name>(Descriptor::kName);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this, Label::kDeferred);
   Return(LoadJSFunctionPrototype(receiver, &miss));
@@ -468,12 +337,12 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Name> name = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Name>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -482,15 +351,15 @@ TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {
 }
 
 TF_BUILTIN(KeyedLoadIC_SloppyArguments, HandlerBuiltinsAssembler) {
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this);
 
-  TNode<Object> result = LoadKeyedSloppyArguments(receiver, key, &miss);
+  TNode<Object> result = SloppyArgumentsLoad(receiver, key, &miss);
   Return(result);
 
   BIND(&miss);
@@ -503,16 +372,16 @@ TF_BUILTIN(KeyedLoadIC_SloppyArguments, HandlerBuiltinsAssembler) {
 
 void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_SloppyArguments() {
   using Descriptor = StoreWithVectorDescriptor;
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this);
 
-  StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  SloppyArgumentsStore(receiver, key, value, &miss);
   Return(value);
 
   BIND(&miss);
@@ -540,11 +409,11 @@ TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW,
 }
 
 TF_BUILTIN(LoadIndexedInterceptorIC, CodeStubAssembler) {
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label if_keyispositivesmi(this), if_keyisinvalid(this);
   Branch(TaggedIsPositiveSmi(key), &if_keyispositivesmi, &if_keyisinvalid);
@@ -557,15 +426,15 @@ TF_BUILTIN(LoadIndexedInterceptorIC, CodeStubAssembler) {
 }
 
 TF_BUILTIN(KeyedHasIC_SloppyArguments, HandlerBuiltinsAssembler) {
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this);
 
-  TNode<Object> result = HasKeyedSloppyArguments(receiver, key, &miss);
+  TNode<Object> result = SloppyArgumentsHas(receiver, key, &miss);
   Return(result);
 
   BIND(&miss);
@@ -577,11 +446,11 @@ TF_BUILTIN(KeyedHasIC_SloppyArguments, HandlerBuiltinsAssembler) {
 }
 
 TF_BUILTIN(HasIndexedInterceptorIC, CodeStubAssembler) {
-  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> key = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
-  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<Smi>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label if_keyispositivesmi(this), if_keyisinvalid(this);
   Branch(TaggedIsPositiveSmi(key), &if_keyispositivesmi, &if_keyisinvalid);

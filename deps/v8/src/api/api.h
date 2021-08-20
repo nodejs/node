@@ -33,7 +33,6 @@ namespace debug {
 class AccessorPair;
 class GeneratorObject;
 class Script;
-class WasmValue;
 class WeakMap;
 }  // namespace debug
 
@@ -123,18 +122,20 @@ class RegisteredExtension {
   V(Context, Context)                          \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
-  V(StackFrame, StackTraceFrame)               \
+  V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
   V(debug::WeakMap, JSWeakMap)                 \
   V(debug::AccessorPair, AccessorPair)         \
-  V(debug::WasmValue, WasmValue)               \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)
+  V(ScriptOrModule, Script)                    \
+  V(FixedArray, FixedArray)                    \
+  V(ModuleRequest, ModuleRequest)              \
+  IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
  public:
@@ -217,7 +218,7 @@ class Utils {
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::StackTraceFrame> obj);
+      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
   static inline Local<Number> NumberToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Integer> IntegerToLocal(
@@ -240,7 +241,9 @@ class Utils {
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Primitive> ToLocalPrimitive(
       v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<PrimitiveArray> ToLocal(
+  static inline Local<FixedArray> FixedArrayToLocal(
+      v8::internal::Handle<v8::internal::FixedArray> obj);
+  static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
       v8::internal::Handle<v8::internal::Script> obj);
@@ -302,30 +305,7 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
 
 namespace internal {
 
-class V8_EXPORT_PRIVATE DeferredHandles {
- public:
-  ~DeferredHandles();
-
- private:
-  DeferredHandles(Address* first_block_limit, Isolate* isolate)
-      : next_(nullptr),
-        previous_(nullptr),
-        first_block_limit_(first_block_limit),
-        isolate_(isolate) {
-    isolate->LinkDeferredHandles(this);
-  }
-
-  void Iterate(RootVisitor* v);
-
-  std::vector<Address*> blocks_;
-  DeferredHandles* next_;
-  DeferredHandles* previous_;
-  Address* first_block_limit_;
-  Isolate* isolate_;
-
-  friend class HandleScopeImplementer;
-  friend class Isolate;
-};
+class PersistentHandles;
 
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
@@ -338,7 +318,7 @@ class V8_EXPORT_PRIVATE DeferredHandles {
 // data.
 class HandleScopeImplementer {
  public:
-  class EnteredContextRewindScope {
+  class V8_NODISCARD EnteredContextRewindScope {
    public:
     explicit EnteredContextRewindScope(HandleScopeImplementer* hsi)
         : hsi_(hsi), saved_entered_context_count_(hsi->EnteredContextCount()) {}
@@ -360,6 +340,9 @@ class HandleScopeImplementer {
         last_handle_before_deferred_block_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
+
+  HandleScopeImplementer(const HandleScopeImplementer&) = delete;
+  HandleScopeImplementer& operator=(const HandleScopeImplementer&) = delete;
 
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
@@ -431,7 +414,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  std::unique_ptr<DeferredHandles> Detach(Address* prev_limit);
+  std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;
@@ -455,11 +438,8 @@ class HandleScopeImplementer {
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
-  friend class DeferredHandles;
-  friend class DeferredHandleScope;
   friend class HandleScopeImplementerOffsets;
-
-  DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
+  friend class PersistentHandlesScope;
 };
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page

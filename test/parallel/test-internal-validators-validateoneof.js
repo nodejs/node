@@ -13,11 +13,6 @@ const { validateOneOf } = require('internal/validators');
     // eslint-disable-next-line quotes
     message: `The argument 'name' must be one of: 2, 3. Received 1`
   });
-  assert.throws(() => validateOneOf(1, 'name', allowed, true), {
-    code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "1" is invalid for option "name". ' +
-      'Must be one of: 2, 3'
-  });
 }
 
 {
@@ -32,12 +27,6 @@ const { validateOneOf } = require('internal/validators');
     code: 'ERR_INVALID_ARG_VALUE',
     // eslint-disable-next-line quotes
     message: `The argument 'name' must be one of: 'b', 'c'. Received 'a'`
-  });
-  assert.throws(() => validateOneOf('a', 'name', allowed, true), {
-    code: 'ERR_INVALID_OPT_VALUE',
-    // eslint-disable-next-line quotes
-    message: `The value "a" is invalid for option "name". ` +
-    "Must be one of: 'b', 'c'",
   });
 }
 
@@ -54,11 +43,6 @@ const { validateOneOf } = require('internal/validators');
     // eslint-disable-next-line quotes
     message: `The argument 'name' must be one of: Symbol(b), Symbol(c). ` +
       'Received Symbol(a)'
-  });
-  assert.throws(() => validateOneOf(Symbol.for('a'), 'name', allowed, true), {
-    code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "Symbol(a)" is invalid for option "name". ' +
-      'Must be one of: Symbol(b), Symbol(c)',
   });
 }
 

@@ -21,7 +21,7 @@ builder.addFunction('test', kSig_i_iii)
       kExprI32Const, 0,          // 0, 0
       kExprI32Const, 1,          // 0, 0, 1
       kExprI32Add,               // 0, 0 + 1 -> 1
-      kExprBlock,    kWasmStmt,  // 0, 1
+      kExprBlock,    kWasmVoid,  // 0, 1
       kExprBr,       0,          // 0, 1
       kExprEnd,                  // 0, 1
       kExprI32Add,               // 0 + 1 -> 1

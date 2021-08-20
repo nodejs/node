@@ -57,7 +57,7 @@ performance reasons. As a result they do not support nonces.
 
 The return values of OCSP_check_nonce() can be checked to cover each case.  A
 positive return value effectively indicates success: nonces are both present
-and match, both absent or present in the response only. A non-zero return
+and match, both absent or present in the response only. A nonzero return
 additionally covers the case where the nonce is present in the request only:
 this will happen if the responder doesn't support nonces. A zero return value
 indicates present and mismatched nonces: this should be treated as an error

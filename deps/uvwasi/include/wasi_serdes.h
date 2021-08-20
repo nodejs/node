@@ -103,6 +103,9 @@ IOVS_STRUCT(ciovec_t)
 #define UVWASI_SERDES_SIZE_iovec_t 8
 IOVS_STRUCT(iovec_t)
 
+#define UVWASI_SERDES_SIZE_dirent_t 24
+STRUCT(dirent_t)
+
 #define UVWASI_SERDES_SIZE_fdstat_t 24
 STRUCT(fdstat_t)
 

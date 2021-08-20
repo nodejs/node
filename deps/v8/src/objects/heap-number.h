@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/heap-number-tq.inc"
+
 // The HeapNumber class describes heap allocated numbers that cannot be
 // represented in a Smi (small integer).
 class HeapNumber

@@ -12,14 +12,15 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/check.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/hash/md5.h"
-#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
@@ -510,12 +511,12 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryToString) {
     if (i > 0) {
       // Exact byte read limit: must pass.
       EXPECT_TRUE(reader.ExtractCurrentEntryToString(i, &contents));
-      EXPECT_EQ(base::StringPiece("0123456", i).as_string(), contents);
+      EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
     }
 
     // More than necessary byte read limit: must pass.
     EXPECT_TRUE(reader.ExtractCurrentEntryToString(16, &contents));
-    EXPECT_EQ(base::StringPiece("0123456", i).as_string(), contents);
+    EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
   }
   reader.Close();
 }

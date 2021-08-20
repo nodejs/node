@@ -46,6 +46,6 @@ new RuleTester().run('required-modules', rule, {
       code: 'require("somethingElse")',
       options: [{ common: 'common' }],
       errors: [{ message: 'Mandatory module "common" must be loaded.' }]
-    }
+    },
   ]
 });

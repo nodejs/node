@@ -10,6 +10,8 @@ builder.addGlobal(kWasmI32).exportAs('g_n');
 
 builder.addMemory(32, 128).exportMemoryAs('mem')
 
+builder.addDataSegment(0, [0x2a, 0x2b, 0x2c, 0x2d])
+
 var func_a_idx =
     builder.addFunction('wasm_A', kSig_v_i).addBody([kExprNop, kExprNop]).index;
 
@@ -17,11 +19,11 @@ var func_a_idx =
 builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       kExprLoop,
-      kWasmStmt,  // while
+      kWasmVoid,  // while
       kExprLocalGet,
       0,  // -
       kExprIf,
-      kWasmStmt,  // if <param0> != 0
+      kWasmVoid,  // if <param0> != 0
       kExprLocalGet,
       0,  // -
       kExprI32Const,

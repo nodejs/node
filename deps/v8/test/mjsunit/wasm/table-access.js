@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref
+// Flags: --expose-wasm --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,8 +25,8 @@ function addTableWithAccessors(builder, type, size, name) {
 const builder = new WasmModuleBuilder();
 
 addTableWithAccessors(builder, kWasmAnyFunc, 10, 'table_func1');
-addTableWithAccessors(builder, kWasmAnyRef, 20, 'table_ref1');
-addTableWithAccessors(builder, kWasmAnyRef, 9, 'table_ref2');
+addTableWithAccessors(builder, kWasmExternRef, 20, 'table_ref1');
+addTableWithAccessors(builder, kWasmExternRef, 9, 'table_ref2');
 addTableWithAccessors(builder, kWasmAnyFunc, 12, 'table_func2');
 
 let exports = builder.instantiate().exports;
@@ -117,8 +117,10 @@ const dummy_func = exports.set_table_func1;
 
   const offset1 = 3;
   const offset2 = 9;
-  builder.addElementSegment(t1, offset1, false, [f1.index, f2.index]);
-  builder.addElementSegment(t2, offset2, false, [f3.index, f1.index]);
+  builder.addActiveElementSegment(t1, WasmInitExpr.I32Const(offset1),
+                                  [f1.index, f2.index]);
+  builder.addActiveElementSegment(t2, WasmInitExpr.I32Const(offset2),
+                                  [f3.index, f1.index]);
 
   const instance = builder.instantiate();
 
@@ -147,7 +149,6 @@ const dummy_func = exports.set_table_func1;
         kExprTableSet, table_index,                // --
         kExprI32Const, index,                      // entry index
         kExprCallIndirect, sig_index, table_index  // --
-
       ])
       .exportFunc();
 

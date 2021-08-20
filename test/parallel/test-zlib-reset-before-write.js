@@ -12,7 +12,7 @@ for (const fn of [
     z.reset();
     cb();
   },
-  (z, cb) => z.params(0, zlib.constants.Z_DEFAULT_STRATEGY, cb)
+  (z, cb) => z.params(0, zlib.constants.Z_DEFAULT_STRATEGY, cb),
 ]) {
   const deflate = zlib.createDeflate();
   const inflate = zlib.createInflate();

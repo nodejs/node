@@ -115,12 +115,24 @@ The properties included on each object include:
       idle: 1070905480,
       irq: 20
     }
-  }
+  },
 ]
 ```
 
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
+
+## `os.devNull`
+<!-- YAML
+added: v16.3.0
+-->
+
+* {string}
+
+The platform-specific file path of the null device.
+
+* `\\.\nul` on Windows
+* `/dev/null` on POSIX
 
 ## `os.endianness()`
 <!-- YAML
@@ -149,7 +161,7 @@ added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to retrieve scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * Returns: {integer}
 
 Returns the scheduling priority for the process specified by `pid`. If `pid` is
@@ -291,7 +303,7 @@ added: v0.3.3
 Returns the operating system as a string.
 
 On POSIX systems, the operating system release is determined by calling
-[uname(3)][]. On Windows, `GetVersionExW()` is used. See
+[`uname(3)`][]. On Windows, `GetVersionExW()` is used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## `os.setPriority([pid, ]priority)`
@@ -300,7 +312,7 @@ added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to set scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * `priority` {integer} The scheduling priority to assign to the process.
 
 Attempts to set the scheduling priority for the process specified by `pid`. If
@@ -324,7 +336,7 @@ changes:
   - version: v2.0.0
     pr-url: https://github.com/nodejs/node/pull/747
     description: This function is now cross-platform consistent and no longer
-                 returns a path with a trailing slash on any platform
+                 returns a path with a trailing slash on any platform.
 -->
 
 * Returns: {string}
@@ -348,11 +360,11 @@ added: v0.3.3
 
 * Returns: {string}
 
-Returns the operating system name as returned by [uname(3)][]. For example, it
+Returns the operating system name as returned by [`uname(3)`][]. For example, it
 returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
 
 See <https://en.wikipedia.org/wiki/Uname#Examples> for additional information
-about the output of running [uname(3)][] on various operating systems.
+about the output of running [`uname(3)`][] on various operating systems.
 
 ## `os.uptime()`
 <!-- YAML
@@ -403,8 +415,8 @@ added:
 Returns a string identifying the kernel version.
 
 On POSIX systems, the operating system release is determined by calling
-[uname(3)][]. On Windows, `RtlGetVersion()` is used, and if it is not available,
-`GetVersionExW()` will be used. See
+[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
+available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## OS constants
@@ -436,7 +448,7 @@ The following signal constants are exported by `os.constants.signals`.
   <tr>
     <td><code>SIGINT</code></td>
     <td>Sent to indicate when a user wishes to interrupt a process
-    (<code>(Ctrl+C)</code>).</td>
+    (<kbd>Ctrl</kbd>+<kbd>C</kbd>).</td>
   </tr>
   <tr>
     <td><code>SIGQUIT</code></td>
@@ -1269,9 +1281,9 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
-[`SystemError`]: errors.html#errors_class_systemerror
-[`process.arch`]: process.html#process_process_arch
-[`process.platform`]: process.html#process_process_platform
-[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
-[uname(3)]: https://linux.die.net/man/3/uname
+[`SystemError`]: errors.md#errors_class_systemerror
+[`process.arch`]: process.md#process_process_arch
+[`process.platform`]: process.md#process_process_platform
+[`uname(3)`]: https://linux.die.net/man/3/uname

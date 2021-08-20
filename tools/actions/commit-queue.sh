@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -xe
 
@@ -7,23 +7,26 @@ REPOSITORY=$2
 GITHUB_TOKEN=$3
 shift 3
 
+UPSTREAM=origin
+DEFAULT_BRANCH=master
+
 API_URL=https://api.github.com
 COMMIT_QUEUE_LABEL='commit-queue'
 COMMIT_QUEUE_FAILED_LABEL='commit-queue-failed'
 
-function issueUrl() {
+issueUrl() {
   echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
 }
 
-function labelsUrl() {
+labelsUrl() {
   echo "$(issueUrl "${1}")/labels"
 }
 
-function commentsUrl() {
+commentsUrl() {
   echo "$(issueUrl "${1}")/comments"
 }
 
-function gitHubCurl() {
+gitHubCurl() {
   url=$1
   method=$2
   shift 2
@@ -34,6 +37,18 @@ function gitHubCurl() {
        --header 'content-type: application/json' "$@"
 }
 
+commit_queue_failed() {
+  gitHubCurl "$(labelsUrl "${1}")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
+
+  # shellcheck disable=SC2154
+  cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+  jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>" '{body: $content}' > output.json
+  cat output.json
+
+  gitHubCurl "$(commentsUrl "${1}")" POST --data @output.json
+
+  rm output output.json
+}
 
 # TODO(mmarchini): should this be set with whoever added the label for each PR?
 git config --local user.email "github-bot@iojs.org"
@@ -55,31 +70,31 @@ for pr in "$@"; do
   # Delete the commit queue label
   gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
 
-  git node land --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
+  git node land --autorebase --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
   # cat here otherwise we'll be supressing the output of git node land
   cat output
 
   # TODO(mmarchini): workaround for ncu not returning the expected status code,
   # if the "Landed in..." message was not on the output we assume land failed
-  if ! tail -n 10 output | grep '. Post "Landed in .*/pull/'"${pr}"; then
-    gitHubCurl "$(labelsUrl "$pr")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
-
-    jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre></details>" '{body: $content}' > output.json
-    cat output.json
-
-    gitHubCurl "$(commentsUrl "$pr")" POST --data @output.json
-
-    rm output output.json
+  if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
+    commit_queue_failed "$pr"
     # If `git node land --abort` fails, we're in unknown state. Better to stop
     # the script here, current PR was removed from the queue so it shouldn't
-    # interfer again in the future
+    # interfere again in the future.
     git node land --abort --yes
-  else
-    rm output
-    git push origin master
-
-    gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$(git rev-parse HEAD)"'"}'
-
-    gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+    continue
   fi
+  
+  commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+
+  if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
+    commit_queue_failed "$pr"
+    continue
+  fi
+
+  rm output
+
+  gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
+
+  gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
 done

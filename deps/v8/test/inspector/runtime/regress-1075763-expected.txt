@@ -11,7 +11,7 @@ Tests Runtime.evaluate returns object with undefined property.
                 overflow : false
                 properties : [
                     [0] : {
-                        name : [[GeneratorStatus]]
+                        name : [[GeneratorState]]
                         type : string
                         value : suspended
                     }

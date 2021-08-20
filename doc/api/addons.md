@@ -7,15 +7,16 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 [`require()`][require] function can load addons as ordinary Node.js modules.
 Addons provide an interface between JavaScript and C/C++ libraries.
 
-There are three options for implementing addons: N-API, nan, or direct
+There are three options for implementing addons: Node-API, nan, or direct
 use of internal V8, libuv and Node.js libraries. Unless there is a need for
-direct access to functionality which is not exposed by N-API, use N-API.
-Refer to [C/C++ addons with N-API](n-api.html) for more information on N-API.
+direct access to functionality which is not exposed by Node-API, use Node-API.
+Refer to [C/C++ addons with Node-API](n-api.md) for more information on
+Node-API.
 
-When not using N-API, implementing addons is complicated,
+When not using Node-API, implementing addons is complicated,
 involving knowledge of several components and APIs:
 
-* V8: the C++ library Node.js uses to provide the
+* [V8][]: the C++ library Node.js uses to provide the
   JavaScript implementation. V8 provides the mechanisms for creating objects,
   calling functions, etc. V8's API is documented mostly in the
   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
@@ -26,12 +27,12 @@ involving knowledge of several components and APIs:
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
   as interacting with the filesystem, sockets, timers, and system events. libuv
-  also provides a pthreads-like threading abstraction that may be used to
-  power more sophisticated asynchronous addons that need to move beyond the
-  standard event loop. Addon authors are encouraged to think about how to
+  also provides a threading abstraction similar to POSIX threads for
+  more sophisticated asynchronous addons that need to move beyond the
+  standard event loop. Addon authors should
   avoid blocking the event loop with I/O or other time-intensive tasks by
-  off-loading work via libuv to non-blocking system operations, worker threads
-  or a custom use of libuv's threads.
+  offloading work via libuv to non-blocking system operations, worker threads,
+  or a custom use of libuv threads.
 
 * Internal Node.js libraries. Node.js itself exports C++ APIs that addons can
   use, the most important of which is the `node::ObjectWrap` class.
@@ -111,8 +112,8 @@ There are environments in which Node.js addons may need to be loaded multiple
 times in multiple contexts. For example, the [Electron][] runtime runs multiple
 instances of Node.js in a single process. Each instance will have its own
 `require()` cache, and thus each instance will need a native addon to behave
-correctly when loaded via `require()`. From the addon's perspective, this means
-that it must support multiple initializations.
+correctly when loaded via `require()`. This means that the addon
+must support multiple initializations.
 
 A context-aware addon can be constructed by using the macro
 `NODE_MODULE_INITIALIZER`, which expands to the name of a function which Node.js
@@ -154,25 +155,26 @@ they were created.
 
 The context-aware addon can be structured to avoid global static data by
 performing the following steps:
+
 * Define a class which will hold per-addon-instance data and which has a static
-member of the form
+  member of the form
   ```cpp
   static void DeleteInstance(void* data) {
     // Cast `data` to an instance of the class and delete it.
   }
   ```
 * Heap-allocate an instance of this class in the addon initializer. This can be
-accomplished using the `new` keyword.
+  accomplished using the `new` keyword.
 * Call `node::AddEnvironmentCleanupHook()`, passing it the above-created
-instance and a pointer to `DeleteInstance()`. This will ensure the instance is
-deleted when the environment is torn down.
+  instance and a pointer to `DeleteInstance()`. This will ensure the instance is
+  deleted when the environment is torn down.
 * Store the instance of the class in a `v8::External`, and
 * Pass the `v8::External` to all methods exposed to JavaScript by passing it
-to `v8::FunctionTemplate::New()` or `v8::Function::New()` which creates the
-native-backed JavaScript functions. The third parameter of
-`v8::FunctionTemplate::New()` or `v8::Function::New()`  accepts the
-`v8::External` and makes it available in the native callback using the
-`v8::FunctionCallbackInfo::Data()` method.
+  to `v8::FunctionTemplate::New()` or `v8::Function::New()` which creates the
+  native-backed JavaScript functions. The third parameter of
+  `v8::FunctionTemplate::New()` or `v8::Function::New()`  accepts the
+  `v8::External` and makes it available in the native callback using the
+  `v8::FunctionCallbackInfo::Data()` method.
 
 This will ensure that the per-addon-instance data reaches each binding that can
 be called from JavaScript. The per-addon-instance data must also be passed into
@@ -234,7 +236,9 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 #### Worker support
 <!-- YAML
 changes:
-  - version: v14.8.0
+  - version:
+    - v14.8.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34572
     description: Cleanup hooks may now be asynchronous.
 -->
@@ -242,7 +246,7 @@ changes:
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
 
-* Be an N-API addon, or
+* Be an Node-API addon, or
 * Be declared as context-aware using `NODE_MODULE_INIT()` as described above
 
 In order to support [`Worker`][] threads, addons need to clean up any resources
@@ -269,9 +273,9 @@ The following `addon.cc` uses `AddEnvironmentCleanupHook`:
 
 ```cpp
 // addon.cc
+#include <node.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <node.h>
 
 using node::AddEnvironmentCleanupHook;
 using v8::HandleScope;
@@ -395,14 +399,14 @@ the appropriate headers automatically. However, there are a few caveats to be
 aware of:
 
 * When `node-gyp` runs, it will detect the specific release version of Node.js
-and download either the full source tarball or just the headers. If the full
-source is downloaded, addons will have complete access to the full set of
-Node.js dependencies. However, if only the Node.js headers are downloaded, then
-only the symbols exported by Node.js will be available.
+  and download either the full source tarball or just the headers. If the full
+  source is downloaded, addons will have complete access to the full set of
+  Node.js dependencies. However, if only the Node.js headers are downloaded,
+  then only the symbols exported by Node.js will be available.
 
 * `node-gyp` can be run using the `--nodedir` flag pointing at a local Node.js
-source image. Using this option, the addon will have access to the full set of
-dependencies.
+  source image. Using this option, the addon will have access to the full set of
+  dependencies.
 
 ### Loading addons using `require()`
 
@@ -421,7 +425,7 @@ and load it instead.
 
 ## Native abstractions for Node.js
 
-Each of the examples illustrated in this document make direct use of the
+Each of the examples illustrated in this document directly use the
 Node.js and V8 APIs for implementing addons. The V8 API can, and has, changed
 dramatically from one V8 release to the next (and one major Node.js release to
 the next). With each change, addons may need to be updated and recompiled in
@@ -434,11 +438,11 @@ addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
-## N-API
+## Node-API
 
 > Stability: 2 - Stable
 
-N-API is an API for building native addons. It is independent from
+Node-API is an API for building native addons. It is independent from
 the underlying JavaScript runtime (e.g. V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate addons from
@@ -448,17 +452,17 @@ recompilation. Addons are built/packaged with the same approach/tools
 outlined in this document (node-gyp, etc.). The only difference is the
 set of APIs that are used by the native code. Instead of using the V8
 or [Native Abstractions for Node.js][] APIs, the functions available
-in the N-API are used.
+in the Node-API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
-provided by N-API carries with it certain
-[implementation considerations](n-api.html#n_api_implications_of_abi_stability).
+provided by Node-API carries with it certain
+[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
 
-To use N-API in the above "Hello world" example, replace the content of
+To use Node-API in the above "Hello world" example, replace the content of
 `hello.cc` with the following. All other instructions remain the same.
 
 ```cpp
-// hello.cc using N-API
+// hello.cc using Node-API
 #include <node_api.h>
 
 namespace demo {
@@ -490,12 +494,12 @@ NAPI_MODULE(NODE_GYP_MODULE_NAME, init)
 ```
 
 The functions available and how to use them are documented in
-[C/C++ addons with N-API](n-api.html).
+[C/C++ addons with Node-API](n-api.md).
 
 ## Addon examples
 
 Following are some example addons intended to help developers get started. The
-examples make use of the V8 APIs. Refer to the online [V8 reference][v8-docs]
+examples use the V8 APIs. Refer to the online [V8 reference][v8-docs]
 for help with the various V8 calls, and V8's [Embedder's Guide][] for an
 explanation of several concepts used such as handles, scopes, function
 templates, etc.
@@ -1356,16 +1360,17 @@ console.log(result);
 // Prints: 30
 ```
 
-[`Worker`]: worker_threads.html#worker_threads_class_worker
 [Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[V8]: https://v8.dev/
+[`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[examples]: https://github.com/nodejs/nan/tree/master/examples/
+[examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: modules.html#modules_require_id
+[require]: modules.md#modules_require_id
 [v8-docs]: https://v8docs.nodesource.com/

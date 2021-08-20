@@ -57,7 +57,7 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
   return PreParserIdentifier::Default();
 }
 
-}  // unnamed namespace
+}  // namespace
 
 PreParserIdentifier PreParser::GetIdentifier() const {
   const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
@@ -272,10 +272,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      RuntimeCallCounterId::kPreParseWithVariableResolution,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            RuntimeCallCounterId::kPreParseWithVariableResolution,
+            RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -325,10 +324,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // Parsing the body may change the language mode in our scope.
     language_mode = function_scope->language_mode();
 
-    if (is_sloppy(language_mode)) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
-
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
     CheckFunctionName(language_mode, function_name, function_name_validity,
@@ -351,14 +346,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // reconstructed from the script id and the byte range in the log processor.
     const char* name = "";
     size_t name_byte_length = 0;
+    bool is_one_byte = true;
     const AstRawString* string = function_name.string_;
     if (string != nullptr) {
       name = reinterpret_cast<const char*>(string->raw_data());
       name_byte_length = string->byte_length();
+      is_one_byte = string->is_one_byte();
     }
     logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
-        function_scope->end_position(), name, name_byte_length);
+        function_scope->end_position(), name, name_byte_length, is_one_byte);
   }
 
   return Expression::Default();

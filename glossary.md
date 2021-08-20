@@ -1,4 +1,4 @@
-You may also need to check <https://chromium.googlesource.com/chromiumos/docs/+/master/glossary.md>.
+You may also need to check <https://chromium.googlesource.com/chromiumos/docs/+/HEAD/glossary.md>.
 
 * LGTM: "Looks good to me", commonly used to approve a code review.
 * PTAL: Please take a look.
@@ -12,5 +12,5 @@ You may also need to check <https://chromium.googlesource.com/chromiumos/docs/+/
 * godbolt: [Compiler Explorer](https://godbolt.org/) run compilers interactively
   from your web browser and interact with the assembly. Was created by and is
   primarily administrated by Matt Godbolt.
-* primordials: Pristine built-ins that are not effected by prototype pollution
+* primordials: Pristine built-ins that are not affected by prototype pollution
   and tampering with built-ins.

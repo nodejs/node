@@ -9,6 +9,7 @@ extern class Module extends HeapObject {
   status: Smi;
   module_namespace: JSModuleNamespace|Undefined;
   exception: Object;
+  top_level_capability: JSPromise|Undefined;
 }
 
 @generateCppClass

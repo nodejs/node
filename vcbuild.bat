@@ -19,7 +19,7 @@ set JS_SUITES=default
 set NATIVE_SUITES=addons js-native-api node-api
 @rem CI_* variables should be kept synchronized with the ones in Makefile
 set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
-set "CI_JS_SUITES=%JS_SUITES%"
+set "CI_JS_SUITES=%JS_SUITES% pummel"
 set CI_DOC=doctool
 @rem Same as the test-ci target in Makefile
 set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
@@ -70,7 +70,6 @@ set openssl_no_asm=
 set doc=
 set extra_msbuild_args=
 set exit_code=0
-set experimental_quic=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -99,6 +98,7 @@ if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
+if /i "%1"=="test-doc"      set test_args=%test_args% %CI_DOC%&set doc=1&&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-js-native-api"   set test_args=%test_args% js-native-api&set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="test-node-api"   set test_args=%test_args% node-api&set build_node_api_tests=1&goto arg-ok
 if /i "%1"=="test-benchmark" set test_args=%test_args% benchmark&goto arg-ok
@@ -144,7 +144,6 @@ if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
-if /i "%1"=="experimental-quic" set experimental_quic=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -196,7 +195,6 @@ if defined config_flags     set configure_flags=%configure_flags% %config_flags%
 if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
-if defined experimental_quic set configure_flags=%configure_flags% --experimental-quic
 if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
 if "%target_arch%"=="arm64" set configure_flags=%configure_flags% --cross-compiling
 
@@ -248,8 +246,8 @@ echo Looking for Visual Studio 2019
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
-set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
+if not defined target_env set "VCINSTALLDIR="
+call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
@@ -284,7 +282,7 @@ goto msbuild-found
 :msbuild-not-found
 echo Failed to find a suitable Visual Studio installation.
 echo Try to run in a "Developer Command Prompt" or consult
-echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows
+echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
@@ -297,7 +295,7 @@ if defined projgen goto run-configure
 if not exist node.sln goto run-configure
 if not exist .gyp_configure_stamp goto run-configure
 echo %configure_flags% > .tmp_gyp_configure_stamp
-where /R . /T *.gyp? >> .tmp_gyp_configure_stamp
+where /R . /T *.gyp* >> .tmp_gyp_configure_stamp
 fc .gyp_configure_stamp .tmp_gyp_configure_stamp >NUL 2>&1
 if errorlevel 1 goto run-configure
 
@@ -318,7 +316,7 @@ if not exist node.sln goto create-msvs-files-failed
 set project_generated=1
 echo Project files generated.
 echo %configure_flags% > .gyp_configure_stamp
-where /R . /T *.gyp? >> .gyp_configure_stamp
+where /R . /T *.gyp* >> .gyp_configure_stamp
 
 :msbuild
 @rem Skip build if requested.
@@ -337,6 +335,10 @@ if "%target%"=="Build" (
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
+@rem Setup env variables to use multiprocessor build
+set UseMultiToolTask=True
+set EnforceProcessCountAcrossBuilds=True
+set MultiProcMaxCount=%NUMBER_OF_PROCESSORS%
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
@@ -362,7 +364,26 @@ if errorlevel 1 echo Failed to sign exe&goto exit
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto stage_package
 
-%node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+set "use_x64_node_exe=false"
+if "%target_arch%"=="arm64" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "use_x64_node_exe=true"
+if "%use_x64_node_exe%"=="true" (
+  echo Cross-compilation to ARM64 detected. We'll use the x64 Node executable for license2rtf.
+  if not defined "%x64_node_exe%" set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
+  if not exist "%x64_node_exe%" (
+    echo Downloading x64 node.exe...
+    if not exist "temp-vcbuild" mkdir temp-vcbuild
+    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile 'temp-vcbuild\node-x64-cross-compiling.exe'"
+  )
+  if not exist "%x64_node_exe%" (
+    echo Could not find the Node executable at the given x64_node_exe path. Aborting.
+    set exit_code=1
+    goto exit
+  )
+  %x64_node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+) else (
+  %node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+)
+
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :stage_package
@@ -505,7 +526,7 @@ robocopy /e doc\api %config%\doc\api
 robocopy /e doc\api_assets %config%\doc\api\assets
 
 for %%F in (%config%\doc\api\*.md) do (
-  %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% %%F --output-directory=%%~dF%%~pF
+  %node_exe% tools\doc\generate.mjs --node-version=v%FULLVERSION% %%F --output-directory=%%~dF%%~pF
 )
 
 :run
@@ -522,7 +543,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%node_exe%" tools\doc\addon-verify.js
+"%node_exe%" tools\doc\addon-verify.mjs
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
@@ -630,7 +651,7 @@ goto lint-js
 if not defined lint_js goto lint-md-build
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
+%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" .eslintrc.js benchmark doc lib test tools
 goto lint-md-build
 
 :no-lint
@@ -664,7 +685,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm] [experimental-quic]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

@@ -49,8 +49,16 @@ FromConstexpr<Number, constexpr int31>(i: constexpr int31): Number {
 }
 FromConstexpr<uint8, constexpr int31>(i: constexpr int31): uint8 {
   const i: uint32 = i;
-  StaticAssert(i <= 255);
+  static_assert(i <= 255);
   return %RawDownCast<uint8>(i);
+}
+FromConstexpr<int8, constexpr int31>(i: constexpr int31): int8 {
+  const i: int32 = i;
+  static_assert(-128 <= i && i <= 127);
+  return %RawDownCast<int8>(i);
+}
+FromConstexpr<char8, constexpr int31>(i: constexpr int31): char8 {
+  return %RawDownCast<char8>(FromConstexpr<uint8>(i));
 }
 FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
   return SmiConstant(s);
@@ -61,8 +69,18 @@ FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
+FromConstexpr<uint8, constexpr uint8>(i: constexpr uint8): uint8 {
+  const i: uint32 = i;
+  return %RawDownCast<uint8>(i);
+}
 FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
   return Unsigned(%FromConstexpr<int32>(i));
+}
+FromConstexpr<uint64, constexpr uint64>(i: constexpr uint64): uint64 {
+  return Uint64Constant(i);
+}
+FromConstexpr<uint64, constexpr int31>(i: constexpr int31): uint64 {
+  return Convert<uint64>(Unsigned(Int32Constant(i)));
 }
 FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
   return ChangeUint32ToWord(i);
@@ -94,6 +112,20 @@ FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
     PromiseState {
   return %RawDownCast<PromiseState>(Int32Constant(c));
 }
+FromConstexpr<InstanceType, constexpr InstanceType>(c: constexpr InstanceType):
+    InstanceType {
+  return %RawDownCast<InstanceType>(Uint16Constant(c));
+}
+
+FromConstexpr<IterationKind, constexpr IterationKind>(
+    c: constexpr IterationKind): IterationKind {
+  return %RawDownCast<IterationKind>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
+FromConstexpr<string::TrimMode, string::constexpr TrimMode>(
+    c: string::constexpr TrimMode): string::TrimMode {
+  return %RawDownCast<string::TrimMode>(Unsigned(%FromConstexpr<int32>(c)));
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;
@@ -103,14 +135,19 @@ macro Convert<To: type, From: type>(i: From): To labels Overflow {
   return i;
 }
 
-extern macro ConvertElementsKindToInt(ElementsKind): int32;
-Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
-  return ConvertElementsKindToInt(elementsKind);
+Convert<Boolean, bool>(b: bool): Boolean {
+  return b ? True : False;
+}
+Convert<int32, bool>(b: bool): int32 {
+  return ChangeBoolToInt32(b);
 }
 Convert<Number, int32>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }
 Convert<intptr, int32>(i: int32): intptr {
+  return ChangeInt32ToIntPtr(i);
+}
+Convert<intptr, int31>(i: int31): intptr {
   return ChangeInt32ToIntPtr(i);
 }
 Convert<intptr, uint32>(i: uint32): intptr {
@@ -128,6 +165,9 @@ Convert<Smi, uint32>(ui: uint32): Smi {
 Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
+Convert<uint64, uint32>(ui: uint32): uint64 {
+  return ChangeUint32ToUint64(ui);
+}
 Convert<intptr, uint16>(ui: uint16): intptr {
   return Signed(ChangeUint32ToWord(ui));
 }
@@ -137,10 +177,16 @@ Convert<intptr, uint8>(ui: uint8): intptr {
 Convert<uint8, intptr>(i: intptr): uint8 {
   return %RawDownCast<uint8>(Unsigned(TruncateIntPtrToInt32(i)) & 0xFF);
 }
+Convert<int8, intptr>(i: intptr): int8 {
+  return %RawDownCast<int8>(TruncateIntPtrToInt32(i) << 24 >> 24);
+}
 Convert<int32, uint8>(i: uint8): int32 {
   return Signed(Convert<uint32>(i));
 }
 Convert<int32, uint16>(i: uint16): int32 {
+  return Signed(Convert<uint32>(i));
+}
+Convert<int32, char16|char8>(i: char16|char8): int32 {
   return Signed(Convert<uint32>(i));
 }
 Convert<int32, uint31>(i: uint31): int32 {
@@ -148,6 +194,9 @@ Convert<int32, uint31>(i: uint31): int32 {
 }
 Convert<int32, intptr>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
+}
+Convert<int32, int64>(i: int64): int32 {
+  return TruncateInt64ToInt32(i);
 }
 Convert<int32, Number>(n: Number): int32 {
   typeswitch (n) {
@@ -200,6 +249,9 @@ Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi labels IfOverflow {
     deferred {
       goto IfOverflow;
     }
+}
+Convert<PositiveSmi, uint32>(ui: uint32): PositiveSmi labels IfOverflow {
+  return Convert<PositiveSmi>(Convert<uintptr>(ui)) otherwise IfOverflow;
 }
 Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);
@@ -282,4 +334,7 @@ Convert<PromiseState, int32>(s: int32): PromiseState {
 }
 Convert<ScopeFlags, Smi>(s: Smi): ScopeFlags {
   return %RawDownCast<ScopeFlags>(Unsigned(SmiToInt32(s)));
+}
+Convert<I8X16, Simd128>(s: Simd128): I8X16 {
+  return %RawDownCast<I8X16>(s);
 }

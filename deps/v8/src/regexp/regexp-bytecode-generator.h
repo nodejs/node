@@ -69,6 +69,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
+                                       bool unicode,
                                        Label* on_no_match) override;
   void IfRegisterLT(int register_index, int comparand, Label* if_lt) override;
   void IfRegisterGE(int register_index, int comparand, Label* if_ge) override;
@@ -85,6 +86,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   inline void Emit16(uint32_t x);
   inline void Emit8(uint32_t x);
   inline void Emit(uint32_t bc, uint32_t arg);
+  inline void Emit(uint32_t bc, int32_t arg);
   // Bytecode buffer.
   int length();
   void Copy(byte* a);

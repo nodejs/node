@@ -123,7 +123,9 @@ and it will use that in preference. If no such callback is present then it will
 check to see if a callback has been set via SSL_CTX_set_psk_client_callback() or
 SSL_set_psk_client_callback() and use that. In this case the B<hint> value will
 always be NULL and the handshake digest will default to SHA-256 for any returned
-PSK.
+PSK. TLSv1.3 early data exchanges are possible in PSK connections only with the
+B<SSL_psk_use_session_cb_func> callback, and are not possible with the
+B<SSL_psk_client_cb_func> callback.
 
 =head1 NOTES
 
@@ -133,7 +135,7 @@ A connection established via a TLSv1.3 PSK will appear as if session resumption
 has occurred so that L<SSL_session_reused(3)> will return true.
 
 There are no known security issues with sharing the same PSK between TLSv1.2 (or
-below) and TLSv1.3. However the RFC has this note of caution:
+below) and TLSv1.3. However, the RFC has this note of caution:
 
 "While there is no known way in which the same PSK might produce related output
 in both versions, only limited analysis has been done.  Implementations can
@@ -166,7 +168,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

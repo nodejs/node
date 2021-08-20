@@ -34,7 +34,7 @@ http.createServer(function(req, res) {
     'x-BaR',
     'yoyoyo',
     'Connection',
-    'close'
+    'close',
   ];
   const expectHeaders = {
     'host': `localhost:${this.address().port}`,
@@ -50,7 +50,7 @@ http.createServer(function(req, res) {
     'X-bAr',
     'yOyOyOy',
     'X-baR',
-    'OyOyOyO'
+    'OyOyOyO',
   ];
   const expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
 
@@ -70,7 +70,7 @@ http.createServer(function(req, res) {
     ['x-fOo', 'xOxOxOx'],
     ['x-foO', 'OxOxOxO'],
     ['X-fOo', 'xOxOxOx'],
-    ['X-foO', 'OxOxOxO']
+    ['X-foO', 'OxOxOxO'],
   ]);
   res.end('x f o o');
 }).listen(0, function() {
@@ -79,7 +79,7 @@ http.createServer(function(req, res) {
     ['x-bAr', 'yOyOyOy'],
     ['x-baR', 'OyOyOyO'],
     ['X-bAr', 'yOyOyOy'],
-    ['X-baR', 'OyOyOyO']
+    ['X-baR', 'OyOyOyO'],
   ]);
   req.setHeader('transfer-ENCODING', 'CHUNKED');
   req.setHeader('x-BaR', 'yoyoyo');
@@ -93,7 +93,7 @@ http.createServer(function(req, res) {
       'Connection',
       'close',
       'Transfer-Encoding',
-      'chunked'
+      'chunked',
     ];
     const expectHeaders = {
       'trailer': 'x-foo',
@@ -114,7 +114,7 @@ http.createServer(function(req, res) {
         'X-fOo',
         'xOxOxOx',
         'X-foO',
-        'OxOxOxO'
+        'OxOxOxO',
       ];
       const expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
 

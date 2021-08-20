@@ -41,7 +41,7 @@ initialization (that is before starting any threads).
 
 There are several reasons why calling the OpenSSL configuration routines is
 advisable. For example, to load dynamic ENGINEs from shared libraries (DSOs).
-However very few applications currently support the control interface and so
+However, very few applications currently support the control interface and so
 very few can load and use dynamic ENGINEs. Equally in future more sophisticated
 ENGINEs will require certain control operations to customize them. If an
 application calls OPENSSL_config() it doesn't need to know or care about
@@ -75,7 +75,7 @@ deprecated in OpenSSL 1.1.0 by OPENSSL_init_crypto().
 
 =head1 COPYRIGHT
 
-Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

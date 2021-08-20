@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping from javascript into wasm');
 session.setupScriptMap();
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 
@@ -20,21 +20,6 @@ let func = builder.addFunction('wasm_A', kSig_i_i)
                .exportAs('main');
 
 let module_bytes = builder.toArray();
-
-function instantiate(bytes) {
-  let buffer = new ArrayBuffer(bytes.length);
-  let view = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.length; ++i) {
-    view[i] = bytes[i] | 0;
-  }
-
-  let module = new WebAssembly.Module(buffer);
-  // Set global variable.
-  instance = new WebAssembly.Instance(module);
-}
-
-let evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
-    {'expression': code + '\n//# sourceURL=v8://test/' + url});
 
 Protocol.Debugger.onPaused(async message => {
   InspectorTest.log('paused');
@@ -56,32 +41,29 @@ contextGroup.addScript(`
 function test() {
   debugger;
   instance.exports.main(1);
-}
-//# sourceURL=test.js`);
+}`, 0, 0, 'test.js');
 
-(async function Test() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Installing code and global variable.');
-  await evalWithUrl('var instance;\n' + instantiate.toString(), 'setup');
-  InspectorTest.log('Calling instantiate function.');
-  evalWithUrl(
-      'instantiate(' + JSON.stringify(module_bytes) + ')', 'callInstantiate');
-  const scriptId = await waitForWasmScript();
-  InspectorTest.log('Setting breakpoint on i32.const');
-  let msg = await Protocol.Debugger.setBreakpoint({
-    'location': {
-      'scriptId': scriptId,
-      'lineNumber': 0,
-      'columnNumber': 2 + func.body_offset
-    }
-  });
-  printFailure(msg);
-  InspectorTest.logMessage(msg.result.actualLocation);
-  await Protocol.Runtime.evaluate({expression: 'test()'});
-  InspectorTest.log('exports.main returned!');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Calling instantiate function.');
+    WasmInspectorTest.instantiate(module_bytes);
+    const scriptId = await waitForWasmScript();
+    InspectorTest.log('Setting breakpoint on i32.const');
+    let msg = await Protocol.Debugger.setBreakpoint({
+      'location': {
+        'scriptId': scriptId,
+        'lineNumber': 0,
+        'columnNumber': 2 + func.body_offset
+      }
+    });
+    printFailure(msg);
+    InspectorTest.logMessage(msg.result.actualLocation);
+    await Protocol.Runtime.evaluate({expression: 'test()'});
+    InspectorTest.log('exports.main returned!');
+  }
+]);
 
 function printFailure(message) {
   if (!message.result) {

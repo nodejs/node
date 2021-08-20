@@ -89,7 +89,7 @@ assert.throws(() => {
 assert.throws(() => {
   require.resolve('.\\three.js', { paths: 'foo' })
 }, {
-  code: 'ERR_INVALID_OPT_VALUE',
+  code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
 });
 

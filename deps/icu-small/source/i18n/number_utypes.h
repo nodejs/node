@@ -28,9 +28,6 @@ const DecimalQuantity* validateUFormattedNumberToDecimalQuantity(
  * This struct is held internally by the C++ version FormattedNumber since the member types are not
  * declared in the public header file.
  *
- * The DecimalQuantity is not currently being used by FormattedNumber, but at some point it could be used
- * to add a toDecNumber() or similar method.
- *
  * Exported as U_I18N_API for tests
  */
 class U_I18N_API UFormattedNumberData : public FormattedValueStringBuilderImpl {
@@ -38,7 +35,16 @@ public:
     UFormattedNumberData() : FormattedValueStringBuilderImpl(kUndefinedField) {}
     virtual ~UFormattedNumberData();
 
+    // The formatted quantity.
     DecimalQuantity quantity;
+
+    // The output unit for the formatted quantity.
+    // TODO(units,hugovdm): populate this correctly for the general case - it's
+    // currently only implemented for the .usage() use case.
+    MeasureUnit outputUnit;
+
+    // The gender of the formatted output.
+    const char *gender = "";
 };
 
 

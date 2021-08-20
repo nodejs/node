@@ -15,7 +15,7 @@ common.skipIfDumbTerminal();
 [
   'あ',
   '𐐷',
-  '🐕'
+  '🐕',
 ].forEach((char) => {
   [true, false].forEach((lineBreak) => {
     const completer = (line) => [
@@ -24,22 +24,22 @@ common.skipIfDumbTerminal();
         '',
         `${char}${'a'.repeat(10)}`, `${char}${'b'.repeat(10)}`, char.repeat(11),
       ],
-      line
+      line,
     ];
 
     let output = '';
     const width = getStringWidth(char) - 1;
 
     class FakeInput extends EventEmitter {
-    columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3
+      columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3
 
-    write = common.mustCall((data) => {
-      output += data;
-    }, 6)
+      write = common.mustCall((data) => {
+        output += data;
+      }, 6)
 
-    resume() {}
-    pause() {}
-    end() {}
+      resume() {}
+      pause() {}
+      end() {}
     }
 
     const fi = new FakeInput();
@@ -47,7 +47,7 @@ common.skipIfDumbTerminal();
       input: fi,
       output: fi,
       terminal: true,
-      completer: completer
+      completer: common.mustCallAtLeast(completer),
     });
 
     const last = '\r\nFirst group\r\n\r\n' +
@@ -68,3 +68,71 @@ common.skipIfDumbTerminal();
     rli.close();
   });
 });
+
+{
+  let output = '';
+  class FakeInput extends EventEmitter {
+    columns = 80
+
+    write = common.mustCall((data) => {
+      output += data;
+    }, 1)
+
+    resume() {}
+    pause() {}
+    end() {}
+  }
+
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer:
+        common.mustCallAtLeast((_, cb) => cb(new Error('message'))),
+  });
+
+  rli.on('line', common.mustNotCall());
+  fi.emit('data', '\t');
+  queueMicrotask(() => {
+    assert.match(output, /^Tab completion error: Error: message/);
+    output = '';
+  });
+  rli.close();
+}
+
+{
+  let output = '';
+  class FakeInput extends EventEmitter {
+    columns = 80
+
+    write = common.mustCall((data) => {
+      output += data;
+    }, 9)
+
+    resume() {}
+    pause() {}
+    end() {}
+  }
+
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer: common.mustCall((input, cb) => {
+      cb(null, [[input[0].toUpperCase() + input.slice(1)], input]);
+    }),
+  });
+
+  rli.on('line', common.mustNotCall());
+  fi.emit('data', 'input');
+  queueMicrotask(() => {
+    fi.emit('data', '\t');
+    queueMicrotask(() => {
+      assert.match(output, /> Input/);
+      output = '';
+      rli.close();
+    });
+  });
+}

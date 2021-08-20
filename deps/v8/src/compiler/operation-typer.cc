@@ -576,8 +576,7 @@ Type OperationTyper::NumberSilenceNaN(Type type) {
   return type;
 }
 
-Type OperationTyper::BigIntAsUintN(Type type) {
-  DCHECK(type.Is(Type::BigInt()));
+Type OperationTyper::SpeculativeBigIntAsUintN(Type type) {
   return Type::BigInt();
 }
 
@@ -1251,10 +1250,6 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     DCHECK(lhs.Is(rhs));
-    // TODO(neis): The last condition in this DCHECK is due the unittest
-    // throwing arbitrary types at the typer. This is not easy to fix.
-    DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()) ||
-           FLAG_testing_d8_test_runner);
     return singleton_true();
   }
   if ((lhs.Is(Type::Unique()) || rhs.Is(Type::Unique())) && !lhs.Maybe(rhs)) {
@@ -1267,14 +1262,12 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
 Type OperationTyper::CheckBounds(Type index, Type length) {
   DCHECK(length.Is(cache_->kPositiveSafeInteger));
   if (length.Is(cache_->kSingletonZero)) return Type::None();
-  Type mask = Type::Range(0.0, length.Max() - 1, zone());
+  Type const upper_bound = Type::Range(0.0, length.Max() - 1, zone());
+  if (index.Maybe(Type::String())) return upper_bound;
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_->kSingletonZero, zone());
   }
-  if (index.Maybe(Type::String())) {
-    index = Type::Union(index, cache_->kIntPtr, zone());
-  }
-  return Type::Intersect(index, mask, zone());
+  return Type::Intersect(index, upper_bound, zone());
 }
 
 Type OperationTyper::CheckFloat64Hole(Type type) {

@@ -202,10 +202,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 522
+bytecode array length: 521
 bytecodes: [
   /*   33 S> */ B(CreateEmptyObjectLiteral),
-                B(Star), R(0),
+                B(Star0),
   /*   41 S> */ B(LdaNamedProperty), R(0), U8(0), U8(0),
   /*   54 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
   /*   67 S> */ B(LdaNamedProperty), R(0), U8(2), U8(4),

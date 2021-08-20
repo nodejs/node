@@ -59,6 +59,7 @@ class NodeMainInstance {
 
   // Start running the Node.js instances, return the exit code when finished.
   int Run(const EnvSerializeInfo* env_info);
+  void Run(int* exit_code, Environment* env);
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
@@ -67,7 +68,7 @@ class NodeMainInstance {
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
-  static const std::vector<size_t>* GetIsolateDataIndexes();
+  static const std::vector<size_t>* GetIsolateDataIndices();
   static v8::StartupData* GetEmbeddedSnapshotBlob();
   static const EnvSerializeInfo* GetEnvSerializeInfo();
   static const std::vector<intptr_t>& CollectExternalReferences();

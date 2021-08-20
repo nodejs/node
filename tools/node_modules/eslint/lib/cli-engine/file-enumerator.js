@@ -38,10 +38,15 @@ const fs = require("fs");
 const path = require("path");
 const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const { Minimatch } = require("minimatch");
-const { IgnorePattern } = require("./config-array");
-const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
+
+const {
+    Legacy: {
+        IgnorePattern,
+        CascadingConfigArrayFactory
+    }
+} = require("@eslint/eslintrc");
 const debug = require("debug")("eslint:file-enumerator");
 
 //------------------------------------------------------------------------------
@@ -208,7 +213,11 @@ class FileEnumerator {
      */
     constructor({
         cwd = process.cwd(),
-        configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
+        configArrayFactory = new CascadingConfigArrayFactory({
+            cwd,
+            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
+            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+        }),
         extensions = null,
         globInputPaths = true,
         errorOnUnmatchedPattern = true,
@@ -424,9 +433,14 @@ class FileEnumerator {
         // Enumerate the files of this directory.
         for (const entry of readdirSafeSync(directoryPath)) {
             const filePath = path.join(directoryPath, entry.name);
+            const fileInfo = entry.isSymbolicLink() ? statSafeSync(filePath) : entry;
+
+            if (!fileInfo) {
+                continue;
+            }
 
             // Check if the file is matched.
-            if (entry.isFile()) {
+            if (fileInfo.isFile()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,
@@ -462,7 +476,7 @@ class FileEnumerator {
                 }
 
             // Dive into the sub directory.
-            } else if (options.recursive && entry.isDirectory()) {
+            } else if (options.recursive && fileInfo.isDirectory()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,

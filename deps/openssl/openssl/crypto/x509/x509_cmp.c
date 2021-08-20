@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,6 +39,8 @@ unsigned long X509_issuer_and_serial_hash(X509 *a)
     if (ctx == NULL)
         goto err;
     f = X509_NAME_oneline(a->cert_info.issuer, NULL, 0);
+    if (f == NULL)
+        goto err;
     if (!EVP_DigestInit_ex(ctx, EVP_md5(), NULL))
         goto err;
     if (!EVP_DigestUpdate(ctx, (unsigned char *)f, strlen(f)))
@@ -133,17 +135,21 @@ unsigned long X509_subject_name_hash_old(X509 *x)
  */
 int X509_cmp(const X509 *a, const X509 *b)
 {
-    int rv;
+    int rv = 0;
 
-    /* ensure hash is valid */
-    if (X509_check_purpose((X509 *)a, -1, 0) != 1)
-        return -2;
-    if (X509_check_purpose((X509 *)b, -1, 0) != 1)
-        return -2;
+    if (a == b) /* for efficiency */
+        return 0;
 
-    rv = memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
-    if (rv)
+    /* try to make sure hash is valid */
+    (void)X509_check_purpose((X509 *)a, -1, 0);
+    (void)X509_check_purpose((X509 *)b, -1, 0);
+
+    if ((a->ex_flags & EXFLAG_NO_FINGERPRINT) == 0
+            && (b->ex_flags & EXFLAG_NO_FINGERPRINT) == 0)
+        rv = memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
+    if (rv != 0)
         return rv;
+
     /* Check for match against stored encoding too */
     if (!a->cert_info.enc.modified && !b->cert_info.enc.modified) {
         if (a->cert_info.enc.len < b->cert_info.enc.len)

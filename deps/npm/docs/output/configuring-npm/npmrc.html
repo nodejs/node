@@ -1,0 +1,228 @@
+<html><head>
+<title>npmrc</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npmrc">npmrc</h1>
+<span class="description">The npm config files</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>npm gets its config settings from the command line, environment variables,
+and <code>npmrc</code> files.</p>
+<p>The <code>npm config</code> command can be used to update and edit the contents of the
+user and global npmrc files.</p>
+<p>For a list of available configuration options, see
+<a href="../using-npm/config.html">config</a>.</p>
+<h3 id="files">Files</h3>
+<p>The four relevant files are:</p>
+<ul>
+<li>per-project config file (/path/to/my/project/.npmrc)</li>
+<li>per-user config file (~/.npmrc)</li>
+<li>global config file ($PREFIX/etc/npmrc)</li>
+<li>npm builtin config file (/path/to/npm/npmrc)</li>
+</ul>
+<p>All npm config files are an ini-formatted list of <code>key = value</code> parameters.
+Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For
+example:</p>
+<pre lang="bash"><code>prefix = ${HOME}/.npm-packages
+</code></pre>
+<p>Each of these files is loaded, and config options are resolved in priority
+order.  For example, a setting in the userconfig file would override the
+setting in the globalconfig file.</p>
+<p>Array values are specified by adding “[]” after the key name. For example:</p>
+<pre lang="bash"><code>key[] = "first value"
+key[] = "second value"
+</code></pre>
+<h4 id="comments">Comments</h4>
+<p>Lines in <code>.npmrc</code> files are interpreted as comments when they begin with a
+<code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by
+<a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
+<p>For example:</p>
+<pre lang="bash"><code># last modified: 01 Jan 2016
+; Set a new registry for a scoped package
+@myscope:registry=https://mycustomregistry.example.org
+</code></pre>
+<h4 id="per-project-config-file">Per-project config file</h4>
+<p>When working locally in a project, a <code>.npmrc</code> file in the root of the
+project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
+config values specific to this project.</p>
+<p>Note that this only applies to the root of the project that you’re running
+npm in.  It has no effect when your module is published.  For example, you
+can’t publish a module that forces itself to install globally, or in a
+different location.</p>
+<p>Additionally, this file is not read in global mode, such as when running
+<code>npm install -g</code>.</p>
+<h4 id="per-user-config-file">Per-user config file</h4>
+<p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment or on
+the command line)</p>
+<h4 id="global-config-file">Global config file</h4>
+<p><code>$PREFIX/etc/npmrc</code> (or the <code>globalconfig</code> param, if set above): This file
+is an ini-file formatted list of <code>key = value</code> parameters.  Environment
+variables can be replaced as above.</p>
+<h4 id="built-in-config-file">Built-in config file</h4>
+<p><code>path/to/npm/itself/npmrc</code></p>
+<p>This is an unchangeable “builtin” configuration file that npm keeps
+consistent across updates.  Set fields in here using the <code>./configure</code>
+script that comes with npm.  This is primarily for distribution maintainers
+to override default configs in a standard and consistent manner.</p>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../using-npm/config.html">config</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../commands/npm.html">npm</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/npmrc.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

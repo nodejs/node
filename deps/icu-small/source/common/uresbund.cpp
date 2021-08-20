@@ -92,6 +92,15 @@ static UBool chopLocale(char *name) {
 }
 
 /**
+ *  Called to check whether a name without '_' needs to be checked for a parent.
+ *  Some code had assumed that locale IDs with '_' could not have a non-root parent.
+ *  We may want a better way of doing this.
+ */
+static UBool mayHaveParent(char *name) {
+    return (name[0] != 0 && uprv_strstr("nb nn",name) != nullptr);
+}
+
+/**
  *  Internal function
  */
 static void entryIncrease(UResourceDataEntry *entry) {
@@ -529,8 +538,8 @@ loadParentsExceptRoot(UResourceDataEntry *&t1,
                       char name[], int32_t nameCapacity,
                       UBool usingUSRData, char usrDataPath[], UErrorCode *status) {
     if (U_FAILURE(*status)) { return FALSE; }
-    UBool hasChopped = TRUE;
-    while (hasChopped && t1->fParent == NULL && !t1->fData.noFallback &&
+    UBool checkParent = TRUE;
+    while (checkParent && t1->fParent == NULL && !t1->fData.noFallback &&
             res_getResource(&t1->fData,"%%ParentIsRoot") == RES_BOGUS) {
         Resource parentRes = res_getResource(&t1->fData, "%%Parent");
         if (parentRes != RES_BOGUS) {  // An explicit parent was found.
@@ -573,7 +582,7 @@ loadParentsExceptRoot(UResourceDataEntry *&t1,
             }
         }
         t1 = t2;
-        hasChopped = chopLocale(name);
+        checkParent = chopLocale(name) || mayHaveParent(name);
     }
     return TRUE;
 }
@@ -692,7 +701,7 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
                 }
             }
         }
-        if (hasChopped && !isRoot) {
+        if ((hasChopped || mayHaveParent(name)) && !isRoot) {
             if (!loadParentsExceptRoot(t1, name, UPRV_LENGTHOF(name), usingUSRData, usrDataPath, status)) {
                 goto finish;
             }
@@ -716,7 +725,7 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
             hasRealData = TRUE;
             isDefault = TRUE;
             // TODO: Why not if (usingUSRData) { ... } like in the non-default-locale code path?
-            if (hasChopped && !isRoot) {
+            if ((hasChopped || mayHaveParent(name)) && !isRoot) {
                 if (!loadParentsExceptRoot(t1, name, UPRV_LENGTHOF(name), usingUSRData, usrDataPath, status)) {
                     goto finish;
                 }
@@ -1792,7 +1801,7 @@ ures_findSubResource(const UResourceBundle *resB, char* path, UResourceBundle *f
 
   return result;
 }
-U_INTERNAL const UChar* U_EXPORT2
+U_CAPI const UChar* U_EXPORT2
 ures_getStringByKeyWithFallback(const UResourceBundle *resB,
                                 const char* inKey,
                                 int32_t* len,
@@ -1908,6 +1917,8 @@ ures_getByKeyWithFallback(const UResourceBundle *resB,
                             } else {
                               break;
                             }
+                        } else if (res == RES_BOGUS) {
+                            break;
                         }
                     } while(*myPath); /* Continue until the whole path is consumed */
                 }
@@ -2210,7 +2221,7 @@ ures_getUTF8StringByKey(const UResourceBundle *resB,
  *  INTERNAL: Get the name of the first real locale (not placeholder)
  *  that has resource bundle data.
  */
-U_INTERNAL const char*  U_EXPORT2
+U_CAPI const char*  U_EXPORT2
 ures_getLocaleInternal(const UResourceBundle* resourceBundle, UErrorCode* status)
 {
     if (status==NULL || U_FAILURE(*status)) {
@@ -2357,7 +2368,7 @@ ures_openDirect(const char* path, const char* localeID, UErrorCode* status) {
  *
  * Same as ures_open(), but uses the fill-in parameter and does not allocate a new bundle.
  */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 ures_openFillIn(UResourceBundle *r, const char* path,
                 const char* localeID, UErrorCode* status) {
     if(U_SUCCESS(*status) && r == NULL) {
@@ -2370,7 +2381,7 @@ ures_openFillIn(UResourceBundle *r, const char* path,
 /**
  * Same as ures_openDirect(), but uses the fill-in parameter and does not allocate a new bundle.
  */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 ures_openDirectFillIn(UResourceBundle *r, const char* path, const char* localeID, UErrorCode* status) {
     if(U_SUCCESS(*status) && r == NULL) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -2420,7 +2431,7 @@ ures_countArrayItems(const UResourceBundle* resourceBundle,
  * @see ures_getVersion
  * @internal
  */
-U_INTERNAL const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 ures_getVersionNumberInternal(const UResourceBundle *resourceBundle)
 {
     if (!resourceBundle) return NULL;
@@ -3016,10 +3027,10 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
 }
 #if 0
 /* This code isn't needed, and given the documentation warnings the implementation is suspect */
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ures_equal(const UResourceBundle* res1, const UResourceBundle* res2){
     if(res1==NULL || res2==NULL){
-        return res1==res2; /* pointer comparision */
+        return res1==res2; /* pointer comparison */
     }
     if(res1->fKey==NULL||  res2->fKey==NULL){
         return (res1->fKey==res2->fKey);
@@ -3052,7 +3063,7 @@ ures_equal(const UResourceBundle* res1, const UResourceBundle* res2){
     }
     return TRUE;
 }
-U_INTERNAL UResourceBundle* U_EXPORT2
+U_CAPI UResourceBundle* U_EXPORT2
 ures_clone(const UResourceBundle* res, UErrorCode* status){
     UResourceBundle* bundle = NULL;
     UResourceBundle* ret = NULL;
@@ -3068,7 +3079,7 @@ ures_clone(const UResourceBundle* res, UErrorCode* status){
     }
     return ret;
 }
-U_INTERNAL const UResourceBundle* U_EXPORT2
+U_CAPI const UResourceBundle* U_EXPORT2
 ures_getParentBundle(const UResourceBundle* res){
     if(res==NULL){
         return NULL;
@@ -3077,7 +3088,7 @@ ures_getParentBundle(const UResourceBundle* res){
 }
 #endif
 
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 ures_getVersionByKey(const UResourceBundle* res, const char *key, UVersionInfo ver, UErrorCode *status) {
   const UChar *str;
   int32_t len;

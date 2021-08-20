@@ -18,6 +18,7 @@ static void MemMoveWrapper(void* dest, const void* src, size_t size) {
 static MemMoveFunction memmove_function = &MemMoveWrapper;
 
 // Copy memory area to disjoint memory area.
+DISABLE_CFI_ICALL
 V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size) {
   if (size == 0) return;
   // Note: here we rely on dependent reads being ordered. This is true

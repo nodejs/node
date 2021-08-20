@@ -297,7 +297,7 @@ enum URBNFRuleSetTag {
  *   </tr>
  *   <tr>
  *     <td>x.0:</td>
- *     <td>The rule is a <em>master rule</em>. If the full stop in
+ *     <td>The rule is a <em>default rule</em>. If the full stop in
  *     the middle of the rule name is replaced with the decimal point
  *     that is used in the language or DecimalFormatSymbols, then that rule will
  *     have precedence when formatting and parsing this rule. For example, some
@@ -332,9 +332,9 @@ enum URBNFRuleSetTag {
  * algorithms: If the rule set is a regular rule set, do the following:
  *
  * <ul>
- *   <li>If the rule set includes a master rule (and the number was passed in as a <tt>double</tt>),
- *     use the master rule.&nbsp; (If the number being formatted was passed in as a <tt>long</tt>,
- *     the master rule is ignored.)</li>
+ *   <li>If the rule set includes a default rule (and the number was passed in as a <tt>double</tt>),
+ *     use the default rule.&nbsp; (If the number being formatted was passed in as a <tt>long</tt>,
+ *     the default rule is ignored.)</li>
  *   <li>If the number is negative, use the negative-number rule.</li>
  *   <li>If the number has a fractional part and is greater than 1, use the improper fraction
  *     rule.</li>
@@ -393,7 +393,7 @@ enum URBNFRuleSetTag {
  *   </tr>
  *   <tr>
  *     <td></td>
- *     <td>in fraction or master rule</td>
+ *     <td>in fraction or default rule</td>
  *     <td>Isolate the number's fractional part and format it.</td>
  *   </tr>
  *   <tr>
@@ -425,7 +425,7 @@ enum URBNFRuleSetTag {
  *   </tr>
  *   <tr>
  *     <td></td>
- *     <td>in fraction or master rule</td>
+ *     <td>in fraction or default rule</td>
  *     <td>Isolate the number's integral part and format it.</td>
  *   </tr>
  *   <tr>
@@ -456,7 +456,7 @@ enum URBNFRuleSetTag {
  *   </tr>
  *   <tr>
  *     <td></td>
- *     <td>in master rule</td>
+ *     <td>in default rule</td>
  *     <td>Omit the optional text if the number is an integer (same as specifying both an x.x
  *     rule and an x.0 rule)</td>
  *   </tr>
@@ -543,7 +543,7 @@ enum URBNFRuleSetTag {
  * names in this array will be treated as public rule set names by the API.  Each subsequent
  * element is an array of localizations of these names.  The first element of one of these
  * subarrays is the locale name, and the remaining elements are localizations of the
- * public rule set names, in the same order as they were listed in the first arrray.</p>
+ * public rule set names, in the same order as they were listed in the first array.</p>
  * <p>In the syntax, angle brackets '<', '>' are used to delimit the arrays, and comma ',' is used
  * to separate elements of an array.  Whitespace is ignored, unless quoted.</p>
  * <p>For example:<pre>
@@ -653,7 +653,7 @@ public:
 
   /**
    * Creates a RuleBasedNumberFormat from a predefined ruleset.  The selector
-   * code choosed among three possible predefined formats: spellout, ordinal,
+   * code chose among three possible predefined formats: spellout, ordinal,
    * and duration.
    * @param tag A selector code specifying which kind of formatter to create for that
    * locale.  There are four legal values: URBNF_SPELLOUT, which creates a formatter that

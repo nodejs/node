@@ -48,6 +48,8 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(0, function() {
+  // Anonymous function rather than arrow function to test `this` value.
+  assert.strictEqual(this, server);
   const req = http.request({
     port: this.address().port,
     path: '/',

@@ -50,6 +50,7 @@ class Worker : public AsyncWrap {
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override;
 
   bool is_stopped() const;
 
@@ -65,6 +66,8 @@ class Worker : public AsyncWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::Local<v8::Float64Array> GetResourceLimits(v8::Isolate* isolate) const;
   static void TakeHeapSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoopIdleTime(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   void CreateEnvMessagePort(Environment* env);

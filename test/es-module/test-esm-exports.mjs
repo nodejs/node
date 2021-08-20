@@ -33,6 +33,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       { default: 'self-cjs' } : { default: 'self-mjs' }],
     // Resolve self sugar
     ['pkgexports-sugar', { default: 'main' }],
+    // Path patterns
+    ['pkgexports/subpath/sub-dir1', { default: 'main' }],
+    ['pkgexports/features/dir1', { default: 'main' }],
   ]);
 
   if (isRequire) {
@@ -41,6 +44,11 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     validSpecifiers.set('pkgexports/subpath/dir1/', { default: 'main' });
     validSpecifiers.set('pkgexports/subpath/dir2', { default: 'index' });
     validSpecifiers.set('pkgexports/subpath/dir2/', { default: 'index' });
+  } else {
+    // No exports or main field
+    validSpecifiers.set('no_exports', { default: 'index' });
+    // Main field without extension
+    validSpecifiers.set('default_index', { default: 'main' });
   }
 
   for (const [validSpecifier, expected] of validSpecifiers) {

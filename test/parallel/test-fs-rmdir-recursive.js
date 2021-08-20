@@ -7,6 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const { validateRmdirOptions } = require('internal/fs/utils');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'In future versions of Node.js, fs.rmdir(path, { recursive: true }) ' +
+      'will be removed. Use fs.rm(path, { recursive: true }) instead',
+  'DEP0147'
+);
+
 tmpdir.refresh();
 
 let count = 0;
@@ -72,13 +79,10 @@ function removeAsync(dir) {
       assert.strictEqual(err.syscall, 'rmdir');
 
       // Recursive removal should succeed.
-      fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
-        assert.ifError(err);
-
-        // No error should occur if recursive and the directory does not exist.
+      fs.rmdir(dir, { recursive: true }, common.mustSucceed(() => {
+        // An error should occur if recursive and the directory does not exist.
         fs.rmdir(dir, { recursive: true }, common.mustCall((err) => {
-          assert.ifError(err);
-
+          assert.strictEqual(err.code, 'ENOENT');
           // Attempted removal should fail now because the directory is gone.
           fs.rmdir(dir, common.mustCall((err) => {
             assert.strictEqual(err.syscall, 'rmdir');
@@ -123,8 +127,9 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   fs.rmdirSync(dir, { recursive: true });
 
-  // No error should occur if recursive and the directory does not exist.
-  fs.rmdirSync(dir, { recursive: true });
+  // An error should occur if recursive and the directory does not exist.
+  assert.throws(() => fs.rmdirSync(dir, { recursive: true }),
+                { code: 'ENOENT' });
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
@@ -144,8 +149,9 @@ function removeAsync(dir) {
   // Recursive removal should succeed.
   await fs.promises.rmdir(dir, { recursive: true });
 
-  // No error should occur if recursive and the directory does not exist.
-  await fs.promises.rmdir(dir, { recursive: true });
+  // An error should occur if recursive and the directory does not exist.
+  await assert.rejects(fs.promises.rmdir(dir, { recursive: true }),
+                       { code: 'ENOENT' });
 
   // Attempted removal should fail now because the directory is gone.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
@@ -191,7 +197,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "recursive" argument must be of type boolean\./
+      message: /^The "options\.recursive" property must be of type boolean\./
     });
   });
 
@@ -200,7 +206,7 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "retryDelay" is out of range\./
+    message: /^The value of "options\.retryDelay" is out of range\./
   });
 
   assert.throws(() => {
@@ -208,6 +214,31 @@ function removeAsync(dir) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "maxRetries" is out of range\./
+    message: /^The value of "options\.maxRetries" is out of range\./
   });
+}
+
+// It should not pass recursive option to rmdirSync, when called from
+// rimraf (see: #35566)
+{
+  // Make a non-empty directory:
+  const original = fs.rmdirSync;
+  const dir = `${nextDirPath()}/foo/bar`;
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(`${dir}/foo.txt`, 'hello world', 'utf8');
+
+  // When called the second time from rimraf, the recursive option should
+  // not be set for rmdirSync:
+  let callCount = 0;
+  let rmdirSyncOptionsFromRimraf;
+  fs.rmdirSync = (path, options) => {
+    if (callCount > 0) {
+      rmdirSyncOptionsFromRimraf = { ...options };
+    }
+    callCount++;
+    return original(path, options);
+  };
+  fs.rmdirSync(dir, { recursive: true });
+  fs.rmdirSync = original;
+  assert.strictEqual(rmdirSyncOptionsFromRimraf.recursive, undefined);
 }

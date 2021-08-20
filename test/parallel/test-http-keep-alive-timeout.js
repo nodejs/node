@@ -11,7 +11,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.write(body);
   res.end();
 }));
-server.keepAliveTimeout = 12000;
+server.keepAliveTimeout = 12010;
 
 const agent = new http.Agent({ maxSockets: 1, keepAlive: true });
 

@@ -54,18 +54,13 @@ class ProcessWrap : public HandleWrap {
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         ProcessWrap::kInternalFieldCount);
-    Local<String> processString =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
-    constructor->SetClassName(processString);
 
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
 
-    target->Set(env->context(),
-                processString,
-                constructor->GetFunction(context).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, "Process", constructor);
   }
 
   SET_NO_MEMORY_INFO()
@@ -124,6 +119,11 @@ class ProcessWrap : public HandleWrap {
       } else if (type->StrictEquals(env->pipe_string())) {
         options->stdio[i].flags = static_cast<uv_stdio_flags>(
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
+        options->stdio[i].data.stream = StreamForWrap(env, stdio);
+      } else if (type->StrictEquals(env->overlapped_string())) {
+        options->stdio[i].flags = static_cast<uv_stdio_flags>(
+            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE |
+            UV_OVERLAPPED_PIPE);
         options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else if (type->StrictEquals(env->wrap_string())) {
         options->stdio[i].flags = UV_INHERIT_STREAM;
@@ -236,6 +236,10 @@ class ProcessWrap : public HandleWrap {
 
     if (hide_v->IsTrue()) {
       options.flags |= UV_PROCESS_WINDOWS_HIDE;
+    }
+
+    if (env->hide_console_windows()) {
+      options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
     }
 
     // options.windows_verbatim_arguments

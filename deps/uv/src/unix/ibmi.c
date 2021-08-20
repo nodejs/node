@@ -26,7 +26,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <sys/types.h>
@@ -58,6 +57,9 @@
 #include <as400_protos.h>
 #include <as400_types.h>
 
+char* original_exepath = NULL;
+uv_mutex_t process_title_mutex;
+uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 
 typedef struct {
   int bytes_available;
@@ -163,7 +165,7 @@ static void iconv_a2e(const char* src, unsigned char dst[], size_t length) {
 
   srclen = strlen(src);
   if (srclen > length)
-    abort();
+    srclen = length;
   for (i = 0; i < srclen; i++)
     dst[i] = a2e[src[i]];
   /* padding the remaining part with spaces */
@@ -171,6 +173,9 @@ static void iconv_a2e(const char* src, unsigned char dst[], size_t length) {
     dst[i] = a2e[' '];
 }
 
+void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
 
 static int get_ibmi_system_status(SSTS0200* rcvr) {
   /* rcvrlen is input parameter 2 to QWCRSSTS */
@@ -354,6 +359,10 @@ static int get_ibmi_physical_address(const char* line, char (*phys_addr)[6]) {
   if (rc != 0)
     return rc;
 
+  if (err.bytes_available > 0) {
+    return -1;
+  }
+
   /* convert ebcdic loca_adapter_address to ascii first */
   iconv_e2a(rcvr.loca_adapter_address, mac_addr,
             sizeof(rcvr.loca_adapter_address));
@@ -437,9 +446,42 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     }
     address->is_internal = cur->ifa_flags & IFF_LOOPBACK ? 1 : 0;
     if (!address->is_internal) {
-      int rc = get_ibmi_physical_address(address->name, &address->phys_addr);
-      if (rc != 0)
-        r = rc;
+      int rc = -1;
+      size_t name_len = strlen(address->name);
+      /* To get the associated MAC address, we must convert the address to a
+       * line description. Normally, the name field contains the line
+       * description name, but for VLANs it has the VLAN appended with a
+       * period. Since object names can also contain periods and numbers, there
+       * is no way to know if a returned name is for a VLAN or not. eg.
+       * *LIND ETH1.1 and *LIND ETH1, VLAN 1 both have the same name: ETH1.1
+       *
+       * Instead, we apply the same heuristic used by some of the XPF ioctls:
+       * - names > 10 *must* contain a VLAN
+       * - assume names <= 10 do not contain a VLAN and try directly
+       * - if >10 or QDCRLIND returned an error, try to strip off a VLAN
+       *   and try again
+       * - if we still get an error or couldn't find a period, leave the MAC as
+       *   00:00:00:00:00:00
+       */
+      if (name_len <= 10) {
+        /* Assume name does not contain a VLAN ID */
+        rc = get_ibmi_physical_address(address->name, &address->phys_addr);
+      }
+
+      if (name_len > 10 || rc != 0) {
+        /* The interface name must contain a VLAN ID suffix. Attempt to strip
+         * it off so we can get the line description to pass to QDCRLIND.
+         */
+        char* temp_name = uv__strdup(address->name);
+        char* dot = strrchr(temp_name, '.');
+        if (dot != NULL) {
+          *dot = '\0';
+          if (strlen(temp_name) <= 10) {
+            rc = get_ibmi_physical_address(temp_name, &address->phys_addr);
+          }
+        }
+        uv__free(temp_name);
+      }
     }
 
     address++;
@@ -458,4 +500,38 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses, int count) {
   }
 
   uv__free(addresses);
+}
+
+char** uv_setup_args(int argc, char** argv) {
+  char exepath[UV__PATH_MAX];
+  char* s;
+  size_t size;
+
+  if (argc > 0) {
+    /* Use argv[0] to determine value for uv_exepath(). */
+    size = sizeof(exepath);
+    if (uv__search_path(argv[0], exepath, &size) == 0) {
+      uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+      uv_mutex_lock(&process_title_mutex);
+      original_exepath = uv__strdup(exepath);
+      uv_mutex_unlock(&process_title_mutex);
+    }
+  }
+
+  return argv;
+}
+
+int uv_set_process_title(const char* title) {
+  return 0;
+}
+
+int uv_get_process_title(char* buffer, size_t size) {
+  if (buffer == NULL || size == 0)
+    return UV_EINVAL;
+
+  buffer[0] = '\0';
+  return 0;
+}
+
+void uv__process_title_cleanup(void) {
 }

@@ -9,27 +9,28 @@ on:
     # ./doc/guides/commit-queue.md
     - cron: "*/5 * * * *"
 
+env:
+  NODE_VERSION: lts/*
+
 jobs:
   startCI:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
 
       # Install dependencies
-      - name: Install jq
-        run: sudo apt-get install jq -y
       - name: Install Node.js
-        uses: actions/setup-node@v2-beta
+        uses: actions/setup-node@v2
         with:
-          node-version: '12'
+          node-version: ${{ env.NODE_VERSION }}
       - name: Install node-core-utils
         run: npm install -g node-core-utils
 
       - name: Set variables
         run: |
-          echo "::set-env name=REPOSITORY::$(echo ${{ github.repository }} | cut -d/ -f2)"
-          echo "::set-env name=OWNER::${{ github.repository_owner }}"
+          echo "REPOSITORY=$(echo ${{ github.repository }} | cut -d/ -f2)" >> $GITHUB_ENV
+          echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
 
       # Get Pull Requests
       - name: Get Pull Requests

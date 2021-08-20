@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_C_API_H_
 #define V8_WASM_C_API_H_
 
@@ -43,7 +47,7 @@ class StoreImpl {
  private:
   friend own<Store> Store::make(Engine*);
 
-  StoreImpl() {}
+  StoreImpl() = default;
 
   v8::Isolate::CreateParams create_params_;
   v8::Isolate* isolate_ = nullptr;

@@ -45,13 +45,13 @@ let brt1 = [kExprBrTable, 0, 1];
 let brt01 = [kExprBrTable, 1, 0, 1];
 let f32 = [kExprF32Const, 0, 0, 0, 0];
 let zero = [kExprI32Const, 0];
-let if_else_empty = [kExprIf, kWasmStmt, kExprElse, kExprEnd];
-let if_unr = [kExprIf, kWasmStmt, kExprUnreachable, kExprEnd];
-let if_else_unr = [kExprIf, kWasmStmt, kExprUnreachable, kExprElse, kExprUnreachable, kExprEnd];
-let block_unr = [kExprBlock, kWasmStmt, kExprUnreachable, kExprEnd];
-let loop_unr = [kExprLoop, kWasmStmt, kExprUnreachable, kExprEnd];
-let block_block_unr = [kExprBlock, kWasmStmt, kExprBlock, kWasmStmt, kExprUnreachable, kExprEnd, kExprEnd];
-let block = [kExprBlock, kWasmStmt]
+let if_else_empty = [kExprIf, kWasmVoid, kExprElse, kExprEnd];
+let if_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprEnd];
+let if_else_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprElse, kExprUnreachable, kExprEnd];
+let block_unr = [kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd];
+let loop_unr = [kExprLoop, kWasmVoid, kExprUnreachable, kExprEnd];
+let block_block_unr = [kExprBlock, kWasmVoid, kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd, kExprEnd];
+let block = [kExprBlock, kWasmVoid]
 let iblock = [kExprBlock, kWasmI32]
 let fblock = [kExprBlock, kWasmF32]
 let end = kExprEnd;
@@ -125,7 +125,7 @@ run(I, "U (iblock 0 (block br1)) drop", [unr, ...iblock, ...zero, ...block, ...b
 run(I, "U (iblock 0 (block 0 brt1)) drop", [unr, ...iblock, ...zero, ...block, ...zero, ...brt1, end, end, drop]);
 run(I, "U (block (iblock 0 0 brt01) drop)", [unr, ...block, ...iblock, ...zero, ...zero, ...brt01, end, drop, end]);
 run(V, "(iblock (iblock U 0 brt01)) drop", [...iblock, ...iblock, unr, ...zero, ...brt01, end, end, drop]);
-run(I, "(block (fblock U 0 brt01) drop)", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, end]);
-run(I, "(iblock (fblock U 0 brt01) drop 0) drop", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, ...zero, end, drop]);
+run(I, "(block (fblock U 0 brt01) drop)", [...block, ...fblock, unr, ...zero, ...brt01, end, drop, end]);
+run(V, "(iblock (fblock U 0 brt01) drop 0) drop", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, ...zero, end, drop]);
 
 run(I, "(iblock (block (U brif 1))", [...iblock, ...block, unr, kExprBrIf, 0, end, end, kExprDrop]);

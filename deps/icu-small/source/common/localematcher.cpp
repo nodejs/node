@@ -1,11 +1,8 @@
 // © 2019 and later: Unicode, Inc. and others.
-// License & terms of use: http://www.unicode.org/copyright.html#License
+// License & terms of use: http://www.unicode.org/copyright.html
 
 // localematcher.cpp
 // created: 2019may08 Markus W. Scherer
-
-#ifndef __LOCMATCHER_H__
-#define __LOCMATCHER_H__
 
 #include "unicode/utypes.h"
 #include "unicode/localebuilder.h"
@@ -131,6 +128,7 @@ LocaleMatcher::Builder::Builder(LocaleMatcher::Builder &&src) U_NOEXCEPT :
         thresholdDistance_(src.thresholdDistance_),
         demotion_(src.demotion_),
         defaultLocale_(src.defaultLocale_),
+        withDefault_(src.withDefault_),
         favor_(src.favor_),
         direction_(src.direction_) {
     src.supportedLocales_ = nullptr;
@@ -140,6 +138,8 @@ LocaleMatcher::Builder::Builder(LocaleMatcher::Builder &&src) U_NOEXCEPT :
 LocaleMatcher::Builder::~Builder() {
     delete supportedLocales_;
     delete defaultLocale_;
+    delete maxDistanceDesired_;
+    delete maxDistanceSupported_;
 }
 
 LocaleMatcher::Builder &LocaleMatcher::Builder::operator=(LocaleMatcher::Builder &&src) U_NOEXCEPT {
@@ -150,6 +150,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::operator=(LocaleMatcher::Builder
     thresholdDistance_ = src.thresholdDistance_;
     demotion_ = src.demotion_;
     defaultLocale_ = src.defaultLocale_;
+    withDefault_ = src.withDefault_,
     favor_ = src.favor_;
     direction_ = src.direction_;
 
@@ -229,6 +230,14 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::addSupportedLocale(const Locale 
     return *this;
 }
 
+LocaleMatcher::Builder &LocaleMatcher::Builder::setNoDefaultLocale() {
+    if (U_FAILURE(errorCode_)) { return *this; }
+    delete defaultLocale_;
+    defaultLocale_ = nullptr;
+    withDefault_ = false;
+    return *this;
+}
+
 LocaleMatcher::Builder &LocaleMatcher::Builder::setDefaultLocale(const Locale *defaultLocale) {
     if (U_FAILURE(errorCode_)) { return *this; }
     Locale *clone = nullptr;
@@ -241,6 +250,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setDefaultLocale(const Locale *d
     }
     delete defaultLocale_;
     defaultLocale_ = clone;
+    withDefault_ = true;
     return *this;
 }
 
@@ -253,6 +263,24 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setFavorSubtag(ULocMatchFavorSub
 LocaleMatcher::Builder &LocaleMatcher::Builder::setDemotionPerDesiredLocale(ULocMatchDemotion demotion) {
     if (U_FAILURE(errorCode_)) { return *this; }
     demotion_ = demotion;
+    return *this;
+}
+
+LocaleMatcher::Builder &LocaleMatcher::Builder::setMaxDistance(const Locale &desired,
+                                                               const Locale &supported) {
+    if (U_FAILURE(errorCode_)) { return *this; }
+    Locale *desiredClone = desired.clone();
+    Locale *supportedClone = supported.clone();
+    if (desiredClone == nullptr || supportedClone == nullptr) {
+        delete desiredClone;  // in case only one could not be allocated
+        delete supportedClone;
+        errorCode_ = U_MEMORY_ALLOCATION_ERROR;
+        return *this;
+    }
+    delete maxDistanceDesired_;
+    delete maxDistanceSupported_;
+    maxDistanceDesired_ = desiredClone;
+    maxDistanceSupported_ = supportedClone;
     return *this;
 }
 
@@ -317,9 +345,8 @@ UBool compareLSRs(const UHashTok t1, const UHashTok t2) {
 int32_t LocaleMatcher::putIfAbsent(const LSR &lsr, int32_t i, int32_t suppLength,
                                    UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) { return suppLength; }
-    int32_t index = uhash_geti(supportedLsrToIndex, &lsr);
-    if (index == 0) {
-        uhash_puti(supportedLsrToIndex, const_cast<LSR *>(&lsr), i + 1, &errorCode);
+    if (!uhash_containsKey(supportedLsrToIndex, &lsr)) {
+        uhash_putiAllowZero(supportedLsrToIndex, const_cast<LSR *>(&lsr), i, &errorCode);
         if (U_SUCCESS(errorCode)) {
             supportedLSRs[suppLength] = &lsr;
             supportedIndexes[suppLength++] = i;
@@ -340,9 +367,6 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         supportedLSRs(nullptr), supportedIndexes(nullptr), supportedLSRsLength(0),
         ownedDefaultLocale(nullptr), defaultLocale(nullptr) {
     if (U_FAILURE(errorCode)) { return; }
-    if (thresholdDistance < 0) {
-        thresholdDistance = localeDistance.getDefaultScriptDistance();
-    }
     const Locale *def = builder.defaultLocale_;
     LSR builderDefaultLSR;
     const LSR *defLSR = nullptr;
@@ -408,22 +432,20 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
         int32_t suppLength = 0;
         // Determine insertion order.
         // Add locales immediately that are equivalent to the default.
-        MaybeStackArray<int8_t, 100> order(supportedLocalesLength);
-        if (order.getAlias() == nullptr) {
-            errorCode = U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
+        MaybeStackArray<int8_t, 100> order(supportedLocalesLength, errorCode);
+        if (U_FAILURE(errorCode)) { return; }
         int32_t numParadigms = 0;
         for (int32_t i = 0; i < supportedLocalesLength; ++i) {
             const Locale &locale = *supportedLocales[i];
             const LSR &lsr = lsrs[i];
-            if (defLSR == nullptr) {
+            if (defLSR == nullptr && builder.withDefault_) {
+                // Implicit default locale = first supported locale, if not turned off.
                 U_ASSERT(i == 0);
                 def = &locale;
                 defLSR = &lsr;
                 order[i] = 1;
                 suppLength = putIfAbsent(lsr, 0, suppLength, errorCode);
-            } else if (lsr.isEquivalentTo(*defLSR)) {
+            } else if (defLSR != nullptr && lsr.isEquivalentTo(*defLSR)) {
                 order[i] = 1;
                 suppLength = putIfAbsent(lsr, i, suppLength, errorCode);
             } else if (localeDistance.isParadigmLSR(lsr)) {
@@ -457,6 +479,25 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
 
     if (builder.demotion_ == ULOCMATCH_DEMOTION_REGION) {
         demotionPerDesiredLocale = localeDistance.getDefaultDemotionPerDesiredLocale();
+    }
+
+    if (thresholdDistance >= 0) {
+        // already copied
+    } else if (builder.maxDistanceDesired_ != nullptr) {
+        LSR suppLSR = getMaximalLsrOrUnd(likelySubtags, *builder.maxDistanceSupported_, errorCode);
+        const LSR *pSuppLSR = &suppLSR;
+        int32_t indexAndDistance = localeDistance.getBestIndexAndDistance(
+                getMaximalLsrOrUnd(likelySubtags, *builder.maxDistanceDesired_, errorCode),
+                &pSuppLSR, 1,
+                LocaleDistance::shiftDistance(100), favorSubtag, direction);
+        if (U_SUCCESS(errorCode)) {
+            // +1 for an exclusive threshold from an inclusive max.
+            thresholdDistance = LocaleDistance::getDistanceFloor(indexAndDistance) + 1;
+        } else {
+            thresholdDistance = 0;
+        }
+    } else {
+        thresholdDistance = localeDistance.getDefaultScriptDistance();
     }
 }
 
@@ -643,12 +684,11 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
     int32_t bestSupportedLsrIndex = -1;
     for (int32_t bestShiftedDistance = LocaleDistance::shiftDistance(thresholdDistance);;) {
         // Quick check for exact maximized LSR.
-        // Returns suppIndex+1 where 0 means not found.
         if (supportedLsrToIndex != nullptr) {
             desiredLSR.setHashCode();
-            int32_t index = uhash_geti(supportedLsrToIndex, &desiredLSR);
-            if (index != 0) {
-                int32_t suppIndex = index - 1;
+            UBool found = false;
+            int32_t suppIndex = uhash_getiAndFound(supportedLsrToIndex, &desiredLSR, &found);
+            if (found) {
                 if (remainingIter != nullptr) {
                     remainingIter->rememberCurrent(desiredIndex, errorCode);
                 }
@@ -681,6 +721,18 @@ int32_t LocaleMatcher::getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remai
         return -1;
     }
     return supportedIndexes[bestSupportedLsrIndex];
+}
+
+UBool LocaleMatcher::isMatch(const Locale &desired, const Locale &supported,
+                             UErrorCode &errorCode) const {
+    LSR suppLSR = getMaximalLsrOrUnd(likelySubtags, supported, errorCode);
+    if (U_FAILURE(errorCode)) { return 0; }
+    const LSR *pSuppLSR = &suppLSR;
+    int32_t indexAndDistance = localeDistance.getBestIndexAndDistance(
+            getMaximalLsrOrUnd(likelySubtags, desired, errorCode),
+            &pSuppLSR, 1,
+            LocaleDistance::shiftDistance(thresholdDistance), favorSubtag, direction);
+    return indexAndDistance >= 0;
 }
 
 double LocaleMatcher::internalMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const {
@@ -790,5 +842,3 @@ uloc_acceptLanguageFromHTTP(char *result, int32_t resultAvailable,
     return acceptLanguage(*availableLocales, desiredLocales,
                           result, resultAvailable, outResult, *status);
 }
-
-#endif  // __LOCMATCHER_H__

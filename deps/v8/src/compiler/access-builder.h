@@ -31,7 +31,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
-  static FieldAccess ForMap();
+  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier);
 
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
@@ -58,7 +58,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectElements();
 
   // Provides access to JSObject inobject property fields.
-  static FieldAccess ForJSObjectInObjectProperty(const MapRef& map, int index);
+  static FieldAccess ForJSObjectInObjectProperty(
+      const MapRef& map, int index,
+      MachineType machine_type = MachineType::AnyTagged());
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
@@ -179,6 +181,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 
+  // Provides access to WeakFixedArray::length() field.
+  static FieldAccess ForWeakFixedArrayLength();
+
+  // Provides access to SloppyArgumentsElements::context() field.
+  static FieldAccess ForSloppyArgumentsElementsContext();
+
+  // Provides access to SloppyArgumentsElements::arguments() field.
+  static FieldAccess ForSloppyArgumentsElementsArguments();
+
   // Provides access to PropertyArray::length() field.
   static FieldAccess ForPropertyArrayLengthAndHash();
 
@@ -203,14 +214,17 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Map::prototype() field.
   static FieldAccess ForMapPrototype();
 
+  // Provides access to Map::native_context() field.
+  static FieldAccess ForMapNativeContext();
+
   // Provides access to Module::regular_exports() field.
   static FieldAccess ForModuleRegularExports();
 
   // Provides access to Module::regular_imports() field.
   static FieldAccess ForModuleRegularImports();
 
-  // Provides access to Name::hash_field() field.
-  static FieldAccess ForNameHashField();
+  // Provides access to Name::raw_hash_field() field.
+  static FieldAccess ForNameRawHashField();
 
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();
@@ -268,6 +282,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFixedArraySlot(
       size_t index, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
+  static FieldAccess ForFeedbackVectorSlot(int index);
+
   // Provides access to ScopeInfo flags.
   static FieldAccess ForScopeInfoFlags();
 
@@ -277,11 +293,18 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Context slots that are known to be pointers.
   static FieldAccess ForContextSlotKnownPointer(size_t index);
 
+  // Provides access to WeakFixedArray elements.
+  static ElementAccess ForWeakFixedArrayElement();
+  static FieldAccess ForWeakFixedArraySlot(int index);
+
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
   static ElementAccess ForFixedArrayElement(
       ElementsKind kind,
       LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
+
+  // Provides access to SloppyArgumentsElements elements.
+  static ElementAccess ForSloppyArgumentsElementsMappedEntry();
 
   // Provides access to stack arguments
   static ElementAccess ForStackArgument();
@@ -317,6 +340,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryNextEnumerationIndex();
   static FieldAccess ForDictionaryObjectHashIndex();
+
+  // Provides access to FeedbackCell fields.
+  static FieldAccess ForFeedbackCellValue();
+  static FieldAccess ForFeedbackCellInterruptBudget();
+
+  // Provides access to a FeedbackVector fields.
+  static FieldAccess ForFeedbackVectorInvocationCount();
+  static FieldAccess ForFeedbackVectorFlags();
+  static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

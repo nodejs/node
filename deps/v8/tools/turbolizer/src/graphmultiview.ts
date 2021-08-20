@@ -38,6 +38,11 @@ export class GraphMultiView extends View {
     return pane;
   }
 
+  hide() {
+    this.hideCurrentPhase();
+    super.hide();
+  }
+
   constructor(id, selectionBroker, sourceResolver) {
     super(id);
     const view = this;
@@ -86,7 +91,9 @@ export class GraphMultiView extends View {
   }
 
   show() {
-    super.show();
+    // Insert before is used so that the display is inserted before the
+    // resizer for the RangeView.
+    this.container.insertBefore(this.divNode, this.container.firstChild);
     this.initializeSelect();
     const lastPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");
     const initialPhaseIndex = this.sourceResolver.repairPhaseId(lastPhaseIndex);

@@ -28,14 +28,7 @@
 #include "env-inl.h"
 #include "util.h"
 
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
 #include "v8.h"
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
 namespace node {
 
@@ -90,7 +83,8 @@ v8::Local<v8::Object> BaseObject::object() const {
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 
-  DCHECK_EQ(handle->CreationContext()->GetIsolate(), isolate);
+  DCHECK_EQ(handle->GetCreationContext().ToLocalChecked()->GetIsolate(),
+            isolate);
   DCHECK_EQ(env()->isolate(), isolate);
 
   return handle;
@@ -146,6 +140,13 @@ void BaseObject::ClearWeak() {
   persistent_handle_.ClearWeak();
 }
 
+bool BaseObject::IsWeakOrDetached() const {
+  if (persistent_handle_.IsWeak()) return true;
+
+  if (!has_pointer_data()) return false;
+  const PointerData* pd = const_cast<BaseObject*>(this)->pointer_data();
+  return pd->wants_weak_jsobj || pd->is_detached;
+}
 
 v8::Local<v8::FunctionTemplate>
 BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
@@ -200,7 +201,7 @@ void BaseObject::decrease_refcount() {
   unsigned int new_refcount = --metadata->strong_ptr_count;
   if (new_refcount == 0) {
     if (metadata->is_detached) {
-      delete this;
+      OnGCCollect();
     } else if (metadata->wants_weak_jsobj && !persistent_handle_.IsEmpty()) {
       MakeWeak();
     }

@@ -55,7 +55,7 @@ int32_t countZeros(const UChar *patternString, int32_t patternLength) {
 } // namespace
 
 // NOTE: patterns and multipliers both get zero-initialized.
-CompactData::CompactData() : patterns(), multipliers(), largestMagnitude(0), isEmpty(TRUE) {
+CompactData::CompactData() : patterns(), multipliers(), largestMagnitude(0), isEmpty(true) {
 }
 
 void CompactData::populate(const Locale &locale, const char *nsName, CompactStyle compactStyle,
@@ -104,14 +104,30 @@ int32_t CompactData::getMultiplier(int32_t magnitude) const {
     return multipliers[magnitude];
 }
 
-const UChar *CompactData::getPattern(int32_t magnitude, StandardPlural::Form plural) const {
+const UChar *CompactData::getPattern(
+        int32_t magnitude,
+        const PluralRules *rules,
+        const DecimalQuantity &dq) const {
     if (magnitude < 0) {
         return nullptr;
     }
     if (magnitude > largestMagnitude) {
         magnitude = largestMagnitude;
     }
-    const UChar *patternString = patterns[getIndex(magnitude, plural)];
+    const UChar *patternString = nullptr;
+    if (dq.hasIntegerValue()) {
+        int64_t i = dq.toLong(true);
+        if (i == 0) {
+            patternString = patterns[getIndex(magnitude, StandardPlural::Form::EQ_0)];
+        } else if (i == 1) {
+            patternString = patterns[getIndex(magnitude, StandardPlural::Form::EQ_1)];
+        }
+        if (patternString != nullptr) {
+            return patternString;
+        }
+    }
+    StandardPlural::Form plural = utils::getStandardPlural(rules, dq);
+    patternString = patterns[getIndex(magnitude, plural)];
     if (patternString == nullptr && plural != StandardPlural::OTHER) {
         // Fall back to "other" plural variant
         patternString = patterns[getIndex(magnitude, StandardPlural::OTHER)];
@@ -166,7 +182,6 @@ void CompactData::CompactDataSink::put(const char *key, ResourceValue &value, UB
         ResourceTable pluralVariantsTable = value.getTable(status);
         if (U_FAILURE(status)) { return; }
         for (int i4 = 0; pluralVariantsTable.getKeyAndValue(i4, key, value); ++i4) {
-
             // Skip this magnitude/plural if we already have it from a child locale.
             // Note: This also skips USE_FALLBACK entries.
             StandardPlural::Form plural = StandardPlural::fromString(key, status);
@@ -291,8 +306,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         magnitude -= multiplier;
     }
 
-    StandardPlural::Form plural = utils::getStandardPlural(rules, quantity);
-    const UChar *patternString = data.getPattern(magnitude, plural);
+    const UChar *patternString = data.getPattern(magnitude, rules, quantity);
     if (patternString == nullptr) {
         // Use the default (non-compact) modifier.
         // No need to take any action.

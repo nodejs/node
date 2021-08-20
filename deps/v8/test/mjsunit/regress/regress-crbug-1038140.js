@@ -3,4 +3,5 @@
 // found in the LICENSE file.
 
 Promise.resolve = function() { return {}; };
-Promise.race([function() {}]);
+Promise.race([function() {}]).then(
+    () => assertUnreachable(), () => { /* ignore */})

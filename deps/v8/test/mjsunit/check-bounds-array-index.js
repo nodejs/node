@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --no-stress-flush-bytecode
 
 let arr = [1, 2, 3];
 

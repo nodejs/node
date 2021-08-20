@@ -62,6 +62,10 @@ _TEST_CODE_EXCLUDED_PATHS = (
     r'src[\\\/]compiler[\\\/]ast-graph-builder\.cc',
     # Test extension.
     r'src[\\\/]extensions[\\\/]gc-extension\.cc',
+    # Runtime functions used for testing.
+    r'src[\\\/]runtime[\\\/]runtime-test\.cc',
+    # Testing helpers.
+    r'src[\\\/]heap[\\\/]cppgc[\\\/]testing\.cc',
 )
 
 
@@ -78,6 +82,7 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from v8_presubmit import CppLintProcessor
+  from v8_presubmit import JSLintProcessor
   from v8_presubmit import TorqueLintProcessor
   from v8_presubmit import SourceProcessor
   from v8_presubmit import StatusFilesProcessor
@@ -85,13 +90,18 @@ def _V8PresubmitChecks(input_api, output_api):
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=None,
-      black_list=_NO_LINT_PATHS)
+      files_to_check=None,
+      files_to_skip=_NO_LINT_PATHS)
 
   def FilterTorqueFile(affected_file):
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=(r'.+\.tq'))
+      files_to_check=(r'.+\.tq'))
+
+  def FilterJSFile(affected_file):
+    return input_api.FilterSourceFile(
+      affected_file,
+      files_to_check=(r'.+\.m?js'))
 
   results = []
   if not CppLintProcessor().RunOnFiles(
@@ -101,6 +111,10 @@ def _V8PresubmitChecks(input_api, output_api):
       input_api.AffectedFiles(file_filter=FilterTorqueFile,
                               include_deletes=False)):
     results.append(output_api.PresubmitError("Torque format check failed"))
+  if not JSLintProcessor().RunOnFiles(
+      input_api.AffectedFiles(file_filter=FilterJSFile,
+                              include_deletes=False)):
+    results.append(output_api.PresubmitError("JS format check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(
@@ -110,7 +124,7 @@ def _V8PresubmitChecks(input_api, output_api):
       input_api.AffectedFiles(include_deletes=True)):
     results.append(output_api.PresubmitError("Status file check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
-      input_api, output_api, bot_whitelist=[
+      input_api, output_api, bot_allowlist=[
         'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com'
       ]))
   return results
@@ -234,12 +248,11 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
   file_inclusion_pattern = r'src/.+\.h'
 
   def FilterFile(affected_file):
-    black_list = (_EXCLUDED_PATHS +
-                  input_api.DEFAULT_BLACK_LIST)
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=(file_inclusion_pattern, ),
-      black_list=black_list)
+      files_to_check=(file_inclusion_pattern, ),
+      files_to_skip=files_to_skip)
 
   leading_src_pattern = input_api.re.compile(r'^src/')
   dash_dot_slash_pattern = input_api.re.compile(r'[-./]')
@@ -266,7 +279,7 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
     for line in f.NewContents():
       for i in range(len(guard_patterns)):
         if guard_patterns[i].match(line):
-            found_patterns[i] = True
+          found_patterns[i] = True
       if skip_check_pattern.match(line):
         file_omitted = True
         break
@@ -296,12 +309,11 @@ def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
     'header (e.g. bar.h) file.  This violates layering of dependencies.')
 
   def FilterFile(affected_file):
-    black_list = (_EXCLUDED_PATHS +
-                  input_api.DEFAULT_BLACK_LIST)
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=(file_inclusion_pattern, ),
-      black_list=black_list)
+      files_to_check=(file_inclusion_pattern, ),
+      files_to_skip=files_to_skip)
 
   problems = []
   for f in input_api.AffectedSourceFiles(FilterFile):
@@ -336,13 +348,13 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
       base_function_pattern, base_function_pattern))
 
   def FilterFile(affected_file):
-    black_list = (_EXCLUDED_PATHS +
-                  _TEST_CODE_EXCLUDED_PATHS +
-                  input_api.DEFAULT_BLACK_LIST)
+    files_to_skip = (_EXCLUDED_PATHS +
+                     _TEST_CODE_EXCLUDED_PATHS +
+                     input_api.DEFAULT_FILES_TO_SKIP)
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=(file_inclusion_pattern, ),
-      black_list=black_list)
+      files_to_check=(file_inclusion_pattern, ),
+      files_to_skip=files_to_skip)
 
   problems = []
   for f in input_api.AffectedSourceFiles(FilterFile):
@@ -363,7 +375,7 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
 def _CheckGenderNeutralInLicenses(input_api, output_api):
   # License files are taken as is, even if they include gendered pronouns.
   def LicenseFilter(path):
-    input_api.FilterSourceFile(path, black_list=_LICENSE_FILE)
+    input_api.FilterSourceFile(path, files_to_skip=_LICENSE_FILE)
 
   return input_api.canned_checks.CheckGenderNeutral(
     input_api, output_api, source_file_filter=LicenseFilter)
@@ -438,7 +450,7 @@ def _CheckJSONFiles(input_api, output_api):
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
         affected_file,
-        white_list=(r'.+\.json',))
+        files_to_check=(r'.+\.json',))
 
   results = []
   for f in input_api.AffectedFiles(
@@ -470,8 +482,12 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
         affected_file,
-        white_list=(r'src/.*', r'test/.*'))
-
+        files_to_check=(r'src[\\\/].*', r'test[\\\/].*'),
+        # Skip api.cc since we cannot easily add the 'noexcept' annotation to
+        # public methods.
+        # Skip src/bigint/ because it's meant to be V8-independent.
+        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc',
+                       r'src[\\\/]bigint[\\\/].*'))
 
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'

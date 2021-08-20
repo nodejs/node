@@ -16,8 +16,12 @@
 
 #include "unicode/ucal.h"
 #include "unicode/umisc.h"
-#include "unicode/localpointer.h"
 #include "unicode/uformattedvalue.h"
+#include "unicode/udisplaycontext.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -114,7 +118,7 @@ typedef struct UFormattedDateInterval UFormattedDateInterval;
  *            or NULL if an error occurred.
  * @stable ICU 4.8
  */
-U_STABLE UDateIntervalFormat* U_EXPORT2
+U_CAPI UDateIntervalFormat* U_EXPORT2
 udtitvfmt_open(const char*  locale,
               const UChar* skeleton,
               int32_t      skeletonLength,
@@ -128,7 +132,7 @@ udtitvfmt_open(const char*  locale,
  *            The UDateIntervalFormat object to close.
  * @stable ICU 4.8
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 udtitvfmt_close(UDateIntervalFormat *formatter);
 
 /**
@@ -238,7 +242,7 @@ U_NAMESPACE_END
  *            output was truncated.
  * @stable ICU 4.8
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 udtitvfmt_format(const UDateIntervalFormat* formatter,
                 UDate           fromDate,
                 UDate           toDate,
@@ -248,7 +252,6 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
                 UErrorCode*     status);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Formats a date/time range using the conventions established for the
  * UDateIntervalFormat object.
@@ -263,9 +266,9 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udtitvfmt_formatToResult(
                 const UDateIntervalFormat* formatter,
                 UDate           fromDate,
@@ -287,18 +290,45 @@ udtitvfmt_formatToResult(
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 udtitvfmt_formatCalendarToResult(
                 const UDateIntervalFormat* formatter,
                 UCalendar*      fromCalendar,
                 UCalendar*      toCalendar,
                 UFormattedDateInterval* result,
                 UErrorCode*     status);
-#endif /* U_HIDE_DRAFT_API */
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Set a particular UDisplayContext value in the formatter, such as
+ * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. This causes the formatted
+ * result to be capitalized appropriately for the context in which
+ * it is intended to be used, considering both the locale and the
+ * type of field at the beginning of the formatted result.
+ * @param formatter The formatter for which to set a UDisplayContext value.
+ * @param value The UDisplayContext value to set.
+ * @param status A pointer to an UErrorCode to receive any errors
+ * @draft ICU 68
+ */
+U_CAPI void U_EXPORT2
+udtitvfmt_setContext(UDateIntervalFormat* formatter, UDisplayContext value, UErrorCode* status);
+
+/**
+ * Get the formatter's UDisplayContext value for the specified UDisplayContextType,
+ * such as UDISPCTX_TYPE_CAPITALIZATION.
+ * @param formatter The formatter to query.
+ * @param type The UDisplayContextType whose value to return
+ * @param status A pointer to an UErrorCode to receive any errors
+ * @return The UDisplayContextValue for the specified type.
+ * @draft ICU 68
+ */
+U_CAPI UDisplayContext U_EXPORT2
+udtitvfmt_getContext(const UDateIntervalFormat* formatter, UDisplayContextType type, UErrorCode* status);
+
+#endif /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

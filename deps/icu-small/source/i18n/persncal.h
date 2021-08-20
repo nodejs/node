@@ -295,7 +295,7 @@ class PersianCalendar : public Calendar {
   virtual UBool inDaylightTime(UErrorCode& status) const;
 
   /**
-   * Returns TRUE because the Persian Calendar does have a default century
+   * Returns true because the Persian Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

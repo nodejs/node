@@ -119,18 +119,21 @@ class VariableTracker {
 
  public:
   VariableTracker(JSGraph* graph, EffectGraphReducer* reducer, Zone* zone);
+  VariableTracker(const VariableTracker&) = delete;
+  VariableTracker& operator=(const VariableTracker&) = delete;
+
   Variable NewVariable() { return Variable(next_variable_++); }
   Node* Get(Variable var, Node* effect) { return table_.Get(effect).Get(var); }
   Zone* zone() { return zone_; }
 
-  class Scope : public ReduceScope {
+  class V8_NODISCARD Scope : public ReduceScope {
    public:
     Scope(VariableTracker* tracker, Node* node, Reduction* reduction);
     ~Scope();
     Maybe<Node*> Get(Variable var) {
       Node* node = current_state_.Get(var);
       if (node && node->opcode() == IrOpcode::kDead) {
-        // TODO(tebbi): We use {Dead} as a sentinel for uninitialized memory.
+        // TODO(turbofan): We use {Dead} as a sentinel for uninitialized memory.
         // Reading uninitialized memory can only happen in unreachable code. In
         // this case, we have to mark the object as escaping to avoid dead nodes
         // in the graph. This is a workaround that should be removed once we can
@@ -155,8 +158,6 @@ class VariableTracker {
   EffectGraphReducer* reducer_;
   int next_variable_ = 0;
   TickCounter* const tick_counter_;
-
-  DISALLOW_COPY_AND_ASSIGN(VariableTracker);
 };
 
 // Encapsulates the current state of the escape analysis reducer to preserve
@@ -170,8 +171,10 @@ class EscapeAnalysisTracker : public ZoneObject {
         variable_states_(jsgraph, reducer, zone),
         jsgraph_(jsgraph),
         zone_(zone) {}
+  EscapeAnalysisTracker(const EscapeAnalysisTracker&) = delete;
+  EscapeAnalysisTracker& operator=(const EscapeAnalysisTracker&) = delete;
 
-  class Scope : public VariableTracker::Scope {
+  class V8_NODISCARD Scope : public VariableTracker::Scope {
    public:
     Scope(EffectGraphReducer* reducer, EscapeAnalysisTracker* tracker,
           Node* node, Reduction* reduction)
@@ -266,8 +269,8 @@ class EscapeAnalysisTracker : public ZoneObject {
 
   VirtualObject* NewVirtualObject(int size) {
     if (next_object_id_ >= kMaxTrackedObjects) return nullptr;
-    return new (zone_)
-        VirtualObject(&variable_states_, next_object_id_++, size);
+    return zone_->New<VirtualObject>(&variable_states_, next_object_id_++,
+                                     size);
   }
 
   SparseSidetable<VirtualObject*> virtual_objects_;
@@ -276,8 +279,6 @@ class EscapeAnalysisTracker : public ZoneObject {
   VirtualObject::Id next_object_id_ = 0;
   JSGraph* const jsgraph_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisTracker);
 };
 
 EffectGraphReducer::EffectGraphReducer(
@@ -297,7 +298,7 @@ void EffectGraphReducer::ReduceFrom(Node* node) {
   DCHECK(stack_.empty());
   stack_.push({node, 0});
   while (!stack_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* current = stack_.top().node;
     int& input_index = stack_.top().input_index;
     if (input_index < current->InputCount()) {
@@ -412,7 +413,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   State first_input = table_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
   State result = first_input;
   for (std::pair<Variable, Node*> var_value : first_input) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     if (Node* value = var_value.second) {
       Variable var = var_value.first;
       TRACE("var %i:\n", var.id_);
@@ -478,8 +479,8 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
             Node* phi = graph_->graph()->NewNode(
                 graph_->common()->Phi(MachineRepresentation::kTagged, arity),
                 arity + 1, &buffer_.front());
-            // TODO(tebbi): Computing precise types here is tricky, because of
-            // the necessary revisitations. If we really need this, we should
+            // TODO(turbofan): Computing precise types here is tricky, because
+            // of the necessary revisitations. If we really need this, we should
             // probably do it afterwards.
             NodeProperties::SetType(phi, Type::Any());
             reducer_->AddRoot(phi);
@@ -559,9 +560,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
   switch (op->opcode()) {
     case IrOpcode::kAllocate: {
       NumberMatcher size(current->ValueInput(0));
-      if (!size.HasValue()) break;
-      int size_int = static_cast<int>(size.Value());
-      if (size_int != size.Value()) break;
+      if (!size.HasResolvedValue()) break;
+      int size_int = static_cast<int>(size.ResolvedValue());
+      if (size_int != size.ResolvedValue()) break;
       if (const VirtualObject* vobject = current->InitVirtualObject(size_int)) {
         // Initialize with dead nodes as a sentinel for uninitialized memory.
         for (Variable field : *vobject) {
@@ -710,7 +711,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       } else if (right_object && !right_object->HasEscaped()) {
         replacement = jsgraph->FalseConstant();
       }
-      // TODO(tebbi) This is a workaround for uninhabited types. If we
+      // TODO(turbofan) This is a workaround for uninhabited types. If we
       // replaced a value of uninhabited type with a constant, we would
       // widen the type of the node. This could produce inconsistent
       // types (which might confuse representation selection). We get
@@ -829,7 +830,7 @@ EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, TickCounter* tick_counter,
           jsgraph->graph(),
           [this](Node* node, Reduction* reduction) { Reduce(node, reduction); },
           tick_counter, zone),
-      tracker_(new (zone) EscapeAnalysisTracker(jsgraph, this, zone)),
+      tracker_(zone->New<EscapeAnalysisTracker>(jsgraph, this, zone)),
       jsgraph_(jsgraph) {}
 
 Node* EscapeAnalysisResult::GetReplacementOf(Node* node) {

@@ -59,9 +59,9 @@ module.exports = {
         }
 
         /**
-         * Check to see if a node contains only identifers
+         * Check to see if a node contains only identifiers
          * @param {ASTNode} node The node to check
-         * @returns {boolean} Whether or not the node contains only identifers
+         * @returns {boolean} Whether or not the node contains only identifiers
          */
         function containsOnlyIdentifiers(node) {
             if (node.type === "Identifier") {

@@ -27,19 +27,22 @@ module.exports = {
                 enum: ["always", "always-multiline", "never"]
             }
         ],
+
         messages: {
             expectedTestCons: "Expected newline between test and consequent of ternary expression.",
             expectedConsAlt: "Expected newline between consequent and alternate of ternary expression.",
             unexpectedTestCons: "Unexpected newline between test and consequent of ternary expression.",
             unexpectedConsAlt: "Unexpected newline between consequent and alternate of ternary expression."
-        }
+        },
+
+        fixable: "whitespace"
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
         const option = context.options[0];
         const multiline = option !== "never";
         const allowSingleLine = option === "always-multiline";
-        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Public
@@ -59,6 +62,8 @@ module.exports = {
                 const areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfTest, firstTokenOfConsequent);
                 const areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfConsequent, firstTokenOfAlternate);
 
+                const hasComments = !!sourceCode.getCommentsInside(node).length;
+
                 if (!multiline) {
                     if (!areTestAndConsequentOnSameLine) {
                         context.report({
@@ -67,7 +72,24 @@ module.exports = {
                                 start: firstTokenOfTest.loc.start,
                                 end: lastTokenOfTest.loc.end
                             },
-                            messageId: "unexpectedTestCons"
+                            messageId: "unexpectedTestCons",
+                            fix: fixer => {
+                                if (hasComments) {
+                                    return null;
+                                }
+                                const fixers = [];
+                                const areTestAndQuestionOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfTest, questionToken);
+                                const areQuestionAndConsOnSameLine = astUtils.isTokenOnSameLine(questionToken, firstTokenOfConsequent);
+
+                                if (!areTestAndQuestionOnSameLine) {
+                                    fixers.push(fixer.removeRange([lastTokenOfTest.range[1], questionToken.range[0]]));
+                                }
+                                if (!areQuestionAndConsOnSameLine) {
+                                    fixers.push(fixer.removeRange([questionToken.range[1], firstTokenOfConsequent.range[0]]));
+                                }
+
+                                return fixers;
+                            }
                         });
                     }
 
@@ -78,7 +100,24 @@ module.exports = {
                                 start: firstTokenOfConsequent.loc.start,
                                 end: lastTokenOfConsequent.loc.end
                             },
-                            messageId: "unexpectedConsAlt"
+                            messageId: "unexpectedConsAlt",
+                            fix: fixer => {
+                                if (hasComments) {
+                                    return null;
+                                }
+                                const fixers = [];
+                                const areConsAndColonOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfConsequent, colonToken);
+                                const areColonAndAltOnSameLine = astUtils.isTokenOnSameLine(colonToken, firstTokenOfAlternate);
+
+                                if (!areConsAndColonOnSameLine) {
+                                    fixers.push(fixer.removeRange([lastTokenOfConsequent.range[1], colonToken.range[0]]));
+                                }
+                                if (!areColonAndAltOnSameLine) {
+                                    fixers.push(fixer.removeRange([colonToken.range[1], firstTokenOfAlternate.range[0]]));
+                                }
+
+                                return fixers;
+                            }
                         });
                     }
                 } else {
@@ -93,7 +132,16 @@ module.exports = {
                                 start: firstTokenOfTest.loc.start,
                                 end: lastTokenOfTest.loc.end
                             },
-                            messageId: "expectedTestCons"
+                            messageId: "expectedTestCons",
+                            fix: fixer => (hasComments ? null : (
+                                fixer.replaceTextRange(
+                                    [
+                                        lastTokenOfTest.range[1],
+                                        questionToken.range[0]
+                                    ],
+                                    "\n"
+                                )
+                            ))
                         });
                     }
 
@@ -104,7 +152,16 @@ module.exports = {
                                 start: firstTokenOfConsequent.loc.start,
                                 end: lastTokenOfConsequent.loc.end
                             },
-                            messageId: "expectedConsAlt"
+                            messageId: "expectedConsAlt",
+                            fix: (fixer => (hasComments ? null : (
+                                fixer.replaceTextRange(
+                                    [
+                                        lastTokenOfConsequent.range[1],
+                                        colonToken.range[0]
+                                    ],
+                                    "\n"
+                                )
+                            )))
                         });
                     }
                 }

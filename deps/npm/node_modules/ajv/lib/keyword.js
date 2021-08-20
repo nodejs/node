@@ -2,12 +2,15 @@
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
 var customRuleCode = require('./dotjs/custom');
+var definitionSchema = require('./definition_schema');
 
 module.exports = {
   add: addKeyword,
   get: getKeyword,
-  remove: removeKeyword
+  remove: removeKeyword,
+  validate: validateKeyword
 };
+
 
 /**
  * Define custom keyword
@@ -20,7 +23,6 @@ function addKeyword(keyword, definition) {
   /* jshint validthis: true */
   /* eslint no-shadow: 0 */
   var RULES = this.RULES;
-
   if (RULES.keywords[keyword])
     throw new Error('Keyword ' + keyword + ' is already defined');
 
@@ -28,30 +30,23 @@ function addKeyword(keyword, definition) {
     throw new Error('Keyword ' + keyword + ' is not a valid identifier');
 
   if (definition) {
-    if (definition.macro && definition.valid !== undefined)
-      throw new Error('"valid" option cannot be used with macro keywords');
+    this.validateKeyword(definition, true);
 
     var dataType = definition.type;
     if (Array.isArray(dataType)) {
-      var i, len = dataType.length;
-      for (i=0; i<len; i++) checkDataType(dataType[i]);
-      for (i=0; i<len; i++) _addRule(keyword, dataType[i], definition);
+      for (var i=0; i<dataType.length; i++)
+        _addRule(keyword, dataType[i], definition);
     } else {
-      if (dataType) checkDataType(dataType);
       _addRule(keyword, dataType, definition);
     }
 
-    var $data = definition.$data === true && this._opts.$data;
-    if ($data && !definition.validate)
-      throw new Error('$data support: "validate" function is not defined');
-
     var metaSchema = definition.metaSchema;
     if (metaSchema) {
-      if ($data) {
+      if (definition.$data && this._opts.$data) {
         metaSchema = {
           anyOf: [
             metaSchema,
-            { '$ref': 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/$data.json#' }
+            { '$ref': 'https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#' }
           ]
         };
       }
@@ -86,11 +81,6 @@ function addKeyword(keyword, definition) {
     };
     ruleGroup.rules.push(rule);
     RULES.custom[keyword] = rule;
-  }
-
-
-  function checkDataType(dataType) {
-    if (!RULES.types[dataType]) throw new Error('Unknown type ' + dataType);
   }
 
   return this;
@@ -132,4 +122,25 @@ function removeKeyword(keyword) {
     }
   }
   return this;
+}
+
+
+/**
+ * Validate keyword definition
+ * @this  Ajv
+ * @param {Object} definition keyword definition object.
+ * @param {Boolean} throwError true to throw exception if definition is invalid
+ * @return {boolean} validation result
+ */
+function validateKeyword(definition, throwError) {
+  validateKeyword.errors = null;
+  var v = this._validateKeyword = this._validateKeyword
+                                  || this.compile(definitionSchema, true);
+
+  if (v(definition)) return true;
+  validateKeyword.errors = v.errors;
+  if (throwError)
+    throw new Error('custom keyword definition is invalid: '  + this.errorsText(v.errors));
+  else
+    return false;
 }

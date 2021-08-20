@@ -4,7 +4,7 @@ if (!common.hasCrypto) { common.skip('missing crypto'); }
 
 // Check for:
 // Spaced headers
-// Psuedo headers
+// Pseudo headers
 // Capitalized headers
 
 const http2 = require('http2');

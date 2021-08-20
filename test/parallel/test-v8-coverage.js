@@ -20,7 +20,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/basic')
+    require.resolve('../fixtures/v8-coverage/basic'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -39,7 +39,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/throw')
+    require.resolve('../fixtures/v8-coverage/throw'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 1) {
     console.log(output.stderr.toString());
@@ -57,7 +57,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/exit-1')
+    require.resolve('../fixtures/v8-coverage/exit-1'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 1) {
     console.log(output.stderr.toString());
@@ -76,7 +76,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/sigint')
+    require.resolve('../fixtures/v8-coverage/sigint'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (!common.isWindows) {
     if (output.signal !== 'SIGINT') {
@@ -97,7 +97,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/spawn-subprocess')
+    require.resolve('../fixtures/v8-coverage/spawn-subprocess'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -117,7 +117,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/worker')
+    require.resolve('../fixtures/v8-coverage/worker'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -137,7 +137,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/spawn-subprocess-no-cov')
+    require.resolve('../fixtures/v8-coverage/spawn-subprocess-no-cov'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -153,7 +153,7 @@ function nextdir() {
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/async-hooks')
+    require.resolve('../fixtures/v8-coverage/async-hooks'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -172,7 +172,7 @@ function nextdir() {
   const coverageDirectory = nextdir();
   const absoluteCoverageDirectory = path.join(tmpdir.path, coverageDirectory);
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/v8-coverage/basic')
+    require.resolve('../fixtures/v8-coverage/basic'),
   ], {
     cwd: tmpdir.path,
     env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory }

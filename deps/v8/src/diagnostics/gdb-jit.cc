@@ -10,7 +10,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
@@ -46,9 +48,9 @@ class Writer {
       : debug_object_(debug_object),
         position_(0),
         capacity_(1024),
-        buffer_(reinterpret_cast<byte*>(malloc(capacity_))) {}
+        buffer_(reinterpret_cast<byte*>(base::Malloc(capacity_))) {}
 
-  ~Writer() { free(buffer_); }
+  ~Writer() { base::Free(buffer_); }
 
   uintptr_t position() const { return position_; }
 
@@ -97,7 +99,7 @@ class Writer {
   void Ensure(uintptr_t pos) {
     if (capacity_ < pos) {
       while (capacity_ < pos) capacity_ *= 2;
-      buffer_ = reinterpret_cast<byte*>(realloc(buffer_, capacity_));
+      buffer_ = reinterpret_cast<byte*>(base::Realloc(buffer_, capacity_));
     }
   }
 
@@ -569,8 +571,8 @@ class MachO {
 class ELF {
  public:
   explicit ELF(Zone* zone) : sections_(zone) {
-    sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
-    sections_.push_back(new (zone) ELFStringTable(".shstrtab"));
+    sections_.push_back(zone->New<ELFSection>("", ELFSection::TYPE_NULL, 0));
+    sections_.push_back(zone->New<ELFStringTable>(".shstrtab"));
   }
 
   void Write(Writer* w) {
@@ -627,7 +629,7 @@ class ELF {
 #else
 #error Unsupported target architecture.
 #endif
-    memcpy(header->ident, ident, 16);
+    base::Memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32
     header->machine = 3;
@@ -901,8 +903,7 @@ class CodeDescription {
   LineInfo* lineinfo() const { return lineinfo_; }
 
   bool is_function() const {
-    Code::Kind kind = code_.kind();
-    return kind == Code::OPTIMIZED_FUNCTION;
+    return CodeKindIsOptimizedJSFunction(code_.kind());
   }
 
   bool has_scope_info() const { return !shared_info_.is_null(); }
@@ -973,8 +974,8 @@ class CodeDescription {
 #if defined(__ELF)
 static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
                                size_t text_section_index) {
-  ELFSymbolTable* symtab = new (zone) ELFSymbolTable(".symtab", zone);
-  ELFStringTable* strtab = new (zone) ELFStringTable(".strtab");
+  ELFSymbolTable* symtab = zone->New<ELFSymbolTable>(".symtab", zone);
+  ELFStringTable* strtab = zone->New<ELFStringTable>(".strtab");
 
   // Symbol table should be followed by the linked string table.
   elf->AddSection(symtab);
@@ -1691,12 +1692,12 @@ bool UnwindInfoSection::WriteBodyInternal(Writer* w) {
 static void CreateDWARFSections(CodeDescription* desc, Zone* zone,
                                 DebugObject* obj) {
   if (desc->IsLineInfoAvailable()) {
-    obj->AddSection(new (zone) DebugInfoSection(desc));
-    obj->AddSection(new (zone) DebugAbbrevSection(desc));
-    obj->AddSection(new (zone) DebugLineSection(desc));
+    obj->AddSection(zone->New<DebugInfoSection>(desc));
+    obj->AddSection(zone->New<DebugAbbrevSection>(desc));
+    obj->AddSection(zone->New<DebugLineSection>(desc));
   }
 #if V8_TARGET_ARCH_X64
-  obj->AddSection(new (zone) UnwindInfoSection(desc));
+  obj->AddSection(zone->New<UnwindInfoSection>(desc));
 #endif
 }
 
@@ -1741,8 +1742,8 @@ void __gdb_print_v8_object(Object object) {
 
 static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
                                      uintptr_t symfile_size) {
-  JITCodeEntry* entry =
-      static_cast<JITCodeEntry*>(malloc(sizeof(JITCodeEntry) + symfile_size));
+  JITCodeEntry* entry = static_cast<JITCodeEntry*>(
+      base::Malloc(sizeof(JITCodeEntry) + symfile_size));
 
   entry->symfile_addr_ = reinterpret_cast<Address>(entry + 1);
   entry->symfile_size_ = symfile_size;
@@ -1754,7 +1755,7 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
   return entry;
 }
 
-static void DestroyCodeEntry(JITCodeEntry* entry) { free(entry); }
+static void DestroyCodeEntry(JITCodeEntry* entry) { base::Free(entry); }
 
 static void RegisterCodeEntry(JITCodeEntry* entry) {
   entry->next_ = __jit_debug_descriptor.first_entry_;
@@ -1788,8 +1789,11 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   MachO mach_o(&zone);
   Writer w(&mach_o);
 
-  mach_o.AddSection(new (&zone) MachOTextSection(
-      kCodeAlignment, desc->CodeStart(), desc->CodeSize()));
+  const uint32_t code_alignment = static_cast<uint32_t>(kCodeAlignment);
+  static_assert(code_alignment == kCodeAlignment,
+                "Unsupported code alignment value");
+  mach_o.AddSection(zone.New<MachOTextSection>(
+      code_alignment, desc->CodeStart(), desc->CodeSize()));
 
   CreateDWARFSections(desc, &zone, &mach_o);
 
@@ -1799,7 +1803,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   ELF elf(&zone);
   Writer w(&elf);
 
-  size_t text_section_index = elf.AddSection(new (&zone) FullHeaderELFSection(
+  size_t text_section_index = elf.AddSection(zone.New<FullHeaderELFSection>(
       ".text", ELFSection::TYPE_NOBITS, kCodeAlignment, desc->CodeStart(), 0,
       desc->CodeSize(), ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 
@@ -1974,7 +1978,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
 static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
                     LineInfo* lineinfo) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   CodeMap* code_map = GetCodeMap();
   AddressRange range;

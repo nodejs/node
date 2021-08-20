@@ -557,32 +557,32 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return *this;
   }
 
-  const T* operator->() const {
+  constexpr const T* operator->() const {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
   }
 
-  T* operator->() {
+  constexpr T* operator->() {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
   }
 
-  const T& operator*() const & {
+  constexpr const T& operator*() const& {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  T& operator*() & {
+  constexpr T& operator*() & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  const T&& operator*() const && {
+  constexpr const T&& operator*() const&& {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
-  T&& operator*() && {
+  constexpr T&& operator*() && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }

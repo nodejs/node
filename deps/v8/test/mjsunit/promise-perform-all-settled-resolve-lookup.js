@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --harmony-promise-all-settled
+// Flags: --allow-natives-syntax
 
 let count = 0;
 class MyPromise extends Promise {

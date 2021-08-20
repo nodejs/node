@@ -86,8 +86,6 @@ class FileSystemBlobStore {
     try {
       fs.writeFileSync(this._blobFilename, blobToStore);
       fs.writeFileSync(this._mapFilename, mapToStore);
-    } catch (error) {
-      throw error;
     } finally {
       fs.unlinkSync(this._lockFilename);
     }
@@ -301,7 +299,8 @@ function slashEscape(str) {
     '\x00': 'z0',
     'z': 'zZ',
   };
-  return str.replace(/[\\:\/\x00z]/g, match => (ESCAPE_LOOKUP[match]));
+  const ESCAPE_REGEX = /[\\:/\x00z]/g; // eslint-disable-line no-control-regex
+  return str.replace(ESCAPE_REGEX, match => ESCAPE_LOOKUP[match]);
 }
 
 function supportsCachedData() {
@@ -311,6 +310,11 @@ function supportsCachedData() {
 }
 
 function getCacheDir() {
+  const v8_compile_cache_cache_dir = process.env.V8_COMPILE_CACHE_CACHE_DIR;
+  if (v8_compile_cache_cache_dir) {
+    return v8_compile_cache_cache_dir;
+  }
+
   // Avoid cache ownership issues on POSIX systems.
   const dirname = typeof process.getuid === 'function'
     ? 'v8-compile-cache-' + process.getuid()
@@ -324,15 +328,15 @@ function getCacheDir() {
   return cacheDir;
 }
 
-function getParentName() {
-  // `module.parent.filename` is undefined or null when:
+function getMainName() {
+  // `require.main.filename` is undefined or null when:
   //    * node -e 'require("v8-compile-cache")'
   //    * node -r 'v8-compile-cache'
   //    * Or, requiring from the REPL.
-  const parentName = module.parent && typeof module.parent.filename === 'string'
-    ? module.parent.filename
+  const mainName = require.main && typeof require.main.filename === 'string'
+    ? require.main.filename
     : process.cwd();
-  return parentName;
+  return mainName;
 }
 
 //------------------------------------------------------------------------------
@@ -341,14 +345,14 @@ function getParentName() {
 
 if (!process.env.DISABLE_V8_COMPILE_CACHE && supportsCachedData()) {
   const cacheDir = getCacheDir();
-  const prefix = getParentName();
+  const prefix = getMainName();
   const blobStore = new FileSystemBlobStore(cacheDir, prefix);
 
   const nativeCompileCache = new NativeCompileCache();
   nativeCompileCache.setCacheStore(blobStore);
   nativeCompileCache.install();
 
-  process.once('exit', code => {
+  process.once('exit', () => {
     if (blobStore.isDirty()) {
       blobStore.save();
     }
@@ -363,5 +367,5 @@ module.exports.__TEST__ = {
   slashEscape,
   supportsCachedData,
   getCacheDir,
-  getParentName,
+  getMainName,
 };

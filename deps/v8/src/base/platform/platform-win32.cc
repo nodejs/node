@@ -30,7 +30,7 @@
 #include <VersionHelpers.h>
 
 #if defined(_MSC_VER)
-#include <crtdbg.h>  // NOLINT
+#include <crtdbg.h>
 #endif               // defined(_MSC_VER)
 
 // Extra functions for MinGW. Most of these are the _s functions which are in
@@ -502,11 +502,15 @@ int OS::GetCurrentThreadId() {
 }
 
 void OS::ExitProcess(int exit_code) {
-  // Use TerminateProcess avoid races between isolate threads and
+  // Use TerminateProcess to avoid races between isolate threads and
   // static destructors.
   fflush(stdout);
   fflush(stderr);
   TerminateProcess(GetCurrentProcess(), exit_code);
+  // Termination the current process does not return. {TerminateProcess} is not
+  // marked [[noreturn]] though, since it can also be used to terminate another
+  // process.
+  UNREACHABLE();
 }
 
 // ----------------------------------------------------------------------------
@@ -603,8 +607,7 @@ FILE* OS::OpenTemporaryFile() {
 
 
 // Open log file in binary mode to avoid /n -> /r/n conversion.
-const char* const OS::LogFileOpenMode = "wb";
-
+const char* const OS::LogFileOpenMode = "wb+";
 
 // Print (debug) message to console.
 void OS::Print(const char* format, ...) {
@@ -753,6 +756,7 @@ namespace {
 DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
       return PAGE_NOACCESS;
     case OS::MemoryPermission::kRead:
       return PAGE_READONLY;
@@ -925,7 +929,7 @@ void OS::Abort() {
   fflush(stderr);
 
   if (g_hard_abort) {
-    V8_IMMEDIATE_CRASH();
+    IMMEDIATE_CRASH();
   }
   // Make the MSVCRT do a silent abort.
   raise(SIGABRT);
@@ -1395,11 +1399,13 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 void OS::AdjustSchedulingParams() {}
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
 #if defined(V8_TARGET_ARCH_X64)
-  return reinterpret_cast<void*>(__readgsqword(offsetof(NT_TIB64, StackBase)));
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_32_BIT)
-  return reinterpret_cast<void*>(__readfsdword(offsetof(NT_TIB, StackBase)));
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_ARM64)
   // Windows 8 and later, see
   // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadstacklimits
@@ -1412,7 +1418,7 @@ void* Stack::GetStackStart() {
 }
 
 // static
-void* Stack::GetCurrentStackPosition() {
+Stack::StackSlot Stack::GetCurrentStackPosition() {
 #if V8_CC_MSVC
   return _AddressOfReturnAddress();
 #else

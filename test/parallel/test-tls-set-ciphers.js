@@ -98,9 +98,13 @@ test('TLS_AES_128_CCM_8_SHA256', 'TLS_AES_128_CCM_8_SHA256',
 // Invalid cipher values
 test(9, 'AES256-SHA', U, 'ERR_INVALID_ARG_TYPE', U);
 test('AES256-SHA', 9, U, U, 'ERR_INVALID_ARG_TYPE');
-test(':', 'AES256-SHA', U, 'ERR_INVALID_OPT_VALUE', U);
-test('AES256-SHA', ':', U, U, 'ERR_INVALID_OPT_VALUE');
+test(':', 'AES256-SHA', U, 'ERR_INVALID_ARG_VALUE', U);
+test('AES256-SHA', ':', U, U, 'ERR_INVALID_ARG_VALUE');
 
 // Using '' is synonymous for "use default ciphers"
 test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
 test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+
+// Using null should be treated the same as undefined.
+test(null, 'AES256-SHA', 'AES256-SHA');
+test('AES256-SHA', null, 'AES256-SHA');

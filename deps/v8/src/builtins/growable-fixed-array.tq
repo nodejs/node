@@ -25,9 +25,6 @@ struct GrowableFixedArray {
       this.array = this.ResizeFixedArray(this.capacity);
     }
   }
-  macro ToFixedArray(): FixedArray {
-    return this.ResizeFixedArray(this.length);
-  }
 
   macro ToJSArray(implicit context: Context)(): JSArray {
     const nativeContext: NativeContext = LoadNativeContext(context);

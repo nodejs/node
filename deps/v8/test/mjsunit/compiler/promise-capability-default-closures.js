@@ -43,8 +43,8 @@
   var value;
   function foo(x) { return new Promise((resolve, reject) => reject(x)); }
   %PrepareFunctionForOptimization(foo);
-  foo(1);
-  foo(1);
+  foo(1).catch(() => { /* ignore */ });
+  foo(1).catch(() => { /* ignore */ });
   %OptimizeFunctionOnNextCall(foo);
   foo(1).catch(v => value = v);
   setTimeout(_ => assertEquals(1, value));

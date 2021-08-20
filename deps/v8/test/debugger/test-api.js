@@ -463,7 +463,12 @@ class DebugWrapper {
         "Runtime.getProperties", { objectId : objectId, ownProperties: true });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
-    return Object(reply.result.internalProperties[0].value.value);
+    for (const internalProperty of reply.result.internalProperties) {
+      if (internalProperty.name === '[[PrimitiveValue]]') {
+        return Object(internalProperty.value.value);
+      }
+    }
+    throw new Error('Remote object is not a value wrapper');
   }
 
   reconstructRemoteObject(obj) {
@@ -593,7 +598,7 @@ class DebugWrapper {
     const column = frame.location.columnNumber;
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
-    const index = JSON.parse(frame.callFrameId).ordinal;
+    const index = +frame.callFrameId.split(".")[2];
 
     function allScopes() {
       const scopes = [];
@@ -715,6 +720,7 @@ class DebugWrapper {
       case "EventListener":
       case "assert":
       case "debugCommand":
+      case "CSPViolation":
         assertUnreachable();
       default:
         assertUnreachable();

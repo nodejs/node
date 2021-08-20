@@ -19,12 +19,14 @@ class ShutdownWrap;
 class WriteWrap;
 class StreamBase;
 class StreamResource;
+class ExternalReferenceRegistry;
 
 struct StreamWriteResult {
   bool async;
   int err;
   WriteWrap* wrap;
   size_t bytes;
+  BaseObjectPtr<AsyncWrap> wrap_obj;
 };
 
 using JSMethodFunction = void(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -77,6 +79,11 @@ class ShutdownWrap : public StreamReq {
       StreamBase* stream,
       v8::Local<v8::Object> req_wrap_obj);
 
+  static inline ShutdownWrap* FromObject(v8::Local<v8::Object> req_wrap_obj);
+  template <typename T, bool kIsWeak>
+  static inline ShutdownWrap* FromObject(
+      const BaseObjectPtrImpl<T, kIsWeak>& base_obj);
+
   // Call stream()->EmitAfterShutdown() and dispose of this request wrap.
   void OnDone(int status) override;
 };
@@ -88,6 +95,11 @@ class WriteWrap : public StreamReq {
   inline WriteWrap(
       StreamBase* stream,
       v8::Local<v8::Object> req_wrap_obj);
+
+  static inline WriteWrap* FromObject(v8::Local<v8::Object> req_wrap_obj);
+  template <typename T, bool kIsWeak>
+  static inline WriteWrap* FromObject(
+      const BaseObjectPtrImpl<T, kIsWeak>& base_obj);
 
   // Call stream()->EmitAfterWrite() and dispose of this request wrap.
   void OnDone(int status) override;
@@ -297,7 +309,7 @@ class StreamBase : public StreamResource {
 
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target);
-
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;
   virtual bool IsIPCPipe();
@@ -412,6 +424,10 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SimpleShutdownWrap)
   SET_SELF_SIZE(SimpleShutdownWrap)
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return OtherBase::IsNotIndicativeOfMemoryLeakAtExit();
+  }
 };
 
 template <typename OtherBase>
@@ -425,6 +441,10 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SimpleWriteWrap)
   SET_SELF_SIZE(SimpleWriteWrap)
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return OtherBase::IsNotIndicativeOfMemoryLeakAtExit();
+  }
 };
 
 }  // namespace node

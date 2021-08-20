@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 InspectorTest.log("Tests how wasm scripts are reported");
 
 let contextGroup = new InspectorTest.ContextGroup();
@@ -15,14 +17,12 @@ let sessions = [
   trackScripts(),
 ];
 
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
-
 // Create module with given custom sections.
 function createModule(...customSections) {
   var builder = new WasmModuleBuilder();
   builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
   builder.addFunction('main', kSig_v_v)
-      .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
+      .addBody([kExprBlock, kWasmVoid, kExprI32Const, 2, kExprDrop, kExprEnd])
       .exportAs('main');
   for (var { name, value } of customSections) {
     builder.addCustomSection(name, value);
@@ -59,7 +59,7 @@ const embeddedDWARFSection = {
 
 // Sample external_debug_info section set to "abc".
 const externalDWARFSection = {
-  name: '.external_debug_info',
+  name: 'external_debug_info',
   value: [3, 97, 98, 99]
 };
 

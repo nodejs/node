@@ -1,21 +1,11 @@
 /*global self*/
 /*jshint latedef: nofunc*/
-/*
-Distributed under both the W3C Test Suite License [1] and the W3C
-3-clause BSD License [2]. To contribute to a W3C Test Suite, see the
-policies and contribution forms [3].
-
-[1] http://www.w3.org/Consortium/Legal/2008/04-testsuite-license
-[2] http://www.w3.org/Consortium/Legal/2008/03-bsd-license
-[3] http://www.w3.org/2004/10/27-testcases
-*/
 
 /* Documentation: https://web-platform-tests.org/writing-tests/testharness-api.html
  * (../docs/_writing-tests/testharness-api.md) */
 
 (function (global_scope)
 {
-    var debug = false;
     // default timeout is 10 seconds, test can override if needed
     var settings = {
         output:true,
@@ -24,7 +14,8 @@ policies and contribution forms [3].
             "long":60000
         },
         test_timeout:null,
-        message_events: ["start", "test_state", "result", "completion"]
+        message_events: ["start", "test_state", "result", "completion"],
+        debug: false,
     };
 
     var xhtml_ns = "http://www.w3.org/1999/xhtml";
@@ -87,14 +78,15 @@ policies and contribution forms [3].
                                              test: test.structured_clone()});
                      }],
             completion: [add_completion_callback, remove_completion_callback,
-                         function (tests, harness_status) {
+                         function (tests, harness_status, asserts) {
                              var cloned_tests = map(tests, function(test) {
                                  return test.structured_clone();
                              });
                              this_obj._dispatch("completion_callback", [tests, harness_status],
                                                 {type: "complete",
                                                  tests: cloned_tests,
-                                                 status: harness_status.structured_clone()});
+                                                 status: harness_status.structured_clone(),
+                                                 asserts: asserts.map(assert => assert.structured_clone())});
                          }]
         }
 
@@ -131,11 +123,7 @@ policies and contribution forms [3].
                         if (has_selector) {
                             try {
                                 w[selector].apply(undefined, callback_args);
-                            } catch (e) {
-                                if (debug) {
-                                    throw e;
-                                }
-                            }
+                            } catch (e) {}
                         }
                     }
                     if (supports_post_message(w) && w !== self) {
@@ -192,8 +180,8 @@ policies and contribution forms [3].
             this_obj.output_handler.show_status();
         });
 
-        add_completion_callback(function (tests, harness_status) {
-            this_obj.output_handler.show_results(tests, harness_status);
+        add_completion_callback(function (tests, harness_status, asserts_run) {
+            this_obj.output_handler.show_results(tests, harness_status, asserts_run);
         });
         this.setup_messages(settings.message_events);
     };
@@ -314,14 +302,15 @@ policies and contribution forms [3].
                     });
                 });
         add_completion_callback(
-                function(tests, harness_status) {
+                function(tests, harness_status, asserts) {
                     this_obj._dispatch({
                         type: "complete",
                         tests: map(tests,
                             function(test) {
                                 return test.structured_clone();
                             }),
-                        status: harness_status.structured_clone()
+                        status: harness_status.structured_clone(),
+                        asserts: asserts.map(assert => assert.structured_clone()),
                     });
                 });
     };
@@ -398,20 +387,7 @@ policies and contribution forms [3].
         self.addEventListener("message",
                 function(event) {
                     if (event.data && event.data.type && event.data.type === "connect") {
-                        if (event.ports && event.ports[0]) {
-                            // If a MessageChannel was passed, then use it to
-                            // send results back to the main window.  This
-                            // allows the tests to work even if the browser
-                            // does not fully support MessageEvent.source in
-                            // ServiceWorkers yet.
-                            this_obj._add_message_port(event.ports[0]);
-                            event.ports[0].start();
-                        } else {
-                            // If there is no MessageChannel, then attempt to
-                            // use the MessageEvent.source to send results
-                            // back to the main window.
-                            this_obj._add_message_port(event.source);
-                        }
+                        this_obj._add_message_port(event.source);
                     }
                 }, false);
 
@@ -513,11 +489,7 @@ policies and contribution forms [3].
             return new DedicatedWorkerTestEnvironment();
         }
 
-        if (!('location' in global_scope)) {
-            return new ShellTestEnvironment();
-        }
-
-        throw new Error("Unsupported test environment");
+        return new ShellTestEnvironment();
     }
 
     var test_environment = create_test_environment();
@@ -533,23 +505,65 @@ policies and contribution forms [3].
             Object.prototype.toString.call(worker) == '[object ServiceWorker]';
     }
 
+    var seen_func_name = Object.create(null);
+
+    function get_test_name(func, name)
+    {
+        if (name) {
+            return name;
+        }
+
+        if (func) {
+            var func_code = func.toString();
+
+            // Try and match with brackets, but fallback to matching without
+            var arrow = func_code.match(/^\(\)\s*=>\s*(?:{(.*)}\s*|(.*))$/);
+
+            // Check for JS line separators
+            if (arrow !== null && !/[\u000A\u000D\u2028\u2029]/.test(func_code)) {
+                var trimmed = (arrow[1] !== undefined ? arrow[1] : arrow[2]).trim();
+                // drop trailing ; if there's no earlier ones
+                trimmed = trimmed.replace(/^([^;]*)(;\s*)+$/, "$1");
+
+                if (trimmed) {
+                    let name = trimmed;
+                    if (seen_func_name[trimmed]) {
+                        // This subtest name already exists, so add a suffix.
+                        name += " " + seen_func_name[trimmed];
+                    } else {
+                        seen_func_name[trimmed] = 0;
+                    }
+                    seen_func_name[trimmed] += 1;
+                    return name;
+                }
+            }
+        }
+
+        return test_environment.next_default_test_name();
+    }
+
     /*
      * API functions
      */
     function test(func, name, properties)
     {
-        var test_name = name ? name : test_environment.next_default_test_name();
-        properties = properties ? properties : {};
+        if (tests.promise_setup_called) {
+            tests.status.status = tests.status.ERROR;
+            tests.status.message = '`test` invoked after `promise_setup`';
+            tests.complete();
+        }
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         var value = test_obj.step(func, test_obj, test_obj);
 
         if (value !== undefined) {
-            var msg = "test named \"" + test_name +
-                "\" inappropriately returned a value";
+            var msg = 'Test named "' + test_name +
+                '" passed a function to `test` that returned a value.';
 
             try {
-                if (value && value.hasOwnProperty("then")) {
-                    msg += ", consider using `promise_test` instead";
+                if (value && typeof value.then === 'function') {
+                    msg += ' Consider using `promise_test` instead when ' +
+                        'using Promises or async/await.';
                 }
             } catch (err) {}
 
@@ -564,22 +578,55 @@ policies and contribution forms [3].
 
     function async_test(func, name, properties)
     {
+        if (tests.promise_setup_called) {
+            tests.status.status = tests.status.ERROR;
+            tests.status.message = '`async_test` invoked after `promise_setup`';
+            tests.complete();
+        }
         if (typeof func !== "function") {
             properties = name;
             name = func;
             func = null;
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
-        properties = properties ? properties : {};
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         if (func) {
-            test_obj.step(func, test_obj, test_obj);
+            var value = test_obj.step(func, test_obj, test_obj);
+
+            // Test authors sometimes return values to async_test, expecting us
+            // to handle the value somehow. Make doing so a harness error to be
+            // clear this is invalid, and point authors to promise_test if it
+            // may be appropriate.
+            //
+            // Note that we only perform this check on the initial function
+            // passed to async_test, not on any later steps - we haven't seen a
+            // consistent problem with those (and it's harder to check).
+            if (value !== undefined) {
+                var msg = 'Test named "' + test_name +
+                    '" passed a function to `async_test` that returned a value.';
+
+                try {
+                    if (value && typeof value.then === 'function') {
+                        msg += ' Consider using `promise_test` instead when ' +
+                            'using Promises or async/await.';
+                    }
+                } catch (err) {}
+
+                tests.set_status(tests.status.ERROR, msg);
+                tests.complete();
+            }
         }
         return test_obj;
     }
 
     function promise_test(func, name, properties) {
-        var test = async_test(name, properties);
+        if (typeof func !== "function") {
+            properties = name;
+            name = func;
+            func = null;
+        }
+        var test_name = get_test_name(func, name);
+        var test = new Test(test_name, properties);
         test._is_promise_test = true;
 
         // If there is no promise tests queue make one.
@@ -624,10 +671,87 @@ policies and contribution forms [3].
         });
     }
 
-    function promise_rejects(test, expected, promise, description) {
-        return promise.then(test.unreached_func("Should have rejected: " + description)).catch(function(e) {
-            assert_throws(expected, function() { throw e }, description);
-        });
+    /**
+     * Make a copy of a Promise in the current realm.
+     *
+     * @param {Promise} promise the given promise that may be from a different
+     *                          realm
+     * @returns {Promise}
+     *
+     * An arbitrary promise provided by the caller may have originated in
+     * another frame that have since navigated away, rendering the frame's
+     * document inactive. Such a promise cannot be used with `await` or
+     * Promise.resolve(), as microtasks associated with it may be prevented
+     * from being run. See https://github.com/whatwg/html/issues/5319 for a
+     * particular case.
+     *
+     * In functions we define here, there is an expectation from the caller
+     * that the promise is from the current realm, that can always be used with
+     * `await`, etc. We therefore create a new promise in this realm that
+     * inherit the value and status from the given promise.
+     */
+
+    function bring_promise_to_current_realm(promise) {
+        return new Promise(promise.then.bind(promise));
+    }
+
+    function promise_rejects_js(test, constructor, promise, description) {
+        return bring_promise_to_current_realm(promise)
+            .then(test.unreached_func("Should have rejected: " + description))
+            .catch(function(e) {
+                assert_throws_js_impl(constructor, function() { throw e },
+                                      description, "promise_rejects_js");
+            });
+    }
+
+    /**
+     * Assert that a Promise is rejected with the right DOMException.
+     *
+     * @param test the test argument passed to promise_test
+     * @param {number|string} type.  See documentation for assert_throws_dom.
+     *
+     * For the remaining arguments, there are two ways of calling
+     * promise_rejects_dom:
+     *
+     * 1) If the DOMException is expected to come from the current global, the
+     * third argument should be the promise expected to reject, and a fourth,
+     * optional, argument is the assertion description.
+     *
+     * 2) If the DOMException is expected to come from some other global, the
+     * third argument should be the DOMException constructor from that global,
+     * the fourth argument the promise expected to reject, and the fifth,
+     * optional, argument the assertion description.
+     */
+
+    function promise_rejects_dom(test, type, promiseOrConstructor, descriptionOrPromise, maybeDescription) {
+        let constructor, promise, description;
+        if (typeof promiseOrConstructor === "function" &&
+            promiseOrConstructor.name === "DOMException") {
+            constructor = promiseOrConstructor;
+            promise = descriptionOrPromise;
+            description = maybeDescription;
+        } else {
+            constructor = self.DOMException;
+            promise = promiseOrConstructor;
+            description = descriptionOrPromise;
+            assert(maybeDescription === undefined,
+                   "Too many args pased to no-constructor version of promise_rejects_dom");
+        }
+        return bring_promise_to_current_realm(promise)
+            .then(test.unreached_func("Should have rejected: " + description))
+            .catch(function(e) {
+                assert_throws_dom_impl(type, function() { throw e }, description,
+                                       "promise_rejects_dom", constructor);
+            });
+    }
+
+    function promise_rejects_exactly(test, exception, promise, description) {
+        return bring_promise_to_current_realm(promise)
+            .then(test.unreached_func("Should have rejected: " + description))
+            .catch(function(e) {
+                assert_throws_exactly_impl(exception, function() { throw e },
+                                           description, "promise_rejects_exactly");
+            });
     }
 
     /**
@@ -769,9 +893,56 @@ policies and contribution forms [3].
         test_environment.on_new_harness_properties(properties);
     }
 
+    function promise_setup(func, maybe_properties)
+    {
+        if (typeof func !== "function") {
+            tests.set_status(tests.status.ERROR,
+                             "promise_test invoked without a function");
+            tests.complete();
+            return;
+        }
+        tests.promise_setup_called = true;
+
+        if (!tests.promise_tests) {
+            tests.promise_tests = Promise.resolve();
+        }
+
+        tests.promise_tests = tests.promise_tests
+            .then(function()
+                  {
+                      var properties = maybe_properties || {};
+                      var result;
+
+                      tests.setup(null, properties);
+                      result = func();
+                      test_environment.on_new_harness_properties(properties);
+
+                      if (!result || typeof result.then !== "function") {
+                          throw "Non-thenable returned by function passed to `promise_setup`";
+                      }
+                      return result;
+                  })
+            .catch(function(e)
+                   {
+                       tests.set_status(tests.status.ERROR,
+                                        String(e),
+                                        e && e.stack);
+                       tests.complete();
+                   });
+    }
+
     function done() {
         if (tests.tests.length === 0) {
-            tests.set_file_is_test();
+            // `done` is invoked after handling uncaught exceptions, so if the
+            // harness status is already set, the corresponding message is more
+            // descriptive than the generic message defined here.
+            if (tests.status.status === null) {
+                tests.status.status = tests.status.ERROR;
+                tests.status.message = "done() was called without first defining any tests";
+            }
+
+            tests.complete();
+            return;
         }
         if (tests.file_is_test) {
             // file is test files never have asynchronous cleanup logic,
@@ -794,6 +965,12 @@ policies and contribution forms [3].
                 });
     }
 
+    /*
+     * Register a function as a DOM event listener to the given object for the
+     * event bubbling phase.
+     *
+     * This function was deprecated in November of 2019.
+     */
     function on_event(object, event, callback)
     {
         object.addEventListener(event, callback, false);
@@ -810,9 +987,12 @@ policies and contribution forms [3].
     expose(test, 'test');
     expose(async_test, 'async_test');
     expose(promise_test, 'promise_test');
-    expose(promise_rejects, 'promise_rejects');
+    expose(promise_rejects_js, 'promise_rejects_js');
+    expose(promise_rejects_dom, 'promise_rejects_dom');
+    expose(promise_rejects_exactly, 'promise_rejects_exactly');
     expose(generate_tests, 'generate_tests');
     expose(setup, 'setup');
+    expose(promise_setup, 'promise_setup');
     expose(done, 'done');
     expose(on_event, 'on_event');
     expose(step_timeout, 'step_timeout');
@@ -914,12 +1094,20 @@ policies and contribution forms [3].
             seen.push(val);
         }
         if (Array.isArray(val)) {
-            return "[" + val.map(function(x) {return format_value(x, seen);}).join(", ") + "]";
+            let output = "[";
+            if (val.beginEllipsis !== undefined) {
+                output += "…, ";
+            }
+            output += val.map(function(x) {return format_value(x, seen);}).join(", ");
+            if (val.endEllipsis !== undefined) {
+                output += ", …";
+            }
+            return output + "]";
         }
 
         switch (typeof val) {
         case "string":
-            val = val.replace("\\", "\\\\");
+            val = val.replace(/\\/g, "\\\\");
             for (var p in replacements) {
                 var replace = "\\" + replacements[p];
                 val = val.replace(RegExp(String.fromCharCode(p), "g"), replace);
@@ -984,19 +1172,53 @@ policies and contribution forms [3].
      * Assertions
      */
 
+    function expose_assert(f, name) {
+        function assert_wrapper(...args) {
+            let status = Test.statuses.TIMEOUT;
+            let stack = null;
+            try {
+                if (settings.debug) {
+                    console.debug("ASSERT", name, tests.current_test && tests.current_test.name, args);
+                }
+                if (tests.output) {
+                    tests.set_assert(name, args);
+                }
+                const rv = f.apply(undefined, args);
+                status = Test.statuses.PASS;
+                return rv;
+            } catch(e) {
+                if (e instanceof AssertionError) {
+                    status = Test.statuses.FAIL;
+                    stack = e.stack;
+                 } else {
+                    status = Test.statuses.ERROR;
+                 }
+                throw e;
+            } finally {
+                if (tests.output && !stack) {
+                    stack = get_stack();
+                }
+                if (tests.output) {
+                    tests.set_assert_status(status, stack);
+                }
+            }
+        }
+        expose(assert_wrapper, name);
+    }
+
     function assert_true(actual, description)
     {
         assert(actual === true, "assert_true", description,
                                 "expected true got ${actual}", {actual:actual});
     }
-    expose(assert_true, "assert_true");
+    expose_assert(assert_true, "assert_true");
 
     function assert_false(actual, description)
     {
         assert(actual === false, "assert_false", description,
                                  "expected false got ${actual}", {actual:actual});
     }
-    expose(assert_false, "assert_false");
+    expose_assert(assert_false, "assert_false");
 
     function same_value(x, y) {
         if (y !== y) {
@@ -1026,7 +1248,7 @@ policies and contribution forms [3].
                                              "expected ${expected} but got ${actual}",
                                              {expected:expected, actual:actual});
     }
-    expose(assert_equals, "assert_equals");
+    expose_assert(assert_equals, "assert_equals");
 
     function assert_not_equals(actual, expected, description)
     {
@@ -1038,7 +1260,7 @@ policies and contribution forms [3].
                                               "got disallowed value ${actual}",
                                               {actual:actual});
     }
-    expose(assert_not_equals, "assert_not_equals");
+    expose_assert(assert_not_equals, "assert_not_equals");
 
     function assert_in_array(actual, expected, description)
     {
@@ -1046,8 +1268,10 @@ policies and contribution forms [3].
                                                "value ${actual} not in array ${expected}",
                                                {actual:actual, expected:expected});
     }
-    expose(assert_in_array, "assert_in_array");
+    expose_assert(assert_in_array, "assert_in_array");
 
+    // This function was deprecated in July of 2015.
+    // See https://github.com/web-platform-tests/wpt/issues/2033
     function assert_object_equals(actual, expected, description)
     {
          assert(typeof actual === "object" && actual !== null, "assert_object_equals", description,
@@ -1070,7 +1294,7 @@ policies and contribution forms [3].
                  } else {
                      assert(same_value(actual[p], expected[p]), "assert_object_equals", description,
                                                        "property ${p} expected ${expected} got ${actual}",
-                                                       {p:p, expected:expected, actual:actual});
+                                                       {p:p, expected:expected[p], actual:actual[p]});
                  }
              }
              for (p in expected) {
@@ -1082,32 +1306,64 @@ policies and contribution forms [3].
          }
          check_equal(actual, expected, []);
     }
-    expose(assert_object_equals, "assert_object_equals");
+    expose_assert(assert_object_equals, "assert_object_equals");
 
     function assert_array_equals(actual, expected, description)
     {
+        const max_array_length = 20;
+        function shorten_array(arr, offset = 0) {
+            // Make ", …" only show up when it would likely reduce the length, not accounting for
+            // fonts.
+            if (arr.length < max_array_length + 2) {
+                return arr;
+            }
+            // By default we want half the elements after the offset and half before
+            // But if that takes us past the end of the array, we have more before, and
+            // if it takes us before the start we have more after.
+            const length_after_offset = Math.floor(max_array_length / 2);
+            let upper_bound = Math.min(length_after_offset + offset, arr.length);
+            const lower_bound = Math.max(upper_bound - max_array_length, 0);
+
+            if (lower_bound === 0) {
+                upper_bound = max_array_length;
+            }
+
+            const output = arr.slice(lower_bound, upper_bound);
+            if (lower_bound > 0) {
+                output.beginEllipsis = true;
+            }
+            if (upper_bound < arr.length) {
+                output.endEllipsis = true;
+            }
+            return output;
+        }
+
         assert(typeof actual === "object" && actual !== null && "length" in actual,
                "assert_array_equals", description,
                "value is ${actual}, expected array",
                {actual:actual});
         assert(actual.length === expected.length,
                "assert_array_equals", description,
-               "lengths differ, expected ${expected} got ${actual}",
-               {expected:expected.length, actual:actual.length});
+               "lengths differ, expected array ${expected} length ${expectedLength}, got ${actual} length ${actualLength}",
+               {expected:shorten_array(expected, expected.length - 1), expectedLength:expected.length,
+                actual:shorten_array(actual, actual.length - 1), actualLength:actual.length
+               });
 
         for (var i = 0; i < actual.length; i++) {
             assert(actual.hasOwnProperty(i) === expected.hasOwnProperty(i),
                    "assert_array_equals", description,
-                   "property ${i}, property expected to be ${expected} but was ${actual}",
+                   "expected property ${i} to be ${expected} but was ${actual} (expected array ${arrayExpected} got ${arrayActual})",
                    {i:i, expected:expected.hasOwnProperty(i) ? "present" : "missing",
-                   actual:actual.hasOwnProperty(i) ? "present" : "missing"});
+                    actual:actual.hasOwnProperty(i) ? "present" : "missing",
+                    arrayExpected:shorten_array(expected, i), arrayActual:shorten_array(actual, i)});
             assert(same_value(expected[i], actual[i]),
                    "assert_array_equals", description,
-                   "property ${i}, expected ${expected} but got ${actual}",
-                   {i:i, expected:expected[i], actual:actual[i]});
+                   "expected property ${i} to be ${expected} but got ${actual} (expected array ${arrayExpected} got ${arrayActual})",
+                   {i:i, expected:expected[i], actual:actual[i],
+                    arrayExpected:shorten_array(expected, i), arrayActual:shorten_array(actual, i)});
         }
     }
-    expose(assert_array_equals, "assert_array_equals");
+    expose_assert(assert_array_equals, "assert_array_equals");
 
     function assert_array_approx_equals(actual, expected, epsilon, description)
     {
@@ -1124,7 +1380,7 @@ policies and contribution forms [3].
                    "assert_array_approx_equals", description,
                    "property ${i}, property expected to be ${expected} but was ${actual}",
                    {i:i, expected:expected.hasOwnProperty(i) ? "present" : "missing",
-                   actual:actual.hasOwnProperty(i) ? "present" : "missing"});
+                    actual:actual.hasOwnProperty(i) ? "present" : "missing"});
             assert(typeof actual[i] === "number",
                    "assert_array_approx_equals", description,
                    "property ${i}, expected a number but got a ${type_actual}",
@@ -1135,7 +1391,7 @@ policies and contribution forms [3].
                    {i:i, expected:expected[i], actual:actual[i], epsilon:epsilon});
         }
     }
-    expose(assert_array_approx_equals, "assert_array_approx_equals");
+    expose_assert(assert_array_approx_equals, "assert_array_approx_equals");
 
     function assert_approx_equals(actual, expected, epsilon, description)
     {
@@ -1147,12 +1403,18 @@ policies and contribution forms [3].
                "expected a number but got a ${type_actual}",
                {type_actual:typeof actual});
 
-        assert(Math.abs(actual - expected) <= epsilon,
-               "assert_approx_equals", description,
-               "expected ${expected} +/- ${epsilon} but got ${actual}",
-               {expected:expected, actual:actual, epsilon:epsilon});
+        // The epsilon math below does not place nice with NaN and Infinity
+        // But in this case Infinity = Infinity and NaN = NaN
+        if (isFinite(actual) || isFinite(expected)) {
+            assert(Math.abs(actual - expected) <= epsilon,
+                   "assert_approx_equals", description,
+                   "expected ${expected} +/- ${epsilon} but got ${actual}",
+                   {expected:expected, actual:actual, epsilon:epsilon});
+        } else {
+            assert_equals(actual, expected);
+        }
     }
-    expose(assert_approx_equals, "assert_approx_equals");
+    expose_assert(assert_approx_equals, "assert_approx_equals");
 
     function assert_less_than(actual, expected, description)
     {
@@ -1169,7 +1431,7 @@ policies and contribution forms [3].
                "expected a number less than ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_less_than, "assert_less_than");
+    expose_assert(assert_less_than, "assert_less_than");
 
     function assert_greater_than(actual, expected, description)
     {
@@ -1186,7 +1448,7 @@ policies and contribution forms [3].
                "expected a number greater than ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_greater_than, "assert_greater_than");
+    expose_assert(assert_greater_than, "assert_greater_than");
 
     function assert_between_exclusive(actual, lower, upper, description)
     {
@@ -1204,7 +1466,7 @@ policies and contribution forms [3].
                "and less than ${upper} but got ${actual}",
                {lower:lower, upper:upper, actual:actual});
     }
-    expose(assert_between_exclusive, "assert_between_exclusive");
+    expose_assert(assert_between_exclusive, "assert_between_exclusive");
 
     function assert_less_than_equal(actual, expected, description)
     {
@@ -1221,7 +1483,7 @@ policies and contribution forms [3].
                "expected a number less than or equal to ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_less_than_equal, "assert_less_than_equal");
+    expose_assert(assert_less_than_equal, "assert_less_than_equal");
 
     function assert_greater_than_equal(actual, expected, description)
     {
@@ -1238,7 +1500,7 @@ policies and contribution forms [3].
                "expected a number greater than or equal to ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_greater_than_equal, "assert_greater_than_equal");
+    expose_assert(assert_greater_than_equal, "assert_greater_than_equal");
 
     function assert_between_inclusive(actual, lower, upper, description)
     {
@@ -1256,7 +1518,7 @@ policies and contribution forms [3].
                "and less than or equal to ${upper} but got ${actual}",
                {lower:lower, upper:upper, actual:actual});
     }
-    expose(assert_between_inclusive, "assert_between_inclusive");
+    expose_assert(assert_between_inclusive, "assert_between_inclusive");
 
     function assert_regexp_match(actual, expected, description) {
         /*
@@ -1267,33 +1529,38 @@ policies and contribution forms [3].
                "expected ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_regexp_match, "assert_regexp_match");
+    expose_assert(assert_regexp_match, "assert_regexp_match");
 
     function assert_class_string(object, class_string, description) {
-        assert_equals({}.toString.call(object), "[object " + class_string + "]",
-                      description);
+        var actual = {}.toString.call(object);
+        var expected = "[object " + class_string + "]";
+        assert(same_value(actual, expected), "assert_class_string", description,
+                                             "expected ${expected} but got ${actual}",
+                                             {expected:expected, actual:actual});
     }
-    expose(assert_class_string, "assert_class_string");
-
+    expose_assert(assert_class_string, "assert_class_string");
 
     function assert_own_property(object, property_name, description) {
         assert(object.hasOwnProperty(property_name),
                "assert_own_property", description,
                "expected property ${p} missing", {p:property_name});
     }
-    expose(assert_own_property, "assert_own_property");
+    expose_assert(assert_own_property, "assert_own_property");
 
     function assert_not_own_property(object, property_name, description) {
         assert(!object.hasOwnProperty(property_name),
                "assert_not_own_property", description,
                "unexpected property ${p} is found on object", {p:property_name});
     }
-    expose(assert_not_own_property, "assert_not_own_property");
+    expose_assert(assert_not_own_property, "assert_not_own_property");
 
     function _assert_inherits(name) {
         return function (object, property_name, description)
         {
-            assert(typeof object === "object" || typeof object === "function",
+            assert((typeof object === "object" && object !== null) ||
+                   typeof object === "function" ||
+                   // Or has [[IsHTMLDDA]] slot
+                   String(object) === "[object HTMLAllCollection]",
                    name, description,
                    "provided value is not an object");
 
@@ -1312,8 +1579,8 @@ policies and contribution forms [3].
                    {p:property_name});
         };
     }
-    expose(_assert_inherits("assert_inherits"), "assert_inherits");
-    expose(_assert_inherits("assert_idl_attribute"), "assert_idl_attribute");
+    expose_assert(_assert_inherits("assert_inherits"), "assert_inherits");
+    expose_assert(_assert_inherits("assert_idl_attribute"), "assert_idl_attribute");
 
     function assert_readonly(object, property_name, description)
     {
@@ -1330,50 +1597,156 @@ policies and contribution forms [3].
              object[property_name] = initial_value;
          }
     }
-    expose(assert_readonly, "assert_readonly");
+    expose_assert(assert_readonly, "assert_readonly");
 
     /**
-     * Assert an Exception with the expected code is thrown.
+     * Assert a JS Error with the expected constructor is thrown.
      *
-     * @param {object|number|string} code The expected exception code.
+     * @param {object} constructor The expected exception constructor.
      * @param {Function} func Function which should throw.
      * @param {string} description Error description for the case that the error is not thrown.
      */
-    function assert_throws(code, func, description)
+    function assert_throws_js(constructor, func, description)
+    {
+        assert_throws_js_impl(constructor, func, description,
+                              "assert_throws_js");
+    }
+    expose_assert(assert_throws_js, "assert_throws_js");
+
+    /**
+     * Like assert_throws_js but allows specifying the assertion type
+     * (assert_throws_js or promise_rejects_js, in practice).
+     */
+    function assert_throws_js_impl(constructor, func, description,
+                                   assertion_type)
     {
         try {
             func.call(this);
-            assert(false, "assert_throws", description,
+            assert(false, assertion_type, description,
                    "${func} did not throw", {func:func});
         } catch (e) {
             if (e instanceof AssertionError) {
                 throw e;
             }
 
+            // Basic sanity-checks on the thrown exception.
             assert(typeof e === "object",
-                   "assert_throws", description,
+                   assertion_type, description,
                    "${func} threw ${e} with type ${type}, not an object",
                    {func:func, e:e, type:typeof e});
 
             assert(e !== null,
-                   "assert_throws", description,
+                   assertion_type, description,
                    "${func} threw null, not an object",
                    {func:func});
 
-            if (code === null) {
-                throw new AssertionError('Test bug: need to pass exception to assert_throws()');
+            // Basic sanity-check on the passed-in constructor
+            assert(typeof constructor == "function",
+                   assertion_type, description,
+                   "${constructor} is not a constructor",
+                   {constructor:constructor});
+            var obj = constructor;
+            while (obj) {
+                if (typeof obj === "function" &&
+                    obj.name === "Error") {
+                    break;
+                }
+                obj = Object.getPrototypeOf(obj);
             }
-            if (typeof code === "object") {
-                assert("name" in e && e.name == code.name,
-                       "assert_throws", description,
-                       "${func} threw ${actual} (${actual_name}) expected ${expected} (${expected_name})",
-                                    {func:func, actual:e, actual_name:e.name,
-                                     expected:code,
-                                     expected_name:code.name});
-                return;
+            assert(obj != null,
+                   assertion_type, description,
+                   "${constructor} is not an Error subtype",
+                   {constructor:constructor});
+
+            // And checking that our exception is reasonable
+            assert(e.constructor === constructor &&
+                   e.name === constructor.name,
+                   assertion_type, description,
+                   "${func} threw ${actual} (${actual_name}) expected instance of ${expected} (${expected_name})",
+                   {func:func, actual:e, actual_name:e.name,
+                    expected:constructor,
+                    expected_name:constructor.name});
+        }
+    }
+
+    /**
+     * Assert a DOMException with the expected type is thrown.
+     *
+     * @param {number|string} type The expected exception name or code.  See the
+     *        table of names and codes at
+     *        https://heycam.github.io/webidl/#dfn-error-names-table
+     *        If a number is passed it should be one of the numeric code values
+     *        in that table (e.g. 3, 4, etc).  If a string is passed it can
+     *        either be an exception name (e.g. "HierarchyRequestError",
+     *        "WrongDocumentError") or the name of the corresponding error code
+     *        (e.g. "HIERARCHY_REQUEST_ERR", "WRONG_DOCUMENT_ERR").
+     *
+     * For the remaining arguments, there are two ways of calling
+     * promise_rejects_dom:
+     *
+     * 1) If the DOMException is expected to come from the current global, the
+     * second argument should be the function expected to throw and a third,
+     * optional, argument is the assertion description.
+     *
+     * 2) If the DOMException is expected to come from some other global, the
+     * second argument should be the DOMException constructor from that global,
+     * the third argument the function expected to throw, and the fourth, optional,
+     * argument the assertion description.
+     */
+    function assert_throws_dom(type, funcOrConstructor, descriptionOrFunc, maybeDescription)
+    {
+        let constructor, func, description;
+        if (funcOrConstructor.name === "DOMException") {
+            constructor = funcOrConstructor;
+            func = descriptionOrFunc;
+            description = maybeDescription;
+        } else {
+            constructor = self.DOMException;
+            func = funcOrConstructor;
+            description = descriptionOrFunc;
+            assert(maybeDescription === undefined,
+                   "Too many args pased to no-constructor version of assert_throws_dom");
+        }
+        assert_throws_dom_impl(type, func, description, "assert_throws_dom", constructor)
+    }
+    expose_assert(assert_throws_dom, "assert_throws_dom");
+
+    /**
+     * Similar to assert_throws_dom but allows specifying the assertion type
+     * (assert_throws_dom or promise_rejects_dom, in practice).  The
+     * "constructor" argument must be the DOMException constructor from the
+     * global we expect the exception to come from.
+     */
+    function assert_throws_dom_impl(type, func, description, assertion_type, constructor)
+    {
+        try {
+            func.call(this);
+            assert(false, assertion_type, description,
+                   "${func} did not throw", {func:func});
+        } catch (e) {
+            if (e instanceof AssertionError) {
+                throw e;
             }
 
-            var code_name_map = {
+            // Basic sanity-checks on the thrown exception.
+            assert(typeof e === "object",
+                   assertion_type, description,
+                   "${func} threw ${e} with type ${type}, not an object",
+                   {func:func, e:e, type:typeof e});
+
+            assert(e !== null,
+                   assertion_type, description,
+                   "${func} threw null, not an object",
+                   {func:func});
+
+            // Sanity-check our type
+            assert(typeof type == "number" ||
+                   typeof type == "string",
+                   assertion_type, description,
+                   "${type} is not a number or string",
+                   {type:type});
+
+            var codename_name_map = {
                 INDEX_SIZE_ERR: 'IndexSizeError',
                 HIERARCHY_REQUEST_ERR: 'HierarchyRequestError',
                 WRONG_DOCUMENT_ERR: 'WrongDocumentError',
@@ -1397,8 +1770,6 @@ policies and contribution forms [3].
                 INVALID_NODE_TYPE_ERR: 'InvalidNodeTypeError',
                 DATA_CLONE_ERR: 'DataCloneError'
             };
-
-            var name = code in code_name_map ? code_name_map[code] : code;
 
             var name_code_map = {
                 IndexSizeError: 1,
@@ -1436,11 +1807,32 @@ policies and contribution forms [3].
                 NotAllowedError: 0
             };
 
-            if (!(name in name_code_map)) {
-                throw new AssertionError('Test bug: unrecognized DOMException code "' + code + '" passed to assert_throws()');
+            var code_name_map = {};
+            for (var key in name_code_map) {
+                if (name_code_map[key] > 0) {
+                    code_name_map[name_code_map[key]] = key;
+                }
             }
 
-            var required_props = { code: name_code_map[name] };
+            var required_props = {};
+            var name;
+
+            if (typeof type === "number") {
+                if (type === 0) {
+                    throw new AssertionError('Test bug: ambiguous DOMException code 0 passed to assert_throws_dom()');
+                } else if (!(type in code_name_map)) {
+                    throw new AssertionError('Test bug: unrecognized DOMException code "' + type + '" passed to assert_throws_dom()');
+                }
+                name = code_name_map[type];
+                required_props.code = type;
+            } else if (typeof type === "string") {
+                name = type in codename_name_map ? codename_name_map[type] : type;
+                if (!(name in name_code_map)) {
+                    throw new AssertionError('Test bug: unrecognized DOMException code name or name "' + type + '" passed to assert_throws_dom()');
+                }
+
+                required_props.code = name_code_map[name];
+            }
 
             if (required_props.code === 0 ||
                ("name" in e &&
@@ -1450,26 +1842,65 @@ policies and contribution forms [3].
                 required_props.name = name;
             }
 
-            //We'd like to test that e instanceof the appropriate interface,
-            //but we can't, because we don't know what window it was created
-            //in.  It might be an instanceof the appropriate interface on some
-            //unknown other window.  TODO: Work around this somehow?
-
             for (var prop in required_props) {
                 assert(prop in e && e[prop] == required_props[prop],
-                       "assert_throws", description,
-                       "${func} threw ${e} that is not a DOMException " + code + ": property ${prop} is equal to ${actual}, expected ${expected}",
+                       assertion_type, description,
+                       "${func} threw ${e} that is not a DOMException " + type + ": property ${prop} is equal to ${actual}, expected ${expected}",
                        {func:func, e:e, prop:prop, actual:e[prop], expected:required_props[prop]});
             }
+
+            // Check that the exception is from the right global.  This check is last
+            // so more specific, and more informative, checks on the properties can
+            // happen in case a totally incorrect exception is thrown.
+            assert(e.constructor === constructor,
+                   assertion_type, description,
+                   "${func} threw an exception from the wrong global",
+                   {func});
+
         }
     }
-    expose(assert_throws, "assert_throws");
+
+    /**
+     * Assert the provided value is thrown.
+     *
+     * @param {value} exception The expected exception.
+     * @param {Function} func Function which should throw.
+     * @param {string} description Error description for the case that the error is not thrown.
+     */
+    function assert_throws_exactly(exception, func, description)
+    {
+        assert_throws_exactly_impl(exception, func, description,
+                                   "assert_throws_exactly");
+    }
+    expose_assert(assert_throws_exactly, "assert_throws_exactly");
+
+    /**
+     * Like assert_throws_exactly but allows specifying the assertion type
+     * (assert_throws_exactly or promise_rejects_exactly, in practice).
+     */
+    function assert_throws_exactly_impl(exception, func, description,
+                                        assertion_type)
+    {
+        try {
+            func.call(this);
+            assert(false, assertion_type, description,
+                   "${func} did not throw", {func:func});
+        } catch (e) {
+            if (e instanceof AssertionError) {
+                throw e;
+            }
+
+            assert(same_value(e, exception), assertion_type, description,
+                   "${func} threw ${e} but we expected it to throw ${exception}",
+                   {func:func, e:e, exception:exception});
+        }
+    }
 
     function assert_unreached(description) {
          assert(false, "assert_unreached", description,
                 "Reached unreachable code");
     }
-    expose(assert_unreached, "assert_unreached");
+    expose_assert(assert_unreached, "assert_unreached");
 
     function assert_any(assert_func, actual, expected_array)
     {
@@ -1490,7 +1921,47 @@ policies and contribution forms [3].
             throw new AssertionError(errors.join("\n\n"));
         }
     }
+    // FIXME: assert_any cannot use expose_assert, because assert_wrapper does
+    // not support nested assert calls (e.g. to assert_func). We need to
+    // support bypassing assert_wrapper for the inner asserts here.
     expose(assert_any, "assert_any");
+
+    /**
+     * Assert that a feature is implemented, based on a 'truthy' condition.
+     *
+     * This function should be used to early-exit from tests in which there is
+     * no point continuing without support for a non-optional spec or spec
+     * feature. For example:
+     *
+     *     assert_implements(window.Foo, 'Foo is not supported');
+     *
+     * @param {object} condition The truthy value to test
+     * @param {string} description Error description for the case that the condition is not truthy.
+     */
+    function assert_implements(condition, description) {
+        assert(!!condition, "assert_implements", description);
+    }
+    expose_assert(assert_implements, "assert_implements")
+
+    /**
+     * Assert that an optional feature is implemented, based on a 'truthy' condition.
+     *
+     * This function should be used to early-exit from tests in which there is
+     * no point continuing without support for an explicitly optional spec or
+     * spec feature. For example:
+     *
+     *     assert_implements_optional(video.canPlayType("video/webm"),
+     *                                "webm video playback not supported");
+     *
+     * @param {object} condition The truthy value to test
+     * @param {string} description Error description for the case that the condition is not truthy.
+     */
+    function assert_implements_optional(condition, description) {
+        if (!condition) {
+            throw new OptionalFeatureUnsupportedError(description);
+        }
+    }
+    expose_assert(assert_implements_optional, "assert_implements_optional")
 
     function Test(name, properties)
     {
@@ -1506,7 +1977,7 @@ policies and contribution forms [3].
         this.timeout_id = null;
         this.index = null;
 
-        this.properties = properties;
+        this.properties = properties || {};
         this.timeout_length = settings.test_timeout;
         if (this.timeout_length !== null) {
             this.timeout_length *= tests.timeout_multiplier;
@@ -1536,7 +2007,8 @@ policies and contribution forms [3].
         PASS:0,
         FAIL:1,
         TIMEOUT:2,
-        NOTRUN:3
+        NOTRUN:3,
+        PRECONDITION_FAILED:4
     };
 
     Test.prototype = merge({}, Test.statuses);
@@ -1548,6 +2020,18 @@ policies and contribution forms [3].
         CLEANING:3,
         COMPLETE:4
     };
+
+    Test.prototype.status_formats = {
+        0: "Pass",
+        1: "Fail",
+        2: "Timeout",
+        3: "Not Run",
+        4: "Optional Feature Unsupported",
+    }
+
+    Test.prototype.format_status = function() {
+        return this.status_formats[this.status];
+    }
 
     Test.prototype.structured_clone = function()
     {
@@ -1573,11 +2057,16 @@ policies and contribution forms [3].
         if (this.phase > this.phases.STARTED) {
             return;
         }
+
+        if (settings.debug && this.phase !== this.phases.STARTED) {
+            console.log("TEST START", this.name);
+        }
         this.phase = this.phases.STARTED;
         //If we don't get a result before the harness times out that will be a test timeout
         this.set_status(this.TIMEOUT, "Test timed out");
 
         tests.started = true;
+        tests.current_test = this;
         tests.notify_test_state(this);
 
         if (this.timeout_id === null) {
@@ -1590,18 +2079,25 @@ policies and contribution forms [3].
             this_obj = this;
         }
 
+        if (settings.debug) {
+            console.debug("TEST STEP", this.name);
+        }
+
         try {
             return func.apply(this_obj, Array.prototype.slice.call(arguments, 2));
         } catch (e) {
             if (this.phase >= this.phases.HAS_RESULT) {
                 return;
             }
+            var status = e instanceof OptionalFeatureUnsupportedError ? this.PRECONDITION_FAILED : this.FAIL;
             var message = String((typeof e === "object" && e !== null) ? e.message : e);
             var stack = e.stack ? e.stack : null;
 
-            this.set_status(this.FAIL, message, stack);
+            this.set_status(status, message, stack);
             this.phase = this.phases.HAS_RESULT;
             this.done();
+        } finally {
+            this.current_test = null;
         }
     };
 
@@ -1651,6 +2147,105 @@ policies and contribution forms [3].
         return setTimeout(this.step_func(function() {
             return f.apply(test_this, args);
         }), timeout * tests.timeout_multiplier);
+    };
+
+    Test.prototype.step_wait_func = function(cond, func, description,
+                                             timeout=3000, interval=100) {
+        /**
+         * Poll for a function to return true, and call a callback
+         * function once it does, or assert if a timeout is
+         * reached. This is preferred over a simple step_timeout
+         * whenever possible since it allows the timeout to be longer
+         * to reduce intermittents without compromising test execution
+         * speed when the condition is quickly met.
+         *
+         * @param {Function} cond A function taking no arguments and
+         *                        returning a boolean. The callback is called
+         *                        when this function returns true.
+         * @param {Function} func A function taking no arguments to call once
+         *                        the condition is met.
+         * @param {string} description Error message to add to assert in case of
+         *                             failure.
+         * @param {number} timeout Timeout in ms. This is multiplied by the global
+         *                         timeout_multiplier
+         * @param {number} interval Polling interval in ms
+         *
+         **/
+
+        var timeout_full = timeout * tests.timeout_multiplier;
+        var remaining = Math.ceil(timeout_full / interval);
+        var test_this = this;
+
+        var wait_for_inner = test_this.step_func(() => {
+            if (cond()) {
+                func();
+            } else {
+                if(remaining === 0) {
+                    assert(false, "step_wait_func", description,
+                           "Timed out waiting on condition");
+                }
+                remaining--;
+                setTimeout(wait_for_inner, interval);
+            }
+        });
+
+        wait_for_inner();
+    };
+
+    Test.prototype.step_wait_func_done = function(cond, func, description,
+                                                  timeout=3000, interval=100) {
+        /**
+         * Poll for a function to return true, and invoke a callback
+         * followed by this.done() once it does, or assert if a timeout
+         * is reached. This is preferred over a simple step_timeout
+         * whenever possible since it allows the timeout to be longer
+         * to reduce intermittents without compromising test execution speed
+         * when the condition is quickly met.
+         *
+         * @param {Function} cond A function taking no arguments and
+         *                        returning a boolean. The callback is called
+         *                        when this function returns true.
+         * @param {Function} func A function taking no arguments to call once
+         *                        the condition is met.
+         * @param {string} description Error message to add to assert in case of
+         *                             failure.
+         * @param {number} timeout Timeout in ms. This is multiplied by the global
+         *                         timeout_multiplier
+         * @param {number} interval Polling interval in ms
+         *
+         **/
+
+         this.step_wait_func(cond, () => {
+            if (func) {
+                func();
+            }
+            this.done();
+         }, description, timeout, interval);
+    }
+
+    Test.prototype.step_wait = function(cond, description, timeout=3000, interval=100) {
+        /**
+         * Poll for a function to return true, and resolve a promise
+         * once it does, or assert if a timeout is reached. This is
+         * preferred over a simple step_timeout whenever possible
+         * since it allows the timeout to be longer to reduce
+         * intermittents without compromising test execution speed
+         * when the condition is quickly met.
+         *
+         * @param {Function} cond A function taking no arguments and
+         *                        returning a boolean.
+         * @param {string} description Error message to add to assert in case of
+         *                             failure.
+         * @param {number} timeout Timeout in ms. This is multiplied by the global
+         *                         timeout_multiplier
+         * @param {number} interval Polling interval in ms
+         * @returns {Promise} Promise resolved once cond is met.
+         *
+         **/
+
+        return new Promise(resolve => {
+            this.step_wait_func(cond, resolve, description, timeout, interval);
+        });
     }
 
     /*
@@ -1718,6 +2313,12 @@ policies and contribution forms [3].
 
         if (global_scope.clearTimeout) {
             clearTimeout(this.timeout_id);
+        }
+
+        if (settings.debug) {
+            console.log("TEST DONE",
+                        this.status,
+                        this.name,)
         }
 
         this.cleanup();
@@ -1919,6 +2520,10 @@ policies and contribution forms [3].
                 });
     }
 
+    RemoteTest.prototype.format_status = function() {
+        return Test.prototype.status_formats[this.status];
+    }
+
     /*
      * A RemoteContext listens for test events from a remote test context, such
      * as another window or a worker. These events are then used to construct
@@ -2027,6 +2632,16 @@ policies and contribution forms [3].
             tests.set_status(data.status.status, data.status.message, data.status.sack);
         }
 
+        for (let assert of data.asserts) {
+            var record = new AssertRecord();
+            record.assert_name = assert.assert_name;
+            record.args = assert.args;
+            record.test = assert.test != null ? this.tests[assert.test.index] : null;
+            record.status = assert.status;
+            record.stack = assert.stack;
+            tests.asserts_run.push(record);
+        }
+
         this.message_target.removeEventListener("message", this.message_handler);
         this.running = false;
 
@@ -2070,10 +2685,19 @@ policies and contribution forms [3].
     TestsStatus.statuses = {
         OK:0,
         ERROR:1,
-        TIMEOUT:2
+        TIMEOUT:2,
+        PRECONDITION_FAILED:3
     };
 
     TestsStatus.prototype = merge({}, TestsStatus.statuses);
+
+    TestsStatus.prototype.formats = {
+        0: "OK",
+        1: "Error",
+        2: "Timeout",
+        3: "Optional Feature Unsupported"
+    }
+
 
     TestsStatus.prototype.structured_clone = function()
     {
@@ -2088,6 +2712,27 @@ policies and contribution forms [3].
         }
         return this._structured_clone;
     };
+
+    TestsStatus.prototype.format_status = function() {
+        return this.formats[this.status];
+    }
+
+    function AssertRecord(test, assert_name, args = []) {
+        this.assert_name = assert_name;
+        this.test = test;
+        // Avoid keeping complex objects alive
+        this.args = args.map(x => format_value(x).replace(/\n/g, " "));
+        this.status = null;
+    }
+
+    AssertRecord.prototype.structured_clone = function() {
+        return {
+            assert_name: this.assert_name,
+            test: this.test ? this.test.structured_clone() : null,
+            args: this.args,
+            status: this.status,
+        }
+    }
 
     function Tests()
     {
@@ -2111,6 +2756,10 @@ policies and contribution forms [3].
         this.allow_uncaught_exception = false;
 
         this.file_is_test = false;
+        // This value is lazily initialized in order to avoid introducing a
+        // dependency on ECMAScript 2015 Promises to all tests.
+        this.promise_tests = null;
+        this.promise_setup_called = false;
 
         this.timeout_multiplier = 1;
         this.timeout_length = test_environment.test_timeout();
@@ -2121,7 +2770,20 @@ policies and contribution forms [3].
         this.test_done_callbacks = [];
         this.all_done_callbacks = [];
 
+        this.hide_test_state = false;
         this.pending_remotes = [];
+
+        this.current_test = null;
+        this.asserts_run = [];
+
+        // Track whether output is enabled, and thus whether or not we should
+        // track asserts.
+        //
+        // On workers we don't get properties set from testharnessreport.js, so
+        // we don't know whether or not to track asserts. To avoid the
+        // resulting performance hit, we assume we are not meant to. This means
+        // that assert tracking does not function on workers.
+        this.output = settings.output && 'document' in global_scope;
 
         this.status = new TestsStatus();
 
@@ -2161,11 +2823,19 @@ policies and contribution forms [3].
                     {
                         clearTimeout(this.timeout_id);
                     }
+                } else if (p == "single_test" && value) {
+                    this.set_file_is_test();
                 } else if (p == "timeout_multiplier") {
                     this.timeout_multiplier = value;
                     if (this.timeout_length) {
                          this.timeout_length *= this.timeout_multiplier;
                     }
+                } else if (p == "hide_test_state") {
+                    this.hide_test_state = value;
+                } else if (p == "output") {
+                    this.output = value;
+                } else if (p === "debug") {
+                    settings.debug = value;
                 }
             }
         }
@@ -2174,9 +2844,10 @@ policies and contribution forms [3].
             try {
                 func();
             } catch (e) {
-                this.status.status = this.status.ERROR;
+                this.status.status = e instanceof OptionalFeatureUnsupportedError ? this.status.PRECONDITION_FAILED : this.status.ERROR;
                 this.status.message = String(e);
                 this.status.stack = e.stack ? e.stack : null;
+                this.complete();
             }
         }
         this.set_timeout();
@@ -2189,7 +2860,7 @@ policies and contribution forms [3].
         this.wait_for_finish = true;
         this.file_is_test = true;
         // Create the test, which will add it to the list of tests
-        async_test();
+        tests.current_test = async_test();
     };
 
     Tests.prototype.set_status = function(status, message, stack)
@@ -2353,6 +3024,16 @@ policies and contribution forms [3].
                   all_complete);
     };
 
+    Tests.prototype.set_assert = function(assert_name, args) {
+        this.asserts_run.push(new AssertRecord(this.current_test, assert_name, args))
+    }
+
+    Tests.prototype.set_assert_status = function(status, stack) {
+        let assert_record = this.asserts_run[this.asserts_run.length - 1];
+        assert_record.status = status;
+        assert_record.stack = stack;
+    }
+
     /**
      * Update the harness status to reflect an unrecoverable harness error that
      * should cancel all further testing. Update all previously-defined tests
@@ -2395,22 +3076,16 @@ policies and contribution forms [3].
     }
 
     function sanitize_unpaired_surrogates(str) {
-        return str.replace(/([\ud800-\udbff])(?![\udc00-\udfff])/g,
-                           function(_, unpaired)
-                           {
-                               return code_unit_str(unpaired);
-                           })
-                  // This replacement is intentionally implemented without an
-                  // ES2018 negative lookbehind assertion to support runtimes
-                  // which do not yet implement that language feature.
-                  .replace(/(^|[^\ud800-\udbff])([\udc00-\udfff])/g,
-                           function(_, previous, unpaired) {
-                              if (/[\udc00-\udfff]/.test(previous)) {
-                                  previous = code_unit_str(previous);
-                              }
-
-                              return previous + code_unit_str(unpaired);
-                           });
+        return str.replace(
+            /([\ud800-\udbff]+)(?![\udc00-\udfff])|(^|[^\ud800-\udbff])([\udc00-\udfff]+)/g,
+            function(_, low, prefix, high) {
+                var output = prefix || "";  // prefix may be undefined
+                var string = low || high;  // only one of these alternates can match
+                for (var i = 0; i < string.length; i++) {
+                    output += code_unit_str(string[i]);
+                }
+                return output;
+            });
     }
 
     function sanitize_all_unpaired_surrogates(tests) {
@@ -2456,7 +3131,7 @@ policies and contribution forms [3].
         forEach (this.all_done_callbacks,
                  function(callback)
                  {
-                     callback(this_obj.tests, this_obj.status);
+                     callback(this_obj.tests, this_obj.status, this_obj.asserts_run);
                  });
     };
 
@@ -2467,24 +3142,8 @@ policies and contribution forms [3].
         var message_port;
 
         if (is_service_worker(worker)) {
-            if (window.MessageChannel) {
-                // The ServiceWorker's implicit MessagePort is currently not
-                // reliably accessible from the ServiceWorkerGlobalScope due to
-                // Blink setting MessageEvent.source to null for messages sent
-                // via ServiceWorker.postMessage(). Until that's resolved,
-                // create an explicit MessageChannel and pass one end to the
-                // worker.
-                var message_channel = new MessageChannel();
-                message_port = message_channel.port1;
-                message_port.start();
-                worker.postMessage({type: "connect"}, [message_channel.port2]);
-            } else {
-                // If MessageChannel is not available, then try the
-                // ServiceWorker.postMessage() approach using MessageEvent.source
-                // on the other end.
-                message_port = navigator.serviceWorker;
-                worker.postMessage({type: "connect"});
-            }
+            message_port = navigator.serviceWorker;
+            worker.postMessage({type: "connect"});
         } else if (is_shared_worker(worker)) {
             message_port = worker.port;
             message_port.start();
@@ -2687,7 +3346,7 @@ policies and contribution forms [3].
             this.phase = this.HAVE_RESULTS;
         }
         var done_count = tests.tests.length - tests.num_pending;
-        if (this.output_node) {
+        if (this.output_node && !tests.hide_test_state) {
             if (done_count < 100 ||
                 (done_count < 1000 && done_count % 100 === 0) ||
                 done_count % 1000 === 0) {
@@ -2698,7 +3357,7 @@ policies and contribution forms [3].
         }
     };
 
-    Output.prototype.show_results = function (tests, harness_status) {
+    Output.prototype.show_results = function (tests, harness_status, asserts_run) {
         if (this.phase >= this.COMPLETE) {
             return;
         }
@@ -2727,21 +3386,10 @@ policies and contribution forms [3].
             heads[0].appendChild(stylesheet);
         }
 
-        var status_text_harness = {};
-        status_text_harness[harness_status.OK] = "OK";
-        status_text_harness[harness_status.ERROR] = "Error";
-        status_text_harness[harness_status.TIMEOUT] = "Timeout";
-
-        var status_text = {};
-        status_text[Test.prototype.PASS] = "Pass";
-        status_text[Test.prototype.FAIL] = "Fail";
-        status_text[Test.prototype.TIMEOUT] = "Timeout";
-        status_text[Test.prototype.NOTRUN] = "Not Run";
-
         var status_number = {};
         forEach(tests,
                 function(test) {
-                    var status = status_text[test.status];
+                    var status = test.format_status();
                     if (status_number.hasOwnProperty(status)) {
                         status_number[status] += 1;
                     } else {
@@ -2758,8 +3406,7 @@ policies and contribution forms [3].
                                 ["h2", {}, "Summary"],
                                 function()
                                 {
-
-                                    var status = status_text_harness[harness_status.status];
+                                    var status = harness_status.format_status();
                                     var rv = [["section", {},
                                                ["p", {},
                                                 "Harness status: ",
@@ -2781,13 +3428,14 @@ policies and contribution forms [3].
                                 function() {
                                     var rv = [["div", {}]];
                                     var i = 0;
-                                    while (status_text.hasOwnProperty(i)) {
-                                        if (status_number.hasOwnProperty(status_text[i])) {
-                                            var status = status_text[i];
-                                            rv[0].push(["div", {"class":status_class(status)},
+                                    while (Test.prototype.status_formats.hasOwnProperty(i)) {
+                                        if (status_number.hasOwnProperty(Test.prototype.status_formats[i])) {
+                                            var status = Test.prototype.status_formats[i];
+                                            rv[0].push(["div", {},
                                                         ["label", {},
                                                          ["input", {type:"checkbox", checked:"checked"}],
-                                                         status_number[status] + " " + status]]);
+                                                         status_number[status] + " ",
+                                                         ["span", {"class":status_class(status)}, status]]]);
                                         }
                                         i++;
                                     }
@@ -2807,13 +3455,13 @@ policies and contribution forms [3].
                                      e.preventDefault();
                                      return;
                                  }
-                                 var result_class = element.parentNode.getAttribute("class");
+                                 var result_class = element.querySelector("span[class]").getAttribute("class");
                                  var style_element = output_document.querySelector("style#hide-" + result_class);
                                  var input_element = element.querySelector("input");
                                  if (!style_element && !input_element.checked) {
                                      style_element = output_document.createElementNS(xhtml_ns, "style");
                                      style_element.id = "hide-" + result_class;
-                                     style_element.textContent = "table#results > tbody > tr."+result_class+"{display:none}";
+                                     style_element.textContent = "table#results > tbody > tr.overall-"+result_class+"{display:none}";
                                      output_document.body.appendChild(style_element);
                                  } else if (style_element && input_element.checked) {
                                      style_element.parentNode.removeChild(style_element);
@@ -2854,6 +3502,52 @@ policies and contribution forms [3].
             return '';
         }
 
+        var asserts_run_by_test = new Map();
+        asserts_run.forEach(assert => {
+            if (!asserts_run_by_test.has(assert.test)) {
+                asserts_run_by_test.set(assert.test, []);
+            }
+            asserts_run_by_test.get(assert.test).push(assert);
+        });
+
+        function get_asserts_output(test) {
+            var asserts = asserts_run_by_test.get(test);
+            if (!asserts) {
+                return "No asserts ran";
+            }
+            rv = "<table>";
+            rv += asserts.map(assert => {
+                var output_fn = "<strong>" + escape_html(assert.assert_name) + "</strong>(";
+                var prefix_len = output_fn.length;
+                var output_args = assert.args;
+                var output_len = output_args.reduce((prev, current) => prev+current, prefix_len);
+                if (output_len[output_len.length - 1] > 50) {
+                    output_args = output_args.map((x, i) =>
+                    (i > 0 ? "  ".repeat(prefix_len) : "" )+ x + (i < output_args.length - 1 ? ",\n" : ""));
+                } else {
+                    output_args = output_args.map((x, i) => x + (i < output_args.length - 1 ? ", " : ""));
+                }
+                output_fn += escape_html(output_args.join(""));
+                output_fn += ')';
+                var output_location;
+                if (assert.stack) {
+                    output_location = assert.stack.split("\n", 1)[0].replace(/@?\w+:\/\/[^ "\/]+(?::\d+)?/g, " ");
+                }
+                return "<tr class='overall-" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
+                    "<td class='" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
+                    Test.prototype.status_formats[assert.status] + "</td>" +
+                    "<td><pre>" +
+                    output_fn +
+                    (output_location ? "\n" + escape_html(output_location) : "") +
+                    "</pre></td></tr>";
+            }
+            ).join("\n");
+            rv += "</table>";
+            return rv;
+        }
+
         log.appendChild(document.createElementNS(xhtml_ns, "section"));
         var assertions = has_assertions();
         var html = "<h2>Details</h2><table id='results' " + (assertions ? "class='assertions'" : "" ) + ">" +
@@ -2862,19 +3556,26 @@ policies and contribution forms [3].
             "<th>Message</th></tr></thead>" +
             "<tbody>";
         for (var i = 0; i < tests.length; i++) {
-            html += '<tr class="' +
-                escape_html(status_class(status_text[tests[i].status])) +
-                '"><td>' +
-                escape_html(status_text[tests[i].status]) +
+            var test = tests[i];
+            html += '<tr class="overall-' +
+                status_class(test.format_status()) +
+                '">' +
+                '<td class="' +
+                status_class(test.format_status()) +
+                '">' +
+                test.format_status() +
                 "</td><td>" +
-                escape_html(tests[i].name) +
+                escape_html(test.name) +
                 "</td><td>" +
-                (assertions ? escape_html(get_assertion(tests[i])) + "</td><td>" : "") +
-                escape_html(tests[i].message ? tests[i].message : " ") +
+                (assertions ? escape_html(get_assertion(test)) + "</td><td>" : "") +
+                escape_html(test.message ? tests[i].message : " ") +
                 (tests[i].stack ? "<pre>" +
                  escape_html(tests[i].stack) +
-                 "</pre>": "") +
-                "</td></tr>";
+                 "</pre>": "");
+            if (!(test instanceof RemoteTest)) {
+                 html += "<details><summary>Asserts run</summary>" + get_asserts_output(test) + "</details>"
+            }
+            html += "</td></tr>";
         }
         html += "</tbody></table>";
         try {
@@ -3056,9 +3757,6 @@ policies and contribution forms [3].
      */
     function assert(expected_true, function_name, description, error, substitutions)
     {
-        if (tests.tests.length === 0) {
-            tests.set_file_is_test();
-        }
         if (expected_true !== true) {
             var msg = make_message(function_name, description,
                                    error, substitutions);
@@ -3068,14 +3766,17 @@ policies and contribution forms [3].
 
     function AssertionError(message)
     {
+        if (typeof message == "string") {
+            message = sanitize_unpaired_surrogates(message);
+        }
         this.message = message;
-        this.stack = this.get_stack();
+        this.stack = get_stack();
     }
     expose(AssertionError, "AssertionError");
 
     AssertionError.prototype = Object.create(Error.prototype);
 
-    AssertionError.prototype.get_stack = function() {
+    const get_stack = function() {
         var stack = new Error().stack;
         // IE11 does not initialize 'Error.stack' until the object is thrown.
         if (!stack) {
@@ -3120,6 +3821,13 @@ policies and contribution forms [3].
 
         return lines.slice(i).join("\n");
     }
+
+    function OptionalFeatureUnsupportedError(message)
+    {
+        AssertionError.call(this, message);
+    }
+    OptionalFeatureUnsupportedError.prototype = Object.create(AssertionError.prototype);
+    expose(OptionalFeatureUnsupportedError, "OptionalFeatureUnsupportedError");
 
     function make_message(function_name, description, error, substitutions)
     {
@@ -3289,7 +3997,7 @@ policies and contribution forms [3].
     function get_title()
     {
         if ('document' in global_scope) {
-            //Don't use document.title to work around an Opera bug in XHTML documents
+            //Don't use document.title to work around an Opera/Presto bug in XHTML documents
             var title = document.getElementsByTagName("title")[0];
             if (title && title.firstChild && title.firstChild.data) {
                 return title.firstChild.data;
@@ -3348,38 +4056,56 @@ policies and contribution forms [3].
     var tests = new Tests();
 
     if (global_scope.addEventListener) {
-        var error_handler = function(e) {
-            if (tests.tests.length === 0 && !tests.allow_uncaught_exception) {
-                tests.set_file_is_test();
+        var error_handler = function(error, message, stack) {
+            var optional_unsupported = error instanceof OptionalFeatureUnsupportedError;
+            if (tests.file_is_test) {
+                var test = tests.tests[0];
+                if (test.phase >= test.phases.HAS_RESULT) {
+                    return;
+                }
+                var status = optional_unsupported ? test.PRECONDITION_FAILED : test.FAIL;
+                test.set_status(status, message, stack);
+                test.phase = test.phases.HAS_RESULT;
+            } else if (!tests.allow_uncaught_exception) {
+                var status = optional_unsupported ? tests.status.PRECONDITION_FAILED : tests.status.ERROR;
+                tests.status.status = status;
+                tests.status.message = message;
+                tests.status.stack = stack;
             }
 
+            // Do not transition to the "complete" phase if the test has been
+            // configured to allow uncaught exceptions. This gives the test an
+            // opportunity to define subtests based on the exception reporting
+            // behavior.
+            if (!tests.allow_uncaught_exception) {
+                done();
+            }
+        };
+
+        addEventListener("error", function(e) {
+            var message = e.message;
             var stack;
             if (e.error && e.error.stack) {
                 stack = e.error.stack;
             } else {
                 stack = e.filename + ":" + e.lineno + ":" + e.colno;
             }
+            error_handler(e.error, message, stack);
+        }, false);
 
-            if (tests.file_is_test) {
-                var test = tests.tests[0];
-                if (test.phase >= test.phases.HAS_RESULT) {
-                    return;
-                }
-                test.set_status(test.FAIL, e.message, stack);
-                test.phase = test.phases.HAS_RESULT;
-                // The following function invocation is superfluous.
-                // TODO: Remove.
-                test.done();
-            } else if (!tests.allow_uncaught_exception) {
-                tests.status.status = tests.status.ERROR;
-                tests.status.message = e.message;
-                tests.status.stack = stack;
+        addEventListener("unhandledrejection", function(e) {
+            var message;
+            if (e.reason && e.reason.message) {
+                message = "Unhandled rejection: " + e.reason.message;
+            } else {
+                message = "Unhandled rejection";
             }
-            done();
-        };
-
-        addEventListener("error", error_handler, false);
-        addEventListener("unhandledrejection", function(e){ error_handler(e.reason); }, false);
+            var stack;
+            if (e.reason && e.reason.stack) {
+                stack = e.reason.stack;
+            }
+            error_handler(e.reason, message, stack);
+        }, false);
     }
 
     test_environment.on_tests_ready();
@@ -3414,50 +4140,62 @@ table#results {\
     width:100%;\
 }\
 \
-table#results th:first-child,\
-table#results td:first-child {\
-    width:4em;\
+table#results > thead > tr > th:first-child,\
+table#results > tbody > tr > td:first-child {\
+    width:8em;\
 }\
 \
-table#results th:last-child,\
-table#results td:last-child {\
+table#results > thead > tr > th:last-child,\
+table#results > thead > tr > td:last-child {\
     width:50%;\
 }\
 \
-table#results.assertions th:last-child,\
-table#results.assertions td:last-child {\
+table#results.assertions > thead > tr > th:last-child,\
+table#results.assertions > tbody > tr > td:last-child {\
     width:35%;\
 }\
 \
-table#results th {\
+table#results > thead > > tr > th {\
     padding:0;\
     padding-bottom:0.5em;\
     border-bottom:medium solid black;\
 }\
 \
-table#results td {\
+table#results > tbody > tr> td {\
     padding:1em;\
     padding-bottom:0.5em;\
     border-bottom:thin solid black;\
 }\
 \
-tr.pass > td:first-child {\
+.pass {\
     color:green;\
 }\
 \
-tr.fail > td:first-child {\
+.fail {\
     color:red;\
 }\
 \
-tr.timeout > td:first-child {\
+tr.timeout {\
     color:red;\
 }\
 \
-tr.notrun > td:first-child {\
+tr.notrun {\
     color:blue;\
 }\
 \
-.pass > td:first-child, .fail > td:first-child, .timeout > td:first-child, .notrun > td:first-child {\
+tr.optionalunsupported {\
+    color:blue;\
+}\
+\
+.ok {\
+    color:green;\
+}\
+\
+.error {\
+    color:red;\
+}\
+\
+.pass, .fail, .timeout, .notrun, .optionalunsupported .ok, .timeout, .error {\
     font-variant:small-caps;\
 }\
 \
@@ -3474,23 +4212,7 @@ table#results span.actual {\
     font-family:DejaVu Sans Mono, Bitstream Vera Sans Mono, Monospace;\
     white-space:pre;\
 }\
-\
-span.ok {\
-    color:green;\
-}\
-\
-tr.error {\
-    color:red;\
-}\
-\
-span.timeout {\
-    color:red;\
-}\
-\
-span.ok, span.timeout, span.error {\
-    font-variant:small-caps;\
-}\
 ";
 
-})(this);
+})(self);
 // vim: set expandtab shiftwidth=4 tabstop=4:

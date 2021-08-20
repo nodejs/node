@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
+#include <vector>
 
-#include "src/heap/spaces.h"
+#include "src/heap/heap.h"
+#include "src/heap/memory-allocator.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -48,13 +50,24 @@ class MockPlatformForUnmapper : public TestPlatform {
   v8::Platform* old_platform_;
 };
 
-TEST(EagerUnmappingInCollectAllAvailableGarbage) {
-  CcTest::InitializeVM();
+UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   MockPlatformForUnmapper platform;
-  Heap* heap = CcTest::heap();
-  i::heap::SimulateFullSpace(heap->old_space());
-  CcTest::CollectAllAvailableGarbage();
-  CHECK_EQ(0, heap->memory_allocator()->unmapper()->NumberOfChunks());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = CcTest::NewContext(isolate);
+    v8::Context::Scope context_scope(context);
+    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    Heap* heap = i_isolate->heap();
+    i::heap::SimulateFullSpace(heap->old_space());
+    CcTest::CollectAllAvailableGarbage(i_isolate);
+    CHECK_EQ(0, heap->memory_allocator()->unmapper()->NumberOfChunks());
+  }
+  isolate->Dispose();
 }
 
 }  // namespace heap

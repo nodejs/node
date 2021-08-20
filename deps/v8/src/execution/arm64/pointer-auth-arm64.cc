@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 
 // Randomly generated example key for simulating only.
-const Simulator::PACKey Simulator::kPACKeyIA = {0xc31718727de20f71,
-                                                0xab9fd4e14b2fec51, 0};
+const Simulator::PACKey Simulator::kPACKeyIB = {0xeebb163b474e04c8,
+                                                0x5267ac6fc280fb7c, 1};
 
 namespace {
 
@@ -232,6 +232,9 @@ uint64_t Simulator::AuthPAC(uint64_t ptr, uint64_t context, PACKey key,
   } else {
     int error_lsb = GetTopPACBit(ptr, type) - 2;
     uint64_t error_mask = UINT64_C(0x3) << error_lsb;
+    if (FLAG_sim_abort_on_bad_auth) {
+      FATAL("Pointer authentication failure.");
+    }
     return (original_ptr & ~error_mask) | (error_code << error_lsb);
   }
 }

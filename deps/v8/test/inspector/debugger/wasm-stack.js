@@ -4,9 +4,9 @@
 
 // Flags: --expose-wasm
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests call stack in wasm scripts');
+utils.load('test/inspector/wasm-inspector-test.js');
 
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests call stack in wasm scripts');
 
 var builder = new WasmModuleBuilder();
 
@@ -19,7 +19,7 @@ var call_imported_idx = builder.addFunction('call_func', kSig_v_v)
 // Open a block in order to make the positions more interesting...
 builder.addFunction('main', kSig_v_v)
   .addBody(
-    [kExprBlock, kWasmStmt, kExprCallFunction, call_imported_idx, kExprEnd])
+    [kExprBlock, kWasmVoid, kExprCallFunction, call_imported_idx, kExprEnd])
   .exportAs('main');
 
 var module_bytes = builder.toArray();

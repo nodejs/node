@@ -68,8 +68,8 @@ class List {
     element->list_node().set_next(nullptr);
   }
 
-  bool Contains(T* element) {
-    T* it = front_;
+  bool Contains(T* element) const {
+    const T* it = front_;
     while (it) {
       if (it == element) return true;
       it = it->list_node().next();
@@ -77,10 +77,13 @@ class List {
     return false;
   }
 
-  bool Empty() { return !front_ && !back_; }
+  bool Empty() const { return !front_ && !back_; }
 
   T* front() { return front_; }
   T* back() { return back_; }
+
+  const T* front() const { return front_; }
+  const T* back() const { return back_; }
 
  private:
   void AddFirstElement(T* element) {
@@ -128,6 +131,9 @@ class ListNode {
 
   T* next() { return next_; }
   T* prev() { return prev_; }
+
+  const T* next() const { return next_; }
+  const T* prev() const { return prev_; }
 
   void Initialize() {
     next_ = nullptr;

@@ -30,6 +30,12 @@
 #include "hash.h"
 #include "uassert.h"
 
+/**
+ * A FixedDecimal version of UPLRULES_NO_UNIQUE_VALUE used in PluralRulesTest
+ * for parsing of samples.
+ */
+#define UPLRULES_NO_UNIQUE_VALUE_DECIMAL (FixedDecimal((double)-0.00123456777))
+
 class PluralRulesTest;
 
 U_NAMESPACE_BEGIN
@@ -138,6 +144,8 @@ enum tokenType {
   tVariableF,
   tVariableV,
   tVariableT,
+  tVariableE,
+  tVariableC,
   tDecimal,
   tInteger,
   tEOF
@@ -215,10 +223,19 @@ enum PluralOperand {
     PLURAL_OPERAND_W,
 
     /**
-     * Suppressed exponent for compact notation (exponent needed in
-     * scientific notation with compact notation to approximate i).
+     * Suppressed exponent for scientific notation (exponent needed in
+     * scientific notation to approximate i).
      */
     PLURAL_OPERAND_E,
+
+    /**
+     * This operand is currently treated as an alias for `PLURAL_OPERAND_E`.
+     * In the future, it will represent:
+     *
+     * Suppressed exponent for compact notation (exponent needed in
+     * compact notation to approximate i).
+     */
+    PLURAL_OPERAND_C,
 
     /**
      * THIS OPERAND IS DEPRECATED AND HAS BEEN REMOVED FROM THE SPEC.
@@ -273,7 +290,11 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
       * @param n   the number, e.g. 12.345
       * @param v   The number of visible fraction digits, e.g. 3
       * @param f   The fraction digits, e.g. 345
+      * @param e   The exponent, e.g. 7 in 1.2e7, for scientific notation
+      * @param c   Currently: an alias for param `e`.
       */
+    FixedDecimal(double  n, int32_t v, int64_t f, int32_t e, int32_t c);
+    FixedDecimal(double  n, int32_t v, int64_t f, int32_t e);
     FixedDecimal(double  n, int32_t v, int64_t f);
     FixedDecimal(double n, int32_t);
     explicit FixedDecimal(double n);
@@ -281,6 +302,8 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     ~FixedDecimal() U_OVERRIDE;
     FixedDecimal(const UnicodeString &s, UErrorCode &ec);
     FixedDecimal(const FixedDecimal &other);
+
+    static FixedDecimal createWithExponent(double n, int32_t v, int32_t e);
 
     double getPluralOperand(PluralOperand operand) const U_OVERRIDE;
     bool isNaN() const U_OVERRIDE;
@@ -291,19 +314,26 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
 
     int32_t getVisibleFractionDigitCount() const;
 
+    void init(double n, int32_t v, int64_t f, int32_t e, int32_t c);
+    void init(double n, int32_t v, int64_t f, int32_t e);
     void init(double n, int32_t v, int64_t f);
     void init(double n);
     UBool quickInit(double n);  // Try a fast-path only initialization,
-                                //    return TRUE if successful.
+                                //    return true if successful.
     void adjustForMinFractionDigits(int32_t min);
     static int64_t getFractionalDigits(double n, int32_t v);
     static int32_t decimals(double n);
+
+    bool operator==(const FixedDecimal &other) const;
+
+    UnicodeString toString() const;
 
     double      source;
     int32_t     visibleDecimalDigitCount;
     int64_t     decimalDigits;
     int64_t     decimalDigitsWithoutTrailingZeros;
     int64_t     intValue;
+    int32_t     exponent;
     UBool       _hasIntegerValue;
     UBool       isNegative;
     UBool       _isNaN;
@@ -320,8 +350,8 @@ public:
     int32_t opNum = -1;             // for mod expressions, the right operand of the mod.
     int32_t value = -1;             // valid for 'is' rules only.
     UVector32 *rangeList = nullptr; // for 'in', 'within' rules. Null otherwise.
-    UBool negated = FALSE;          // TRUE for negated rules.
-    UBool integerOnly = FALSE;      // TRUE for 'within' rules.
+    UBool negated = false;          // true for negated rules.
+    UBool integerOnly = false;      // true for 'within' rules.
     tokenType digitsType = none;    // n | i | v | f constraint.
     AndConstraint *next = nullptr;
     // Internal error status, used for errors that occur during the copy constructor.
@@ -357,8 +387,8 @@ public:
     OrConstraint   *ruleHeader = nullptr;
     UnicodeString   fDecimalSamples;  // Samples strings from rule source
     UnicodeString   fIntegerSamples;  //   without @decimal or @integer, otherwise unprocessed.
-    UBool           fDecimalSamplesUnbounded = FALSE;
-    UBool           fIntegerSamplesUnbounded = FALSE;
+    UBool           fDecimalSamplesUnbounded = false;
+    UBool           fIntegerSamplesUnbounded = false;
     // Internal error status, used for errors that occur during the copy constructor.
     UErrorCode      fInternalStatus = U_ZERO_ERROR;
 

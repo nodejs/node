@@ -8,10 +8,11 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 SUB_TESTS = [
+  'inspector',
   'json',
   'parser',
-  'regexp_builtins',
   'regexp',
+  'regexp_builtins',
   'multi_return',
   'wasm',
   'wasm_async',
@@ -32,6 +33,8 @@ class TestLoader(testsuite.GenericTestLoader):
   def _to_relpath(self, abspath, _):
     return os.path.relpath(abspath, self.suite.root)
 
+  def _should_filter_by_name(self, _):
+    return False
 
 class TestSuite(testsuite.TestSuite):
   def _test_loader_class(self):

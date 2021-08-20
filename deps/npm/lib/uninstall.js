@@ -1,79 +1,76 @@
-'use strict'
-// remove a package.
+const { resolve } = require('path')
+const Arborist = require('@npmcli/arborist')
+const rpj = require('read-package-json-fast')
 
-module.exports = uninstall
+const reifyFinish = require('./utils/reify-finish.js')
+const completion = require('./utils/completion/installed-shallow.js')
 
-const path = require('path')
-const validate = require('aproba')
-const readJson = require('read-package-json')
-const iferr = require('iferr')
-const npm = require('./npm.js')
-const Installer = require('./install.js').Installer
-const getSaveType = require('./install/save.js').getSaveType
-const removeDeps = require('./install/deps.js').removeDeps
-const log = require('npmlog')
-const usage = require('./utils/usage')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Uninstall extends ArboristWorkspaceCmd {
+  static get description () {
+    return 'Remove a package'
+  }
 
-uninstall.usage = usage(
-  'uninstall',
-  'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save-prod|--save-dev|--save-optional] [--no-save]'
-)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'uninstall'
+  }
 
-uninstall.completion = require('./utils/completion/installed-shallow.js')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['save', ...super.params]
+  }
 
-function uninstall (args, cb) {
-  validate('AF', arguments)
-  // the /path/to/node_modules/..
-  const dryrun = !!npm.config.get('dry-run')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<@scope>/]<pkg>...']
+  }
 
-  if (args.length === 1 && args[0] === '.') args = []
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
 
-  const where = npm.config.get('global') || !args.length
-    ? path.resolve(npm.globalDir, '..')
-    : npm.prefix
+  exec (args, cb) {
+    this.uninstall(args).then(() => cb()).catch(cb)
+  }
 
-  args = args.filter(function (a) {
-    return path.resolve(a) !== where
-  })
+  async uninstall (args) {
+    // the /path/to/node_modules/..
+    const global = this.npm.config.get('global')
+    const path = global
+      ? resolve(this.npm.globalDir, '..')
+      : this.npm.localPrefix
 
-  if (args.length) {
-    new Uninstaller(where, dryrun, args).run(cb)
-  } else {
-    // remove this package from the global space, if it's installed there
-    readJson(path.resolve(npm.localPrefix, 'package.json'), function (er, pkg) {
-      if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-      if (er) return cb(uninstall.usage)
-      new Uninstaller(where, dryrun, [pkg.name]).run(cb)
-    })
+    if (!args.length) {
+      if (!global)
+        throw new Error('Must provide a package name to remove')
+      else {
+        let pkg
+
+        try {
+          pkg = await rpj(resolve(this.npm.localPrefix, 'package.json'))
+        } catch (er) {
+          if (er.code !== 'ENOENT' && er.code !== 'ENOTDIR')
+            throw er
+          else
+            throw this.usage
+        }
+
+        args.push(pkg.name)
+      }
+    }
+
+    const opts = {
+      ...this.npm.flatOptions,
+      path,
+      log: this.npm.log,
+      rm: args,
+      workspaces: this.workspaceNames,
+    }
+    const arb = new Arborist(opts)
+    await arb.reify(opts)
+    await reifyFinish(this.npm, arb)
   }
 }
-
-class Uninstaller extends Installer {
-  constructor (where, dryrun, args) {
-    super(where, dryrun, args)
-    this.remove = []
-  }
-
-  loadArgMetadata (next) {
-    this.args = this.args.map(function (arg) { return {name: arg} })
-    next()
-  }
-
-  loadAllDepsIntoIdealTree (cb) {
-    validate('F', arguments)
-    this.remove = this.args
-    this.args = []
-    log.silly('uninstall', 'loadAllDepsIntoIdealTree')
-    const saveDeps = getSaveType()
-
-    super.loadAllDepsIntoIdealTree(iferr(cb, () => {
-      removeDeps(this.remove, this.idealTree, saveDeps, cb)
-    }))
-  }
-
-  // no top level lifecycles on rm
-  runPreinstallTopLevelLifecycles (cb) { cb() }
-  runPostinstallTopLevelLifecycles (cb) { cb() }
-}
-
-module.exports.Uninstaller = Uninstaller
+module.exports = Uninstall

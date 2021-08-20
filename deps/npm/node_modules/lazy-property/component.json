@@ -1,7 +1,0 @@
-{
-  "name": "lazy-property",
-  "version": "0.0.2",
-  "description": "Lazily initialized properties for objects",
-  "main": "lazyProperty.js",
-  "scripts": ["lazyProperty.js"]
-}

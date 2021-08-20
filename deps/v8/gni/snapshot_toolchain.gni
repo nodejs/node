@@ -60,6 +60,10 @@ if (v8_snapshot_toolchain == "") {
     # binaries built for the same OS, so build the snapshot with the current
     # toolchain here, too.
     v8_snapshot_toolchain = current_toolchain
+  } else if (current_os == host_os && host_cpu == "arm64" &&
+             current_cpu == "arm") {
+    # Trying to compile 32-bit arm on arm64. Good luck!
+    v8_snapshot_toolchain = current_toolchain
   } else if (host_cpu == "x64" &&
              (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
     # We don't support snapshot generation for big-endian targets,
@@ -79,7 +83,8 @@ if (v8_snapshot_toolchain == "") {
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
-    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
+    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el" ||
+               v8_current_cpu == "riscv64") {
       if (is_win && v8_current_cpu == "arm64") {
         # set _cpus to blank for Windows ARM64 so host_toolchain could be
         # selected as snapshot toolchain later.

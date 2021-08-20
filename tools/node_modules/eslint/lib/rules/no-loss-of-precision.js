@@ -36,6 +36,14 @@ module.exports = {
             return typeof node.value === "number";
         }
 
+        /**
+         * Gets the source code of the given number literal. Removes `_` numeric separators from the result.
+         * @param {Node} node the number `Literal` node
+         * @returns {string} raw source code of the literal, without numeric separators
+         */
+        function getRaw(node) {
+            return node.raw.replace(/_/gu, "");
+        }
 
         /**
          * Checks whether the number is  base ten
@@ -55,7 +63,7 @@ module.exports = {
          * @returns {boolean} true if they do not match
          */
         function notBaseTenLosesPrecision(node) {
-            const rawString = node.raw.toUpperCase();
+            const rawString = getRaw(node).toUpperCase();
             let base = 0;
 
             if (rawString.startsWith("0B")) {
@@ -97,9 +105,9 @@ module.exports = {
         }
 
         /**
-         * Converts an integer to to an object containing the the integer's coefficient and order of magnitude
+         * Converts an integer to to an object containing the integer's coefficient and order of magnitude
          * @param {string} stringInteger the string representation of the integer being converted
-         * @returns {Object} the object containing the the integer's coefficient and order of magnitude
+         * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
         function normalizeInteger(stringInteger) {
             const significantDigits = removeTrailingZeros(removeLeadingZeros(stringInteger));
@@ -112,9 +120,9 @@ module.exports = {
 
         /**
          *
-         * Converts a float to to an object containing the the floats's coefficient and order of magnitude
+         * Converts a float to to an object containing the floats's coefficient and order of magnitude
          * @param {string} stringFloat the string representation of the float being converted
-         * @returns {Object} the object containing the the integer's coefficient and order of magnitude
+         * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
         function normalizeFloat(stringFloat) {
             const trimmedFloat = removeLeadingZeros(stringFloat);
@@ -161,7 +169,7 @@ module.exports = {
          * @returns {boolean} true if they do not match
          */
         function baseTenLosesPrecision(node) {
-            const normalizedRawNumber = convertNumberToScientificNotation(node.raw);
+            const normalizedRawNumber = convertNumberToScientificNotation(getRaw(node));
             const requestedPrecision = normalizedRawNumber.split("e")[0].replace(".", "").length;
 
             if (requestedPrecision > 100) {

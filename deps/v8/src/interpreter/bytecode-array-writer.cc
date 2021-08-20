@@ -5,7 +5,7 @@
 #include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api/api-inl.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -27,7 +27,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : bytecodes_(zone),
       unbound_jumps_(0),
-      source_position_table_builder_(source_position_mode),
+      source_position_table_builder_(zone, source_position_mode),
       constant_array_builder_(constant_array_builder),
       last_bytecode_(Bytecode::kIllegal),
       last_bytecode_offset_(0),
@@ -37,9 +37,9 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    LocalIsolate* isolate, int register_count, int parameter_count,
+    IsolateT* isolate, int register_count, int parameter_count,
     Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
@@ -60,12 +60,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Handle<ByteArray> handler_table);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-        OffThreadIsolate* isolate, int register_count, int parameter_count,
+        LocalIsolate* isolate, int register_count, int parameter_count,
         Handle<ByteArray> handler_table);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
   Handle<ByteArray> source_position_table =
       source_position_table_builder_.Omit()
@@ -79,7 +79,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -253,7 +253,8 @@ void BytecodeArrayWriter::MaybeElideLastBytecode(Bytecode next_bytecode,
   // and the next bytecode clobbers this load without reading the accumulator,
   // then the previous bytecode can be elided as it has no effect.
   if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
-      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite &&
+      Bytecodes::GetImplicitRegisterUse(next_bytecode) ==
+          ImplicitRegisterUse::kWriteAccumulator &&
       (!last_bytecode_had_source_info_ || !has_source_info)) {
     DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
     bytecodes()->resize(last_bytecode_offset_);

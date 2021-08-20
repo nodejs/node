@@ -40,6 +40,17 @@ function isHandledLogicalOperator(operator) {
 }
 
 /**
+ * Checks whether the given assignment operator is a logical assignment operator.
+ * Logical assignments are taken into account for the code path analysis
+ * because of their short-circuiting semantics.
+ * @param {string} operator The operator found in the AssignmentExpression node
+ * @returns {boolean} `true` if the operator is "&&=" or "||=" or "??="
+ */
+function isLogicalAssignmentOperator(operator) {
+    return operator === "&&=" || operator === "||=" || operator === "??=";
+}
+
+/**
  * Gets the label if the parent node of a given node is a LabeledStatement.
  * @param {ASTNode} node A node to get.
  * @returns {string|null} The label or `null`.
@@ -70,6 +81,9 @@ function isForkingByTrueOrFalse(node) {
 
         case "LogicalExpression":
             return isHandledLogicalOperator(parent.operator);
+
+        case "AssignmentExpression":
+            return isLogicalAssignmentOperator(parent.operator);
 
         default:
             return false;
@@ -266,6 +280,15 @@ function preprocess(analyzer, node) {
             }
             break;
 
+        case "AssignmentExpression":
+            if (
+                parent.right === node &&
+                isLogicalAssignmentOperator(parent.operator)
+            ) {
+                state.makeLogicalRight();
+            }
+            break;
+
         case "ConditionalExpression":
         case "IfStatement":
 
@@ -413,6 +436,15 @@ function processCodePathToEnter(analyzer, node) {
             }
             break;
 
+        case "AssignmentExpression":
+            if (isLogicalAssignmentOperator(node.operator)) {
+                state.pushChoiceContext(
+                    node.operator.slice(0, -1), // removes `=` from the end
+                    isForkingByTrueOrFalse(node)
+                );
+            }
+            break;
+
         case "ConditionalExpression":
         case "IfStatement":
             state.pushChoiceContext("test", false);
@@ -487,6 +519,12 @@ function processCodePathToExit(analyzer, node) {
 
         case "LogicalExpression":
             if (isHandledLogicalOperator(node.operator)) {
+                state.popChoiceContext();
+            }
+            break;
+
+        case "AssignmentExpression":
+            if (isLogicalAssignmentOperator(node.operator)) {
                 state.popChoiceContext();
             }
             break;

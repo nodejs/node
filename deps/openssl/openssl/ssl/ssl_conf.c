@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -305,6 +305,13 @@ static int protocol_from_string(const char *value)
         const char *name;
         int version;
     };
+    /*
+     * Note: To avoid breaking previously valid configurations, we must retain
+     * legacy entries in this table even if the underlying protocol is no
+     * longer supported.  This also means that the constants SSL3_VERSION, ...
+     * need to be retained indefinitely.  This table can only grow, never
+     * shrink.
+     */
     static const struct protocol_versions versions[] = {
         {"None", 0},
         {"SSLv3", SSL3_VERSION},

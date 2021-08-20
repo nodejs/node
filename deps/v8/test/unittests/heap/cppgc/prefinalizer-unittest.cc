@@ -6,7 +6,8 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "include/cppgc/persistent.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,7 +34,7 @@ size_t GCed::prefinalizer_callcount = 0;
 
 TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadObject) {
   GCed::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCed>(GetHeap());
+  auto* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   USE(object);
   EXPECT_EQ(0u, GCed::prefinalizer_callcount);
   PreciseGC();
@@ -44,11 +45,12 @@ TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadObject) {
 
 TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveObject) {
   GCed::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCed>(GetHeap());
-  HeapObjectHeader::FromPayload(object).TryMarkAtomic();
-  EXPECT_EQ(0u, GCed::prefinalizer_callcount);
-  PreciseGC();
-  EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+  {
+    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+    PreciseGC();
+    EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+  }
   PreciseGC();
   EXPECT_EQ(1u, GCed::prefinalizer_callcount);
 }
@@ -65,15 +67,13 @@ class Mixin : public GarbageCollectedMixin {
 };
 size_t Mixin::prefinalizer_callcount = 0;
 
-class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-};
+class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {};
 
 }  // namespace
 
 TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadMixinObject) {
   Mixin::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCedWithMixin>(GetHeap());
+  auto* object = MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
   USE(object);
   EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
   PreciseGC();
@@ -84,11 +84,13 @@ TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadMixinObject) {
 
 TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveMixinObject) {
   Mixin::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCedWithMixin>(GetHeap());
-  HeapObjectHeader::FromPayload(object).TryMarkAtomic();
-  EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
-  PreciseGC();
-  EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+  {
+    Persistent<GCedWithMixin> object =
+        MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
+    EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+    PreciseGC();
+    EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+  }
   PreciseGC();
   EXPECT_EQ(1u, Mixin::prefinalizer_callcount);
 }
@@ -117,7 +119,6 @@ size_t InheritingMixin::prefinalizer_callcount = 0;
 
 class GCedWithMixins : public GarbageCollected<GCedWithMixins>,
                        public InheritingMixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
   CPPGC_USING_PRE_FINALIZER(GCedWithMixins, PreFinalizer);
 
  public:
@@ -153,7 +154,7 @@ TEST_F(PrefinalizerTest, PrefinalizerInvocationPreservesOrder) {
   BaseMixin::prefinalizer_callcount = 0;
   InheritingMixin::prefinalizer_callcount = 0;
   GCedWithMixins::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCedWithMixins>(GetHeap());
+  auto* object = MakeGarbageCollected<GCedWithMixins>(GetAllocationHandle());
   USE(object);
   EXPECT_EQ(0u, GCedWithMixins::prefinalizer_callcount);
   EXPECT_EQ(0u, InheritingMixin::prefinalizer_callcount);
@@ -170,13 +171,86 @@ TEST_F(PrefinalizerTest, PrefinalizerInvocationPreservesOrder) {
 
 namespace {
 
+class LinkedNode final : public GarbageCollected<LinkedNode> {
+ public:
+  explicit LinkedNode(LinkedNode* next) : next_(next) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(next_); }
+
+  LinkedNode* next() const { return next_; }
+
+  void RemoveNext() {
+    CHECK(next_);
+    next_ = next_->next_;
+  }
+
+ private:
+  Member<LinkedNode> next_;
+};
+
+class MutatingPrefinalizer final
+    : public GarbageCollected<MutatingPrefinalizer> {
+  CPPGC_USING_PRE_FINALIZER(MutatingPrefinalizer, PreFinalizer);
+
+ public:
+  void PreFinalizer() {
+    // Pre-finalizers are generally used to mutate the object graph. The API
+    // does not allow distinguishing between live and dead objects. It is
+    // generally safe to re-write the dead *or* the live object graph. Adding
+    // a dead object to the live graph must not happen.
+    //
+    // RemoveNext() must not trigger a write barrier. In the case all LinkedNode
+    // objects die at the same time, the graph is mutated with a dead object.
+    // This is only safe when the dead object is added to a dead subgraph.
+    parent_node_->RemoveNext();
+  }
+
+  explicit MutatingPrefinalizer(LinkedNode* parent) : parent_node_(parent) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(parent_node_); }
+
+ private:
+  Member<LinkedNode> parent_node_;
+};
+
+}  // namespace
+
+TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithLiveObjects) {
+  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
+      GetAllocationHandle(),
+      MakeGarbageCollected<LinkedNode>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
+  CHECK(root->next());
+  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
+  PreciseGC();
+}
+
+TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithDeadObjects) {
+  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
+      GetAllocationHandle(),
+      MakeGarbageCollected<LinkedNode>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
+  CHECK(root->next());
+  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
+  // All LinkedNode objects will die on the following GC. The pre-finalizer may
+  // still operate with them but not add them to a live object.
+  root.Clear();
+  PreciseGC();
+}
+
+namespace {
+
 class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
   CPPGC_USING_PRE_FINALIZER(AllocatingPrefinalizer, PreFinalizer);
 
  public:
   explicit AllocatingPrefinalizer(cppgc::Heap* heap) : heap_(heap) {}
   void Trace(Visitor*) const {}
-  void PreFinalizer() { MakeGarbageCollected<GCed>(heap_); }
+  void PreFinalizer() {
+    MakeGarbageCollected<GCed>(heap_->GetAllocationHandle());
+  }
 
  private:
   cppgc::Heap* heap_;
@@ -187,8 +261,8 @@ class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
 #ifdef DEBUG
 
 TEST_F(PrefinalizerTest, PrefinalizerFailsOnAllcoation) {
-  auto* object =
-      MakeGarbageCollected<AllocatingPrefinalizer>(GetHeap(), GetHeap());
+  auto* object = MakeGarbageCollected<AllocatingPrefinalizer>(
+      GetAllocationHandle(), GetHeap());
   USE(object);
   EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
 }

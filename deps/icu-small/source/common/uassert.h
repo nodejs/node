@@ -32,7 +32,7 @@
 #   include <assert.h>
 #   define U_ASSERT(exp) assert(exp)
 #elif U_CPLUSPLUS_VERSION
-#   define U_ASSERT(exp) void()
+#   define U_ASSERT(exp) (void)0
 #else
 #   define U_ASSERT(exp)
 #endif

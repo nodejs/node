@@ -1,4 +1,4 @@
-#include "base64.h"
+#include "base64-inl.h"
 
 #include <cstddef>
 #include <cstring>
@@ -44,6 +44,20 @@ TEST(Base64Test, Encode) {
        "IGRlc2VydW50IG1vbGxpdCBhbmltIGlkIGVzdCBsYWJvcnVtLg==");
 }
 
+TEST(Base64Test, EncodeURL) {
+  auto test = [](const char* string, const char* base64_string) {
+    const size_t len = strlen(base64_string);
+    char* const buffer = new char[len + 1];
+    buffer[len] = 0;
+    base64_encode(string, strlen(string), buffer, len, node::Base64Mode::URL);
+    EXPECT_STREQ(base64_string, buffer);
+    delete[] buffer;
+  };
+
+  test("\x68\xd9\x16\x25\x5c\x1e\x40\x92\x2d\xfb", "aNkWJVweQJIt-w");
+  test("\xac\xc7\x93\xaa\x83\x6f\xc3\xe3\x3f\x75", "rMeTqoNvw-M_dQ");
+}
+
 TEST(Base64Test, Decode) {
   auto test = [](const char* base64_string, const char* string) {
     const size_t len = strlen(string);
@@ -75,6 +89,7 @@ TEST(Base64Test, Decode) {
   test("YWJj ZGVm", "abcdef");
   test("Y W J j Z G V m", "abcdef");
   test("Y   W\n JjZ \nG Vm", "abcdef");
+  test("rMeTqoNvw-M_dQ", "\xac\xc7\x93\xaa\x83\x6f\xc3\xe3\x3f\x75");
 
   const char* text =
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "

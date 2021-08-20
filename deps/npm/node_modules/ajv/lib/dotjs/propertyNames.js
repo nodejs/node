@@ -13,7 +13,8 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   var $closingBraces = '';
   $it.level++;
   var $nextValid = 'valid' + $it.level;
-  if (it.util.schemaHasRules($schema, it.RULES.all)) {
+  out += 'var ' + ($errs) + ' = errors;';
+  if ((it.opts.strictKeywords ? (typeof $schema == 'object' && Object.keys($schema).length > 0) || $schema === false : it.util.schemaHasRules($schema, it.RULES.all))) {
     $it.schema = $schema;
     $it.schemaPath = $schemaPath;
     $it.errSchemaPath = $errSchemaPath;
@@ -26,7 +27,6 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
       $dataProperties = 'dataProperties' + $lvl,
       $ownProperties = it.opts.ownProperties,
       $currentBaseId = it.baseId;
-    out += ' var ' + ($errs) + ' = errors; ';
     if ($ownProperties) {
       out += ' var ' + ($dataProperties) + ' = undefined; ';
     }
@@ -61,7 +61,8 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
       out += ' {} ';
     }
     out += ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
-    if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+    if (!it.compositeRule && $breakOnError) {
+      /* istanbul ignore if */
       if (it.async) {
         out += ' throw new ValidationError(vErrors); ';
       } else {
@@ -76,6 +77,5 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
   if ($breakOnError) {
     out += ' ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';
   }
-  out = it.util.cleanUpCode(out);
   return out;
 }

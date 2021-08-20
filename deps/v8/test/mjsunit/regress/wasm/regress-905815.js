@@ -13,9 +13,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
         kExprEnd,   // @1
     ]);
   builder.addFunction(undefined, 1 /* sig */)
-    .addLocals({i32_count: 65})
+    .addLocals(kWasmI32, 65)
     .addBodyWithEnd([
-        kExprLoop, kWasmStmt,   // @3
+        kExprLoop, kWasmVoid,   // @3
         kSimdPrefix,
         kExprF32x4Min,
         kExprI64UConvertI32,

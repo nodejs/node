@@ -714,6 +714,16 @@ UTS46::processLabel(UnicodeString &dest,
     UBool wasPunycode;
     if(labelLength>=4 && label[0]==0x78 && label[1]==0x6e && label[2]==0x2d && label[3]==0x2d) {
         // Label starts with "xn--", try to un-Punycode it.
+        // In IDNA2008, labels like "xn--" (decodes to an empty string) and
+        // "xn--ASCII-" (decodes to just "ASCII") fail the round-trip validation from
+        // comparing the ToUnicode input with the back-to-ToASCII output.
+        // They are alternate encodings of the respective ASCII labels.
+        // Ignore "xn---" here: It will fail Punycode.decode() which logically comes before
+        // the round-trip verification.
+        if(labelLength==4 || (labelLength>5 && label[labelLength-1]==u'-')) {
+            info.labelErrors|=UIDNA_ERROR_INVALID_ACE_LABEL;
+            return markBadACELabel(dest, labelStart, labelLength, toASCII, info, errorCode);
+        }
         wasPunycode=TRUE;
         UChar *unicodeBuffer=fromPunycode.getBuffer(-1);  // capacity==-1: most labels should fit
         if(unicodeBuffer==NULL) {
@@ -925,10 +935,10 @@ UTS46::markBadACELabel(UnicodeString &dest,
     UBool isASCII=TRUE;
     UBool onlyLDH=TRUE;
     const UChar *label=dest.getBuffer()+labelStart;
-    // Ok to cast away const because we own the UnicodeString.
-    UChar *s=(UChar *)label+4;  // After the initial "xn--".
     const UChar *limit=label+labelLength;
-    do {
+    // Start after the initial "xn--".
+    // Ok to cast away const because we own the UnicodeString.
+    for(UChar *s=const_cast<UChar *>(label+4); s<limit; ++s) {
         UChar c=*s;
         if(c<=0x7f) {
             if(c==0x2e) {
@@ -945,7 +955,7 @@ UTS46::markBadACELabel(UnicodeString &dest,
         } else {
             isASCII=onlyLDH=FALSE;
         }
-    } while(++s<limit);
+    }
     if(onlyLDH) {
         dest.insert(labelStart+labelLength, (UChar)0xfffd);
         if(dest.isBogus()) {

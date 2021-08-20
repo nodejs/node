@@ -17,7 +17,7 @@ for (let n = 0; n <= 0xFFFF; n++) {
   -1, 'a', {}, [], false, true,
   0xFFFF + 1, Infinity, -Infinity, NaN,
   undefined, null, '', ' ', 1.1, '0x',
-  '-0x1', '-0o1', '-0b1', '0o', '0b'
+  '-0x1', '-0o1', '-0b1', '0o', '0b',
 ].forEach((i) => assert.throws(() => validatePort(i), {
   code: 'ERR_SOCKET_BAD_PORT'
 }));

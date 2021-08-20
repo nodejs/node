@@ -24,6 +24,10 @@ class BuiltinsConstantsTableBuilder final {
  public:
   explicit BuiltinsConstantsTableBuilder(Isolate* isolate);
 
+  BuiltinsConstantsTableBuilder(const BuiltinsConstantsTableBuilder&) = delete;
+  BuiltinsConstantsTableBuilder& operator=(
+      const BuiltinsConstantsTableBuilder&) = delete;
+
   // Returns the index within the builtins constants table for the given
   // object, possibly adding the object to the table. Objects are deduplicated.
   uint32_t AddObject(Handle<Object> object);
@@ -33,6 +37,11 @@ class BuiltinsConstantsTableBuilder final {
   // entries in the constants map must be patched up.
   void PatchSelfReference(Handle<Object> self_reference,
                           Handle<Code> code_object);
+
+  // References to the array that stores basic block usage counters start out as
+  // references to a unique oddball. Once the actual array has been allocated,
+  // such entries in the constants map must be patched up.
+  void PatchBasicBlockCountersReference(Handle<ByteArray> counters);
 
   // Should be called after all affected code (e.g. builtins and bytecode
   // handlers) has been generated.
@@ -44,8 +53,6 @@ class BuiltinsConstantsTableBuilder final {
   // Maps objects to corresponding indices within the constants list.
   using ConstantsMap = IdentityMap<uint32_t, FreeStoreAllocationPolicy>;
   ConstantsMap map_;
-
-  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder);
 };
 
 }  // namespace internal

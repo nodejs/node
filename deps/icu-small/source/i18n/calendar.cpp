@@ -266,7 +266,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
     //TODO: ULOC_FULL_NAME is out of date and too small..
     char canonicalName[256];
 
-    // canonicalize, so grandfathered variant will be transformed to keywords
+    // Canonicalize, so that an old-style variant will be transformed to keywords.
     // e.g ja_JP_TRADITIONAL -> ja_JP@calendar=japanese
     // NOTE: Since ICU-20187, ja_JP_TRADITIONAL no longer canonicalizes, and
     // the Gregorian calendar is returned instead.
@@ -308,7 +308,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
 
     calTypeBuf[0] = 0;
     if (U_SUCCESS(status) && order != NULL) {
-        // the first calender type is the default for the region
+        // the first calendar type is the default for the region
         int32_t len = 0;
         const UChar *uCalType = ures_getStringByIndex(order, 0, &len, &status);
         if (len < (int32_t)sizeof(calTypeBuf)) {
@@ -870,7 +870,7 @@ Calendar::createInstance(const TimeZone& zone, UErrorCode& success)
 Calendar* U_EXPORT2
 Calendar::createInstance(const Locale& aLocale, UErrorCode& success)
 {
-    return createInstance(TimeZone::createDefault(), aLocale, success);
+    return createInstance(TimeZone::forLocaleOrDefault(aLocale), aLocale, success);
 }
 
 // ------------------------------------- Adopting
@@ -2291,7 +2291,7 @@ int32_t Calendar::fieldDifference(UDate targetMs, UCalendarDateFields field, UEr
     if (U_FAILURE(ec)) return 0;
     int32_t min = 0;
     double startMs = getTimeInMillis(ec);
-    // Always add from the start millis.  This accomodates
+    // Always add from the start millis.  This accommodates
     // operations like adding years from February 29, 2000 up to
     // February 29, 2004.  If 1, 1, 1, 1 is added to the year
     // field, the DOM gets pinned to 28 and stays there, giving an

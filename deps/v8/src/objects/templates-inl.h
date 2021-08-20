@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/templates-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
@@ -24,21 +26,22 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 
 NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable,
+               UndetectableBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
-               kNeedsAccessCheckBit)
+               NeedsAccessCheckBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
-               kReadOnlyPrototypeBit)
+               ReadOnlyPrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
-               kRemovePrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, kDoNotCacheBit)
+               RemovePrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
-               kAcceptAnyReceiver)
+               AcceptAnyReceiverBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  HeapObject extra = function_template_info->rare_data(isolate);
+  HeapObject extra = function_template_info->rare_data(isolate, kAcquireLoad);
   if (extra.IsUndefined(isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
@@ -48,8 +51,8 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 
 #define RARE_ACCESSORS(Name, CamelName, Type, Default)                        \
   DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                    \
-    HeapObject extra = rare_data(isolate);                                    \
-    HeapObject undefined = GetReadOnlyRoots(isolate).undefined_value();       \
+    HeapObject extra = rare_data(cage_base, kAcquireLoad);                    \
+    HeapObject undefined = GetReadOnlyRoots(cage_base).undefined_value();     \
     return extra == undefined ? Default                                       \
                               : FunctionTemplateRareData::cast(extra).Name(); \
   }                                                                           \
@@ -61,19 +64,26 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     rare_data.set_##Name(*Name);                                              \
   }
 
-RARE_ACCESSORS(prototype_template, PrototypeTemplate, Object, undefined)
-RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate, Object,
+RARE_ACCESSORS(prototype_template, PrototypeTemplate, HeapObject, undefined)
+RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate,
+               HeapObject, undefined)
+RARE_ACCESSORS(parent_template, ParentTemplate, HeapObject, undefined)
+RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, HeapObject,
                undefined)
-RARE_ACCESSORS(parent_template, ParentTemplate, Object, undefined)
-RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, Object, undefined)
-RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, Object,
+RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, HeapObject,
                undefined)
-RARE_ACCESSORS(instance_template, InstanceTemplate, Object, undefined)
-RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object, undefined)
-RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object, undefined)
-RARE_ACCESSORS(c_function, CFunction, Object, Smi(0))
-RARE_ACCESSORS(c_signature, CSignature, Object, Smi(0))
+RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject, undefined)
+RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
+               undefined)
+RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
+               GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
+
+bool TemplateInfo::should_cache() const {
+  return serial_number() != kDoNotCache;
+}
+bool TemplateInfo::is_cached() const { return serial_number() > kUncached; }
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info().IsSharedFunctionInfo();
@@ -110,26 +120,28 @@ ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {
-  Object value = data();
-  DCHECK(value.IsSmi());
-  return EmbedderFieldCount::decode(Smi::ToInt(value));
+  return EmbedderFieldCountBits::decode(data());
 }
 
 void ObjectTemplateInfo::set_embedder_field_count(int count) {
   DCHECK_LE(count, JSObject::kMaxEmbedderFields);
-  return set_data(
-      Smi::FromInt(EmbedderFieldCount::update(Smi::ToInt(data()), count)));
+  return set_data(EmbedderFieldCountBits::update(data(), count));
 }
 
 bool ObjectTemplateInfo::immutable_proto() const {
-  Object value = data();
-  DCHECK(value.IsSmi());
-  return IsImmutablePrototype::decode(Smi::ToInt(value));
+  return IsImmutablePrototypeBit::decode(data());
 }
 
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
-  return set_data(Smi::FromInt(
-      IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
+  return set_data(IsImmutablePrototypeBit::update(data(), immutable));
+}
+
+bool ObjectTemplateInfo::code_like() const {
+  return IsCodeKindBit::decode(data());
+}
+
+void ObjectTemplateInfo::set_code_like(bool is_code_like) {
+  return set_data(IsCodeKindBit::update(data(), is_code_like));
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {

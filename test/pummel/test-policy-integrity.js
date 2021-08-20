@@ -1,7 +1,16 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto) common.skip('missing crypto');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+}
+
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
+
+common.requireNoPackageJSONAbove();
 
 const { debuglog } = require('util');
 const debug = debuglog('test');
@@ -12,6 +21,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+
+const cpus = require('os').cpus().length;
 
 function hash(algo, body) {
   const values = [];
@@ -73,6 +84,7 @@ function newTestId() {
   return nextTestId++;
 }
 tmpdir.refresh();
+common.requireNoPackageJSONAbove(tmpdir.path);
 
 let spawned = 0;
 const toSpawn = [];
@@ -82,7 +94,7 @@ function queueSpawn(opts) {
 }
 
 function drainQueue() {
-  if (spawned > 50) {
+  if (spawned > cpus) {
     return;
   }
   if (toSpawn.length) {
@@ -107,7 +119,7 @@ function drainQueue() {
       `deletable-policy-${testId}.json`
     );
     const cliPolicy = willDeletePolicy ? tmpPolicyPath : policyPath;
-    fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
+    fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
     fs.mkdirSync(configDirPath, { recursive: true });
     const manifest = {
       onerror: onError,
@@ -183,7 +195,7 @@ function drainQueue() {
         console.log(`stderr: ${Buffer.concat(stderr)}`);
         throw e;
       }
-      fs.rmdirSync(configDirPath, { maxRetries: 3, recursive: true });
+      fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
       drainQueue();
     });
   }
@@ -380,11 +392,8 @@ for (const permutation of permutations({
   );
 }
 debug(`spawning ${tests.size} policy integrity permutations`);
-debug(
-  'use NODE_DEBUG=test:policy-integrity:NUMBER to log a specific permutation'
-);
+
 for (const config of tests) {
   const parsed = JSON.parse(config);
-  tests.delete(config);
   queueSpawn(parsed);
 }

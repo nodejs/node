@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,7 @@ sub verify {
     run(app([@args]));
 }
 
-plan tests => 137;
+plan tests => 146;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -132,6 +132,10 @@ ok(!verify("ee-cert", "sslserver", [], [qw(ca-cert)], "-partial_chain"),
    "fail untrusted partial chain");
 ok(verify("ee-cert", "sslserver", [qw(ca-cert)], [], "-partial_chain"),
    "accept trusted partial chain");
+ok(!verify("ee-cert", "sslserver", [qw(ca-expired)], [], "-partial_chain"),
+   "reject expired trusted partial chain"); # this check is beyond RFC 5280
+ok(!verify("ee-cert", "sslserver", [qw(root-expired)], [qw(ca-cert)]),
+   "reject expired trusted root"); # this check is beyond RFC 5280
 ok(verify("ee-cert", "sslserver", [qw(sca-cert)], [], "-partial_chain"),
    "accept partial chain with server purpose");
 ok(!verify("ee-cert", "sslserver", [qw(cca-cert)], [], "-partial_chain"),
@@ -280,6 +284,27 @@ ok(verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level",
 ok(!verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"]),
    "reject md5 leaf at auth level 1");
 
+# Explicit vs named curve tests
+SKIP: {
+    skip "EC is not supported by this OpenSSL build", 5
+        if disabled("ec");
+    ok(verify("ee-cert-ec-explicit", "sslserver", ["root-cert"],
+               ["ca-cert-ec-named"]),
+        "accept explicit curve leaf with named curve intermediate without strict");
+    ok(verify("ee-cert-ec-named-explicit", "sslserver", ["root-cert"],
+               ["ca-cert-ec-explicit"]),
+        "accept named curve leaf with explicit curve intermediate without strict");
+    ok(!verify("ee-cert-ec-explicit", "sslserver", ["root-cert"],
+               ["ca-cert-ec-named"], "-x509_strict"),
+        "reject explicit curve leaf with named curve intermediate with strict");
+    ok(!verify("ee-cert-ec-named-explicit", "sslserver", ["root-cert"],
+               ["ca-cert-ec-explicit"], "-x509_strict"),
+        "reject named curve leaf with explicit curve intermediate with strict");
+    ok(verify("ee-cert-ec-named-named", "sslserver", ["root-cert"],
+              ["ca-cert-ec-named"], "-x509_strict"),
+        "accept named curve leaf with named curve intermediate with strict");
+}
+
 # Depth tests, note the depth limit bounds the number of CA certificates
 # between the trust-anchor and the leaf, so, for example, with a root->ca->leaf
 # chain, depth = 1 is sufficient, but depth == 0 is not.
@@ -352,6 +377,9 @@ ok(!verify("ee-pss-sha1-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_l
 ok(verify("ee-pss-sha256-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
     "PSS signature using SHA256 and auth level 2");
 
+ok(verify("ee-pss-cert", "sslserver", ["root-cert"], ["ca-pss-cert"], ),
+    "CA PSS signature");
+
 ok(!verify("many-names1", "sslserver", ["many-constraints"], ["many-constraints"], ),
     "Too many names and constraints to check (1)");
 ok(!verify("many-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
@@ -367,6 +395,9 @@ ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"]
     "Not too many names and constraints to check (3)");
 ok(verify("root-cert-rsa2", "sslserver", ["root-cert-rsa2"], [], "-check_ss_sig"),
     "Public Key Algorithm rsa instead of rsaEncryption");
+
+    ok(verify("ee-self-signed", "sslserver", ["ee-self-signed"], []),
+       "accept trusted self-signed EE cert excluding key usage keyCertSign");
 
 SKIP: {
     skip "Ed25519 is not supported by this OpenSSL build", 1

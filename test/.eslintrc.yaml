@@ -5,11 +5,10 @@ env:
   es6: true
 
 rules:
-  # ECMAScript 6
-  # http://eslint.org/docs/rules/#ecmascript-6
   no-var: error
   prefer-const: error
   symbol-description: off
+  multiline-comment-style: ["error", "separate-lines"] 
 
   no-restricted-syntax:
     # Config copied from .eslintrc.js
@@ -51,6 +50,7 @@ rules:
   node-core/prefer-assert-iferror: error
   node-core/prefer-assert-methods: error
   node-core/prefer-common-mustnotcall: error
+  node-core/prefer-common-mustsucceed: error
   node-core/crypto-check: error
   node-core/eslint-check: error
   node-core/async-iife-no-unused-result: error

@@ -27,6 +27,7 @@ TEST_F(WasmCapiTest, Serialize) {
   Compile();
 
   vec<byte_t> serialized = module()->serialize();
+  EXPECT_TRUE(serialized);  // Serialization succeeded.
   own<Module> deserialized = Module::deserialize(store(), serialized);
 
   own<FuncType> callback_type =

@@ -38,6 +38,30 @@ the [event loop][] and other operation system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
+## File structure
+
+The Node.js C++ files follow this structure:
+
+The `.h` header files contain declarations, and sometimes definitions that don’t
+require including other headers (e.g. getters, setters, etc.). They should only
+include other `.h` header files and nothing else.
+
+The `-inl.h` header files contain definitions of inline functions from the
+corresponding `.h` header file (e.g. functions marked `inline` in the
+declaration or `template` functions).  They always include the corresponding
+`.h` header file, and can include other `.h` and `-inl.h` header files as
+needed.  It is not mandatory to split out the definitions from the `.h` file
+into an `-inl.h` file, but it becomes necessary when there are multiple
+definitions and contents of other `-inl.h` files start being used. Therefore, it
+is recommended to split a `-inl.h` file when inline functions become longer than
+a few lines to keep the corresponding `.h` file readable and clean. All visible
+definitions from the `-inl.h` file should be declared in the corresponding `.h`
+header file.
+
+The `.cc` files contain definitions of non-inline functions from the
+corresponding `.h` header file. They always include the corresponding `.h`
+header file, and can include other `.h` and `-inl.h` header files as needed.
+
 ## Helpful concepts
 
 A number of concepts are involved in putting together Node.js on top of V8 and
@@ -89,7 +113,7 @@ In most native Node.js objects, the first internal field is used to store a
 pointer to a [`BaseObject`][] subclass, which then contains all relevant
 information associated with the JavaScript object.
 
-The most typical way of working internal fields are:
+Typical ways of working with internal fields are:
 
 * `obj->InternalFieldCount()` to look up the number of internal fields for an
   object (`0` for regular JavaScript objects).
@@ -239,7 +263,7 @@ Node.js, and a sufficiently committed person could restructure Node.js to
 provide built-in modules inside of `vm.Context`s.
 
 Often, the `Context` is passed around for [exception handling][].
-Typical ways of accessing the current `Environment` in the Node.js code are:
+Typical ways of accessing the current `Context` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
 * Given an [`Environment`][], using `env->context()` to get the `Environment`’s
@@ -381,17 +405,62 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
 
-  Local<String> channel_wrap_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
-  channel_wrap->SetClassName(channel_wrap_string);
-  target->Set(env->context(), channel_wrap_string,
-              channel_wrap->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
 }
 
 // Run the `Initialize` function when loading this module through
 // `internalBinding('cares_wrap')` in Node.js’s built-in JavaScript code:
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
+
+If the C++ binding is loaded during bootstrap, it needs to be registered
+with the utilities in `node_external_reference.h`, like this:
+
+```cpp
+namespace node {
+namespace utils {
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetHiddenValue);
+  registry->Register(SetHiddenValue);
+  // ... register all C++ functions used to create FunctionTemplates.
+}
+}  // namespace util
+}  // namespace node
+
+// The first argument passed to `NODE_MODULE_EXTERNAL_REFERENCE`,
+// which is `util` here, needs to be added to the
+// `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
+NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+```
+
+Otherwise, you might see an error message like this when building the
+executables:
+
+```console
+FAILED: gen/node_snapshot.cc
+cd ../../; out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+Unknown external reference 0x107769200.
+<unresolved>
+/bin/sh: line 1:  6963 Illegal instruction: 4  out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+```
+
+You can try using a debugger to symbolicate the external reference. For example,
+with lldb's `image lookup --address` command (with gdb it's `info symbol`):
+
+```console
+$ lldb -- out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
+(lldb) run
+Process 7012 launched: '/Users/joyee/projects/node/out/Release/node_mksnapshot' (x86_64)
+Unknown external reference 0x1004c8200.
+<unresolved>
+Process 7012 stopped
+(lldb) image lookup --address 0x1004c8200
+      Address: node_mksnapshot[0x00000001004c8200] (node_mksnapshot.__TEXT.__text + 5009920)
+      Summary: node_mksnapshot`node::util::GetHiddenValue(v8::FunctionCallbackInfo<v8::Value> const&) at node_util.cc:159
+```
+
+Which explains that the unregistered external reference is
+`node::util::GetHiddenValue` defined in `node_util.cc`.
 
 <a id="per-binding-state"></a>
 #### Per-binding state
@@ -402,7 +471,7 @@ that state is through the use of `Environment::AddBindingData`, which gives
 binding functions access to an object for storing such state.
 That object is always a [`BaseObject`][].
 
-Its class needs to have a static `binding_data_name` field that based on a
+Its class needs to have a static `type_name` field based on a
 constant string, in order to disambiguate it from other classes of this type,
 and which could e.g. match the binding’s name (in the example above, that would
 be `cares_wrap`).
@@ -413,7 +482,7 @@ class BindingData : public BaseObject {
  public:
   BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
 
-  static constexpr FastStringKey binding_data_name { "http_parser" };
+  static constexpr FastStringKey type_name { "http_parser" };
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -442,6 +511,12 @@ void InitializeHttpParser(Local<Object> target,
   ...
 }
 ```
+
+If the binding is loaded during bootstrap, add it to the
+`SERIALIZABLE_OBJECT_TYPES` list in `src/node_snapshotable.h` and
+inherit from the `SnapshotableObject` class instead. See the comments
+of `SnapshotableObject` on how to implement its serialization and
+deserialization.
 
 <a id="exception-handling"></a>
 ### Exception handling
@@ -495,16 +570,16 @@ The most common reasons for this are:
 holds a value of type `Local<T>`. It has methods that perform the same
 operations as the methods of `v8::Maybe`, but with different names:
 
-| `Maybe`                | `MaybeLocal`                    |
-| ---------------------- | ------------------------------- |
-| `maybe.IsNothing()`    | `maybe_local.IsEmpty()`         |
-| `maybe.IsJust()`       | `!maybe_local.IsEmpty()`        |
-| `maybe.To(&value)`     | `maybe_local.ToLocal(&local)`   |
-| `maybe.ToChecked()`    | `maybe_local.ToLocalChecked()`  |
-| `maybe.FromJust()`     | `maybe_local.ToLocalChecked()`  |
-| `maybe.Check()`        | –                               |
-| `v8::Nothing<T>()`     | `v8::MaybeLocal<T>()`           |
-| `v8::Just<T>(value)`   | `v8::MaybeLocal<T>(value)`      |
+| `Maybe`              | `MaybeLocal`                   |
+| -------------------- | ------------------------------ |
+| `maybe.IsNothing()`  | `maybe_local.IsEmpty()`        |
+| `maybe.IsJust()`     | `!maybe_local.IsEmpty()`       |
+| `maybe.To(&value)`   | `maybe_local.ToLocal(&local)`  |
+| `maybe.ToChecked()`  | `maybe_local.ToLocalChecked()` |
+| `maybe.FromJust()`   | `maybe_local.ToLocalChecked()` |
+| `maybe.Check()`      | –                              |
+| `v8::Nothing<T>()`   | `v8::MaybeLocal<T>()`          |
+| `v8::Just<T>(value)` | `v8::MaybeLocal<T>(value)`     |
 
 ##### Handling empty `Maybe`s
 
@@ -737,7 +812,7 @@ reference to its associated JavaScript object. This can be useful when one
 `BaseObject` refers to another `BaseObject` and wants to make sure it stays
 alive during the lifetime of that reference.
 
-A `BaseObject` can be “detached” throught the `BaseObject::Detach()` method.
+A `BaseObject` can be “detached” through the `BaseObject::Detach()` method.
 In this case, it will be deleted once the last `BaseObjectPtr` referring to
 it is destroyed. There must be at least one such pointer when `Detach()` is
 called. This can be useful when one `BaseObject` fully owns another
@@ -929,6 +1004,10 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 }
 ```
 
+[C++ coding style]: ../doc/guides/cpp-style-guide.md
+[Callback scopes]: #callback-scopes
+[JavaScript value handles]: #js-handles
+[N-API]: https://nodejs.org/api/n-api.html
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -951,17 +1030,13 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
 [`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
 [`vm` module]: https://nodejs.org/api/vm.html
-[C++ coding style]: ../doc/guides/cpp-style-guide.md
-[Callback scopes]: #callback-scopes
-[JavaScript value handles]: #js-handles
-[N-API]: https://nodejs.org/api/n-api.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
+[libuv]: https://libuv.org/
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
-[libuv]: https://libuv.org/
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/

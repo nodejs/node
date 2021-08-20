@@ -1,19 +1,18 @@
-'use strict'
-var semver = require('semver')
-var supported = require('../../package.json').engines.node
-var knownBroken = '<6.2.0 || 9 <9.3.0'
+const semver = require('semver')
+const supported = require('../../package.json').engines.node
+const knownBroken = '<6.2.0 || 9 <9.3.0'
 
-var checkVersion = exports.checkVersion = function (version) {
-  var versionNoPrerelease = version.replace(/-.*$/, '')
+const checkVersion = exports.checkVersion = version => {
+  const versionNoPrerelease = version.replace(/-.*$/, '')
   return {
     version: versionNoPrerelease,
     broken: semver.satisfies(versionNoPrerelease, knownBroken),
-    unsupported: !semver.satisfies(versionNoPrerelease, supported)
+    unsupported: !semver.satisfies(versionNoPrerelease, supported),
   }
 }
 
-exports.checkForBrokenNode = function () {
-  var nodejs = checkVersion(process.version)
+exports.checkForBrokenNode = () => {
+  const nodejs = checkVersion(process.version)
   if (nodejs.broken) {
     console.error('ERROR: npm is known not to run on Node.js ' + process.version)
     console.error("You'll need to upgrade to a newer Node.js version in order to use this")
@@ -22,10 +21,10 @@ exports.checkForBrokenNode = function () {
   }
 }
 
-exports.checkForUnsupportedNode = function () {
-  var nodejs = checkVersion(process.version)
+exports.checkForUnsupportedNode = () => {
+  const nodejs = checkVersion(process.version)
   if (nodejs.unsupported) {
-    var log = require('npmlog')
+    const log = require('npmlog')
     log.warn('npm', 'npm does not support Node.js ' + process.version)
     log.warn('npm', 'You should probably upgrade to a newer version of node as we')
     log.warn('npm', "can't make any promises that npm will work with this version.")

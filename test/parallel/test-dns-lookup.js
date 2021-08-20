@@ -27,7 +27,7 @@ const dnsPromises = dns.promises;
 common.expectWarning({
   // For 'internal/test/binding' module.
   'internal/test/binding': [
-    'These APIs are for internal testing only. Do not use them.'
+    'These APIs are for internal testing only. Do not use them.',
   ],
   // For calling `dns.lookup` with falsy `hostname`.
   'DeprecationWarning': {
@@ -52,9 +52,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "100" is invalid for option "hints"'
+    message: "The argument 'hints' is invalid. Received 100"
   };
   const options = {
     hints: 100,
@@ -70,10 +70,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "20" is invalid for option "family". ' +
-    'Must be one of: 0, 4, 6'
+    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
   };
   const options = {
     hints: 0,
@@ -116,8 +115,7 @@ dns.lookup(false, {
   hints: 0,
   family: 0,
   all: true
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, []);
   assert.strictEqual(addressType, undefined);
 }));
@@ -126,8 +124,7 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: true
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, [{
     address: '127.0.0.1',
     family: 4
@@ -139,8 +136,7 @@ dns.lookup('127.0.0.1', {
   hints: 0,
   family: 4,
   all: false
-}, common.mustCall((error, result, addressType) => {
-  assert.ifError(error);
+}, common.mustSucceed((result, addressType) => {
   assert.deepStrictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));

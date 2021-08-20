@@ -62,7 +62,7 @@ assert.throws(
 
 [
   { user: 3, system: 'b' },
-  { user: 3, system: null }
+  { user: 3, system: null },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),
@@ -78,30 +78,30 @@ assert.throws(
 // Check invalid values.
 [
   { user: -1, system: 2 },
-  { user: Number.POSITIVE_INFINITY, system: 4 }
+  { user: Number.POSITIVE_INFINITY, system: 4 },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),
     {
-      code: 'ERR_INVALID_OPT_VALUE',
+      code: 'ERR_INVALID_ARG_VALUE',
       name: 'RangeError',
-      message: `The value "${value.user}" is invalid ` +
-               'for option "prevValue.user"'
+      message: "The property 'prevValue.user' is invalid. " +
+        `Received ${value.user}`,
     }
   );
 });
 
 [
   { user: 3, system: -2 },
-  { user: 5, system: Number.NEGATIVE_INFINITY }
+  { user: 5, system: Number.NEGATIVE_INFINITY },
 ].forEach((value) => {
   assert.throws(
     () => process.cpuUsage(value),
     {
-      code: 'ERR_INVALID_OPT_VALUE',
+      code: 'ERR_INVALID_ARG_VALUE',
       name: 'RangeError',
-      message: `The value "${value.system}" is invalid ` +
-               'for option "prevValue.system"'
+      message: "The property 'prevValue.system' is invalid. " +
+        `Received ${value.system}`,
     }
   );
 });

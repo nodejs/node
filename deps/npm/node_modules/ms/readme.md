@@ -1,7 +1,6 @@
 # ms
 
-[![Build Status](https://travis-ci.org/zeit/ms.svg?branch=master)](https://travis-ci.org/zeit/ms)
-[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat/)
+![CI](https://github.com/vercel/ms/workflows/CI/badge.svg)
 
 Use this package to easily convert various time formats to milliseconds.
 

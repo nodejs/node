@@ -20,7 +20,7 @@ function close() { this.close(); }
 // Test listen(port, cb) and listen({ port }, cb) combinations
 const listenOnPort = [
   (port, cb) => net.createServer().listen({ port }, cb),
-  (port, cb) => net.createServer().listen(port, cb)
+  (port, cb) => net.createServer().listen(port, cb),
 ];
 
 {
@@ -69,9 +69,9 @@ const listenOnPort = [
     } else {
       assert.throws(fn,
                     {
-                      code: 'ERR_INVALID_OPT_VALUE',
+                      code: 'ERR_INVALID_ARG_VALUE',
                       name: 'TypeError',
-                      message: /^The value "{.*}" is invalid for option "options"(?:\. .+)?$/,
+                      message: /^The argument 'options' is invalid\. Received .+$/,
                     });
     }
   }

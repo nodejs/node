@@ -11,7 +11,7 @@
 
 const path = require("path");
 const spawn = require("cross-spawn");
-const { isEmpty } = require("lodash");
+const os = require("os");
 const log = require("../shared/logging");
 const packageJson = require("../../package.json");
 
@@ -107,7 +107,7 @@ function environment() {
              * Checking globally returns an empty JSON object, while local checks
              * include the name and version of the local project.
              */
-            if (isEmpty(parsedStdout) || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
+            if (Object.keys(parsedStdout).length === 0 || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
                 return "Not found";
             }
 
@@ -141,7 +141,8 @@ function environment() {
         `Node version: ${getBinVersion("node")}`,
         `npm version: ${getBinVersion("npm")}`,
         `Local ESLint version: ${getNpmPackageVersion("eslint", { global: false })}`,
-        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`
+        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`,
+        `Operating System: ${os.platform()} ${os.release()}`
     ].join("\n");
 }
 

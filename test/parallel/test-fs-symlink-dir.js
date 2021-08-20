@@ -18,11 +18,11 @@ tmpdir.refresh();
 
 const linkTargets = [
   'relative-target',
-  path.join(tmpdir.path, 'absolute-target')
+  path.join(tmpdir.path, 'absolute-target'),
 ];
 const linkPaths = [
   path.relative(process.cwd(), path.join(tmpdir.path, 'relative-path')),
-  path.join(tmpdir.path, 'absolute-path')
+  path.join(tmpdir.path, 'absolute-path'),
 ];
 
 function testSync(target, path) {
@@ -31,8 +31,7 @@ function testSync(target, path) {
 }
 
 function testAsync(target, path) {
-  fs.symlink(target, path, common.mustCall((err) => {
-    assert.ifError(err);
+  fs.symlink(target, path, common.mustSucceed(() => {
     fs.readdirSync(path);
   }));
 }
@@ -53,8 +52,7 @@ for (const linkTarget of linkTargets) {
   }
 
   function testAsync(target, path) {
-    fs.symlink(target, path, common.mustCall((err) => {
-      assert.ifError(err);
+    fs.symlink(target, path, common.mustSucceed(() => {
       assert(!fs.existsSync(path));
     }));
   }

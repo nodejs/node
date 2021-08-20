@@ -70,7 +70,7 @@ const messages = [
   { tail: 'Fourth message to send', mcast: MULTICASTS[FAM][2] },
   { tail: 'Fifth message to send', mcast: MULTICASTS[FAM][1], rcv: true },
   { tail: 'Sixth message to send', mcast: MULTICASTS[FAM][2], rcv: true,
-    newAddr: LOOPBACK[FAM] }
+    newAddr: LOOPBACK[FAM] },
 ];
 
 

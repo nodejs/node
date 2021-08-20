@@ -6,20 +6,22 @@
 
 <!-- type=misc -->
 
-Node.js includes an out-of-process debugging utility accessible via a
-[V8 Inspector][] and built-in debugging client. To use it, start Node.js
-with the `inspect` argument followed by the path to the script to debug; a
-prompt will be displayed indicating successful launch of the debugger:
+Node.js includes a command-line debugging utility. To use it, start Node.js
+with the `inspect` argument followed by the path to the script to debug.
 
 ```console
 $ node inspect myscript.js
-< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
-Break on start in myscript.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-  3   console.log('world');
+<
+ ok
+Break on start in myscript.js:2
+  1 // myscript.js
+> 2 global.x = 5;
+  3 setTimeout(() => {
+  4   debugger;
 debug>
 ```
 
@@ -44,43 +46,50 @@ Once the debugger is run, a breakpoint will occur at line 3:
 
 ```console
 $ node inspect myscript.js
-< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
-Break on start in myscript.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-  3   debugger;
+<
+ ok
+Break on start in myscript.js:2
+  1 // myscript.js
+> 2 global.x = 5;
+  3 setTimeout(() => {
+  4   debugger;
 debug> cont
 < hello
-break in myscript.js:3
-  1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
-  2 setTimeout(() => {
-> 3   debugger;
-  4   console.log('world');
-  5 }, 1000);
-debug> next
+<
 break in myscript.js:4
-  2 setTimeout(() => {
-  3   debugger;
-> 4   console.log('world');
-  5 }, 1000);
-  6 console.log('hello');
+  2 global.x = 5;
+  3 setTimeout(() => {
+> 4   debugger;
+  5   console.log('world');
+  6 }, 1000);
+debug> next
+break in myscript.js:5
+  3 setTimeout(() => {
+  4   debugger;
+> 5   console.log('world');
+  6 }, 1000);
+  7 console.log('hello');
 debug> repl
-Press Ctrl + C to leave debug repl
+Press Ctrl+C to leave debug repl
 > x
 5
 > 2 + 2
 4
 debug> next
 < world
-break in myscript.js:5
-  3   debugger;
-  4   console.log('world');
-> 5 }, 1000);
-  6 console.log('hello');
-  7
+<
+break in myscript.js:6
+  4   debugger;
+  5   console.log('world');
+> 6 }, 1000);
+  7 console.log('hello');
+  8
 debug> .exit
+$
 ```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
@@ -115,22 +124,28 @@ To begin watching an expression, type `watch('my_expression')`. The command
 * `setBreakpoint()`, `sb()`: Set breakpoint on current line
 * `setBreakpoint(line)`, `sb(line)`: Set breakpoint on specific line
 * `setBreakpoint('fn()')`, `sb(...)`: Set breakpoint on a first statement in
-functions body
+  function's body
 * `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
-`script.js`
+  `script.js`
+* `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
+  breakpoint on first line of `script.js` that only breaks when `num < 4`
+  evaluates to `true`
 * `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
-on line 1
+  on line 1
 
 It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
 
 ```console
 $ node inspect main.js
-< Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
+< Debugger listening on ws://127.0.0.1:9229/48a5b28a-550c-471b-b5e1-d13dd7165df9
 < For help, see: https://nodejs.org/en/docs/inspector
+<
 < Debugger attached.
+<
+ ok
 Break on start in main.js:1
-> 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
+> 1 const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
 debug> setBreakpoint('mod.js', 22)
@@ -145,15 +160,51 @@ break in mod.js:22
 debug>
 ```
 
+It is also possible to set a conditional breakpoint that only breaks when a
+given expression evaluates to `true`:
+
+```console
+$ node inspect main.js
+< Debugger listening on ws://127.0.0.1:9229/ce24daa8-3816-44d4-b8ab-8273c8a66d35
+< For help, see: https://nodejs.org/en/docs/inspector
+< Debugger attached.
+Break on start in main.js:7
+  5 }
+  6
+> 7 addOne(10);
+  8 addOne(-1);
+  9
+debug> setBreakpoint('main.js', 4, 'num < 0')
+  1 'use strict';
+  2
+  3 function addOne(num) {
+> 4   return num + 1;
+  5 }
+  6
+  7 addOne(10);
+  8 addOne(-1);
+  9
+debug> cont
+break in main.js:4
+  2
+  3 function addOne(num) {
+> 4   return num + 1;
+  5 }
+  6
+debug> exec('num')
+-1
+debug>
+```
+
 ### Information
 
 * `backtrace`, `bt`: Print backtrace of current execution frame
 * `list(5)`: List scripts source code with 5 line context (5 lines before and
-after)
+  after)
 * `watch(expr)`: Add expression to watch list
 * `unwatch(expr)`: Remove expression from watch list
 * `watchers`: List all watchers and their values (automatically listed on each
-breakpoint)
+  breakpoint)
 * `repl`: Open debugger's repl for evaluation in debugging script's context
 * `exec expr`: Execute an expression in debugging script's context
 
@@ -200,6 +251,5 @@ Chrome DevTools doesn't support debugging [worker threads][] yet.
 [ndb][] can be used to debug them.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
-[worker threads]: worker_threads.html
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
+[worker threads]: worker_threads.md

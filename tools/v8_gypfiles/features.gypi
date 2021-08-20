@@ -62,6 +62,12 @@
       }, {
         'is_component_build': 0,
       }],
+      ['OS == "win" or OS == "mac"', {
+        # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+        'v8_enable_system_instrumentation': 1,
+      }, {
+        'v8_enable_system_instrumentation': 0,
+      }],
     ],
     'is_debug%': 0,
 
@@ -72,11 +78,6 @@
 
     # Sets -DV8_ENABLE_FUTURE.
     'v8_enable_future%': 0,
-
-    # Lite mode disables a number of performance optimizations to reduce memory
-    # at the cost of performance.
-    # Sets --DV8_LITE_MODE.
-    'v8_enable_lite_mode%': 0,
 
     # Sets -DVERIFY_HEAP.
     'v8_enable_verify_heap%': 0,
@@ -143,12 +144,6 @@
     # Sets -dV8_TRACE_FEEDBACK_UPDATES.
     'v8_enable_trace_feedback_updates%': 0,
 
-    # Sets -dV8_CONCURRENT_MARKING
-    'v8_enable_concurrent_marking%': 1,
-
-    # Sets -dV8_ARRAY_BUFFER_EXTENSION
-    'v8_enable_array_buffer_extension%': 1,
-
     # Enables various testing features.
     'v8_enable_test_features%': 0,
 
@@ -170,10 +165,6 @@
 
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
-
-    # Temporary flag to allow embedders to update their microtasks scopes
-    # while rolling in a new version of V8.
-    'v8_check_microtasks_scopes_consistency%': 0,
 
     # Enable mitigations for executing untrusted code.
     'v8_untrusted_code_mitigations%': 1,
@@ -212,15 +203,35 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
-    # Experimental support for native context independent code.
-    # https://crbug.com/v8/8888
-    'v8_enable_nci_code%': 0,
+    # Enable V8 zone compression experimental feature.
+    # Sets -DV8_COMPRESS_ZONES.
+    'v8_enable_zone_compression%': 0,
+
+    # Experimental feature for collecting per-class zone memory stats.
+    # Requires use_rtti = true
+    'v8_enable_precise_zone_stats%': 0,
+
+    # Experimental feature for tracking constness of properties in non-global
+    # dictionaries. Enabling this also always keeps prototypes in dict mode,
+    # meaning that they are not switched to fast mode.
+    # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
+    'v8_dict_property_const_tracking%': 0,
 
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
     # add a dependency on the ICU library.
     'v8_enable_i18n_support%': 1,
+
+    # Lite mode disables a number of performance optimizations to reduce memory
+    # at the cost of performance.
+    # Sets --DV8_LITE_MODE.
+    'v8_enable_lite_mode%': 0,
+
+    # Include support for WebAssembly. If disabled, the 'WebAssembly' global
+    # will not be available, and embedder APIs to generate WebAssembly modules
+    # will fail.
+    'v8_enable_webassembly%': 1,
   },
 
   'target_defaults': {
@@ -250,10 +261,16 @@
         'defines': ['ENABLE_MINOR_MC',],
       }],
       ['v8_enable_pointer_compression==1', {
-        'defines': ['V8_COMPRESS_POINTERS',],
+        'defines': [
+          'V8_COMPRESS_POINTERS',
+          'V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE',
+        ],
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
+      }],
+      ['v8_enable_zone_compression==1', {
+        'defines': ['V8_COMPRESS_ZONES',],
       }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
@@ -312,17 +329,8 @@
       ['v8_enable_third_party_heap==1', {
         'defines': ['V8_ENABLE_THIRD_PARTY_HEAP',],
       }],
-      ['v8_enable_concurrent_marking==1', {
-        'defines': ['V8_CONCURRENT_MARKING',],
-      }],
-      ['v8_enable_array_buffer_extension==1', {
-        'defines': ['V8_ARRAY_BUFFER_EXTENSION',],
-      }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
-      }],
-      ['v8_check_microtasks_scopes_consistency==1', {
-        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
       }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
@@ -351,8 +359,17 @@
       ['v8_control_flow_integrity==1', {
         'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
       }],
-      ['v8_enable_nci_code==1', {
-        'defines': ['V8_ENABLE_NCI_CODE',],
+      ['v8_enable_precise_zone_stats==1', {
+        'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      }],
+      ['v8_enable_system_instrumentation==1', {
+        'defines': ['V8_ENABLE_SYSTEM_INSTRUMENTATION',],
+      }],
+      ['v8_enable_webassembly==1', {
+        'defines': ['V8_ENABLE_WEBASSEMBLY',],
+      }],
+      ['v8_dict_property_const_tracking==1', {
+        'defines': ['V8_DICT_PROPERTY_CONST_TRACKING',],
       }],
     ],  # conditions
     'defines': [

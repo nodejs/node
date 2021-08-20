@@ -51,6 +51,11 @@ class span {
 };
 
 template <size_t N>
+constexpr span<char> MakeSpan(const char (&str)[N]) {
+  return span<char>(str, N - 1);
+}
+
+template <size_t N>
 constexpr span<uint8_t> SpanFrom(const char (&str)[N]) {
   return span<uint8_t>(reinterpret_cast<const uint8_t*>(str), N - 1);
 }
@@ -75,10 +80,14 @@ inline span<typename C::value_type> SpanFrom(const C& v) {
 }
 
 // Less than / equality comparison functions for sorting / searching for byte
-// spans. These are similar to absl::string_view's < and == operators.
+// spans.
 bool SpanLessThan(span<uint8_t> x, span<uint8_t> y) noexcept;
-
 bool SpanEquals(span<uint8_t> x, span<uint8_t> y) noexcept;
+
+// Less than / equality comparison functions for sorting / searching for byte
+// spans.
+bool SpanLessThan(span<char> x, span<char> y) noexcept;
+bool SpanEquals(span<char> x, span<char> y) noexcept;
 
 struct SpanLt {
   bool operator()(span<uint8_t> l, span<uint8_t> r) const {

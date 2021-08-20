@@ -40,11 +40,9 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
-using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 MaybeLocal<Object> PipeWrap::Instantiate(Environment* env,
@@ -70,8 +68,6 @@ void PipeWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  Local<String> pipeString = FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe");
-  t->SetClassName(pipeString);
   t->InstanceTemplate()
     ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
@@ -88,20 +84,13 @@ void PipeWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "fchmod", Fchmod);
 
-  target->Set(env->context(),
-              pipeString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "Pipe", t);
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
   auto cwt = BaseObject::MakeLazilyInitializedJSTemplate(env);
   cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
-  cwt->SetClassName(wrapString);
-  target->Set(env->context(),
-              wrapString,
-              cwt->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "PipeConnectWrap", cwt);
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -216,9 +205,8 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int err = uv_pipe_open(&wrap->handle_, fd);
   wrap->set_fd(fd);
 
-  Isolate* isolate = env->isolate();
   if (err != 0)
-    isolate->ThrowException(UVException(isolate, err, "uv_pipe_open"));
+    env->ThrowUVException(err, "uv_pipe_open");
 }
 
 

@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
 #include "src/base/memory.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -21,9 +27,12 @@ namespace wasm {
 
 class ZoneBuffer : public ZoneObject {
  public:
+  // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+  struct Buffer {};
+
   static constexpr size_t kInitialSize = 1024;
   explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
-      : zone_(zone), buffer_(reinterpret_cast<byte*>(zone->New(initial))) {
+      : zone_(zone), buffer_(zone->NewArray<byte, Buffer>(initial)) {
     pos_ = buffer_;
     end_ = buffer_ + initial;
   }
@@ -84,7 +93,7 @@ class ZoneBuffer : public ZoneObject {
   void write(const byte* data, size_t size) {
     if (size == 0) return;
     EnsureSpace(size);
-    memcpy(pos_, data, size);
+    base::Memcpy(pos_, data, size);
     pos_ += size;
   }
 
@@ -129,8 +138,8 @@ class ZoneBuffer : public ZoneObject {
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
       size_t new_size = size + (end_ - buffer_) * 2;
-      byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
-      memcpy(new_buffer, buffer_, (pos_ - buffer_));
+      byte* new_buffer = zone_->NewArray<byte, Buffer>(new_size);
+      base::Memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
       end_ = new_buffer + new_size;
@@ -172,6 +181,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitI64Const(int64_t val);
   void EmitF32Const(float val);
   void EmitF64Const(double val);
+  void EmitS128Const(Simd128 val);
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithI32V(WasmOpcode opcode, int32_t immediate);
@@ -201,6 +211,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
+  friend Zone;
 
   struct DirectCallIndex {
     size_t offset;
@@ -230,17 +241,20 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
+  WasmModuleBuilder(const WasmModuleBuilder&) = delete;
+  WasmModuleBuilder& operator=(const WasmModuleBuilder&) = delete;
 
   // Building methods.
   uint32_t AddImport(Vector<const char> name, FunctionSig* sig,
                      Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool mutability = true,
-                     const WasmInitExpr& init = WasmInitExpr());
+                     WasmInitExpr init = WasmInitExpr());
   uint32_t AddGlobalImport(Vector<const char> name, ValueType type,
                            bool mutability, Vector<const char> module = {});
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
+  uint32_t AddException(FunctionSig* type);
   uint32_t AddStructType(StructType* type);
   uint32_t AddArrayType(ArrayType* type);
   // In the current implementation, it's supported to have uninitialized slots
@@ -251,14 +265,16 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetMaxTableSize(uint32_t max);
   uint32_t AddTable(ValueType type, uint32_t min_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
+  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
+                    WasmInitExpr init);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder) {
     AddExport(name, kExternalFunction, builder->func_index());
   }
-  uint32_t AddExportedGlobal(ValueType type, bool mutability,
-                             const WasmInitExpr& init, Vector<const char> name);
+  uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
+                             Vector<const char> name);
   void ExportImportedFunction(Vector<const char> name, int import_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
@@ -274,6 +290,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     DCHECK(types_[index].kind == Type::kFunctionSig);
     return types_[index].sig;
   }
+
+  int NumExceptions() { return static_cast<int>(exceptions_.size()); }
+
+  FunctionSig* GetExceptionType(int index) {
+    return types_[exceptions_[index]].sig;
+  }
+
+  static const uint32_t kNullIndex;
 
  private:
   struct Type {
@@ -312,6 +336,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmGlobal {
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmGlobal);
+
     ValueType type;
     bool mutability;
     WasmInitExpr init;
@@ -322,6 +348,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t min_size;
     uint32_t max_size;
     bool has_maximum;
+    WasmInitExpr init;
   };
 
   struct WasmDataSegment {
@@ -340,6 +367,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
   ZoneVector<WasmGlobal> globals_;
+  ZoneVector<int> exceptions_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int start_function_index_;
   uint32_t max_table_size_ = 0;

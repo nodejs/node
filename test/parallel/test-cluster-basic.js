@@ -38,7 +38,7 @@ function forEach(obj, fn) {
 
 if (cluster.isWorker) {
   require('http').Server(common.mustNotCall()).listen(0, '127.0.0.1');
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const checks = {
     cluster: {

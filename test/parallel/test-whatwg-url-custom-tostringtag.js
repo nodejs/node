@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const URL = require('url').URL;
 
 const toString = Object.prototype.toString;
 

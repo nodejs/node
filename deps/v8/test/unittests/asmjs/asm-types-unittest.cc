@@ -178,7 +178,7 @@ TEST_F(AsmTypeTest, ValidateBits) {
   EXPECT_EQ(total_types, seen_numbers.size());
 }
 
-TEST_F(AsmTypeTest, SaneParentsMap) {
+TEST_F(AsmTypeTest, SensibleParentsMap) {
   // This test ensures our parents map contains all the parents types that are
   // specified in the types' declaration. It does not report bogus inheritance.
 

@@ -34,6 +34,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
+  // TODO(jgruber): Remove this method once GetPropertyAccessInfo no longer
+  // uses the two-phase approach between serialization and compilation.
+  void ClearForConcurrentGetPropertyAccessInfo() { dependencies_.clear(); }
+
   // Return the initial map of {function} and record the assumption that it
   // stays the initial map.
   MapRef DependOnInitialMap(const JSFunctionRef& function);
@@ -45,21 +49,23 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
 
-  // Record the assumption that {target_map} can be transitioned to, i.e., that
-  // it does not become deprecated.
-  void DependOnTransition(const MapRef& target_map);
+  // Depend on the fact that accessing property |property_name| from
+  // |receiver_map| yields the constant value |constant|, which is held by
+  // |holder|. Therefore, must be invalidated if |property_name| is added to any
+  // of the objects between receiver and |holder| on the prototype chain, b) any
+  // of the objects on the prototype chain up to |holder| change prototypes, or
+  // c) the value of |property_name| in |holder| changes.
+  // If PropertyKind is kData, |constant| is the value of the property in
+  // question. In case of PropertyKind::kAccessor, |constant| is the accessor
+  // function (i.e., getter or setter) itself, not the overall AccessorPair.
+  void DependOnConstantInDictionaryPrototypeChain(const MapRef& receiver_map,
+                                                  const NameRef& property_name,
+                                                  const ObjectRef& constant,
+                                                  PropertyKind kind);
 
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
   AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
-
-  // Record the assumption that the field representation of a field does not
-  // change. The field is identified by the arguments.
-  void DependOnFieldRepresentation(const MapRef& map, InternalIndex descriptor);
-
-  // Record the assumption that the field type of a field does not change. The
-  // field is identified by the arguments.
-  void DependOnFieldType(const MapRef& map, InternalIndex descriptor);
 
   // Return a field's constness and, if kConst, record the assumption that it
   // remains kConst. The field is identified by the arguments.
@@ -110,22 +116,27 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
       const JSFunctionRef& function);
 
-  // The methods below allow for gathering dependencies without actually
-  // recording them. They can be recorded at a later time (or they can be
-  // ignored). For example,
-  //   DependOnTransition(map);
-  // is equivalent to:
-  //   RecordDependency(TransitionDependencyOffTheRecord(map));
+  // Records {dependency} if not null.
   void RecordDependency(CompilationDependency const* dependency);
+
+  // The methods below allow for gathering dependencies without actually
+  // recording them. They can be recorded at a later time via RecordDependency
+  // (or they can be ignored).
+
+  // Gather the assumption that {target_map} can be transitioned to, i.e., that
+  // it does not become deprecated.
   CompilationDependency const* TransitionDependencyOffTheRecord(
       const MapRef& target_map) const;
+
+  // Gather the assumption that the field representation of a field does not
+  // change. The field is identified by the arguments.
   CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
       const MapRef& map, InternalIndex descriptor) const;
+
+  // Gather the assumption that the field type of a field does not change. The
+  // field is identified by the arguments.
   CompilationDependency const* FieldTypeDependencyOffTheRecord(
       const MapRef& map, InternalIndex descriptor) const;
-
-  // Exposed only for testing purposes.
-  bool AreValid() const;
 
  private:
   Zone* const zone_;

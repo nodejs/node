@@ -579,6 +579,24 @@ TimeZone::createDefault()
 
 // -------------------------------------
 
+TimeZone* U_EXPORT2
+TimeZone::forLocaleOrDefault(const Locale& locale)
+{
+    char buffer[ULOC_KEYWORDS_CAPACITY] = "";
+    UErrorCode localStatus = U_ZERO_ERROR;
+    int32_t count = locale.getKeywordValue("timezone", buffer, sizeof(buffer), localStatus);
+    if (U_FAILURE(localStatus) || localStatus == U_STRING_NOT_TERMINATED_WARNING) {
+        // the "timezone" keyword exceeds ULOC_KEYWORDS_CAPACITY; ignore and use default.
+        count = 0;
+    }
+    if (count > 0) {
+        return TimeZone::createTimeZone(UnicodeString(buffer, count, US_INV));
+    }
+    return TimeZone::createDefault();
+}
+
+// -------------------------------------
+
 void U_EXPORT2
 TimeZone::adoptDefault(TimeZone* zone)
 {
@@ -1660,7 +1678,7 @@ TimeZone::getIDForWindowsID(const UnicodeString& winid, const char* region, Unic
     winidKey[winKeyLen] = 0;
 
     ures_getByKey(zones, winidKey, zones, &tmperr); // use tmperr, because windows mapping might not
-                                                    // be avaiable by design
+                                                    // be available by design
     if (U_FAILURE(tmperr)) {
         ures_close(zones);
         return id;

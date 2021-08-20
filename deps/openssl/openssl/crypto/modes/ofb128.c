@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,12 @@
 #include <openssl/crypto.h>
 #include "modes_local.h"
 #include <string.h>
+
+#if defined(__GNUC__) && !defined(STRICT_ALIGNMENT)
+typedef size_t size_t_aX __attribute((__aligned__(1)));
+#else
+typedef size_t size_t_aX;
+#endif
 
 /*
  * The input and output encrypted as though 128bit ofb mode is being used.
@@ -41,8 +47,9 @@ void CRYPTO_ofb128_encrypt(const unsigned char *in, unsigned char *out,
             while (len >= 16) {
                 (*block) (ivec, ivec, key);
                 for (; n < 16; n += sizeof(size_t))
-                    *(size_t *)(out + n) =
-                        *(size_t *)(in + n) ^ *(size_t *)(ivec + n);
+                    *(size_t_aX *)(out + n) =
+                        *(size_t_aX *)(in + n)
+                        ^ *(size_t_aX *)(ivec + n);
                 len -= 16;
                 out += 16;
                 in += 16;

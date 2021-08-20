@@ -945,7 +945,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         if (c == RULE_COMMENT_CHAR) {
             pos = rule.indexOf((UChar)0x000A /*\n*/, pos) + 1;
             if (pos == 0) {
-                break; // No "\n" found; rest of rule is a commnet
+                break; // No "\n" found; rest of rule is a comment
             }
             continue; // Either fall out or restart with next line
         }
@@ -1159,7 +1159,7 @@ void TransliteratorParser::setVariableRange(int32_t start, int32_t end, UErrorCo
 
 /**
  * Assert that the given character is NOT within the variable range.
- * If it is, return FALSE.  This is neccesary to ensure that the
+ * If it is, return FALSE.  This is necessary to ensure that the
  * variable range does not overlap characters used in a rule.
  */
 UBool TransliteratorParser::checkVariableRange(UChar32 ch) const {
@@ -1557,7 +1557,7 @@ UChar TransliteratorParser::getSegmentStandin(int32_t seg, UErrorCode& status) {
             return 0;
         }
         c = variableNext++;
-        // Set a placeholder in the master variables vector that will be
+        // Set a placeholder in the primary variables vector that will be
         // filled in later by setSegmentObject().  We know that we will get
         // called first because setSegmentObject() will call us.
         variablesVector.addElement((void*) NULL, status);

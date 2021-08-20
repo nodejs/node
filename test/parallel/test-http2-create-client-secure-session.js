@@ -73,7 +73,7 @@ function verifySecureSession(key, cert, ca, opts) {
       assert.strictEqual(jsonData.servername,
                          opts.servername || 'localhost');
       assert.strictEqual(jsonData.alpnProtocol, 'h2');
-      server.close(common.mustCall());
+      server.close(common.mustSucceed());
       client[kSocket].destroy();
     }));
   }));

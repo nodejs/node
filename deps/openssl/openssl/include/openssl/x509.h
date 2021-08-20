@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -478,6 +478,7 @@ void X509_ALGOR_get0(const ASN1_OBJECT **paobj, int *pptype,
                      const void **ppval, const X509_ALGOR *algor);
 void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md);
 int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b);
+int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src);
 
 X509_NAME *X509_NAME_dup(X509_NAME *xn);
 X509_NAME_ENTRY *X509_NAME_ENTRY_dup(X509_NAME_ENTRY *ne);
@@ -679,6 +680,8 @@ X509_NAME *X509_REQ_get_subject_name(const X509_REQ *req);
 int X509_REQ_set_subject_name(X509_REQ *req, X509_NAME *name);
 void X509_REQ_get0_signature(const X509_REQ *req, const ASN1_BIT_STRING **psig,
                              const X509_ALGOR **palg);
+void X509_REQ_set0_signature(X509_REQ *req, ASN1_BIT_STRING *psig);
+int X509_REQ_set1_signature_algo(X509_REQ *req, X509_ALGOR *palg);
 int X509_REQ_get_signature_nid(const X509_REQ *req);
 int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp);
 int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
@@ -930,7 +933,7 @@ STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_txt(STACK_OF(X509_ATTRIBUTE)
                                                   int type,
                                                   const unsigned char *bytes,
                                                   int len);
-void *X509at_get0_data_by_OBJ(STACK_OF(X509_ATTRIBUTE) *x,
+void *X509at_get0_data_by_OBJ(const STACK_OF(X509_ATTRIBUTE) *x,
                               const ASN1_OBJECT *obj, int lastpos, int type);
 X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_NID(X509_ATTRIBUTE **attr, int nid,
                                              int atrtype, const void *data,

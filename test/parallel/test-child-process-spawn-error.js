@@ -41,6 +41,11 @@ assert.strictEqual(enoentChild.stdio[0], enoentChild.stdin);
 assert.strictEqual(enoentChild.stdio[1], enoentChild.stdout);
 assert.strictEqual(enoentChild.stdio[2], enoentChild.stderr);
 
+// Verify pid is not assigned.
+assert.strictEqual(enoentChild.pid, undefined);
+
+enoentChild.on('spawn', common.mustNotCall());
+
 enoentChild.on('error', common.mustCall(function(err) {
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(getSystemErrorName(err.errno), 'ENOENT');

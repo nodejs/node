@@ -219,7 +219,12 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   uint32_t symbols[HISTOGRAMS_PER_BATCH] = { 0 };
   uint32_t remap[HISTOGRAMS_PER_BATCH] = { 0 };
 
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(histogram_symbols) ||
+      BROTLI_IS_NULL(block_lengths) || BROTLI_IS_NULL(all_histograms) ||
+      BROTLI_IS_NULL(cluster_size) || BROTLI_IS_NULL(histograms) ||
+      BROTLI_IS_NULL(pairs)) {
+    return;
+  }
 
   memset(block_lengths, 0, num_blocks * sizeof(uint32_t));
 
@@ -278,11 +283,11 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   if (pairs_capacity < max_num_pairs + 1) {
     BROTLI_FREE(m, pairs);
     pairs = BROTLI_ALLOC(m, HistogramPair, max_num_pairs + 1);
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(pairs)) return;
   }
 
   clusters = BROTLI_ALLOC(m, uint32_t, num_clusters);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(clusters)) return;
   for (i = 0; i < num_clusters; ++i) {
     clusters[i] = (uint32_t)i;
   }
@@ -294,7 +299,7 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   BROTLI_FREE(m, cluster_size);
 
   new_index = BROTLI_ALLOC(m, uint32_t, num_clusters);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(new_index)) return;
   for (i = 0; i < num_clusters; ++i) new_index[i] = kInvalidIndex;
   pos = 0;
   {
@@ -386,7 +391,7 @@ static void FN(SplitByteVector)(MemoryManager* m,
     return;
   }
   histograms = BROTLI_ALLOC(m, HistogramType, num_histograms);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(histograms)) return;
   /* Find good entropy codes. */
   FN(InitialEntropyCodes)(data, length,
                           sampling_stride_length,
@@ -405,7 +410,11 @@ static void FN(SplitByteVector)(MemoryManager* m,
     uint16_t* new_id = BROTLI_ALLOC(m, uint16_t, num_histograms);
     const size_t iters = params->quality < HQ_ZOPFLIFICATION_QUALITY ? 3 : 10;
     size_t i;
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(block_ids) ||
+        BROTLI_IS_NULL(insert_cost) || BROTLI_IS_NULL(cost) ||
+        BROTLI_IS_NULL(switch_signal) || BROTLI_IS_NULL(new_id)) {
+      return;
+    }
     for (i = 0; i < iters; ++i) {
       num_blocks = FN(FindBlocks)(data, length,
                                   block_switch_cost,

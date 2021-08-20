@@ -4,27 +4,25 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-/*
- * The goal of this test is to make sure that:
- *
- * - Even if --abort_on_uncaught_exception is passed on the command line,
- * setting up a top-level domain error handler and throwing an error
- * within this domain does *not* make the process abort. The process exits
- * gracefully.
- *
- * - When passing --abort_on_uncaught_exception on the command line and
- * setting up a top-level domain error handler, an error thrown
- * within this domain's error handler *does* make the process abort.
- *
- * - When *not* passing --abort_on_uncaught_exception on the command line and
- * setting up a top-level domain error handler, an error thrown within this
- * domain's error handler does *not* make the process abort, but makes it exit
- * with the proper failure exit code.
- *
- * - When throwing an error within the top-level domain's error handler
- * within a try/catch block, the process should exit gracefully, whether or
- * not --abort_on_uncaught_exception is passed on the command line.
- */
+// The goal of this test is to make sure that:
+//
+// - Even if --abort_on_uncaught_exception is passed on the command line,
+// setting up a top-level domain error handler and throwing an error
+// within this domain does *not* make the process abort. The process exits
+// gracefully.
+//
+// - When passing --abort_on_uncaught_exception on the command line and
+// setting up a top-level domain error handler, an error thrown
+// within this domain's error handler *does* make the process abort.
+//
+// - When *not* passing --abort_on_uncaught_exception on the command line and
+// setting up a top-level domain error handler, an error thrown within this
+// domain's error handler does *not* make the process abort, but makes it exit
+// with the proper failure exit code.
+//
+// - When throwing an error within the top-level domain's error handler
+// within a try/catch block, the process should exit gracefully, whether or
+// not --abort_on_uncaught_exception is passed on the command line.
 
 const domainErrHandlerExMessage = 'exception from domain error handler';
 

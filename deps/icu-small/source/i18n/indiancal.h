@@ -25,7 +25,7 @@ U_NAMESPACE_BEGIN
  * Concrete class which provides the Indian calendar.
  * <P>
  * <code>IndianCalendar</code> is a subclass of <code>Calendar</code>
- * that numbers years since the begining of SAKA ERA.  This is the civil calendar
+ * that numbers years since the beginning of SAKA ERA.  This is the civil calendar
  * which is accepted by government of India as Indian National Calendar.
  * The two calendars most widely used in India today are the Vikrama calendar
  * followed in North India and the Shalivahana or Saka calendar which is followed
@@ -147,7 +147,7 @@ public:
    * @param aLocale  The given locale.
    * @param success  Indicates the status of IndianCalendar object construction.
    *                 Returns U_ZERO_ERROR if constructed successfully.
-   * @param beCivil  Whether the calendar should be civil (default-TRUE) or religious (FALSE)
+   * @param beCivil  Whether the calendar should be civil (default-true) or religious (false)
    * @internal
    */
   IndianCalendar(const Locale& aLocale, UErrorCode &success);
@@ -303,7 +303,7 @@ protected:
 
 
   /**
-   * Returns TRUE because the Indian Calendar does have a default century
+   * Returns true because the Indian Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

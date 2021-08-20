@@ -136,6 +136,16 @@ class AutoAffixPatternProvider {
         }
     }
 
+    inline void setTo(const AffixPatternProvider* provider, UErrorCode& status) {
+        if (auto ptr = dynamic_cast<const PropertiesAffixPatternProvider*>(provider)) {
+            propertiesAPP = *ptr;
+        } else if (auto ptr = dynamic_cast<const CurrencyPluralInfoAffixProvider*>(provider)) {
+            currencyPluralInfoAPP = *ptr;
+        } else {
+            status = U_INTERNAL_PROGRAM_ERROR;
+        }
+    }
+
     inline const AffixPatternProvider& get() const {
       if (!currencyPluralInfoAPP.isBogus()) {
         return currencyPluralInfoAPP;
@@ -153,9 +163,9 @@ class AutoAffixPatternProvider {
 /**
  * A struct for ownership of a few objects needed for formatting.
  */
-struct DecimalFormatWarehouse {
+struct DecimalFormatWarehouse : public UMemory {
     AutoAffixPatternProvider affixProvider;
-
+    LocalPointer<PluralRules> rules;
 };
 
 

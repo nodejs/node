@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -1393,7 +1393,7 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 # define SSL_get1_groups(s, glist) \
         SSL_ctrl(s,SSL_CTRL_GET_GROUPS,0,(int*)(glist))
 # define SSL_CTX_set1_groups(ctx, glist, glistlen) \
-        SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS,glistlen,(char *)(glist))
+        SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS,glistlen,(int *)(glist))
 # define SSL_CTX_set1_groups_list(ctx, s) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_GROUPS_LIST,0,(char *)(s))
 # define SSL_set1_groups(s, glist, glistlen) \
@@ -2473,7 +2473,22 @@ __owur int SSL_process_quic_post_handshake(SSL *ssl);
 
 __owur int SSL_is_quic(SSL *ssl);
 
+/* BoringSSL API */
+void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy);
+
+/*
+ * Set an explicit value that you want to use
+ * If 0 (default) the server will use the highest extenstion the client sent
+ * If 0 (default) the client will send both extensions
+ */
+void SSL_set_quic_transport_version(SSL *ssl, int version);
+__owur int SSL_get_quic_transport_version(const SSL *ssl);
+/* Returns the negotiated version, or -1 on error */
+__owur int SSL_get_peer_quic_transport_version(const SSL *ssl);
+
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
+
+void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
 
 #  endif
 

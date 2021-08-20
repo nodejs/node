@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/graph-reducer.h"
+
 #include <functional>
 #include <limits>
 
 #include "src/codegen/tick-counter.h"
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
+#include "src/compiler/node-observer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/verifier.h"
@@ -26,15 +29,28 @@ enum class GraphReducer::State : uint8_t {
 
 void Reducer::Finalize() {}
 
+Reduction Reducer::Reduce(Node* node,
+                          ObserveNodeManager* observe_node_manager) {
+  Reduction reduction = Reduce(node);
+  if (V8_UNLIKELY(observe_node_manager && reduction.Changed())) {
+    observe_node_manager->OnNodeChanged(reducer_name(), node,
+                                        reduction.replacement());
+  }
+  return reduction;
+}
+
 GraphReducer::GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
-                           Node* dead)
+                           JSHeapBroker* broker, Node* dead,
+                           ObserveNodeManager* observe_node_manager)
     : graph_(graph),
       dead_(dead),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
       stack_(zone),
-      tick_counter_(tick_counter) {
+      tick_counter_(tick_counter),
+      broker_(broker),
+      observe_node_manager_(observe_node_manager) {
   if (dead != nullptr) {
     NodeProperties::SetType(dead_, Type::None());
   }
@@ -85,8 +101,8 @@ Reduction GraphReducer::Reduce(Node* const node) {
   auto skip = reducers_.end();
   for (auto i = reducers_.begin(); i != reducers_.end();) {
     if (i != skip) {
-      tick_counter_->DoTick();
-      Reduction reduction = (*i)->Reduce(node);
+      tick_counter_->TickAndMaybeEnterSafepoint();
+      Reduction reduction = (*i)->Reduce(node, observe_node_manager_);
       if (!reduction.Changed()) {
         // No change from this reducer.
       } else if (reduction.replacement() == node) {
@@ -94,6 +110,9 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
         if (FLAG_trace_turbo_reduction) {
+          UnparkedScopeIfNeeded unparked(broker_);
+          // TODO(neis): Disallow racy handle dereference once we stop
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- In-place update of #" << *node << " by reducer "
                          << (*i)->reducer_name() << std::endl;
@@ -104,6 +123,9 @@ Reduction GraphReducer::Reduce(Node* const node) {
       } else {
         // {node} was replaced by another node.
         if (FLAG_trace_turbo_reduction) {
+          UnparkedScopeIfNeeded unparked(broker_);
+          // TODO(neis): Disallow racy handle dereference once we stop
+          // supporting --no-local-heaps --no-concurrent-inlining.
           AllowHandleDereference allow_deref;
           StdoutStream{} << "- Replacement of #" << *node << " with #"
                          << *(reduction.replacement()) << " by reducer "

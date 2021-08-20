@@ -4,6 +4,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const Manifest = require('internal/policy/manifest').Manifest;
 
@@ -84,7 +85,7 @@ for (const totalDepth of [1, 2, 3]) {
         }
       }
     });
-    const redirector = manifest.getRedirector('test:_');
+    const redirector = manifest.getDependencyMapper('test:_');
     for (const { target, conditions } of order) {
       const result = redirector.resolve('_', conditions).href;
       if (result !== target) {

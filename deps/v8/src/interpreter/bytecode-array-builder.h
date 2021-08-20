@@ -43,12 +43,15 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
-  template <typename LocalIsolate>
+  BytecodeArrayBuilder(const BytecodeArrayBuilder&) = delete;
+  BytecodeArrayBuilder& operator=(const BytecodeArrayBuilder&) = delete;
+
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate);
-  template <typename LocalIsolate>
+  Handle<BytecodeArray> ToBytecodeArray(IsolateT* isolate);
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -87,7 +90,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
   BytecodeArrayBuilder& LoadLiteral(AstBigInt bigint);
-  BytecodeArrayBuilder& LoadLiteral(AstSymbol symbol);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
@@ -135,6 +137,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Named load property without feedback
   BytecodeArrayBuilder& LoadNamedPropertyNoFeedback(Register object,
                                                     const AstRawString* name);
+
+  BytecodeArrayBuilder& LoadNamedPropertyFromSuper(Register object,
+                                                   const AstRawString* name,
+                                                   int feedback_slot);
 
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
@@ -193,11 +199,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // in the accumulator.
   BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
                                             int feedback_slot);
-  // Store the home object property. The value to be stored should be in the
-  // accumulator.
-  BytecodeArrayBuilder& StoreHomeObjectProperty(Register object,
-                                                int feedback_slot,
-                                                LanguageMode language_mode);
 
   // Store the class fields property. The initializer to be stored should
   // be in the accumulator.
@@ -455,6 +456,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ThrowReferenceErrorIfHole(const AstRawString* name);
   BytecodeArrayBuilder& ThrowSuperNotCalledIfHole();
   BytecodeArrayBuilder& ThrowSuperAlreadyCalledIfNotHole();
+  BytecodeArrayBuilder& ThrowIfNotSuperConstructor(Register constructor);
 
   // Debugger.
   BytecodeArrayBuilder& Debugger();
@@ -506,8 +508,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   void InitializeReturnPosition(FunctionLiteral* literal);
 
   void SetStatementPosition(Statement* stmt) {
-    if (stmt->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(stmt->position());
+    SetStatementPosition(stmt->position());
+  }
+
+  void SetStatementPosition(int position) {
+    if (position == kNoSourcePosition) return;
+    latest_source_info_.MakeStatementPosition(position);
   }
 
   void SetExpressionPosition(Expression* expr) {
@@ -524,16 +530,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   void SetExpressionAsStatementPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(expr->position());
-  }
-
-  void SetReturnPosition(int source_position, FunctionLiteral* literal) {
-    if (source_position != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(source_position);
-    } else if (literal->return_position() != kNoSourcePosition) {
-      latest_source_info_.MakeStatementPosition(literal->return_position());
-    }
+    SetStatementPosition(expr->position());
   }
 
   bool RemainderOfBlockIsDead() const {
@@ -565,7 +562,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use,
             OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
@@ -611,7 +608,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
   void PrepareToOutputBytecode();
 
   BytecodeArrayWriter* bytecode_array_writer() {
@@ -639,8 +636,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(

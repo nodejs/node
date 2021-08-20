@@ -16,7 +16,6 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 // JSUDPWrap is a testing utility used by test/common/udppair.js
@@ -162,7 +161,7 @@ void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
     ssize_t avail = std::min<size_t>(buf.len, len);
     memcpy(buf.base, data, avail);
     data += avail;
-    len -= avail;
+    len -= static_cast<int>(avail);
     wrap->listener()->OnRecv(
         avail, buf, reinterpret_cast<sockaddr*>(&addr), flags);
   }
@@ -195,9 +194,6 @@ void JSUDPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  Local<String> js_udp_wrap_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "JSUDPWrap");
-  t->SetClassName(js_udp_wrap_string);
   t->InstanceTemplate()
     ->SetInternalFieldCount(UDPWrapBase::kUDPWrapBaseField + 1);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -207,9 +203,7 @@ void JSUDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "onSendDone", OnSendDone);
   env->SetProtoMethod(t, "onAfterBind", OnAfterBind);
 
-  target->Set(env->context(),
-              js_udp_wrap_string,
-              t->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "JSUDPWrap", t);
 }
 
 

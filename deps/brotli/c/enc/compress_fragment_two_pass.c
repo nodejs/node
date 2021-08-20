@@ -524,7 +524,7 @@ static void StoreCommands(MemoryManager* m,
 static BROTLI_BOOL ShouldCompress(
     const uint8_t* input, size_t input_size, size_t num_literals) {
   double corpus_size = (double)input_size;
-  if (num_literals < MIN_RATIO * corpus_size) {
+  if ((double)num_literals < MIN_RATIO * corpus_size) {
     return BROTLI_TRUE;
   } else {
     uint32_t literal_histo[256] = { 0 };

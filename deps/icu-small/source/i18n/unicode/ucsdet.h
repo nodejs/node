@@ -25,8 +25,11 @@
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/localpointer.h"
 #include "unicode/uenum.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -75,7 +78,7 @@ typedef struct UCharsetMatch UCharsetMatch;
   *  @return the newly opened charset detector.
   *  @stable ICU 3.6
   */
-U_STABLE UCharsetDetector * U_EXPORT2
+U_CAPI UCharsetDetector * U_EXPORT2
 ucsdet_open(UErrorCode   *status);
 
 /**
@@ -87,7 +90,7 @@ ucsdet_open(UErrorCode   *status);
   *  @param ucsd  The charset detector to be closed.
   *  @stable ICU 3.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucsdet_close(UCharsetDetector *ucsd);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -124,7 +127,7 @@ U_NAMESPACE_END
   *
   * @stable ICU 3.6
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucsdet_setText(UCharsetDetector *ucsd, const char *textIn, int32_t len, UErrorCode *status);
 
 
@@ -146,7 +149,7 @@ ucsdet_setText(UCharsetDetector *ucsd, const char *textIn, int32_t len, UErrorCo
  *
  * @stable ICU 3.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucsdet_setDeclaredEncoding(UCharsetDetector *ucsd, const char *encoding, int32_t length, UErrorCode *status);
 
 
@@ -175,7 +178,7 @@ ucsdet_setDeclaredEncoding(UCharsetDetector *ucsd, const char *encoding, int32_t
  *
  * @stable ICU 3.6
  */
-U_STABLE const UCharsetMatch * U_EXPORT2
+U_CAPI const UCharsetMatch * U_EXPORT2
 ucsdet_detect(UCharsetDetector *ucsd, UErrorCode *status);
 
 
@@ -209,7 +212,7 @@ ucsdet_detect(UCharsetDetector *ucsd, UErrorCode *status);
  *                      the detector is closed or modified.
  * @stable ICU 3.6
  */
-U_STABLE const UCharsetMatch ** U_EXPORT2
+U_CAPI const UCharsetMatch ** U_EXPORT2
 ucsdet_detectAll(UCharsetDetector *ucsd, int32_t *matchesFound, UErrorCode *status);
 
 
@@ -229,7 +232,7 @@ ucsdet_detectAll(UCharsetDetector *ucsd, int32_t *matchesFound, UErrorCode *stat
  *
  *  @stable ICU 3.6
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ucsdet_getName(const UCharsetMatch *ucsm, UErrorCode *status);
 
 /**
@@ -255,7 +258,7 @@ ucsdet_getName(const UCharsetMatch *ucsm, UErrorCode *status);
  *
  *  @stable ICU 3.6
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ucsdet_getConfidence(const UCharsetMatch *ucsm, UErrorCode *status);
 
 /**
@@ -287,7 +290,7 @@ ucsdet_getConfidence(const UCharsetMatch *ucsm, UErrorCode *status);
  *
  *  @stable ICU 3.6
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ucsdet_getLanguage(const UCharsetMatch *ucsm, UErrorCode *status);
 
 
@@ -313,7 +316,7 @@ ucsdet_getLanguage(const UCharsetMatch *ucsm, UErrorCode *status);
   *
   * @stable ICU 3.6
   */
-U_STABLE  int32_t U_EXPORT2
+U_CAPI  int32_t U_EXPORT2
 ucsdet_getUChars(const UCharsetMatch *ucsm,
                  UChar *buf, int32_t cap, UErrorCode *status);
 
@@ -347,7 +350,7 @@ ucsdet_getUChars(const UCharsetMatch *ucsm,
   *  @return an iterator providing access to the detectable charset names.
   *  @stable ICU 3.6
   */
-U_STABLE  UEnumeration * U_EXPORT2
+U_CAPI  UEnumeration * U_EXPORT2
 ucsdet_getAllDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *status);
 
 /**
@@ -357,11 +360,11 @@ ucsdet_getAllDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *statu
   *  heuristics.
   *
   *  @param ucsd  The charset detector to check.
-  *  @return TRUE if filtering is enabled.
+  *  @return true if filtering is enabled.
   *  @stable ICU 3.6
   */
 
-U_STABLE  UBool U_EXPORT2
+U_CAPI  UBool U_EXPORT2
 ucsdet_isInputFilterEnabled(const UCharsetDetector *ucsd);
 
 
@@ -376,7 +379,7 @@ ucsdet_isInputFilterEnabled(const UCharsetDetector *ucsd);
  *
  * @stable ICU 3.6
  */
-U_STABLE  UBool U_EXPORT2
+U_CAPI  UBool U_EXPORT2
 ucsdet_enableInputFilter(UCharsetDetector *ucsd, UBool filter);
 
 #ifndef U_HIDE_INTERNAL_API
@@ -393,7 +396,7 @@ ucsdet_enableInputFilter(UCharsetDetector *ucsd, UBool filter);
   *  the specified charset detector.
   *  @internal
   */
-U_INTERNAL UEnumeration * U_EXPORT2
+U_CAPI UEnumeration * U_EXPORT2
 ucsdet_getDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *status);
 
 /**
@@ -403,13 +406,13 @@ ucsdet_getDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *status);
   *
   * @param ucsd a Charset detector.
   * @param encoding encoding the name of charset encoding.
-  * @param enabled <code>TRUE</code> to enable, or <code>FALSE</code> to disable the
+  * @param enabled <code>true</code> to enable, or <code>false</code> to disable the
   *   charset encoding.
   * @param status receives the return status. When the name of charset encoding
   *   is not supported, U_ILLEGAL_ARGUMENT_ERROR is set.
   * @internal
   */
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 ucsdet_setDetectableCharset(UCharsetDetector *ucsd, const char *encoding, UBool enabled, UErrorCode *status);
 #endif  /* U_HIDE_INTERNAL_API */
 

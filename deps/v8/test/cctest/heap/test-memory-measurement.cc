@@ -57,8 +57,6 @@ TEST(NativeContextInferrerJSObject) {
   Handle<HeapObject> function = Handle<HeapObject>::cast(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
-  // TODO(ulan): Enable this test once we have more precise native
-  // context inference.
   CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
   CHECK_EQ(native_context->ptr(), inferred_context);
 }
@@ -91,7 +89,6 @@ TEST(NativeContextStatsArrayBuffers) {
                       *i_array_buffer, 10);
   CHECK_EQ(1010, stats.Get(native_context->ptr()));
 }
-
 namespace {
 
 class TestResource : public v8::String::ExternalStringResource {
@@ -128,6 +125,163 @@ TEST(NativeContextStatsExternalString) {
   NativeContextStats stats;
   stats.IncrementSize(native_context->ptr(), i_string->map(), *i_string, 10);
   CHECK_EQ(10 + 10 * 2, stats.Get(native_context->ptr()));
+}
+
+namespace {
+
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform() : TestPlatform(), mock_task_runner_(new MockTaskRunner()) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate*) override {
+    return mock_task_runner_;
+  }
+
+  double Delay() { return mock_task_runner_->Delay(); }
+
+  void PerformTask() { mock_task_runner_->PerformTask(); }
+
+  bool TaskPosted() { return mock_task_runner_->TaskPosted(); }
+
+ private:
+  class MockTaskRunner : public v8::TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {}
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      task_ = std::move(task);
+      delay_ = delay_in_seconds;
+    }
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool NonNestableTasksEnabled() const override { return true; }
+
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
+
+    bool IdleTasksEnabled() override { return false; }
+
+    double Delay() { return delay_; }
+
+    void PerformTask() {
+      std::unique_ptr<Task> task = std::move(task_);
+      task->Run();
+    }
+
+    bool TaskPosted() { return task_.get(); }
+
+   private:
+    double delay_ = -1;
+    std::unique_ptr<Task> task_;
+  };
+  std::shared_ptr<MockTaskRunner> mock_task_runner_;
+};
+
+class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
+ public:
+  bool ShouldMeasure(v8::Local<v8::Context> context) override { return true; }
+
+  void MeasurementComplete(
+      const std::vector<std::pair<v8::Local<v8::Context>, size_t>>&
+          context_sizes_in_bytes,
+      size_t unattributed_size_in_bytes) override {
+    // Empty.
+  }
+};
+
+}  // namespace
+
+TEST(RandomizedTimeout) {
+  MockPlatform platform;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  // We have to create the isolate manually here. Using CcTest::isolate() would
+  // lead to the situation when the isolate outlives MockPlatform which may lead
+  // to UAF on the background thread.
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  std::vector<double> delays;
+  for (int i = 0; i < 10; i++) {
+    isolate->MeasureMemory(std::make_unique<MockMeasureMemoryDelegate>());
+    delays.push_back(platform.Delay());
+    platform.PerformTask();
+  }
+  std::sort(delays.begin(), delays.end());
+  isolate->Dispose();
+  CHECK_LT(delays[0], delays.back());
+}
+
+TEST(LazyMemoryMeasurement) {
+  CcTest::InitializeVM();
+  MockPlatform platform;
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kLazy);
+  CHECK(!platform.TaskPosted());
+}
+
+TEST(PartiallyInitializedJSFunction) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<JSFunction> js_function = factory->NewFunctionForTesting(
+      factory->NewStringFromAsciiChecked("test"));
+  Handle<Context> context = handle(js_function->context(), isolate);
+
+  // 1. Start simulating deserializaiton.
+  isolate->RegisterDeserializerStarted();
+  // 2. Set the context field to the uninitialized sentintel.
+  TaggedField<Object, JSFunction::kContextOffset>::store(
+      *js_function, Deserializer::uninitialized_field_value());
+  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // of the measurement should not crash.
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kEager);
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       CcTest::isolate())) {
+  }
+  // 4. Restore the value and complete deserialization.
+  TaggedField<Object, JSFunction::kContextOffset>::store(*js_function,
+                                                         *context);
+  isolate->RegisterDeserializerFinished();
+}
+
+TEST(PartiallyInitializedContext) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+  Handle<Context> context = factory->NewScriptContext(
+      GetNativeContext(isolate, env.local()), scope_info);
+  Handle<Map> map = handle(context->map(), isolate);
+  Handle<NativeContext> native_context = handle(map->native_context(), isolate);
+  // 1. Start simulating deserializaiton.
+  isolate->RegisterDeserializerStarted();
+  // 2. Set the native context field to the uninitialized sentintel.
+  TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
+      store(*map, Deserializer::uninitialized_field_value());
+  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // of the measurement should not crash.
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kEager);
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       CcTest::isolate())) {
+  }
+  // 4. Restore the value and complete deserialization.
+  TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
+      store(*map, *native_context);
+  isolate->RegisterDeserializerFinished();
 }
 
 }  // namespace heap

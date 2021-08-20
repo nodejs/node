@@ -13,24 +13,6 @@
 #include "../common/constants.h"
 #include <brotli/types.h>
 
-/* Represents the range of values belonging to a prefix code:
-   [offset, offset + 2^nbits) */
-struct PrefixCodeRange {
-  uint16_t offset;
-  uint8_t nbits;
-};
-
-static const struct PrefixCodeRange
-    kBlockLengthPrefixCode[BROTLI_NUM_BLOCK_LEN_SYMBOLS] = {
-  {   1,  2}, {    5,  2}, {  9,   2}, {  13,  2},
-  {  17,  3}, {   25,  3}, {  33,  3}, {  41,  3},
-  {  49,  4}, {   65,  4}, {  81,  4}, {  97,  4},
-  { 113,  5}, {  145,  5}, { 177,  5}, { 209,  5},
-  { 241,  6}, {  305,  6}, { 369,  7}, { 497,  8},
-  { 753,  9}, { 1265, 10}, {2289, 11}, {4337, 12},
-  {8433, 13}, {16625, 24}
-};
-
 typedef struct CmdLutElement {
   uint8_t insert_len_extra_bits;
   uint8_t copy_len_extra_bits;

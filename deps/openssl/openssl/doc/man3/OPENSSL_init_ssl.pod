@@ -23,14 +23,14 @@ needs so no explicit initialisation is required. Similarly it will also
 automatically deinitialise as required.
 
 However, there may be situations when explicit initialisation is desirable or
-needed, for example when some non-default initialisation is required. The
+needed, for example when some nondefault initialisation is required. The
 function OPENSSL_init_ssl() can be used for this purpose. Calling
 this function will explicitly initialise BOTH libcrypto and libssl. To
 explicitly initialise ONLY libcrypto see the
 L<OPENSSL_init_crypto(3)> function.
 
 Numerous internal OpenSSL functions call OPENSSL_init_ssl().
-Therefore, in order to perform non-default initialisation,
+Therefore, in order to perform nondefault initialisation,
 OPENSSL_init_ssl() MUST be called by application code prior to
 any other OpenSSL function calls.
 
@@ -74,7 +74,7 @@ The OPENSSL_init_ssl() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

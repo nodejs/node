@@ -8,7 +8,7 @@ const invalidAddress = 'fasdfdsaf';
 assert.throws(() => {
   lookupService(invalidAddress, 0);
 }, {
-  code: 'ERR_INVALID_OPT_VALUE',
+  code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
-  message: `The value "${invalidAddress}" is invalid for option "address"`
+  message: `The argument 'address' is invalid. Received '${invalidAddress}'`
 });

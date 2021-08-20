@@ -8,7 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,15 +16,22 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/name-tq.inc"
+
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
-  inline bool HasHashCode();
+  inline bool HasHashCode() const;
 
-  // Returns a hash value used for the property table
-  inline uint32_t Hash();
+  // Returns a hash value used for the property table. Ensures that the hash
+  // value is computed.
+  inline uint32_t EnsureHash();
+
+  // Returns a hash value used for the property table (same as Hash()), assumes
+  // the hash is already computed.
+  inline uint32_t hash() const;
 
   // Equality operations.
   inline bool Equals(Name other);
@@ -131,8 +138,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static const int kEmptyHashField =
       kIsNotIntegerIndexMask | kHashNotComputedMask;
 
- protected:
-  static inline bool IsHashFieldComputed(uint32_t field);
+  static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
 };

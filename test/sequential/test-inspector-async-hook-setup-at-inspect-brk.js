@@ -24,7 +24,7 @@ async function checkAsyncStackTrace(session) {
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
   assert(paused.params.asyncStackTrace.callFrames
-           .some((frame) => frame.functionName === 'Module._compile'));
+           .some((frame) => frame.url === 'node:internal/process/execution'));
 }
 
 async function runTests() {
@@ -37,7 +37,7 @@ async function runTests() {
       'params': { 'maxDepth': 10 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ]);
   await skipBreakpointAtStart(session);
   await checkAsyncStackTrace(session);

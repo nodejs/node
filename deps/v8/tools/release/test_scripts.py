@@ -540,7 +540,7 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
 
-TBR=reviewer@chromium.org"""
+R=reviewer@chromium.org"""
 
   # Snippet from the original DEPS file.
   FAKE_DEPS = """
@@ -558,9 +558,11 @@ deps = {
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
     json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
+    chrome_dir = TEST_CONFIG["CHROMIUM"]
     self.Expect([
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
       Cmd("git describe --tags last_roll_hsh", "3.22.4"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=395200 --tags",
@@ -597,6 +599,7 @@ deps = {
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
       Cmd("git describe --tags last_roll_hsh", "3.22.3.1"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=395200 --tags",
@@ -609,7 +612,7 @@ deps = {
       Cmd("git describe --tags roll_hsh", "3.22.4"),
       Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
@@ -621,9 +624,9 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail -f "
-          "--cq-dry-run --bypass-hooks", "",
+          "--cq-dry-run --set-bot-commit --bypass-hooks", "",
           cwd=chrome_dir),
-      Cmd("git checkout -f master", "", cwd=chrome_dir),
+      Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
     self.Expect(expectations)

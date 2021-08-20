@@ -2,27 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class StackFrameInfo extends Struct {
-  line_number: Smi;
-  column_number: Smi;
-  promise_all_index: Smi;
-  script_id: Smi;
-  wasm_function_index: Smi;
-  script_name: String|Null|Undefined;
-  script_name_or_source_url: String|Null|Undefined;
-  function_name: String|Null|Undefined;
-  method_name: String|Null|Undefined;
-  type_name: String|Null|Undefined;
-  eval_origin: String|Null|Undefined;
-  wasm_module_name: String|Null|Undefined;
-  wasm_instance: WasmInstanceObject|Null|Undefined;
-  flag: Smi;
+bitfield struct StackFrameInfoFlags extends uint31 {
+  is_wasm: bool: 1 bit;
+  is_asm_js_wasm: bool: 1 bit;  // Implies that is_wasm bit is set.
+  is_strict: bool: 1 bit;
+  is_constructor: bool: 1 bit;
+  is_asm_js_at_number_conversion: bool: 1 bit;
+  is_async: bool: 1 bit;
+
+  // whether offset_or_source_position contains the source position.
+  is_source_position_computed: bool: 1 bit;
 }
 
 @generateCppClass
-extern class StackTraceFrame extends Struct {
-  frame_array: FrameArray|Undefined;
-  frame_index: Smi;
-  frame_info: StackFrameInfo|Undefined;
-  id: Smi;
+extern class StackFrameInfo extends Struct {
+  receiver_or_instance: JSAny;
+  function: JSFunction|Smi;
+  code_object: HeapObject;
+  code_offset_or_source_position: Smi;
+  flags: SmiTagged<StackFrameInfoFlags>;
+  parameters: FixedArray;
 }

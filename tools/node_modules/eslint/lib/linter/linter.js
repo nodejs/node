@@ -15,12 +15,12 @@ const
     eslintScope = require("eslint-scope"),
     evk = require("eslint-visitor-keys"),
     espree = require("espree"),
-    lodash = require("lodash"),
-    BuiltInEnvironments = require("../../conf/environments"),
+    merge = require("lodash.merge"),
+    BuiltInEnvironments = require("@eslint/eslintrc/conf/environments"),
     pkg = require("../../package.json"),
     astUtils = require("../shared/ast-utils"),
-    ConfigOps = require("../shared/config-ops"),
-    validator = require("../shared/config-validator"),
+    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
+    ConfigValidator = require("@eslint/eslintrc/lib/shared/config-validator"),
     Traverser = require("../shared/traverser"),
     { SourceCode } = require("../source-code"),
     CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),
@@ -37,8 +37,10 @@ const
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
 const DEFAULT_PARSER_NAME = "espree";
+const DEFAULT_ECMA_VERSION = 5;
 const commentParser = new ConfigCommentParser();
 const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } };
+const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -293,6 +295,9 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
     const exportedVariables = {};
     const problems = [];
     const disableDirectives = [];
+    const validator = new ConfigValidator({
+        builtInRules: Rules
+    });
 
     ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
         const trimmedCommentText = stripDirectiveComment(comment.value);
@@ -429,10 +434,16 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
 
 /**
  * Normalize ECMAScript version from the initial config
- * @param  {number} ecmaVersion ECMAScript version from the initial config
+ * @param {Parser} parser The parser which uses this options.
+ * @param {number} ecmaVersion ECMAScript version from the initial config
  * @returns {number} normalized ECMAScript version
  */
-function normalizeEcmaVersion(ecmaVersion) {
+function normalizeEcmaVersion(parser, ecmaVersion) {
+    if ((parser[parserSymbol] || parser) === espree) {
+        if (ecmaVersion === "latest") {
+            return espree.latestEcmaVersion;
+        }
+    }
 
     /*
      * Calculate ECMAScript edition number from official year version starting with
@@ -441,7 +452,7 @@ function normalizeEcmaVersion(ecmaVersion) {
     return ecmaVersion >= 2015 ? ecmaVersion - 2009 : ecmaVersion;
 }
 
-const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//gu;
+const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//gsu;
 
 /**
  * Checks whether or not there is a comment which has "eslint-env *" in a given text.
@@ -518,16 +529,17 @@ function normalizeVerifyOptions(providedOptions, config) {
 
 /**
  * Combines the provided parserOptions with the options from environments
- * @param {string} parserName The parser name which uses this options.
+ * @param {Parser} parser The parser which uses this options.
  * @param {ParserOptions} providedOptions The provided 'parserOptions' key in a config
  * @param {Environment[]} enabledEnvironments The environments enabled in configuration and with inline comments
  * @returns {ParserOptions} Resulting parser options after merge
  */
-function resolveParserOptions(parserName, providedOptions, enabledEnvironments) {
+function resolveParserOptions(parser, providedOptions, enabledEnvironments) {
+
     const parserOptionsFromEnv = enabledEnvironments
         .filter(env => env.parserOptions)
-        .reduce((parserOptions, env) => lodash.merge(parserOptions, env.parserOptions), {});
-    const mergedParserOptions = lodash.merge(parserOptionsFromEnv, providedOptions || {});
+        .reduce((parserOptions, env) => merge(parserOptions, env.parserOptions), {});
+    const mergedParserOptions = merge(parserOptionsFromEnv, providedOptions || {});
     const isModule = mergedParserOptions.sourceType === "module";
 
     if (isModule) {
@@ -539,12 +551,7 @@ function resolveParserOptions(parserName, providedOptions, enabledEnvironments) 
         mergedParserOptions.ecmaFeatures = Object.assign({}, mergedParserOptions.ecmaFeatures, { globalReturn: false });
     }
 
-    /*
-     * TODO: @aladdin-add
-     * 1. for a 3rd-party parser, do not normalize parserOptions
-     * 2. for espree, no need to do this (espree will do it)
-     */
-    mergedParserOptions.ecmaVersion = normalizeEcmaVersion(mergedParserOptions.ecmaVersion);
+    mergedParserOptions.ecmaVersion = normalizeEcmaVersion(parser, mergedParserOptions.ecmaVersion);
 
     return mergedParserOptions;
 }
@@ -603,7 +610,7 @@ function getRuleOptions(ruleConfig) {
  */
 function analyzeScope(ast, parserOptions, visitorKeys) {
     const ecmaFeatures = parserOptions.ecmaFeatures || {};
-    const ecmaVersion = parserOptions.ecmaVersion || 5;
+    const ecmaVersion = parserOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
 
     return eslintScope.analyze(ast, {
         ignoreEval: true,
@@ -825,9 +832,10 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(
  * @param {string} filename The reported filename of the code
  * @param {boolean} disableFixes If true, it doesn't make `fix` properties.
  * @param {string | undefined} cwd cwd of the cli
+ * @param {string} physicalFilename The full path of the file on disk without any code block information
  * @returns {Problem[]} An array of reported problems
  */
-function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd) {
+function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd, physicalFilename) {
     const emitter = createEmitter();
     const nodeQueue = [];
     let currentNode = sourceCode.ast;
@@ -856,6 +864,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
                 getDeclaredVariables: sourceCode.scopeManager.getDeclaredVariables.bind(sourceCode.scopeManager),
                 getCwd: () => cwd,
                 getFilename: () => filename,
+                getPhysicalFilename: () => physicalFilename || filename,
                 getScope: () => getScope(sourceCode.scopeManager, currentNode),
                 getSourceCode: () => sourceCode,
                 markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, parserOptions, name),
@@ -939,7 +948,9 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
     });
 
     // only run code path analyzer if the top level node is "Program", skip otherwise
-    const eventGenerator = nodeQueue[0].node.type === "Program" ? new CodePathAnalyzer(new NodeEventGenerator(emitter)) : new NodeEventGenerator(emitter);
+    const eventGenerator = nodeQueue[0].node.type === "Program"
+        ? new CodePathAnalyzer(new NodeEventGenerator(emitter, { visitorKeys: sourceCode.visitorKeys, fallback: Traverser.getKeys }))
+        : new NodeEventGenerator(emitter, { visitorKeys: sourceCode.visitorKeys, fallback: Traverser.getKeys });
 
     nodeQueue.forEach(traversalInfo => {
         currentNode = traversalInfo.node;
@@ -1116,7 +1127,7 @@ class Linter {
             .map(envName => getEnv(slots, envName))
             .filter(env => env);
 
-        const parserOptions = resolveParserOptions(parserName, config.parserOptions || {}, enabledEnvs);
+        const parserOptions = resolveParserOptions(parser, config.parserOptions || {}, enabledEnvs);
         const configuredGlobals = resolveGlobals(config.globals || {}, enabledEnvs);
         const settings = config.settings || {};
 
@@ -1176,7 +1187,8 @@ class Linter {
                 settings,
                 options.filename,
                 options.disableFixes,
-                slots.cwd
+                slots.cwd,
+                providedOptions.physicalFilename
             );
         } catch (err) {
             err.message += `\nOccurred while linting ${options.filename}`;
@@ -1279,9 +1291,12 @@ class Linter {
     _verifyWithProcessor(textOrSourceCode, config, options, configForRecursive) {
         const filename = options.filename || "<input>";
         const filenameToExpose = normalizeFilename(filename);
+        const physicalFilename = options.physicalFilename || filenameToExpose;
         const text = ensureText(textOrSourceCode);
         const preprocess = options.preprocess || (rawText => [rawText]);
-        const postprocess = options.postprocess || lodash.flatten;
+
+        // TODO(stephenwade): Replace this with array.flat() when we drop support for Node v10
+        const postprocess = options.postprocess || (array => [].concat(...array));
         const filterCodeBlock =
             options.filterCodeBlock ||
             (blockFilename => blockFilename.endsWith(".js"));
@@ -1303,13 +1318,13 @@ class Linter {
                 return [];
             }
 
-            // Resolve configuration again if the file extension was changed.
-            if (configForRecursive && path.extname(blockName) !== originalExtname) {
-                debug("Resolving configuration again because the file extension was changed.");
+            // Resolve configuration again if the file content or extension was changed.
+            if (configForRecursive && (text !== blockText || path.extname(blockName) !== originalExtname)) {
+                debug("Resolving configuration again because the file content or extension was changed.");
                 return this._verifyWithConfigArray(
                     blockText,
                     configForRecursive,
-                    { ...options, filename: blockName }
+                    { ...options, filename: blockName, physicalFilename }
                 );
             }
 
@@ -1317,7 +1332,7 @@ class Linter {
             return this._verifyWithoutProcessors(
                 blockText,
                 config,
-                { ...options, filename: blockName }
+                { ...options, filename: blockName, physicalFilename }
             );
         });
 

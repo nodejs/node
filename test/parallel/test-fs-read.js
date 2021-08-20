@@ -35,8 +35,7 @@ function test(bufferAsync, bufferSync, expected) {
           0,
           expected.length,
           0,
-          common.mustCall((err, bytesRead) => {
-            assert.ifError(err);
+          common.mustSucceed((bytesRead) => {
             assert.strictEqual(bytesRead, expected.length);
             assert.deepStrictEqual(bufferAsync, expected);
           }));
@@ -62,8 +61,7 @@ test(new Uint8Array(expected.length),
   const nRead = fs.readSync(fd, Buffer.alloc(1), 0, 1, pos);
   assert.strictEqual(nRead, 0);
 
-  fs.read(fd, Buffer.alloc(1), 0, 1, pos, common.mustCall((err, nRead) => {
-    assert.ifError(err);
+  fs.read(fd, Buffer.alloc(1), 0, 1, pos, common.mustSucceed((nRead) => {
     assert.strictEqual(nRead, 0);
   }));
 }
@@ -80,13 +78,21 @@ assert.throws(
   }
 );
 
-['buffer', 'offset', 'length'].forEach((option) =>
-  assert.throws(
-    () => fs.read(fd, {
-      [option]: null
-    }),
-    `not throws when options.${option} is null`
-  ));
+assert.throws(
+  () => fs.read(fd, { buffer: null }, common.mustNotCall()),
+  /TypeError: Cannot read property 'byteLength' of null/,
+  'throws when options.buffer is null'
+);
+
+assert.throws(
+  () => fs.readSync(fd, { buffer: null }),
+  {
+    name: 'TypeError',
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+    'TypedArray, or DataView. Received an instance of Object',
+  },
+  'throws when options.buffer is null'
+);
 
 assert.throws(
   () => fs.read(null, Buffer.alloc(1), 0, 1, 0),

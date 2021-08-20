@@ -1,12 +1,10 @@
 'use strict';
 
-/*
- * The goal of this test is to make sure that errors thrown within domains
- * are handled correctly. It checks that the process' 'uncaughtException' event
- * is emitted when appropriate, and not emitted when it shouldn't. It also
- * checks that the proper domain error handlers are called when they should
- * be called, and not called when they shouldn't.
- */
+// The goal of this test is to make sure that errors thrown within domains
+// are handled correctly. It checks that the process' 'uncaughtException' event
+// is emitted when appropriate, and not emitted when it shouldn't. It also
+// checks that the proper domain error handlers are called when they should
+// be called, and not called when they shouldn't.
 
 const common = require('../common');
 const assert = require('assert');
@@ -16,11 +14,9 @@ const child_process = require('child_process');
 const tests = [];
 
 function test1() {
-  /*
-   * Throwing from an async callback from within a domain that doesn't have
-   * an error handler must result in emitting the process' uncaughtException
-   * event.
-   */
+  // Throwing from an async callback from within a domain that doesn't have
+  // an error handler must result in emitting the process' uncaughtException
+  // event.
   const d = domain.create();
   d.run(function() {
     setTimeout(function onTimeout() {
@@ -35,10 +31,8 @@ tests.push({
 });
 
 function test2() {
-  /*
-   * Throwing from from within a domain that doesn't have an error handler must
-   * result in emitting the process' uncaughtException event.
-   */
+  // Throwing from from within a domain that doesn't have an error handler must
+  // result in emitting the process' uncaughtException event.
   const d2 = domain.create();
   d2.run(function() {
     throw new Error('boom!');
@@ -51,11 +45,9 @@ tests.push({
 });
 
 function test3() {
-  /*
-   * This test creates two nested domains: d3 and d4. d4 doesn't register an
-   * error handler, but d3 does. The error is handled by the d3 domain and thus
-   * an 'uncaughtException' event should _not_ be emitted.
-   */
+  // This test creates two nested domains: d3 and d4. d4 doesn't register an
+  // error handler, but d3 does. The error is handled by the d3 domain and thus
+  // an 'uncaughtException' event should _not_ be emitted.
   const d3 = domain.create();
   const d4 = domain.create();
 
@@ -76,15 +68,13 @@ tests.push({
 });
 
 function test4() {
-  /*
-   * This test creates two nested domains: d5 and d6. d6 doesn't register an
-   * error handler. When the timer's callback is called, because async
-   * operations like timer callbacks are bound to the domain that was active
-   * at the time of their creation, and because both d5 and d6 domains have
-   * exited by the time the timer's callback is called, its callback runs with
-   * only d6 on the domains stack. Since d6 doesn't register an error handler,
-   * the process' uncaughtException event should be emitted.
-   */
+  // This test creates two nested domains: d5 and d6. d6 doesn't register an
+  // error handler. When the timer's callback is called, because async
+  // operations like timer callbacks are bound to the domain that was active
+  // at the time of their creation, and because both d5 and d6 domains have
+  // exited by the time the timer's callback is called, its callback runs with
+  // only d6 on the domains stack. Since d6 doesn't register an error handler,
+  // the process' uncaughtException event should be emitted.
   const d5 = domain.create();
   const d6 = domain.create();
 
@@ -107,11 +97,9 @@ tests.push({
 });
 
 function test5() {
-  /*
-   * This test creates two nested domains: d7 and d8. d8 _does_ register an
-   * error handler, so throwing within that domain should not emit an uncaught
-   * exception.
-   */
+  // This test creates two nested domains: d7 and d8. d8 _does_ register an
+  // error handler, so throwing within that domain should not emit an uncaught
+  // exception.
   const d7 = domain.create();
   const d8 = domain.create();
 
@@ -131,11 +119,10 @@ tests.push({
 });
 
 function test6() {
-  /*
-   * This test creates two nested domains: d9 and d10. d10 _does_ register an
-   * error handler, so throwing within that domain in an async callback should
-   * _not_ emit an uncaught exception.
-   */
+  // This test creates two nested domains: d9 and d10. d10 _does_ register an
+  // error handler, so throwing within that domain in an async callback should
+  // _not_ emit an uncaught exception.
+  //
   const d9 = domain.create();
   const d10 = domain.create();
 

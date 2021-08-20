@@ -20,7 +20,7 @@ class Assembler;
 // Code comments section layout:
 // byte count              content
 // ------------------------------------------------------------------------
-// 4                       size as uint32_t (only for sanity check)
+// 4                       size as uint32_t (only for a check)
 // [Inline array of CodeCommentEntry in increasing pc_offset order]
 // ┌ 4                     pc_offset of entry as uint32_t
 // ├ 4                     length of the comment including terminating '\0'
@@ -61,9 +61,6 @@ class V8_EXPORT_PRIVATE CodeCommentsIterator {
   uint32_t code_comments_size_;
   Address current_entry_;
 };
-
-void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start,
-                              uint32_t code_comments_size);
 
 }  // namespace internal
 }  // namespace v8

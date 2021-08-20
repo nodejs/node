@@ -68,9 +68,17 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode 
     init(status);
     fData = new RBBIDataWrapper(data, status); // status checked in constructor
     if (U_FAILURE(status)) {return;}
-    if(fData == 0) {
+    if(fData == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
+    }
+    if (fData->fForwardTable->fLookAheadResultsSize > 0) {
+        fLookAheadMatches = static_cast<int32_t *>(
+            uprv_malloc(fData->fForwardTable->fLookAheadResultsSize * sizeof(int32_t)));
+        if (fLookAheadMatches == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
 }
 
@@ -98,9 +106,17 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(const uint8_t *compiledRules,
     }
     fData = new RBBIDataWrapper(data, RBBIDataWrapper::kDontAdopt, status);
     if (U_FAILURE(status)) {return;}
-    if(fData == 0) {
+    if(fData == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
+    }
+    if (fData->fForwardTable->fLookAheadResultsSize > 0) {
+        fLookAheadMatches = static_cast<int32_t *>(
+            uprv_malloc(fData->fForwardTable->fLookAheadResultsSize * sizeof(int32_t)));
+        if (fLookAheadMatches == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
 }
 
@@ -117,9 +133,17 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(UDataMemory* udm, UErrorCode &sta
     init(status);
     fData = new RBBIDataWrapper(udm, status); // status checked in constructor
     if (U_FAILURE(status)) {return;}
-    if(fData == 0) {
+    if(fData == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
+    }
+    if (fData->fForwardTable->fLookAheadResultsSize > 0) {
+        fLookAheadMatches = static_cast<int32_t *>(
+            uprv_malloc(fData->fForwardTable->fLookAheadResultsSize * sizeof(int32_t)));
+        if (fLookAheadMatches == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
 }
 
@@ -188,30 +212,34 @@ RuleBasedBreakIterator::~RuleBasedBreakIterator() {
         // fCharIter was adopted from the outside.
         delete fCharIter;
     }
-    fCharIter = NULL;
+    fCharIter = nullptr;
 
     utext_close(&fText);
 
-    if (fData != NULL) {
+    if (fData != nullptr) {
         fData->removeReference();
-        fData = NULL;
+        fData = nullptr;
     }
     delete fBreakCache;
-    fBreakCache = NULL;
+    fBreakCache = nullptr;
 
     delete fDictionaryCache;
-    fDictionaryCache = NULL;
+    fDictionaryCache = nullptr;
 
     delete fLanguageBreakEngines;
-    fLanguageBreakEngines = NULL;
+    fLanguageBreakEngines = nullptr;
 
     delete fUnhandledBreakEngine;
-    fUnhandledBreakEngine = NULL;
+    fUnhandledBreakEngine = nullptr;
+
+    uprv_free(fLookAheadMatches);
+    fLookAheadMatches = nullptr;
 }
 
 /**
  * Assignment operator.  Sets this iterator to have the same behavior,
  * and iterate over the same text, as the one passed in.
+ * TODO: needs better handling of memory allocation errors.
  */
 RuleBasedBreakIterator&
 RuleBasedBreakIterator::operator=(const RuleBasedBreakIterator& that) {
@@ -252,6 +280,14 @@ RuleBasedBreakIterator::operator=(const RuleBasedBreakIterator& that) {
         fData = that.fData->addReference();
     }
 
+    uprv_free(fLookAheadMatches);
+    fLookAheadMatches = nullptr;
+    if (fData && fData->fForwardTable->fLookAheadResultsSize > 0) {
+        fLookAheadMatches = static_cast<int32_t *>(
+            uprv_malloc(fData->fForwardTable->fLookAheadResultsSize * sizeof(int32_t)));
+    }
+
+
     fPosition = that.fPosition;
     fRuleStatusIndex = that.fRuleStatusIndex;
     fDone = that.fDone;
@@ -275,16 +311,17 @@ RuleBasedBreakIterator::operator=(const RuleBasedBreakIterator& that) {
 //
 //-----------------------------------------------------------------------------
 void RuleBasedBreakIterator::init(UErrorCode &status) {
-    fCharIter             = NULL;
-    fData                 = NULL;
+    fCharIter             = nullptr;
+    fData                 = nullptr;
     fPosition             = 0;
     fRuleStatusIndex      = 0;
     fDone                 = false;
     fDictionaryCharCount  = 0;
-    fLanguageBreakEngines = NULL;
-    fUnhandledBreakEngine = NULL;
-    fBreakCache           = NULL;
-    fDictionaryCache      = NULL;
+    fLanguageBreakEngines = nullptr;
+    fUnhandledBreakEngine = nullptr;
+    fBreakCache           = nullptr;
+    fDictionaryCache      = nullptr;
+    fLookAheadMatches     = nullptr;
 
     // Note: IBM xlC is unable to assign or initialize member fText from UTEXT_INITIALIZER.
     // fText                 = UTEXT_INITIALIZER;
@@ -700,50 +737,53 @@ enum RBBIRunMode {
 };
 
 
-// Map from look-ahead break states (corresponds to rules) to boundary positions.
-// Allows multiple lookahead break rules to be in flight at the same time.
+// Wrapper functions to select the appropriate handleNext() or handleSafePrevious()
+// instantiation, based on whether an 8 or 16 bit table is required.
 //
-// This is a temporary approach for ICU 57. A better fix is to make the look-ahead numbers
-// in the state table be sequential, then we can just index an array. And the
-// table could also tell us in advance how big that array needs to be.
-//
-// Before ICU 57 there was just a single simple variable for a look-ahead match that
-// was in progress. Two rules at once did not work.
+// These Trie access functions will be inlined within the handleNext()/Previous() instantions.
+static inline uint16_t TrieFunc8(const UCPTrie *trie, UChar32 c) {
+    return UCPTRIE_FAST_GET(trie, UCPTRIE_8, c);
+}
 
-static const int32_t kMaxLookaheads = 8;
-struct LookAheadResults {
-    int32_t    fUsedSlotLimit;
-    int32_t    fPositions[8];
-    int16_t    fKeys[8];
+static inline uint16_t TrieFunc16(const UCPTrie *trie, UChar32 c) {
+    return UCPTRIE_FAST_GET(trie, UCPTRIE_16, c);
+}
 
-    LookAheadResults() : fUsedSlotLimit(0), fPositions(), fKeys() {}
-
-    int32_t getPosition(int16_t key) {
-        for (int32_t i=0; i<fUsedSlotLimit; ++i) {
-            if (fKeys[i] == key) {
-                return fPositions[i];
-            }
+int32_t RuleBasedBreakIterator::handleNext() {
+    const RBBIStateTable *statetable = fData->fForwardTable;
+    bool use8BitsTrie = ucptrie_getValueWidth(fData->fTrie) == UCPTRIE_VALUE_BITS_8;
+    if (statetable->fFlags & RBBI_8BITS_ROWS) {
+        if (use8BitsTrie) {
+            return handleNext<RBBIStateTableRow8, TrieFunc8>();
+        } else {
+            return handleNext<RBBIStateTableRow8, TrieFunc16>();
         }
-        UPRV_UNREACHABLE;
+    } else {
+        if (use8BitsTrie) {
+            return handleNext<RBBIStateTableRow16, TrieFunc8>();
+        } else {
+            return handleNext<RBBIStateTableRow16, TrieFunc16>();
+        }
     }
+}
 
-    void setPosition(int16_t key, int32_t position) {
-        int32_t i;
-        for (i=0; i<fUsedSlotLimit; ++i) {
-            if (fKeys[i] == key) {
-                fPositions[i] = position;
-                return;
-            }
+int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
+    const RBBIStateTable *statetable = fData->fReverseTable;
+    bool use8BitsTrie = ucptrie_getValueWidth(fData->fTrie) == UCPTRIE_VALUE_BITS_8;
+    if (statetable->fFlags & RBBI_8BITS_ROWS) {
+        if (use8BitsTrie) {
+            return handleSafePrevious<RBBIStateTableRow8, TrieFunc8>(fromPosition);
+        } else {
+            return handleSafePrevious<RBBIStateTableRow8, TrieFunc16>(fromPosition);
         }
-        if (i >= kMaxLookaheads) {
-            UPRV_UNREACHABLE;
+    } else {
+        if (use8BitsTrie) {
+            return handleSafePrevious<RBBIStateTableRow16, TrieFunc8>(fromPosition);
+        } else {
+            return handleSafePrevious<RBBIStateTableRow16, TrieFunc16>(fromPosition);
         }
-        fKeys[i] = key;
-        fPositions[i] = position;
-        U_ASSERT(fUsedSlotLimit == i);
-        fUsedSlotLimit = i + 1;
     }
-};
+}
 
 
 //-----------------------------------------------------------------------------------
@@ -752,26 +792,27 @@ struct LookAheadResults {
 //     Run the state machine to find a boundary
 //
 //-----------------------------------------------------------------------------------
+template <typename RowType, RuleBasedBreakIterator::PTrieFunc trieFunc>
 int32_t RuleBasedBreakIterator::handleNext() {
     int32_t             state;
     uint16_t            category        = 0;
     RBBIRunMode         mode;
 
-    RBBIStateTableRow  *row;
+    RowType             *row;
     UChar32             c;
-    LookAheadResults    lookAheadMatches;
     int32_t             result             = 0;
     int32_t             initialPosition    = 0;
     const RBBIStateTable *statetable       = fData->fForwardTable;
     const char         *tableData          = statetable->fTableData;
     uint32_t            tableRowLen        = statetable->fRowLen;
+    uint32_t            dictStart          = statetable->fDictCategoriesStart;
     #ifdef RBBI_DEBUG
         if (gTrace) {
             RBBIDebugPuts("Handle Next   pos   char  state category");
         }
     #endif
 
-    // handleNext alway sets the break tag value.
+    // handleNext always sets the break tag value.
     // Set the default for it.
     fRuleStatusIndex = 0;
 
@@ -789,7 +830,7 @@ int32_t RuleBasedBreakIterator::handleNext() {
 
     //  Set the initial state for the state machine
     state = START_STATE;
-    row = (RBBIStateTableRow *)
+    row = (RowType *)
             //(statetable->fTableData + (statetable->fRowLen * state));
             (tableData + tableRowLen * state);
 
@@ -825,21 +866,8 @@ int32_t RuleBasedBreakIterator::handleNext() {
         if (mode == RBBI_RUN) {
             // look up the current character's character category, which tells us
             // which column in the state table to look at.
-            // Note:  the 16 in UTRIE_GET16 refers to the size of the data being returned,
-            //        not the size of the character going in, which is a UChar32.
-            //
-            category = UTRIE2_GET16(fData->fTrie, c);
-
-            // Check the dictionary bit in the character's category.
-            //    Counter is only used by dictionary based iteration.
-            //    Chars that need to be handled by a dictionary have a flag bit set
-            //    in their category values.
-            //
-            if ((category & 0x4000) != 0)  {
-                fDictionaryCharCount++;
-                //  And off the dictionary flag bit.
-                category &= ~0x4000;
-            }
+            category = trieFunc(fData->fTrie, c);
+            fDictionaryCharCount += (category >= dictStart);
         }
 
        #ifdef RBBI_DEBUG
@@ -860,25 +888,24 @@ int32_t RuleBasedBreakIterator::handleNext() {
         // fNextState is a variable-length array.
         U_ASSERT(category<fData->fHeader->fCatCount);
         state = row->fNextState[category];  /*Not accessing beyond memory*/
-        row = (RBBIStateTableRow *)
+        row = (RowType *)
             // (statetable->fTableData + (statetable->fRowLen * state));
             (tableData + tableRowLen * state);
 
 
-        if (row->fAccepting == -1) {
+        uint16_t accepting = row->fAccepting;
+        if (accepting == ACCEPTING_UNCONDITIONAL) {
             // Match found, common case.
             if (mode != RBBI_START) {
                 result = (int32_t)UTEXT_GETNATIVEINDEX(&fText);
             }
-            fRuleStatusIndex = row->fTagIdx;   // Remember the break status (tag) values.
-        }
-
-        int16_t completedRule = row->fAccepting;
-        if (completedRule > 0) {
+            fRuleStatusIndex = row->fTagsIdx;   // Remember the break status (tag) values.
+        } else if (accepting > ACCEPTING_UNCONDITIONAL) {
             // Lookahead match is completed.
-            int32_t lookaheadResult = lookAheadMatches.getPosition(completedRule);
+            U_ASSERT(accepting < fData->fForwardTable->fLookAheadResultsSize);
+            int32_t lookaheadResult = fLookAheadMatches[accepting];
             if (lookaheadResult >= 0) {
-                fRuleStatusIndex = row->fTagIdx;
+                fRuleStatusIndex = row->fTagsIdx;
                 fPosition = lookaheadResult;
                 return lookaheadResult;
             }
@@ -890,10 +917,12 @@ int32_t RuleBasedBreakIterator::handleNext() {
         //       This would enable hard-break rules with no following context.
         //       But there are line break test failures when trying this. Investigate.
         //       Issue ICU-20837
-        int16_t rule = row->fLookAhead;
-        if (rule != 0) {
+        uint16_t rule = row->fLookAhead;
+        U_ASSERT(rule == 0 || rule > ACCEPTING_UNCONDITIONAL);
+        U_ASSERT(rule == 0 || rule < fData->fForwardTable->fLookAheadResultsSize);
+        if (rule > ACCEPTING_UNCONDITIONAL) {
             int32_t  pos = (int32_t)UTEXT_GETNATIVEINDEX(&fText);
-            lookAheadMatches.setPosition(rule, pos);
+            fLookAheadMatches[rule] = pos;
         }
 
         if (state == STOP_STATE) {
@@ -948,10 +977,12 @@ int32_t RuleBasedBreakIterator::handleNext() {
 //      because the safe table does not require as many options.
 //
 //-----------------------------------------------------------------------------------
+template <typename RowType, RuleBasedBreakIterator::PTrieFunc trieFunc>
 int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
+
     int32_t             state;
     uint16_t            category        = 0;
-    RBBIStateTableRow  *row;
+    RowType            *row;
     UChar32             c;
     int32_t             result          = 0;
 
@@ -971,7 +1002,7 @@ int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
     //  Set the initial state for the state machine
     c = UTEXT_PREVIOUS32(&fText);
     state = START_STATE;
-    row = (RBBIStateTableRow *)
+    row = (RowType *)
             (stateTable->fTableData + (stateTable->fRowLen * state));
 
     // loop until we reach the start of the text or transition to state 0
@@ -980,12 +1011,9 @@ int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
 
         // look up the current character's character category, which tells us
         // which column in the state table to look at.
-        // Note:  the 16 in UTRIE_GET16 refers to the size of the data being returned,
-        //        not the size of the character going in, which is a UChar32.
         //
-        //  And off the dictionary flag bit. For reverse iteration it is not used.
-        category = UTRIE2_GET16(fData->fTrie, c);
-        category &= ~0x4000;
+        //  Off the dictionary flag bit. For reverse iteration it is not used.
+        category = trieFunc(fData->fTrie, c);
 
         #ifdef RBBI_DEBUG
             if (gTrace) {
@@ -1004,7 +1032,7 @@ int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
         // fNextState is a variable-length array.
         U_ASSERT(category<fData->fHeader->fCatCount);
         state = row->fNextState[category];  /*Not accessing beyond memory*/
-        row = (RBBIStateTableRow *)
+        row = (RowType *)
             (stateTable->fTableData + (stateTable->fRowLen * state));
 
         if (state == STOP_STATE) {
@@ -1023,6 +1051,7 @@ int32_t RuleBasedBreakIterator::handleSafePrevious(int32_t fromPosition) {
     #endif
     return result;
 }
+
 
 //-------------------------------------------------------------------------------
 //

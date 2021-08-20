@@ -1,0 +1,18 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-segmenter.h'
+
+type JSSegmenterGranularity extends int32
+constexpr 'JSSegmenter::Granularity';
+bitfield struct JSSegmenterFlags extends uint31 {
+  granularity: JSSegmenterGranularity: 2 bit;
+}
+
+@generateCppClass
+extern class JSSegmenter extends JSObject {
+  locale: String;
+  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  flags: SmiTagged<JSSegmenterFlags>;
+}

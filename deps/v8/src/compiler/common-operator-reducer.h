@@ -43,6 +43,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSwitch(Node* node);
   Reduction ReduceStaticAssert(Node* node);
+  Reduction ReduceTrapConditional(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);

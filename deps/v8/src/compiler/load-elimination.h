@@ -33,6 +33,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final = default;
+  LoadElimination(const LoadElimination&) = delete;
+  LoadElimination& operator=(const LoadElimination&) = delete;
 
   const char* reducer_name() const override { return "LoadElimination"; }
 
@@ -59,7 +61,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractElements const* Extend(Node* object, Node* index, Node* value,
                                    MachineRepresentation representation,
                                    Zone* zone) const {
-      AbstractElements* that = new (zone) AbstractElements(*this);
+      AbstractElements* that = zone->New<AbstractElements>(*this);
       that->elements_[that->next_index_] =
           Element(object, index, value, representation);
       that->next_index_ = (that->next_index_ + 1) % arraysize(elements_);
@@ -134,7 +136,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     AbstractField const* Extend(Node* object, FieldInfo info,
                                 Zone* zone) const {
-      AbstractField* that = new (zone) AbstractField(zone);
+      AbstractField* that = zone->New<AbstractField>(zone);
       that->info_for_node_ = this->info_for_node_;
       that->info_for_node_[object] = info;
       return that;
@@ -148,7 +150,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     }
     AbstractField const* Merge(AbstractField const* that, Zone* zone) const {
       if (this->Equals(that)) return this;
-      AbstractField* copy = new (zone) AbstractField(zone);
+      AbstractField* copy = zone->New<AbstractField>(zone);
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
         FieldInfo this_second = this_it.second;
@@ -228,8 +230,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {}
-
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
@@ -337,8 +337,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
-
-  DISALLOW_COPY_AND_ASSIGN(LoadElimination);
 };
 
 }  // namespace compiler

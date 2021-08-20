@@ -53,7 +53,7 @@ Public members
 API
 ---
 
-.. c:function:: UV_REQ_TYPE_MAP(iter_macro)
+.. c:macro:: UV_REQ_TYPE_MAP(iter_macro)
 
     Macro that expands to a series of invocations of `iter_macro` for
     each of the request types. `iter_macro` is invoked with two

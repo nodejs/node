@@ -16,8 +16,9 @@
 #include "status.h"
 
 namespace v8_crdtp {
-class FrontendChannel;
+class DeserializerState;
 class ErrorSupport;
+class FrontendChannel;
 namespace cbor {
 class CBORTokenizer;
 }  // namespace cbor
@@ -234,6 +235,8 @@ class DomainDispatcher {
   // optimized for code size of the callee.
   bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
                                 const ErrorSupport& errors);
+  bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
+                                const DeserializerState& state);
 
   FrontendChannel* channel() { return frontend_channel_; }
 

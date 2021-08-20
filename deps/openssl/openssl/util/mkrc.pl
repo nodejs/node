@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -46,7 +46,7 @@ if ( $filename =~ /openssl/i ) {
     $vft = "VFT_APP";
 }
 
-my $YEAR = [localtime()]->[5] + 1900;
+my $YEAR = [gmtime($ENV{SOURCE_DATE_EPOCH} || time())]->[5] + 1900;
 print <<___;
 #include <winver.h>
 

@@ -4,6 +4,7 @@ Running test: testLoadedModulesOnDebuggerEnable
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : module1.js
         endColumn : 1
         endLine : 3
         executionContextId : <executionContextId>
@@ -25,6 +26,7 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
 {
     method : Debugger.scriptParsed
     params : {
+        embedderName : module2.js
         endColumn : 1
         endLine : 3
         executionContextId : <executionContextId>
@@ -44,6 +46,7 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
 {
     method : Debugger.scriptFailedToParse
     params : {
+        embedderName : module-with-syntax-error-2.js
         endColumn : 1
         endLine : 0
         executionContextId : <executionContextId>

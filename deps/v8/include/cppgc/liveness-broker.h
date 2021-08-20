@@ -16,6 +16,30 @@ namespace internal {
 class LivenessBrokerFactory;
 }  // namespace internal
 
+/**
+ * The broker is passed to weak callbacks to allow (temporarily) querying
+ * the liveness state of an object. References to non-live objects must be
+ * cleared when `IsHeapObjectAlive()` returns false.
+ *
+ * \code
+ * class GCedWithCustomWeakCallback final
+ *   : public GarbageCollected<GCedWithCustomWeakCallback> {
+ *  public:
+ *   UntracedMember<Bar> bar;
+ *
+ *   void CustomWeakCallbackMethod(const LivenessBroker& broker) {
+ *     if (!broker.IsHeapObjectAlive(bar))
+ *       bar = nullptr;
+ *   }
+ *
+ *   void Trace(cppgc::Visitor* visitor) const {
+ *     visitor->RegisterWeakCallbackMethod<
+ *         GCedWithCustomWeakCallback,
+ *         &GCedWithCustomWeakCallback::CustomWeakCallbackMethod>(this);
+ *   }
+ * };
+ * \endcode
+ */
 class V8_EXPORT LivenessBroker final {
  public:
   template <typename T>

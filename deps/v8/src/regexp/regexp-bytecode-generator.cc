@@ -132,7 +132,11 @@ void RegExpBytecodeGenerator::PopCurrentPosition() { Emit(BC_POP_CP, 0); }
 
 void RegExpBytecodeGenerator::PushCurrentPosition() { Emit(BC_PUSH_CP, 0); }
 
-void RegExpBytecodeGenerator::Backtrack() { Emit(BC_POP_BT, 0); }
+void RegExpBytecodeGenerator::Backtrack() {
+  int error_code =
+      can_fallback() ? RegExp::RE_FALLBACK_TO_EXPERIMENTAL : RegExp::RE_FAILURE;
+  Emit(BC_POP_BT, error_code);
+}
 
 void RegExpBytecodeGenerator::GoTo(Label* l) {
   if (advance_current_end_ == pc_) {
@@ -161,8 +165,10 @@ bool RegExpBytecodeGenerator::Succeed() {
 void RegExpBytecodeGenerator::Fail() { Emit(BC_FAIL, 0); }
 
 void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
-  DCHECK_LE(kMinCPOffset, by);
-  DCHECK_GE(kMaxCPOffset, by);
+  // TODO(chromium:1166138): Turn back into DCHECKs once the underlying issue
+  // is fixed.
+  CHECK_LE(kMinCPOffset, by);
+  CHECK_GE(kMaxCPOffset, by);
   advance_current_start_ = pc_;
   advance_current_offset_ = by;
   Emit(BC_ADVANCE_CP, by);
@@ -182,7 +188,7 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                        int eats_at_least) {
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
-    DCHECK(is_uint24(cp_offset + eats_at_least));
+    DCHECK(is_int24(cp_offset + eats_at_least));
     Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
     EmitOrLink(on_failure);
     check_bounds = false;  // Load below doesn't need to check.
@@ -329,11 +335,13 @@ void RegExpBytecodeGenerator::CheckNotBackReference(int start_reg,
 }
 
 void RegExpBytecodeGenerator::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_not_equal) {
+    int start_reg, bool read_backward, bool unicode, Label* on_not_equal) {
   DCHECK_LE(0, start_reg);
   DCHECK_GE(kMaxRegister, start_reg);
-  Emit(read_backward ? BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD
-                     : BC_CHECK_NOT_BACK_REF_NO_CASE,
+  Emit(read_backward ? (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD
+                                : BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD)
+                     : (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE
+                                : BC_CHECK_NOT_BACK_REF_NO_CASE),
        start_reg);
   EmitOrLink(on_not_equal);
 }
@@ -366,7 +374,7 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
 
 Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Bind(&backtrack_);
-  Emit(BC_POP_BT, 0);
+  Backtrack();
 
   Handle<ByteArray> array;
   if (FLAG_regexp_peephole_optimization) {

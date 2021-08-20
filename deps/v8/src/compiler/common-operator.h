@@ -12,6 +12,8 @@
 #include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/linkage.h"
+#include "src/compiler/node-properties.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
@@ -164,6 +166,9 @@ V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const)
 
 V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE MachineRepresentation
+LoopExitValueRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
 PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
@@ -449,17 +454,21 @@ V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
 const StringConstantBase* StringConstantBaseOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+const char* StaticAssertSourceOf(const Operator* op);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
+  CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
+  CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
 
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
-  const Operator* StaticAssert();
+  const Operator* StaticAssert(const char* source);
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone,
                          IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
@@ -482,6 +491,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       DeoptimizeKind kind, DeoptimizeReason reason,
       FeedbackSource const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
+  // the condition is false, which may then either deoptimize or resume
+  // execution.
+  const Operator* DynamicCheckMapsWithDeoptUnless();
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -517,7 +530,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* EffectPhi(int effect_input_count);
   const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
-  const Operator* LoopExitValue();
+  const Operator* LoopExitValue(MachineRepresentation rep);
   const Operator* LoopExitEffect();
   const Operator* Checkpoint();
   const Operator* BeginRegion(RegionObservability);
@@ -526,11 +539,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
   const Operator* ArgumentsElementsState(ArgumentsStateType type);
-  const Operator* ArgumentsLengthState(ArgumentsStateType type);
+  const Operator* ArgumentsLengthState();
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);
-  const Operator* FrameState(BailoutId bailout_id,
+  const Operator* FrameState(BytecodeOffset bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
   const Operator* Call(const CallDescriptor* call_descriptor);
@@ -548,6 +561,12 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
+#if V8_ENABLE_WEBASSEMBLY
+  const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
+      FrameStateType type, int parameter_count, int local_count,
+      Handle<SharedFunctionInfo> shared_info,
+      const wasm::FunctionSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* MarkAsSafetyCheck(const Operator* op,
                                     IsSafetyCheck safety_check);
@@ -559,9 +578,218 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   const CommonOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
+
+// Node wrappers.
+
+class CommonNodeWrapperBase : public NodeWrapper {
+ public:
+  explicit constexpr CommonNodeWrapperBase(Node* node) : NodeWrapper(node) {}
+
+  // Valid iff this node has exactly one effect input.
+  Effect effect() const {
+    DCHECK_EQ(node()->op()->EffectInputCount(), 1);
+    return Effect{NodeProperties::GetEffectInput(node())};
+  }
+
+  // Valid iff this node has exactly one control input.
+  Control control() const {
+    DCHECK_EQ(node()->op()->ControlInputCount(), 1);
+    return Control{NodeProperties::GetControlInput(node())};
+  }
+};
+
+#define DEFINE_INPUT_ACCESSORS(Name, name, TheIndex, Type) \
+  static constexpr int Name##Index() { return TheIndex; }  \
+  TNode<Type> name() const {                               \
+    return TNode<Type>::UncheckedCast(                     \
+        NodeProperties::GetValueInput(node(), TheIndex));  \
+  }
+
+// TODO(jgruber): This class doesn't match the usual OpcodeNode naming
+// convention for historical reasons (it was originally a very basic typed node
+// wrapper similar to Effect and Control). Consider updating the name, with low
+// priority.
+class FrameState : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr FrameState(Node* node) : CommonNodeWrapperBase(node) {
+    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
+    // test, among others). Also, outer_frame_state points at the start node
+    // for non-inlined functions. This could be avoided by checking
+    // has_outer_frame_state() before casting to FrameState.
+    DCHECK(node->opcode() == IrOpcode::kFrameState ||
+           node->opcode() == IrOpcode::kStart);
+  }
+
+  FrameStateInfo frame_state_info() const {
+    return FrameStateInfoOf(node()->op());
+  }
+
+  static constexpr int kFrameStateParametersInput = 0;
+  static constexpr int kFrameStateLocalsInput = 1;
+  static constexpr int kFrameStateStackInput = 2;
+  static constexpr int kFrameStateContextInput = 3;
+  static constexpr int kFrameStateFunctionInput = 4;
+  static constexpr int kFrameStateOuterStateInput = 5;
+  static constexpr int kFrameStateInputCount = 6;
+
+  // Note: The parameters should be accessed through StateValuesAccess.
+  Node* parameters() const {
+    Node* n = node()->InputAt(kFrameStateParametersInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues);
+    return n;
+  }
+  Node* locals() const {
+    Node* n = node()->InputAt(kFrameStateLocalsInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues);
+    return n;
+  }
+  // TODO(jgruber): Consider renaming this to the more meaningful
+  // 'accumulator'.
+  Node* stack() const { return node()->InputAt(kFrameStateStackInput); }
+  Node* context() const { return node()->InputAt(kFrameStateContextInput); }
+  Node* function() const { return node()->InputAt(kFrameStateFunctionInput); }
+
+  // An outer frame state exists for inlined functions; otherwise it points at
+  // the start node.
+  bool has_outer_frame_state() const {
+    Node* maybe_outer_frame_state = node()->InputAt(kFrameStateOuterStateInput);
+    DCHECK(maybe_outer_frame_state->opcode() == IrOpcode::kFrameState ||
+           maybe_outer_frame_state->opcode() == IrOpcode::kStart);
+    return maybe_outer_frame_state->opcode() == IrOpcode::kFrameState;
+  }
+  FrameState outer_frame_state() const {
+    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  }
+};
+
+class StartNode final : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr StartNode(Node* node) : CommonNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kStart, node->opcode());
+  }
+
+  // The receiver is counted as part of formal parameters.
+  static constexpr int kReceiverOutputCount = 1;
+  // These outputs are in addition to formal parameters.
+  static constexpr int kExtraOutputCount = 4;
+
+  // Takes the formal parameter count of the current function (including
+  // receiver) and returns the number of value outputs of the start node.
+  static constexpr int OutputArityForFormalParameterCount(int argc) {
+    constexpr int kClosure = 1;
+    constexpr int kNewTarget = 1;
+    constexpr int kArgCount = 1;
+    constexpr int kContext = 1;
+    STATIC_ASSERT(kClosure + kNewTarget + kArgCount + kContext ==
+                  kExtraOutputCount);
+    // Checking related linkage methods here since they rely on Start node
+    // layout.
+    DCHECK_EQ(-1, Linkage::kJSCallClosureParamIndex);
+    DCHECK_EQ(argc + 0, Linkage::GetJSCallNewTargetParamIndex(argc));
+    DCHECK_EQ(argc + 1, Linkage::GetJSCallArgCountParamIndex(argc));
+    DCHECK_EQ(argc + 2, Linkage::GetJSCallContextParamIndex(argc));
+    return argc + kClosure + kNewTarget + kArgCount + kContext;
+  }
+
+  int FormalParameterCount() const {
+    DCHECK_GE(node()->op()->ValueOutputCount(),
+              kExtraOutputCount + kReceiverOutputCount);
+    return node()->op()->ValueOutputCount() - kExtraOutputCount;
+  }
+
+  int FormalParameterCountWithoutReceiver() const {
+    DCHECK_GE(node()->op()->ValueOutputCount(),
+              kExtraOutputCount + kReceiverOutputCount);
+    return node()->op()->ValueOutputCount() - kExtraOutputCount -
+           kReceiverOutputCount;
+  }
+
+  // Note these functions don't return the index of the Start output; instead
+  // they return the index assigned to the Parameter node.
+  // TODO(jgruber): Consider unifying the two.
+  int NewTargetParameterIndex() const {
+    return Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount());
+  }
+  int ArgCountParameterIndex() const {
+    return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount());
+  }
+  int ContextParameterIndex() const {
+    return Linkage::GetJSCallContextParamIndex(FormalParameterCount());
+  }
+
+  // TODO(jgruber): Remove this function and use
+  // Linkage::GetJSCallContextParamIndex instead. This currently doesn't work
+  // because tests don't create valid Start nodes - for example, they may add
+  // only two context outputs (and not the closure, new target, argc). Once
+  // tests are fixed, remove this function.
+  int ContextParameterIndex_MaybeNonStandardLayout() const {
+    // The context is always the last parameter to a JavaScript function, and
+    // {Parameter} indices start at -1, so value outputs of {Start} look like
+    // this: closure, receiver, param0, ..., paramN, context.
+    //
+    // TODO(jgruber): This function is called from spots that operate on
+    // CSA/Torque graphs; Start node layout appears to be different there.
+    // These should be unified to avoid confusion. Once done, enable this
+    // DCHECK: DCHECK_EQ(LastOutputIndex(), ContextOutputIndex());
+    return node()->op()->ValueOutputCount() - 2;
+  }
+  int LastParameterIndex_MaybeNonStandardLayout() const {
+    return ContextParameterIndex_MaybeNonStandardLayout();
+  }
+
+  // Unlike ContextParameterIndex_MaybeNonStandardLayout above, these return
+  // output indices (and not the index assigned to a Parameter).
+  int NewTargetOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 3);
+    return node()->op()->ValueOutputCount() - 3;
+  }
+  int ArgCountOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallArgCountParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 2);
+    return node()->op()->ValueOutputCount() - 2;
+  }
+  int ContextOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallContextParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 1);
+    return node()->op()->ValueOutputCount() - 1;
+  }
+  int LastOutputIndex() const { return ContextOutputIndex(); }
+};
+
+class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr DynamicCheckMapsWithDeoptUnlessNode(Node* node)
+      : CommonNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kDynamicCheckMapsWithDeoptUnless, node->opcode());
+  }
+
+#define INPUTS(V)                   \
+  V(Condition, condition, 0, BoolT) \
+  V(Slot, slot, 1, IntPtrT)         \
+  V(Map, map, 2, Map)               \
+  V(Handler, handler, 3, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+
+  FrameState frame_state() {
+    return FrameState{NodeProperties::GetValueInput(node(), 4)};
+  }
+};
+
+#undef DEFINE_INPUT_ACCESSORS
 
 }  // namespace compiler
 }  // namespace internal

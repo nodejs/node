@@ -5,7 +5,10 @@
 import("../../gni/v8.gni")
 
 config("crdtp_config") {
-  visibility = [ "../../src/inspector:*" ]
+  visibility = [
+    ":*",
+    "../../src/inspector:*",
+  ]
   configs = [ "../../:internal_config" ]
   include_dirs = [ "../../include" ]
 }
@@ -20,10 +23,12 @@ v8_source_set("crdtp") {
     "crdtp/error_support.h",
     "crdtp/export.h",
     "crdtp/find_by_first.h",
-    "crdtp/glue.h",
     "crdtp/json.cc",
     "crdtp/json.h",
+    "crdtp/maybe.h",
     "crdtp/parser_handler.h",
+    "crdtp/protocol_core.cc",
+    "crdtp/protocol_core.h",
     "crdtp/serializable.cc",
     "crdtp/serializable.h",
     "crdtp/serializer_traits.h",
@@ -44,6 +49,7 @@ v8_source_set("crdtp_platform") {
     "crdtp/json_platform_v8.cc",
   ]
   public_deps = [ "../..:v8_libbase" ]
+  deps = [ "../../:v8_internal_headers" ]
   configs = [ ":crdtp_config" ]
 }
 

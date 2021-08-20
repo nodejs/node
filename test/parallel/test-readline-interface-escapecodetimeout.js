@@ -29,7 +29,7 @@ class FakeInput extends EventEmitter {
   null,
   {},
   NaN,
-  '50'
+  '50',
 ].forEach((invalidInput) => {
   assert.throws(() => {
     const fi = new FakeInput();
@@ -41,6 +41,6 @@ class FakeInput extends EventEmitter {
     rli.close();
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 });

@@ -8,6 +8,20 @@ import struct
 import subprocess
 import time
 import xml.etree.ElementTree
+import sys
+
+# Python2 has both int and long, Python3 only has int, which is the same as
+# Python2 long.
+try:
+  long
+except NameError:
+  long = int
+
+# Python2 has xrange and range. Python3 range is Python2 xrange.
+try:
+  xrange
+except NameError:
+  xrange = range
 
 SOCKET_ADDR = ('localhost', 8765)
 
@@ -22,7 +36,7 @@ REG_DEFS = {
 
 
 def EnsurePortIsAvailable(addr=SOCKET_ADDR):
-  # As a sanity check, check that the TCP port is available by binding to it
+  # As a validity check, check that the TCP port is available by binding to it
   # ourselves (and then unbinding).  Otherwise, we could end up talking to an
   # old instance of the GDB stub that is still hanging around, or to some
   # unrelated service that uses the same port number. Of course, there is still
@@ -164,7 +178,7 @@ def AssertReplySignal(reply, signal):
   AssertEquals(ParseThreadStopReply(reply)['signal'], signal)
 
 def ParseThreadStopReply(reply):
-  match = re.match('T([0-9a-f]{2})thread-pcs:([0-9a-f]+);thread:([0-9a-f]+);$', reply)
+  match = re.match('T([0-9a-f]{2})thread-pcs:([0-9a-f]+);thread:([0-9a-f]+);(library:([0-9a-f]*);)?$', reply)
   if not match:
     raise AssertionError('Bad thread stop reply: %r' % reply)
   return {'signal': int(match.group(1), 16),

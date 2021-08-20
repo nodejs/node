@@ -10,12 +10,12 @@ namespace proxy {
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
 transitioning builtin ProxyHasProperty(implicit context: Context)(
     proxy: JSProxy, name: PropertyKey): JSAny {
-  assert(IsJSProxy(proxy));
+  assert(Is<JSProxy>(proxy));
 
   PerformStackCheck();
 
   // 1. Assert: IsPropertyKey(P) is true.
-  assert(IsName(name));
+  assert(Is<Name>(name));
   assert(!IsPrivateSymbol(name));
 
   try {

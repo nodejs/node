@@ -176,7 +176,7 @@ Specify the responder URL. Both HTTP and HTTPS (SSL/TLS) URLs can be specified.
 =item B<-host hostname:port>, B<-path pathname>
 
 If the B<host> option is present then the OCSP request is sent to the host
-B<hostname> on port B<port>. B<path> specifies the HTTP path name to use
+B<hostname> on port B<port>. B<path> specifies the HTTP pathname to use
 or "/" by default.  This is equivalent to specifying B<-url> with scheme
 http:// and the given hostname, port, and pathname.
 
@@ -490,7 +490,7 @@ The -no_alt_chains option was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,114 +1,116 @@
-'use strict'
-
-module.exports = exports = search
-
-const npm = require('./npm.js')
-const allPackageSearch = require('./search/all-package-search')
-const figgyPudding = require('figgy-pudding')
-const formatPackageStream = require('./search/format-package-stream.js')
-const libSearch = require('libnpm/search')
+const Minipass = require('minipass')
+const Pipeline = require('minipass-pipeline')
+const libSearch = require('libnpmsearch')
 const log = require('npmlog')
-const ms = require('mississippi')
-const npmConfig = require('./config/figgy-config.js')
-const output = require('./utils/output.js')
-const usage = require('./utils/usage')
 
-search.usage = usage(
-  'search',
-  'npm search [--long] [search terms ...]'
-)
+const formatPackageStream = require('./search/format-package-stream.js')
+const packageFilter = require('./search/package-filter.js')
 
-search.completion = function (opts, cb) {
-  cb(null, [])
-}
-
-const SearchOpts = figgyPudding({
-  description: {},
-  exclude: {},
-  include: {},
-  limit: {},
-  log: {},
-  staleness: {},
-  unicode: {}
-})
-
-function search (args, cb) {
-  const opts = SearchOpts(npmConfig()).concat({
-    description: npm.config.get('description'),
-    exclude: prepareExcludes(npm.config.get('searchexclude')),
-    include: prepareIncludes(args, npm.config.get('searchopts')),
-    limit: npm.config.get('searchlimit') || 20,
-    log: log,
-    staleness: npm.config.get('searchstaleness'),
-    unicode: npm.config.get('unicode')
-  })
-  if (opts.include.length === 0) {
-    return cb(new Error('search must be called with arguments'))
-  }
-
-  // Used later to figure out whether we had any packages go out
-  let anyOutput = false
-
-  const entriesStream = ms.through.obj()
-
-  let esearchWritten = false
-  libSearch.stream(opts.include, opts).on('data', pkg => {
-    entriesStream.write(pkg)
-    !esearchWritten && (esearchWritten = true)
-  }).on('error', err => {
-    if (esearchWritten) {
-      // If esearch errored after already starting output, we can't fall back.
-      return entriesStream.emit('error', err)
-    }
-    log.warn('search', 'fast search endpoint errored. Using old search.')
-    allPackageSearch(opts)
-      .on('data', pkg => entriesStream.write(pkg))
-      .on('error', err => entriesStream.emit('error', err))
-      .on('end', () => entriesStream.end())
-  }).on('end', () => entriesStream.end())
-
-  // Grab a configured output stream that will spit out packages in the
-  // desired format.
-  var outputStream = formatPackageStream({
-    args: args, // --searchinclude options are not highlighted
-    long: npm.config.get('long'),
-    description: npm.config.get('description'),
-    json: npm.config.get('json'),
-    parseable: npm.config.get('parseable'),
-    color: npm.color
-  })
-  outputStream.on('data', chunk => {
-    if (!anyOutput) { anyOutput = true }
-    output(chunk.toString('utf8'))
-  })
-
-  log.silly('search', 'searching packages')
-  ms.pipe(entriesStream, outputStream, err => {
-    if (err) return cb(err)
-    if (!anyOutput && !npm.config.get('json') && !npm.config.get('parseable')) {
-      output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
-    }
-    log.silly('search', 'search completed')
-    log.clearProgress()
-    cb(null, {})
-  })
-}
-
-function prepareIncludes (args, searchopts) {
-  if (typeof searchopts !== 'string') searchopts = ''
-  return searchopts.split(/\s+/).concat(args).map(function (s) {
-    return s.toLowerCase()
-  }).filter(function (s) { return s })
+function prepareIncludes (args) {
+  return args
+    .map(s => s.toLowerCase())
+    .filter(s => s)
 }
 
 function prepareExcludes (searchexclude) {
   var exclude
-  if (typeof searchexclude === 'string') {
+  if (typeof searchexclude === 'string')
     exclude = searchexclude.split(/\s+/)
-  } else {
+  else
     exclude = []
-  }
-  return exclude.map(function (s) {
-    return s.toLowerCase()
-  })
+
+  return exclude
+    .map(s => s.toLowerCase())
+    .filter(s => s)
 }
+
+const BaseCommand = require('./base-command.js')
+class Search extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Search for packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'search'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'long',
+      'json',
+      'color',
+      'parseable',
+      'description',
+      'searchopts',
+      'searchexclude',
+      'registry',
+      'prefer-online',
+      'prefer-offline',
+      'offline',
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[search terms ...]']
+  }
+
+  exec (args, cb) {
+    this.search(args).then(() => cb()).catch(cb)
+  }
+
+  async search (args) {
+    const opts = {
+      ...this.npm.flatOptions,
+      ...this.npm.flatOptions.search,
+      include: prepareIncludes(args),
+      exclude: prepareExcludes(this.npm.flatOptions.search.exclude),
+    }
+
+    if (opts.include.length === 0)
+      throw new Error('search must be called with arguments')
+
+    // Used later to figure out whether we had any packages go out
+    let anyOutput = false
+
+    class FilterStream extends Minipass {
+      write (pkg) {
+        if (packageFilter(pkg, opts.include, opts.exclude))
+          super.write(pkg)
+      }
+    }
+
+    const filterStream = new FilterStream()
+
+    // Grab a configured output stream that will spit out packages in the
+    // desired format.
+    const outputStream = formatPackageStream({
+      args, // --searchinclude options are not highlighted
+      ...opts,
+    })
+
+    log.silly('search', 'searching packages')
+    const p = new Pipeline(
+      libSearch.stream(opts.include, opts),
+      filterStream,
+      outputStream
+    )
+
+    p.on('data', chunk => {
+      if (!anyOutput)
+        anyOutput = true
+      this.npm.output(chunk.toString('utf8'))
+    })
+
+    await p.promise()
+    if (!anyOutput && !this.npm.config.get('json') && !this.npm.config.get('parseable'))
+      this.npm.output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
+
+    log.silly('search', 'search completed')
+    log.clearProgress()
+  }
+}
+module.exports = Search

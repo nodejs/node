@@ -16,6 +16,7 @@ new Intl.DisplayNames(['en-US'], {
   },
   get type() {
     assertEquals(2, getCount++);
+    return 'language';
   },
   get fallback() {
     assertEquals(3, getCount++);

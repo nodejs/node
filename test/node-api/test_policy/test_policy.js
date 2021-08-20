@@ -44,7 +44,7 @@ function test(shouldFail, resources) {
   const { status, stdout, stderr } = spawnSync(process.execPath, [
     '--experimental-policy',
     policyFilepath,
-    depFilepath
+    depFilepath,
   ]);
 
   console.log(stdout.toString(), stderr.toString());

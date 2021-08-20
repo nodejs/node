@@ -1,168 +1,233 @@
-'use strict'
-
-const path = require('path')
-
 const archy = require('archy')
-const figgyPudding = require('figgy-pudding')
-const readPackageTree = require('read-package-tree')
+const Arborist = require('@npmcli/arborist')
+const chalk = require('chalk')
+const pacote = require('pacote')
+const semver = require('semver')
+const npa = require('npm-package-arg')
+const { depth } = require('treeverse')
+const {
+  readTree: getFundingInfo,
+  normalizeFunding,
+  isValidFunding,
+} = require('libnpmfund')
 
-const npm = require('./npm.js')
-const npmConfig = require('./config/figgy-config.js')
-const fetchPackageMetadata = require('./fetch-package-metadata.js')
-const computeMetadata = require('./install/deps.js').computeMetadata
-const readShrinkwrap = require('./install/read-shrinkwrap.js')
-const mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-const output = require('./utils/output.js')
+const completion = require('./utils/completion/installed-deep.js')
 const openUrl = require('./utils/open-url.js')
-const { getFundingInfo, retrieveFunding, validFundingField, flatCacheSymbol } = require('./utils/funding.js')
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 
-const FundConfig = figgyPudding({
-  browser: {}, // used by ./utils/open-url
-  global: {},
-  json: {},
-  unicode: {},
-  which: {}
-})
-
-module.exports = fundCmd
-
-const usage = require('./utils/usage')
-fundCmd.usage = usage(
-  'fund',
-  'npm fund [--json]',
-  'npm fund [--browser] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]'
-)
-
-fundCmd.completion = function (opts, cb) {
-  const argv = opts.conf.argv.remain
-  switch (argv[2]) {
-    case 'fund':
-      return cb(null, [])
-    default:
-      return cb(new Error(argv[2] + ' not recognized'))
-  }
-}
-
-function printJSON (fundingInfo) {
-  return JSON.stringify(fundingInfo, null, 2)
-}
-
-// the human-printable version does some special things that turned out to
-// be very verbose but hopefully not hard to follow: we stack up items
-// that have a shared url/type and make sure they're printed at the highest
-// level possible, in that process they also carry their dependencies along
-// with them, moving those up in the visual tree
-function printHuman (fundingInfo, opts) {
-  const flatCache = fundingInfo[flatCacheSymbol]
-
-  const { name, version } = fundingInfo
+const getPrintableName = ({ name, version }) => {
   const printableVersion = version ? `@${version}` : ''
+  return `${name}${printableVersion}`
+}
 
-  const items = Object.keys(flatCache).map((url) => {
-    const deps = flatCache[url]
+class Fund extends ArboristWorkspaceCmd {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Retrieve funding information'
+  }
 
-    const packages = deps.map((dep) => {
-      const { name, version } = dep
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'fund'
+  }
 
-      const printableVersion = version ? `@${version}` : ''
-      return `${name}${printableVersion}`
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'json',
+      'browser',
+      'unicode',
+      'workspace',
+      'which',
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[[<@scope>/]<pkg>]']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
+
+  exec (args, cb) {
+    this.fund(args).then(() => cb()).catch(cb)
+  }
+
+  async fund (args) {
+    const spec = args[0]
+    const numberArg = this.npm.config.get('which')
+
+    const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
+
+    const badFundingSourceNumber =
+      numberArg !== null &&
+      (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)
+
+    if (badFundingSourceNumber) {
+      const err = new Error('`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer')
+      err.code = 'EFUNDNUMBER'
+      throw err
+    }
+
+    if (this.npm.config.get('global')) {
+      const err = new Error('`npm fund` does not support global packages')
+      err.code = 'EFUNDGLOBAL'
+      throw err
+    }
+
+    const where = this.npm.prefix
+    const arb = new Arborist({ ...this.npm.flatOptions, path: where })
+    const tree = await arb.loadActual()
+
+    if (spec) {
+      await this.openFundingUrl({
+        path: where,
+        tree,
+        spec,
+        fundingSourceNumber,
+      })
+      return
+    }
+
+    const fundingInfo = getFundingInfo(tree, {
+      ...this.flatOptions,
+      log: this.npm.log,
+      workspaces: this.workspaceNames,
     })
 
-    return {
-      label: url,
-      nodes: [packages.join(', ')]
+    if (this.npm.config.get('json'))
+      this.npm.output(this.printJSON(fundingInfo))
+    else
+      this.npm.output(this.printHuman(fundingInfo))
+  }
+
+  printJSON (fundingInfo) {
+    return JSON.stringify(fundingInfo, null, 2)
+  }
+
+  printHuman (fundingInfo) {
+    const color = this.npm.color
+    const unicode = this.npm.config.get('unicode')
+    const seenUrls = new Map()
+
+    const tree = obj =>
+      archy(obj, '', { unicode })
+
+    const result = depth({
+      tree: fundingInfo,
+
+      // composes human readable package name
+      // and creates a new archy item for readable output
+      visit: ({ name, version, funding }) => {
+        const [fundingSource] = []
+          .concat(normalizeFunding(funding))
+          .filter(isValidFunding)
+        const { url } = fundingSource || {}
+        const pkgRef = getPrintableName({ name, version })
+        let item = {
+          label: pkgRef,
+        }
+
+        if (url) {
+          item.label = tree({
+            label: color ? chalk.bgBlack.white(url) : url,
+            nodes: [pkgRef],
+          }).trim()
+
+          // stacks all packages together under the same item
+          if (seenUrls.has(url)) {
+            item = seenUrls.get(url)
+            item.label += `, ${pkgRef}`
+            return null
+          } else
+            seenUrls.set(url, item)
+        }
+
+        return item
+      },
+
+      // puts child nodes back into returned archy
+      // output while also filtering out missing items
+      leave: (item, children) => {
+        if (item)
+          item.nodes = children.filter(Boolean)
+
+        return item
+      },
+
+      // turns tree-like object return by libnpmfund
+      // into children to be properly read by treeverse
+      getChildren: (node) =>
+        Object.keys(node.dependencies || {})
+          .map(key => ({
+            name: key,
+            ...node.dependencies[key],
+          })),
+    })
+
+    const res = tree(result)
+    return color ? chalk.reset(res) : res
+  }
+
+  async openFundingUrl ({ path, tree, spec, fundingSourceNumber }) {
+    const arg = npa(spec, path)
+    const retrievePackageMetadata = () => {
+      if (arg.type === 'directory') {
+        if (tree.path === arg.fetchSpec) {
+          // matches cwd, e.g: npm fund .
+          return tree.package
+        } else {
+          // matches any file path within current arborist inventory
+          for (const item of tree.inventory.values()) {
+            if (item.path === arg.fetchSpec)
+              return item.package
+          }
+        }
+      } else {
+        // tries to retrieve a package from arborist inventory
+        // by matching resulted package name from the provided spec
+        const [item] = [...tree.inventory.query('name', arg.name)]
+          .filter(i => semver.valid(i.package.version))
+          .sort((a, b) => semver.rcompare(a.package.version, b.package.version))
+
+        if (item)
+          return item.package
+      }
     }
-  })
 
-  return archy({ label: `${name}${printableVersion}`, nodes: items }, '', { unicode: opts.unicode })
-}
+    const { funding } = retrievePackageMetadata() ||
+      await pacote.manifest(arg, this.npm.flatOptions).catch(() => ({}))
 
-function openFundingUrl (packageName, fundingSourceNumber, cb) {
-  function getUrlAndOpen (packageMetadata) {
-    const { funding } = packageMetadata
-    const validSources = [].concat(retrieveFunding(funding)).filter(validFundingField)
+    const validSources = []
+      .concat(normalizeFunding(funding))
+      .filter(isValidFunding)
 
-    if (validSources.length === 1 || (fundingSourceNumber > 0 && fundingSourceNumber <= validSources.length)) {
-      const { type, url } = validSources[fundingSourceNumber ? fundingSourceNumber - 1 : 0]
+    const matchesValidSource =
+      validSources.length === 1 ||
+      (fundingSourceNumber > 0 && fundingSourceNumber <= validSources.length)
+
+    if (matchesValidSource) {
+      const index = fundingSourceNumber ? fundingSourceNumber - 1 : 0
+      const { type, url } = validSources[index]
       const typePrefix = type ? `${type} funding` : 'Funding'
       const msg = `${typePrefix} available at the following URL`
-      openUrl(url, msg, cb)
-    } else if (!(fundingSourceNumber >= 1)) {
+      return openUrl(this.npm, url, msg)
+    } else if (validSources.length && !(fundingSourceNumber >= 1)) {
       validSources.forEach(({ type, url }, i) => {
         const typePrefix = type ? `${type} funding` : 'Funding'
         const msg = `${typePrefix} available at the following URL`
-        console.log(`${i + 1}: ${msg}: ${url}`)
+        this.npm.output(`${i + 1}: ${msg}: ${url}`)
       })
-      console.log('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
-      cb()
+      this.npm.output('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
     } else {
-      const noFundingError = new Error(`No valid funding method available for: ${packageName}`)
+      const noFundingError = new Error(`No valid funding method available for: ${spec}`)
       noFundingError.code = 'ENOFUND'
 
       throw noFundingError
     }
   }
-
-  fetchPackageMetadata(
-    packageName,
-    '.',
-    { fullMetadata: true },
-    function (err, packageMetadata) {
-      if (err) return cb(err)
-      getUrlAndOpen(packageMetadata)
-    }
-  )
 }
-
-function fundCmd (args, cb) {
-  const opts = FundConfig(npmConfig())
-  const dir = path.resolve(npm.dir, '..')
-  const packageName = args[0]
-  const numberArg = opts.which
-
-  const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
-
-  if (numberArg !== undefined && (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)) {
-    const err = new Error('`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer')
-    err.code = 'EFUNDNUMBER'
-    throw err
-  }
-
-  if (opts.global) {
-    const err = new Error('`npm fund` does not support global packages')
-    err.code = 'EFUNDGLOBAL'
-    throw err
-  }
-
-  if (packageName) {
-    openFundingUrl(packageName, fundingSourceNumber, cb)
-    return
-  }
-
-  readPackageTree(dir, function (err, tree) {
-    if (err) {
-      process.exitCode = 1
-      return cb(err)
-    }
-
-    readShrinkwrap.andInflate(tree, function () {
-      const fundingInfo = getFundingInfo(
-        mutateIntoLogicalTree.asReadInstalled(
-          computeMetadata(tree)
-        )
-      )
-
-      const print = opts.json
-        ? printJSON
-        : printHuman
-
-      output(
-        print(
-          fundingInfo,
-          opts
-        )
-      )
-      cb(err, tree)
-    })
-  })
-}
+module.exports = Fund

@@ -20,6 +20,12 @@ struct PointerWithPayloadTraits {
       alignof(PointerType) >= 8 ? 3 : alignof(PointerType) >= 4 ? 2 : 1;
 };
 
+// Assume void* has the same payloads as void**, under the assumption that it's
+// used for classes that contain at least one pointer.
+template <>
+struct PointerWithPayloadTraits<void> : public PointerWithPayloadTraits<void*> {
+};
+
 // PointerWithPayload combines a PointerType* an a small PayloadType into
 // one. The bits of the storage type get packed into the lower bits of the
 // pointer that are free due to alignment. The user needs to specify how many
@@ -42,7 +48,8 @@ class PointerWithPayload {
       "Ptr does not have sufficient alignment for the selected amount of "
       "storage bits.");
 
-  static constexpr uintptr_t kPayloadMask = (uintptr_t{1} << kAvailBits) - 1;
+  static constexpr uintptr_t kPayloadMask =
+      (uintptr_t{1} << NumPayloadBits) - 1;
   static constexpr uintptr_t kPointerMask = ~kPayloadMask;
 
  public:
@@ -66,6 +73,13 @@ class PointerWithPayload {
 
   V8_INLINE PointerType* GetPointer() const {
     return reinterpret_cast<PointerType*>(pointer_ & kPointerMask);
+  }
+
+  // An optimized version of GetPointer for when we know the payload value.
+  V8_INLINE PointerType* GetPointerWithKnownPayload(PayloadType payload) const {
+    DCHECK_EQ(GetPayload(), payload);
+    return reinterpret_cast<PointerType*>(pointer_ -
+                                          static_cast<uintptr_t>(payload));
   }
 
   V8_INLINE PointerType* operator->() const { return GetPointer(); }

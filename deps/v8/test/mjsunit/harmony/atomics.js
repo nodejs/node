@@ -53,15 +53,14 @@ var IntegerTypedArrayConstructors = [
 
 (function TestBadArray() {
   var ab = new ArrayBuffer(16);
-  var u32a = new Uint32Array(16);
   var sab = new SharedArrayBuffer(128);
   var sf32a = new Float32Array(sab);
   var sf64a = new Float64Array(sab);
   var u8ca = new Uint8ClampedArray(sab);
 
-  // Atomic ops required integer shared typed arrays
+  // Atomic ops required integer typed arrays
   var badArrayTypes = [
-    undefined, 1, 'hi', 3.4, ab, u32a, sab, sf32a, sf64a, u8ca
+    undefined, 1, 'hi', 3.4, ab, sab, sf32a, sf64a, u8ca
   ];
   badArrayTypes.forEach(function(o) {
     assertThrows(function() { Atomics.compareExchange(o, 0, 0, 0); },

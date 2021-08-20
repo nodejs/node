@@ -55,9 +55,9 @@ const invalidArgValueError = {
       }, invalidArgTypeError);
     });
 
-  validateArray([1], 'foo', { minLength: 1 });
+  validateArray([1], 'foo', 1);
   assert.throws(() => {
-    validateArray([], 'foo', { minLength: 1 });
+    validateArray([], 'foo', 1);
   }, invalidArgValueError);
 }
 
@@ -78,14 +78,17 @@ const invalidArgValueError = {
   validateObject({}, 'foo');
   validateObject({ a: 42, b: 'foo' }, 'foo');
 
-  [undefined, null, true, false, 0, 0.0, 42, '', 'string', []]
+  [undefined, null, true, false, 0, 0.0, 42, '', 'string', [], () => {}]
     .forEach((val) => {
       assert.throws(() => {
         validateObject(val, 'foo');
       }, invalidArgTypeError);
     });
 
+  // validateObject options tests:
   validateObject(null, 'foo', { nullable: true });
+  validateObject([], 'foo', { allowArray: true });
+  validateObject(() => {}, 'foo', { allowFunction: true });
 }
 
 {
@@ -93,7 +96,7 @@ const invalidArgValueError = {
   [
     -1, {}, [], false, true,
     1, Infinity, -Infinity, NaN,
-    undefined, null, 1.1
+    undefined, null, 1.1,
   ].forEach((i) => assert.throws(() => validateString(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
@@ -103,7 +106,7 @@ const invalidArgValueError = {
   [
     'a', {}, [], false, true,
     undefined, null, '', ' ', '0x',
-    '-0x1', '-0o1', '-0b1', '0o', '0b'
+    '-0x1', '-0o1', '-0b1', '0o', '0b',
   ].forEach((i) => assert.throws(() => validateNumber(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));

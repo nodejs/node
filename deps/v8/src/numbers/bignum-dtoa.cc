@@ -455,8 +455,7 @@ static void InitialScaledStartValuesNegativeExponentPositivePower(
 static void InitialScaledStartValuesNegativeExponentNegativePower(
     double v, int estimated_power, bool need_boundary_deltas, Bignum* numerator,
     Bignum* denominator, Bignum* delta_minus, Bignum* delta_plus) {
-  const uint64_t kMinimalNormalizedExponent =
-      V8_2PART_UINT64_C(0x00100000, 00000000);
+  const uint64_t kMinimalNormalizedExponent = 0x0010'0000'0000'0000;
   uint64_t significand = Double(v).Significand();
   int exponent = Double(v).Exponent();
   // Instead of multiplying the denominator with 10^estimated_power we

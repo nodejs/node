@@ -60,6 +60,12 @@ class ModuleWrap : public BaseObject {
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
 
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    // XXX: The garbage collection rules for ModuleWrap are *super* unclear.
+    // Do these objects ever get GC'd? Are we just okay with leaking them?
+    return true;
+  }
+
  private:
   ModuleWrap(Environment* env,
              v8::Local<v8::Object> object,
@@ -87,9 +93,10 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::MaybeLocal<v8::Module> ResolveCallback(
+  static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_assertions,
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 

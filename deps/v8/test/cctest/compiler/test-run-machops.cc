@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/objects-inl.h"
@@ -399,6 +400,243 @@ TEST(RunWord64Popcnt) {
 
 #endif  // V8_TARGET_ARCH_64_BIT
 
+TEST(RunWord32Select) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32());
+  if (!m.machine()->Word32Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Word32Equal(m.Parameter(2), m.Int32Constant(0));
+  m.Return(m.Word32Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int input1 = 16;
+  constexpr int input2 = 3443;
+
+  for (int i = 0; i < 2; ++i) {
+    int expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, input2, i));
+  }
+}
+
+TEST(RunWord64Select) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Int32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Word32Equal(m.Parameter(2), m.Int32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  for (int i = 0; i < 2; ++i) {
+    int64_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, input2, i));
+  }
+}
+
+TEST(RunSelectUnorderedEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32Equal(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input1, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input2, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input2, m.Call(input1, input2, std::nanf("")));
+}
+
+TEST(RunSelectUnorderedNotEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32NotEqual(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input2, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input1, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input1, m.Call(input1, input2, std::nanf("")));
+}
+
+namespace {
+void FooForSelect() {}
+}  // namespace
+
+TEST(RunWord32SelectWithMemoryInput) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+                                               MachineType::Int32());
+  if (!m.machine()->Word32Select().IsSupported()) {
+    return;
+  }
+
+  // Test that the generated code also works with values spilled on the stack.
+
+  auto* foo_ptr = &FooForSelect;
+  constexpr int input1 = 16;
+  int input2 = 3443;
+  // Load {value2} before the function call so that it gets spilled.
+  Node* value2 = m.LoadFromPointer(&input2, MachineType::Int32());
+  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
+  // Call a function so that {value2} gets spilled on the stack.
+  m.CallCFunction(function, MachineType::Int32());
+  Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
+  m.Return(m.Word32Select(cmp, m.Parameter(0), value2));
+
+  for (int i = 0; i < 2; ++i) {
+    int32_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, i));
+  }
+}
+
+TEST(RunWord64SelectWithMemoryInput) {
+  BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                               MachineType::Int32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  // Test that the generated code also works with values spilled on the stack.
+
+  auto* foo_ptr = &FooForSelect;
+  constexpr int64_t input1 = 16;
+  int64_t input2 = 0x12345678ABCD;
+  // Load {value2} before the function call so that it gets spilled.
+  Node* value2 = m.LoadFromPointer(&input2, MachineType::Int64());
+  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
+  // Call a function so that {value2} gets spilled on the stack.
+  m.CallCFunction(function, MachineType::Int32());
+  Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), value2));
+
+  for (int i = 0; i < 2; ++i) {
+    int64_t expected = i == 0 ? input1 : input2;
+    CHECK_EQ(expected, m.Call(input1, i));
+  }
+}
+
+TEST(RunFloat32SelectRegFloatCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32Equal(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float32Select(cmp, m.Parameter(0), m.Parameter(1)));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected_result = pl == pr ? pl : pr;
+      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat64SelectRegFloatCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float64LessThan(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Parameter(0), m.Parameter(1)));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double expected_result = pl < pr ? pl : pr;
+      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat32SelectImmediateOnLeftFloatCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  const float pl = -5.0;
+  Node* a = m.Float32Constant(pl);
+  Node* cmp = m.Float32LessThan(a, m.Parameter(0));
+  m.Return(m.Float32Select(cmp, a, m.Parameter(0)));
+
+  FOR_FLOAT32_INPUTS(pr) {
+    float expected_result = pl < pr ? pl : pr;
+    CHECK_FLOAT_EQ(expected_result, m.Call(pr));
+  }
+}
+
+TEST(RunFloat64SelectImmediateOnRightFloatCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  double pr = 5.0;
+  Node* b = m.Float64Constant(pr);
+  Node* cmp = m.Float64LessThanOrEqual(m.Parameter(0), b);
+  m.Return(m.Float64Select(cmp, m.Parameter(0), b));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    double expected_result = pl <= pr ? pl : pr;
+    CHECK_DOUBLE_EQ(expected_result, m.Call(pl));
+  }
+}
+
+TEST(RunFloat32SelectImmediateIntCompare) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Int32(),
+                                             MachineType::Int32());
+  if (!m.machine()->Float32Select().IsSupported()) {
+    return;
+  }
+
+  float tval = -1.0;
+  float fval = 1.0;
+  Node* cmp = m.Int32LessThanOrEqual(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Float32Constant(tval),
+                           m.Float32Constant(fval)));
+
+  FOR_INT32_INPUTS(pl) {
+    FOR_INT32_INPUTS(pr) {
+      float expected_result = pl <= pr ? tval : fval;
+      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
+
+TEST(RunFloat64SelectImmediateIntCompare) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Int64(),
+                                              MachineType::Int64());
+  if (!m.machine()->Float64Select().IsSupported()) {
+    return;
+  }
+
+  double tval = -1.0;
+  double fval = 1.0;
+  Node* cmp = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
+  m.Return(m.Float64Select(cmp, m.Float64Constant(tval),
+                           m.Float64Constant(fval)));
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      double expected_result = pl < pr ? tval : fval;
+      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+    }
+  }
+}
 
 static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
   switch (index) {
@@ -1210,8 +1448,7 @@ TEST(RunSwitch4) {
   Node* results[kNumValues];
   for (size_t i = 0; i < kNumCases; ++i) {
     case_values[i] = static_cast<int32_t>(i);
-    case_labels[i] =
-        new (m.main_zone()->New(sizeof(RawMachineLabel))) RawMachineLabel;
+    case_labels[i] = m.main_zone()->New<RawMachineLabel>();
   }
   m.Switch(m.Parameter(0), &def, case_values, case_labels,
            arraysize(case_labels));
@@ -4174,8 +4411,6 @@ TEST(RunChangeUint32ToFloat64) {
 
 
 TEST(RunTruncateFloat32ToInt32) {
-  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
-  m.Return(m.TruncateFloat32ToInt32(m.Parameter(0)));
   // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
   // number above INT32_MAX which cannot be represented as int32.
   float upper_bound = 2147483648.0f;
@@ -4183,31 +4418,107 @@ TEST(RunTruncateFloat32ToInt32) {
   // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
   // is.
   float lower_bound = static_cast<float>(INT32_MIN);
-  FOR_FLOAT32_INPUTS(i) {
-    if (i < upper_bound && i >= lower_bound) {
-      CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+  {
+    BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToInt32(m.Parameter(0),
+                                      TruncateKind::kArchitectureDefault));
+    FOR_FLOAT32_INPUTS(i) {
+      if (i < upper_bound && i >= lower_bound) {
+        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+      } else if (i < lower_bound) {
+#if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
+    !_MIPS_ARCH_MIPS64R6
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#else
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#endif
+      } else if (i >= upper_bound) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#else
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#endif
+      } else {
+        DCHECK(std::isnan(i));
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+        CHECK_FLOAT_EQ(0, m.Call(i));
+#elif V8_TARGET_ARCH_RISCV64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#endif
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToInt32(m.Parameter(0),
+                                      TruncateKind::kSetOverflowToMin));
+    FOR_FLOAT32_INPUTS(i) {
+      if (i < upper_bound && i >= lower_bound) {
+        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+      } else if (!std::isnan(i)) {
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+      } else {
+        DCHECK(std::isnan(i));
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+        CHECK_FLOAT_EQ(0, m.Call(i));
+#endif
+      }
     }
   }
 }
 
-
 TEST(RunTruncateFloat32ToUint32) {
-  BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
-  m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
   // The upper bound is (UINT32_MAX + 1), which is the lowest
   // float-representable number above UINT32_MAX which cannot be represented as
   // uint32.
   double upper_bound = 4294967296.0f;
   double lower_bound = -1.0f;
-  FOR_UINT32_INPUTS(i) {
-    volatile float input = static_cast<float>(i);
-    if (input < upper_bound) {
-      CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+
+  // No tests outside the range of UINT32 are performed, as the semantics are
+  // tricky on x64. On this architecture, the assembler transforms float32 into
+  // a signed int64 instead of an unsigned int32. Overflow can then be detected
+  // by converting back to float and testing for equality as done in
+  // wasm-compiler.cc .
+  //
+  // On arm architectures, TruncateKind::kArchitectureDefault rounds towards 0
+  // upon overflow and returns 0 if the input is NaN.
+  // TruncateKind::kSetOverflowToMin returns 0 on overflow and NaN.
+  {
+    BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToUint32(m.Parameter(0),
+                                       TruncateKind::kArchitectureDefault));
+    FOR_UINT32_INPUTS(i) {
+      volatile float input = static_cast<float>(i);
+      if (input < upper_bound) {
+        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+      }
+    }
+    FOR_FLOAT32_INPUTS(j) {
+      if ((j < upper_bound) && (j > lower_bound)) {
+        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+      }
     }
   }
-  FOR_FLOAT32_INPUTS(j) {
-    if ((j < upper_bound) && (j > lower_bound)) {
-      CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+  {
+    BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToUint32(m.Parameter(0),
+                                       TruncateKind::kSetOverflowToMin));
+    FOR_UINT32_INPUTS(i) {
+      volatile float input = static_cast<float>(i);
+      if (input < upper_bound) {
+        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+      }
+    }
+    FOR_FLOAT32_INPUTS(j) {
+      if ((j < upper_bound) && (j > lower_bound)) {
+        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+      }
     }
   }
 }
@@ -6397,10 +6708,9 @@ TEST(RunChangeFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.ChangeFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    if (static_cast<int64_t>(input) == i) {
-      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      CHECK_EQ(static_cast<int64_t>(i), m.Call(i));
     }
   }
 }
@@ -6410,9 +6720,7 @@ TEST(RunChangeInt64ToFloat64) {
   m.Return(m.ChangeInt64ToFloat64(m.Parameter(0)));
   FOR_INT64_INPUTS(i) {
     double output = static_cast<double>(i);
-    if (static_cast<int64_t>(output) == i) {
-      CHECK_EQ(output, m.Call(i));
-    }
+    CHECK_EQ(output, m.Call(i));
   }
 }
 
@@ -6481,9 +6789,11 @@ TEST(RunTryTruncateFloat64ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.TryTruncateFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      double input = static_cast<double>(i);
+      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+    }
   }
 }
 
@@ -6859,7 +7169,7 @@ TEST(RunComputedCodeObject) {
   CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
   LinkageLocation ret[] = {c->GetReturnLocation(0)};
   Signature<LinkageLocation> loc(1, 0, ret);
-  auto call_descriptor = new (r.zone()) CallDescriptor(  // --
+  auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc

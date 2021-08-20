@@ -1,10 +1,11 @@
-#! /bin/sh
+#! /bin/bash
 
 # Primary root: root-cert
 # root cert variants: CA:false, key2, DN2
 # trust variants: +serverAuth -serverAuth +clientAuth -clientAuth +anyEKU -anyEKU
 #
 ./mkcert.sh genroot "Root CA" root-key root-cert
+DAYS=-1 ./mkcert.sh genroot "Root CA" root-key root-expired
 ./mkcert.sh genss "Root CA" root-key root-nonca
 ./mkcert.sh genroot "Root CA" root-key2 root-cert2
 ./mkcert.sh genroot "Root Cert 2" root-key root-name2
@@ -116,11 +117,15 @@ openssl x509 -in ca-cert-md5.pem -trustout \
 # CA has 768-bit key
 OPENSSL_KEYBITS=768 \
 ./mkcert.sh genca "CA" ca-key-768 ca-cert-768 root-key root-cert
+# EC cert with explicit curve
+./mkcert.sh genca "CA" ca-key-ec-explicit ca-cert-ec-explicit root-key root-cert
+# EC cert with named curve
+./mkcert.sh genca "CA" ca-key-ec-named ca-cert-ec-named root-key root-cert
 
 # client intermediate ca: cca-cert
 # trust variants: +serverAuth, -serverAuth, +clientAuth, -clientAuth
 #
-./mkcert.sh genca "CA" ca-key cca-cert root-key root-cert clientAuth
+./mkcert.sh genca -p clientAuth "CA" ca-key cca-cert root-key root-cert
 #
 openssl x509 -in cca-cert.pem -trustout \
     -addtrust serverAuth -out cca+serverAuth.pem
@@ -138,7 +143,7 @@ openssl x509 -in cca-cert.pem -trustout \
 # server intermediate ca: sca-cert
 # trust variants: +serverAuth, -serverAuth, +clientAuth, -clientAuth, -anyEKU, +anyEKU
 #
-./mkcert.sh genca "CA" ca-key sca-cert root-key root-cert serverAuth
+./mkcert.sh genca -p serverAuth "CA" ca-key sca-cert root-key root-cert
 #
 openssl x509 -in sca-cert.pem -trustout \
     -addtrust serverAuth -out sca+serverAuth.pem
@@ -164,7 +169,7 @@ openssl x509 -in sca-cert.pem -trustout \
 ./mkcert.sh genee server.example ee-key ee-name2 ca-key ca-name2
 ./mkcert.sh genee -p clientAuth server.example ee-key ee-client ca-key ca-cert
 ./mkcert.sh genee server.example ee-key ee-pathlen ca-key ca-cert \
-    -extfile <(echo "basicConstraints=CA:FALSE,pathlen:0")
+    -extfile <(echo "basicConstraints=CA:FALSE,pathlen:0") # bash needed here
 #
 openssl x509 -in ee-cert.pem -trustout \
     -addtrust serverAuth -out ee+serverAuth.pem
@@ -184,6 +189,17 @@ OPENSSL_SIGALG=md5 \
 # 768-bit leaf key
 OPENSSL_KEYBITS=768 \
 ./mkcert.sh genee server.example ee-key-768 ee-cert-768 ca-key ca-cert
+# EC cert with explicit curve signed by named curve ca
+./mkcert.sh genee server.example ee-key-ec-explicit ee-cert-ec-explicit ca-key-ec-named ca-cert-ec-named
+# EC cert with named curve signed by explicit curve ca
+./mkcert.sh genee server.example ee-key-ec-named-explicit \
+    ee-cert-ec-named-explicit ca-key-ec-explicit ca-cert-ec-explicit
+# EC cert with named curve signed by named curve ca
+./mkcert.sh genee server.example ee-key-ec-named-named \
+    ee-cert-ec-named-named ca-key-ec-named ca-cert-ec-named
+
+# self-signed end-entity cert with explicit keyUsage not including KeyCertSign
+openssl req -new -x509 -key ee-key.pem -subj /CN=ee-self-signed -out ee-self-signed.pem -addext keyUsage=digitalSignature -days 36500
 
 # Proxy certificates, off of ee-client
 # Start with some good ones
@@ -364,9 +380,14 @@ REQMASK=MASK:0x800 ./mkcert.sh req badalt7-key "O = Bad NC Test Certificate 7" \
 # SHA1
 ./mkcert.sh genee PSS-SHA1 ee-key ee-pss-sha1-cert ca-key ca-cert \
     -sha1 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
-# SHA256
+# EE SHA256
 ./mkcert.sh genee PSS-SHA256 ee-key ee-pss-sha256-cert ca-key ca-cert \
-    -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
+            -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
+# CA-PSS
+./mkcert.sh genca "CA-PSS" ca-pss-key ca-pss-cert root-key root-cert \
+            -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-1
+./mkcert.sh genee "EE-PSS" ee-key ee-pss-cert ca-pss-key ca-pss-cert \
+            -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-1
 
 OPENSSL_KEYALG=ec OPENSSL_KEYBITS=brainpoolP256r1 ./mkcert.sh genee \
     "Server ECDSA brainpoolP256r1 cert" server-ecdsa-brainpoolP256r1-key \

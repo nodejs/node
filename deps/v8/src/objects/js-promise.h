@@ -7,13 +7,15 @@
 
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-promise-tq.inc"
 
 // Representation of promise objects in the specification. Our layout of
 // JSPromise differs a bit from the layout in the specification, for example

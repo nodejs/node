@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 // Utilities for internet-related tests
@@ -22,6 +21,9 @@ const addresses = {
   INVALID_HOST: 'something.invalid',
   // A host with MX records registered
   MX_HOST: 'nodejs.org',
+  // On some systems, .invalid returns a server failure/try again rather than
+  // record not found. Use this to guarantee record not found.
+  NOT_FOUND: 'come.on.fhqwhgads.test',
   // A host with SRV records registered
   SRV_HOST: '_jabber._tcp.google.com',
   // A host with PTR records registered
@@ -30,6 +32,8 @@ const addresses = {
   NAPTR_HOST: 'sip2sip.info',
   // A host with SOA records registered
   SOA_HOST: 'nodejs.org',
+  // A host with CAA record registred
+  CAA_HOST: 'google.com',
   // A host with CNAME records registered
   CNAME_HOST: 'blog.nodejs.org',
   // A host with NS records registered

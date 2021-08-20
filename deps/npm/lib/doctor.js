@@ -1,113 +1,303 @@
-'use strict'
-
-const ansiTrim = require('./utils/ansi-trim')
-const chain = require('slide').chain
-const color = require('ansicolors')
-const defaultRegistry = require('./config/defaults').defaults.registry
-const log = require('npmlog')
-const npm = require('./npm')
-const output = require('./utils/output')
-const path = require('path')
-const semver = require('semver')
-const styles = require('ansistyles')
+const cacache = require('cacache')
+const chalk = require('chalk')
+const fs = require('fs')
+const fetch = require('make-fetch-happen')
 const table = require('text-table')
+const which = require('which')
+const pacote = require('pacote')
+const { resolve } = require('path')
+const semver = require('semver')
+const { promisify } = require('util')
+const ansiTrim = require('./utils/ansi-trim.js')
+const isWindows = require('./utils/is-windows.js')
+const ping = require('./utils/ping.js')
+const { registry: { default: defaultRegistry } } = require('./utils/config/definitions.js')
+const lstat = promisify(fs.lstat)
+const readdir = promisify(fs.readdir)
+const access = promisify(fs.access)
+const { R_OK, W_OK, X_OK } = fs.constants
+const maskLabel = mask => {
+  const label = []
+  if (mask & R_OK)
+    label.push('readable')
 
-// steps
-const checkFilesPermission = require('./doctor/check-files-permission')
-const checkPing = require('./doctor/check-ping')
-const getGitPath = require('./doctor/get-git-path')
-const getLatestNodejsVersion = require('./doctor/get-latest-nodejs-version')
-const getLatestNpmVersion = require('./doctor/get-latest-npm-version')
-const verifyCachedFiles = require('./doctor/verify-cached-files')
+  if (mask & W_OK)
+    label.push('writable')
 
-const globalNodeModules = path.join(npm.config.globalPrefix, 'lib', 'node_modules')
-const localNodeModules = path.join(npm.config.localPrefix, 'node_modules')
+  if (mask & X_OK)
+    label.push('executable')
 
-module.exports = doctor
+  return label.join(', ')
+}
 
-doctor.usage = 'npm doctor'
-
-function doctor (args, silent, cb) {
-  args = args || {}
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+const BaseCommand = require('./base-command.js')
+class Doctor extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Check your npm environment'
   }
 
-  const actionsToRun = [
-    [checkPing],
-    [getLatestNpmVersion],
-    [getLatestNodejsVersion, args['node-url']],
-    [getGitPath],
-    [checkFilesPermission, npm.cache, 4, 6],
-    [checkFilesPermission, globalNodeModules, 4, 4],
-    [checkFilesPermission, localNodeModules, 6, 6],
-    [verifyCachedFiles, path.join(npm.cache, '_cacache')]
-  ]
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'doctor'
+  }
 
-  log.info('doctor', 'Running checkup')
-  chain(actionsToRun, function (stderr, stdout) {
-    if (stderr && stderr.message !== 'not found: git') return cb(stderr)
-    const list = makePretty(stdout)
-    let outHead = ['Check', 'Value', 'Recommendation']
-    let outBody = list
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['registry']
+  }
 
-    if (npm.color) {
-      outHead = outHead.map(function (item) {
-        return styles.underline(item)
-      })
-      outBody = outBody.map(function (item) {
-        if (item[2]) {
-          item[0] = color.red(item[0])
-          item[2] = color.magenta(item[2])
+  exec (args, cb) {
+    this.doctor(args).then(() => cb()).catch(cb)
+  }
+
+  async doctor (args) {
+    this.npm.log.info('Running checkup')
+
+    // each message is [title, ok, message]
+    const messages = []
+
+    const actions = [
+      ['npm ping', 'checkPing', []],
+      ['npm -v', 'getLatestNpmVersion', []],
+      ['node -v', 'getLatestNodejsVersion', []],
+      ['npm config get registry', 'checkNpmRegistry', []],
+      ['which git', 'getGitPath', []],
+      ...(isWindows ? [] : [
+        ['Perms check on cached files', 'checkFilesPermission', [this.npm.cache, true, R_OK]],
+        ['Perms check on local node_modules', 'checkFilesPermission', [this.npm.localDir, true]],
+        ['Perms check on global node_modules', 'checkFilesPermission', [this.npm.globalDir, false]],
+        ['Perms check on local bin folder', 'checkFilesPermission', [this.npm.localBin, false, R_OK | W_OK | X_OK]],
+        ['Perms check on global bin folder', 'checkFilesPermission', [this.npm.globalBin, false, X_OK]],
+      ]),
+      ['Verify cache contents', 'verifyCachedFiles', [this.npm.flatOptions.cache]],
+      // TODO:
+      // - ensure arborist.loadActual() runs without errors and no invalid edges
+      // - ensure package-lock.json matches loadActual()
+      // - verify loadActual without hidden lock file matches hidden lockfile
+      // - verify all local packages have bins linked
+    ]
+
+    // Do the actual work
+    for (const [msg, fn, args] of actions) {
+      const line = [msg]
+      try {
+        line.push(true, await this[fn](...args))
+      } catch (er) {
+        line.push(false, er)
+      }
+      messages.push(line)
+    }
+
+    const outHead = ['Check', 'Value', 'Recommendation/Notes']
+      .map(!this.npm.color ? h => h : h => chalk.underline(h))
+    let allOk = true
+    const outBody = messages.map(!this.npm.color
+      ? item => {
+        allOk = allOk && item[1]
+        item[1] = item[1] ? 'ok' : 'not ok'
+        item[2] = String(item[2])
+        return item
+      }
+      : item => {
+        allOk = allOk && item[1]
+        if (!item[1]) {
+          item[0] = chalk.red(item[0])
+          item[2] = chalk.magenta(String(item[2]))
         }
+        item[1] = item[1] ? chalk.green('ok') : chalk.red('not ok')
         return item
       })
-    }
-
-    const outTable = [outHead].concat(outBody)
+    const outTable = [outHead, ...outBody]
     const tableOpts = {
-      stringLength: function (s) { return ansiTrim(s).length }
+      stringLength: s => ansiTrim(s).length,
     }
 
-    if (!silent) output(table(outTable, tableOpts))
+    const silent = this.npm.log.levels[this.npm.log.level] >
+      this.npm.log.levels.error
+    if (!silent) {
+      this.npm.output(table(outTable, tableOpts))
+      if (!allOk)
+        console.error('')
+    }
+    if (!allOk)
+      throw 'Some problems found. See above for recommendations.'
+  }
 
-    cb(null, list)
-  })
+  async checkPing () {
+    const tracker = this.npm.log.newItem('checkPing', 1)
+    tracker.info('checkPing', 'Pinging registry')
+    try {
+      await ping(this.npm.flatOptions)
+      return ''
+    } catch (er) {
+      if (/^E\d{3}$/.test(er.code || ''))
+        throw er.code.substr(1) + ' ' + er.message
+      else
+        throw er.message
+    } finally {
+      tracker.finish()
+    }
+  }
+
+  async getLatestNpmVersion () {
+    const tracker = this.npm.log.newItem('getLatestNpmVersion', 1)
+    tracker.info('getLatestNpmVersion', 'Getting npm package information')
+    try {
+      const latest = (await pacote.manifest('npm@latest', this.npm.flatOptions)).version
+      if (semver.gte(this.npm.version, latest))
+        return `current: v${this.npm.version}, latest: v${latest}`
+      else
+        throw `Use npm v${latest}`
+    } finally {
+      tracker.finish()
+    }
+  }
+
+  async getLatestNodejsVersion () {
+    // XXX get the latest in the current major as well
+    const current = process.version
+    const currentRange = `^${current}`
+    const url = 'https://nodejs.org/dist/index.json'
+    const tracker = this.npm.log.newItem('getLatestNodejsVersion', 1)
+    tracker.info('getLatestNodejsVersion', 'Getting Node.js release information')
+    try {
+      const res = await fetch(url, { method: 'GET', ...this.npm.flatOptions })
+      const data = await res.json()
+      let maxCurrent = '0.0.0'
+      let maxLTS = '0.0.0'
+      for (const { lts, version } of data) {
+        if (lts && semver.gt(version, maxLTS))
+          maxLTS = version
+
+        if (semver.satisfies(version, currentRange) &&
+          semver.gt(version, maxCurrent))
+          maxCurrent = version
+      }
+      const recommended = semver.gt(maxCurrent, maxLTS) ? maxCurrent : maxLTS
+      if (semver.gte(process.version, recommended))
+        return `current: ${current}, recommended: ${recommended}`
+      else
+        throw `Use node ${recommended} (current: ${current})`
+    } finally {
+      tracker.finish()
+    }
+  }
+
+  async checkFilesPermission (root, shouldOwn, mask = null) {
+    if (mask === null)
+      mask = shouldOwn ? R_OK | W_OK : R_OK
+
+    let ok = true
+
+    const tracker = this.npm.log.newItem(root, 1)
+
+    try {
+      const uid = process.getuid()
+      const gid = process.getgid()
+      const files = new Set([root])
+      for (const f of files) {
+        tracker.silly('checkFilesPermission', f.substr(root.length + 1))
+        const st = await lstat(f)
+          .catch(er => {
+            ok = false
+            tracker.warn('checkFilesPermission', 'error getting info for ' + f)
+          })
+
+        tracker.completeWork(1)
+
+        if (!st)
+          continue
+
+        if (shouldOwn && (uid !== st.uid || gid !== st.gid)) {
+          tracker.warn('checkFilesPermission', 'should be owner of ' + f)
+          ok = false
+        }
+
+        if (!st.isDirectory() && !st.isFile())
+          continue
+
+        try {
+          await access(f, mask)
+        } catch (er) {
+          ok = false
+          const msg = `Missing permissions on ${f} (expect: ${maskLabel(mask)})`
+          tracker.error('checkFilesPermission', msg)
+          continue
+        }
+
+        if (st.isDirectory()) {
+          const entries = await readdir(f)
+            .catch(er => {
+              ok = false
+              tracker.warn('checkFilesPermission', 'error reading directory ' + f)
+              return []
+            })
+          for (const entry of entries)
+            files.add(resolve(f, entry))
+        }
+      }
+    } finally {
+      tracker.finish()
+      if (!ok) {
+        throw `Check the permissions of files in ${root}` +
+          (shouldOwn ? ' (should be owned by current user)' : '')
+      } else
+        return ''
+    }
+  }
+
+  async getGitPath () {
+    const tracker = this.npm.log.newItem('getGitPath', 1)
+    tracker.info('getGitPath', 'Finding git in your PATH')
+    try {
+      return await which('git').catch(er => {
+        tracker.warn(er)
+        throw "Install git and ensure it's in your PATH."
+      })
+    } finally {
+      tracker.finish()
+    }
+  }
+
+  async verifyCachedFiles () {
+    const tracker = this.npm.log.newItem('verifyCachedFiles', 1)
+    tracker.info('verifyCachedFiles', 'Verifying the npm cache')
+    try {
+      const stats = await cacache.verify(this.npm.flatOptions.cache)
+      const {
+        badContentCount,
+        reclaimedCount,
+        missingContent,
+        reclaimedSize,
+      } = stats
+      if (badContentCount || reclaimedCount || missingContent) {
+        if (badContentCount)
+          tracker.warn('verifyCachedFiles', `Corrupted content removed: ${badContentCount}`)
+
+        if (reclaimedCount)
+          tracker.warn('verifyCachedFiles', `Content garbage-collected: ${reclaimedCount} (${reclaimedSize} bytes)`)
+
+        if (missingContent)
+          tracker.warn('verifyCachedFiles', `Missing content: ${missingContent}`)
+
+        tracker.warn('verifyCachedFiles', 'Cache issues have been fixed')
+      }
+      tracker.info('verifyCachedFiles', `Verification complete. Stats: ${
+      JSON.stringify(stats, null, 2)
+    }`)
+      return `verified ${stats.verifiedContent} tarballs`
+    } finally {
+      tracker.finish()
+    }
+  }
+
+  async checkNpmRegistry () {
+    if (this.npm.flatOptions.registry !== defaultRegistry)
+      throw `Try \`npm config set registry=${defaultRegistry}\``
+    else
+      return `using default registry (${defaultRegistry})`
+  }
 }
 
-function makePretty (p) {
-  const ping = p[1]
-  const npmLTS = p[2]
-  const nodeLTS = p[3].replace('v', '')
-  const whichGit = p[4] || 'not installed'
-  const readbleCaches = p[5] ? 'ok' : 'notOk'
-  const executableGlobalModules = p[6] ? 'ok' : 'notOk'
-  const executableLocalModules = p[7] ? 'ok' : 'notOk'
-  const cacheStatus = p[8] ? `verified ${p[8].verifiedContent} tarballs` : 'notOk'
-  const npmV = npm.version
-  const nodeV = process.version.replace('v', '')
-  const registry = npm.config.get('registry') || ''
-  const list = [
-    ['npm ping', ping],
-    ['npm -v', 'v' + npmV],
-    ['node -v', 'v' + nodeV],
-    ['npm config get registry', registry],
-    ['which git', whichGit],
-    ['Perms check on cached files', readbleCaches],
-    ['Perms check on global node_modules', executableGlobalModules],
-    ['Perms check on local node_modules', executableLocalModules],
-    ['Verify cache contents', cacheStatus]
-  ]
-
-  if (p[0] !== 200) list[0][2] = 'Check your internet connection'
-  if (!semver.satisfies(npmV, '>=' + npmLTS)) list[1][2] = 'Use npm v' + npmLTS
-  if (!semver.satisfies(nodeV, '>=' + nodeLTS)) list[2][2] = 'Use node v' + nodeLTS
-  if (registry !== defaultRegistry) list[3][2] = 'Try `npm config set registry ' + defaultRegistry + '`'
-  if (whichGit === 'not installed') list[4][2] = 'Install git and ensure it\'s in your PATH.'
-  if (readbleCaches !== 'ok') list[5][2] = 'Check the permissions of your files in ' + npm.config.get('cache')
-  if (executableGlobalModules !== 'ok') list[6][2] = globalNodeModules + ' must be readable and writable by the current user.'
-  if (executableLocalModules !== 'ok') list[7][2] = localNodeModules + ' must be readable and writable by the current user.'
-
-  return list
-}
+module.exports = Doctor

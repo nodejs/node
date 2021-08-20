@@ -125,6 +125,7 @@ RegExpMacroAssemblerX64::~RegExpMacroAssemblerX64() {
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 
@@ -157,8 +158,13 @@ void RegExpMacroAssemblerX64::Backtrack() {
     __ cmpq(Operand(rbp, kBacktrackCount), Immediate(backtrack_limit()));
     __ j(not_equal, &next);
 
-    // Exceeded limits are treated as a failed match.
-    Fail();
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ jmp(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
 
     __ bind(&next);
   }
@@ -215,7 +221,7 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
 }
 
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
   ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
@@ -350,11 +356,13 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Isolate.
     __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
 
-    { // NOLINT: Can't find a way to open this scope without confusing the
-      // linter.
+    {
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
-          ExternalReference::re_case_insensitive_compare_uc16(isolate());
+          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
+                        isolate())
+                  : ExternalReference::re_case_insensitive_compare_non_unicode(
+                        isolate());
       __ CallCFunction(compare, num_arguments);
     }
 
@@ -663,7 +671,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
 void RegExpMacroAssemblerX64::Fail() {
   STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
   if (!global()) {
-    __ Set(rax, FAILURE);
+    __ Move(rax, FAILURE);
   }
   __ jmp(&exit_label_);
 }
@@ -741,7 +749,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
-  __ Set(rax, EXCEPTION);
+  __ Move(rax, EXCEPTION);
   __ jmp(&return_rax);
 
   __ bind(&stack_limit_hit);
@@ -781,7 +789,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load newline if index is at start, previous character otherwise.
   __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
   __ j(not_equal, &load_char_start_regexp, Label::kNear);
-  __ Set(current_character(), '\n');
+  __ Move(current_character(), '\n');
   __ jmp(&start_regexp, Label::kNear);
 
   // Global regexp restarts matching here.
@@ -796,7 +804,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Fill in stack push order, to avoid accessing across an unwritten
     // page (a problem on Windows).
     if (num_saved_registers_ > 8) {
-      __ Set(rcx, kRegisterZero);
+      __ Move(rcx, kRegisterZero);
       Label init_loop;
       __ bind(&init_loop);
       __ movq(Operand(rbp, rcx, times_1, 0), rax);
@@ -993,7 +1001,13 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // If any of the code above needed to exit with an exception.
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
-    __ Set(rax, EXCEPTION);
+    __ Move(rax, EXCEPTION);
+    __ jmp(&return_rax);
+  }
+
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ Move(rax, FALLBACK_TO_EXPERIMENTAL);
     __ jmp(&return_rax);
   }
 
@@ -1002,7 +1016,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
   PROFILE(isolate,

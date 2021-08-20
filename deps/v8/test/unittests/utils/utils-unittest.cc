@@ -135,8 +135,8 @@ TYPED_TEST(UtilsTest, PassesFilterTest) {
 
 TEST(UtilsTest, IsInBounds) {
 // for column consistency and terseness
-#define INB(x, y, z) EXPECT_TRUE(base::IsInBounds(x, y, z))
-#define OOB(x, y, z) EXPECT_FALSE(base::IsInBounds(x, y, z))
+#define INB(x, y, z) EXPECT_TRUE(base::IsInBounds<size_t>(x, y, z))
+#define OOB(x, y, z) EXPECT_FALSE(base::IsInBounds<size_t>(x, y, z))
   INB(0, 0, 1);
   INB(0, 1, 1);
   INB(1, 0, 1);

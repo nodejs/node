@@ -35,7 +35,6 @@ class BackgroundCompileTask;
 class CancelableTaskManager;
 class UnoptimizedCompileJob;
 class CompilerDispatcherTracer;
-class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
@@ -79,6 +78,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   CompilerDispatcher(Isolate* isolate, Platform* platform,
                      size_t max_stack_size);
+  CompilerDispatcher(const CompilerDispatcher&) = delete;
+  CompilerDispatcher& operator=(const CompilerDispatcher&) = delete;
   ~CompilerDispatcher();
 
   // Returns true if the compiler dispatcher is enabled.
@@ -196,8 +197,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Test support.
   base::AtomicValue<bool> block_for_testing_;
   base::Semaphore semaphore_for_testing_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcher);
 };
 
 }  // namespace internal

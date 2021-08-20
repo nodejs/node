@@ -168,11 +168,12 @@ class AsmJsParser {
   AsmJsScanner scanner_;
   WasmModuleBuilder* module_builder_;
   WasmFunctionBuilder* current_function_builder_;
-  AsmType* return_type_;
+  AsmType* return_type_ = nullptr;
   uintptr_t stack_limit_;
   StdlibSet stdlib_uses_;
-  ZoneVector<VarInfo> global_var_info_;
-  ZoneVector<VarInfo> local_var_info_;
+  Vector<VarInfo> global_var_info_;
+  Vector<VarInfo> local_var_info_;
+  size_t num_globals_ = 0;
 
   CachedVectors<ValueType> cached_valuetype_vectors_{zone_};
   CachedVectors<AsmType*> cached_asm_type_p_vectors_{zone_};
@@ -184,20 +185,20 @@ class AsmJsParser {
   int function_temp_locals_depth_;
 
   // Error Handling related
-  bool failed_;
+  bool failed_ = false;
   const char* failure_message_;
-  int failure_location_;
+  int failure_location_ = kNoSourcePosition;
 
   // Module Related.
-  AsmJsScanner::token_t stdlib_name_;
-  AsmJsScanner::token_t foreign_name_;
-  AsmJsScanner::token_t heap_name_;
+  AsmJsScanner::token_t stdlib_name_ = kTokenNone;
+  AsmJsScanner::token_t foreign_name_ = kTokenNone;
+  AsmJsScanner::token_t heap_name_ = kTokenNone;
 
   static const AsmJsScanner::token_t kTokenNone = 0;
 
   // Track if parsing a heap assignment.
-  bool inside_heap_assignment_;
-  AsmType* heap_access_type_;
+  bool inside_heap_assignment_ = false;
+  AsmType* heap_access_type_ = nullptr;
 
   ZoneVector<BlockInfo> block_stack_;
 
@@ -214,7 +215,7 @@ class AsmJsParser {
   // When making calls, the return type is needed to lookup signatures.
   // For `+callsite(..)` or `fround(callsite(..))` use this value to pass
   // along the coercion.
-  AsmType* call_coercion_;
+  AsmType* call_coercion_ = nullptr;
 
   // The source position associated with the above {call_coercion}.
   size_t call_coercion_position_;
@@ -222,7 +223,7 @@ class AsmJsParser {
   // When making calls, the coercion can also appear in the source stream
   // syntactically "behind" the call site. For `callsite(..)|0` use this
   // value to flag that such a coercion must happen.
-  AsmType* call_coercion_deferred_;
+  AsmType* call_coercion_deferred_ = nullptr;
 
   // The source position at which requesting a deferred coercion via the
   // aforementioned {call_coercion_deferred} is allowed.
@@ -238,7 +239,7 @@ class AsmJsParser {
 
   // Used to track the last label we've seen so it can be matched to later
   // statements it's attached to.
-  AsmJsScanner::token_t pending_label_;
+  AsmJsScanner::token_t pending_label_ = kTokenNone;
 
   // Global imports. The list of imported variables that are copied during
   // module instantiation into a corresponding global variable.
@@ -313,8 +314,7 @@ class AsmJsParser {
   VarInfo* GetVarInfo(AsmJsScanner::token_t token);
   uint32_t VarIndex(VarInfo* info);
   void DeclareGlobal(VarInfo* info, bool mutable_variable, AsmType* type,
-                     ValueType vtype,
-                     const WasmInitExpr& init = WasmInitExpr());
+                     ValueType vtype, WasmInitExpr init = WasmInitExpr());
   void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
   void AddGlobalImport(Vector<const char> name, AsmType* type, ValueType vtype,
                        bool mutable_variable, VarInfo* info);

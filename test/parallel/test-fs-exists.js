@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const { URL } = require('url');
 const f = __filename;
 
 assert.throws(() => fs.exists(f), { code: 'ERR_INVALID_CALLBACK' });

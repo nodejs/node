@@ -594,7 +594,7 @@
 
   // ## Parser utilities
 
-  var literal = /^(?:'((?:\\.|[^'])*?)'|"((?:\\.|[^"])*?)")/;
+  var literal = /^(?:'((?:\\.|[^'\\])*?)'|"((?:\\.|[^"\\])*?)")/;
   pp.strictDirective = function(start) {
     for (;;) {
       // Try to find string literal.
@@ -5108,7 +5108,7 @@
 
   // Acorn is a tiny, fast JavaScript parser written in JavaScript.
 
-  var version = "7.4.0";
+  var version = "7.4.1";
 
   Parser.acorn = {
     Parser: Parser,

@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 
+#include "src/objects/code.h"
+
 namespace v8 {
 namespace internal {
 
@@ -57,14 +59,18 @@ void PlatformEmbeddedFileWriterAIX::DeclarePointerToSymbol(const char* name,
 }
 
 void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
-  fprintf(fp_, ".globl %s\n", name);
+  // These symbols are not visible outside of the final binary, this allows for
+  // reduced binary size, and less work for the dynamic linker.
+  fprintf(fp_, ".globl %s, hidden\n", name);
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToCodeAlignment() {
+  STATIC_ASSERT((1 << 5) >= kCodeAlignment);
   fprintf(fp_, ".align 5\n");
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToDataAlignment() {
+  STATIC_ASSERT((1 << 3) >= Code::kMetadataAlignment);
   fprintf(fp_, ".align 3\n");
 }
 
@@ -73,7 +79,9 @@ void PlatformEmbeddedFileWriterAIX::Comment(const char* string) {
 }
 
 void PlatformEmbeddedFileWriterAIX::DeclareLabel(const char* name) {
-  DeclareSymbolGlobal(name);
+  // .global is required on AIX, if the label is used/referenced in another file
+  // later to be linked.
+  fprintf(fp_, ".globl %s\n", name);
   fprintf(fp_, "%s:\n", name);
 }
 
@@ -86,7 +94,9 @@ void PlatformEmbeddedFileWriterAIX::SourceInfo(int fileid, const char* filename,
 void PlatformEmbeddedFileWriterAIX::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
   Newline();
-  DeclareSymbolGlobal(name);
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
   fprintf(fp_, ".csect %s[DS]\n", name);  // function descriptor
   fprintf(fp_, "%s:\n", name);
   fprintf(fp_, ".llong .%s, 0, 0\n", name);

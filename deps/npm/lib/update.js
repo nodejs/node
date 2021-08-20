@@ -1,72 +1,76 @@
-'use strict'
-module.exports = update
+const path = require('path')
 
-const url = require('url')
+const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
-const Bluebird = require('bluebird')
-const npm = require('./npm.js')
-const Installer = require('./install.js').Installer
-const usage = require('./utils/usage')
-const outdated = Bluebird.promisify(npm.commands.outdated)
 
-update.usage = usage(
-  'update',
-  'npm update [-g] [<pkg>...]'
-)
+const reifyFinish = require('./utils/reify-finish.js')
+const completion = require('./utils/completion/installed-deep.js')
 
-update.completion = npm.commands.outdated.completion
+const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+class Update extends ArboristWorkspaceCmd {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Update packages'
+  }
 
-function update (args, cb) {
-  return update_(args).asCallback(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'update'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'global',
+      'global-style',
+      'legacy-bundling',
+      'strict-peer-deps',
+      'package-lock',
+      'omit',
+      'ignore-scripts',
+      'audit',
+      'bin-links',
+      'fund',
+      'dry-run',
+      ...super.params,
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<pkg>...]']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
+
+  exec (args, cb) {
+    this.update(args).then(() => cb()).catch(cb)
+  }
+
+  async update (args) {
+    const update = args.length === 0 ? true : args
+    const global = path.resolve(this.npm.globalDir, '..')
+    const where = this.npm.config.get('global')
+      ? global
+      : this.npm.prefix
+
+    if (this.npm.config.get('depth')) {
+      log.warn('update', 'The --depth option no longer has any effect. See RFC0019.\n' +
+        'https://github.com/npm/rfcs/blob/latest/implemented/0019-remove-update-depth-option.md')
+    }
+
+    const arb = new Arborist({
+      ...this.npm.flatOptions,
+      log: this.npm.log,
+      path: where,
+      workspaces: this.workspaceNames,
+    })
+
+    await arb.reify({ update })
+    await reifyFinish(this.npm, arb)
+  }
 }
-
-function update_ (args) {
-  let dryrun = false
-  if (npm.config.get('dry-run')) dryrun = true
-
-  log.verbose('update', 'computing outdated modules to update')
-  return outdated(args, true).then((rawOutdated) => {
-    const outdated = rawOutdated.map(function (ww) {
-      return {
-        dep: ww[0],
-        depname: ww[1],
-        current: ww[2],
-        wanted: ww[3],
-        latest: ww[4],
-        req: ww[5],
-        what: ww[1] + '@' + ww[3]
-      }
-    })
-
-    const wanted = outdated.filter(function (ww) {
-      if (ww.current === ww.wanted && ww.wanted !== ww.latest) {
-        log.verbose(
-          'outdated',
-          'not updating', ww.depname,
-          "because it's currently at the maximum version that matches its specified semver range"
-        )
-      }
-      return ww.current !== ww.wanted
-    })
-    if (wanted.length === 0) return
-
-    log.info('outdated', 'updating', wanted)
-    const toInstall = {}
-
-    wanted.forEach(function (ww) {
-      // use the initial installation method (repo, tar, git) for updating
-      if (url.parse(ww.req).protocol) ww.what = ww.req
-
-      const where = (ww.dep.parent && ww.dep.parent.path) || ww.dep.path
-      const isTransitive = !(ww.dep.requiredBy || []).some((p) => p.isTop)
-      const key = where + ':' + String(isTransitive)
-      if (!toInstall[key]) toInstall[key] = {where: where, opts: {saveOnlyLock: isTransitive}, what: []}
-      if (toInstall[key].what.indexOf(ww.what) === -1) toInstall[key].what.push(ww.what)
-    })
-    return Bluebird.each(Object.keys(toInstall), (key) => {
-      const deps = toInstall[key]
-      const inst = new Installer(deps.where, dryrun, deps.what, deps.opts)
-      return inst.run()
-    })
-  })
-}
+module.exports = Update

@@ -101,26 +101,27 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
+  std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_json_modules = false;
   bool experimental_modules = false;
   std::string experimental_specifier_resolution;
-  std::string es_module_specifier_resolution;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string;
-  bool experimental_repl_await = false;
+  bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
   bool frozen_intrinsics = false;
+  int64_t heap_snapshot_near_heap_limit = 0;
   std::string heap_snapshot_signal;
   uint64_t max_http_header_size = 16 * 1024;
-  bool no_deprecation = false;
-  bool no_force_async_hooks_checks = false;
-  bool no_warnings = false;
+  bool deprecation = true;
+  bool force_async_hooks_checks = true;
+  bool warnings = true;
   bool force_context_aware = false;
   bool pending_deprecation = false;
   bool preserve_symlinks = false;
@@ -151,6 +152,12 @@ class EnvironmentOptions : public Options {
   bool trace_warnings = false;
   std::string unhandled_rejections;
   std::string userland_loader;
+  bool verify_base_objects =
+#ifdef DEBUG
+      true;
+#else
+      false;
+#endif  // DEBUG
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
@@ -186,7 +193,7 @@ class PerIsolateOptions : public Options {
  public:
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
-  bool no_node_snapshot = false;
+  bool node_snapshot = true;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_top_level_await = true;
@@ -226,10 +233,12 @@ class PerProcessOptions : public Options {
 #endif
 
   // Per-process because they affect singleton OpenSSL shared library state,
-  // or are used once during process intialization.
+  // or are used once during process initialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
+  int64_t secure_heap = 0;
+  int64_t secure_heap_min = 2;
 #ifdef NODE_OPENSSL_CERT_STORE
   bool ssl_openssl_cert_store = true;
 #else
@@ -237,10 +246,8 @@ class PerProcessOptions : public Options {
 #endif
   bool use_openssl_ca = false;
   bool use_bundled_ca = false;
-#if NODE_FIPS_MODE
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
-#endif
 #endif
 
   // Per-process because reports can be triggered outside a known V8 context.
@@ -294,7 +301,8 @@ class OptionsParser {
   void AddOption(const char* name,
                  const char* help_text,
                  bool Options::* field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvironment,
+                 bool default_is_true = false);
   void AddOption(const char* name,
                  const char* help_text,
                  uint64_t Options::* field,
@@ -417,6 +425,7 @@ class OptionsParser {
     std::shared_ptr<BaseOptionField> field;
     OptionEnvvarSettings env_setting;
     std::string help_text;
+    bool default_is_true = false;
   };
 
   // An implied option is composed of the information on where to store a

@@ -63,8 +63,8 @@ extern macro TypedArrayBuiltinsAssembler::CallCMemmove(
     RawPtr, RawPtr, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::CallCMemset(
     RawPtr, intptr, uintptr): void;
-extern macro TypedArrayBuiltinsAssembler::GetBuffer(implicit context: Context)(
-    JSTypedArray): JSArrayBuffer;
+extern macro GetTypedArrayBuffer(implicit context: Context)(JSTypedArray):
+    JSArrayBuffer;
 extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     JSTypedArray): TypedArrayElementsInfo;
 extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
@@ -156,6 +156,10 @@ macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
   }
   unreachable;
 }
+
+extern macro
+TypedArrayBuiltinsAssembler::AllocateJSTypedArrayExternalPointerEntry(
+    JSTypedArray): void;
 
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     JSTypedArray, ByteArray, uintptr): void;

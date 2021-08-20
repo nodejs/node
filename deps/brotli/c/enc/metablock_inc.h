@@ -71,7 +71,7 @@ static void FN(InitBlockSplitter)(
   *histograms_size = max_num_types;
   *histograms = BROTLI_ALLOC(m, HistogramType, *histograms_size);
   self->histograms_ = *histograms;
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(*histograms)) return;
   /* Clear only current histogram. */
   FN(HistogramClear)(&self->histograms_[0]);
   self->last_histogram_ix_[0] = self->last_histogram_ix_[1] = 0;

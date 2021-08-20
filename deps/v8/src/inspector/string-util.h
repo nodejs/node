@@ -6,13 +6,14 @@
 #define V8_INSPECTOR_STRING_UTIL_H_
 
 #include <stdint.h>
+
 #include <memory>
 
+#include "../../third_party/inspector_protocol/crdtp/protocol_core.h"
+#include "include/v8-inspector.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -29,7 +30,7 @@ class StringUtil {
   }
 
   static String fromUTF16LE(const uint16_t* data, size_t length) {
-    return String16::fromUTF16(data, length);
+    return String16::fromUTF16LE(data, length);
   }
 
   static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
@@ -82,15 +83,46 @@ std::unique_ptr<StringBuffer> StringBufferFrom(std::vector<uint8_t> str);
 
 String16 stackTraceIdToString(uintptr_t id);
 
-}  //  namespace v8_inspector
+}  // namespace v8_inspector
 
 // See third_party/inspector_protocol/crdtp/serializer_traits.h.
 namespace v8_crdtp {
+
+template <>
+struct ProtocolTypeTraits<v8_inspector::String16> {
+  static bool Deserialize(DeserializerState* state,
+                          v8_inspector::String16* value);
+  static void Serialize(const v8_inspector::String16& value,
+                        std::vector<uint8_t>* bytes);
+};
+
+template <>
+struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
+  static bool Deserialize(DeserializerState* state,
+                          v8_inspector::protocol::Binary* value);
+  static void Serialize(const v8_inspector::protocol::Binary& value,
+                        std::vector<uint8_t>* bytes);
+};
+
 template <>
 struct SerializerTraits<v8_inspector::protocol::Binary> {
   static void Serialize(const v8_inspector::protocol::Binary& binary,
                         std::vector<uint8_t>* out);
 };
+
+namespace detail {
+template <>
+struct MaybeTypedef<v8_inspector::String16> {
+  typedef ValueMaybe<v8_inspector::String16> type;
+};
+
+template <>
+struct MaybeTypedef<v8_inspector::protocol::Binary> {
+  typedef ValueMaybe<v8_inspector::protocol::Binary> type;
+};
+
+}  // namespace detail
+
 }  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_UTIL_H_

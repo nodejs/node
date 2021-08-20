@@ -1,85 +1,84 @@
-/*
- *  Test Steps Explained
- *  ====================
- *
- *  Initializing hooks:
- *
- *  We initialize 3 hooks. For hook2 and hook3 we register a callback for the
- *  "before" and in case of hook3 also for the "after" invocations.
- *
- *  Enabling hooks initially:
- *
- *  We only enable hook1 and hook3 initially.
- *
- *  Enabling hook2:
- *
- *  When hook3's "before" invocation occurs we enable hook2.  Since this
- *  happens right before calling `onfirstImmediate` hook2 will miss all hook
- *  invocations until then, including the "init" and "before" of the first
- *  Immediate.
- *  However afterwards it collects all invocations that follow on the first
- *  Immediate as well as all invocations on the second Immediate.
- *
- *  This shows that a hook can enable another hook inside a life time event
- *  callback.
- *
- *
- *  Disabling hook1
- *
- *  Since we registered the "before" callback for hook2 it will execute it
- *  right before `onsecondImmediate` is called.
- *  At that point we disable hook1 which is why it will miss all invocations
- *  afterwards and thus won't include the second "after" as well as the
- *  "destroy" invocations
- *
- *  This shows that a hook can disable another hook inside a life time event
- *  callback.
- *
- *  Disabling hook3
- *
- *  When the second "after" invocation occurs (after onsecondImmediate), hook3
- *  disables itself.
- *  As a result it will not receive the "destroy" invocation.
- *
- *  This shows that a hook can disable itself inside a life time event callback.
- *
- *  Sample Test Log
- *  ===============
- *
- *  - setting up first Immediate
- *  hook1.init.uid-5
- *  hook3.init.uid-5
- *  - finished setting first Immediate
+//  Test Steps Explained
+//  ====================
+//
+//  Initializing hooks:
+//
+//  We initialize 3 hooks. For hook2 and hook3 we register a callback for the
+//  "before" and in case of hook3 also for the "after" invocations.
+//
+//  Enabling hooks initially:
+//
+//  We only enable hook1 and hook3 initially.
+//
+//  Enabling hook2:
+//
+//  When hook3's "before" invocation occurs we enable hook2.  Since this
+//  happens right before calling `onfirstImmediate` hook2 will miss all hook
+//  invocations until then, including the "init" and "before" of the first
+//  Immediate.
+//  However afterwards it collects all invocations that follow on the first
+//  Immediate as well as all invocations on the second Immediate.
+//
+//  This shows that a hook can enable another hook inside a life time event
+//  callback.
+//
+//
+//  Disabling hook1
+//
+//  Since we registered the "before" callback for hook2 it will execute it
+//  right before `onsecondImmediate` is called.
+//  At that point we disable hook1 which is why it will miss all invocations
+//  afterwards and thus won't include the second "after" as well as the
+//  "destroy" invocations
+//
+//  This shows that a hook can disable another hook inside a life time event
+//  callback.
+//
+//  Disabling hook3
+//
+//  When the second "after" invocation occurs (after onsecondImmediate), hook3
+//  disables itself.
+//  As a result it will not receive the "destroy" invocation.
+//
+//  This shows that a hook can disable itself inside a life time event callback.
+//
+//  Sample Test Log
+//  ===============
+//
+//  - setting up first Immediate
+//  hook1.init.uid-5
+//  hook3.init.uid-5
+//  - finished setting first Immediate
+//
+//  hook1.before.uid-5
+//  hook3.before.uid-5
+//  - enabled hook2
+//  - entering onfirstImmediate
+//
+//  - setting up second Immediate
+//  hook1.init.uid-6
+//  hook3.init.uid-6
+//  hook2.init.uid-6
+//  - finished setting second Immediate
+//
+//  - exiting onfirstImmediate
+//  hook1.after.uid-5
+//  hook3.after.uid-5
+//  hook2.after.uid-5
+//  hook1.destroy.uid-5
+//  hook3.destroy.uid-5
+//  hook2.destroy.uid-5
+//  hook1.before.uid-6
+//  hook3.before.uid-6
+//  hook2.before.uid-6
+//  - disabled hook1
+//  - entering onsecondImmediate
+//  - exiting onsecondImmediate
+//  hook3.after.uid-6
+//  - disabled hook3
+//  hook2.after.uid-6
+//  hook2.destroy.uid-6
 
- *  hook1.before.uid-5
- *  hook3.before.uid-5
- *  - enabled hook2
- *  - entering onfirstImmediate
-
- *  - setting up second Immediate
- *  hook1.init.uid-6
- *  hook3.init.uid-6
- *  hook2.init.uid-6
- *  - finished setting second Immediate
-
- *  - exiting onfirstImmediate
- *  hook1.after.uid-5
- *  hook3.after.uid-5
- *  hook2.after.uid-5
- *  hook1.destroy.uid-5
- *  hook3.destroy.uid-5
- *  hook2.destroy.uid-5
- *  hook1.before.uid-6
- *  hook3.before.uid-6
- *  hook2.before.uid-6
- *  - disabled hook1
- *  - entering onsecondImmediate
- *  - exiting onsecondImmediate
- *  hook3.after.uid-6
- *  - disabled hook3
- *  hook2.after.uid-6
- *  hook2.destroy.uid-6
- */
 
 'use strict';
 

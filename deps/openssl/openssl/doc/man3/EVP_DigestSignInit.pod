@@ -20,7 +20,7 @@ EVP_DigestSign - EVP signing functions
 
 =head1 DESCRIPTION
 
-The EVP signature routines are a high level interface to digital signatures.
+The EVP signature routines are a high-level interface to digital signatures.
 
 EVP_DigestSignInit() sets up signing context B<ctx> to use digest B<type> from
 ENGINE B<e> and private key B<pkey>. B<ctx> must be created with
@@ -110,7 +110,7 @@ The error codes can be obtained from L<ERR_get_error(3)>.
 =head1 NOTES
 
 The B<EVP> interface to digital signatures should almost always be used in
-preference to the low level interfaces. This is because the code then becomes
+preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 
 EVP_DigestSign() is a one shot operation which signs a single block of data

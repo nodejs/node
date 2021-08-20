@@ -25,6 +25,8 @@ class MemoryPressureTask : public v8::Task {
   MemoryPressureTask(Isolate* isolate, base::Semaphore* semaphore)
       : isolate_(isolate), semaphore_(semaphore) {}
   ~MemoryPressureTask() override = default;
+  MemoryPressureTask(const MemoryPressureTask&) = delete;
+  MemoryPressureTask& operator=(const MemoryPressureTask&) = delete;
 
   // v8::Task implementation.
   void Run() override {
@@ -35,8 +37,6 @@ class MemoryPressureTask : public v8::Task {
  private:
   Isolate* isolate_;
   base::Semaphore* semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemoryPressureTask);
 };
 
 }  // namespace
@@ -94,7 +94,7 @@ TEST_F(IncumbentContextTest, Basic) {
         info.GetReturnValue().Set(incumbent_context->Global());
       });
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate());
-  global_template->Set(Str("getIncumbentGlobal"), get_incumbent_global);
+  global_template->Set(isolate(), "getIncumbentGlobal", get_incumbent_global);
 
   Local<Context> context_a = Context::New(isolate(), nullptr, global_template);
   Local<Context> context_b = Context::New(isolate(), nullptr, global_template);

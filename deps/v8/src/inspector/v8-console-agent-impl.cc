@@ -14,7 +14,7 @@ namespace v8_inspector {
 
 namespace ConsoleAgentState {
 static const char consoleEnabled[] = "consoleEnabled";
-}
+}  // namespace ConsoleAgentState
 
 V8ConsoleAgentImpl::V8ConsoleAgentImpl(
     V8InspectorSessionImpl* session, protocol::FrontendChannel* frontendChannel,

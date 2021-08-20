@@ -36,9 +36,10 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kUnsigned31 = Type::Unsigned31();
   Type const kInt32 = Type::Signed32();
   Type const kUint32 = Type::Unsigned32();
-  Type const kInt64 = CreateRange<int64_t>();
-  Type const kUint64 = CreateRange<uint64_t>();
-  Type const kIntPtr = CreateRange<intptr_t>();
+  Type const kDoubleRepresentableInt64 = CreateRange(
+      std::numeric_limits<int64_t>::min(), kMaxDoubleRepresentableInt64);
+  Type const kDoubleRepresentableUint64 = CreateRange(
+      std::numeric_limits<uint64_t>::min(), kMaxDoubleRepresentableUint64);
   Type const kFloat32 = Type::Number();
   Type const kFloat64 = Type::Number();
   Type const kBigInt64 = Type::BigInt();
@@ -80,7 +81,7 @@ class V8_EXPORT_PRIVATE TypeCache final {
       Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 
   Type const kAdditiveSafeInteger =
-      CreateRange(-4503599627370496.0, 4503599627370496.0);
+      CreateRange(-4503599627370495.0, 4503599627370495.0);
   Type const kSafeInteger = CreateRange(-kMaxSafeInteger, kMaxSafeInteger);
   Type const kAdditiveSafeIntegerOrMinusZero =
       Type::Union(kAdditiveSafeInteger, Type::MinusZero(), zone());
@@ -91,6 +92,11 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // The FixedArray::length property always containts a smi in the range
   // [0, FixedArray::kMaxLength].
   Type const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
+
+  // The WeakFixedArray::length property always containts a smi in the range
+  // [0, WeakFixedArray::kMaxLength].
+  Type const kWeakFixedArrayLengthType =
+      CreateRange(0.0, WeakFixedArray::kMaxLength);
 
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].
@@ -173,6 +179,11 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // fixed array in spread/apply calls.
   Type const kArgumentsLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
+  // The valid number of arguments for rest parameters. We can never
+  // materialize more than the max size of a fixed array, because we require a
+  // fixed array in spread/apply calls.
+  Type const kRestLengthType = CreateRange(0.0, FixedArray::kMaxLength);
+
   // The JSArrayIterator::kind property always contains an integer in the
   // range [0, 2], representing the possible IterationKinds.
   Type const kJSArrayIteratorKindType = CreateRange(0.0, 2.0);
@@ -180,8 +191,11 @@ class V8_EXPORT_PRIVATE TypeCache final {
  private:
   template <typename T>
   Type CreateRange() {
-    return CreateRange(std::numeric_limits<T>::min(),
-                       std::numeric_limits<T>::max());
+    T min = std::numeric_limits<T>::min();
+    T max = std::numeric_limits<T>::max();
+    DCHECK_EQ(min, static_cast<T>(static_cast<double>(min)));
+    DCHECK_EQ(max, static_cast<T>(static_cast<double>(max)));
+    return CreateRange(min, max);
   }
 
   Type CreateRange(double min, double max) {
@@ -189,6 +203,10 @@ class V8_EXPORT_PRIVATE TypeCache final {
   }
 
   Zone* zone() { return &zone_; }
+
+  static constexpr double kMaxDoubleRepresentableInt64 = 9223372036854774784.0;
+  static constexpr double kMaxDoubleRepresentableUint64 =
+      18446744073709549568.0;
 };
 
 }  // namespace compiler

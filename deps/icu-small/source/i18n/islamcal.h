@@ -67,7 +67,7 @@ U_NAMESPACE_BEGIN
  * moon's illumination, and other factors, it is possible to determine the start
  * of a lunar month with a fairly high degree of certainty.  However, these
  * calculations are extremely complicated and thus slow, so most algorithms,
- * including the one used here, are only approximations of the true astronical
+ * including the one used here, are only approximations of the true astronomical
  * calculations.  At present, the approximations used in this class are fairly
  * simplistic; they will be improved in later versions of the code.
  * <p>
@@ -395,7 +395,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
 
 
   /**
-   * Returns TRUE because the Islamic Calendar does have a default century
+   * Returns true because the Islamic Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

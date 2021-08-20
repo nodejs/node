@@ -40,9 +40,6 @@ JS_SUPPRESSIONS = os.path.join(BASE_PATH, 'v8_suppressions.js')
 ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 WEBASSEMBLY_MOCKS = os.path.join(BASE_PATH, 'v8_mock_webassembly.js')
 
-# Timeout in seconds for one d8 run.
-TIMEOUT = 3
-
 
 def _startup_files(options):
   """Default files and optional config-specific mock files."""
@@ -55,6 +52,22 @@ def _startup_files(options):
   if '--jitless' in options.first.flags + options.second.flags:
     files.append(WEBASSEMBLY_MOCKS)
   return files
+
+
+class BaseException(Exception):
+  """Used to abort the comparison workflow and print the given message."""
+  def __init__(self, message):
+    self.message = message
+
+
+class PassException(BaseException):
+  """Represents an early abort making the overall run pass."""
+  pass
+
+
+class FailException(BaseException):
+  """Represents an early abort making the overall run fail."""
+  pass
 
 
 class Command(object):
@@ -70,7 +83,7 @@ class Command(object):
 
     self.files = _startup_files(options)
 
-  def run(self, testcase, verbose=False):
+  def run(self, testcase, timeout, verbose=False):
     """Run the executable with a specific testcase."""
     args = [self.executable] + self.flags + self.files + [testcase]
     if verbose:
@@ -82,7 +95,7 @@ class Command(object):
     return Execute(
         args,
         cwd=os.path.dirname(os.path.abspath(testcase)),
-        timeout=TIMEOUT,
+        timeout=timeout,
     )
 
   @property
@@ -91,21 +104,14 @@ class Command(object):
 
 
 class Output(object):
-  def __init__(self, exit_code, timed_out, stdout, pid):
+  def __init__(self, exit_code, stdout, pid):
     self.exit_code = exit_code
-    self.timed_out = timed_out
     self.stdout = stdout
     self.pid = pid
 
   def HasCrashed(self):
-    # Timed out tests will have exit_code -signal.SIGTERM.
-    if self.timed_out:
-      return False
     return (self.exit_code < 0 and
             self.exit_code != -signal.SIGABRT)
-
-  def HasTimedOut(self):
-    return self.timed_out
 
 
 def Execute(args, cwd, timeout=None):
@@ -139,9 +145,11 @@ def Execute(args, cwd, timeout=None):
   stdout, _ = process.communicate()
   timer.cancel()
 
+  if timeout_event.is_set():
+    raise PassException('# V8 correctness - T-I-M-E-O-U-T')
+
   return Output(
       process.returncode,
-      timeout_event.is_set(),
       stdout,
       process.pid,
   )

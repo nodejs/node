@@ -46,15 +46,15 @@ module.exports = {
          */
         function disallowBuiltIns(node) {
 
-            // TODO: just use `astUtils.getStaticPropertyName(node.callee)`
             const callee = astUtils.skipChainExpression(node.callee);
 
-            if (callee.type !== "MemberExpression" || callee.computed) {
+            if (callee.type !== "MemberExpression") {
                 return;
             }
-            const propName = callee.property.name;
 
-            if (DISALLOWED_PROPS.indexOf(propName) > -1) {
+            const propName = astUtils.getStaticPropertyName(callee);
+
+            if (propName !== null && DISALLOWED_PROPS.indexOf(propName) > -1) {
                 context.report({
                     messageId: "prototypeBuildIn",
                     loc: callee.property.loc,

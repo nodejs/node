@@ -256,20 +256,24 @@ ucptrie_swap(const UDataSwapper *ds,
         ds->swapArray32(ds, &inTrie->signature, 4, &outTrie->signature, pErrorCode);
         ds->swapArray16(ds, &inTrie->options, 12, &outTrie->options, pErrorCode);
 
-        /* swap the index and the data */
+        /* swap the index */
+        const uint16_t *inIndex=reinterpret_cast<const uint16_t *>(inTrie+1);
+        uint16_t *outIndex=reinterpret_cast<uint16_t *>(outTrie+1);
+        ds->swapArray16(ds, inIndex, trie.indexLength*2, outIndex, pErrorCode);
+
+        /* swap the data */
+        const uint16_t *inData=inIndex+trie.indexLength;
+        uint16_t *outData=outIndex+trie.indexLength;
         switch(valueWidth) {
         case UCPTRIE_VALUE_BITS_16:
-            ds->swapArray16(ds, inTrie+1, (trie.indexLength+dataLength)*2, outTrie+1, pErrorCode);
+            ds->swapArray16(ds, inData, dataLength*2, outData, pErrorCode);
             break;
         case UCPTRIE_VALUE_BITS_32:
-            ds->swapArray16(ds, inTrie+1, trie.indexLength*2, outTrie+1, pErrorCode);
-            ds->swapArray32(ds, (const uint16_t *)(inTrie+1)+trie.indexLength, dataLength*4,
-                                     (uint16_t *)(outTrie+1)+trie.indexLength, pErrorCode);
+            ds->swapArray32(ds, inData, dataLength*4, outData, pErrorCode);
             break;
         case UCPTRIE_VALUE_BITS_8:
-            ds->swapArray16(ds, inTrie+1, trie.indexLength*2, outTrie+1, pErrorCode);
             if(inTrie!=outTrie) {
-                uprv_memmove((outTrie+1)+trie.indexLength, (inTrie+1)+trie.indexLength, dataLength);
+                uprv_memmove(outData, inData, dataLength);
             }
             break;
         default:

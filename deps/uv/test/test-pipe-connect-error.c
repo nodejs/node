@@ -37,7 +37,7 @@ static int connect_cb_called = 0;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -76,6 +76,9 @@ TEST_IMPL(pipe_connect_bad_name) {
 
 
 TEST_IMPL(pipe_connect_to_file) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char* path = "test/fixtures/empty_file";
   uv_pipe_t client;
   uv_connect_t req;

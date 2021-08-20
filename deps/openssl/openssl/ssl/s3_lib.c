@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -4072,9 +4072,10 @@ const SSL_CIPHER *ssl3_get_cipher_by_id(uint32_t id)
 
 const SSL_CIPHER *ssl3_get_cipher_by_std_name(const char *stdname)
 {
-    SSL_CIPHER *c = NULL, *tbl;
-    SSL_CIPHER *alltabs[] = {tls13_ciphers, ssl3_ciphers};
-    size_t i, j, tblsize[] = {TLS13_NUM_CIPHERS, SSL3_NUM_CIPHERS};
+    SSL_CIPHER *tbl;
+    SSL_CIPHER *alltabs[] = {tls13_ciphers, ssl3_ciphers, ssl3_scsvs};
+    size_t i, j, tblsize[] = {TLS13_NUM_CIPHERS, SSL3_NUM_CIPHERS,
+                              SSL3_NUM_SCSVS};
 
     /* this is not efficient, necessary to optimize this? */
     for (j = 0; j < OSSL_NELEM(alltabs); j++) {
@@ -4082,21 +4083,11 @@ const SSL_CIPHER *ssl3_get_cipher_by_std_name(const char *stdname)
             if (tbl->stdname == NULL)
                 continue;
             if (strcmp(stdname, tbl->stdname) == 0) {
-                c = tbl;
-                break;
+                return tbl;
             }
         }
     }
-    if (c == NULL) {
-        tbl = ssl3_scsvs;
-        for (i = 0; i < SSL3_NUM_SCSVS; i++, tbl++) {
-            if (strcmp(stdname, tbl->stdname) == 0) {
-                c = tbl;
-                break;
-            }
-        }
-    }
-    return c;
+    return NULL;
 }
 
 /*
@@ -4638,6 +4629,7 @@ int ssl_generate_master_secret(SSL *s, unsigned char *pms, size_t pmslen,
 
         OPENSSL_clear_free(s->s3->tmp.psk, psklen);
         s->s3->tmp.psk = NULL;
+        s->s3->tmp.psklen = 0;
         if (!s->method->ssl3_enc->generate_master_secret(s,
                     s->session->master_key, pskpms, pskpmslen,
                     &s->session->master_key_length)) {
@@ -4667,8 +4659,10 @@ int ssl_generate_master_secret(SSL *s, unsigned char *pms, size_t pmslen,
         else
             OPENSSL_cleanse(pms, pmslen);
     }
-    if (s->server == 0)
+    if (s->server == 0) {
         s->s3->tmp.pms = NULL;
+        s->s3->tmp.pmslen = 0;
+    }
     return ret;
 }
 

@@ -18,7 +18,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -26,6 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
@@ -42,8 +43,8 @@ const errMessages = {
   auth: / auth/,
   state: / state/,
   FIPS: /not supported in FIPS mode/,
-  length: /Invalid IV length/,
-  authTagLength: /Invalid authentication tag length/
+  length: /Invalid initialization vector/,
+  authTagLength: /Invalid authentication tag/
 };
 
 const ciphers = crypto.getCiphers();
@@ -68,12 +69,13 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm']
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
   ];
 
 const expectedDeprecationWarnings = [
   ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
-  ['crypto.createCipher is deprecated.', 'DEP0106']
+  ['crypto.createCipher is deprecated.', 'DEP0106'],
 ];
 
 common.expectWarning({
@@ -243,8 +245,8 @@ for (const test of TEST_CASES) {
                                               'qkuZpJWCewa6Szih');
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -255,8 +257,8 @@ for (const test of TEST_CASES) {
                               authTagLength: length
                             });
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -267,8 +269,8 @@ for (const test of TEST_CASES) {
                                 authTagLength: length
                               });
     }, {
-      name: 'Error',
-      message: `Invalid authentication tag length: ${length}`
+      name: 'TypeError',
+      message: /Invalid authentication tag length/
     });
   }
 }
@@ -302,15 +304,15 @@ for (const test of TEST_CASES) {
     // This tag would normally be allowed.
     decipher.setAuthTag(Buffer.from('1'.repeat(12)));
   }, {
-    name: 'Error',
-    message: 'Invalid authentication tag length: 12'
+    name: 'TypeError',
+    message: /Invalid authentication tag length/
   });
 
   // The Decipher object should be left intact.
   decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
   const text = Buffer.concat([
     decipher.update('3a2a3647', 'hex'),
-    decipher.final()
+    decipher.final(),
   ]);
   assert.strictEqual(text.toString('utf8'), 'node');
 }
@@ -328,9 +330,9 @@ for (const test of TEST_CASES) {
                             });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${authTagLength}" is invalid for option ` +
-               '"authTagLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.authTagLength' is invalid. " +
+               `Received ${inspect(authTagLength)}`
     });
 
     assert.throws(() => {
@@ -342,9 +344,9 @@ for (const test of TEST_CASES) {
                               });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${authTagLength}" is invalid for option ` +
-               '"authTagLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.authTagLength' is invalid. " +
+        `Received ${inspect(authTagLength)}`
     });
 
     if (!common.hasFipsCrypto) {
@@ -352,18 +354,18 @@ for (const test of TEST_CASES) {
         crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${authTagLength}" is invalid for option ` +
-                 '"authTagLength"'
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
       });
 
       assert.throws(() => {
         crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${authTagLength}" is invalid for option ` +
-                 '"authTagLength"'
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
       });
     }
   }
@@ -452,9 +454,9 @@ for (const test of TEST_CASES) {
       cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${plaintextLength}" is invalid for option ` +
-               '"plaintextLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.plaintextLength' is invalid. " +
+        `Received ${inspect(plaintextLength)}`
     });
   }
 }
@@ -474,12 +476,12 @@ for (const test of TEST_CASES) {
       cipher().setAAD(Buffer.alloc(0), {
         plaintextLength: maxMessageSize + 1
       });
-    }, /^Error: Message exceeds maximum size$/);
+    }, /Invalid message length$/);
 
     const msg = Buffer.alloc(maxMessageSize + 1);
     assert.throws(() => {
       cipher().update(msg);
-    }, /^Error: Message exceeds maximum size$/);
+    }, /Invalid message length/);
 
     const c = cipher();
     c.setAAD(Buffer.alloc(0), {
@@ -500,7 +502,7 @@ for (const test of TEST_CASES) {
                                            authTagLength: 10
                                          });
     cipher.setAAD(Buffer.from('0123456789', 'hex'));
-  }, /^Error: plaintextLength required for CCM mode with AAD$/);
+  }, /options\.plaintextLength required for CCM mode with AAD/);
 
   if (!common.hasFipsCrypto) {
     assert.throws(() => {
@@ -511,7 +513,7 @@ for (const test of TEST_CASES) {
                                                authTagLength: 10
                                              });
       cipher.setAAD(Buffer.from('0123456789', 'hex'));
-    }, /^Error: plaintextLength required for CCM mode with AAD$/);
+    }, /options\.plaintextLength required for CCM mode with AAD/);
   }
 }
 
@@ -611,7 +613,7 @@ for (const test of TEST_CASES) {
     // Decryption should still work.
     const plaintext = Buffer.concat([
       decipher.update(ciphertext),
-      decipher.final()
+      decipher.final(),
     ]);
     assert(plain.equals(plaintext));
   }
@@ -662,5 +664,26 @@ for (const test of TEST_CASES) {
     ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
     function H(length) { return '00'.repeat(length); }
+  }
+}
+
+{
+  // CCM cipher without data should not crash, see https://github.com/nodejs/node/issues/38035.
+  const algo = 'aes-128-ccm';
+  const key = Buffer.alloc(16);
+  const iv = Buffer.alloc(12);
+  const opts = { authTagLength: 10 };
+
+  for (const cipher of [
+    crypto.createCipher(algo, 'foo', opts),
+    crypto.createCipheriv(algo, key, iv, opts),
+  ]) {
+    assert.throws(() => {
+      cipher.final();
+    }, common.hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
+      message: /Unsupported state/
+    });
   }
 }

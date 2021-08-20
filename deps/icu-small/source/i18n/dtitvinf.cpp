@@ -339,6 +339,9 @@ struct DateIntervalInfo::DateIntervalSink : public ResourceSink {
                 return UCAL_DATE;
             } else if (c0 == 'a') {
                 return UCAL_AM_PM;
+            } else if (c0 == 'B') {
+                // TODO: Using AM/PM as a proxy for flexible day period isn't really correct, but it's close
+                return UCAL_AM_PM;
             } else if (c0 == 'h' || c0 == 'H') {
                 return UCAL_HOUR;
             } else if (c0 == 'm') {
@@ -594,20 +597,23 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
     const int32_t DIFFERENT_FIELD = 0x1000;
     const int32_t STRING_NUMERIC_DIFFERENCE = 0x100;
     const int32_t BASE = 0x41;
-    const UChar CHAR_V = 0x0076;
-    const UChar CHAR_Z = 0x007A;
 
-    // hack for 'v' and 'z'.
-    // resource bundle only have time skeletons ending with 'v',
-    // but not for time skeletons ending with 'z'.
-    UBool replaceZWithV = false;
+    // hack for certain alternate characters
+    // resource bundles only have time skeletons containing 'v', 'h', and 'H'
+    // but not time skeletons containing 'z', 'K', or 'k'
+    // the skeleton may also include 'a' or 'b', which never occur in the resource bundles, so strip them out too
+    UBool replacedAlternateChars = false;
     const UnicodeString* inputSkeleton = &skeleton;
     UnicodeString copySkeleton;
-    if ( skeleton.indexOf(CHAR_Z) != -1 ) {
+    if ( skeleton.indexOf(LOW_Z) != -1 || skeleton.indexOf(LOW_K) != -1 || skeleton.indexOf(CAP_K) != -1 || skeleton.indexOf(LOW_A) != -1 || skeleton.indexOf(LOW_B) != -1 ) {
         copySkeleton = skeleton;
-        copySkeleton.findAndReplace(UnicodeString(CHAR_Z), UnicodeString(CHAR_V));
+        copySkeleton.findAndReplace(UnicodeString(LOW_Z), UnicodeString(LOW_V));
+        copySkeleton.findAndReplace(UnicodeString(LOW_K), UnicodeString(CAP_H));
+        copySkeleton.findAndReplace(UnicodeString(CAP_K), UnicodeString(LOW_H));
+        copySkeleton.findAndReplace(UnicodeString(LOW_A), UnicodeString());
+        copySkeleton.findAndReplace(UnicodeString(LOW_B), UnicodeString());
         inputSkeleton = &copySkeleton;
-        replaceZWithV = true;
+        replacedAlternateChars = true;
     }
 
     parseSkeleton(*inputSkeleton, inputSkeletonFieldWidth);
@@ -616,7 +622,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
 
     // 0 means exact the same skeletons;
     // 1 means having the same field, but with different length,
-    // 2 means only z/v differs
+    // 2 means only z/v, h/K, or H/k differs
     // -1 means having different field.
     bestMatchDistanceInfo = 0;
     int8_t fieldLength = UPRV_LENGTHOF(skeletonFieldWidth);
@@ -672,7 +678,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
             break;
         }
     }
-    if ( replaceZWithV && bestMatchDistanceInfo != -1 ) {
+    if ( replacedAlternateChars && bestMatchDistanceInfo != -1 ) {
         bestMatchDistanceInfo = 2;
     }
     return bestSkeleton;

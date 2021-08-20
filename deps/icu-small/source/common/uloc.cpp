@@ -50,9 +50,6 @@
 #include "uassert.h"
 #include "charstr.h"
 
-#include <algorithm>
-#include <stdio.h> /* for sprintf */
-
 U_NAMESPACE_USE
 
 /* ### Declarations **************************************************/
@@ -60,12 +57,6 @@ U_NAMESPACE_USE
 /* Locale stuff from locid.cpp */
 U_CFUNC void locale_set_default(const char *id);
 U_CFUNC const char *locale_get_default(void);
-U_CFUNC int32_t
-locale_getKeywords(const char *localeID,
-            char prev,
-            char *keywords, int32_t keywordCapacity,
-            UBool valuesToo,
-            UErrorCode *status);
 
 /* ### Data tables **************************************************/
 
@@ -152,7 +143,7 @@ static const char * const LANGUAGES[] = {
     "mad", "maf", "mag", "mai", "mak", "man", "mas", "mde",
     "mdf", "mdh", "mdr", "men", "mer", "mfe", "mg",  "mga",
     "mgh", "mgo", "mh",  "mi",  "mic", "min", "mis", "mk",
-    "ml",  "mn",  "mnc", "mni", "mo",
+    "ml",  "mn",  "mnc", "mni",
     "moh", "mos", "mr",  "mrj",
     "ms",  "mt",  "mua", "mul", "mus", "mwl", "mwr", "mwv",
     "my",  "mye", "myv", "mzn",
@@ -175,9 +166,9 @@ static const char * const LANGUAGES[] = {
     "sl",  "sli", "sly", "sm",  "sma", "smj", "smn", "sms",
     "sn",  "snk", "so",  "sog", "sq",  "sr",  "srn", "srr",
     "ss",  "ssy", "st",  "stq", "su",  "suk", "sus", "sux",
-    "sv",  "sw",  "swb", "swc", "syc", "syr", "szl",
+    "sv",  "sw",  "swb", "syc", "syr", "szl",
     "ta",  "tcy", "te",  "tem", "teo", "ter", "tet", "tg",
-    "th",  "ti",  "tig", "tiv", "tk",  "tkl", "tkr", "tl",
+    "th",  "ti",  "tig", "tiv", "tk",  "tkl", "tkr",
     "tlh", "tli", "tly", "tmh", "tn",  "to",  "tog", "tpi",
     "tr",  "tru", "trv", "ts",  "tsd", "tsi", "tt",  "ttt",
     "tum", "tvl", "tw",  "twq", "ty",  "tyv", "tzm",
@@ -190,7 +181,7 @@ static const char * const LANGUAGES[] = {
     "za",  "zap", "zbl", "zea", "zen", "zgh", "zh",  "zu",
     "zun", "zxx", "zza",
 NULL,
-    "in",  "iw",  "ji",  "jw",  "sh",    /* obsolete language codes */
+    "in",  "iw",  "ji",  "jw",  "mo",  "sh",  "swc", "tl",  /* obsolete language codes */
 NULL
 };
 
@@ -269,7 +260,7 @@ static const char * const LANGUAGES_3[] = {
     "mad", "maf", "mag", "mai", "mak", "man", "mas", "mde",
     "mdf", "mdh", "mdr", "men", "mer", "mfe", "mlg", "mga",
     "mgh", "mgo", "mah", "mri", "mic", "min", "mis", "mkd",
-    "mal", "mon", "mnc", "mni", "mol",
+    "mal", "mon", "mnc", "mni",
     "moh", "mos", "mar", "mrj",
     "msa", "mlt", "mua", "mul", "mus", "mwl", "mwr", "mwv",
     "mya", "mye", "myv", "mzn",
@@ -292,9 +283,9 @@ static const char * const LANGUAGES_3[] = {
     "slv", "sli", "sly", "smo", "sma", "smj", "smn", "sms",
     "sna", "snk", "som", "sog", "sqi", "srp", "srn", "srr",
     "ssw", "ssy", "sot", "stq", "sun", "suk", "sus", "sux",
-    "swe", "swa", "swb", "swc", "syc", "syr", "szl",
+    "swe", "swa", "swb", "syc", "syr", "szl",
     "tam", "tcy", "tel", "tem", "teo", "ter", "tet", "tgk",
-    "tha", "tir", "tig", "tiv", "tuk", "tkl", "tkr", "tgl",
+    "tha", "tir", "tig", "tiv", "tuk", "tkl", "tkr",
     "tlh", "tli", "tly", "tmh", "tsn", "ton", "tog", "tpi",
     "tur", "tru", "trv", "tso", "tsd", "tsi", "tat", "ttt",
     "tum", "tvl", "twi", "twq", "tah", "tyv", "tzm",
@@ -307,8 +298,8 @@ static const char * const LANGUAGES_3[] = {
     "zha", "zap", "zbl", "zea", "zen", "zgh", "zho", "zul",
     "zun", "zxx", "zza",
 NULL,
-/*  "in",  "iw",  "ji",  "jw",  "sh",                          */
-    "ind", "heb", "yid", "jaw", "srp",
+/*  "in",  "iw",  "ji",  "jw",  "mo",  "sh",  "swc", "tl",  */
+    "ind", "heb", "yid", "jaw", "mol", "srp", "swc", "tgl",
 NULL
 };
 
@@ -343,13 +334,13 @@ static const char * const COUNTRIES[] = {
     "BJ",  "BL",  "BM",  "BN",  "BO",  "BQ",  "BR",  "BS",  "BT",  "BV",
     "BW",  "BY",  "BZ",  "CA",  "CC",  "CD",  "CF",  "CG",
     "CH",  "CI",  "CK",  "CL",  "CM",  "CN",  "CO",  "CR",
-    "CU",  "CV",  "CW",  "CX",  "CY",  "CZ",  "DE",  "DJ",  "DK",
-    "DM",  "DO",  "DZ",  "EC",  "EE",  "EG",  "EH",  "ER",
+    "CU",  "CV",  "CW",  "CX",  "CY",  "CZ",  "DE",  "DG",  "DJ",  "DK",
+    "DM",  "DO",  "DZ",  "EA",  "EC",  "EE",  "EG",  "EH",  "ER",
     "ES",  "ET",  "FI",  "FJ",  "FK",  "FM",  "FO",  "FR",
     "GA",  "GB",  "GD",  "GE",  "GF",  "GG",  "GH",  "GI",  "GL",
     "GM",  "GN",  "GP",  "GQ",  "GR",  "GS",  "GT",  "GU",
     "GW",  "GY",  "HK",  "HM",  "HN",  "HR",  "HT",  "HU",
-    "ID",  "IE",  "IL",  "IM",  "IN",  "IO",  "IQ",  "IR",  "IS",
+    "IC",  "ID",  "IE",  "IL",  "IM",  "IN",  "IO",  "IQ",  "IR",  "IS",
     "IT",  "JE",  "JM",  "JO",  "JP",  "KE",  "KG",  "KH",  "KI",
     "KM",  "KN",  "KP",  "KR",  "KW",  "KY",  "KZ",  "LA",
     "LB",  "LC",  "LI",  "LK",  "LR",  "LS",  "LT",  "LU",
@@ -366,7 +357,7 @@ static const char * const COUNTRIES[] = {
     "TK",  "TL",  "TM",  "TN",  "TO",  "TR",  "TT",  "TV",
     "TW",  "TZ",  "UA",  "UG",  "UM",  "US",  "UY",  "UZ",
     "VA",  "VC",  "VE",  "VG",  "VI",  "VN",  "VU",  "WF",
-    "WS",  "YE",  "YT",  "ZA",  "ZM",  "ZW",
+    "WS",  "XK",  "YE",  "YT",  "ZA",  "ZM",  "ZW",
 NULL,
     "AN",  "BU", "CS", "FX", "RO", "SU", "TP", "YD", "YU", "ZR",   /* obsolete country codes */
 NULL
@@ -406,10 +397,10 @@ static const char * const COUNTRIES_3[] = {
     "BWA", "BLR", "BLZ", "CAN", "CCK", "COD", "CAF", "COG",
 /*  "CH",  "CI",  "CK",  "CL",  "CM",  "CN",  "CO",  "CR",     */
     "CHE", "CIV", "COK", "CHL", "CMR", "CHN", "COL", "CRI",
-/*  "CU",  "CV",  "CW",  "CX",  "CY",  "CZ",  "DE",  "DJ",  "DK",     */
-    "CUB", "CPV", "CUW", "CXR", "CYP", "CZE", "DEU", "DJI", "DNK",
-/*  "DM",  "DO",  "DZ",  "EC",  "EE",  "EG",  "EH",  "ER",     */
-    "DMA", "DOM", "DZA", "ECU", "EST", "EGY", "ESH", "ERI",
+/*  "CU",  "CV",  "CW",  "CX",  "CY",  "CZ",  "DE",  "DG",  "DJ",  "DK",     */
+    "CUB", "CPV", "CUW", "CXR", "CYP", "CZE", "DEU", "DGA", "DJI", "DNK",
+/*  "DM",  "DO",  "DZ",  "EA",  "EC",  "EE",  "EG",  "EH",  "ER",     */
+    "DMA", "DOM", "DZA", "XEA", "ECU", "EST", "EGY", "ESH", "ERI",
 /*  "ES",  "ET",  "FI",  "FJ",  "FK",  "FM",  "FO",  "FR",     */
     "ESP", "ETH", "FIN", "FJI", "FLK", "FSM", "FRO", "FRA",
 /*  "GA",  "GB",  "GD",  "GE",  "GF",  "GG",  "GH",  "GI",  "GL",     */
@@ -418,8 +409,8 @@ static const char * const COUNTRIES_3[] = {
     "GMB", "GIN", "GLP", "GNQ", "GRC", "SGS", "GTM", "GUM",
 /*  "GW",  "GY",  "HK",  "HM",  "HN",  "HR",  "HT",  "HU",     */
     "GNB", "GUY", "HKG", "HMD", "HND", "HRV", "HTI", "HUN",
-/*  "ID",  "IE",  "IL",  "IM",  "IN",  "IO",  "IQ",  "IR",  "IS" */
-    "IDN", "IRL", "ISR", "IMN", "IND", "IOT", "IRQ", "IRN", "ISL",
+/*  "IC",  "ID",  "IE",  "IL",  "IM",  "IN",  "IO",  "IQ",  "IR",  "IS" */
+    "XIC", "IDN", "IRL", "ISR", "IMN", "IND", "IOT", "IRQ", "IRN", "ISL",
 /*  "IT",  "JE",  "JM",  "JO",  "JP",  "KE",  "KG",  "KH",  "KI",     */
     "ITA", "JEY", "JAM", "JOR", "JPN", "KEN", "KGZ", "KHM", "KIR",
 /*  "KM",  "KN",  "KP",  "KR",  "KW",  "KY",  "KZ",  "LA",     */
@@ -452,8 +443,8 @@ static const char * const COUNTRIES_3[] = {
     "TWN", "TZA", "UKR", "UGA", "UMI", "USA", "URY", "UZB",
 /*  "VA",  "VC",  "VE",  "VG",  "VI",  "VN",  "VU",  "WF",     */
     "VAT", "VCT", "VEN", "VGB", "VIR", "VNM", "VUT", "WLF",
-/*  "WS",  "YE",  "YT",  "ZA",  "ZM",  "ZW",          */
-    "WSM", "YEM", "MYT", "ZAF", "ZMB", "ZWE",
+/*  "WS",  "XK",  "YE",  "YT",  "ZA",  "ZM",  "ZW",          */
+    "WSM", "XXK", "YEM", "MYT", "ZAF", "ZMB", "ZWE",
 NULL,
 /*  "AN",  "BU",  "CS",  "FX",  "RO", "SU",  "TP",  "YD",  "YU",  "ZR" */
     "ANT", "BUR", "SCG", "FXX", "ROM", "SUN", "TMP", "YMD", "YUG", "ZAR",
@@ -601,12 +592,12 @@ compareKeywordStructs(const void * /*context*/, const void *left, const void *ri
     return uprv_strcmp(leftString, rightString);
 }
 
-static void
-_getKeywords(const char *localeID,
-             char prev,
-             ByteSink& sink,
-             UBool valuesToo,
-             UErrorCode *status)
+U_CFUNC void
+ulocimp_getKeywords(const char *localeID,
+                    char prev,
+                    ByteSink& sink,
+                    UBool valuesToo,
+                    UErrorCode *status)
 {
     KeywordStruct keywordList[ULOC_MAX_NO_KEYWORDS];
 
@@ -722,18 +713,18 @@ _getKeywords(const char *localeID,
     }
 }
 
-U_CFUNC int32_t
-locale_getKeywords(const char *localeID,
-                   char prev,
-                   char *keywords, int32_t keywordCapacity,
-                   UBool valuesToo,
-                   UErrorCode *status) {
+U_CAPI int32_t U_EXPORT2
+uloc_getKeywordValue(const char* localeID,
+                     const char* keywordName,
+                     char* buffer, int32_t bufferCapacity,
+                     UErrorCode* status)
+{
     if (U_FAILURE(*status)) {
         return 0;
     }
 
-    CheckedArrayByteSink sink(keywords, keywordCapacity);
-    _getKeywords(localeID, prev, sink, valuesToo, status);
+    CheckedArrayByteSink sink(buffer, bufferCapacity);
+    ulocimp_getKeywordValue(localeID, keywordName, sink, status);
 
     int32_t reslen = sink.NumberOfBytesAppended();
 
@@ -744,26 +735,22 @@ locale_getKeywords(const char *localeID,
     if (sink.Overflowed()) {
         *status = U_BUFFER_OVERFLOW_ERROR;
     } else {
-        u_terminateChars(keywords, keywordCapacity, reslen, status);
+        u_terminateChars(buffer, bufferCapacity, reslen, status);
     }
 
     return reslen;
 }
 
-U_CAPI int32_t U_EXPORT2
-uloc_getKeywordValue(const char* localeID,
-                     const char* keywordName,
-                     char* buffer, int32_t bufferCapacity,
-                     UErrorCode* status)
+U_CAPI void U_EXPORT2
+ulocimp_getKeywordValue(const char* localeID,
+                        const char* keywordName,
+                        icu::ByteSink& sink,
+                        UErrorCode* status)
 {
-    if (buffer != nullptr) {
-        buffer[0] = '\0';
-    }
     const char* startSearchHere = NULL;
     const char* nextSeparator = NULL;
     char keywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
     char localeKeywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
-    int32_t result = 0;
 
     if(status && U_SUCCESS(*status) && localeID) {
       char tempBuffer[ULOC_FULLNAME_CAPACITY];
@@ -771,12 +758,12 @@ uloc_getKeywordValue(const char* localeID,
 
       if (keywordName == NULL || keywordName[0] == 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
+        return;
       }
 
       locale_canonKeywordName(keywordNameBuffer, keywordName, status);
       if(U_FAILURE(*status)) {
-        return 0;
+        return;
       }
 
       if (_hasBCP47Extension(localeID)) {
@@ -788,7 +775,7 @@ uloc_getKeywordValue(const char* localeID,
       startSearchHere = locale_getKeywordsStart(tmpLocaleID);
       if(startSearchHere == NULL) {
           /* no keywords, return at once */
-          return 0;
+          return;
       }
 
       /* find the first keyword */
@@ -800,7 +787,7 @@ uloc_getKeywordValue(const char* localeID,
           nextSeparator = uprv_strchr(startSearchHere, '=');
           if(!nextSeparator) {
               *status = U_ILLEGAL_ARGUMENT_ERROR; /* key must have =value */
-              return 0;
+              return;
           }
           /* strip leading & trailing spaces (TC decided to tolerate these) */
           while(*startSearchHere == ' ') {
@@ -814,20 +801,20 @@ uloc_getKeywordValue(const char* localeID,
           /* copy & normalize keyName from locale */
           if (startSearchHere == keyValueTail) {
               *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty keyword name in passed-in locale */
-              return 0;
+              return;
           }
           keyValueLen = 0;
           while (startSearchHere < keyValueTail) {
             if (!UPRV_ISALPHANUM(*startSearchHere)) {
               *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed keyword name */
-              return 0;
+              return;
             }
             if (keyValueLen < ULOC_KEYWORD_BUFFER_LEN - 1) {
               localeKeywordNameBuffer[keyValueLen++] = uprv_tolower(*startSearchHere++);
             } else {
               /* keyword name too long for internal buffer */
               *status = U_INTERNAL_PROGRAM_ERROR;
-              return 0;
+              return;
             }
           }
           localeKeywordNameBuffer[keyValueLen] = 0; /* terminate */
@@ -848,28 +835,20 @@ uloc_getKeywordValue(const char* localeID,
               /* Now copy the value, but check well-formedness */
               if (nextSeparator == keyValueTail) {
                 *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty key value name in passed-in locale */
-                return 0;
+                return;
               }
-              keyValueLen = 0;
               while (nextSeparator < keyValueTail) {
                 if (!UPRV_ISALPHANUM(*nextSeparator) && !UPRV_OK_VALUE_PUNCTUATION(*nextSeparator)) {
                   *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed key value */
-                  return 0;
+                  return;
                 }
-                if (keyValueLen < bufferCapacity) {
-                  /* Should we lowercase value to return here? Tests expect as-is. */
-                  buffer[keyValueLen++] = *nextSeparator++;
-                } else { /* keep advancing so we return correct length in case of overflow */
-                  keyValueLen++;
-                  nextSeparator++;
-                }
+                /* Should we lowercase value to return here? Tests expect as-is. */
+                sink.Append(nextSeparator++, 1);
               }
-              result = u_terminateChars(buffer, bufferCapacity, keyValueLen, status);
-              return result;
+              return;
           }
       }
     }
-    return 0;
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -892,12 +871,14 @@ uloc_setKeywordValue(const char* keywordName,
     char* startSearchHere = NULL;
     char* keywordStart = NULL;
     CharString updatedKeysAndValues;
-    int32_t updatedKeysAndValuesLen;
     UBool handledInputKeyAndValue = FALSE;
     char keyValuePrefix = '@';
 
     if(U_FAILURE(*status)) {
         return -1;
+    }
+    if (*status == U_STRING_NOT_TERMINATED_WARNING) {
+        *status = U_ZERO_ERROR;
     }
     if (keywordName == NULL || keywordName[0] == 0 || bufferCapacity <= 1) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -936,6 +917,7 @@ uloc_setKeywordValue(const char* keywordName,
     startSearchHere = (char*)locale_getKeywordsStart(buffer);
     if(startSearchHere == NULL || (startSearchHere[1]==0)) {
         if(keywordValueLen == 0) { /* no keywords = nothing to remove */
+            U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
             return bufLen;
         }
 
@@ -955,6 +937,7 @@ uloc_setKeywordValue(const char* keywordName,
         startSearchHere += keywordNameLen;
         *startSearchHere++ = '=';
         uprv_strcpy(startSearchHere, keywordValueBuffer);
+        U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
         return needLen;
     } /* end shortcut - no @ */
 
@@ -1069,20 +1052,26 @@ uloc_setKeywordValue(const char* keywordName,
     if (!handledInputKeyAndValue || U_FAILURE(*status)) {
         /* if input key/value specified removal of a keyword not present in locale, or
          * there was an error in CharString.append, leave original locale alone. */
+        U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
         return bufLen;
     }
 
-    updatedKeysAndValuesLen = updatedKeysAndValues.length();
-    /* needLen = length of the part before '@' + length of updated key-value part including '@' */
-    needLen = (int32_t)(startSearchHere - buffer) + updatedKeysAndValuesLen;
-    if(needLen >= bufferCapacity) {
+    // needLen = length of the part before '@'
+    needLen = (int32_t)(startSearchHere - buffer);
+    // Check to see can we fit the startSearchHere, if not, return
+    // U_BUFFER_OVERFLOW_ERROR without copy updatedKeysAndValues into it.
+    // We do this because this API function does not behave like most others:
+    // It promises never to set a U_STRING_NOT_TERMINATED_WARNING.
+    // When the contents fits but without the terminating NUL, in this case we need to not change
+    // the buffer contents and return with a buffer overflow error.
+    int32_t appendLength = updatedKeysAndValues.length();
+    if (appendLength >= bufferCapacity - needLen) {
         *status = U_BUFFER_OVERFLOW_ERROR;
-        return needLen; /* no change */
+        return needLen + appendLength;
     }
-    if (updatedKeysAndValuesLen > 0) {
-        uprv_strncpy(startSearchHere, updatedKeysAndValues.data(), updatedKeysAndValuesLen);
-    }
-    buffer[needLen]=0;
+    needLen += updatedKeysAndValues.extract(
+                         startSearchHere, bufferCapacity - needLen, *status);
+    U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
     return needLen;
 }
 
@@ -1148,7 +1137,7 @@ uloc_getCurrentLanguageID(const char* oldID){
  *
  * TODO try to use this in Locale
  */
-static CharString
+CharString U_EXPORT2
 ulocimp_getLanguage(const char *localeID,
                     const char **pEnd,
                     UErrorCode &status) {
@@ -1193,21 +1182,7 @@ ulocimp_getLanguage(const char *localeID,
     return result;
 }
 
-U_CFUNC int32_t
-ulocimp_getLanguage(const char *localeID,
-                    char *language, int32_t languageCapacity,
-                    const char **pEnd) {
-    ErrorCode status;
-    CharString result = ulocimp_getLanguage(localeID, pEnd, status);
-    if (status.isFailure()) {
-        return 0;
-    }
-    int32_t reslen = result.length();
-    uprv_memcpy(language, result.data(), std::min(reslen, languageCapacity));
-    return reslen;
-}
-
-static CharString
+CharString U_EXPORT2
 ulocimp_getScript(const char *localeID,
                   const char **pEnd,
                   UErrorCode &status) {
@@ -1241,21 +1216,7 @@ ulocimp_getScript(const char *localeID,
     return result;
 }
 
-U_CFUNC int32_t
-ulocimp_getScript(const char *localeID,
-                  char *script, int32_t scriptCapacity,
-                  const char **pEnd) {
-    ErrorCode status;
-    CharString result = ulocimp_getScript(localeID, pEnd, status);
-    if (status.isFailure()) {
-        return 0;
-    }
-    int32_t reslen = result.length();
-    uprv_memcpy(script, result.data(), std::min(reslen, scriptCapacity));
-    return reslen;
-}
-
-static CharString
+CharString U_EXPORT2
 ulocimp_getCountry(const char *localeID,
                    const char **pEnd,
                    UErrorCode &status) {
@@ -1290,29 +1251,15 @@ ulocimp_getCountry(const char *localeID,
     return result;
 }
 
-U_CFUNC int32_t
-ulocimp_getCountry(const char *localeID,
-                   char *country, int32_t countryCapacity,
-                   const char **pEnd) {
-    ErrorCode status;
-    CharString result = ulocimp_getCountry(localeID, pEnd, status);
-    if (status.isFailure()) {
-        return 0;
-    }
-    int32_t reslen = result.length();
-    uprv_memcpy(country, result.data(), std::min(reslen, countryCapacity));
-    return reslen;
-}
-
 /**
  * @param needSeparator if true, then add leading '_' if any variants
  * are added to 'variant'
  */
 static void
-_getVariantEx(const char *localeID,
-              char prev,
-              ByteSink& sink,
-              UBool needSeparator) {
+_getVariant(const char *localeID,
+            char prev,
+            ByteSink& sink,
+            UBool needSeparator) {
     UBool hasVariant = FALSE;
 
     /* get one or more variant tags and separate them with '_' */
@@ -1351,23 +1298,6 @@ _getVariantEx(const char *localeID,
             localeID++;
         }
     }
-}
-
-static int32_t
-_getVariantEx(const char *localeID,
-              char prev,
-              char *variant, int32_t variantCapacity,
-              UBool needSeparator) {
-    CheckedArrayByteSink sink(variant, variantCapacity);
-    _getVariantEx(localeID, prev, sink, needSeparator);
-    return sink.NumberOfBytesAppended();
-}
-
-static int32_t
-_getVariant(const char *localeID,
-            char prev,
-            char *variant, int32_t variantCapacity) {
-    return _getVariantEx(localeID, prev, variant, variantCapacity, FALSE);
 }
 
 /* Keyword enumeration */
@@ -1466,9 +1396,6 @@ U_CAPI UEnumeration* U_EXPORT2
 uloc_openKeywords(const char* localeID,
                         UErrorCode* status)
 {
-    int32_t i=0;
-    char keywords[256];
-    int32_t keywordsCapacity = 256;
     char tempBuffer[ULOC_FULLNAME_CAPACITY];
     const char* tmpLocaleID;
 
@@ -1486,34 +1413,42 @@ uloc_openKeywords(const char* localeID,
     }
 
     /* Skip the language */
-    ulocimp_getLanguage(tmpLocaleID, NULL, 0, &tmpLocaleID);
+    ulocimp_getLanguage(tmpLocaleID, &tmpLocaleID, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
     if(_isIDSeparator(*tmpLocaleID)) {
         const char *scriptID;
         /* Skip the script if available */
-        ulocimp_getScript(tmpLocaleID+1, NULL, 0, &scriptID);
+        ulocimp_getScript(tmpLocaleID+1, &scriptID, *status);
+        if (U_FAILURE(*status)) {
+            return 0;
+        }
         if(scriptID != tmpLocaleID+1) {
             /* Found optional script */
             tmpLocaleID = scriptID;
         }
         /* Skip the Country */
         if (_isIDSeparator(*tmpLocaleID)) {
-            ulocimp_getCountry(tmpLocaleID+1, NULL, 0, &tmpLocaleID);
-            if(_isIDSeparator(*tmpLocaleID)) {
-                _getVariant(tmpLocaleID+1, *tmpLocaleID, NULL, 0);
+            ulocimp_getCountry(tmpLocaleID+1, &tmpLocaleID, *status);
+            if (U_FAILURE(*status)) {
+                return 0;
             }
         }
     }
 
     /* keywords are located after '@' */
     if((tmpLocaleID = locale_getKeywordsStart(tmpLocaleID)) != NULL) {
-        i=locale_getKeywords(tmpLocaleID+1, '@', keywords, keywordsCapacity, FALSE, status);
+        CharString keywords;
+        CharStringByteSink sink(&keywords);
+        ulocimp_getKeywords(tmpLocaleID+1, '@', sink, FALSE, status);
+        if (U_FAILURE(*status)) {
+            return NULL;
+        }
+        return uloc_openKeywordList(keywords.data(), keywords.length(), status);
     }
-
-    if(i) {
-        return uloc_openKeywordList(keywords, i, status);
-    } else {
-        return NULL;
-    }
+    return NULL;
 }
 
 
@@ -1605,7 +1540,7 @@ _canonicalize(const char* localeID,
                 variantSize = -tag.length();
                 {
                     CharStringByteSink s(&tag);
-                    _getVariantEx(tmpLocaleID+1, *tmpLocaleID, s, FALSE);
+                    _getVariant(tmpLocaleID+1, *tmpLocaleID, s, FALSE);
                 }
                 variantSize += tag.length();
                 if (variantSize > 0) {
@@ -1667,7 +1602,7 @@ _canonicalize(const char* localeID,
             int32_t posixVariantSize = -tag.length();
             {
                 CharStringByteSink s(&tag);
-                _getVariantEx(tmpLocaleID+1, '@', s, (UBool)(variantSize > 0));
+                _getVariant(tmpLocaleID+1, '@', s, (UBool)(variantSize > 0));
             }
             posixVariantSize += tag.length();
             if (posixVariantSize > 0) {
@@ -1696,7 +1631,7 @@ _canonicalize(const char* localeID,
             (!separatorIndicator || separatorIndicator > keywordAssign)) {
             sink.Append("@", 1);
             ++fieldCount;
-            _getKeywords(tmpLocaleID+1, '@', sink, TRUE, err);
+            ulocimp_getKeywords(tmpLocaleID+1, '@', sink, TRUE, err);
         }
     }
 }
@@ -1745,7 +1680,6 @@ uloc_getLanguage(const char*    localeID,
          UErrorCode* err)
 {
     /* uloc_getLanguage will return a 2 character iso-639 code if one exists. *CWB*/
-    int32_t i=0;
 
     if (err==NULL || U_FAILURE(*err)) {
         return 0;
@@ -1755,8 +1689,7 @@ uloc_getLanguage(const char*    localeID,
         localeID=uloc_getDefault();
     }
 
-    i=ulocimp_getLanguage(localeID, language, languageCapacity, NULL);
-    return u_terminateChars(language, languageCapacity, i, err);
+    return ulocimp_getLanguage(localeID, NULL, *err).extract(language, languageCapacity, *err);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1765,8 +1698,6 @@ uloc_getScript(const char*    localeID,
          int32_t scriptCapacity,
          UErrorCode* err)
 {
-    int32_t i=0;
-
     if(err==NULL || U_FAILURE(*err)) {
         return 0;
     }
@@ -1776,11 +1707,15 @@ uloc_getScript(const char*    localeID,
     }
 
     /* skip the language */
-    ulocimp_getLanguage(localeID, NULL, 0, &localeID);
-    if(_isIDSeparator(*localeID)) {
-        i=ulocimp_getScript(localeID+1, script, scriptCapacity, NULL);
+    ulocimp_getLanguage(localeID, &localeID, *err);
+    if (U_FAILURE(*err)) {
+        return 0;
     }
-    return u_terminateChars(script, scriptCapacity, i, err);
+
+    if(_isIDSeparator(*localeID)) {
+        return ulocimp_getScript(localeID+1, NULL, *err).extract(script, scriptCapacity, *err);
+    }
+    return u_terminateChars(script, scriptCapacity, 0, err);
 }
 
 U_CAPI int32_t  U_EXPORT2
@@ -1789,8 +1724,6 @@ uloc_getCountry(const char* localeID,
             int32_t countryCapacity,
             UErrorCode* err)
 {
-    int32_t i=0;
-
     if(err==NULL || U_FAILURE(*err)) {
         return 0;
     }
@@ -1800,20 +1733,27 @@ uloc_getCountry(const char* localeID,
     }
 
     /* Skip the language */
-    ulocimp_getLanguage(localeID, NULL, 0, &localeID);
+    ulocimp_getLanguage(localeID, &localeID, *err);
+    if (U_FAILURE(*err)) {
+        return 0;
+    }
+
     if(_isIDSeparator(*localeID)) {
         const char *scriptID;
         /* Skip the script if available */
-        ulocimp_getScript(localeID+1, NULL, 0, &scriptID);
+        ulocimp_getScript(localeID+1, &scriptID, *err);
+        if (U_FAILURE(*err)) {
+            return 0;
+        }
         if(scriptID != localeID+1) {
             /* Found optional script */
             localeID = scriptID;
         }
         if(_isIDSeparator(*localeID)) {
-            i=ulocimp_getCountry(localeID+1, country, countryCapacity, NULL);
+            return ulocimp_getCountry(localeID+1, NULL, *err).extract(country, countryCapacity, *err);
         }
     }
-    return u_terminateChars(country, countryCapacity, i, err);
+    return u_terminateChars(country, countryCapacity, 0, err);
 }
 
 U_CAPI int32_t  U_EXPORT2
@@ -1840,11 +1780,18 @@ uloc_getVariant(const char* localeID,
     }
 
     /* Skip the language */
-    ulocimp_getLanguage(tmpLocaleID, NULL, 0, &tmpLocaleID);
+    ulocimp_getLanguage(tmpLocaleID, &tmpLocaleID, *err);
+    if (U_FAILURE(*err)) {
+        return 0;
+    }
+
     if(_isIDSeparator(*tmpLocaleID)) {
         const char *scriptID;
         /* Skip the script if available */
-        ulocimp_getScript(tmpLocaleID+1, NULL, 0, &scriptID);
+        ulocimp_getScript(tmpLocaleID+1, &scriptID, *err);
+        if (U_FAILURE(*err)) {
+            return 0;
+        }
         if(scriptID != tmpLocaleID+1) {
             /* Found optional script */
             tmpLocaleID = scriptID;
@@ -1852,7 +1799,10 @@ uloc_getVariant(const char* localeID,
         /* Skip the Country */
         if (_isIDSeparator(*tmpLocaleID)) {
             const char *cntryID;
-            ulocimp_getCountry(tmpLocaleID+1, NULL, 0, &cntryID);
+            ulocimp_getCountry(tmpLocaleID+1, &cntryID, *err);
+            if (U_FAILURE(*err)) {
+                return 0;
+            }
             if (cntryID != tmpLocaleID+1) {
                 /* Found optional country */
                 tmpLocaleID = cntryID;
@@ -1862,18 +1812,24 @@ uloc_getVariant(const char* localeID,
                 if (tmpLocaleID != cntryID && _isIDSeparator(tmpLocaleID[1])) {
                     tmpLocaleID++;
                 }
-                i=_getVariant(tmpLocaleID+1, *tmpLocaleID, variant, variantCapacity);
+
+                CheckedArrayByteSink sink(variant, variantCapacity);
+                _getVariant(tmpLocaleID+1, *tmpLocaleID, sink, FALSE);
+
+                i = sink.NumberOfBytesAppended();
+
+                if (U_FAILURE(*err)) {
+                    return i;
+                }
+
+                if (sink.Overflowed()) {
+                    *err = U_BUFFER_OVERFLOW_ERROR;
+                    return i;
+                }
             }
         }
     }
 
-    /* removed by weiv. We don't want to handle POSIX variants anymore. Use canonicalization function */
-    /* if we do not have a variant tag yet then try a POSIX variant after '@' */
-/*
-    if(!haveVariant && (localeID=uprv_strrchr(localeID, '@'))!=NULL) {
-        i=_getVariant(localeID+1, '@', variant, variantCapacity);
-    }
-*/
     return u_terminateChars(variant, variantCapacity, i, err);
 }
 
@@ -1905,7 +1861,7 @@ uloc_getName(const char* localeID,
     return reslen;
 }
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_getName(const char* localeID,
                 ByteSink& sink,
                 UErrorCode* err)
@@ -1941,7 +1897,7 @@ uloc_getBaseName(const char* localeID,
     return reslen;
 }
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_getBaseName(const char* localeID,
                     ByteSink& sink,
                     UErrorCode* err)
@@ -1977,7 +1933,7 @@ uloc_canonicalize(const char* localeID,
     return reslen;
 }
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_canonicalize(const char* localeID,
                      ByteSink& sink,
                      UErrorCode* err)
@@ -2058,22 +2014,22 @@ uloc_getLCID(const char* localeID)
         // uprv_convertToLCID does not support keywords other than collation.
         // Remove all keywords except collation.
         int32_t len;
-        char collVal[ULOC_KEYWORDS_CAPACITY];
         char tmpLocaleID[ULOC_FULLNAME_CAPACITY];
 
-        len = uloc_getKeywordValue(localeID, "collation", collVal,
-            UPRV_LENGTHOF(collVal) - 1, &status);
+        CharString collVal;
+        {
+            CharStringByteSink sink(&collVal);
+            ulocimp_getKeywordValue(localeID, "collation", sink, &status);
+        }
 
-        if (U_SUCCESS(status) && len > 0) {
-            collVal[len] = 0;
-
+        if (U_SUCCESS(status) && !collVal.isEmpty()) {
             len = uloc_getBaseName(localeID, tmpLocaleID,
                 UPRV_LENGTHOF(tmpLocaleID) - 1, &status);
 
             if (U_SUCCESS(status) && len > 0) {
                 tmpLocaleID[len] = 0;
 
-                len = uloc_setKeywordValue("collation", collVal, tmpLocaleID,
+                len = uloc_setKeywordValue("collation", collVal.data(), tmpLocaleID,
                     UPRV_LENGTHOF(tmpLocaleID) - len - 1, &status);
 
                 if (U_SUCCESS(status) && len > 0) {

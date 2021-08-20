@@ -36,6 +36,28 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   return FutexEmulation::NumWaitersForTesting(array_buffer, addr);
 }
 
+RUNTIME_FUNCTION(Runtime_AtomicsNumAsyncWaitersForTesting) {
+  DCHECK_EQ(0, args.length());
+  return FutexEmulation::NumAsyncWaitersForTesting(isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CHECK(!sta->WasDetached());
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, sta->length());
+  CHECK_EQ(sta->type(), kExternalInt32Array);
+
+  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  size_t addr = (index << 2) + sta->byte_offset();
+
+  return FutexEmulation::NumUnresolvedAsyncPromisesForTesting(array_buffer,
+                                                              addr);
+}
+
 RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

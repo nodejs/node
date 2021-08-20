@@ -167,6 +167,11 @@ TEST_IMPL(thread_create) {
  * that each "finished" callback is run in its originating thread.
  */
 TEST_IMPL(threadpool_multiple_event_loops) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+  
   struct test_thread threads[8];
   size_t i;
   int r;
@@ -189,11 +194,11 @@ TEST_IMPL(threadpool_multiple_event_loops) {
 
 
 static void tls_thread(void* arg) {
-  ASSERT(NULL == uv_key_get(&tls_key));
+  ASSERT_NULL(uv_key_get(&tls_key));
   uv_key_set(&tls_key, arg);
   ASSERT(arg == uv_key_get(&tls_key));
   uv_key_set(&tls_key, NULL);
-  ASSERT(NULL == uv_key_get(&tls_key));
+  ASSERT_NULL(uv_key_get(&tls_key));
 }
 
 
@@ -201,7 +206,7 @@ TEST_IMPL(thread_local_storage) {
   char name[] = "main";
   uv_thread_t threads[2];
   ASSERT(0 == uv_key_create(&tls_key));
-  ASSERT(NULL == uv_key_get(&tls_key));
+  ASSERT_NULL(uv_key_get(&tls_key));
   uv_key_set(&tls_key, name);
   ASSERT(name == uv_key_get(&tls_key));
   ASSERT(0 == uv_thread_create(threads + 0, tls_thread, threads + 0));

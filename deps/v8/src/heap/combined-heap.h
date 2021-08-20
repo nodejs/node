@@ -7,6 +7,7 @@
 
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/third-party/heap-api.h"
 #include "src/objects/objects.h"
 
@@ -25,6 +26,7 @@ class V8_EXPORT_PRIVATE CombinedHeapObjectIterator final {
   HeapObject Next();
 
  private:
+  SafepointScope safepoint_scope_;
   HeapObjectIterator heap_iterator_;
   ReadOnlyHeapObjectIterator ro_heap_iterator_;
 };
@@ -34,7 +36,8 @@ V8_WARN_UNUSED_RESULT inline bool IsValidHeapObject(Heap* heap,
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
     return third_party_heap::Heap::IsValidHeapObject(object);
   else
-    return ReadOnlyHeap::Contains(object) || heap->Contains(object);
+    return ReadOnlyHeap::Contains(object) || heap->Contains(object) ||
+           heap->SharedHeapContains(object);
 }
 
 }  // namespace internal

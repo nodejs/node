@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/setup-isolate.h"
-
 #include "src/builtins/builtins.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -12,7 +11,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
+#include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"
 #include "src/interpreter/interpreter.h"
@@ -38,15 +37,14 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   CHECK(!options.use_pc_relative_calls_and_jumps);
   CHECK(!options.collect_win64_unwind_info);
 
-  if (!isolate->IsGeneratingEmbeddedBuiltins() ||
-      !Builtins::IsIsolateIndependent(builtin_index)) {
+  if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
 
-  const base::AddressRegion& code_range = isolate->heap()->code_range();
+  const base::AddressRegion& code_region = isolate->heap()->code_region();
   bool pc_relative_calls_fit_in_code_range =
-      !code_range.is_empty() &&
-      std::ceil(static_cast<float>(code_range.size() / MB)) <=
+      !code_region.is_empty() &&
+      std::ceil(static_cast<float>(code_region.size() / MB)) <=
           kMaxPCRelativeCodeRangeInMB;
 
   options.isolate_independent_code = true;
@@ -75,7 +73,7 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   }
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
@@ -116,7 +114,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   masm.GetCode(isolate, &desc, MacroAssembler::kNoSafepointTable,
                handler_table_offset);
 
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
@@ -142,7 +140,7 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   Builtins::Generate_Adaptor(&masm, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
@@ -158,15 +156,16 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   const int argc_with_recv =
       (argc == kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
   compiler::CodeAssemblerState state(
-      isolate, &zone, argc_with_recv, Code::BUILTIN, name,
+      isolate, &zone, argc_with_recv, CodeKind::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, BuiltinAssemblerOptions(isolate, builtin_index));
+      &state, BuiltinAssemblerOptions(isolate, builtin_index),
+      ProfileDataFromFile::TryRead(name));
   return *code;
 }
 
@@ -179,18 +178,19 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
   CallInterfaceDescriptor descriptor(interface_descriptor);
   // Ensure descriptor is already initialized.
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(
-      isolate, &zone, descriptor, Code::BUILTIN, name,
+      isolate, &zone, descriptor, CodeKind::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, BuiltinAssemblerOptions(isolate, builtin_index));
+      &state, BuiltinAssemblerOptions(isolate, builtin_index),
+      ProfileDataFromFile::TryRead(name));
   return *code;
 }
 
@@ -218,20 +218,17 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
 
 // static
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
-  // Replace references from all code objects to placeholders.
+  // Replace references from all builtin code objects to placeholders.
   Builtins* builtins = isolate->builtins();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
-  HeapObjectIterator iterator(isolate->heap());
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (!obj.IsCode()) continue;
-    Code code = Code::cast(obj);
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code code = builtins->builtin(i);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();

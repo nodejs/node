@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STACK_FRAME_INFO_H_
 
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -13,122 +14,99 @@
 namespace v8 {
 namespace internal {
 
-class FrameArray;
+class MessageLocation;
 class WasmInstanceObject;
 
-class StackFrameInfo : public Struct {
+#include "torque-generated/src/objects/stack-frame-info-tq.inc"
+
+class StackFrameInfo
+    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(line_number)
-  DECL_INT_ACCESSORS(column_number)
-  DECL_INT_ACCESSORS(script_id)
-  DECL_INT_ACCESSORS(wasm_function_index)
-  DECL_INT_ACCESSORS(promise_all_index)
-  // Wasm frames only: function_offset instead of promise_all_index.
-  DECL_INT_ACCESSORS(function_offset)
-  DECL_ACCESSORS(script_name, Object)
-  DECL_ACCESSORS(script_name_or_source_url, Object)
-  DECL_ACCESSORS(function_name, Object)
-  DECL_ACCESSORS(method_name, Object)
-  DECL_ACCESSORS(type_name, Object)
-  DECL_ACCESSORS(eval_origin, Object)
-  DECL_ACCESSORS(wasm_module_name, Object)
-  DECL_ACCESSORS(wasm_instance, Object)
-  DECL_BOOLEAN_ACCESSORS(is_eval)
-  DECL_BOOLEAN_ACCESSORS(is_constructor)
-  DECL_BOOLEAN_ACCESSORS(is_wasm)
-  DECL_BOOLEAN_ACCESSORS(is_asmjs_wasm)
-  DECL_BOOLEAN_ACCESSORS(is_user_java_script)
-  DECL_BOOLEAN_ACCESSORS(is_toplevel)
-  DECL_BOOLEAN_ACCESSORS(is_async)
-  DECL_BOOLEAN_ACCESSORS(is_promise_all)
-  DECL_INT_ACCESSORS(flag)
 
-  DECL_CAST(StackFrameInfo)
+#if V8_ENABLE_WEBASSEMBLY
+  inline bool IsWasm() const;
+  inline bool IsAsmJsWasm() const;
+  inline bool IsAsmJsAtNumberConversion() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  inline bool IsStrict() const;
+  inline bool IsConstructor() const;
+  inline bool IsAsync() const;
+  bool IsEval() const;
+  bool IsUserJavaScript() const;
+  bool IsMethodCall() const;
+  bool IsToplevel() const;
+  bool IsPromiseAll() const;
+  bool IsPromiseAny() const;
+  bool IsNative() const;
 
   // Dispatched behavior.
   DECL_PRINTER(StackFrameInfo)
   DECL_VERIFIER(StackFrameInfo)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_STACK_FRAME_INFO_FIELDS)
+  // Used to signal that the requested field is unknown.
+  static constexpr int kUnknown = kNoSourcePosition;
+
+  static int GetLineNumber(Handle<StackFrameInfo> info);
+  static int GetColumnNumber(Handle<StackFrameInfo> info);
+
+  static int GetEnclosingLineNumber(Handle<StackFrameInfo> info);
+  static int GetEnclosingColumnNumber(Handle<StackFrameInfo> info);
+
+  // Returns the script ID if one is attached,
+  // Message::kNoScriptIdInfo otherwise.
+  int GetScriptId() const;
+  Object GetScriptName() const;
+  Object GetScriptNameOrSourceURL() const;
+  Object GetScriptSource() const;
+  Object GetScriptSourceMappingURL() const;
+
+  static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<StackFrameInfo> info);
+  static Handle<Object> GetFunctionName(Handle<StackFrameInfo> info);
+  static Handle<Object> GetMethodName(Handle<StackFrameInfo> info);
+  static Handle<Object> GetTypeName(Handle<StackFrameInfo> info);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // These methods are only valid for Wasm and asm.js Wasm frames.
+  uint32_t GetWasmFunctionIndex() const;
+  WasmInstanceObject GetWasmInstance() const;
+  static Handle<Object> GetWasmModuleName(Handle<StackFrameInfo> info);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Returns the 0-based source position, which is the offset into the
+  // Script in case of JavaScript and Asm.js, and the bytecode offset
+  // in the module in case of actual Wasm. In case of async promise
+  // combinator frames, this returns the index of the promise.
+  static int GetSourcePosition(Handle<StackFrameInfo> info);
+
+  // Attempts to fill the |location| based on the |info|, and avoids
+  // triggering source position table building for JavaScript frames.
+  static bool ComputeLocation(Handle<StackFrameInfo> info,
+                              MessageLocation* location);
 
  private:
   // Bit position in the flag, from least significant bit position.
-  static const int kIsEvalBit = 0;
-  static const int kIsConstructorBit = 1;
-  static const int kIsWasmBit = 2;
-  static const int kIsAsmJsWasmBit = 3;
-  static const int kIsUserJavaScriptBit = 4;
-  static const int kIsToplevelBit = 5;
-  static const int kIsAsyncBit = 6;
-  static const int kIsPromiseAllBit = 7;
+  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+  friend class StackTraceBuilder;
 
-  OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
+  static int ComputeSourcePosition(Handle<StackFrameInfo> info, int offset);
+
+  base::Optional<Script> GetScript() const;
+  SharedFunctionInfo GetSharedFunctionInfo() const;
+
+  static MaybeHandle<Script> GetScript(Isolate* isolate,
+                                       Handle<StackFrameInfo> info);
+
+  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
 };
-
-// This class is used to lazily initialize a StackFrameInfo object from
-// a FrameArray plus an index.
-// The first time any of the Get* or Is* methods is called, a
-// StackFrameInfo object is allocated and all necessary information
-// retrieved.
-class StackTraceFrame
-    : public TorqueGeneratedStackTraceFrame<StackTraceFrame, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-
-  // Dispatched behavior.
-  DECL_PRINTER(StackTraceFrame)
-
-  static int GetLineNumber(Handle<StackTraceFrame> frame);
-  static int GetOneBasedLineNumber(Handle<StackTraceFrame> frame);
-  static int GetColumnNumber(Handle<StackTraceFrame> frame);
-  static int GetOneBasedColumnNumber(Handle<StackTraceFrame> frame);
-  static int GetScriptId(Handle<StackTraceFrame> frame);
-  static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
-  static int GetFunctionOffset(Handle<StackTraceFrame> frame);
-  static int GetWasmFunctionIndex(Handle<StackTraceFrame> frame);
-
-  static Handle<Object> GetFileName(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetScriptNameOrSourceUrl(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetFunctionName(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetMethodName(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetTypeName(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetEvalOrigin(Handle<StackTraceFrame> frame);
-  static Handle<Object> GetWasmModuleName(Handle<StackTraceFrame> frame);
-  static Handle<WasmInstanceObject> GetWasmInstance(
-      Handle<StackTraceFrame> frame);
-
-  static bool IsEval(Handle<StackTraceFrame> frame);
-  static bool IsConstructor(Handle<StackTraceFrame> frame);
-  static bool IsWasm(Handle<StackTraceFrame> frame);
-  static bool IsAsmJsWasm(Handle<StackTraceFrame> frame);
-  static bool IsUserJavaScript(Handle<StackTraceFrame> frame);
-  static bool IsToplevel(Handle<StackTraceFrame> frame);
-  static bool IsAsync(Handle<StackTraceFrame> frame);
-  static bool IsPromiseAll(Handle<StackTraceFrame> frame);
-
- private:
-  static Handle<StackFrameInfo> GetFrameInfo(Handle<StackTraceFrame> frame);
-  static void InitializeFrameInfo(Handle<StackTraceFrame> frame);
-
-  TQ_OBJECT_CONSTRUCTORS(StackTraceFrame)
-};
-
-// Small helper that retrieves the FrameArray from a stack-trace
-// consisting of a FixedArray of StackTraceFrame objects.
-// This helper is only temporary until all FrameArray use-sites have
-// been converted to use StackTraceFrame and StackFrameInfo objects.
-V8_EXPORT_PRIVATE
-Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
-                                               Handle<FixedArray> stack_trace);
 
 class IncrementalStringBuilder;
-void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
-                              IncrementalStringBuilder* builder);
+void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
+                             IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
-MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
-                                             Handle<StackTraceFrame> frame);
+MaybeHandle<String> SerializeStackFrameInfo(Isolate* isolate,
+                                            Handle<StackFrameInfo> frame);
 
 }  // namespace internal
 }  // namespace v8

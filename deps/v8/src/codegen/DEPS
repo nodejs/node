@@ -4,8 +4,10 @@
 
 specific_include_rules = {
   "external-reference.cc": [
-    # Required to call IrregexpInterpreter::NativeMatch from builtin.
+    # Required to call into IrregexpInterpreter and RegexpExperimental from
+    # builtin.
     "+src/regexp/regexp-interpreter.h",
+    "+src/regexp/experimental/experimental.h",
     "+src/regexp/regexp-macro-assembler-arch.h",
   ],
 }

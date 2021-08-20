@@ -24,6 +24,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
 
@@ -55,17 +57,19 @@ void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
   set_enum_cache(array.enum_cache());
 }
 
-InternalIndex DescriptorArray::Search(Name name, int valid_descriptors) {
+InternalIndex DescriptorArray::Search(Name name, int valid_descriptors,
+                                      bool concurrent_search) {
   DCHECK(name.IsUniqueName());
-  return InternalIndex(
-      internal::Search<VALID_ENTRIES>(this, name, valid_descriptors, nullptr));
+  return InternalIndex(internal::Search<VALID_ENTRIES>(
+      this, name, valid_descriptors, nullptr, concurrent_search));
 }
 
-InternalIndex DescriptorArray::Search(Name name, Map map) {
+InternalIndex DescriptorArray::Search(Name name, Map map,
+                                      bool concurrent_search) {
   DCHECK(name.IsUniqueName());
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
-  return Search(name, number_of_own_descriptors);
+  return Search(name, number_of_own_descriptors, concurrent_search);
 }
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
@@ -102,15 +106,16 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
 }
 
 Name DescriptorArray::GetKey(InternalIndex descriptor_number) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return GetKey(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetKey(const Isolate* isolate,
+Name DescriptorArray::GetKey(PtrComprCageBase cage_base,
                              InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Name::cast(EntryKeyField::Relaxed_Load(isolate, *this, entry_offset));
+  return Name::cast(
+      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
 }
 
 void DescriptorArray::SetKey(InternalIndex descriptor_number, Name key) {
@@ -125,13 +130,13 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 Name DescriptorArray::GetSortedKey(int descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return GetSortedKey(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetSortedKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetSortedKey(const Isolate* isolate,
+Name DescriptorArray::GetSortedKey(PtrComprCageBase cage_base,
                                    int descriptor_number) {
-  return GetKey(isolate, InternalIndex(GetSortedKeyIndex(descriptor_number)));
+  return GetKey(cage_base, InternalIndex(GetSortedKeyIndex(descriptor_number)));
 }
 
 void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
@@ -140,13 +145,13 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
 }
 
 Object DescriptorArray::GetStrongValue(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return GetStrongValue(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetStrongValue(cage_base, descriptor_number);
 }
 
-Object DescriptorArray::GetStrongValue(const Isolate* isolate,
+Object DescriptorArray::GetStrongValue(PtrComprCageBase cage_base,
                                        InternalIndex descriptor_number) {
-  return GetValue(isolate, descriptor_number).cast<Object>();
+  return GetValue(cage_base, descriptor_number).cast<Object>();
 }
 
 void DescriptorArray::SetValue(InternalIndex descriptor_number,
@@ -158,15 +163,15 @@ void DescriptorArray::SetValue(InternalIndex descriptor_number,
 }
 
 MaybeObject DescriptorArray::GetValue(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return GetValue(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetValue(cage_base, descriptor_number);
 }
 
-MaybeObject DescriptorArray::GetValue(const Isolate* isolate,
+MaybeObject DescriptorArray::GetValue(PtrComprCageBase cage_base,
                                       InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return EntryValueField::Relaxed_Load(isolate, *this, entry_offset);
+  return EntryValueField::Relaxed_Load(cage_base, *this, entry_offset);
 }
 
 PropertyDetails DescriptorArray::GetDetails(InternalIndex descriptor_number) {
@@ -189,14 +194,14 @@ int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
 }
 
 FieldType DescriptorArray::GetFieldType(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return GetFieldType(isolate, descriptor_number);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return GetFieldType(cage_base, descriptor_number);
 }
 
-FieldType DescriptorArray::GetFieldType(const Isolate* isolate,
+FieldType DescriptorArray::GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
-  MaybeObject wrapped_type = GetValue(isolate, descriptor_number);
+  MaybeObject wrapped_type = GetValue(cage_base, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
@@ -214,19 +219,19 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int descriptor_number = number_of_descriptors();
   DCHECK_LE(descriptor_number + 1, number_of_all_descriptors());
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->Hash();
+  uint32_t hash = desc->GetKey()->hash();
 
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    if (key.Hash() <= hash) break;
+    if (key.hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 

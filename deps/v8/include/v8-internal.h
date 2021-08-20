@@ -33,12 +33,20 @@ const int kApiSystemPointerSize = sizeof(void*);
 const int kApiDoubleSize = sizeof(double);
 const int kApiInt32Size = sizeof(int32_t);
 const int kApiInt64Size = sizeof(int64_t);
+const int kApiSizetSize = sizeof(size_t);
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
 const int kWeakHeapObjectTag = 3;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+
+// Tag information for fowarding pointers stored in object headers.
+// 0b00 at the lowest 2 bits in the header indicates that the map word is a
+// forwarding pointer.
+const int kForwardingTag = 0;
+const int kForwardingTagSize = 2;
+const intptr_t kForwardingTagMask = (1 << kForwardingTagSize) - 1;
 
 // Tag information for Smi.
 const int kSmiTag = 0;
@@ -120,6 +128,28 @@ constexpr bool HeapSandboxIsEnabled() {
 
 using ExternalPointer_t = Address;
 
+// If the heap sandbox is enabled, these tag values will be ORed with the
+// external pointers in the external pointer table to prevent use of pointers of
+// the wrong type. When a pointer is loaded, it is ANDed with the inverse of the
+// expected type's tag. The tags are constructed in a way that guarantees that a
+// failed type check will result in one or more of the top bits of the pointer
+// to be set, rendering the pointer inacessible. This construction allows
+// performing the type check and removing GC marking bits from the pointer at
+// the same time.
+enum ExternalPointerTag : uint64_t {
+  kExternalPointerNullTag = 0x0000000000000000,
+  kArrayBufferBackingStoreTag = 0x00ff000000000000,      // 0b000000011111111
+  kTypedArrayExternalPointerTag = 0x017f000000000000,    // 0b000000101111111
+  kDataViewDataPointerTag = 0x01bf000000000000,          // 0b000000110111111
+  kExternalStringResourceTag = 0x01df000000000000,       // 0b000000111011111
+  kExternalStringResourceDataTag = 0x01ef000000000000,   // 0b000000111101111
+  kForeignForeignAddressTag = 0x01f7000000000000,        // 0b000000111110111
+  kNativeContextMicrotaskQueueTag = 0x01fb000000000000,  // 0b000000111111011
+  kEmbedderDataSlotPayloadTag = 0x01fd000000000000,      // 0b000000111111101
+};
+
+constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
+
 #ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
 using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 #else
@@ -140,6 +170,11 @@ V8_INLINE static constexpr internal::Address IntToSmi(int value) {
          kSmiTag;
 }
 
+// Converts encoded external pointer to address.
+V8_EXPORT Address DecodeExternalPointerImpl(const Isolate* isolate,
+                                            ExternalPointer_t pointer,
+                                            ExternalPointerTag tag);
+
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
@@ -155,6 +190,14 @@ V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
  * depend on functions and constants defined here.
  */
 class Internals {
+#ifdef V8_MAP_PACKING
+  V8_INLINE static constexpr internal::Address UnpackMapWord(
+      internal::Address mapword) {
+    // TODO(wenyuzhao): Clear header metadata.
+    return mapword ^ kMapWordXorMask;
+  }
+#endif
+
  public:
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
@@ -168,6 +211,9 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
+#ifdef V8_HEAP_SANDBOX
+  static const int kEmbedderDataSlotRawPayloadOffset = kApiTaggedSize;
+#endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
@@ -178,20 +224,26 @@ class Internals {
 
   // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
-  static const int kExternalMemoryOffset =
-      kNumIsolateDataSlots * kApiSystemPointerSize;
-  static const int kExternalMemoryLimitOffset =
-      kExternalMemoryOffset + kApiInt64Size;
-  static const int kExternalMemoryLowSinceMarkCompactOffset =
-      kExternalMemoryLimitOffset + kApiInt64Size;
   static const int kIsolateFastCCallCallerFpOffset =
-      kExternalMemoryLowSinceMarkCompactOffset + kApiInt64Size;
+      kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
-  static const int kIsolateStackGuardOffset =
+  static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
+  static const int kIsolateCageBaseOffset =
+      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
+  static const int kIsolateLongTaskStatsCounterOffset =
+      kIsolateCageBaseOffset + kApiSystemPointerSize;
+  static const int kIsolateStackGuardOffset =
+      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
   static const int kIsolateRootsOffset =
       kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
+
+  static const int kExternalPointerTableBufferOffset = 0;
+  static const int kExternalPointerTableLengthOffset =
+      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
+  static const int kExternalPointerTableCapacityOffset =
+      kExternalPointerTableLengthOffset + kApiInt32Size;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -226,6 +278,17 @@ class Internals {
   // incremental GC once the external memory reaches this limit.
   static constexpr int kExternalAllocationSoftLimit = 64 * 1024 * 1024;
 
+#ifdef V8_MAP_PACKING
+  static const uintptr_t kMapWordMetadataMask = 0xffffULL << 48;
+  // The lowest two bits of mapwords are always `0b10`
+  static const uintptr_t kMapWordSignature = 0b10;
+  // XORing a (non-compressed) map with this mask ensures that the two
+  // low-order bits are 0b10. The 0 at the end makes this look like a Smi,
+  // although real Smis have all lower 32 bits unset. We only rely on these
+  // values passing as Smis in very few places.
+  static const int kMapWordXorMask = 0b11;
+#endif
+
   V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
 #ifdef V8_ENABLE_CHECKS
@@ -252,6 +315,9 @@ class Internals {
   V8_INLINE static int GetInstanceType(const internal::Address obj) {
     typedef internal::Address A;
     A map = ReadTaggedPointerField(obj, kHeapObjectMapOffset);
+#ifdef V8_MAP_PACKING
+    map = UnpackMapWord(map);
+#endif
     return ReadRawField<uint16_t>(map, kMapInstanceTypeOffset);
   }
 
@@ -302,6 +368,12 @@ class Internals {
     return *reinterpret_cast<void* const*>(addr);
   }
 
+  V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {
+    internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
+                             kIsolateLongTaskStatsCounterOffset;
+    ++(*reinterpret_cast<size_t*>(addr));
+  }
+
   V8_INLINE static internal::Address* GetRoot(v8::Isolate* isolate, int index) {
     internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
                              kIsolateRootsOffset +
@@ -331,8 +403,9 @@ class Internals {
       internal::Address heap_object_ptr, int offset) {
 #ifdef V8_COMPRESS_POINTERS
     uint32_t value = ReadRawField<uint32_t>(heap_object_ptr, offset);
-    internal::Address root = GetRootFromOnHeapAddress(heap_object_ptr);
-    return root + static_cast<internal::Address>(static_cast<uintptr_t>(value));
+    internal::Address base =
+        GetPtrComprCageBaseFromOnHeapAddress(heap_object_ptr);
+    return base + static_cast<internal::Address>(static_cast<uintptr_t>(value));
 #else
     return ReadRawField<internal::Address>(heap_object_ptr, offset);
 #endif
@@ -358,45 +431,47 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static internal::Address ReadExternalPointerField(
-      internal::Isolate* isolate, internal::Address heap_object_ptr,
-      int offset) {
-    internal::Address value = ReadRawField<Address>(heap_object_ptr, offset);
+  V8_INLINE static Address DecodeExternalPointer(
+      const Isolate* isolate, ExternalPointer_t encoded_pointer,
+      ExternalPointerTag tag) {
 #ifdef V8_HEAP_SANDBOX
-    // We currently have to treat zero as nullptr in embedder slots.
-    if (value) value = DecodeExternalPointer(isolate, value);
+    return internal::DecodeExternalPointerImpl(isolate, encoded_pointer, tag);
+#else
+    return encoded_pointer;
 #endif
-    return value;
+  }
+
+  V8_INLINE static internal::Address ReadExternalPointerField(
+      internal::Isolate* isolate, internal::Address heap_object_ptr, int offset,
+      ExternalPointerTag tag) {
+#ifdef V8_HEAP_SANDBOX
+    internal::ExternalPointer_t encoded_value =
+        ReadRawField<uint32_t>(heap_object_ptr, offset);
+    // We currently have to treat zero as nullptr in embedder slots.
+    return encoded_value ? DecodeExternalPointer(isolate, encoded_value, tag)
+                         : 0;
+#else
+    return ReadRawField<Address>(heap_object_ptr, offset);
+#endif
   }
 
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
-  static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
+  static constexpr size_t kPtrComprCageReservationSize = size_t{1} << 32;
+  static constexpr size_t kPtrComprCageBaseAlignment = size_t{1} << 32;
 
-  // See v8:10391 for details about V8 heap sandbox.
-  static constexpr uint32_t kExternalPointerSalt =
-      0x7fffffff & ~static_cast<uint32_t>(kHeapObjectTagMask);
-
-  V8_INLINE static internal::Address GetRootFromOnHeapAddress(
+  V8_INLINE static internal::Address GetPtrComprCageBaseFromOnHeapAddress(
       internal::Address addr) {
-    return addr & -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+    return addr & -static_cast<intptr_t>(kPtrComprCageBaseAlignment);
   }
 
   V8_INLINE static internal::Address DecompressTaggedAnyField(
       internal::Address heap_object_ptr, uint32_t value) {
-    internal::Address root = GetRootFromOnHeapAddress(heap_object_ptr);
-    return root + static_cast<internal::Address>(static_cast<uintptr_t>(value));
+    internal::Address base =
+        GetPtrComprCageBaseFromOnHeapAddress(heap_object_ptr);
+    return base + static_cast<internal::Address>(static_cast<uintptr_t>(value));
   }
 
-  V8_INLINE static Address DecodeExternalPointer(
-      const Isolate* isolate, ExternalPointer_t encoded_pointer) {
-#ifndef V8_HEAP_SANDBOX
-    return encoded_pointer;
-#else
-    return encoded_pointer ^ kExternalPointerSalt;
-#endif
-  }
 #endif  // V8_COMPRESS_POINTERS
 };
 
@@ -420,7 +495,8 @@ void CastCheck<false>::Perform(T* data) {}
 
 template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
-  CastCheck<std::is_base_of<Data, T>::value>::Perform(data);
+  CastCheck<std::is_base_of<Data, T>::value &&
+            !std::is_same<Data, std::remove_cv_t<T>>::value>::Perform(data);
 }
 
 // A base class for backing stores, which is needed due to vagaries of

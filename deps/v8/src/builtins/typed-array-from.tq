@@ -10,6 +10,8 @@ const kBuiltinNameFrom: constexpr string = '%TypedArray%.from';
 type BuiltinsName extends int31 constexpr 'Builtins::Name';
 const kTypedArrayPrototypeValues: constexpr BuiltinsName
     generates 'Builtins::kTypedArrayPrototypeValues';
+const kArrayPrototypeValues: constexpr BuiltinsName
+    generates 'Builtins::kArrayPrototypeValues';
 
 extern builtin IterableToList(implicit context: Context)(JSAny, JSAny): JSArray;
 
@@ -56,9 +58,9 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
           otherwise IteratorIsUndefined, IteratorNotCallable;
 
       try {
-        // TypedArrays have iterators, so normally we would go through the
-        // IterableToList case below, which would convert the TypedArray to a
-        // JSArray (boxing the values if they won't fit in a Smi).
+        // TypedArrays and JSArrays have iterators, so normally we would go
+        // through the IterableToList case below, which would convert the
+        // source to a JSArray (boxing the values if they won't fit in a Smi).
         //
         // However, if we can guarantee that the source object has the
         // built-in iterator and that the %ArrayIteratorPrototype%.next method
@@ -73,29 +75,55 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
         //
         // Drop through to the default check_iterator behavior if any of these
         // checks fail.
-        const sourceTypedArray =
-            Cast<JSTypedArray>(source) otherwise UseUserProvidedIterator;
-        const sourceBuffer = sourceTypedArray.buffer;
-        if (IsDetachedBuffer(sourceBuffer)) goto UseUserProvidedIterator;
 
-        // Check that the iterator function is exactly
-        // Builtins::kTypedArrayPrototypeValues.
+        // If there is a mapping, we need to gather the values from the
+        // iterables before applying the mapping.
+        if (mapping) goto UseUserProvidedIterator;
+
         const iteratorFn =
             Cast<JSFunction>(usingIterator) otherwise UseUserProvidedIterator;
-        if (!TaggedEqual(
-                iteratorFn.shared_function_info.function_data,
-                SmiConstant(kTypedArrayPrototypeValues)))
-          goto UseUserProvidedIterator;
 
         // Check that the ArrayIterator prototype's "next" method hasn't been
         // overridden.
         if (IsArrayIteratorProtectorCellInvalid()) goto UseUserProvidedIterator;
 
-        // Source is a TypedArray with unmodified iterator behavior. Use the
-        // source object directly, taking advantage of the special-case code
-        // in TypedArrayCopyElements
-        finalLength = sourceTypedArray.length;
-        finalSource = source;
+        typeswitch (source) {
+          case (sourceArray: JSArray): {
+            // Check that the iterator function is exactly
+            // Builtins::kArrayPrototypeValues.
+            if (!TaggedEqual(
+                    iteratorFn.shared_function_info.function_data,
+                    SmiConstant(kArrayPrototypeValues))) {
+              goto UseUserProvidedIterator;
+            }
+
+            // Source is a JSArray with unmodified iterator behavior. Use the
+            // source object directly, taking advantage of the special-case code
+            // in TypedArrayCopyElements
+            finalLength = Convert<uintptr>(sourceArray.length);
+            finalSource = source;
+          }
+          case (sourceTypedArray: JSTypedArray): {
+            const sourceBuffer = sourceTypedArray.buffer;
+            if (IsDetachedBuffer(sourceBuffer)) goto UseUserProvidedIterator;
+
+            // Check that the iterator function is exactly
+            // Builtins::kTypedArrayPrototypeValues.
+            if (!TaggedEqual(
+                    iteratorFn.shared_function_info.function_data,
+                    SmiConstant(kTypedArrayPrototypeValues)))
+              goto UseUserProvidedIterator;
+
+            // Source is a TypedArray with unmodified iterator behavior. Use the
+            // source object directly, taking advantage of the special-case code
+            // in TypedArrayCopyElements
+            finalLength = sourceTypedArray.length;
+            finalSource = source;
+          }
+          case (Object): {
+            goto UseUserProvidedIterator;
+          }
+        }
       } label UseUserProvidedIterator {
         // 6. If usingIterator is not undefined, then
         //  a. Let values be ? IterableToList(source, usingIterator).

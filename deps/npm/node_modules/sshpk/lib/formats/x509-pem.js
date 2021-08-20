@@ -29,13 +29,23 @@ function read(buf, options) {
 
 	var lines = buf.trim().split(/[\r\n]+/g);
 
-	var m = lines[0].match(/*JSSTYLED*/
-	    /[-]+[ ]*BEGIN CERTIFICATE[ ]*[-]+/);
+	var m;
+	var si = -1;
+	while (!m && si < lines.length) {
+		m = lines[++si].match(/*JSSTYLED*/
+		    /[-]+[ ]*BEGIN CERTIFICATE[ ]*[-]+/);
+	}
 	assert.ok(m, 'invalid PEM header');
 
-	var m2 = lines[lines.length - 1].match(/*JSSTYLED*/
-	    /[-]+[ ]*END CERTIFICATE[ ]*[-]+/);
+	var m2;
+	var ei = lines.length;
+	while (!m2 && ei > 0) {
+		m2 = lines[--ei].match(/*JSSTYLED*/
+		    /[-]+[ ]*END CERTIFICATE[ ]*[-]+/);
+	}
 	assert.ok(m2, 'invalid PEM footer');
+
+	lines = lines.slice(si, ei + 1);
 
 	var headers = {};
 	while (true) {

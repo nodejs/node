@@ -4,7 +4,7 @@
 
 idl_test(
   ['encoding'],
-  [], // No deps
+  ['streams'],
   idl_array => {
     idl_array.add_objects({
       TextEncoder: ['new TextEncoder()'],

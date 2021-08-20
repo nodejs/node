@@ -36,7 +36,7 @@ TEST(DefaultJobTest, CancelJob) {
       }
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -83,7 +83,7 @@ TEST(DefaultJobTest, JoinJobContributes) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -101,6 +101,41 @@ TEST(DefaultJobTest, JoinJobContributes) {
 
   // The main thread contributing is necessary for |worker_count| to reach
   // kMaxTask + 1 thus, Join() should not hang.
+  state->Join();
+  EXPECT_EQ(0U, job_raw->max_concurrency);
+}
+
+// Verify that Join() on a job that uses |worker_count| eventually converges
+// and doesn't hang.
+TEST(DefaultJobTest, WorkerCount) {
+  static constexpr size_t kMaxTask = 4;
+  DefaultPlatform platform(kMaxTask);
+
+  // This Job spawns a workers until the first worker task completes.
+  class JobTest : public JobTask {
+   public:
+    ~JobTest() override = default;
+
+    void Run(JobDelegate* delegate) override {
+      base::MutexGuard guard(&mutex);
+      if (max_concurrency > 0) --max_concurrency;
+    }
+
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      return worker_count + max_concurrency.load(std::memory_order_relaxed);
+    }
+
+    base::Mutex mutex;
+    std::atomic_size_t max_concurrency{kMaxTask};
+  };
+
+  auto job = std::make_unique<JobTest>();
+  JobTest* job_raw = job.get();
+  auto state = std::make_shared<DefaultJobState>(
+      &platform, std::move(job), TaskPriority::kUserVisible, kMaxTask);
+  state->NotifyConcurrencyIncrease();
+
+  // GetMaxConcurrency() eventually returns 0 thus, Join() should not hang.
   state->Join();
   EXPECT_EQ(0U, job_raw->max_concurrency);
 }
@@ -126,7 +161,7 @@ TEST(DefaultJobTest, JobNotifyConcurrencyIncrease) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -177,7 +212,7 @@ TEST(DefaultJobTest, FinishBeforeJoin) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -214,7 +249,9 @@ TEST(DefaultJobTest, LeakHandle) {
 
     void Run(JobDelegate* delegate) override {}
 
-    size_t GetMaxConcurrency() const override { return 0; }
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+      return 0;
+    }
   };
 
   DefaultPlatform platform(0);
@@ -226,6 +263,35 @@ TEST(DefaultJobTest, LeakHandle) {
   EXPECT_DEATH_IF_SUPPORTED({ handle.reset(); }, "");
 #endif  // DEBUG
   handle->Join();
+}
+
+TEST(DefaultJobTest, AcquireTaskId) {
+  class JobTest : public JobTask {
+   public:
+    ~JobTest() override = default;
+
+    void Run(JobDelegate* delegate) override {}
+
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+      return 0;
+    }
+  };
+
+  DefaultPlatform platform(0);
+  auto job = std::make_unique<JobTest>();
+  auto state = std::make_shared<DefaultJobState>(&platform, std::move(job),
+                                                 TaskPriority::kUserVisible, 1);
+
+  EXPECT_EQ(0U, state->AcquireTaskId());
+  EXPECT_EQ(1U, state->AcquireTaskId());
+  EXPECT_EQ(2U, state->AcquireTaskId());
+  EXPECT_EQ(3U, state->AcquireTaskId());
+  EXPECT_EQ(4U, state->AcquireTaskId());
+  state->ReleaseTaskId(1);
+  state->ReleaseTaskId(3);
+  EXPECT_EQ(1U, state->AcquireTaskId());
+  EXPECT_EQ(3U, state->AcquireTaskId());
+  EXPECT_EQ(5U, state->AcquireTaskId());
 }
 
 }  // namespace default_job_unittest

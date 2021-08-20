@@ -81,7 +81,7 @@
     it.baseId = it.baseId || it.rootId;
     delete it.isTop;
 
-    it.dataPathArr = [undefined];
+    it.dataPathArr = [""];
 
     if (it.schema.default !== undefined && it.opts.useDefaults && it.opts.strictDefaults) {
       var $defaultMsg = 'default is ignored in the schema root';

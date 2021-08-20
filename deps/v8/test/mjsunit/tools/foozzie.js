@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --correctness-fuzzer-suppressions
 // Files: tools/clusterfuzz/v8_mock.js
 
 // Test foozzie mocks for differential fuzzing.
@@ -21,6 +21,13 @@ assertEquals(710, new Date.prototype.constructor().getUTCMilliseconds());
 // Deterministic arguments in constructor keep working.
 assertEquals(819134640000,
              new Date('December 17, 1995 03:24:00 GMT+1000').getTime());
+
+// Deterministic DateTimeFormat.
+if (this.Intl) {
+  const df = new Intl.DateTimeFormat(undefined, {fractionalSecondDigits: 3});
+  assertEquals('004', df.format());
+  assertEquals('004', df.formatToParts()[0].value);
+}
 
 // Dummy performance methods.
 assertEquals(1.2, performance.now());
@@ -59,8 +66,8 @@ function testArrayType(arrayType, pattern) {
     arr[0] = -NaN;
     return new Uint32Array(arr.buffer);
   };
-  // Test passing NaN using set.
   testSameOptimized(pattern, create);
+  // Test passing NaN using set.
   create = function() {
     const arr = new arrayType(1);
     arr.set([-NaN], 0);
@@ -78,6 +85,24 @@ else {
   testArrayType(Float64Array, [0, 1072693248]);
 }
 
+// Test that DataView has the same NaN patterns with optimized and
+// unoptimized code.
+var expected_array = [4213246272,405619796,61503,0,3675212096,32831];
+if (isBigEndian){
+  expected_array = [1074340347,1413754136,1072693248,0,1078530011,1065353216];
+}
+testSameOptimized(expected_array, () => {
+  const array = new Uint32Array(6);
+  const view = new DataView(array.buffer);
+  view.setFloat64(0, Math.PI);
+  view.setFloat64(8, -undefined);
+  view.setFloat32(16, Math.fround(Math.PI));
+  view.setFloat32(20, -undefined);
+  assertEquals(Math.PI, view.getFloat64(0));
+  assertEquals(Math.fround(Math.PI), view.getFloat32(16));
+  return array;
+});
+
 // Realm.eval is just eval.
 assertEquals(1477662728716, Realm.eval(Realm.create(), `Date.now()`));
 
@@ -89,3 +114,17 @@ function callPow(v) {
 const unoptimized = callPow(6996);
 %OptimizeFunctionOnNextCall(callPow);
 assertEquals(unoptimized, callPow(6996));
+
+// Test mocked Atomics.waitAsync.
+let then_called = false;
+Atomics.waitAsync().value.then(() => {then_called = true;});
+assertEquals(true, then_called);
+
+// Test .caller access is neutered.
+function callee() {
+  assertEquals(null, callee.caller);
+}
+function caller() {
+  callee();
+}
+caller();

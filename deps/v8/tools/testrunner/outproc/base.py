@@ -137,6 +137,9 @@ class ExpectedOutProc(OutProc):
     self._regenerate_expected_files = regenerate_expected_files
 
   def _is_failure_output(self, output):
+    if output.exit_code != 0:
+        return True
+
     with open(self._expected_filename, 'r') as f:
       expected_lines = f.readlines()
 
@@ -193,6 +196,8 @@ class ExpectedOutProc(OutProc):
             line.startswith('**') or
             line.startswith('ANDROID') or
             line.startswith('###') or
+            # Android linker warning.
+            line.startswith('WARNING: linker:') or
             # FIXME(machenbach): The test driver shouldn't try to use slow
             # asserts if they weren't compiled. This fails in optdebug=2.
             line == 'Warning: unknown flag --enable-slow-asserts.' or

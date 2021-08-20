@@ -74,22 +74,9 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
                          Utf16CharacterStream* stream)
     : zone_(zone),
       scanner_(stream),
-      module_builder_(new (zone) WasmModuleBuilder(zone)),
-      return_type_(nullptr),
+      module_builder_(zone->New<WasmModuleBuilder>(zone)),
       stack_limit_(stack_limit),
-      global_var_info_(zone),
-      local_var_info_(zone),
-      failed_(false),
-      failure_location_(kNoSourcePosition),
-      stdlib_name_(kTokenNone),
-      foreign_name_(kTokenNone),
-      heap_name_(kTokenNone),
-      inside_heap_assignment_(false),
-      heap_access_type_(nullptr),
       block_stack_(zone),
-      call_coercion_(nullptr),
-      call_coercion_deferred_(nullptr),
-      pending_label_(0),
       global_imports_(zone) {
   module_builder_->SetMinMemorySize(0);
   InitializeStdlibTypes();
@@ -192,7 +179,7 @@ bool AsmJsParser::Run() {
   return !failed_;
 }
 
-class AsmJsParser::TemporaryVariableScope {
+class V8_NODISCARD AsmJsParser::TemporaryVariableScope {
  public:
   explicit TemporaryVariableScope(AsmJsParser* parser) : parser_(parser) {
     local_depth_ = parser_->function_temp_locals_depth_;
@@ -211,24 +198,21 @@ class AsmJsParser::TemporaryVariableScope {
 
 wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     AsmJsScanner::token_t token) {
-  if (AsmJsScanner::IsGlobal(token)) {
-    size_t old = global_var_info_.size();
-    size_t index = AsmJsScanner::GlobalIndex(token);
-    size_t sz = std::max(old, index + 1);
-    if (sz != old) {
-      global_var_info_.resize(sz);
-    }
-    return &global_var_info_[index];
-  } else if (AsmJsScanner::IsLocal(token)) {
-    size_t old = local_var_info_.size();
-    size_t index = AsmJsScanner::LocalIndex(token);
-    size_t sz = std::max(old, index + 1);
-    if (sz != old) {
-      local_var_info_.resize(sz);
-    }
-    return &local_var_info_[index];
+  const bool is_global = AsmJsScanner::IsGlobal(token);
+  DCHECK(is_global || AsmJsScanner::IsLocal(token));
+  Vector<VarInfo>& var_info = is_global ? global_var_info_ : local_var_info_;
+  size_t old_capacity = var_info.size();
+  size_t index = is_global ? AsmJsScanner::GlobalIndex(token)
+                           : AsmJsScanner::LocalIndex(token);
+  if (is_global && index + 1 > num_globals_) num_globals_ = index + 1;
+  if (index + 1 > old_capacity) {
+    size_t new_size = std::max(2 * old_capacity, index + 1);
+    Vector<VarInfo> new_info{zone_->NewArray<VarInfo>(new_size), new_size};
+    std::uninitialized_fill(new_info.begin(), new_info.end(), VarInfo{});
+    std::copy(var_info.begin(), var_info.end(), new_info.begin());
+    var_info = new_info;
   }
-  UNREACHABLE();
+  return &var_info[index];
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
@@ -250,10 +234,10 @@ void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
 
 void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
                                 AsmType* type, ValueType vtype,
-                                const WasmInitExpr& init) {
+                                WasmInitExpr init) {
   info->kind = VarKind::kGlobal;
   info->type = type;
-  info->index = module_builder_->AddGlobal(vtype, true, init);
+  info->index = module_builder_->AddGlobal(vtype, true, std::move(init));
   info->mutable_variable = mutable_variable;
 }
 
@@ -289,14 +273,14 @@ void AsmJsParser::SkipSemicolon() {
 
 void AsmJsParser::Begin(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kRegular, label);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
 }
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
   size_t position = scanner_.Position();
   current_function_builder_->AddAsmWasmOffset(position, position);
-  current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprLoop, kVoidCode);
 }
 
 void AsmJsParser::End() {
@@ -365,7 +349,7 @@ void AsmJsParser::ValidateModule() {
   EXPECT_TOKEN('}');
 
   // Check that all functions were eventually defined.
-  for (auto& info : global_var_info_) {
+  for (auto& info : global_var_info_.SubVector(0, num_globals_)) {
     if (info.kind == VarKind::kFunction && !info.function_defined) {
       FAIL("Undefined function");
     }
@@ -475,9 +459,15 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
       if (uvalue > 0x7FFFFFFF) {
         FAIL("Numeric literal out of range");
       }
-      DeclareGlobal(info, mutable_variable,
-                    mutable_variable ? AsmType::Int() : AsmType::Signed(),
-                    kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      if (uvalue == 0) {
+        // '-0' is treated as float.
+        DeclareGlobal(info, mutable_variable, AsmType::Float(), kWasmF32,
+                      WasmInitExpr(-0.f));
+      } else {
+        DeclareGlobal(info, mutable_variable,
+                      mutable_variable ? AsmType::Int() : AsmType::Signed(),
+                      kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      }
     } else {
       FAIL("Expected numeric literal");
     }
@@ -564,8 +554,7 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
       AddGlobalImport(name, AsmType::Int(), kWasmI32, mutable_variable, info);
     } else {
       info->kind = VarKind::kImportedFunction;
-      info->import = new (zone()->New(sizeof(FunctionImportInfo)))
-          FunctionImportInfo(name, zone());
+      info->import = zone()->New<FunctionImportInfo>(name, zone());
       info->mutable_variable = false;
     }
   }
@@ -838,7 +827,7 @@ void AsmJsParser::ValidateFunction() {
   }
 
   scanner_.ResetLocals();
-  local_var_info_.clear();
+  std::fill(local_var_info_.begin(), local_var_info_.end(), VarInfo{});
 }
 
 // 6.4 ValidateFunction
@@ -1066,7 +1055,7 @@ void AsmJsParser::Block() {
   bool can_break_to_block = pending_label_ != 0;
   if (can_break_to_block) {
     BareBegin(BlockKind::kNamed, pending_label_);
-    current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+    current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   }
   pending_label_ = 0;
   EXPECT_TOKEN('{');
@@ -1109,7 +1098,7 @@ void AsmJsParser::IfStatement() {
   RECURSE(Expression(AsmType::Int()));
   EXPECT_TOKEN(')');
   BareBegin(BlockKind::kOther);
-  current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprIf, kVoidCode);
   RECURSE(ValidateStatement());
   if (Check(TOK(else))) {
     current_function_builder_->Emit(kExprElse);
@@ -1192,7 +1181,7 @@ void AsmJsParser::DoStatement() {
   Loop();
   //     c: block {  // but treated like loop so continue works
   BareBegin(BlockKind::kLoop, pending_label_);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   pending_label_ = 0;
   EXPECT_TOKEN(TOK(do));
   //       BODY
@@ -1233,7 +1222,7 @@ void AsmJsParser::ForStatement() {
   Loop();
   //     c: block {  // but treated like loop so continue works
   BareBegin(BlockKind::kLoop, pending_label_);
-  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+  current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   pending_label_ = 0;
   if (!Peek(';')) {
     //       if (!CONDITION) break a;
@@ -1333,7 +1322,7 @@ void AsmJsParser::SwitchStatement() {
   size_t count = cases.size() + 1;
   for (size_t i = 0; i < count; ++i) {
     BareBegin(BlockKind::kOther);
-    current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
+    current_function_builder_->EmitWithU8(kExprBlock, kVoidCode);
   }
   int table_pos = 0;
   for (auto c : cases) {
@@ -2074,7 +2063,7 @@ AsmType* AsmJsParser::ConditionalExpression() {
     if (!test->IsA(AsmType::Int())) {
       FAILn("Expected int in condition of ternary operator.");
     }
-    current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
+    current_function_builder_->EmitWithU8(kExprIf, kI32Code);
     size_t fixup = current_function_builder_->GetPosition() -
                    1;  // Assumes encoding knowledge.
     AsmType* cons = nullptr;
@@ -2085,13 +2074,13 @@ AsmType* AsmJsParser::ConditionalExpression() {
     RECURSEn(alt = AssignmentExpression());
     current_function_builder_->Emit(kExprEnd);
     if (cons->IsA(AsmType::Int()) && alt->IsA(AsmType::Int())) {
-      current_function_builder_->FixupByte(fixup, kLocalI32);
+      current_function_builder_->FixupByte(fixup, kI32Code);
       return AsmType::Int();
     } else if (cons->IsA(AsmType::Double()) && alt->IsA(AsmType::Double())) {
-      current_function_builder_->FixupByte(fixup, kLocalF64);
+      current_function_builder_->FixupByte(fixup, kF64Code);
       return AsmType::Double();
     } else if (cons->IsA(AsmType::Float()) && alt->IsA(AsmType::Float())) {
-      current_function_builder_->FixupByte(fixup, kLocalF32);
+      current_function_builder_->FixupByte(fixup, kF32Code);
       return AsmType::Float();
     } else {
       FAILn("Type mismatch in ternary operator.");
@@ -2348,7 +2337,7 @@ AsmType* AsmJsParser::ValidateCall() {
             } else {
               current_function_builder_->Emit(kExprI32LeS);
             }
-            current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
+            current_function_builder_->EmitWithU8(kExprIf, kI32Code);
             current_function_builder_->EmitGetLocal(tmp_x.get());
             current_function_builder_->Emit(kExprElse);
             current_function_builder_->EmitGetLocal(tmp_y.get());

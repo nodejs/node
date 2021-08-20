@@ -1,10 +1,25 @@
 // Flags: --enable-source-maps
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { findSourceMap, SourceMap } = require('module');
 const { readFileSync } = require('fs');
+
+// It should throw with invalid args.
+{
+  [1, true, 'foo'].forEach((invalidArg) =>
+    assert.throws(
+      () => new SourceMap(invalidArg),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: 'The "payload" argument must be of type object.' +
+               common.invalidArgTypeHelper(invalidArg)
+      }
+    )
+  );
+}
 
 // findSourceMap() can lookup source-maps based on URIs, in the
 // non-exceptional case.
@@ -31,7 +46,7 @@ const { readFileSync } = require('fs');
   Error.prepareStackTrace = (error, trace) => {
     const throwingRequireCallSite = trace[0];
     if (throwingRequireCallSite.getFileName().endsWith('typescript-throw.js')) {
-      sourceMap = findSourceMap(throwingRequireCallSite.getFileName(), error);
+      sourceMap = findSourceMap(throwingRequireCallSite.getFileName());
       callSite = throwingRequireCallSite;
     }
   };
@@ -39,6 +54,7 @@ const { readFileSync } = require('fs');
     // Require a file that throws an exception, and has a source map.
     require('../fixtures/source-map/typescript-throw.js');
   } catch (err) {
+    // eslint-disable-next-line no-unused-expressions
     err.stack; // Force prepareStackTrace() to be called.
   }
   assert(callSite);

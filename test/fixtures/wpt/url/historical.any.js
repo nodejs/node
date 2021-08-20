@@ -15,7 +15,7 @@ if(self.GLOBAL.isWindow()) {
 test(function() {
   var url = new URL("./foo", "http://www.example.org");
   assert_equals(url.href, "http://www.example.org/foo");
-  assert_throws(new TypeError(), function() {
+  assert_throws_js(TypeError, function() {
     url.href = "./bar";
   });
 }, "Setting URL's href attribute and base URLs");

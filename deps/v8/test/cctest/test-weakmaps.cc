@@ -194,6 +194,7 @@ TEST(WeakMapPromotionMarkCompact) {
 }
 
 TEST(WeakMapScavenge) {
+  if (i::FLAG_single_generation) return;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
@@ -229,14 +230,16 @@ TEST(WeakMapScavenge) {
 // by other paths are correctly recorded in the slots buffer.
 TEST(Regress2060a) {
   if (i::FLAG_never_compact) return;
+  if (i::FLAG_enable_third_party_heap) return;
   FLAG_always_compact = true;
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->function_string());
+      factory->NewFunctionForTesting(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
@@ -251,7 +254,8 @@ TEST(Regress2060a) {
       Handle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
       CHECK(!Heap::InYoungGeneration(*object));
-      CHECK(!first_page->Contains(object->address()));
+      CHECK_IMPLIES(!FLAG_enable_third_party_heap,
+                    !first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(isolate).value();
       JSWeakCollection::Set(weakmap, key, object, hash);
     }
@@ -271,6 +275,7 @@ TEST(Regress2060b) {
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -278,7 +283,7 @@ TEST(Regress2060b) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->function_string());
+      factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->first_page();
@@ -289,7 +294,8 @@ TEST(Regress2060b) {
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, AllocationType::kOld);
     CHECK(!Heap::InYoungGeneration(*keys[i]));
-    CHECK(!first_page->Contains(keys[i]->address()));
+    CHECK_IMPLIES(!FLAG_enable_third_party_heap,
+                  !first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   for (int i = 0; i < 32; i++) {

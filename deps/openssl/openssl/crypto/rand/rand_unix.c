@@ -26,12 +26,12 @@
 #  include <sys/utsname.h>
 # endif
 #endif
-#if defined(__FreeBSD__) && !defined(OPENSSL_SYS_UEFI)
+#if (defined(__FreeBSD__) || defined(__NetBSD__)) && !defined(OPENSSL_SYS_UEFI)
 # include <sys/types.h>
 # include <sys/sysctl.h>
 # include <sys/param.h>
 #endif
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__)
 # include <sys/param.h>
 #endif
 
@@ -247,10 +247,12 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
      * when the sysctl returns long and we want to request something not a
      * multiple of longs, which should never be the case.
      */
+#if   defined(__FreeBSD__)
     if (!ossl_assert(buflen % sizeof(long) == 0)) {
         errno = EINVAL;
         return -1;
     }
+#endif
 
     /*
      * On NetBSD before 4.0 KERN_ARND was an alias for KERN_URND, and only
@@ -268,7 +270,7 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
     mib[1] = KERN_ARND;
 
     do {
-        len = buflen;
+        len = buflen > 256 ? 256 : buflen;
         if (sysctl(mib, 2, buf, &len, NULL, 0) == -1)
             return done > 0 ? done : -1;
         done += len;
@@ -363,12 +365,19 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * - OpenBSD since 5.6
      * - Linux since 3.17 with glibc 2.25
      * - FreeBSD since 12.0 (1200061)
+     *
+     * Note: Sometimes getentropy() can be provided but not implemented
+     * internally. So we need to check errno for ENOSYS
      */
 #  if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
     extern int getentropy(void *buffer, size_t length) __attribute__((weak));
 
-    if (getentropy != NULL)
-        return getentropy(buf, buflen) == 0 ? (ssize_t)buflen : -1;
+    if (getentropy != NULL) {
+        if (getentropy(buf, buflen) == 0)
+            return (ssize_t)buflen;
+        if (errno != ENOSYS)
+            return -1;
+    }
 #  else
     union {
         void *p;
@@ -409,7 +418,8 @@ static struct random_device {
 } random_devices[OSSL_NELEM(random_device_paths)];
 static int keep_random_devices_open = 1;
 
-#   if defined(__linux) && defined(DEVRANDOM_WAIT)
+#   if defined(__linux) && defined(DEVRANDOM_WAIT) \
+       && defined(OPENSSL_RAND_SEED_GETRANDOM)
 static void *shm_addr;
 
 static void cleanup_shm(void)
@@ -487,7 +497,7 @@ static int wait_random_seeded(void)
     }
     return seeded;
 }
-#   else /* defined __linux */
+#   else /* defined __linux && DEVRANDOM_WAIT && OPENSSL_RAND_SEED_GETRANDOM */
 static int wait_random_seeded(void)
 {
     return 1;

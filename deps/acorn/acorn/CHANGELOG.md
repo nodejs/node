@@ -1,3 +1,173 @@
+## 8.4.1 (2021-06-24)
+
+### Bug fixes
+
+Fix a bug where `allowAwaitOutsideFunction` would allow `await` in class field initializers, and setting `ecmaVersion` to 13 or higher would allow top-level await in non-module sources.
+
+## 8.4.0 (2021-06-11)
+
+### New features
+
+A new option, `allowSuperOutsideMethod`, can be used to suppress the error when `super` is used in the wrong context.
+
+## 8.3.0 (2021-05-31)
+
+### New features
+
+Default `allowAwaitOutsideFunction` to true for ECMAScript 2022 an higher.
+
+Add support for the `p` ([indices](https://github.com/tc39/proposal-regexp-match-indices)) regexp flag.
+
+## 8.2.4 (2021-05-04)
+
+### Bug fixes
+
+Fix spec conformity in corner case 'for await (async of ...)'.
+
+## 8.2.3 (2021-05-04)
+
+### Bug fixes
+
+Fix an issue where the library couldn't parse 'for (async of ...)'.
+
+Fix a bug in UTF-16 decoding that would read characters incorrectly in some circumstances.
+
+## 8.2.2 (2021-04-29)
+
+### Bug fixes
+
+Fix a bug where a class field initialized to an async arrow function wouldn't allow await inside it. Same issue existed for generator arrow functions with yield.
+
+## 8.2.1 (2021-04-24)
+
+### Bug fixes
+
+Fix a regression introduced in 8.2.0 where static or async class methods with keyword names fail to parse.
+
+## 8.2.0 (2021-04-24)
+
+### New features
+
+Add support for ES2022 class fields and private methods.
+
+## 8.1.1 (2021-04-12)
+
+### Various
+
+Stop shipping source maps in the NPM package.
+
+## 8.1.0 (2021-03-09)
+
+### Bug fixes
+
+Fix a spurious error in nested destructuring arrays.
+
+### New features
+
+Expose `allowAwaitOutsideFunction` in CLI interface.
+
+Make `allowImportExportAnywhere` also apply to `import.meta`.
+
+## 8.0.5 (2021-01-25)
+
+### Bug fixes
+
+Adjust package.json to work with Node 12.16.0 and 13.0-13.6.
+
+## 8.0.4 (2020-10-05)
+
+### Bug fixes
+
+Make `await x ** y` an error, following the spec.
+
+Fix potentially exponential regular expression.
+
+## 8.0.3 (2020-10-02)
+
+### Bug fixes
+
+Fix a wasteful loop during `Parser` creation when setting `ecmaVersion` to `"latest"`.
+
+## 8.0.2 (2020-09-30)
+
+### Bug fixes
+
+Make the TypeScript types reflect the current allowed values for `ecmaVersion`.
+
+Fix another regexp/division tokenizer issue.
+
+## 8.0.1 (2020-08-12)
+
+### Bug fixes
+
+Provide the correct value in the `version` export.
+
+## 8.0.0 (2020-08-12)
+
+### Bug fixes
+
+Disallow expressions like `(a = b) = c`.
+
+Make non-octal escape sequences a syntax error in strict mode.
+
+### New features
+
+The package can now be loaded directly as an ECMAScript module in node 13+.
+
+Update to the set of Unicode properties from ES2021.
+
+### Breaking changes
+
+The `ecmaVersion` option is now required. For the moment, omitting it will still work with a warning, but that will change in a future release.
+
+Some changes to method signatures that may be used by plugins.
+
+## 7.4.0 (2020-08-03)
+
+### New features
+
+Add support for logical assignment operators.
+
+Add support for numeric separators.
+
+## 7.3.1 (2020-06-11)
+
+### Bug fixes
+
+Make the string in the `version` export match the actual library version.
+
+## 7.3.0 (2020-06-11)
+
+### Bug fixes
+
+Fix a bug that caused parsing of object patterns with a property named `set` that had a default value to fail.
+
+### New features
+
+Add support for optional chaining (`?.`).
+
+## 7.2.0 (2020-05-09)
+
+### Bug fixes
+
+Fix precedence issue in parsing of async arrow functions.
+
+### New features
+
+Add support for nullish coalescing.
+
+Add support for `import.meta`.
+
+Support `export * as ...` syntax.
+
+Upgrade to Unicode 13.
+
+## 6.4.1 (2020-03-09)
+
+### Bug fixes
+
+More carefully check for valid UTF16 surrogate pairs in regexp validator.
+
 ## 7.1.1 (2020-03-01)
 
 ### Bug fixes

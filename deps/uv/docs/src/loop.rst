@@ -16,7 +16,7 @@ Data types
 
     Loop data type.
 
-.. c:type:: uv_run_mode
+.. c:enum:: uv_run_mode
 
     Mode used to run the loop with :c:func:`uv_run`.
 
@@ -67,6 +67,13 @@ API
       This operation is currently only implemented for SIGPROF signals,
       to suppress unnecessary wakeups when using a sampling profiler.
       Requesting other signals will fail with UV_EINVAL.
+
+    - UV_METRICS_IDLE_TIME: Accumulate the amount of idle time the event loop
+      spends in the event provider.
+
+      This option is necessary to use :c:func:`uv_metrics_idle_time`.
+
+    .. versionchanged:: 1.39.0 added the UV_METRICS_IDLE_TIME option.
 
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 

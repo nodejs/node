@@ -9,7 +9,6 @@ if (!common.hasIntl) {
 }
 
 const util = require('util');
-const URL = require('url').URL;
 const assert = require('assert');
 
 const url = new URL('https://username:password@host.name:8080/path/name/?que=ry#hash');

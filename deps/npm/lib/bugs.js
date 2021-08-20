@@ -1,31 +1,66 @@
-module.exports = bugs
+const log = require('npmlog')
+const pacote = require('pacote')
+const openUrl = require('./utils/open-url.js')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
+const BaseCommand = require('./base-command.js')
 
-var log = require('npmlog')
-var openUrl = require('./utils/open-url')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var usage = require('./utils/usage')
+class Bugs extends BaseCommand {
+  static get description () {
+    return 'Report bugs for a package in a web browser'
+  }
 
-bugs.usage = usage(
-  'bugs',
-  'npm bugs [<pkgname>]'
-)
+  static get name () {
+    return 'bugs'
+  }
 
-bugs.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
-}
+  static get usage () {
+    return ['[<pkgname>]']
+  }
 
-function bugs (args, cb) {
-  var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
-    if (er) return cb(er)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['browser', 'registry']
+  }
 
-    var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)
-    if (!url) {
-      url = 'https://www.npmjs.org/package/' + d.name
-    }
+  exec (args, cb) {
+    this.bugs(args).then(() => cb()).catch(cb)
+  }
+
+  async bugs (args) {
+    if (!args || !args.length)
+      args = ['.']
+
+    await Promise.all(args.map(pkg => this.getBugs(pkg)))
+  }
+
+  async getBugs (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
+    const url = this.getBugsUrl(mani)
     log.silly('bugs', 'url', url)
-    openUrl(url, 'bug list available at the following URL', cb)
-  })
+    await openUrl(this.npm, url, `${mani.name} bug list available at the following URL`)
+  }
+
+  getBugsUrl (mani) {
+    if (mani.bugs) {
+      if (typeof mani.bugs === 'string')
+        return mani.bugs
+
+      if (typeof mani.bugs === 'object' && mani.bugs.url)
+        return mani.bugs.url
+
+      if (typeof mani.bugs === 'object' && mani.bugs.email)
+        return `mailto:${mani.bugs.email}`
+    }
+
+    // try to get it from the repo, if possible
+    const info = hostedFromMani(mani)
+    if (info)
+      return info.bugs()
+
+    // just send them to the website, hopefully that has some info!
+    return `https://www.npmjs.com/package/${mani.name}`
+  }
 }
+
+module.exports = Bugs

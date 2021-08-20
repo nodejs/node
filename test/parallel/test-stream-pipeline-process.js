@@ -9,9 +9,7 @@ if (process.argv[2] === 'child') {
   pipeline(
     process.stdin,
     process.stdout,
-    common.mustCall((err) => {
-      assert.ifError(err);
-    })
+    common.mustSucceed()
   );
 } else {
   const cp = require('child_process');
@@ -21,9 +19,8 @@ if (process.argv[2] === 'child') {
     '|',
     `"${process.execPath}"`,
     `"${__filename}"`,
-    'child'
-  ].join(' '), common.mustCall((err, stdout) => {
-    assert.ifError(err);
+    'child',
+  ].join(' '), common.mustSucceed((stdout) => {
     assert.strictEqual(stdout.split(os.EOL).shift().trim(), 'hello');
   }));
 }

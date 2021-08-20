@@ -133,6 +133,15 @@ HRESULT UnboxULong64(IModelObject* object, ULONG64* value, bool convert) {
   return S_OK;
 }
 
+HRESULT GetInt32(IDebugHostConstant* object, int* value) {
+  variant_t variant;
+  RETURN_IF_FAIL(object->GetValue(&variant));
+
+  if (variant.vt != VT_I4) return E_FAIL;
+  *value = variant.ullVal;
+  return S_OK;
+}
+
 HRESULT CreateInt32(int value, IModelObject** pp_int) {
   HRESULT hr = S_OK;
   *pp_int = nullptr;

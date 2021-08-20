@@ -4,14 +4,13 @@
 
 #include <tuple>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -1722,18 +1721,20 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  BytecodeArrayIterator iterator(bytecode_array);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  bool found_16bit_constant_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
-        iterator.current_operand_scale() == OperandScale::kDouble) {
-      found_16bit_constant_jump = true;
-      break;
+    bool found_16bit_constant_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+          iterator.current_operand_scale() == OperandScale::kDouble) {
+        found_16bit_constant_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_16bit_constant_jump);
   }
-  CHECK(found_16bit_constant_jump);
 
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
@@ -1766,19 +1767,20 @@ TEST(InterpreterJumpWith32BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  BytecodeArrayIterator iterator(bytecode_array);
-
-  bool found_32bit_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJump &&
-        iterator.current_operand_scale() == OperandScale::kQuadruple) {
-      found_32bit_jump = true;
-      break;
+    bool found_32bit_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJump &&
+          iterator.current_operand_scale() == OperandScale::kQuadruple) {
+        found_32bit_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_32bit_jump);
   }
-  CHECK(found_32bit_jump);
 
   InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
@@ -2087,7 +2089,6 @@ TEST(InterpreterMixedComparisons) {
                 LoadStringAndAddSpace(&builder, &ast_factory, rhs_cstr,
                                       string_add_slot);
               }
-              break;
             } else {
               CHECK_EQ(which_side, kLhsIsString);
               // Comparison with String on the lhs and HeapNumber on the rhs.
@@ -2121,9 +2122,19 @@ TEST(InterpreterMixedComparisons) {
             if (tester.HasFeedbackMetadata()) {
               MaybeObject feedback = callable.vector().Get(slot);
               CHECK(feedback->IsSmi());
-              // Comparison with a number and string collects kAny feedback.
-              CHECK_EQ(CompareOperationFeedback::kAny,
-                       feedback->ToSmi().value());
+              if (kComparisonTypes[c] == Token::Value::EQ) {
+                // For sloppy equality, we have more precise feedback.
+                CHECK_EQ(
+                    CompareOperationFeedback::kNumber |
+                        (string_type == kInternalizedStringConstant
+                             ? CompareOperationFeedback::kInternalizedString
+                             : CompareOperationFeedback::kString),
+                    feedback->ToSmi().value());
+              } else {
+                // Comparison with a number and string collects kAny feedback.
+                CHECK_EQ(CompareOperationFeedback::kAny,
+                         feedback->ToSmi().value());
+              }
             }
           }
         }
@@ -2260,7 +2271,7 @@ TEST(InterpreterInstanceOf) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
-  Handle<i::JSFunction> func = factory->NewFunctionForTest(name);
+  Handle<i::JSFunction> func = factory->NewFunctionForTesting(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
   Handle<i::Object> other = factory->NewNumber(3.3333);
   Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
@@ -2343,7 +2354,6 @@ TEST(InterpreterUnaryNot) {
     bool expected_value = ((i & 1) == 1);
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     builder.LoadFalse();
     for (size_t j = 0; j < i; j++) {
       builder.LogicalNot(ToBooleanMode::kAlreadyBoolean);
@@ -2381,7 +2391,6 @@ TEST(InterpreterUnaryNotNonBoolean) {
   for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     LoadLiteralForTest(&builder, object_type_tuples[i].first);
     builder.LogicalNot(ToBooleanMode::kConvertToBoolean).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -5044,6 +5053,9 @@ TEST(InterpreterGenerators) {
 
 #ifndef V8_TARGET_ARCH_ARM
 TEST(InterpreterWithNativeStack) {
+  // "Always sparkplug" messes with this test.
+  if (FLAG_always_sparkplug) return;
+
   i::FLAG_interpreted_frames_native_stack = true;
 
   HandleAndZoneScope handles;
@@ -5111,7 +5123,7 @@ TEST(InterpreterCollectSourcePositions) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   Compiler::CollectSourcePositions(isolate, sfi);
@@ -5137,7 +5149,7 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   // Make the stack limit the same as the current position so recompilation
@@ -5177,7 +5189,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5215,7 +5227,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5273,7 +5285,7 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {

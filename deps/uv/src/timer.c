@@ -58,6 +58,7 @@ static int timer_less_than(const struct heap_node* ha,
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
   uv__handle_init(loop, (uv_handle_t*)handle, UV_TIMER);
   handle->timer_cb = NULL;
+  handle->timeout = 0;
   handle->repeat = 0;
   return 0;
 }
@@ -127,6 +128,14 @@ void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat) {
 
 uint64_t uv_timer_get_repeat(const uv_timer_t* handle) {
   return handle->repeat;
+}
+
+
+uint64_t uv_timer_get_due_in(const uv_timer_t* handle) {
+  if (handle->loop->time >= handle->timeout)
+    return 0;
+
+  return handle->timeout - handle->loop->time;
 }
 
 

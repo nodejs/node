@@ -19,8 +19,8 @@ namespace {
 struct MockTask : public Task {
   // See issue v8:8185
   ~MockTask() /* override */ { Die(); }
-  MOCK_METHOD0(Run, void());
-  MOCK_METHOD0(Die, void());
+  MOCK_METHOD(void, Run, (), (override));
+  MOCK_METHOD(void, Die, ());
 };
 
 }  // namespace

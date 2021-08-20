@@ -9,7 +9,7 @@ const vm = require('vm');
   [32, 'latin1'],
   [NaN, 'utf8'],
   [{}, 'latin1'],
-  []
+  [],
 ].forEach((args) => {
   assert.throws(
     () => Buffer.byteLength(...args),
@@ -91,9 +91,19 @@ assert.strictEqual(Buffer.byteLength('aGkk', 'base64'), 3);
 assert.strictEqual(
   Buffer.byteLength('bHNrZGZsa3NqZmtsc2xrZmFqc2RsZmtqcw==', 'base64'), 25
 );
+// base64url
+assert.strictEqual(Buffer.byteLength('aGVsbG8gd29ybGQ', 'base64url'), 11);
+assert.strictEqual(Buffer.byteLength('aGVsbG8gd29ybGQ', 'BASE64URL'), 11);
+assert.strictEqual(Buffer.byteLength('bm9kZS5qcyByb2NrcyE', 'base64url'), 14);
+assert.strictEqual(Buffer.byteLength('aGkk', 'base64url'), 3);
+assert.strictEqual(
+  Buffer.byteLength('bHNrZGZsa3NqZmtsc2xrZmFqc2RsZmtqcw', 'base64url'), 25
+);
 // special padding
 assert.strictEqual(Buffer.byteLength('aaa=', 'base64'), 2);
 assert.strictEqual(Buffer.byteLength('aaaa==', 'base64'), 3);
+assert.strictEqual(Buffer.byteLength('aaa=', 'base64url'), 2);
+assert.strictEqual(Buffer.byteLength('aaaa==', 'base64url'), 3);
 
 assert.strictEqual(Buffer.byteLength('Il était tué'), 14);
 assert.strictEqual(Buffer.byteLength('Il était tué', 'utf8'), 14);

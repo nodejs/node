@@ -54,7 +54,7 @@ using CallbackFn = bool (*)(Local<v8::Context>, Local<v8::String>);
 CallbackFn Callback[kNumTestValues] = {nullptr, FalseCallback, TrueCallback};
 
 void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
-  WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+  WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
   builder->WriteTo(buffer);
 }
 

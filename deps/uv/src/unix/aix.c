@@ -65,14 +65,15 @@
 #define RDWR_BUF_SIZE   4096
 #define EQ(a,b)         (strcmp(a,b) == 0)
 
-static uv_mutex_t process_title_mutex;
-static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
+char* original_exepath = NULL;
+uv_mutex_t process_title_mutex;
+uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static void* args_mem = NULL;
 static char** process_argv = NULL;
 static int process_argc = 0;
 static char* process_title_ptr = NULL;
 
-static void init_process_title_mutex_once(void) {
+void init_process_title_mutex_once(void) {
   uv_mutex_init(&process_title_mutex);
 }
 
@@ -145,6 +146,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int i;
   int rc;
   int add_failed;
+  int user_timeout;
+  int reset_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -214,7 +217,21 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
+  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+    reset_timeout = 1;
+    user_timeout = timeout;
+    timeout = 0;
+  } else {
+    reset_timeout = 0;
+  }
+
   for (;;) {
+    /* Only need to set the provider_entry_time if timeout != 0. The function
+     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+     */
+    if (timeout != 0)
+      uv__metrics_set_provider_entry_time(loop);
+
     nfds = pollset_poll(loop->backend_fd,
                         events,
                         ARRAY_SIZE(events),
@@ -227,6 +244,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     SAVE_ERRNO(uv__update_time(loop));
 
     if (nfds == 0) {
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
+        if (timeout == -1)
+          continue;
+        if (timeout > 0)
+          goto update_timeout;
+      }
+
       assert(timeout != -1);
       return;
     }
@@ -234,6 +260,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == -1) {
       if (errno != EINTR) {
         abort();
+      }
+
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
       }
 
       if (timeout == -1)
@@ -280,16 +311,25 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
-      if (w == &loop->signal_io_watcher)
+      if (w == &loop->signal_io_watcher) {
         have_signals = 1;
-      else
+      } else {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->revents);
+      }
 
       nevents++;
     }
 
-    if (have_signals != 0)
+    if (reset_timeout != 0) {
+      timeout = user_timeout;
+      reset_timeout = 0;
+    }
+
+    if (have_signals != 0) {
+      uv__metrics_update_idle_time(loop);
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+    }
 
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
@@ -830,6 +870,7 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 
 
 char** uv_setup_args(int argc, char** argv) {
+  char exepath[UV__PATH_MAX];
   char** new_argv;
   size_t size;
   char* s;
@@ -844,6 +885,15 @@ char** uv_setup_args(int argc, char** argv) {
    */
   process_argv = argv;
   process_argc = argc;
+
+  /* Use argv[0] to determine value for uv_exepath(). */
+  size = sizeof(exepath);
+  if (uv__search_path(argv[0], exepath, &size) == 0) {
+    uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+    uv_mutex_lock(&process_title_mutex); 
+    original_exepath = uv__strdup(exepath);
+    uv_mutex_unlock(&process_title_mutex);
+  }
 
   /* Calculate how much memory we need for the argv strings. */
   size = 0;
@@ -874,6 +924,10 @@ char** uv_setup_args(int argc, char** argv) {
 
 int uv_set_process_title(const char* title) {
   char* new_title;
+
+  /* If uv_setup_args wasn't called or failed, we can't continue. */
+  if (process_argv == NULL || args_mem == NULL)
+    return UV_ENOBUFS;
 
   /* We cannot free this pointer when libuv shuts down,
    * the process may still be using it.
@@ -907,6 +961,10 @@ int uv_get_process_title(char* buffer, size_t size) {
   size_t len;
   if (buffer == NULL || size == 0)
     return UV_EINVAL;
+
+  /* If uv_setup_args wasn't called, we can't continue. */
+  if (process_argv == NULL)
+    return UV_ENOBUFS;
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);

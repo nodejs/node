@@ -12,6 +12,7 @@
 #include "unicode/numberrangeformatter.h"
 #include "numrange_impl.h"
 #include "patternprops.h"
+#include "pluralranges.h"
 #include "uresimp.h"
 #include "util.h"
 
@@ -106,91 +107,8 @@ void getNumberRangeData(const char* localeName, const char* nsName, NumberRangeD
     sink.fillInDefaults(status);
 }
 
-class PluralRangesDataSink : public ResourceSink {
-  public:
-    PluralRangesDataSink(StandardPluralRanges& output) : fOutput(output) {}
-
-    void put(const char* /*key*/, ResourceValue& value, UBool /*noFallback*/, UErrorCode& status) U_OVERRIDE {
-        ResourceArray entriesArray = value.getArray(status);
-        if (U_FAILURE(status)) { return; }
-        fOutput.setCapacity(entriesArray.getSize());
-        for (int i = 0; entriesArray.getValue(i, value); i++) {
-            ResourceArray pluralFormsArray = value.getArray(status);
-            if (U_FAILURE(status)) { return; }
-            pluralFormsArray.getValue(0, value);
-            StandardPlural::Form first = StandardPlural::fromString(value.getUnicodeString(status), status);
-            if (U_FAILURE(status)) { return; }
-            pluralFormsArray.getValue(1, value);
-            StandardPlural::Form second = StandardPlural::fromString(value.getUnicodeString(status), status);
-            if (U_FAILURE(status)) { return; }
-            pluralFormsArray.getValue(2, value);
-            StandardPlural::Form result = StandardPlural::fromString(value.getUnicodeString(status), status);
-            if (U_FAILURE(status)) { return; }
-            fOutput.addPluralRange(first, second, result);
-        }
-    }
-
-  private:
-    StandardPluralRanges& fOutput;
-};
-
-void getPluralRangesData(const Locale& locale, StandardPluralRanges& output, UErrorCode& status) {
-    if (U_FAILURE(status)) { return; }
-    LocalUResourceBundlePointer rb(ures_openDirect(nullptr, "pluralRanges", &status));
-    if (U_FAILURE(status)) { return; }
-
-    CharString dataPath;
-    dataPath.append("locales/", -1, status);
-    dataPath.append(locale.getLanguage(), -1, status);
-    if (U_FAILURE(status)) { return; }
-    int32_t setLen;
-    // Not all languages are covered: fail gracefully
-    UErrorCode internalStatus = U_ZERO_ERROR;
-    const UChar* set = ures_getStringByKeyWithFallback(rb.getAlias(), dataPath.data(), &setLen, &internalStatus);
-    if (U_FAILURE(internalStatus)) { return; }
-
-    dataPath.clear();
-    dataPath.append("rules/", -1, status);
-    dataPath.appendInvariantChars(set, setLen, status);
-    if (U_FAILURE(status)) { return; }
-    PluralRangesDataSink sink(output);
-    ures_getAllItemsWithFallback(rb.getAlias(), dataPath.data(), sink, status);
-    if (U_FAILURE(status)) { return; }
-}
-
 } // namespace
 
-
-void StandardPluralRanges::initialize(const Locale& locale, UErrorCode& status) {
-    getPluralRangesData(locale, *this, status);
-}
-
-void StandardPluralRanges::addPluralRange(
-        StandardPlural::Form first,
-        StandardPlural::Form second,
-        StandardPlural::Form result) {
-    U_ASSERT(fTriplesLen < fTriples.getCapacity());
-    fTriples[fTriplesLen] = {first, second, result};
-    fTriplesLen++;
-}
-
-void StandardPluralRanges::setCapacity(int32_t length) {
-    if (length > fTriples.getCapacity()) {
-        fTriples.resize(length, 0);
-    }
-}
-
-StandardPlural::Form
-StandardPluralRanges::resolve(StandardPlural::Form first, StandardPlural::Form second) const {
-    for (int32_t i=0; i<fTriplesLen; i++) {
-        const auto& triple = fTriples[i];
-        if (triple.first == first && triple.second == second) {
-            return triple.result;
-        }
-    }
-    // Default fallback
-    return StandardPlural::OTHER;
-}
 
 
 NumberRangeFormatterImpl::NumberRangeFormatterImpl(const RangeMacroProps& macros, UErrorCode& status)
@@ -213,7 +131,7 @@ NumberRangeFormatterImpl::NumberRangeFormatterImpl(const RangeMacroProps& macros
     fApproximatelyModifier = {data.approximatelyPattern, kUndefinedField, false};
 
     // TODO: Get locale from PluralRules instead?
-    fPluralRanges.initialize(macros.locale, status);
+    fPluralRanges = StandardPluralRanges::forLocale(macros.locale, status);
     if (U_FAILURE(status)) { return; }
 }
 
@@ -387,7 +305,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             // INNER MODIFIER
             collapseInner = micros1.modInner->semanticallyEquivalent(*micros2.modInner);
 
-            // All done checking for collapsability.
+            // All done checking for collapsibility.
             break;
         }
 
@@ -410,6 +328,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     #define UPRV_INDEX_1 (lengthPrefix + length1)
     #define UPRV_INDEX_2 (lengthPrefix + length1 + lengthInfix)
     #define UPRV_INDEX_3 (lengthPrefix + length1 + lengthInfix + length2)
+    #define UPRV_INDEX_4 (lengthPrefix + length1 + lengthInfix + length2 + lengthSuffix)
 
     int32_t lengthRange = SimpleModifier::formatTwoArgPattern(
         fRangeFormatter,
@@ -449,31 +368,38 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
     // TODO: Support padding?
 
     if (collapseInner) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modInner, *micros2.modInner);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modInner->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modInner->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseMiddle) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modMiddle, *micros2.modMiddle);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modMiddle->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modMiddle->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
 
     if (collapseOuter) {
-        // Note: this is actually a mix of prefix and suffix, but adding to infix length works
         const Modifier& mod = resolveModifierPlurals(*micros1.modOuter, *micros2.modOuter);
-        lengthInfix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_3, status);
+        lengthSuffix += mod.apply(string, UPRV_INDEX_0, UPRV_INDEX_4, status);
+        lengthPrefix += mod.getPrefixLength();
+        lengthSuffix -= mod.getPrefixLength();
     } else {
         length1 += micros1.modOuter->apply(string, UPRV_INDEX_0, UPRV_INDEX_1, status);
-        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_3, status);
+        length2 += micros2.modOuter->apply(string, UPRV_INDEX_2, UPRV_INDEX_4, status);
     }
+
+    // Now that all pieces are added, save the span info.
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 0, UPRV_INDEX_0, length1, status);
+    data.appendSpanInfo(UFIELD_CATEGORY_NUMBER_RANGE_SPAN, 1, UPRV_INDEX_2, length2, status);
 }
 
 

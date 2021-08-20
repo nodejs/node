@@ -95,6 +95,7 @@ const { connect: tlsConnect } = require('tls');
     };
 
     const clientOptions = {
+      ALPNProtocols: ['h2'],
       port,
       rejectUnauthorized: false
     };

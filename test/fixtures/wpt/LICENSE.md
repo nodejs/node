@@ -1,6 +1,6 @@
 # The 3-Clause BSD License
 
-Copyright 2019 web-platform-tests contributors
+Copyright © web-platform-tests contributors
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 

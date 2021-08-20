@@ -267,6 +267,7 @@ class Simulator : public SimulatorBase {
   void set_msa_register(int wreg, const T* value);
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
+  void clear_fcsr_cause();
   void set_fcsr_rounding_mode(FPURoundingMode mode);
   void set_msacsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();
@@ -590,8 +591,7 @@ class Simulator : public SimulatorBase {
   uint32_t MSACSR_;
 
   // Simulator support.
-  // Allocate 1MB for stack.
-  static const size_t stack_size_ = 1 * 1024 * 1024;
+  size_t stack_size_;
   char* stack_;
   bool pc_modified_;
   uint64_t icount_;

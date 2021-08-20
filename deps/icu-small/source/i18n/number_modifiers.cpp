@@ -25,13 +25,13 @@ const int32_t ARG_NUM_LIMIT = 0x100;
 icu::UInitOnce gDefaultCurrencySpacingInitOnce = U_INITONCE_INITIALIZER;
 
 UnicodeSet *UNISET_DIGIT = nullptr;
-UnicodeSet *UNISET_NOTS = nullptr;
+UnicodeSet *UNISET_NOTSZ = nullptr;
 
 UBool U_CALLCONV cleanupDefaultCurrencySpacing() {
     delete UNISET_DIGIT;
     UNISET_DIGIT = nullptr;
-    delete UNISET_NOTS;
-    UNISET_NOTS = nullptr;
+    delete UNISET_NOTSZ;
+    UNISET_NOTSZ = nullptr;
     gDefaultCurrencySpacingInitOnce.reset();
     return TRUE;
 }
@@ -39,13 +39,13 @@ UBool U_CALLCONV cleanupDefaultCurrencySpacing() {
 void U_CALLCONV initDefaultCurrencySpacing(UErrorCode &status) {
     ucln_i18n_registerCleanup(UCLN_I18N_CURRENCY_SPACING, cleanupDefaultCurrencySpacing);
     UNISET_DIGIT = new UnicodeSet(UnicodeString(u"[:digit:]"), status);
-    UNISET_NOTS = new UnicodeSet(UnicodeString(u"[:^S:]"), status);
-    if (UNISET_DIGIT == nullptr || UNISET_NOTS == nullptr) {
+    UNISET_NOTSZ = new UnicodeSet(UnicodeString(u"[[:^S:]&[:^Z:]]"), status);
+    if (UNISET_DIGIT == nullptr || UNISET_NOTSZ == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
     UNISET_DIGIT->freeze();
-    UNISET_NOTS->freeze();
+    UNISET_NOTSZ->freeze();
 }
 
 }  // namespace
@@ -469,8 +469,8 @@ CurrencySpacingEnabledModifier::getUnicodeSet(const DecimalFormatSymbols &symbol
             status);
     if (pattern.compare(u"[:digit:]", -1) == 0) {
         return *UNISET_DIGIT;
-    } else if (pattern.compare(u"[:^S:]", -1) == 0) {
-        return *UNISET_NOTS;
+    } else if (pattern.compare(u"[[:^S:]&[:^Z:]]", -1) == 0) {
+        return *UNISET_NOTSZ;
     } else {
         return UnicodeSet(pattern, status);
     }

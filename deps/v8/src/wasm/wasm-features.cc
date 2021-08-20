@@ -23,12 +23,18 @@ WasmFeatures WasmFeatures::FromFlags() {
 
 // static
 WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
+  return FromContext(isolate, handle(isolate->context(), isolate));
+}
+
+// static
+WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
+                                       Handle<Context> context) {
   WasmFeatures features = WasmFeatures::FromFlags();
-  if (isolate->AreWasmThreadsEnabled(handle(isolate->context(), isolate))) {
-    features.Add(kFeature_threads);
-  }
-  if (isolate->IsWasmSimdEnabled(handle(isolate->context(), isolate))) {
+  if (isolate->IsWasmSimdEnabled(context)) {
     features.Add(kFeature_simd);
+  }
+  if (isolate->AreWasmExceptionsEnabled(context)) {
+    features.Add(kFeature_eh);
   }
   return features;
 }

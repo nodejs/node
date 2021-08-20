@@ -56,11 +56,11 @@ function defaultTest() {
 
     bulkRequest(url, agent, (ports) => {
       makeRequest(url, agent, (port) => {
-        assert.strictEqual(ports[0], port);
+        assert.strictEqual(ports[ports.length - 1], port);
         makeRequest(url, agent, (port) => {
-          assert.strictEqual(ports[1], port);
+          assert.strictEqual(ports[ports.length - 1], port);
           makeRequest(url, agent, (port) => {
-            assert.strictEqual(ports[2], port);
+            assert.strictEqual(ports[ports.length - 1], port);
             server.close();
             agent.destroy();
           });
@@ -134,11 +134,11 @@ function badSchedulingOptionTest() {
       scheduling: 'filo'
     });
   } catch (err) {
-    assert.strictEqual(err.code, 'ERR_INVALID_OPT_VALUE');
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
     assert.strictEqual(
       err.message,
-      'The value "filo" is invalid for option "scheduling". ' +
-      "Must be one of: 'fifo', 'lifo'"
+      "The argument 'scheduling' must be one of: 'fifo', 'lifo'. " +
+        "Received 'filo'"
     );
   }
 }

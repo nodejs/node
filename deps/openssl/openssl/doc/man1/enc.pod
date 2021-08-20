@@ -76,7 +76,7 @@ The output filename, standard output by default.
 =item B<-pass arg>
 
 The password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-e>
 
@@ -240,7 +240,7 @@ a strong block cipher, such as AES, in CBC mode.
 
 All the block ciphers normally use PKCS#5 padding, also known as standard
 block padding. This allows a rudimentary integrity or password check to
-be performed. However since the chance of random data passing the test
+be performed. However, since the chance of random data passing the test
 is better than 1 in 256 it isn't a very good test.
 
 If padding is disabled then the input data must be a multiple of the cipher
@@ -428,7 +428,7 @@ The B<-list> option was added in OpenSSL 1.1.1e.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

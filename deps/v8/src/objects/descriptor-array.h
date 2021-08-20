@@ -25,6 +25,8 @@ class Handle;
 
 class Isolate;
 
+#include "torque-generated/src/objects/descriptor-array-tq.inc"
+
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
  public:
@@ -67,22 +69,22 @@ class DescriptorArray
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(InternalIndex descriptor_number) const;
-  inline Name GetKey(const Isolate* isolate,
+  inline Name GetKey(PtrComprCageBase cage_base,
                      InternalIndex descriptor_number) const;
   inline Object GetStrongValue(InternalIndex descriptor_number);
-  inline Object GetStrongValue(const Isolate* isolate,
+  inline Object GetStrongValue(PtrComprCageBase cage_base,
                                InternalIndex descriptor_number);
   inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(const Isolate* isolate,
+  inline MaybeObject GetValue(PtrComprCageBase cage_base,
                               InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
   inline FieldType GetFieldType(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(const Isolate* isolate,
+  inline FieldType GetFieldType(PtrComprCageBase cage_base,
                                 InternalIndex descriptor_number);
 
   inline Name GetSortedKey(int descriptor_number);
-  inline Name GetSortedKey(const Isolate* isolate, int descriptor_number);
+  inline Name GetSortedKey(PtrComprCageBase cage_base, int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
@@ -113,11 +115,15 @@ class DescriptorArray
       int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  void Sort();
+  V8_EXPORT_PRIVATE void Sort();
 
-  // Search the instance descriptors for given name.
-  V8_INLINE InternalIndex Search(Name name, int number_of_own_descriptors);
-  V8_INLINE InternalIndex Search(Name name, Map map);
+  // Search the instance descriptors for given name. {concurrent_search} signals
+  // if we are doing the search on a background thread. If so, we will sacrifice
+  // speed for thread-safety.
+  V8_INLINE InternalIndex Search(Name name, int number_of_own_descriptors,
+                                 bool concurrent_search = false);
+  V8_INLINE InternalIndex Search(Name name, Map map,
+                                 bool concurrent_search = false);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
@@ -127,9 +133,9 @@ class DescriptorArray
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(
-      LocalIsolate* isolate, int nof_descriptors, int slack,
+      IsolateT* isolate, int nof_descriptors, int slack,
       AllocationType allocation = AllocationType::kYoung);
 
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,
@@ -164,9 +170,7 @@ class DescriptorArray
                 "Weak fields extend up to the end of the header.");
   static_assert(kDescriptorsOffset == kHeaderSize,
                 "Variable-size array follows header.");
-  // We use this visitor to also visitor to also visit the enum_cache, which is
-  // the only tagged field in the header, and placed at the end of the header.
-  using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;
+  class BodyDescriptor;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.
@@ -189,7 +193,7 @@ class DescriptorArray
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
-  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_descriptors = -1);
+  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray other);
@@ -213,6 +217,7 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  friend class WebSnapshotDeserializer;
   DECL_INT16_ACCESSORS(filler16bits)
 
   inline void SetKey(InternalIndex descriptor_number, Name key);

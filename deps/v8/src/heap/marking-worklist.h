@@ -8,18 +8,18 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/heap/base/worklist.h"
 #include "src/heap/marking.h"
-#include "src/heap/worklist.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
 
-using MarkingWorklist = Worklist<HeapObject, 64>;
-using EmbedderTracingWorklist = Worklist<HeapObject, 16>;
-
 // The index of the main thread task used by concurrent/parallel GC.
 const int kMainThreadTask = 0;
+
+using MarkingWorklist = ::heap::base::Worklist<HeapObject, 64>;
+using EmbedderTracingWorklist = ::heap::base::Worklist<HeapObject, 16>;
 
 // We piggyback on marking to compute object sizes per native context that is
 // needed for the new memory measurement API. The algorithm works as follows:
@@ -59,9 +59,10 @@ struct ContextWorklistPair {
   MarkingWorklist* worklist;
 };
 
-// A helper class that owns all marking worklists.
-class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
+// A helper class that owns all global marking worklists.
+class V8_EXPORT_PRIVATE MarkingWorklists {
  public:
+  class Local;
   // Fake addresses of special contexts used for per-context accounting.
   // - kSharedContext is for objects that are not attributed to any context.
   // - kOtherContext is for objects that are attributed to contexts that are
@@ -69,25 +70,15 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
   static const Address kSharedContext = 0;
   static const Address kOtherContext = 8;
 
-  ~MarkingWorklistsHolder();
+  MarkingWorklists() = default;
+  ~MarkingWorklists();
 
   // Calls the specified callback on each element of the deques and replaces
   // the element with the result of the callback. If the callback returns
   // nullptr then the element is removed from the deque.
   // The callback must accept HeapObject and return HeapObject.
   template <typename Callback>
-  void Update(Callback callback) {
-    shared_.Update(callback);
-    on_hold_.Update(callback);
-    embedder_.Update(callback);
-    for (auto cw : context_worklists_) {
-      if (cw.context == kSharedContext) {
-        // The shared context was updated above.
-        continue;
-      }
-      cw.worklist->Update(callback);
-    }
-  }
+  void Update(Callback callback);
 
   MarkingWorklist* shared() { return &shared_; }
   MarkingWorklist* on_hold() { return &on_hold_; }
@@ -95,7 +86,7 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
 
   // A list of (context, worklist) pairs that was set up at the start of
   // marking by CreateContextWorklists.
-  const std::vector<ContextWorklistPair>& context_worklists() {
+  const std::vector<ContextWorklistPair>& context_worklists() const {
     return context_worklists_;
   }
   // This should be invoked at the start of marking with the list of contexts
@@ -136,80 +127,60 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
   MarkingWorklist other_;
 };
 
-// A thread-local view of the marking worklists.
-class V8_EXPORT_PRIVATE MarkingWorklists {
+// A thread-local view of the marking worklists. It owns all local marking
+// worklists and keeps track of the currently active local marking worklist
+// for per-context marking. In order to avoid additional indirections for
+// pushing and popping entries, the active_ worklist is not a pointer to
+// Local but an actual instance of Local with the following invariants:
+// - active_owner == worlist_by_context[active_context_].get()
+// - *active_owner is empty (all fields are null) because its content has
+//   been moved to active_.
+class V8_EXPORT_PRIVATE MarkingWorklists::Local {
  public:
-  static const Address kSharedContext = MarkingWorklistsHolder::kSharedContext;
-  static const Address kOtherContext = MarkingWorklistsHolder::kOtherContext;
+  static const Address kSharedContext = MarkingWorklists::kSharedContext;
+  static const Address kOtherContext = MarkingWorklists::kOtherContext;
 
-  MarkingWorklists(int task_id, MarkingWorklistsHolder* holder);
+  explicit Local(MarkingWorklists* global);
+  ~Local();
 
-  void Push(HeapObject object) {
-    bool success = active_->Push(task_id_, object);
-    USE(success);
-    DCHECK(success);
-  }
+  inline void Push(HeapObject object);
+  inline bool Pop(HeapObject* object);
 
-  bool Pop(HeapObject* object) {
-    if (active_->Pop(task_id_, object)) return true;
-    if (!is_per_context_mode_) return false;
-    // The active worklist is empty. Find any other non-empty worklist and
-    // switch the active worklist to it.
-    return PopContext(object);
-  }
+  inline void PushOnHold(HeapObject object);
+  inline bool PopOnHold(HeapObject* object);
 
-  void PushOnHold(HeapObject object) {
-    bool success = on_hold_->Push(task_id_, object);
-    USE(success);
-    DCHECK(success);
-  }
+  inline void PushEmbedder(HeapObject object);
+  inline bool PopEmbedder(HeapObject* object);
 
-  bool PopOnHold(HeapObject* object) { return on_hold_->Pop(task_id_, object); }
-
-  void PushEmbedder(HeapObject object) {
-    bool success = embedder_->Push(task_id_, object);
-    USE(success);
-    DCHECK(success);
-  }
-
-  bool PopEmbedder(HeapObject* object) {
-    return embedder_->Pop(task_id_, object);
-  }
-
-  void FlushToGlobal();
+  void Publish();
   bool IsEmpty();
-  bool IsEmbedderEmpty();
+  bool IsEmbedderEmpty() const;
+  // Publishes the local active marking worklist if its global worklist is
+  // empty. In the per-context marking mode it also publishes the shared
+  // worklist.
+  void ShareWork();
+  // Merges the on-hold worklist to the shared worklist.
   void MergeOnHold();
-  void ShareWorkIfGlobalPoolIsEmpty();
 
   // Returns the context of the active worklist.
-  Address Context() { return active_context_; }
-  // Switches the active worklist to that of the given context.
-  Address SwitchToContext(Address context) {
-    if (context == active_context_) return context;
-    return SwitchToContextSlow(context);
-  }
-  // Switches the active worklist to the shared worklist.
-  void SwitchToShared() {
-    active_context_ = kSharedContext;
-    active_ = shared_;
-  }
-  bool IsPerContextMode() { return is_per_context_mode_; }
+  Address Context() const { return active_context_; }
+  inline Address SwitchToContext(Address context);
+  inline Address SwitchToShared();
+  bool IsPerContextMode() const { return is_per_context_mode_; }
 
  private:
   bool PopContext(HeapObject* object);
   Address SwitchToContextSlow(Address context);
-  MarkingWorklist* shared_;
-  MarkingWorklist* on_hold_;
-  EmbedderTracingWorklist* embedder_;
-  MarkingWorklist* active_;
+  inline void SwitchToContext(Address context,
+                              MarkingWorklist::Local* worklist);
+  MarkingWorklist::Local on_hold_;
+  EmbedderTracingWorklist::Local embedder_;
+  MarkingWorklist::Local active_;
   Address active_context_;
-  int task_id_;
+  MarkingWorklist::Local* active_owner_;
   bool is_per_context_mode_;
-  // Per-context worklists. For simplicity we treat the shared worklist as
-  // the worklist of dummy kSharedContext.
-  std::vector<ContextWorklistPair> context_worklists_;
-  std::unordered_map<Address, MarkingWorklist*> worklist_by_context_;
+  std::unordered_map<Address, std::unique_ptr<MarkingWorklist::Local>>
+      worklist_by_context_;
 };
 
 }  // namespace internal

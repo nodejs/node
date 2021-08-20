@@ -1,26 +1,24 @@
-'use strict'
-
 // npm install-test
 // Runs `npm install` and then runs `npm test`
 
-module.exports = installTest
-var install = require('./install.js')
-var test = require('./test.js')
-var usage = require('./utils/usage')
+const Install = require('./install.js')
 
-installTest.usage = usage(
-  'install-test',
-  '\nnpm install-test [args]' +
-  '\nSame args as `npm install`'
-)
+class InstallTest extends Install {
+  static get description () {
+    return 'Install package(s) and run tests'
+  }
 
-installTest.completion = install.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install-test'
+  }
 
-function installTest (args, cb) {
-  install(args, function (er) {
-    if (er) {
-      return cb(er)
-    }
-    test([], cb)
-  })
+  exec (args, cb) {
+    this.npm.commands.install(args, (er) => {
+      if (er)
+        return cb(er)
+      this.npm.commands.test([], cb)
+    })
+  }
 }
+module.exports = InstallTest

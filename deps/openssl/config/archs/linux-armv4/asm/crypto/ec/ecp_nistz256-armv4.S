@@ -3850,9 +3850,9 @@ ecp_nistz256_point_add:
 	ldr	r14,[sp,#32*18+12]	@ ~is_equal(S1,S2)
 	mvn	r10,r10			@ -1/0 -> 0/-1
 	mvn	r12,r12			@ -1/0 -> 0/-1
-	orr	r11,r10
-	orr	r11,r12
-	orrs	r11,r14			@ set flags
+	orr	r11,r11,r10
+	orr	r11,r11,r12
+	orrs	r11,r11,r14		@ set flags
 
 	@ if(~is_equal(U1,U2) | in1infty | in2infty | ~is_equal(S1,S2))
 	bne	.Ladd_proceed

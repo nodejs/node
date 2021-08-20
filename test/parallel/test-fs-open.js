@@ -38,25 +38,15 @@ assert.strictEqual(caughtException, true);
 
 fs.openSync(__filename);
 
-fs.open(__filename, common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.open(__filename, common.mustSucceed());
 
-fs.open(__filename, 'r', common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.open(__filename, 'r', common.mustSucceed());
 
-fs.open(__filename, 'rs', common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.open(__filename, 'rs', common.mustSucceed());
 
-fs.open(__filename, 'r', 0, common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.open(__filename, 'r', 0, common.mustSucceed());
 
-fs.open(__filename, 'r', null, common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.open(__filename, 'r', null, common.mustSucceed());
 
 async function promise() {
   await fs.promises.open(__filename);
@@ -112,22 +102,19 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
   assert.throws(
     () => fs.open(__filename, 'r', mode, common.mustNotCall()),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
   assert.throws(
     () => fs.openSync(__filename, 'r', mode, common.mustNotCall()),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
   assert.rejects(
     fs.promises.open(__filename, 'r', mode),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
 });

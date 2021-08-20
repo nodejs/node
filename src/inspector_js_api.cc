@@ -102,19 +102,17 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   static void Bind(Environment* env, Local<Object> target) {
-    Local<String> class_name = ConnectionType::GetClassName(env);
     Local<FunctionTemplate> tmpl =
         env->NewFunctionTemplate(JSBindingsConnection::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         JSBindingsConnection::kInternalFieldCount);
-    tmpl->SetClassName(class_name);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
     env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-    target->Set(env->context(),
-                class_name,
-                tmpl->GetFunction(env->context()).ToLocalChecked())
-        .ToChecked();
+    env->SetConstructorFunction(
+        target,
+        ConnectionType::GetClassName(env),
+        tmpl);
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -155,6 +153,10 @@ class JSBindingsConnection : public AsyncWrap {
 
   SET_MEMORY_INFO_NAME(JSBindingsConnection)
   SET_SELF_SIZE(JSBindingsConnection)
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return true;  // Binding connections emit events on their own.
+  }
 
  private:
   std::unique_ptr<InspectorSession> session_;

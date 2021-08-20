@@ -26,6 +26,8 @@ class Target {
  public:
   // Contruct a Target object.
   explicit Target(GdbServer* gdb_server);
+  Target(const Target&) = delete;
+  Target& operator=(const Target&) = delete;
 
   // This function spin on a debugging session, until it closes.
   void Run(Session* ses);
@@ -128,8 +130,6 @@ class Target {
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(Target);
 };
 
 }  // namespace gdb_server

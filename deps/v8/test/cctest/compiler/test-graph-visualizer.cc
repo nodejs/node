@@ -27,7 +27,7 @@ static Operator dummy_operator6(IrOpcode::kParameter, Operator::kNoWrite,
 
 
 TEST(NodeWithNullInputReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -46,7 +46,7 @@ TEST(NodeWithNullInputReachableFromEnd) {
 
 
 TEST(NodeWithNullControlReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -65,7 +65,7 @@ TEST(NodeWithNullControlReachableFromEnd) {
 
 
 TEST(NodeWithNullInputReachableFromStart) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -84,7 +84,7 @@ TEST(NodeWithNullInputReachableFromStart) {
 
 
 TEST(NodeWithNullControlReachableFromStart) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -101,7 +101,7 @@ TEST(NodeWithNullControlReachableFromStart) {
 
 
 TEST(NodeNetworkOfDummiesReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 

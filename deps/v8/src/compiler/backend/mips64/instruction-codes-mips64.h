@@ -68,7 +68,6 @@ namespace compiler {
   V(Mips64SubS)                              \
   V(Mips64MulS)                              \
   V(Mips64DivS)                              \
-  V(Mips64ModS)                              \
   V(Mips64AbsS)                              \
   V(Mips64NegS)                              \
   V(Mips64SqrtS)                             \
@@ -165,12 +164,13 @@ namespace compiler {
   V(Mips64Seh)                               \
   V(Mips64Sync)                              \
   V(Mips64AssertEqual)                       \
+  V(Mips64S128Const)                         \
   V(Mips64S128Zero)                          \
+  V(Mips64S128AllOnes)                       \
   V(Mips64I32x4Splat)                        \
   V(Mips64I32x4ExtractLane)                  \
   V(Mips64I32x4ReplaceLane)                  \
   V(Mips64I32x4Add)                          \
-  V(Mips64I32x4AddHoriz)                     \
   V(Mips64I32x4Sub)                          \
   V(Mips64F64x2Abs)                          \
   V(Mips64F64x2Neg)                          \
@@ -203,6 +203,15 @@ namespace compiler {
   V(Mips64F64x2Splat)                        \
   V(Mips64F64x2ExtractLane)                  \
   V(Mips64F64x2ReplaceLane)                  \
+  V(Mips64F64x2Pmin)                         \
+  V(Mips64F64x2Pmax)                         \
+  V(Mips64F64x2Ceil)                         \
+  V(Mips64F64x2Floor)                        \
+  V(Mips64F64x2Trunc)                        \
+  V(Mips64F64x2NearestInt)                   \
+  V(Mips64F64x2ConvertLowI32x4S)             \
+  V(Mips64F64x2ConvertLowI32x4U)             \
+  V(Mips64F64x2PromoteLowF32x4)              \
   V(Mips64I64x2Splat)                        \
   V(Mips64I64x2ExtractLane)                  \
   V(Mips64I64x2ReplaceLane)                  \
@@ -213,13 +222,25 @@ namespace compiler {
   V(Mips64I64x2Shl)                          \
   V(Mips64I64x2ShrS)                         \
   V(Mips64I64x2ShrU)                         \
+  V(Mips64I64x2BitMask)                      \
+  V(Mips64I64x2Eq)                           \
+  V(Mips64I64x2Ne)                           \
+  V(Mips64I64x2GtS)                          \
+  V(Mips64I64x2GeS)                          \
+  V(Mips64I64x2Abs)                          \
+  V(Mips64I64x2SConvertI32x4Low)             \
+  V(Mips64I64x2SConvertI32x4High)            \
+  V(Mips64I64x2UConvertI32x4Low)             \
+  V(Mips64I64x2UConvertI32x4High)            \
+  V(Mips64ExtMulLow)                         \
+  V(Mips64ExtMulHigh)                        \
+  V(Mips64ExtAddPairwise)                    \
   V(Mips64F32x4Abs)                          \
   V(Mips64F32x4Neg)                          \
   V(Mips64F32x4Sqrt)                         \
   V(Mips64F32x4RecipApprox)                  \
   V(Mips64F32x4RecipSqrtApprox)              \
   V(Mips64F32x4Add)                          \
-  V(Mips64F32x4AddHoriz)                     \
   V(Mips64F32x4Sub)                          \
   V(Mips64F32x4Mul)                          \
   V(Mips64F32x4Div)                          \
@@ -229,6 +250,13 @@ namespace compiler {
   V(Mips64F32x4Ne)                           \
   V(Mips64F32x4Lt)                           \
   V(Mips64F32x4Le)                           \
+  V(Mips64F32x4Pmin)                         \
+  V(Mips64F32x4Pmax)                         \
+  V(Mips64F32x4Ceil)                         \
+  V(Mips64F32x4Floor)                        \
+  V(Mips64F32x4Trunc)                        \
+  V(Mips64F32x4NearestInt)                   \
+  V(Mips64F32x4DemoteF64x2Zero)              \
   V(Mips64I32x4SConvertF32x4)                \
   V(Mips64I32x4UConvertF32x4)                \
   V(Mips64I32x4Neg)                          \
@@ -237,6 +265,10 @@ namespace compiler {
   V(Mips64I32x4GtU)                          \
   V(Mips64I32x4GeU)                          \
   V(Mips64I32x4Abs)                          \
+  V(Mips64I32x4BitMask)                      \
+  V(Mips64I32x4DotI16x8S)                    \
+  V(Mips64I32x4TruncSatF64x2SZero)           \
+  V(Mips64I32x4TruncSatF64x2UZero)           \
   V(Mips64I16x8Splat)                        \
   V(Mips64I16x8ExtractLaneU)                 \
   V(Mips64I16x8ExtractLaneS)                 \
@@ -246,10 +278,9 @@ namespace compiler {
   V(Mips64I16x8ShrS)                         \
   V(Mips64I16x8ShrU)                         \
   V(Mips64I16x8Add)                          \
-  V(Mips64I16x8AddSaturateS)                 \
-  V(Mips64I16x8AddHoriz)                     \
+  V(Mips64I16x8AddSatS)                      \
   V(Mips64I16x8Sub)                          \
-  V(Mips64I16x8SubSaturateS)                 \
+  V(Mips64I16x8SubSatS)                      \
   V(Mips64I16x8Mul)                          \
   V(Mips64I16x8MaxS)                         \
   V(Mips64I16x8MinS)                         \
@@ -257,14 +288,16 @@ namespace compiler {
   V(Mips64I16x8Ne)                           \
   V(Mips64I16x8GtS)                          \
   V(Mips64I16x8GeS)                          \
-  V(Mips64I16x8AddSaturateU)                 \
-  V(Mips64I16x8SubSaturateU)                 \
+  V(Mips64I16x8AddSatU)                      \
+  V(Mips64I16x8SubSatU)                      \
   V(Mips64I16x8MaxU)                         \
   V(Mips64I16x8MinU)                         \
   V(Mips64I16x8GtU)                          \
   V(Mips64I16x8GeU)                          \
   V(Mips64I16x8RoundingAverageU)             \
   V(Mips64I16x8Abs)                          \
+  V(Mips64I16x8BitMask)                      \
+  V(Mips64I16x8Q15MulRSatS)                  \
   V(Mips64I8x16Splat)                        \
   V(Mips64I8x16ExtractLaneU)                 \
   V(Mips64I8x16ExtractLaneS)                 \
@@ -273,10 +306,9 @@ namespace compiler {
   V(Mips64I8x16Shl)                          \
   V(Mips64I8x16ShrS)                         \
   V(Mips64I8x16Add)                          \
-  V(Mips64I8x16AddSaturateS)                 \
+  V(Mips64I8x16AddSatS)                      \
   V(Mips64I8x16Sub)                          \
-  V(Mips64I8x16SubSaturateS)                 \
-  V(Mips64I8x16Mul)                          \
+  V(Mips64I8x16SubSatS)                      \
   V(Mips64I8x16MaxS)                         \
   V(Mips64I8x16MinS)                         \
   V(Mips64I8x16Eq)                           \
@@ -284,26 +316,27 @@ namespace compiler {
   V(Mips64I8x16GtS)                          \
   V(Mips64I8x16GeS)                          \
   V(Mips64I8x16ShrU)                         \
-  V(Mips64I8x16AddSaturateU)                 \
-  V(Mips64I8x16SubSaturateU)                 \
+  V(Mips64I8x16AddSatU)                      \
+  V(Mips64I8x16SubSatU)                      \
   V(Mips64I8x16MaxU)                         \
   V(Mips64I8x16MinU)                         \
   V(Mips64I8x16GtU)                          \
   V(Mips64I8x16GeU)                          \
   V(Mips64I8x16RoundingAverageU)             \
   V(Mips64I8x16Abs)                          \
+  V(Mips64I8x16Popcnt)                       \
+  V(Mips64I8x16BitMask)                      \
   V(Mips64S128And)                           \
   V(Mips64S128Or)                            \
   V(Mips64S128Xor)                           \
   V(Mips64S128Not)                           \
   V(Mips64S128Select)                        \
   V(Mips64S128AndNot)                        \
-  V(Mips64S1x4AnyTrue)                       \
-  V(Mips64S1x4AllTrue)                       \
-  V(Mips64S1x8AnyTrue)                       \
-  V(Mips64S1x8AllTrue)                       \
-  V(Mips64S1x16AnyTrue)                      \
-  V(Mips64S1x16AllTrue)                      \
+  V(Mips64I64x2AllTrue)                      \
+  V(Mips64I32x4AllTrue)                      \
+  V(Mips64I16x8AllTrue)                      \
+  V(Mips64I8x16AllTrue)                      \
+  V(Mips64V128AnyTrue)                       \
   V(Mips64S32x4InterleaveRight)              \
   V(Mips64S32x4InterleaveLeft)               \
   V(Mips64S32x4PackEven)                     \
@@ -325,22 +358,23 @@ namespace compiler {
   V(Mips64S8x16PackOdd)                      \
   V(Mips64S8x16InterleaveEven)               \
   V(Mips64S8x16InterleaveOdd)                \
-  V(Mips64S8x16Shuffle)                      \
-  V(Mips64S8x16Swizzle)                      \
+  V(Mips64I8x16Shuffle)                      \
+  V(Mips64I8x16Swizzle)                      \
   V(Mips64S8x16Concat)                       \
   V(Mips64S8x8Reverse)                       \
   V(Mips64S8x4Reverse)                       \
   V(Mips64S8x2Reverse)                       \
-  V(Mips64S8x16LoadSplat)                    \
-  V(Mips64S16x8LoadSplat)                    \
-  V(Mips64S32x4LoadSplat)                    \
-  V(Mips64S64x2LoadSplat)                    \
-  V(Mips64I16x8Load8x8S)                     \
-  V(Mips64I16x8Load8x8U)                     \
-  V(Mips64I32x4Load16x4S)                    \
-  V(Mips64I32x4Load16x4U)                    \
-  V(Mips64I64x2Load32x2S)                    \
-  V(Mips64I64x2Load32x2U)                    \
+  V(Mips64S128LoadSplat)                     \
+  V(Mips64S128Load8x8S)                      \
+  V(Mips64S128Load8x8U)                      \
+  V(Mips64S128Load16x4S)                     \
+  V(Mips64S128Load16x4U)                     \
+  V(Mips64S128Load32x2S)                     \
+  V(Mips64S128Load32x2U)                     \
+  V(Mips64S128Load32Zero)                    \
+  V(Mips64S128Load64Zero)                    \
+  V(Mips64S128LoadLane)                      \
+  V(Mips64S128StoreLane)                     \
   V(Mips64MsaLd)                             \
   V(Mips64MsaSt)                             \
   V(Mips64I32x4SConvertI16x8Low)             \

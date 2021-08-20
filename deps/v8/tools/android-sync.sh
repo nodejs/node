@@ -92,17 +92,17 @@ sync_file "$OUTDIR/$ARCH_MODE/snapshot_blob.bin"
 sync_file "$OUTDIR/$ARCH_MODE/unittests"
 echo ""
 echo -n "sync to $ANDROID_V8/tools"
-sync_file tools/consarray.js
-sync_file tools/codemap.js
-sync_file tools/csvparser.js
-sync_file tools/profile.js
-sync_file tools/splaytree.js
-sync_file tools/profile_view.js
-sync_file tools/logreader.js
-sync_file tools/arguments.js
-sync_file tools/tickprocessor.js
+sync_file tools/arguments.mjs
+sync_file tools/codemap.mjs
+sync_file tools/consarray.mjs
+sync_file tools/csvparser.mjs
+sync_file tools/dumpcpp.mjs
+sync_file tools/logreader.mjs
+sync_file tools/profile.mjs
+sync_file tools/profile_view.mjs
+sync_file tools/splaytree.mjs
+sync_file tools/tickprocessor.mjs
 echo ""
-sync_dir tools/profviz
 sync_dir test/intl
 sync_dir test/message
 sync_dir test/mjsunit

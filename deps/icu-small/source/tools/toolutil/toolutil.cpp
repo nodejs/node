@@ -33,7 +33,7 @@
 #include "unicode/utypes.h"
 
 #ifndef U_TOOLUTIL_IMPLEMENTATION
-#error U_TOOLUTIL_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see http://userguide.icu-project.org/howtouseicu
+#error U_TOOLUTIL_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
@@ -166,14 +166,11 @@ findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
 #if U_FILE_ALT_SEP_CHAR!=U_FILE_SEP_CHAR
-#if !(U_PLATFORM == U_PF_CYGWIN && U_PLATFORM_USES_ONLY_WIN32_API)
-    if(basename==NULL)
-#endif
-    {
-        /* Use lenient matching on Windows, which can accept either \ or /
-           This is useful for environments like Win32+CygWin which have both.
-        */
-        basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+    //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
+    //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
+    const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+    if(alt_basename>basename) {
+        basename=alt_basename;
     }
 #endif
 

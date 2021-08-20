@@ -17,6 +17,7 @@ V8CachedObject::V8CachedObject(Location location,
       uncompressed_type_name_(std::move(uncompressed_type_name)),
       context_(std::move(context)),
       is_compressed_(is_compressed) {}
+
 HRESULT V8CachedObject::Create(IModelObject* p_v8_object_instance,
                                IV8CachedObject** result) {
   Location location;
@@ -25,15 +26,16 @@ HRESULT V8CachedObject::Create(IModelObject* p_v8_object_instance,
   WRL::ComPtr<IDebugHostContext> context;
   RETURN_IF_FAIL(p_v8_object_instance->GetContext(&context));
 
+  WRL::ComPtr<IDebugHostType> sp_type;
+  _bstr_t type_name;
+  RETURN_IF_FAIL(p_v8_object_instance->GetTypeInfo(&sp_type));
+  RETURN_IF_FAIL(sp_type->GetName(type_name.GetAddress()));
+
   // If the object is of type v8::internal::TaggedValue, and this build uses
   // compressed pointers, then the value is compressed. Other types such as
   // v8::internal::Object represent uncompressed tagged values.
-  WRL::ComPtr<IDebugHostType> sp_type;
-  _bstr_t type_name;
   bool is_compressed =
       COMPRESS_POINTERS_BOOL &&
-      SUCCEEDED(p_v8_object_instance->GetTypeInfo(&sp_type)) &&
-      SUCCEEDED(sp_type->GetName(type_name.GetAddress())) &&
       static_cast<const char*>(type_name) == std::string(kTaggedValue);
 
   const char* uncompressed_type_name =
@@ -44,6 +46,7 @@ HRESULT V8CachedObject::Create(IModelObject* p_v8_object_instance,
                 .Detach();
   return S_OK;
 }
+
 V8CachedObject::V8CachedObject(V8HeapObject heap_object)
     : heap_object_(std::move(heap_object)), heap_object_initialized_(true) {}
 
@@ -330,31 +333,6 @@ HRESULT GetModelForCustomArray(const Property& prop,
       context_data.Get(), result);
 }
 
-// Creates an IModelObject representing the data in the given property.
-HRESULT GetModelForProperty(const Property& prop,
-                            WRL::ComPtr<IDebugHostContext>& sp_ctx,
-                            IModelObject** result) {
-  switch (prop.type) {
-    case PropertyType::kPointer:
-      return GetModelForBasicField(prop.addr_value, prop.type_name,
-                                   prop.uncompressed_type_name, sp_ctx, result);
-    case PropertyType::kStruct:
-      return GetModelForStruct(prop.addr_value, prop.fields, sp_ctx, result);
-    case PropertyType::kArray:
-    case PropertyType::kStructArray:
-      if (prop.type == PropertyType::kArray &&
-          prop.type_name == ConvertToU16String(prop.uncompressed_type_name)) {
-        // An array of things that are not structs or compressed tagged values
-        // is most cleanly represented by a native array.
-        return GetModelForNativeArray(prop.addr_value, prop.type_name,
-                                      prop.length, sp_ctx, result);
-      }
-      // Otherwise, we must construct a custom iterable object.
-      return GetModelForCustomArray(prop, sp_ctx, result);
-    default:
-      return E_FAIL;
-  }
-}
 
 // Creates an IModelObject representing the data in an array at the given index.
 // context_object is expected to be an object of the form created by
@@ -585,6 +563,79 @@ IFACEMETHODIMP V8LocalValueProperty::SetValue(
   return E_NOTIMPL;
 }
 
+IFACEMETHODIMP V8InternalCompilerNodeIdProperty::GetValue(
+    PCWSTR pwsz_key, IModelObject* p_v8_compiler_node_instance,
+    IModelObject** pp_value) noexcept {
+  WRL::ComPtr<IModelObject> sp_bit_field;
+  RETURN_IF_FAIL(p_v8_compiler_node_instance->GetRawValue(
+      SymbolKind::SymbolField, L"bit_field_", RawSearchNone, &sp_bit_field));
+
+  uint64_t bit_field_value;
+  RETURN_IF_FAIL(
+      UnboxULong64(sp_bit_field.Get(), &bit_field_value, true /*convert*/));
+
+  WRL::ComPtr<IDebugHostContext> sp_host_context;
+  RETURN_IF_FAIL(p_v8_compiler_node_instance->GetContext(&sp_host_context));
+
+  WRL::ComPtr<IDebugHostType> sp_id_field_type;
+  RETURN_IF_FAIL(Extension::Current()
+                     ->GetV8Module(sp_host_context)
+                     ->FindTypeByName(L"v8::internal::compiler::Node::IdField",
+                                      &sp_id_field_type));
+
+  // Get 2nd template parameter as 24 in class.
+  // v8::base::BitField<v8::internal::compiler::NodeId, 0, 24>.
+  bool is_generic;
+  RETURN_IF_FAIL(sp_id_field_type->IsGeneric(&is_generic));
+  if (!is_generic) return E_FAIL;
+
+  WRL::ComPtr<IDebugHostSymbol> sp_k_size_arg;
+  RETURN_IF_FAIL(sp_id_field_type->GetGenericArgumentAt(2, &sp_k_size_arg));
+
+  WRL::ComPtr<IDebugHostConstant> sp_k_size_constant;
+  RETURN_IF_FAIL(sp_k_size_arg.As(&sp_k_size_constant));
+
+  int k_size;
+  RETURN_IF_FAIL(GetInt32(sp_k_size_constant.Get(), &k_size));
+
+  // Compute node_id.
+  uint32_t node_id = bit_field_value & (0xFFFFFFFF >> k_size);
+  RETURN_IF_FAIL(CreateUInt32(node_id, pp_value));
+
+  return S_OK;
+}
+
+IFACEMETHODIMP V8InternalCompilerNodeIdProperty::SetValue(
+    PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+    IModelObject* /*p_value*/) noexcept {
+  return E_NOTIMPL;
+}
+
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::GetValue(
+    PCWSTR pwsz_key, IModelObject* p_v8_compiler_type_instance,
+    IModelObject** pp_value) noexcept {
+  WRL::ComPtr<IModelObject> sp_payload;
+  RETURN_IF_FAIL(p_v8_compiler_type_instance->GetRawValue(
+      SymbolKind::SymbolField, L"payload_", RawSearchNone, &sp_payload));
+
+  uint64_t payload_value;
+  RETURN_IF_FAIL(
+      UnboxULong64(sp_payload.Get(), &payload_value, true /*convert*/));
+
+  const char* bitset_name = ::BitsetName(payload_value);
+  if (!bitset_name) return E_FAIL;
+  std::string name(bitset_name);
+  RETURN_IF_FAIL(CreateString(ConvertToU16String(name), pp_value));
+
+  return S_OK;
+}
+
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::SetValue(
+    PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+    IModelObject* /*p_value*/) noexcept {
+  return E_NOTIMPL;
+}
+
 constexpr wchar_t usage[] =
     LR"(Invalid arguments.
 First argument should be a uint64 representing the tagged value to investigate.
@@ -619,4 +670,30 @@ IFACEMETHODIMP InspectV8ObjectMethod::Call(IModelObject* p_context_object,
           /*is_compressed=*/false));
   return CreateSyntheticObjectForV8Object(sp_ctx.Get(), cached_object.Get(),
                                           pp_result);
+}
+
+// Creates an IModelObject representing the data in the given property.
+HRESULT GetModelForProperty(const Property& prop,
+                            WRL::ComPtr<IDebugHostContext>& sp_ctx,
+                            IModelObject** result) {
+  switch (prop.type) {
+    case PropertyType::kPointer:
+      return GetModelForBasicField(prop.addr_value, prop.type_name,
+                                   prop.uncompressed_type_name, sp_ctx, result);
+    case PropertyType::kStruct:
+      return GetModelForStruct(prop.addr_value, prop.fields, sp_ctx, result);
+    case PropertyType::kArray:
+    case PropertyType::kStructArray:
+      if (prop.type == PropertyType::kArray &&
+          prop.type_name == ConvertToU16String(prop.uncompressed_type_name)) {
+        // An array of things that are not structs or compressed tagged values
+        // is most cleanly represented by a native array.
+        return GetModelForNativeArray(prop.addr_value, prop.type_name,
+                                      prop.length, sp_ctx, result);
+      }
+      // Otherwise, we must construct a custom iterable object.
+      return GetModelForCustomArray(prop, sp_ctx, result);
+    default:
+      return E_FAIL;
+  }
 }

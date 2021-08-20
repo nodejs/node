@@ -12,11 +12,11 @@
  and require --cross-compile-prefix option. While on MSYS[2] it's solved
  rather by placing gcc that produces "MinGW binary" code 1st on $PATH.
  This is customarily source of confusion. "Hosted" applications "live" in
- emulated file system name space with POSIX-y root, mount points, /dev
+ emulated filesystem name space with POSIX-y root, mount points, /dev
  and even /proc. Confusion is intensified by the fact that MSYS2 shell
  (or rather emulated execve(2) call) examines the binary it's about to
  start, and if it's found *not* to be linked with MSYS2 POSIX-y thing,
- command line arguments that look like file names get translated from
+ command line arguments that look like filenames get translated from
  emulated name space to "native". For example '/c/some/where' becomes
  'c:\some\where', '/dev/null' - 'nul'. This creates an illusion that
  there is no difference between MSYS2 shell and "MinGW binary", but
@@ -26,7 +26,7 @@
  it's referred to in quotes here, as "MinGW binary", it's just as
  "native" as it can get.)
 
- Visual C++ builds, a.k.a. VC-*
+ Visual C++ builds, aka VC-*
  ==============================
 
  Requirement details
@@ -47,7 +47,7 @@
    the other hand oldest one is known not to work. Everything between
    falls into best-effort category.
 
- - Netwide Assembler, a.k.a. NASM, available from https://www.nasm.us,
+ - Netwide Assembler, aka NASM, available from https://www.nasm.us,
    is required. Note that NASM is the only supported assembler. Even
    though Microsoft provided assembler is NOT supported, contemporary
    64-bit version is exercised through continuous integration of
@@ -62,8 +62,8 @@
 
  For VC-WIN32, the following defaults are use:
 
-     PREFIX:      %ProgramFiles(86)%\OpenSSL
-     OPENSSLDIR:  %CommonProgramFiles(86)%\SSL
+     PREFIX:      %ProgramFiles(x86)%\OpenSSL
+     OPENSSLDIR:  %CommonProgramFiles(x86)%\SSL
 
  For VC-WIN64, the following defaults are use:
 
@@ -132,7 +132,7 @@
  If you link with static OpenSSL libraries then you're expected to
  additionally link your application with WS2_32.LIB, GDI32.LIB,
  ADVAPI32.LIB, CRYPT32.LIB and USER32.LIB. Those developing
- non-interactive service applications might feel concerned about
+ noninteractive service applications might feel concerned about
  linking with GDI32.LIB and USER32.LIB, as they are justly associated
  with interactive desktop, which is not available to service
  processes. The toolkit is designed to detect in which context it's

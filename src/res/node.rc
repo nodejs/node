@@ -52,7 +52,7 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Node.js"
             VALUE "ProductName", "Node.js"
-            VALUE "FileDescription", "Node.js: Server-side JavaScript"
+            VALUE "FileDescription", "Node.js JavaScript Runtime"
             VALUE "FileVersion", NODE_EXE_VERSION
             VALUE "ProductVersion", NODE_EXE_VERSION
             VALUE "OriginalFilename", "node.exe"

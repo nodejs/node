@@ -56,6 +56,11 @@ const expectedTimelines = [
 [Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) was woken up by another thread`,
   `${begin}
+[Thread 1] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 0] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) was woken up by another thread`,
+  `${begin}
 [Thread 0] Atomics.wait(<address> + 4, 0, inf) started
 [Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) started
@@ -73,12 +78,18 @@ values mismatched`,
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
 values mismatched`,
   `${begin}
+[Thread 1] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 0] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
+values mismatched`,
+  `${begin}
 [Thread 0] Atomics.wait(<address> + 4, 0, inf) started
 [Thread 0] Atomics.wait(<address> + 4, 0, inf) did not wait because the \
 values mismatched
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) started
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
-values mismatched`
+values mismatched`,
 ];
 
 assert(expectedTimelines.includes(actualTimeline));

@@ -301,7 +301,7 @@ bool FastFixedDtoa(double v, int fractional_count, Vector<char> buffer,
     // The quotient delivers the first digits, and the remainder fits into a 64
     // bit number.
     // Dividing by 10^17 is equivalent to dividing by 5^17*2^17.
-    const uint64_t kFive17 = V8_2PART_UINT64_C(0xB1, A2BC2EC5);  // 5^17
+    const uint64_t kFive17 = 0xB1'A2BC'2EC5;  // 5^17
     uint64_t divisor = kFive17;
     int divisor_power = 17;
     uint64_t dividend = significand;

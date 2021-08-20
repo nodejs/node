@@ -10,12 +10,15 @@
 namespace v8 {
 namespace internal {
 
+// This struct is just a type tag for Zone::Allocate<T>(size_t) call.
+struct ZoneTest {};
+
 TEST(Zone, 8ByteAlignment) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
   for (size_t i = 0; i < 16; ++i) {
-    ASSERT_EQ(reinterpret_cast<intptr_t>(zone.New(i)) % 8, 0);
+    ASSERT_EQ(reinterpret_cast<intptr_t>(zone.Allocate<ZoneTest>(i)) % 8, 0);
   }
 }
 

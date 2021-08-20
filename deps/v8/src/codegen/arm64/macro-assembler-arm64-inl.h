@@ -7,12 +7,12 @@
 
 #include <ctype.h>
 
-#include "src/common/globals.h"
-
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8 {
 namespace internal {
@@ -318,23 +318,15 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
     // instructions between the bind and the target identifier instruction.
     InstructionAccurateScope scope(this, 1);
     bind(label);
-    if (id == BranchTargetIdentifier::kPaciasp) {
-      paciasp();
+    if (id == BranchTargetIdentifier::kPacibsp) {
+      pacibsp();
     } else {
       bti(id);
     }
   }
 }
 
-void TurboAssembler::CodeEntry() {
-  // Since `kJavaScriptCallCodeStartRegister` is the target register for tail
-  // calls, we have to allow for jumps too, with "BTI jc". We also allow the
-  // register allocator to pick the target register for calls made from
-  // WebAssembly.
-  // TODO(v8:10026): Consider changing this so that we can use CallTarget(),
-  // which maps to "BTI c", here instead.
-  JumpOrCallTarget();
-}
+void TurboAssembler::CodeEntry() { CallTarget(); }
 
 void TurboAssembler::ExceptionHandler() { JumpTarget(); }
 
@@ -556,7 +548,7 @@ void TurboAssembler::Fcmp(const VRegister& fn, double value) {
   }
 }
 
-void MacroAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
+void TurboAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
                            const VRegister& fm, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK((cond != al) && (cond != nv));
@@ -1044,6 +1036,9 @@ void TurboAssembler::Uxtw(const Register& rd, const Register& rn) {
 void TurboAssembler::InitializeRootRegister() {
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   Mov(kRootRegister, Operand(isolate_root));
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  LoadRootRelative(kPtrComprCageBaseRegister, IsolateData::cage_base_offset());
+#endif
 }
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
@@ -1136,7 +1131,7 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1153,7 +1148,7 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr)));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1188,7 +1183,7 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autiasp();
+    Autibsp();
   }
 #endif
 }
@@ -1199,13 +1194,13 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), (src != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (FLAG_debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1217,7 +1212,7 @@ template <TurboAssembler::LoadLRMode lr_mode>
 void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (FLAG_debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1228,7 +1223,7 @@ void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontLoadLR), (dst != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autiasp();
+    Autibsp();
   }
 #endif
 }
@@ -1238,7 +1233,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
-    Paciasp();
+    Pacibsp();
   }
 #endif
 
@@ -1280,26 +1275,9 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR && contains_lr) {
-    Autiasp();
+    Autibsp();
   }
 #endif
-}
-
-void TurboAssembler::Push(Handle<HeapObject> handle) {
-  UseScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireX();
-  Mov(tmp, Operand(handle));
-  // This is only used in test-heap.cc, for generating code that is not
-  // executed. Push a padding slot together with the handle here, to
-  // satisfy the alignment requirement.
-  Push(padreg, tmp);
-}
-
-void TurboAssembler::Push(Smi smi) {
-  UseScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireX();
-  Mov(tmp, Operand(smi));
-  Push(tmp);
 }
 
 void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {

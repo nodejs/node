@@ -27,7 +27,7 @@ record) may have been read containing more TLS/SSL records. This also applies to
 DTLS and pipelining (see L<SSL_CTX_set_split_send_fragment(3)>). These
 additional bytes will be buffered by OpenSSL but will remain unprocessed until
 they are needed. As these bytes are still in an unprocessed state SSL_pending()
-will ignore them. Therefore it is possible for no more bytes to be readable from
+will ignore them. Therefore, it is possible for no more bytes to be readable from
 the underlying BIO (because OpenSSL has already read them) and for SSL_pending()
 to return 0, even though readable application data bytes are available (because
 the data is in unprocessed buffered records).
@@ -59,7 +59,7 @@ The SSL_has_pending() function was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

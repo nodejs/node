@@ -30,7 +30,15 @@ console.log('hello world');
 console.log('hello %s', 'world');
 // Prints: hello world, to stdout
 console.error(new Error('Whoops, something bad happened'));
-// Prints: [Error: Whoops, something bad happened], to stderr
+// Prints error message and stack trace to stderr:
+//   Error: Whoops, something bad happened
+//     at [eval]:5:15
+//     at Script.runInThisContext (node:vm:132:18)
+//     at Object.runInThisContext (node:vm:309:38)
+//     at node:internal/process/execution:77:19
+//     at [eval]-wrapper:6:22
+//     at evalScript (node:internal/process/execution:76:60)
+//     at node:internal/main/eval_string:23:3
 
 const name = 'Will Robinson';
 console.warn(`Danger ${name}! Danger!`);
@@ -418,12 +426,16 @@ added: v0.1.104
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when calling
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
-milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
+suitable time units to `stdout`. For example, if the elapsed
+time is 3869ms, `console.timeEnd()` displays "3.869s".
 
 ### `console.timeEnd([label])`
 <!-- YAML
 added: v0.1.104
 changes:
+  - version: v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/29251
+    description: The elapsed time is displayed with a suitable time unit.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5901
     description: This method no longer supports multiple calls that don’t map
@@ -556,12 +568,12 @@ This method does not display anything unless used in the inspector. The
 [`console.profileEnd()`]: #console_console_profileend_label
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
-[`process.stderr`]: process.html#process_process_stderr
-[`process.stdout`]: process.html#process_process_stdout
-[`util.format()`]: util.html#util_util_format_format_args
-[`util.inspect()`]: util.html#util_util_inspect_object_options
-[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[`process.stderr`]: process.md#process_process_stderr
+[`process.stdout`]: process.md#process_process_stdout
+[`util.format()`]: util.md#util_util_format_format_args
+[`util.inspect()`]: util.md#util_util_inspect_object_options
+[customizing `util.inspect()` colors]: util.md#util_customizing_util_inspect_colors
 [falsy]: https://developer.mozilla.org/en-US/docs/Glossary/Falsy
-[inspector]: debugger.html
-[note on process I/O]: process.html#process_a_note_on_process_i_o
+[inspector]: debugger.md
+[note on process I/O]: process.md#process_a_note_on_process_i_o
 [truthy]: https://developer.mozilla.org/en-US/docs/Glossary/Truthy

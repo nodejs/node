@@ -30,12 +30,14 @@
 #include "uv.h"
 #include "internal.h"
 
+/* clang-format off */
 #include <winsock2.h>
 #include <winperf.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <windows.h>
+/* clang-format on */
 #include <userenv.h>
 #include <math.h>
 
@@ -1662,26 +1664,33 @@ int uv_os_unsetenv(const char* name) {
 
 
 int uv_os_gethostname(char* buffer, size_t* size) {
-  char buf[UV_MAXHOSTNAMESIZE];
+  WCHAR buf[UV_MAXHOSTNAMESIZE];
   size_t len;
+  char* utf8_str;
+  int convert_result;
 
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
   uv__once_init(); /* Initialize winsock */
 
-  if (gethostname(buf, sizeof(buf)) != 0)
+  if (GetHostNameW(buf, UV_MAXHOSTNAMESIZE) != 0)
     return uv_translate_sys_error(WSAGetLastError());
 
-  buf[sizeof(buf) - 1] = '\0'; /* Null terminate, just to be safe. */
-  len = strlen(buf);
+  convert_result = uv__convert_utf16_to_utf8(buf, -1, &utf8_str);
 
+  if (convert_result != 0)
+    return convert_result;
+
+  len = strlen(utf8_str);
   if (len >= *size) {
     *size = len + 1;
+    uv__free(utf8_str);
     return UV_ENOBUFS;
   }
 
-  memcpy(buffer, buf, len + 1);
+  memcpy(buffer, utf8_str, len + 1);
+  uv__free(utf8_str);
   *size = len;
   return 0;
 }
@@ -1806,7 +1815,9 @@ int uv_os_uname(uv_utsname_t* buffer) {
     pRtlGetVersion(&os_info);
   } else {
     /* Silence GetVersionEx() deprecation warning. */
+    #ifdef _MSC_VER
     #pragma warning(suppress : 4996)
+    #endif
     if (GetVersionExW(&os_info) == 0) {
       r = uv_translate_sys_error(GetLastError());
       goto error;
@@ -1873,7 +1884,7 @@ int uv_os_uname(uv_utsname_t* buffer) {
                "MINGW32_NT-%u.%u",
                (unsigned int) os_info.dwMajorVersion,
                (unsigned int) os_info.dwMinorVersion);
-  assert(r < sizeof(buffer->sysname));
+  assert((size_t)r < sizeof(buffer->sysname));
 #else
   uv__strscpy(buffer->sysname, "Windows_NT", sizeof(buffer->sysname));
 #endif
@@ -1885,7 +1896,7 @@ int uv_os_uname(uv_utsname_t* buffer) {
                (unsigned int) os_info.dwMajorVersion,
                (unsigned int) os_info.dwMinorVersion,
                (unsigned int) os_info.dwBuildNumber);
-  assert(r < sizeof(buffer->release));
+  assert((size_t)r < sizeof(buffer->release));
 
   /* Populate the machine field. */
   GetSystemInfo(&system_info);

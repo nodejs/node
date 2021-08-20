@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,7 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
     if (gmtime_r(timer, result) == NULL)
         return NULL;
     ts = result;
-#elif defined (OPENSSL_SYS_WINDOWS) && defined(_MSC_VER) && _MSC_VER >= 1400
+#elif defined (OPENSSL_SYS_WINDOWS) && defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(_WIN32_WCE)
     if (gmtime_s(result, timer))
         return NULL;
     ts = result;
@@ -133,8 +133,8 @@ int OPENSSL_gmtime_diff(int *pday, int *psec,
 static int julian_adj(const struct tm *tm, int off_day, long offset_sec,
                       long *pday, int *psec)
 {
-    int offset_hms, offset_day;
-    long time_jd;
+    int offset_hms;
+    long offset_day, time_jd;
     int time_year, time_month, time_day;
     /* split offset into days and day seconds */
     offset_day = offset_sec / SECS_PER_DAY;

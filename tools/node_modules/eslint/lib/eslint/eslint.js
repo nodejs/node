@@ -15,7 +15,13 @@ const fs = require("fs");
 const { promisify } = require("util");
 const { CLIEngine, getCLIEngineInternalSlots } = require("../cli-engine/cli-engine");
 const BuiltinRules = require("../rules");
-const { getRuleSeverity } = require("../shared/config-ops");
+const {
+    Legacy: {
+        ConfigOps: {
+            getRuleSeverity
+        }
+    }
+} = require("@eslint/eslintrc");
 const { version } = require("../../package.json");
 
 //------------------------------------------------------------------------------
@@ -37,6 +43,7 @@ const { version } = require("../../package.json");
  * @property {ConfigData} [baseConfig] Base config object, extended by all configs used with this instance
  * @property {boolean} [cache] Enable result caching.
  * @property {string} [cacheLocation] The cache file to use instead of .eslintcache.
+ * @property {"metadata" | "content"} [cacheStrategy] The strategy used to detect changed files.
  * @property {string} [cwd] The value to use for the current working directory.
  * @property {boolean} [errorOnUnmatchedPattern] If `false` then `ESLint#lintFiles()` doesn't throw even if no target files found. Defaults to `true`.
  * @property {string[]} [extensions] An array of file extensions to check.
@@ -151,6 +158,7 @@ function processOptions({
     baseConfig = null,
     cache = false,
     cacheLocation = ".eslintcache",
+    cacheStrategy = "metadata",
     cwd = process.cwd(),
     errorOnUnmatchedPattern = true,
     extensions = null, // ← should be null by default because if it's an array then it suppresses RFC20 feature.
@@ -210,6 +218,12 @@ function processOptions({
     if (!isNonEmptyString(cacheLocation)) {
         errors.push("'cacheLocation' must be a non-empty string.");
     }
+    if (
+        cacheStrategy !== "metadata" &&
+        cacheStrategy !== "content"
+    ) {
+        errors.push("'cacheStrategy' must be any of \"metadata\", \"content\".");
+    }
     if (!isNonEmptyString(cwd) || !path.isAbsolute(cwd)) {
         errors.push("'cwd' must be an absolute path.");
     }
@@ -266,7 +280,7 @@ function processOptions({
         errors.push("'rulePaths' must be an array of non-empty strings.");
     }
     if (typeof useEslintrc !== "boolean") {
-        errors.push("'useElintrc' must be a boolean.");
+        errors.push("'useEslintrc' must be a boolean.");
     }
 
     if (errors.length > 0) {
@@ -278,6 +292,7 @@ function processOptions({
         baseConfig,
         cache,
         cacheLocation,
+        cacheStrategy,
         configFile: overrideConfigFile,
         cwd,
         errorOnUnmatchedPattern,
@@ -500,6 +515,39 @@ class ESLint {
     }
 
     /**
+     * Returns meta objects for each rule represented in the lint results.
+     * @param {LintResult[]} results The results to fetch rules meta for.
+     * @returns {Object} A mapping of ruleIds to rule meta objects.
+     */
+    getRulesMetaForResults(results) {
+
+        const resultRuleIds = new Set();
+
+        // first gather all ruleIds from all results
+
+        for (const result of results) {
+            for (const { ruleId } of result.messages) {
+                resultRuleIds.add(ruleId);
+            }
+        }
+
+        // create a map of all rules in the results
+
+        const { cliEngine } = privateMembersMap.get(this);
+        const rules = cliEngine.getRules();
+        const resultRules = new Map();
+
+        for (const [ruleId, rule] of rules) {
+            if (resultRuleIds.has(ruleId)) {
+                resultRules.set(ruleId, rule);
+            }
+        }
+
+        return createRulesMeta(resultRules);
+
+    }
+
+    /**
      * Executes the current configuration on an array of file and directory names.
      * @param {string[]} patterns An array of file and directory names.
      * @returns {Promise<LintResult[]>} The results of linting the file patterns given.
@@ -537,9 +585,12 @@ class ESLint {
             ...unknownOptions
         } = options || {};
 
-        for (const key of Object.keys(unknownOptions)) {
-            throw new Error(`'options' must not include the unknown option '${key}'`);
+        const unknownOptionKeys = Object.keys(unknownOptions);
+
+        if (unknownOptionKeys.length > 0) {
+            throw new Error(`'options' must not include the unknown option(s): ${unknownOptionKeys.join(", ")}`);
         }
+
         if (filePath !== void 0 && !isNonEmptyString(filePath)) {
             throw new Error("'options.filePath' must be a non-empty string or undefined");
         }
@@ -557,7 +608,7 @@ class ESLint {
 
     /**
      * Returns the formatter representing the given formatter name.
-     * @param {string} [name] The name of the formattter to load.
+     * @param {string} [name] The name of the formatter to load.
      * The following values are allowed:
      * - `undefined` ... Load `stylish` builtin formatter.
      * - A builtin formatter name ... Load the builtin formatter.

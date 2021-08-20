@@ -36,8 +36,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "key" argument must be of type string or an instance of ' +
-             'Buffer, TypedArray, DataView, or KeyObject. Received null'
   });
 
 function testHmac(algo, key, data, expected) {
@@ -51,7 +49,7 @@ function testHmac(algo, key, data, expected) {
   // If the key is a Buffer, test Hmac with a key object as well.
   const keyWrappers = [
     (key) => key,
-    ...(typeof key === 'string' ? [] : [crypto.createSecretKey])
+    ...(typeof key === 'string' ? [] : [crypto.createSecretKey]),
   ];
 
   for (const keyWrapper of keyWrappers) {
@@ -262,7 +260,7 @@ const rfc4231 = [
           '20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de04460' +
           '65c97440fa8c6a58'
     }
-  }
+  },
 ];
 
 for (let i = 0, l = rfc4231.length; i < l; i++) {
@@ -344,7 +342,7 @@ const rfc2202_md5 = [
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',
     hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
-  }
+  },
 ];
 
 for (const { key, data, hmac } of rfc2202_md5)
@@ -402,7 +400,7 @@ const rfc2202_sha1 = [
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',
     hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91'
-  }
+  },
 ];
 
 for (const { key, data, hmac } of rfc2202_sha1)
@@ -450,5 +448,5 @@ assert.strictEqual(
 {
   assert.throws(
     () => crypto.createHmac('sha7', 'key'),
-    /Unknown message digest/);
+    /Invalid digest/);
 }

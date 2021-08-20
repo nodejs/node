@@ -13,7 +13,7 @@ const options = {
       buf: fixtures.readKey('agent1.pfx'),
       passphrase: 'sample'
     },
-    fixtures.readKey('ec.pfx')
+    fixtures.readKey('ec.pfx'),
   ]
 };
 

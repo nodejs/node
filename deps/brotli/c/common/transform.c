@@ -24,8 +24,8 @@ static const char kPrefixSuffix[217] =
 /* 8x  _0 _ _3    _8   _C _E _ _1     _7       _F */
       " not \3er \3al \4ful \4ive \5less \4es"
 /* Ax       _5   _9   _D    _2    _7     _D */
-      "t \4ize \2\xc2\xa0\4ous \5 the \2e \0";
-/* Cx    _2    _7___ ___ _A    _F     _5  _8 */
+      "t \4ize \2\xc2\xa0\4ous \5 the \2e "; /* \0 - implicit trailing zero. */
+/* Cx    _2    _7___ ___ _A    _F     _5        _8 */
 
 static const uint16_t kPrefixSuffixMap[50] = {
   0x00, 0x02, 0x05, 0x0E, 0x13, 0x16, 0x18, 0x1E, 0x23, 0x25,
@@ -160,12 +160,13 @@ static const uint8_t kTransformsData[] = {
    0, BROTLI_TRANSFORM_UPPERCASE_FIRST, 34,
 };
 
-static BrotliTransforms kBrotliTransforms = {
+static const BrotliTransforms kBrotliTransforms = {
   sizeof(kPrefixSuffix),
   (const uint8_t*)kPrefixSuffix,
   kPrefixSuffixMap,
   sizeof(kTransformsData) / (3 * sizeof(kTransformsData[0])),
   kTransformsData,
+  NULL,  /* no extra parameters */
   {0, 12, 27, 23, 42, 63, 56, 48, 59, 64}
 };
 
@@ -188,6 +189,48 @@ static int ToUpperCase(uint8_t* p) {
   /* An arbitrary transform for three byte characters. */
   p[2] ^= 5;
   return 3;
+}
+
+static int Shift(uint8_t* word, int word_len, uint16_t parameter) {
+  /* Limited sign extension: scalar < (1 << 24). */
+  uint32_t scalar =
+      (parameter & 0x7FFFu) + (0x1000000u - (parameter & 0x8000u));
+  if (word[0] < 0x80) {
+    /* 1-byte rune / 0sssssss / 7 bit scalar (ASCII). */
+    scalar += (uint32_t)word[0];
+    word[0] = (uint8_t)(scalar & 0x7Fu);
+    return 1;
+  } else if (word[0] < 0xC0) {
+    /* Continuation / 10AAAAAA. */
+    return 1;
+  } else if (word[0] < 0xE0) {
+    /* 2-byte rune / 110sssss AAssssss / 11 bit scalar. */
+    if (word_len < 2) return 1;
+    scalar += (uint32_t)((word[1] & 0x3Fu) | ((word[0] & 0x1Fu) << 6u));
+    word[0] = (uint8_t)(0xC0 | ((scalar >> 6u) & 0x1F));
+    word[1] = (uint8_t)((word[1] & 0xC0) | (scalar & 0x3F));
+    return 2;
+  } else if (word[0] < 0xF0) {
+    /* 3-byte rune / 1110ssss AAssssss BBssssss / 16 bit scalar. */
+    if (word_len < 3) return word_len;
+    scalar += (uint32_t)((word[2] & 0x3Fu) | ((word[1] & 0x3Fu) << 6u) |
+        ((word[0] & 0x0Fu) << 12u));
+    word[0] = (uint8_t)(0xE0 | ((scalar >> 12u) & 0x0F));
+    word[1] = (uint8_t)((word[1] & 0xC0) | ((scalar >> 6u) & 0x3F));
+    word[2] = (uint8_t)((word[2] & 0xC0) | (scalar & 0x3F));
+    return 3;
+  } else if (word[0] < 0xF8) {
+    /* 4-byte rune / 11110sss AAssssss BBssssss CCssssss / 21 bit scalar. */
+    if (word_len < 4) return word_len;
+    scalar += (uint32_t)((word[3] & 0x3Fu) | ((word[2] & 0x3Fu) << 6u) |
+        ((word[1] & 0x3Fu) << 12u) | ((word[0] & 0x07u) << 18u));
+    word[0] = (uint8_t)(0xF0 | ((scalar >> 18u) & 0x07));
+    word[1] = (uint8_t)((word[1] & 0xC0) | ((scalar >> 12u) & 0x3F));
+    word[2] = (uint8_t)((word[2] & 0xC0) | ((scalar >> 6u) & 0x3F));
+    word[3] = (uint8_t)((word[3] & 0xC0) | (scalar & 0x3F));
+    return 4;
+  }
+  return 1;
 }
 
 int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
@@ -219,6 +262,19 @@ int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
       while (len > 0) {
         int step = ToUpperCase(uppercase);
         uppercase += step;
+        len -= step;
+      }
+    } else if (t == BROTLI_TRANSFORM_SHIFT_FIRST) {
+      uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
+          + (transforms->params[transform_idx * 2 + 1] << 8u));
+      Shift(&dst[idx - len], len, param);
+    } else if (t == BROTLI_TRANSFORM_SHIFT_ALL) {
+      uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
+          + (transforms->params[transform_idx * 2 + 1] << 8u));
+      uint8_t* shift = &dst[idx - len];
+      while (len > 0) {
+        int step = Shift(shift, len, param);
+        shift += step;
         len -= step;
       }
     }

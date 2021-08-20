@@ -49,14 +49,14 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   };
 
   explicit SourcePositionTableBuilder(
-      RecordingMode mode = RECORD_SOURCE_POSITIONS);
+      Zone* zone, RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
   void AddPosition(size_t code_offset, SourcePosition source_position,
                    bool is_statement);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
   OwnedVector<byte> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
@@ -66,9 +66,9 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddEntry(const PositionTableEntry& entry);
 
   RecordingMode mode_;
-  std::vector<byte> bytes_;
+  ZoneVector<byte> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
-  std::vector<PositionTableEntry> raw_entries_;
+  ZoneVector<PositionTableEntry> raw_entries_;
 #endif
   PositionTableEntry previous_;  // Previously written entry, to compute delta.
 };
@@ -158,7 +158,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   PositionTableEntry current_;
   IterationFilter iteration_filter_;
   FunctionEntryFilter function_entry_filter_;
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 }  // namespace internal

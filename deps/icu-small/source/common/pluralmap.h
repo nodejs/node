@@ -24,7 +24,7 @@ class U_COMMON_API PluralMapBase : public UMemory {
 public:
     /**
      * The names of all the plural categories. NONE is not an actual plural
-     * category, but rather represents the absense of a plural category.
+     * category, but rather represents the absence of a plural category.
      */
     enum Category {
         NONE = -1,
@@ -234,7 +234,7 @@ public:
     }
 
     /**
-     * Returns TRUE if this object equals rhs.
+     * Returns true if this object equals rhs.
      */
     UBool equals(
             const PluralMap<T> &rhs,
@@ -244,13 +244,13 @@ public:
                 continue;
             }
             if (fVariants[i] == NULL || rhs.fVariants[i] == NULL) {
-                return FALSE;
+                return false;
             }
             if (!eqFunc(*fVariants[i], *rhs.fVariants[i])) {
-                return FALSE;
+                return false;
             }
         }
-        return TRUE;
+        return true;
     }
 
 private:

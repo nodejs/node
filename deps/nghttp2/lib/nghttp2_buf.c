@@ -82,8 +82,10 @@ void nghttp2_buf_reset(nghttp2_buf *buf) {
 }
 
 void nghttp2_buf_wrap_init(nghttp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = buf->mark = begin;
-  buf->end = begin + len;
+  buf->begin = buf->pos = buf->last = buf->mark = buf->end = begin;
+  if (len) {
+    buf->end += len;
+  }
 }
 
 static int buf_chain_new(nghttp2_buf_chain **chain, size_t chunk_length,

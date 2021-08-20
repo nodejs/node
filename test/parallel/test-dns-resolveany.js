@@ -23,6 +23,11 @@ const answers = [
     expire: 1800,
     minttl: 60
   },
+  {
+    type: 'CAA',
+    critical: 128,
+    issue: 'platynum.ch'
+  },
 ];
 
 const server = dgram.createSocket('udp4');
@@ -45,8 +50,7 @@ server.bind(0, common.mustCall(async () => {
 
   validateResults(await dnsPromises.resolveAny('example.org'));
 
-  dns.resolveAny('example.org', common.mustCall((err, res) => {
-    assert.ifError(err);
+  dns.resolveAny('example.org', common.mustSucceed((res) => {
     validateResults(res);
     server.close();
   }));

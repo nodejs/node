@@ -43,7 +43,6 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
-using v8::String;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
@@ -134,9 +133,6 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       UDPWrapBase::kInternalFieldCount);
-  Local<String> udpString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "UDP");
-  t->SetClassName(udpString);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
@@ -182,9 +178,7 @@ void UDPWrap::Initialize(Local<Object> target,
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-  target->Set(env->context(),
-              udpString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "UDP", t);
   env->set_udp_constructor_function(
       t->GetFunction(env->context()).ToLocalChecked());
 
@@ -192,12 +186,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> swt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   swt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  Local<String> sendWrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap");
-  swt->SetClassName(sendWrapString);
-  target->Set(env->context(),
-              sendWrapString,
-              swt->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "SendWrap", swt);
 
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
@@ -542,7 +531,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     wrap->current_send_has_callback_ =
         sendto ? args[5]->IsTrue() : args[3]->IsTrue();
 
-    err = wrap->Send(*bufs, count, addr);
+    err = static_cast<int>(wrap->Send(*bufs, count, addr));
 
     wrap->current_send_req_wrap_.Clear();
     wrap->current_send_has_callback_ = false;
@@ -716,11 +705,10 @@ void UDPWrap::OnRecv(ssize_t nread,
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
-    object(),
-    Undefined(env->isolate()),
-    Undefined(env->isolate())
-  };
+      Integer::New(env->isolate(), static_cast<int32_t>(nread)),
+      object(),
+      Undefined(env->isolate()),
+      Undefined(env->isolate())};
 
   if (nread < 0) {
     MakeCallback(env->onmessage_string(), arraysize(argv), argv);

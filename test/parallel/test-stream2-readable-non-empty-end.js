@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const Readable = require('_stream_readable');
+const { Readable } = require('stream');
 
 let len = 0;
 const chunks = new Array(10);

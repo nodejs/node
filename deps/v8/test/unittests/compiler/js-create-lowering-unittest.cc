@@ -43,8 +43,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, broker(),
                              zone());
     return reducer.Reduce(node);
@@ -55,9 +54,9 @@ class JSCreateLoweringTest : public TypedGraphTest {
         graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
     return graph()->NewNode(
         common()->FrameState(
-            BailoutId::None(), OutputFrameStateCombine::Ignore(),
+            BytecodeOffset::None(), OutputFrameStateCombine::Ignore(),
             common()->CreateFrameStateFunctionInfo(
-                FrameStateType::kInterpretedFunction, 1, 0, shared)),
+                FrameStateType::kUnoptimizedFunction, 1, 0, shared)),
         state_values, state_values, state_values, NumberConstant(0),
         UndefinedConstant(), outer_frame_state);
   }

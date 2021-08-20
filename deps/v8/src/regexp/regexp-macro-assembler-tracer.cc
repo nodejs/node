@@ -13,11 +13,8 @@ namespace internal {
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     Isolate* isolate, RegExpMacroAssembler* assembler)
     : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
-  IrregexpImplementation type = assembler->Implementation();
-  DCHECK_LT(type, 9);
-  const char* impl_names[] = {"IA32", "ARM", "ARM64", "MIPS",    "S390",
-                              "PPC",  "X64", "X87",   "Bytecode"};
-  PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
+  PrintF("RegExpMacroAssembler%s();\n",
+         ImplementationToString(assembler->Implementation()));
 }
 
 RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
@@ -352,11 +349,11 @@ void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
 }
 
 void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
-  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s, label[%08x]);\n",
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s %s, label[%08x]);\n",
          start_reg, read_backward ? "backward" : "forward",
-         LabelToInt(on_no_match));
-  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward,
+         unicode ? "unicode" : "non-unicode", LabelToInt(on_no_match));
+  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward, unicode,
                                               on_no_match);
 }
 

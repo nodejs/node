@@ -59,9 +59,11 @@ The `'close'` event is emitted when one of the following occur:
 * The `rl.close()` method is called and the `readline.Interface` instance has
   relinquished control over the `input` and `output` streams;
 * The `input` stream receives its `'end'` event;
-* The `input` stream receives `<ctrl>-D` to signal end-of-transmission (EOT);
-* The `input` stream receives `<ctrl>-C` to signal `SIGINT` and there is no
-  `'SIGINT'` event listener registered on the `readline.Interface` instance.
+* The `input` stream receives <kbd>Ctrl</kbd>+<kbd>D</kbd> to signal
+  end-of-transmission (EOT);
+* The `input` stream receives <kbd>Ctrl</kbd>+<kbd>C</kbd> to signal `SIGINT`
+  and there is no `'SIGINT'` event listener registered on the
+  `readline.Interface` instance.
 
 The listener function is called without passing any arguments.
 
@@ -75,7 +77,7 @@ added: v0.1.98
 
 The `'line'` event is emitted whenever the `input` stream receives an
 end-of-line input (`\n`, `\r`, or `\r\n`). This usually occurs when the user
-presses the `<Enter>`, or `<Return>` keys.
+presses <kbd>Enter</kbd> or <kbd>Return</kbd>.
 
 The listener function is called with a string containing the single line of
 received input.
@@ -83,6 +85,28 @@ received input.
 ```js
 rl.on('line', (input) => {
   console.log(`Received: ${input}`);
+});
+```
+
+### Event: `'history'`
+<!-- YAML
+added: v15.8.0
+-->
+
+The `'history'` event is emitted whenever the history array has changed.
+
+The listener function is called with an array containing the history array.
+It will reflect all changes, added lines and removed lines due to
+`historySize` and `removeHistoryDuplicates`.
+
+The primary purpose is to allow a listener to persist the history.
+It is also possible for the listener to change the history object. This
+could be useful to prevent certain lines to be added to the history, like
+a password.
+
+```js
+rl.on('history', (history) => {
+  console.log(`Received: ${history}`);
 });
 ```
 
@@ -126,8 +150,8 @@ added: v0.7.5
 -->
 
 The `'SIGCONT'` event is emitted when a Node.js process previously moved into
-the background using `<ctrl>-Z` (i.e. `SIGTSTP`) is then brought back to the
-foreground using fg(1p).
+the background using <kbd>Ctrl</kbd>+<kbd>Z</kbd> (i.e. `SIGTSTP`) is then
+brought back to the foreground using fg(1p).
 
 If the `input` stream was paused *before* the `SIGTSTP` request, this event will
 not be emitted.
@@ -149,9 +173,9 @@ added: v0.3.0
 -->
 
 The `'SIGINT'` event is emitted whenever the `input` stream receives a
-`<ctrl>-C` input, known typically as `SIGINT`. If there are no `'SIGINT'` event
-listeners registered when the `input` stream receives a `SIGINT`, the `'pause'`
-event will be emitted.
+<kbd>Ctrl+C</kbd> input, known typically as `SIGINT`. If there are no `'SIGINT'`
+event listeners registered when the `input` stream receives a `SIGINT`, the
+`'pause'` event will be emitted.
 
 The listener function is invoked without passing any arguments.
 
@@ -168,10 +192,10 @@ rl.on('SIGINT', () => {
 added: v0.7.5
 -->
 
-The `'SIGTSTP'` event is emitted when the `input` stream receives a `<ctrl>-Z`
-input, typically known as `SIGTSTP`. If there are no `'SIGTSTP'` event listeners
-registered when the `input` stream receives a `SIGTSTP`, the Node.js process
-will be sent to the background.
+The `'SIGTSTP'` event is emitted when the `input` stream receives a
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> input, typically known as `SIGTSTP`. If there are
+no `'SIGTSTP'` event listeners registered when the `input` stream receives a
+`SIGTSTP`, the Node.js process will be sent to the background.
 
 When the program is resumed using fg(1p), the `'pause'` and `'SIGCONT'` events
 will be emitted. These can be used to resume the `input` stream.
@@ -232,13 +256,16 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the prompt is not written.
 
-### `rl.question(query, callback)`
+### `rl.question(query[, options], callback)`
 <!-- YAML
 added: v0.3.3
 -->
 
 * `query` {string} A statement or query to write to `output`, prepended to the
   prompt.
+* `options` {Object}
+  * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
+    using an `AbortController`.
 * `callback` {Function} A callback function that is invoked with the user's
   input in response to the `query`.
 
@@ -252,6 +279,10 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the `query` is not written.
 
+The `callback` function passed to `rl.question()` does not follow the typical
+pattern of accepting an `Error` object or `null` as the first argument.
+The `callback` is called with the provided answer as the only argument.
+
 Example usage:
 
 ```js
@@ -260,9 +291,41 @@ rl.question('What is your favorite food? ', (answer) => {
 });
 ```
 
-The `callback` function passed to `rl.question()` does not follow the typical
-pattern of accepting an `Error` object or `null` as the first argument.
-The `callback` is called with the provided answer as the only argument.
+Using an `AbortController` to cancel a question.
+
+```js
+const ac = new AbortController();
+const signal = ac.signal;
+
+rl.question('What is your favorite food? ', { signal }, (answer) => {
+  console.log(`Oh, so your favorite food is ${answer}`);
+});
+
+signal.addEventListener('abort', () => {
+  console.log('The food question timed out');
+}, { once: true });
+
+setTimeout(() => ac.abort(), 10000);
+```
+
+If this method is invoked as it's util.promisify()ed version, it returns a
+Promise that fulfills with the answer. If the question is canceled using
+an `AbortController` it will reject with an `AbortError`.
+
+```js
+const util = require('util');
+const question = util.promisify(rl.question).bind(rl);
+
+async function questionExample() {
+  try {
+    const answer = await question('What is you favorite food? ');
+    console.log(`Oh, so your favorite food is ${answer}`);
+  } catch (err) {
+    console.error('Question rejected', err);
+  }
+}
+questionExample();
+```
 
 ### `rl.resume()`
 <!-- YAML
@@ -281,6 +344,17 @@ added: v0.1.98
 The `rl.setPrompt()` method sets the prompt that will be written to `output`
 whenever `rl.prompt()` is called.
 
+### `rl.getPrompt()`
+<!-- YAML
+added:
+  - v15.3.0
+  - v14.17.0
+-->
+
+* Returns: {string} the current prompt string
+
+The `rl.getPrompt()` method returns the current prompt used by `rl.prompt()`.
+
 ### `rl.write(data[, key])`
 <!-- YAML
 added: v0.1.98
@@ -288,9 +362,9 @@ added: v0.1.98
 
 * `data` {string}
 * `key` {Object}
-  * `ctrl` {boolean} `true` to indicate the `<ctrl>` key.
-  * `meta` {boolean} `true` to indicate the `<Meta>` key.
-  * `shift` {boolean} `true` to indicate the `<Shift>` key.
+  * `ctrl` {boolean} `true` to indicate the <kbd>Ctrl</kbd> key.
+  * `meta` {boolean} `true` to indicate the <kbd>Meta</kbd> key.
+  * `shift` {boolean} `true` to indicate the <kbd>Shift</kbd> key.
   * `name` {string} The name of the a key.
 
 The `rl.write()` method will write either `data` or a key sequence identified
@@ -308,7 +382,7 @@ If the `readline.Interface` was created with `output` set to `null` or
 
 ```js
 rl.write('Delete this!');
-// Simulate Ctrl+u to delete the line written previously
+// Simulate Ctrl+U to delete the line written previously
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
@@ -356,12 +430,20 @@ async function processLineByLine() {
 }
 ```
 
+`readline.createInterface()` will start to consume the input stream once
+invoked. Having asynchronous operations between interface creation and
+asynchronous iteration may result in missed lines.
+
 ### `rl.line`
 <!-- YAML
 added: v0.1.98
+changes:
+  - version: v15.8.0
+    pr-url: https://github.com/nodejs/node/pull/33676
+    description: Value will always be a string, never undefined.
 -->
 
-* {string|undefined}
+* {string}
 
 The current input data being processed by node.
 
@@ -464,10 +546,18 @@ the current position of the cursor down.
 <!-- YAML
 added: v0.1.98
 changes:
+  - version: v15.14.0
+    pr-url: https://github.com/nodejs/node/pull/37932
+    description: The `signal` option is supported now.
+  - version: v15.8.0
+    pr-url: https://github.com/nodejs/node/pull/33662
+    description: The `history` option is supported now.
   - version: v13.9.0
     pr-url: https://github.com/nodejs/node/pull/31318
     description: The `tabSize` option is supported now.
-  - version: v8.3.0, 6.11.4
+  - version:
+    - v8.3.0
+    - v6.11.4
     pr-url: https://github.com/nodejs/node/pull/13497
     description: Remove max limit of `crlfDelay` option.
   - version: v6.6.0
@@ -490,11 +580,18 @@ changes:
   * `terminal` {boolean} `true` if the `input` and `output` streams should be
     treated like a TTY, and have ANSI/VT100 escape codes written to it.
     **Default:** checking `isTTY` on the `output` stream upon instantiation.
+  * `history` {string[]} Initial list of history lines. This option makes sense
+    only if `terminal` is set to `true` by the user or by an internal `output`
+    check, otherwise the history caching mechanism is not initialized at all.
+    **Default:** `[]`.
   * `historySize` {number} Maximum number of history lines retained. To disable
     the history set this value to `0`. This option makes sense only if
     `terminal` is set to `true` by the user or by an internal `output` check,
     otherwise the history caching mechanism is not initialized at all.
     **Default:** `30`.
+  * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
+    to the history list duplicates an older one, this removes the older line
+    from the list. **Default:** `false`.
   * `prompt` {string} The prompt string to use. **Default:** `'> '`.
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
@@ -502,9 +599,6 @@ changes:
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
     [reading files][] with `\r\n` line delimiter). **Default:** `100`.
-  * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
-    to the history list duplicates an older one, this removes the older line
-    from the list. **Default:** `false`.
   * `escapeCodeTimeout` {number} The duration `readline` will wait for a
     character (when reading an ambiguous key sequence in milliseconds one that
     can both form a complete key sequence using the input read so far and can
@@ -512,6 +606,9 @@ changes:
     **Default:** `500`.
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
+  * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
+    Aborting the signal will internally call `close` on the interface.
+* Returns: {readline.Interface}
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
@@ -537,6 +634,17 @@ If `terminal` is `true` for this instance then the `output` stream will get
 the best compatibility if it defines an `output.columns` property and emits
 a `'resize'` event on the `output` if or when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
+
+When creating a `readline.Interface` using `stdin` as input, the program
+will not terminate until it receives `EOF` (<kbd>Ctrl</kbd>+<kbd>D</kbd> on
+Linux/macOS, <kbd>Ctrl</kbd>+<kbd>Z</kbd> followed by <kbd>Return</kbd> on
+Windows).
+If you want your application to exit without waiting for user input, you can
+[`unref()`][] the standard input stream:
+
+```js
+process.stdin.unref();
+```
 
 ### Use of the `completer` function
 
@@ -745,131 +853,132 @@ const { createInterface } = require('readline');
     <th>Notes</th>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>shift</code> + <code>backspace</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></td>
     <td>Delete line left</td>
     <td>Doesn't work on Linux, Mac and Windows</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>shift</code> + <code>delete</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Delete</kbd></td>
     <td>Delete line right</td>
     <td>Doesn't work on Mac</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>c</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>C</kbd></td>
     <td>Emit <code>SIGINT</code> or close the readline instance</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>h</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>H</kbd></td>
     <td>Delete left</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>d</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>D</kbd></td>
     <td>Delete right or close the readline instance in case the current line is empty / EOF</td>
     <td>Doesn't work on Windows</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>u</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>U</kbd></td>
     <td>Delete from the current position to the line start</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>k</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>K</kbd></td>
     <td>Delete from the current position to the end of line</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>a</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>A</kbd></td>
     <td>Go to start of line</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>e</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>E</kbd></td>
     <td>Go to to end of line</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>b</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>B</kbd></td>
     <td>Back one character</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>f</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>F</kbd></td>
     <td>Forward one character</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>l</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>L</kbd></td>
     <td>Clear screen</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>n</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>N</kbd></td>
     <td>Next history item</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>p</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>P</kbd></td>
     <td>Previous history item</td>
     <td></td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>z</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td>
     <td>Moves running process into background. Type
-    <code>fg</code> and press <code>enter</code>
+    <code>fg</code> and press <kbd>Enter</kbd>
     to return.</td>
     <td>Doesn't work on Windows</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>w</code> or <code>ctrl</code>
-    + <code>backspace</code></td>
-    <td>Delete backwards to a word boundary</td>
-    <td><code>ctrl</code> + <code>backspace</code> Doesn't
+    <td><kbd>Ctrl</kbd>+<kbd>W</kbd> or <kbd>Ctrl</kbd>
+   +<kbd>Backspace</kbd></td>
+    <td>Delete backward to a word boundary</td>
+    <td><kbd>Ctrl</kbd>+<kbd>Backspace</kbd> Doesn't
     work on Linux, Mac and Windows</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>delete</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Delete</kbd></td>
     <td>Delete forward to a word boundary</td>
     <td>Doesn't work on Mac</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>left</code> or
-    <code>meta</code> + <code>b</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Left arrow</kbd> or
+    <kbd>Meta</kbd>+<kbd>B</kbd></td>
     <td>Word left</td>
-    <td><code>ctrl</code> + <code>left</code> Doesn't work
+    <td><kbd>Ctrl</kbd>+<kbd>Left arrow</kbd> Doesn't work
     on Mac</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>right</code> or
-    <code>meta</code> + <code>f</code></td>
+    <td><kbd>Ctrl</kbd>+<kbd>Right arrow</kbd> or
+    <kbd>Meta</kbd>+<kbd>F</kbd></td>
     <td>Word right</td>
-    <td><code>ctrl</code> + <code>right</code> Doesn't work
+    <td><kbd>Ctrl</kbd>+<kbd>Right arrow</kbd> Doesn't work
     on Mac</td>
   </tr>
   <tr>
-    <td><code>meta</code> + <code>d</code> or <code>meta</code>
-    + <code>delete</code></td>
+    <td><kbd>Meta</kbd>+<kbd>D</kbd> or <kbd>Meta</kbd>
+   +<kbd>Delete</kbd></td>
     <td>Delete word right</td>
-    <td><code>meta</code> + <code>delete</code> Doesn't work
+    <td><kbd>Meta</kbd>+<kbd>Delete</kbd> Doesn't work
     on windows</td>
   </tr>
   <tr>
-    <td><code>meta</code> + <code>backspace</code></td>
+    <td><kbd>Meta</kbd>+<kbd>Backspace</kbd></td>
     <td>Delete word left</td>
     <td>Doesn't work on Mac</td>
   </tr>
 </table>
 
-[`'SIGCONT'`]: readline.html#readline_event_sigcont
-[`'SIGTSTP'`]: readline.html#readline_event_sigtstp
-[`'line'`]: #readline_event_line
-[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
-[`process.stdin`]: process.html#process_process_stdin
-[`process.stdout`]: process.html#process_process_stdout
-[`rl.close()`]: #readline_rl_close
-[Readable]: stream.html#stream_readable_streams
-[TTY]: tty.html
+[Readable]: stream.md#stream_readable_streams
+[TTY]: tty.md
 [TTY keybindings]: #readline_tty_keybindings
-[Writable]: stream.html#stream_writable_streams
+[Writable]: stream.md#stream_writable_streams
+[`'SIGCONT'`]: #readline_event_sigcont
+[`'SIGTSTP'`]: #readline_event_sigtstp
+[`'line'`]: #readline_event_line
+[`fs.ReadStream`]: fs.md#fs_class_fs_readstream
+[`process.stdin`]: process.md#process_process_stdin
+[`process.stdout`]: process.md#process_process_stdout
+[`rl.close()`]: #readline_rl_close
+[`unref()`]: net.md#net_socket_unref
 [reading files]: #readline_example_read_file_stream_line_by_line

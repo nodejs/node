@@ -68,16 +68,16 @@ For division by powers of 2, use BN_rshift(3).
 
 BN_mod() corresponds to BN_div() with I<dv> set to B<NULL>.
 
-BN_nnmod() reduces I<a> modulo I<m> and places the non-negative
+BN_nnmod() reduces I<a> modulo I<m> and places the nonnegative
 remainder in I<r>.
 
-BN_mod_add() adds I<a> to I<b> modulo I<m> and places the non-negative
+BN_mod_add() adds I<a> to I<b> modulo I<m> and places the nonnegative
 result in I<r>.
 
 BN_mod_sub() subtracts I<b> from I<a> modulo I<m> and places the
-non-negative result in I<r>.
+nonnegative result in I<r>.
 
-BN_mod_mul() multiplies I<a> by I<b> and finds the non-negative
+BN_mod_mul() multiplies I<a> by I<b> and finds the nonnegative
 remainder respective to modulus I<m> (C<r=(a*b) mod m>). I<r> may be
 the same B<BIGNUM> as I<a> or I<b>. For more efficient algorithms for
 repeated computations using the same modulus, see
@@ -119,7 +119,7 @@ L<BN_add_word(3)>, L<BN_set_bit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

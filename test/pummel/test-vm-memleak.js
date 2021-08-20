@@ -20,14 +20,20 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --max_old_space_size=32
+// Flags: --max_old_space_size=32 --expose_gc
 
-require('../common');
+const common = require('../common');
+
+if (process.config.variables.asan) {
+  common.skip('ASAN messes with memory measurements');
+}
+
 const assert = require('assert');
 const vm = require('vm');
 
+const baselineRss = process.memoryUsage.rss();
+
 const start = Date.now();
-let maxMem = 0;
 
 const interval = setInterval(function() {
   try {
@@ -35,11 +41,13 @@ const interval = setInterval(function() {
   } catch {
   }
 
-  const rss = process.memoryUsage().rss;
-  maxMem = Math.max(rss, maxMem);
+  global.gc();
+  const rss = process.memoryUsage.rss();
+  assert.ok(rss < baselineRss + 32 * 1024 * 1024,
+            `memory usage: ${rss} baseline: ${baselineRss}`);
 
+  // Stop after 5 seconds.
   if (Date.now() - start > 5 * 1000) {
-    // wait 10 seconds.
     clearInterval(interval);
 
     testContextLeak();
@@ -47,11 +55,8 @@ const interval = setInterval(function() {
 }, 1);
 
 function testContextLeak() {
+  // TODO: This needs a comment explaining what it's doing. Will it crash the
+  // test if there is a memory leak? Or what?
   for (let i = 0; i < 1000; i++)
     vm.createContext({});
 }
-
-process.on('exit', function() {
-  console.error(`max mem: ${Math.round(maxMem / (1024 * 1024))}mb`);
-  assert.ok(maxMem < 64 * 1024 * 1024);
-});

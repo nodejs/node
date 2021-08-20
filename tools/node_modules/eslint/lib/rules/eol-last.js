@@ -5,12 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const lodash = require("lodash");
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -48,13 +42,14 @@ module.exports = {
             Program: function checkBadEOF(node) {
                 const sourceCode = context.getSourceCode(),
                     src = sourceCode.getText(),
+                    lastLine = sourceCode.lines[sourceCode.lines.length - 1],
                     location = {
-                        column: lodash.last(sourceCode.lines).length,
+                        column: lastLine.length,
                         line: sourceCode.lines.length
                     },
                     LF = "\n",
                     CRLF = `\r${LF}`,
-                    endsWithNewline = lodash.endsWith(src, LF);
+                    endsWithNewline = src.endsWith(LF);
 
                 /*
                  * Empty source is always valid: No content in file so we don't

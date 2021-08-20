@@ -47,7 +47,7 @@ class ZoneHandleSet final {
       data_ = reinterpret_cast<Address>(value) | kSingletonTag;
     } else if ((data_ & kTagMask) == kSingletonTag) {
       if (singleton() == value) return;
-      List* list = new (zone->New(sizeof(List))) List(zone);
+      List* list = zone->New<List>(zone);
       if (singleton() < value) {
         list->push_back(singleton());
         list->push_back(value);
@@ -64,7 +64,7 @@ class ZoneHandleSet final {
         if (old_list->at(i) == value) return;
         if (old_list->at(i) > value) break;
       }
-      List* new_list = new (zone->New(sizeof(List))) List(zone);
+      List* new_list = zone->New<List>(zone);
       new_list->reserve(old_list->size() + 1);
       size_t i = 0;
       for (; i < old_list->size(); ++i) {

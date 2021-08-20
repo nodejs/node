@@ -78,6 +78,11 @@ class BaseObject : public MemoryRetainer {
   // root and will not be touched by the garbage collector.
   inline void ClearWeak();
 
+  // Reports whether this BaseObject is using a weak reference or detached,
+  // i.e. whether is can be deleted by GC once no strong BaseObjectPtrs refer
+  // to it anymore.
+  inline bool IsWeakOrDetached() const;
+
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
@@ -96,7 +101,7 @@ class BaseObject : public MemoryRetainer {
   // This is a bit of a hack. See the override in async_wrap.cc for details.
   virtual bool IsDoneInitializing() const;
 
-  // Can be used to avoid this object keepling itself alive as a GC root
+  // Can be used to avoid this object keeping itself alive as a GC root
   // indefinitely, for example when this object is owned and deleted by another
   // BaseObject once that is torn down. This can only be called when there is
   // a BaseObjectPtr to this object.
@@ -111,13 +116,13 @@ class BaseObject : public MemoryRetainer {
   // the current object:
   // - kUntransferable:
   //     No transfer is possible, either because this type of BaseObject does
-  //     not know how to be transfered, or because it is not in a state in
+  //     not know how to be transferred, or because it is not in a state in
   //     which it is possible to do so (e.g. because it has already been
-  //     transfered).
+  //     transferred).
   // - kTransferable:
-  //     This object can be transfered in a destructive fashion, i.e. will be
+  //     This object can be transferred in a destructive fashion, i.e. will be
   //     rendered unusable on the sending side of the channel in the process
-  //     of being transfered. (In C++ this would be referred to as movable but
+  //     of being transferred. (In C++ this would be referred to as movable but
   //     not copyable.) Objects of this type need to be listed in the
   //     `transferList` argument of the relevant postMessage() call in order to
   //     make sure that they are not accidentally destroyed on the sending side.
@@ -147,7 +152,13 @@ class BaseObject : public MemoryRetainer {
   virtual v8::Maybe<bool> FinalizeTransferRead(
       v8::Local<v8::Context> context, v8::ValueDeserializer* deserializer);
 
+  // Indicates whether this object is expected to use a strong reference during
+  // a clean process exit (due to an empty event loop).
+  virtual bool IsNotIndicativeOfMemoryLeakAtExit() const;
+
   virtual inline void OnGCCollect();
+
+  virtual inline bool is_snapshotable() const { return false; }
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
@@ -180,7 +191,7 @@ class BaseObject : public MemoryRetainer {
     // Indicates whether MakeWeak() has been called.
     bool wants_weak_jsobj = false;
     // Indicates whether Detach() has been called. If that is the case, this
-    // object will be destryoed once the strong pointer count drops to zero.
+    // object will be destroyed once the strong pointer count drops to zero.
     bool is_detached = false;
     // Reference to the original BaseObject. This is used by weak pointers.
     BaseObject* self = nullptr;

@@ -1,4 +1,4 @@
-// META: global=worker
+// META: global=window,worker
 
 'use strict';
 
@@ -24,6 +24,12 @@ const encodings = [
     value: [144, 133],
     expected: "\u{6c34}",
     invalid: [255]
+  },
+  {
+    name: 'ISO-2022-JP',
+    value: [65, 66, 67, 0x1B, 65, 66, 67],
+    expected: "ABC\u{fffd}ABC",
+    invalid: [0x0E]
   },
   {
     name: 'ISO-8859-14',
@@ -67,9 +73,9 @@ for (const encoding of encodings) {
     const writer = stream.writable.getWriter();
     const writePromise = writer.write(new Uint8Array(encoding.invalid));
     const closePromise = writer.close();
-    await promise_rejects(t, new TypeError(), reader.read(),
+    await promise_rejects_js(t, TypeError, reader.read(),
                           'readable should be errored');
-    await promise_rejects(t, new TypeError(),
+    await promise_rejects_js(t, TypeError,
                           Promise.all([writePromise, closePromise]),
                           'writable should be errored');
   }, `TextDecoderStream should be able to reject invalid sequences in ` +

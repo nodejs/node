@@ -8,7 +8,6 @@ const crypto = require('crypto')
 const log = require('npmlog')
 const semver = require('semver')
 const request = require('request')
-const mkdir = require('mkdirp')
 const processRelease = require('./process-release')
 const win = process.platform === 'win32'
 const getProxyFromURI = require('./proxy')
@@ -114,7 +113,7 @@ function install (fs, gyp, argv, callback) {
     log.verbose('ensuring nodedir is created', devDir)
 
     // first create the dir for the node dev files
-    mkdir(devDir, function (err, created) {
+    fs.mkdir(devDir, { recursive: true }, function (err, created) {
       if (err) {
         if (err.code === 'EACCES') {
           eaccesFallback(err)
@@ -310,7 +309,7 @@ function install (fs, gyp, argv, callback) {
           log.verbose(name, 'dir', dir)
           log.verbose(name, 'url', libUrl)
 
-          mkdir(dir, function (err) {
+          fs.mkdir(dir, { recursive: true }, function (err) {
             if (err) {
               return done(err)
             }

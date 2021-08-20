@@ -253,11 +253,8 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 	    Power*)
 		echo "ppc-apple-darwin${VERSION}"
 		;;
-	    x86_64)
-		echo "x86_64-apple-darwin${VERSION}"
-		;;
 	    *)
-		echo "i686-apple-darwin${VERSION}"
+		echo "${MACHINE}-apple-darwin${VERSION}"
 		;;
 	esac
 	exit 0
@@ -497,6 +494,9 @@ case "$GUESSOS" in
 	else
 	    OUT="darwin64-x86_64-cc"
 	fi ;;
+  $MACHINE-apple-darwin*)
+	OUT="darwin64-$MACHINE-cc"
+	;;
   armv6+7-*-iphoneos)
 	__CNF_CFLAGS="$__CNF_CFLAGS -arch armv6 -arch armv7"
 	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch armv6 -arch armv7"

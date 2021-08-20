@@ -102,7 +102,7 @@ public:
     /**
      * Create a numbering system using the specified radix, type, and description.
      * @param radix         The radix (base) for this numbering system.
-     * @param isAlgorithmic TRUE if the numbering system is algorithmic rather than numeric.
+     * @param isAlgorithmic true if the numbering system is algorithmic rather than numeric.
      * @param description   The string representing the set of digits used in a numeric system, or the name of the RBNF
      *                      ruleset to be used in an algorithmic system.
      * @param status ICU status
@@ -171,10 +171,10 @@ public:
 
 
     /**
-     * Returns TRUE if the given numbering system is algorithmic
+     * Returns true if the given numbering system is algorithmic
      *
-     * @return         TRUE if the numbering system is algorithmic.
-     *                 Otherwise, return FALSE.
+     * @return         true if the numbering system is algorithmic.
+     *                 Otherwise, return false.
      * @stable ICU 4.2
      */
     UBool isAlgorithmic() const;

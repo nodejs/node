@@ -21,7 +21,10 @@ const astUtils = require("./utils/ast-utils");
  * @returns {boolean} `true` if the node is 'NaN' identifier.
  */
 function isNaNIdentifier(node) {
-    return Boolean(node) && node.type === "Identifier" && node.name === "NaN";
+    return Boolean(node) && (
+        astUtils.isSpecificId(node, "NaN") ||
+        astUtils.isSpecificMemberAccess(node, "Number", "NaN")
+    );
 }
 
 //------------------------------------------------------------------------------
@@ -101,7 +104,7 @@ module.exports = {
         }
 
         /**
-         * Checks the the given `CallExpression` node for `.indexOf(NaN)` and `.lastIndexOf(NaN)`.
+         * Checks the given `CallExpression` node for `.indexOf(NaN)` and `.lastIndexOf(NaN)`.
          * @param {ASTNode} node The node to check.
          * @returns {void}
          */

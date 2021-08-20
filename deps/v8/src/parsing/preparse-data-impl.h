@@ -5,11 +5,10 @@
 #ifndef V8_PARSING_PREPARSE_DATA_IMPL_H_
 #define V8_PARSING_PREPARSE_DATA_IMPL_H_
 
-#include "src/parsing/preparse-data.h"
-
 #include <memory>
 
 #include "src/common/assert-scope.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 namespace internal {
@@ -37,12 +36,10 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
  public:
   class ByteData : public PreparseByteDataConstants {
    public:
-    ByteData() {}
-
     // Reading from the ByteData is only allowed when a ReadingScope is on the
-    // stack. This ensures that we have a DisallowHeapAllocation in place
+    // stack. This ensures that we have a DisallowGarbageCollection in place
     // whenever ByteData holds a raw pointer into the heap.
-    class ReadingScope {
+    class V8_NODISCARD ReadingScope {
      public:
       ReadingScope(ByteData* consumed_data, Data data)
           : consumed_data_(consumed_data) {
@@ -61,7 +58,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
      private:
       ByteData* consumed_data_;
-      DISALLOW_HEAP_ALLOCATION(no_gc)
+      DISALLOW_GARBAGE_COLLECTION(no_gc)
     };
 
     void SetPosition(int position) {
@@ -147,6 +144,8 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   };
 
   BaseConsumedPreparseData() : scope_data_(new ByteData()), child_index_(0) {}
+  BaseConsumedPreparseData(const BaseConsumedPreparseData&) = delete;
+  BaseConsumedPreparseData& operator=(const BaseConsumedPreparseData&) = delete;
 
   virtual Data GetScopeData() = 0;
 
@@ -177,8 +176,6 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   // When consuming the data, these indexes point to the data we're going to
   // consume next.
   int child_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(BaseConsumedPreparseData);
 };
 
 // Implementation of ConsumedPreparseData for on-heap data.
@@ -201,8 +198,11 @@ class ZonePreparseData : public ZoneObject {
   V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
                                      int child_length);
 
+  ZonePreparseData(const ZonePreparseData&) = delete;
+  ZonePreparseData& operator=(const ZonePreparseData&) = delete;
+
   Handle<PreparseData> Serialize(Isolate* isolate);
-  Handle<PreparseData> Serialize(OffThreadIsolate* isolate);
+  Handle<PreparseData> Serialize(LocalIsolate* isolate);
 
   int children_length() const { return static_cast<int>(children_.size()); }
 
@@ -218,14 +218,12 @@ class ZonePreparseData : public ZoneObject {
  private:
   ZoneVector<uint8_t> byte_data_;
   ZoneVector<ZonePreparseData*> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
 
 ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
     Zone* zone, int children_length) {
   DCHECK(is_finalized_);
-  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
+  return zone->New<ZonePreparseData>(zone, &zone_byte_data_, children_length);
 }
 
 // Implementation of ConsumedPreparseData for PreparseData

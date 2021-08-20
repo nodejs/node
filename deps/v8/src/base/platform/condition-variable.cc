@@ -159,7 +159,37 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   return result != 0;
 }
 
-#endif  // V8_OS_POSIX
+#elif V8_OS_STARBOARD
+
+ConditionVariable::ConditionVariable() {
+  SbConditionVariableCreate(&native_handle_, nullptr);
+}
+
+ConditionVariable::~ConditionVariable() {
+  SbConditionVariableDestroy(&native_handle_);
+}
+
+void ConditionVariable::NotifyOne() {
+  SbConditionVariableSignal(&native_handle_);
+}
+
+void ConditionVariable::NotifyAll() {
+  SbConditionVariableBroadcast(&native_handle_);
+}
+
+void ConditionVariable::Wait(Mutex* mutex) {
+  SbConditionVariableWait(&native_handle_, &mutex->native_handle());
+}
+
+bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
+  SbTime microseconds = static_cast<SbTime>(rel_time.InMicroseconds());
+  SbConditionVariableResult result = SbConditionVariableWaitTimed(
+      &native_handle_, &mutex->native_handle(), microseconds);
+  DCHECK(result != kSbConditionVariableFailed);
+  return result == kSbConditionVariableSignaled;
+}
+
+#endif  // V8_OS_STARBOARD
 
 }  // namespace base
 }  // namespace v8

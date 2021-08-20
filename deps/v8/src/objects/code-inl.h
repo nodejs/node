@@ -5,18 +5,21 @@
 #ifndef V8_OBJECTS_CODE_INL_H_
 #define V8_OBJECTS_CODE_INL_H_
 
-#include "src/objects/code.h"
-
 #include "src/base/memory.h"
+#include "src/baseline/bytecode-offset-iterator.h"
 #include "src/codegen/code-desc.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/objects/code.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -55,9 +58,18 @@ int AbstractCode::InstructionSize() {
   }
 }
 
-ByteArray AbstractCode::source_position_table() {
+ByteArray AbstractCode::SourcePositionTableInternal() {
   if (IsCode()) {
-    return GetCode().SourcePositionTable();
+    DCHECK_NE(GetCode().kind(), CodeKind::BASELINE);
+    return GetCode().source_position_table();
+  } else {
+    return GetBytecodeArray().SourcePositionTable();
+  }
+}
+
+ByteArray AbstractCode::SourcePositionTable(SharedFunctionInfo sfi) {
+  if (IsCode()) {
+    return GetCode().SourcePositionTable(sfi);
   } else {
     return GetBytecodeArray().SourcePositionTable();
   }
@@ -68,13 +80,6 @@ int AbstractCode::SizeIncludingMetadata() {
     return GetCode().SizeIncludingMetadata();
   } else {
     return GetBytecodeArray().SizeIncludingMetadata();
-  }
-}
-int AbstractCode::ExecutableSize() {
-  if (IsCode()) {
-    return GetCode().ExecutableSize();
-  } else {
-    return GetBytecodeArray().BytecodeArraySize();
   }
 }
 
@@ -116,12 +121,8 @@ bool AbstractCode::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
-AbstractCode::Kind AbstractCode::kind() {
-  if (IsCode()) {
-    return static_cast<AbstractCode::Kind>(GetCode().kind());
-  } else {
-    return INTERPRETED_FUNCTION;
-  }
+CodeKind AbstractCode::kind() {
+  return IsCode() ? GetCode().kind() : CodeKind::INTERPRETED_FUNCTION;
 }
 
 Code AbstractCode::GetCode() { return Code::cast(*this); }
@@ -175,78 +176,91 @@ OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, safepoint_table_offset, kSafepointTableOffsetOffset)
+INT_ACCESSORS(Code, raw_metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
+INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !ObjectInYoungGeneration(value))
-#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
-  SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                                  !ObjectInYoungGeneration(value))
+#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)           \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+                                     !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
+#define IS_BASELINE() (kind() == CodeKind::BASELINE)
+ACCESSORS_CHECKED2(Code, source_position_table, ByteArray, kPositionTableOffset,
+                   !IS_BASELINE(),
+                   !IS_BASELINE() && !ObjectInYoungGeneration(value))
+ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
+                   IS_BASELINE(),
+                   IS_BASELINE() && !ObjectInYoungGeneration(value))
+#undef IS_BASELINE
 // Concurrent marker needs to access kind specific flags in code data container.
-SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
-                            kCodeDataContainerOffset)
+RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
+                               kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
-#undef SYNCHRONIZED_CODE_ACCESSORS
+#undef RELEASE_ACQUIRE_CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kDeoptimizationDataOffset, Smi::FromInt(0));
-  WRITE_FIELD(*this, kSourcePositionTableOffset, Smi::FromInt(0));
+  WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
 }
 
 void Code::clear_padding() {
+  // Clear the padding between the header and `raw_body_start`.
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
-  Address data_end =
-      has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
-  memset(reinterpret_cast<void*>(data_end), 0,
-         CodeSize() - (data_end - address()));
+
+  // Clear the padding after `raw_body_end`.
+  size_t trailing_padding_size =
+      CodeSize() - Code::kHeaderSize - raw_body_size();
+  memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
 }
 
-ByteArray Code::SourcePositionTableIfCollected() const {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  Object maybe_table = source_position_table();
-  if (maybe_table.IsUndefined(roots) || maybe_table.IsException(roots))
-    return roots.empty_byte_array();
-  return SourcePositionTable();
-}
-
-ByteArray Code::SourcePositionTable() const {
-  Object maybe_table = source_position_table();
-  DCHECK(!maybe_table.IsUndefined() && !maybe_table.IsException());
-  DCHECK(maybe_table.IsByteArray());
-  return ByteArray::cast(maybe_table);
+ByteArray Code::SourcePositionTable(SharedFunctionInfo sfi) const {
+  DisallowGarbageCollection no_gc;
+  if (kind() == CodeKind::BASELINE) {
+    return sfi.GetBytecodeArray(sfi.GetIsolate()).SourcePositionTable();
+  }
+  return source_position_table();
 }
 
 Object Code::next_code_link() const {
-  return code_data_container().next_code_link();
+  return code_data_container(kAcquireLoad).next_code_link();
 }
 
 void Code::set_next_code_link(Object value) {
-  code_data_container().set_next_code_link(value);
+  code_data_container(kAcquireLoad).set_next_code_link(value);
+}
+
+Address Code::raw_body_start() const { return raw_instruction_start(); }
+
+Address Code::raw_body_end() const {
+  return raw_body_start() + raw_body_size();
+}
+
+int Code::raw_body_size() const {
+  return raw_instruction_size() + raw_metadata_size();
 }
 
 int Code::InstructionSize() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionSize();
-  return raw_instruction_size();
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionSize()
+                                               : raw_instruction_size();
 }
 
 Address Code::raw_instruction_start() const {
-  return FIELD_ADDR(*this, kHeaderSize);
+  return field_address(kHeaderSize);
 }
 
 Address Code::InstructionStart() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionStart();
-  return raw_instruction_start();
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionStart()
+                                               : raw_instruction_start();
 }
 
 Address Code::raw_instruction_end() const {
@@ -254,41 +268,51 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionEnd();
-  return raw_instruction_end();
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionEnd()
+                                               : raw_instruction_end();
 }
 
-int Code::GetUnwindingInfoSizeOffset() const {
-  DCHECK(has_unwinding_info());
-  return RoundUp(kHeaderSize + raw_instruction_size(), kInt64Size);
+Address Code::raw_metadata_start() const {
+  return raw_instruction_start() + raw_instruction_size();
 }
 
-int Code::unwinding_info_size() const {
-  DCHECK(has_unwinding_info());
-  return static_cast<int>(ReadField<uint64_t>(GetUnwindingInfoSizeOffset()));
+Address Code::InstructionStart(Isolate* isolate, Address pc) const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionStart(isolate, pc)
+             : raw_instruction_start();
 }
 
-void Code::set_unwinding_info_size(int value) {
-  DCHECK(has_unwinding_info());
-  WriteField<uint64_t>(GetUnwindingInfoSizeOffset(), value);
+Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionEnd(isolate, pc)
+             : raw_instruction_end();
 }
 
-Address Code::unwinding_info_start() const {
-  DCHECK(has_unwinding_info());
-  return FIELD_ADDR(*this, GetUnwindingInfoSizeOffset()) + kInt64Size;
+int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
+  Address instruction_start = InstructionStart(isolate, pc);
+  Address offset = pc - instruction_start;
+  DCHECK_LE(offset, InstructionSize());
+  return static_cast<int>(offset);
 }
 
-Address Code::unwinding_info_end() const {
-  DCHECK(has_unwinding_info());
-  return unwinding_info_start() + unwinding_info_size();
+Address Code::MetadataStart() const {
+  STATIC_ASSERT(kOnHeapBodyIsContiguous);
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
+                                               : raw_metadata_start();
 }
 
-int Code::body_size() const {
-  int unpadded_body_size =
-      has_unwinding_info()
-          ? static_cast<int>(unwinding_info_end() - raw_instruction_start())
-          : raw_instruction_size();
-  return RoundUp(unpadded_body_size, kObjectAlignment);
+Address Code::raw_metadata_end() const {
+  return raw_metadata_start() + raw_metadata_size();
+}
+
+Address Code::MetadataEnd() const {
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataEnd()
+                                               : raw_metadata_end();
+}
+
+int Code::MetadataSize() const {
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataSize()
+                                               : raw_metadata_size();
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -299,9 +323,9 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return ByteArray::unchecked_cast(
-      TaggedField<HeapObject, kRelocationInfoOffset>::load(isolate, *this));
+      TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
 }
 
 byte* Code::relocation_start() const {
@@ -318,21 +342,14 @@ int Code::relocation_size() const {
 
 Address Code::entry() const { return raw_instruction_start(); }
 
-bool Code::contains(Address inner_pointer) {
+bool Code::contains(Isolate* isolate, Address inner_pointer) {
   if (is_off_heap_trampoline()) {
-    if (OffHeapInstructionStart() <= inner_pointer &&
-        inner_pointer < OffHeapInstructionEnd()) {
+    if (OffHeapInstructionStart(isolate, inner_pointer) <= inner_pointer &&
+        inner_pointer < OffHeapInstructionEnd(isolate, inner_pointer)) {
       return true;
     }
   }
   return (address() <= inner_pointer) && (inner_pointer < address() + Size());
-}
-
-int Code::ExecutableSize() const {
-  // Check that the assumptions about the layout of the code object holds.
-  DCHECK_EQ(static_cast<int>(raw_instruction_start() - address()),
-            Code::kHeaderSize);
-  return raw_instruction_size() + Code::kHeaderSize;
 }
 
 // static
@@ -343,96 +360,176 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
             static_cast<size_t>(desc.reloc_size));
 }
 
-int Code::CodeSize() const { return SizeFor(body_size()); }
+int Code::CodeSize() const { return SizeFor(raw_body_size()); }
 
-Code::Kind Code::kind() const {
-  return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
+CodeKind Code::kind() const {
+  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return KindField::decode(flags);
 }
 
-void Code::initialize_flags(Kind kind, bool has_unwinding_info,
-                            bool is_turbofanned, int stack_slots,
+int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
+                                         BytecodeArray bytecodes) {
+  DisallowGarbageCollection no_gc;
+  CHECK(!is_baseline_trampoline_builtin());
+  if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
+  Address pc = baseline_pc - InstructionStart();
+  offset_iterator.AdvanceToPCOffset(pc);
+  return offset_iterator.current_bytecode_offset();
+}
+
+uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                               BytecodeToPCPosition position,
+                                               BytecodeArray bytecodes) {
+  DisallowGarbageCollection no_gc;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
+  offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
+  uintptr_t pc = 0;
+  if (position == kPcAtStartOfBytecode) {
+    pc = offset_iterator.current_pc_start_offset();
+  } else {
+    DCHECK_EQ(position, kPcAtEndOfBytecode);
+    pc = offset_iterator.current_pc_end_offset();
+  }
+  return pc;
+}
+
+uintptr_t Code::GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
+                                                    BytecodeArray bytecodes) {
+  return GetBaselinePCForBytecodeOffset(bytecode_offset, kPcAtStartOfBytecode,
+                                        bytecodes);
+}
+
+uintptr_t Code::GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
+                                                  BytecodeArray bytecodes) {
+  return GetBaselinePCForBytecodeOffset(bytecode_offset, kPcAtEndOfBytecode,
+                                        bytecodes);
+}
+
+uintptr_t Code::GetBaselinePCForNextExecutedBytecode(int bytecode_offset,
+                                                     BytecodeArray bytecodes) {
+  DisallowGarbageCollection no_gc;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
+  Handle<BytecodeArray> bytecodes_handle(
+      reinterpret_cast<Address*>(&bytecodes));
+  interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,
+                                                       bytecode_offset);
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
+  if (bytecode == interpreter::Bytecode::kJumpLoop) {
+    return GetBaselineStartPCForBytecodeOffset(
+        bytecode_iterator.GetJumpTargetOffset(), bytecodes);
+  } else {
+    DCHECK(!interpreter::Bytecodes::IsJump(bytecode));
+    return GetBaselineEndPCForBytecodeOffset(bytecode_offset, bytecodes);
+  }
+}
+
+void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
-  static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
-  uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
-                   KindField::encode(kind) |
+  DCHECK(!CodeKindIsInterpretedJSFunction(kind));
+  uint32_t flags = KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
-  WriteField<uint32_t>(kFlagsOffset, flags);
+  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
+  RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
-  bool is_interpreter_trampoline =
-      (builtin_index() == Builtins::kInterpreterEntryTrampoline ||
-       builtin_index() == Builtins::kInterpreterEnterBytecodeAdvance ||
-       builtin_index() == Builtins::kInterpreterEnterBytecodeDispatch);
-  return is_interpreter_trampoline;
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  const int index = builtin_index();
+  return index != Builtins::kNoBuiltinId &&
+         (index == Builtins::kInterpreterEntryTrampoline ||
+          index == Builtins::kInterpreterEnterAtBytecode ||
+          index == Builtins::kInterpreterEnterAtNextBytecode);
+}
+
+inline bool Code::is_baseline_trampoline_builtin() const {
+  const int index = builtin_index();
+  return index != Builtins::kNoBuiltinId &&
+         (index == Builtins::kBaselineOutOfLinePrologue ||
+          index == Builtins::kBaselineEnterAtBytecode ||
+          index == Builtins::kBaselineEnterAtNextBytecode);
+}
+
+inline bool Code::is_baseline_leave_frame_builtin() const {
+  return builtin_index() == Builtins::kBaselineLeaveFrame;
 }
 
 inline bool Code::checks_optimization_marker() const {
   bool checks_marker =
       (builtin_index() == Builtins::kCompileLazy ||
-       builtin_index() == Builtins::kInterpreterEntryTrampoline);
+       builtin_index() == Builtins::kInterpreterEntryTrampoline ||
+       CodeKindCanTierUp(kind()));
   return checks_marker ||
-         (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
+         (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-inline bool Code::has_tagged_params() const {
-  return kind() != JS_TO_WASM_FUNCTION && kind() != C_WASM_ENTRY &&
-         kind() != WASM_FUNCTION;
-}
-
-inline bool Code::has_unwinding_info() const {
-  return HasUnwindingInfoField::decode(ReadField<uint32_t>(kFlagsOffset));
+inline bool Code::has_tagged_outgoing_params() const {
+  return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
+         kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
 }
 
 inline bool Code::is_turbofanned() const {
-  return IsTurbofannedField::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return IsTurbofannedField::decode(flags);
 }
 
 inline bool Code::can_have_weak_objects() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return CanHaveWeakObjectsField::decode(flags);
 }
 
 inline void Code::set_can_have_weak_objects(bool value) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t previous = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = CanHaveWeakObjectsField::update(previous, value);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_promise_rejection() const {
-  DCHECK(kind() == BUILTIN);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(kind() == CodeKind::BUILTIN);
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return IsPromiseRejectionField::decode(flags);
 }
 
 inline void Code::set_is_promise_rejection(bool value) {
-  DCHECK(kind() == BUILTIN);
-  int32_t previous = code_data_container().kind_specific_flags();
+  DCHECK(kind() == CodeKind::BUILTIN);
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = IsPromiseRejectionField::update(previous, value);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_exception_caught() const {
-  DCHECK(kind() == BUILTIN);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(kind() == CodeKind::BUILTIN);
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return IsExceptionCaughtField::decode(flags);
 }
 
 inline void Code::set_is_exception_caught(bool value) {
-  DCHECK(kind() == BUILTIN);
-  int32_t previous = code_data_container().kind_specific_flags();
+  DCHECK(kind() == CodeKind::BUILTIN);
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = IsExceptionCaughtField::update(previous, value);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_off_heap_trampoline() const {
-  return IsOffHeapTrampoline::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return IsOffHeapTrampoline::decode(flags);
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
@@ -442,27 +539,29 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 }
 
 int Code::builtin_index() const {
-  int index = ReadField<int>(kBuiltinIndexOffset);
-  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
+  int index = RELAXED_READ_INT_FIELD(*this, kBuiltinIndexOffset);
+  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
   return index;
 }
 
 void Code::set_builtin_index(int index) {
-  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
-  WriteField<int>(kBuiltinIndexOffset, index);
+  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
+  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
 }
 
-bool Code::is_builtin() const { return builtin_index() != -1; }
+bool Code::is_builtin() const {
+  return builtin_index() != Builtins::kNoBuiltinId;
+}
 
 unsigned Code::inlined_bytecode_size() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION ||
-         ReadField<unsigned>(kInlinedBytecodeSizeOffset) == 0);
-  return ReadField<unsigned>(kInlinedBytecodeSizeOffset);
+  unsigned size = RELAXED_READ_UINT_FIELD(*this, kInlinedBytecodeSizeOffset);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
+  return size;
 }
 
 void Code::set_inlined_bytecode_size(unsigned size) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || size == 0);
-  WriteField<unsigned>(kInlinedBytecodeSizeOffset, size);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
+  RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
 }
 
 bool Code::has_safepoint_info() const {
@@ -471,98 +570,125 @@ bool Code::has_safepoint_info() const {
 
 int Code::stack_slots() const {
   DCHECK(has_safepoint_info());
-  return StackSlotsField::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return StackSlotsField::decode(flags);
 }
 
 bool Code::marked_for_deoptimization() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindCanDeoptimize(kind()));
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container().kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 int Code::deoptimization_count() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindCanDeoptimize(kind()));
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   int count = DeoptCountField::decode(flags);
   DCHECK_GE(count, 0);
   return count;
 }
 
 void Code::increment_deoptimization_count() {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindCanDeoptimize(kind()));
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t flags = container.kind_specific_flags();
   int32_t count = DeoptCountField::decode(flags);
   DCHECK_GE(count, 0);
   CHECK_LE(count + 1, DeoptCountField::kMax);
   int32_t updated = DeoptCountField::update(flags, count + 1);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 bool Code::embedded_objects_cleared() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return EmbeddedObjectsClearedField::decode(flags);
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  int32_t previous = code_data_container().kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 bool Code::deopt_already_counted() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container().kind_specific_flags();
+  DCHECK(CodeKindCanDeoptimize(kind()));
+  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return DeoptAlreadyCountedField::decode(flags);
 }
 
 void Code::set_deopt_already_counted(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container().kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
-  code_data_container().set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
-bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
-bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
+bool Code::is_optimized_code() const {
+  return CodeKindIsOptimizedJSFunction(kind());
+}
+bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
-  if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();
+  if (!FLAG_enable_embedded_constant_pool) {
+    // Redirection needed since the field doesn't exist in this case.
+    return code_comments_offset();
+  }
   return ReadField<int>(kConstantPoolOffsetOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
-  if (!FLAG_enable_embedded_constant_pool) return;
-  DCHECK_LE(value, InstructionSize());
+  if (!FLAG_enable_embedded_constant_pool) {
+    // Redirection needed since the field doesn't exist in this case.
+    return;
+  }
+  DCHECK_LE(value, MetadataSize());
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return InstructionStart() + constant_pool_offset();
+  return MetadataStart() + constant_pool_offset();
 }
 
 Address Code::code_comments() const {
-  return InstructionStart() + code_comments_offset();
+  return MetadataStart() + code_comments_offset();
 }
+
+Address Code::unwinding_info_start() const {
+  return MetadataStart() + unwinding_info_offset();
+}
+
+Address Code::unwinding_info_end() const { return MetadataEnd(); }
+
+int Code::unwinding_info_size() const {
+  DCHECK_GE(unwinding_info_end(), unwinding_info_start());
+  return static_cast<int>(unwinding_info_end() - unwinding_info_start());
+}
+
+bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
 Code Code::GetCodeFromTargetAddress(Address address) {
   {
     // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
     // in the current isolate.
-    Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
-    Address end = start + Isolate::CurrentEmbeddedBlobSize();
+    Address start =
+        reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlobCode());
+    Address end = start + Isolate::CurrentEmbeddedBlobCodeSize();
     CHECK(address < start || address >= end);
   }
 
@@ -589,7 +715,7 @@ bool Code::IsWeakObject(HeapObject object) {
 }
 
 bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
-  Map map = object.synchronized_map();
+  Map map = object.map(kAcquireLoad);
   InstanceType instance_type = map.instance_type();
   if (InstanceTypeChecker::IsMap(instance_type)) {
     return Map::cast(object).CanTransition();
@@ -606,6 +732,8 @@ bool Code::IsExecutable() {
 
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
+STATIC_ASSERT(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
+              kInt32Size);
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
@@ -644,7 +772,7 @@ void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
   WriteField<int32_t>(kParameterSizeOffset,
-                  (number_of_parameters << kSystemPointerSizeLog2));
+                      (number_of_parameters << kSystemPointerSizeLog2));
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -667,7 +795,7 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
            register_count());
     DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
     WriteField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset,
-                    incoming_new_target_or_generator_register.ToOperand());
+                        incoming_new_target_or_generator_register.ToOperand());
   }
 }
 
@@ -702,8 +830,8 @@ int32_t BytecodeArray::parameter_count() const {
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
-ACCESSORS(BytecodeArray, source_position_table, Object,
-          kSourcePositionTableOffset)
+RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table, Object,
+                          kSourcePositionTableOffset)
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
@@ -716,30 +844,26 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 bool BytecodeArray::HasSourcePositionTable() const {
-  Object maybe_table = source_position_table();
+  Object maybe_table = source_position_table(kAcquireLoad);
   return !(maybe_table.IsUndefined() || DidSourcePositionGenerationFail());
 }
 
 bool BytecodeArray::DidSourcePositionGenerationFail() const {
-  return source_position_table().IsException();
+  return source_position_table(kAcquireLoad).IsException();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
-  set_source_position_table(GetReadOnlyRoots().exception());
+  set_source_position_table(GetReadOnlyRoots().exception(), kReleaseStore);
 }
 
 ByteArray BytecodeArray::SourcePositionTable() const {
-  Object maybe_table = source_position_table();
+  // WARNING: This function may be called from a background thread, hence
+  // changes to how it accesses the heap can easily lead to bugs.
+  Object maybe_table = source_position_table(kAcquireLoad);
   if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(maybe_table.IsException(roots));
+  DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
   return roots.empty_byte_array();
-}
-
-ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
-  if (!HasSourcePositionTable()) return GetReadOnlyRoots().empty_byte_array();
-
-  return SourcePositionTable();
 }
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
@@ -748,13 +872,14 @@ int BytecodeArray::SizeIncludingMetadata() {
   int size = BytecodeArraySize();
   size += constant_pool().Size();
   size += handler_table().Size();
-  if (HasSourcePositionTable()) {
-    size += SourcePositionTable().Size();
+  ByteArray table = SourcePositionTable();
+  if (table.length() != 0) {
+    size += table.Size();
   }
   return size;
 }
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
@@ -762,17 +887,18 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(EagerSoftAndBailoutDeoptCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
-BailoutId DeoptimizationData::BytecodeOffset(int i) {
-  return BailoutId(BytecodeOffsetRaw(i).value());
+BytecodeOffset DeoptimizationData::GetBytecodeOffset(int i) {
+  return BytecodeOffset(BytecodeOffsetRaw(i).value());
 }
 
-void DeoptimizationData::SetBytecodeOffset(int i, BailoutId value) {
+void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 

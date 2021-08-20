@@ -11,7 +11,7 @@ const assert = require('assert');
 const globalTestCases = [
   [false, 'undefined'],
   [true, '\'tacos\''],
-  [undefined, 'undefined']
+  [undefined, 'undefined'],
 ];
 
 const globalTest = (useGlobal, cb, output) => (err, repl) => {
@@ -29,8 +29,7 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
 
 // Test how the global object behaves in each state for useGlobal
 for (const [option, expected] of globalTestCases) {
-  runRepl(option, globalTest, common.mustCall((err, output) => {
-    assert.ifError(err);
+  runRepl(option, globalTest, common.mustSucceed((output) => {
     assert.strictEqual(output, expected);
   }));
 }
@@ -58,8 +57,7 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
 };
 
 for (const option of processTestCases) {
-  runRepl(option, processTest, common.mustCall((err, output) => {
-    assert.ifError(err);
+  runRepl(option, processTest, common.mustSucceed((output) => {
     assert.strictEqual(output, 'undefined\n42');
   }));
 }

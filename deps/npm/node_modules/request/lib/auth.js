@@ -62,7 +62,7 @@ Auth.prototype.digest = function (method, path, authHeader) {
 
   var challenge = {}
   var re = /([a-z0-9_-]+)=(?:"([^"]+)"|([a-z0-9_-]+))/gi
-  for (;;) {
+  while (true) {
     var match = re.exec(authHeader)
     if (!match) {
       break

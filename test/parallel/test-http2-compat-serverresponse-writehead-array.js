@@ -14,7 +14,7 @@ server.listen(0, common.mustCall(() => {
   server.once('request', common.mustCall((request, response) => {
     const returnVal = response.writeHead(200, [
       ['foo', 'bar'],
-      ['ABC', 123]
+      ['ABC', 123],
     ]);
     assert.strictEqual(returnVal, response);
     response.end(common.mustCall(() => { server.close(); }));

@@ -1,6 +1,6 @@
 'use strict';
 
-const resolve = require('@rollup/plugin-node-resolve');
+const { nodeResolve } = require('@rollup/plugin-node-resolve');
 const commonjs = require('@rollup/plugin-commonjs');
 const json = require('@rollup/plugin-json');
 
@@ -10,6 +10,7 @@ module.exports = {
     file: 'dist/index.js',
     format: 'cjs',
     sourcemap: false,
+    exports: 'default',
   },
   external: [
     'stream',
@@ -39,12 +40,22 @@ module.exports = {
             'fsevents = require(\'fsevents\');', 'fsevents = undefined;'
           );
         }
+        // Remove circular dependency in glob that messes up rollup
+        return code.replace("var Glob = require('./glob.js').Glob", '');
       }
     },
     json({
       preferConst: true
     }),
-    resolve(), // tells Rollup how to find date-fns in node_modules
-    commonjs(), // Converts date-fns to ES modules
+    nodeResolve(), // tells Rollup how to find date-fns in node_modules
+    commonjs(),
+    {
+      name: 'banner',
+      renderChunk(code) {
+        const banner = '// Don\'t change this file manually,\n' +
+          '// it is generated from tools/node-lint-md-cli-rollup';
+        return code.replace('\'use strict\';', '\'use strict\';\n\n' + banner);
+      }
+    },
   ]
 };

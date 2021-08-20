@@ -45,7 +45,7 @@ invocation of a read function.
 The read functions work based on the SSL/TLS records. The data are received in
 records (with a maximum record size of 16kB). Only when a record has been
 completely received, can it be processed (decryption and check of integrity).
-Therefore data that was not retrieved at the last read call can still be
+Therefore, data that was not retrieved at the last read call can still be
 buffered inside the SSL layer and will be retrieved on the next read
 call. If B<num> is higher than the number of bytes buffered then the read
 functions will return with the bytes buffered. If no more bytes are in the
@@ -72,7 +72,7 @@ not set.
 Note that if B<SSL_MODE_AUTO_RETRY> is set and only non-application data is
 available the call will hang.
 
-If the underlying BIO is B<non-blocking>, a read function will also return when
+If the underlying BIO is B<nonblocking>, a read function will also return when
 the underlying BIO could not satisfy the needs of the function to continue the
 operation.
 In this case a call to L<SSL_get_error(3)> with the
@@ -83,7 +83,7 @@ a read function can also cause write operations.
 The calling process then must repeat the call after taking appropriate action
 to satisfy the needs of the read function.
 The action depends on the underlying BIO.
-When using a non-blocking socket, nothing is to be done, but select() can be
+When using a nonblocking socket, nothing is to be done, but select() can be
 used to check for the required condition.
 When using a buffering BIO, like a BIO pair, data must be written into or
 retrieved out of the BIO before being able to continue.
@@ -142,7 +142,7 @@ The SSL_read_ex() and SSL_peek_ex() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

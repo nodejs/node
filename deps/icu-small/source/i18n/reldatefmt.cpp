@@ -95,7 +95,7 @@ public:
 
     const UnicodeString emptyString;
 
-    // Mappping from source to target styles for alias fallback.
+    // Mapping from source to target styles for alias fallback.
     int32_t fallBackCache[UDAT_STYLE_COUNT];
 
     void adoptCombinedDateAndTime(SimpleFormatter *fmtToAdopt) {
@@ -1326,7 +1326,7 @@ ureldatefmt_formatNumeric( const URelativeDateTimeFormatter* reldatefmt,
     return res.extract(result, resultCapacity, *status);
 }
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_formatNumericToResult(
         const URelativeDateTimeFormatter* reldatefmt,
         double                            offset,
@@ -1369,7 +1369,7 @@ ureldatefmt_format( const URelativeDateTimeFormatter* reldatefmt,
     return res.extract(result, resultCapacity, *status);
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 ureldatefmt_formatToResult(
         const URelativeDateTimeFormatter* reldatefmt,
         double                            offset,

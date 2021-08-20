@@ -211,6 +211,7 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 
     dest->asn1_flag = src->asn1_flag;
     dest->asn1_form = src->asn1_form;
+    dest->decoded_from_explicit_params = src->decoded_from_explicit_params;
 
     if (src->seed) {
         OPENSSL_free(dest->seed);

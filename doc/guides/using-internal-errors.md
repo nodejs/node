@@ -1,4 +1,4 @@
-# Using the internal/errors.js Module
+# Using the internal/errors.js module
 
 ## What is internal/errors.js
 

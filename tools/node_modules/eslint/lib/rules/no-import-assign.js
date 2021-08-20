@@ -97,10 +97,10 @@ function isIterationVariable(node) {
  * - `Object.defineProperties`
  * - `Object.freeze`
  * - `Object.setPrototypeOf`
- * - `Refrect.defineProperty`
- * - `Refrect.deleteProperty`
- * - `Refrect.set`
- * - `Refrect.setPrototypeOf`
+ * - `Reflect.defineProperty`
+ * - `Reflect.deleteProperty`
+ * - `Reflect.set`
+ * - `Reflect.setPrototypeOf`
  * @param {ASTNode} node The node to check.
  * @param {Scope} scope A `escope.Scope` object to find variable (whichever).
  * @returns {boolean} `true` if the node is at the first argument of a well-known mutation function.

@@ -7,10 +7,8 @@
 #include "include/cppgc/allocation.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/object-start-bitmap-inl.h"
-#include "src/heap/cppgc/page-memory-inl.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -46,7 +44,7 @@ class Object {
   }
 
   // Allow implicitly converting Object to Address.
-  operator Address() const { return address(); }  // NOLINT
+  operator Address() const { return address(); }
 
  private:
   const size_t number_;
@@ -114,12 +112,7 @@ TEST(ObjectStartBitmapTest, AdjacentObjectsAtBegin) {
   EXPECT_EQ(2u, count);
 }
 
-#if defined(V8_CC_MSVC)
-#define MAYBE_AdjacentObjectsAtEnd DISABLED_AdjacentObjectsAtEnd
-#else  // !defined(V8_CC_MSVC)
-#define MAYBE_AdjacentObjectsAtEnd AdjacentObjectsAtEnd
-#endif  // !defined(V8_CC_MSVC)
-TEST(ObjectStartBitmapTest, MAYBE_AdjacentObjectsAtEnd) {
+TEST(ObjectStartBitmapTest, AdjacentObjectsAtEnd) {
   ObjectStartBitmap bitmap(Object::kBaseOffset);
   const size_t last_entry_index = ObjectStartBitmap::MaxEntries() - 1;
   Object object0(last_entry_index - 1);

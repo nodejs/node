@@ -51,9 +51,9 @@ void UnwindingInfoWriter::EndInstructionBlock(const InstructionBlock* block) {
       DCHECK_EQ(existing_state->offset_, eh_frame_writer_.base_offset());
       DCHECK_EQ(existing_state->tracking_fp_, tracking_fp_);
     } else {
-      block_initial_states_[successor_index] = new (zone_)
-          BlockInitialState(eh_frame_writer_.base_register(),
-                            eh_frame_writer_.base_offset(), tracking_fp_);
+      block_initial_states_[successor_index] = zone_->New<BlockInitialState>(
+          eh_frame_writer_.base_register(), eh_frame_writer_.base_offset(),
+          tracking_fp_);
     }
   }
 }

@@ -1,5 +1,6 @@
 #include "node_native_module.h"
 #include "util-inl.h"
+#include "debug_utils-inl.h"
 
 namespace node {
 namespace native_module {
@@ -7,7 +8,6 @@ namespace native_module {
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -70,6 +70,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
   std::vector<std::string> prefixes = {
 #if !HAVE_OPENSSL
     "internal/crypto/",
+    "internal/debugger/",
 #endif  // !HAVE_OPENSSL
 
     "internal/bootstrap/",
@@ -77,6 +78,9 @@ void NativeModuleLoader::InitializeModuleCategories() {
     "internal/deps/",
     "internal/main/"
   };
+
+  module_categories_.can_be_required.emplace(
+      "internal/deps/cjs-module-lexer/lexer");
 
   module_categories_.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
@@ -90,21 +94,21 @@ void NativeModuleLoader::InitializeModuleCategories() {
 
 #if !HAVE_OPENSSL
       "crypto",
+      "crypto/promises",
       "https",
       "http2",
       "tls",
       "_tls_common",
       "_tls_wrap",
+      "internal/tls/secure-pair",
+      "internal/tls/parse-cert-string",
+      "internal/tls/secure-context",
       "internal/http2/core",
       "internal/http2/compat",
       "internal/policy/manifest",
       "internal/process/policy",
       "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
-#if !NODE_EXPERIMENTAL_QUIC
-      "internal/quic/core",
-      "internal/quic/util",
-#endif
       "sys",  // Deprecated.
       "wasi",  // Experimental.
       "internal/test/binding",
@@ -118,7 +122,8 @@ void NativeModuleLoader::InitializeModuleCategories() {
       if (prefix.length() > id.length()) {
         continue;
       }
-      if (id.find(prefix) == 0) {
+      if (id.find(prefix) == 0 &&
+          module_categories_.can_be_required.count(id) == 0) {
         module_categories_.cannot_be_required.emplace(id);
       }
     }
@@ -204,38 +209,25 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
 #ifdef NODE_BUILTIN_MODULES_PATH
   std::string filename = OnDiskFileName(id);
 
-  uv_fs_t req;
-  uv_file file =
-      uv_fs_open(nullptr, &req, filename.c_str(), O_RDONLY, 0, nullptr);
-  CHECK_GE(req.result, 0);
-  uv_fs_req_cleanup(&req);
-
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
   std::string contents;
-  char buffer[4096];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  while (true) {
-    const int r =
-        uv_fs_read(nullptr, &req, file, &buf, 1, contents.length(), nullptr);
-    CHECK_GE(req.result, 0);
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    contents.append(buf.base, r);
+  int r = ReadFileSync(&contents, filename.c_str());
+  if (r != 0) {
+    const std::string buf = SPrintF("Cannot read local builtin. %s: %s \"%s\"",
+                                    uv_err_name(r),
+                                    uv_strerror(r),
+                                    filename);
+    Local<String> message = OneByteString(isolate, buf.c_str());
+    isolate->ThrowException(v8::Exception::Error(message));
+    return MaybeLocal<String>();
   }
-
   return String::NewFromUtf8(
       isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
 #else
   const auto source_it = source_.find(id);
-  CHECK_NE(source_it, source_.end());
+  if (UNLIKELY(source_it == source_.end())) {
+    fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
+    ABORT();
+  }
   return source_it->second.ToStringChecked(isolate);
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
@@ -256,12 +248,10 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     return {};
   }
 
-  std::string filename_s = id + std::string(".js");
+  std::string filename_s = std::string("node:") + id;
   Local<String> filename =
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
-  Local<Integer> line_offset = Integer::New(isolate, 0);
-  Local<Integer> column_offset = Integer::New(isolate, 0);
-  ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
+  ScriptOrigin origin(isolate, filename, 0, 0, true);
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   {

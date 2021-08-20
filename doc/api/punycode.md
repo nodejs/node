@@ -1,9 +1,6 @@
 # Punycode
 <!-- YAML
-changes:
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/7941
-    description: Accessing this module will now emit a deprecation warning.
+deprecated: v7.0.0
 -->
 
 <!--introduced_in=v0.10.0-->
@@ -12,10 +9,12 @@ changes:
 
 <!-- source_link=lib/punycode.js -->
 
-**The version of the punycode module bundled in Node.js is being deprecated**.
+**The version of the punycode module bundled in Node.js is being deprecated.**
 In a future major version of Node.js this module will be removed. Users
 currently depending on the `punycode` module should switch to using the
-userland-provided [Punycode.js][] module instead.
+userland-provided [Punycode.js][] module instead. For punycode-based URL
+encoding, see [`url.domainToASCII`][] or, more generally, the
+[WHATWG URL API][].
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
@@ -151,5 +150,7 @@ added: v0.6.1
 
 Returns a string identifying the current [Punycode.js][] version number.
 
-[Punycode.js]: https://github.com/bestiejs/punycode.js
 [Punycode]: https://tools.ietf.org/html/rfc3492
+[Punycode.js]: https://github.com/bestiejs/punycode.js
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`url.domainToASCII`]: url.md#url_url_domaintoascii_domain

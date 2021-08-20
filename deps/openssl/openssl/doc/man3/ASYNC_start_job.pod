@@ -166,7 +166,7 @@ otherwise.
 On Windows platforms the openssl/async.h header is dependent on some
 of the types customarily made available by including windows.h. The
 application developer is likely to require control over when the latter
-is included, commonly as one of the first included headers. Therefore
+is included, commonly as one of the first included headers. Therefore,
 it is defined as an application developer's responsibility to include
 windows.h prior to async.h.
 
@@ -321,7 +321,7 @@ added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

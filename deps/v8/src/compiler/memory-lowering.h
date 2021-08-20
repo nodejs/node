@@ -32,16 +32,19 @@ class MemoryLowering final : public Reducer {
   // An allocation state is propagated on the effect paths through the graph.
   class AllocationState final : public ZoneObject {
    public:
+    AllocationState(const AllocationState&) = delete;
+    AllocationState& operator=(const AllocationState&) = delete;
+
     static AllocationState const* Empty(Zone* zone) {
-      return new (zone) AllocationState();
+      return zone->New<AllocationState>();
     }
     static AllocationState const* Closed(AllocationGroup* group, Node* effect,
                                          Zone* zone) {
-      return new (zone) AllocationState(group, effect);
+      return zone->New<AllocationState>(group, effect);
     }
     static AllocationState const* Open(AllocationGroup* group, intptr_t size,
                                        Node* top, Node* effect, Zone* zone) {
-      return new (zone) AllocationState(group, size, top, effect);
+      return zone->New<AllocationState>(group, size, top, effect);
     }
 
     bool IsYoungGenerationAllocation() const;
@@ -52,6 +55,8 @@ class MemoryLowering final : public Reducer {
     intptr_t size() const { return size_; }
 
    private:
+    friend Zone;
+
     AllocationState();
     explicit AllocationState(AllocationGroup* group, Node* effect);
     AllocationState(AllocationGroup* group, intptr_t size, Node* top,
@@ -63,8 +68,6 @@ class MemoryLowering final : public Reducer {
     intptr_t const size_;
     Node* const top_;
     Node* const effect_;
-
-    DISALLOW_COPY_AND_ASSIGN(AllocationState);
   };
 
   using WriteBarrierAssertFailedCallback = std::function<void(
@@ -78,7 +81,6 @@ class MemoryLowering final : public Reducer {
       WriteBarrierAssertFailedCallback callback = [](Node*, Node*, const char*,
                                                      Zone*) { UNREACHABLE(); },
       const char* function_debug_name = nullptr);
-  ~MemoryLowering() = default;
 
   const char* reducer_name() const override { return "MemoryReducer"; }
 
@@ -107,7 +109,8 @@ class MemoryLowering final : public Reducer {
                                            Node* value,
                                            AllocationState const* state,
                                            WriteBarrierKind);
-  Node* DecodeExternalPointer(Node* encoded_pointer);
+  Node* DecodeExternalPointer(Node* encoded_pointer, ExternalPointerTag tag);
+  Reduction ReduceLoadMap(Node* encoded_pointer);
   Node* ComputeIndex(ElementAccess const& access, Node* node);
   bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
 

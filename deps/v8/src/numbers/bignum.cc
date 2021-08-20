@@ -155,7 +155,7 @@ void Bignum::AddBignum(const Bignum& other) {
   //  cccccccccccc 0000
   // In both cases we might need a carry bigit.
 
-  EnsureCapacity(1 + Max(BigitLength(), other.BigitLength()) - exponent_);
+  EnsureCapacity(1 + std::max(BigitLength(), other.BigitLength()) - exponent_);
   Chunk carry = 0;
   int bigit_pos = other.exponent_ - exponent_;
   DCHECK_GE(bigit_pos, 0);
@@ -172,7 +172,7 @@ void Bignum::AddBignum(const Bignum& other) {
     carry = sum >> kBigitSize;
     bigit_pos++;
   }
-  used_digits_ = Max(bigit_pos, used_digits_);
+  used_digits_ = std::max(bigit_pos, used_digits_);
   DCHECK(IsClamped());
 }
 
@@ -262,7 +262,7 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
 }
 
 void Bignum::MultiplyByPowerOfTen(int exponent) {
-  const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765C793, fa10079d);
+  const uint64_t kFive27 = 0x6765'C793'FA10'079D;
   const uint16_t kFive1 = 5;
   const uint16_t kFive2 = kFive1 * 5;
   const uint16_t kFive3 = kFive2 * 5;
@@ -569,7 +569,8 @@ int Bignum::Compare(const Bignum& a, const Bignum& b) {
   int bigit_length_b = b.BigitLength();
   if (bigit_length_a < bigit_length_b) return -1;
   if (bigit_length_a > bigit_length_b) return +1;
-  for (int i = bigit_length_a - 1; i >= Min(a.exponent_, b.exponent_); --i) {
+  for (int i = bigit_length_a - 1; i >= std::min(a.exponent_, b.exponent_);
+       --i) {
     Chunk bigit_a = a.BigitAt(i);
     Chunk bigit_b = b.BigitAt(i);
     if (bigit_a < bigit_b) return -1;
@@ -597,7 +598,7 @@ int Bignum::PlusCompare(const Bignum& a, const Bignum& b, const Bignum& c) {
 
   Chunk borrow = 0;
   // Starting at min_exponent all digits are == 0. So no need to compare them.
-  int min_exponent = Min(Min(a.exponent_, b.exponent_), c.exponent_);
+  int min_exponent = std::min({a.exponent_, b.exponent_, c.exponent_});
   for (int i = c.BigitLength() - 1; i >= min_exponent; --i) {
     Chunk chunk_a = a.BigitAt(i);
     Chunk chunk_b = b.BigitAt(i);

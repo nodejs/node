@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
+// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax --wasm-loop-unrolling
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -17,12 +17,12 @@ function genModule(memory) {
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kWasmStmt,           // --
+      /**/ kExprLoop, kWasmVoid,           // --
       /*  */ kExprLocalGet, 0,             // --
-      /*  */ kExprIf, kWasmStmt,           // --
+      /*  */ kExprIf, kWasmVoid,           // --
       /*    */ kExprLocalGet, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kWasmStmt,         // --
+      /*    */ kExprIf, kWasmVoid,         // --
       /*      */ kExprI32Const, 127,       // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --

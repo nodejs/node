@@ -3,6 +3,7 @@
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
 <script>
+setup({ single_test: true });
 setTimeout(done, Math.pow(2, 32));
 setTimeout(assert_unreached, 100);
 </script>

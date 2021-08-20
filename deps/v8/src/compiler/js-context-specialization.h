@@ -28,7 +28,9 @@ struct OuterContext {
 
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-// Additionally, constant-folds the function parameter if {closure} is given.
+// Additionally, constant-folds the function parameter if {closure} is given,
+// and constant-folds import.meta loads if the corresponding object already
+// exists.
 //
 // The context can be the incoming function context or any outer context
 // thereof, as indicated by {outer}'s {distance}.
@@ -42,6 +44,8 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
         outer_(outer),
         closure_(closure),
         broker_(broker) {}
+  JSContextSpecialization(const JSContextSpecialization&) = delete;
+  JSContextSpecialization& operator=(const JSContextSpecialization&) = delete;
 
   const char* reducer_name() const override {
     return "JSContextSpecialization";
@@ -53,6 +57,7 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
   Reduction ReduceParameter(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
+  Reduction ReduceJSGetImportMeta(Node* node);
 
   Reduction SimplifyJSStoreContext(Node* node, Node* new_context,
                                    size_t new_depth);
@@ -69,8 +74,6 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
   Maybe<OuterContext> outer_;
   MaybeHandle<JSFunction> closure_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };
 
 }  // namespace compiler

@@ -101,8 +101,8 @@ struct UConverterSharedData {
 
     const UConverterStaticData *staticData; /* pointer to the static (non changing) data. */
 
-    UBool                sharedDataCached;   /* TRUE:  shared data is in cache, don't destroy on ucnv_close() if 0 ref.  FALSE: shared data isn't in the cache, do attempt to clean it up if the ref is 0 */
-    /** If FALSE, then referenceCounter is not used. Must not change after initialization. */
+    UBool                sharedDataCached;   /* true:  shared data is in cache, don't destroy on ucnv_close() if 0 ref.  false: shared data isn't in the cache, do attempt to clean it up if the ref is 0 */
+    /** If false, then referenceCounter is not used. Must not change after initialization. */
     UBool isReferenceCounted;
 
     const UConverterImpl *impl;     /* vtable-style struct of mostly function pointers */
@@ -128,7 +128,7 @@ struct UConverterSharedData {
 #define UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(pStaticData, pImpl) \
     { \
         sizeof(UConverterSharedData), ~((uint32_t)0), \
-        NULL, pStaticData, FALSE, FALSE, pImpl, \
+        NULL, pStaticData, false, false, pImpl, \
         0, UCNV_MBCS_TABLE_INITIALIZER \
     }
 
@@ -181,9 +181,9 @@ struct UConverter {
 
     uint32_t options; /* options flags from UConverterOpen, may contain additional bits */
 
-    UBool sharedDataIsCached;  /* TRUE:  shared data is in cache, don't destroy on ucnv_close() if 0 ref.  FALSE: shared data isn't in the cache, do attempt to clean it up if the ref is 0 */
-    UBool isCopyLocal;  /* TRUE if UConverter is not owned and not released in ucnv_close() (stack-allocated, safeClone(), etc.) */
-    UBool isExtraLocal; /* TRUE if extraInfo is not owned and not released in ucnv_close() (stack-allocated, safeClone(), etc.) */
+    UBool sharedDataIsCached;  /* true:  shared data is in cache, don't destroy on ucnv_close() if 0 ref.  false: shared data isn't in the cache, do attempt to clean it up if the ref is 0 */
+    UBool isCopyLocal;  /* true if UConverter is not owned and not released in ucnv_close() (stack-allocated, safeClone(), etc.) */
+    UBool isExtraLocal; /* true if extraInfo is not owned and not released in ucnv_close() (stack-allocated, safeClone(), etc.) */
 
     UBool  useFallback;
     int8_t toULength;                   /* number of bytes in toUBytes */
@@ -289,7 +289,7 @@ ucnv_swap(const UDataSwapper *ds,
           UErrorCode *pErrorCode);
 
 U_CAPI void U_EXPORT2
-ucnv_enableCleanup();
+ucnv_enableCleanup(void);
 
 #endif
 

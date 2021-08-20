@@ -3,6 +3,8 @@
 {{# def.setupKeyword }}
 {{# def.setupNextLevel }}
 
+var {{=$errs}} = errors;
+
 {{? {{# def.nonEmptySchema:$schema }} }}
   {{
     $it.schema = $schema;
@@ -21,8 +23,6 @@
       , $ownProperties = it.opts.ownProperties
       , $currentBaseId = it.baseId;
   }}
-
-  var {{=$errs}} = errors;
 
   {{? $ownProperties }}
     var {{=$dataProperties}} = undefined;
@@ -50,5 +50,3 @@
   {{= $closingBraces }}
   if ({{=$errs}} == errors) {
 {{?}}
-
-{{# def.cleanUp }}

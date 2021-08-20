@@ -29,7 +29,6 @@ namespace interpreter {
   V(EmptyObjectBoilerplateDescription, empty_object_boilerplate_description) \
   V(EmptyArrayBoilerplateDescription, empty_array_boilerplate_description)   \
   V(EmptyFixedArray, empty_fixed_array)                                      \
-  V(HomeObjectSymbol, home_object_symbol)                                    \
   V(IteratorSymbol, iterator_symbol)                                         \
   V(InterpreterTrampolineSymbol, interpreter_trampoline_symbol)              \
   V(NaN, nan_value)
@@ -53,16 +52,16 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   explicit ConstantArrayBuilder(Zone* zone);
 
   // Generate a fixed array of constant handles based on inserted objects.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<FixedArray> ToFixedArray(LocalIsolate* isolate);
+  Handle<FixedArray> ToFixedArray(IsolateT* isolate);
 
   // Returns the object, as a handle in |isolate|, that is in the constant pool
   // array at index |index|. Returns null if there is no handle at this index.
   // Only expected to be used in tests.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  MaybeHandle<Object> At(size_t index, LocalIsolate* isolate) const;
+  MaybeHandle<Object> At(size_t index, IsolateT* isolate) const;
 
   // Returns the number of elements in the array.
   size_t size() const;
@@ -155,8 +154,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
       smi_ = smi;
     }
 
-    template <typename LocalIsolate>
-    Handle<Object> ToHandle(LocalIsolate* isolate) const;
+    template <typename IsolateT>
+    Handle<Object> ToHandle(IsolateT* isolate) const;
 
    private:
     explicit Entry(Tag tag) : tag_(tag) {}
@@ -198,6 +197,9 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   struct ConstantArraySlice final : public ZoneObject {
     ConstantArraySlice(Zone* zone, size_t start_index, size_t capacity,
                        OperandSize operand_size);
+    ConstantArraySlice(const ConstantArraySlice&) = delete;
+    ConstantArraySlice& operator=(const ConstantArraySlice&) = delete;
+
     void Reserve();
     void Unreserve();
     size_t Allocate(Entry entry, size_t count = 1);
@@ -205,8 +207,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     const Entry& At(size_t index) const;
 
 #if DEBUG
-    template <typename LocalIsolate>
-    void CheckAllElementsAreUnique(LocalIsolate* isolate) const;
+    template <typename IsolateT>
+    void CheckAllElementsAreUnique(IsolateT* isolate) const;
 #endif
 
     inline size_t available() const { return capacity() - reserved() - size(); }
@@ -223,8 +225,6 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     size_t reserved_;
     OperandSize operand_size_;
     ZoneVector<Entry> constants_;
-
-    DISALLOW_COPY_AND_ASSIGN(ConstantArraySlice);
   };
 
   ConstantArraySlice* IndexToSlice(size_t index) const;
@@ -239,11 +239,9 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   ZoneVector<std::pair<Smi, index_t>> smi_pairs_;
   ZoneMap<double, index_t> heap_number_map_;
 
-#define SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) int LOWER_NAME##_;
+#define SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) int LOWER_NAME##_ = -1;
   SINGLETON_CONSTANT_ENTRY_TYPES(SINGLETON_ENTRY_FIELD)
 #undef SINGLETON_ENTRY_FIELD
-
-  Zone* zone_;
 };
 
 }  // namespace interpreter

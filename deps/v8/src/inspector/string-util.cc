@@ -246,7 +246,66 @@ String16 stackTraceIdToString(uintptr_t id) {
 }  // namespace v8_inspector
 
 namespace v8_crdtp {
-void SerializerTraits<v8_inspector::protocol::Binary>::Serialize(
+
+using v8_inspector::String16;
+using v8_inspector::protocol::Binary;
+using v8_inspector::protocol::StringUtil;
+
+// static
+bool ProtocolTypeTraits<String16>::Deserialize(DeserializerState* state,
+                                               String16* value) {
+  auto* tokenizer = state->tokenizer();
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
+    const auto str = tokenizer->GetString8();
+    *value = StringUtil::fromUTF8(str.data(), str.size());
+    return true;
+  }
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
+    const auto str = tokenizer->GetString16WireRep();
+    *value = StringUtil::fromUTF16LE(
+        reinterpret_cast<const uint16_t*>(str.data()), str.size() / 2);
+    return true;
+  }
+  state->RegisterError(Error::BINDINGS_STRING_VALUE_EXPECTED);
+  return false;
+}
+
+// static
+void ProtocolTypeTraits<String16>::Serialize(const String16& value,
+                                             std::vector<uint8_t>* bytes) {
+  cbor::EncodeFromUTF16(
+      span<uint16_t>(reinterpret_cast<const uint16_t*>(value.characters16()),
+                     value.length()),
+      bytes);
+}
+
+// static
+bool ProtocolTypeTraits<Binary>::Deserialize(DeserializerState* state,
+                                             Binary* value) {
+  auto* tokenizer = state->tokenizer();
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::BINARY) {
+    const span<uint8_t> bin = tokenizer->GetBinary();
+    *value = Binary::fromSpan(bin.data(), bin.size());
+    return true;
+  }
+  if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
+    const auto str_span = tokenizer->GetString8();
+    auto str = StringUtil::fromUTF8(str_span.data(), str_span.size());
+    bool success = false;
+    *value = Binary::fromBase64(str, &success);
+    return success;
+  }
+  state->RegisterError(Error::BINDINGS_BINARY_VALUE_EXPECTED);
+  return false;
+}
+
+// static
+void ProtocolTypeTraits<Binary>::Serialize(const Binary& value,
+                                           std::vector<uint8_t>* bytes) {
+  cbor::EncodeBinary(span<uint8_t>(value.data(), value.size()), bytes);
+}
+
+void SerializerTraits<Binary>::Serialize(
     const v8_inspector::protocol::Binary& binary, std::vector<uint8_t>* out) {
   cbor::EncodeBinary(span<uint8_t>(binary.data(), binary.size()), out);
 }

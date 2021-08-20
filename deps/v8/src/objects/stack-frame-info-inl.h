@@ -8,7 +8,6 @@
 #include "src/objects/stack-frame-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
@@ -18,40 +17,20 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo, Struct)
+#include "torque-generated/src/objects/stack-frame-info-tq-inl.inc"
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-CAST_ACCESSOR(StackFrameInfo)
-
-SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberOffset)
-SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberOffset)
-SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdOffset)
-SMI_ACCESSORS(StackFrameInfo, wasm_function_index, kWasmFunctionIndexOffset)
-SMI_ACCESSORS(StackFrameInfo, promise_all_index, kPromiseAllIndexOffset)
-SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset, kPromiseAllIndexOffset,
-                      is_wasm())
-ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameOffset)
-ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
-          kScriptNameOrSourceUrlOffset)
-ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameOffset)
-ACCESSORS(StackFrameInfo, method_name, Object, kMethodNameOffset)
-ACCESSORS(StackFrameInfo, type_name, Object, kTypeNameOffset)
-ACCESSORS(StackFrameInfo, eval_origin, Object, kEvalOriginOffset)
-ACCESSORS(StackFrameInfo, wasm_module_name, Object, kWasmModuleNameOffset)
-ACCESSORS(StackFrameInfo, wasm_instance, Object, kWasmInstanceOffset)
-SMI_ACCESSORS(StackFrameInfo, flag, kFlagOffset)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_asmjs_wasm, kIsAsmJsWasmBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_user_java_script, kIsUserJavaScriptBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, kIsToplevelBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_async, kIsAsyncBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, kIsPromiseAllBit)
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
-NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
+#if V8_ENABLE_WEBASSEMBLY
+BOOL_GETTER(StackFrameInfo, flags, IsWasm, IsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsWasm, IsAsmJsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsAtNumberConversion,
+            IsAsmJsAtNumberConversionBit::kShift)
+#endif  // V8_ENABLE_WEBASSEMBLY
+BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsync, IsAsyncBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

@@ -31,7 +31,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const http = require('http');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const worker = cluster.fork();
@@ -51,8 +51,7 @@ http.createServer(common.mustCall((req, res) => {
 })).listen(common.PIPE, common.mustCall(() => {
   http.get({ socketPath: common.PIPE, path: '/' }, common.mustCall((res) => {
     res.resume();
-    res.on('end', common.mustCall((err) => {
-      assert.ifError(err);
+    res.on('end', common.mustSucceed(() => {
       process.send('DONE');
       process.exit();
     }));

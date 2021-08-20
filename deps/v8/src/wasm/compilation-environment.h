@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
@@ -13,6 +17,9 @@
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
+
+class JobHandle;
+
 namespace internal {
 
 class Counters;
@@ -21,6 +28,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -29,8 +37,6 @@ enum RuntimeExceptionSupport : bool {
 };
 
 enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
-
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
@@ -49,33 +55,39 @@ struct CompilationEnv {
 
   // The smallest size of any memory that could be used with this module, in
   // bytes.
-  const uint64_t min_memory_size;
+  const uintptr_t min_memory_size;
 
   // The largest size of any memory that could be used with this module, in
   // bytes.
-  const uint64_t max_memory_size;
+  const uintptr_t max_memory_size;
 
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
-  const LowerSimd lower_simd;
+  // We assume that memories of size >= half of the virtual address space
+  // cannot be allocated (see https://crbug.com/1201340).
+  static constexpr uint32_t kMaxMemoryPagesAtRuntime = std::min(
+      kV8MaxWasmMemoryPages,
+      (uintptr_t{1} << (kSystemPointerSize == 4 ? 31 : 63)) / kWasmPageSize);
 
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
-                           const WasmFeatures& enabled_features,
-                           LowerSimd lower_simd = kNoLowerSimd)
+                           const WasmFeatures& enabled_features)
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
-        min_memory_size(module ? module->initial_pages * uint64_t{kWasmPageSize}
-                               : 0),
-        max_memory_size((module && module->has_maximum_pages
-                             ? module->maximum_pages
-                             : max_initial_mem_pages()) *
+        // During execution, the memory can never be bigger than what fits in a
+        // uintptr_t.
+        min_memory_size(std::min(kMaxMemoryPagesAtRuntime,
+                                 module ? module->initial_pages : 0) *
                         uint64_t{kWasmPageSize}),
-        enabled_features(enabled_features),
-        lower_simd(lower_simd) {}
+        max_memory_size(static_cast<uintptr_t>(
+            std::min(kMaxMemoryPagesAtRuntime,
+                     module && module->has_maximum_pages ? module->maximum_pages
+                                                         : max_mem_pages()) *
+            uint64_t{kWasmPageSize})),
+        enabled_features(enabled_features) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -91,6 +103,7 @@ class WireBytesStorage {
 // order. If tier up is off, both events are delivered right after each other.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
+  kFinishedExportWrappers,
   kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation
@@ -98,27 +111,40 @@ enum class CompilationEvent : uint8_t {
 
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
-class CompilationState {
+class V8_EXPORT_PRIVATE CompilationState {
  public:
   using callback_t = std::function<void(CompilationEvent)>;
 
   ~CompilationState();
 
-  void AbortCompilation();
+  void InitCompileJob(WasmEngine*);
+
+  void CancelCompilation();
+
+  void CancelInitialCompilation();
 
   void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
-      const;
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
 
   void AddCallback(callback_t);
 
+  void InitializeAfterDeserialization();
+
+  // Wait until top tier compilation finished, or compilation failed.
+  void WaitForTopTierFinished();
+
+  // Set a higher priority for the compilation job.
+  void SetHighPriority();
+
   bool failed() const;
-  V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool recompilation_finished() const;
+  bool baseline_compilation_finished() const;
+  bool top_tier_compilation_finished() const;
+  bool recompilation_finished() const;
+
+  void set_compilation_id(int compilation_id);
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.

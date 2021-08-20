@@ -1,15 +1,32 @@
-module.exports = prefix
+const BaseCommand = require('./base-command.js')
 
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
-
-prefix.usage = 'npm prefix [-g]'
-
-function prefix (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Prefix extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Display prefix'
   }
-  if (!silent) output(npm.prefix)
-  process.nextTick(cb.bind(this, null, npm.prefix))
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'prefix'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['global']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[-g]']
+  }
+
+  exec (args, cb) {
+    this.prefix(args).then(() => cb()).catch(cb)
+  }
+
+  async prefix (args) {
+    return this.npm.output(this.npm.prefix)
+  }
 }
+module.exports = Prefix

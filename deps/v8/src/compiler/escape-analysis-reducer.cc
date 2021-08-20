@@ -5,6 +5,7 @@
 #include "src/compiler/escape-analysis-reducer.h"
 
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/execution/frame-constants.h"
@@ -67,17 +68,6 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
   ReplaceWithValue(original, original, original, control);
   return NoChange();
 }
-
-namespace {
-
-Node* SkipTypeGuards(Node* node) {
-  while (node->opcode() == IrOpcode::kTypeGuard) {
-    node = NodeProperties::GetValueInput(node, 0);
-  }
-  return node;
-}
-
-}  // namespace
 
 Node* EscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {
   VirtualObject::Id id = vobject->id();
@@ -169,9 +159,12 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
     // This input order is important to match the DFS traversal used in the
     // instruction selector. Otherwise, the instruction selector might find a
     // duplicate node before the original one.
-    for (int input_id : {kFrameStateOuterStateInput, kFrameStateFunctionInput,
-                         kFrameStateParametersInput, kFrameStateContextInput,
-                         kFrameStateLocalsInput, kFrameStateStackInput}) {
+    for (int input_id : {FrameState::kFrameStateOuterStateInput,
+                         FrameState::kFrameStateFunctionInput,
+                         FrameState::kFrameStateParametersInput,
+                         FrameState::kFrameStateContextInput,
+                         FrameState::kFrameStateLocalsInput,
+                         FrameState::kFrameStateStackInput}) {
       Node* input = node->InputAt(input_id);
       new_node.ReplaceInput(ReduceDeoptState(input, effect, deduplicator),
                             input_id);
@@ -185,8 +178,8 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
                                  i);
     }
     return new_node.Get();
-  } else if (const VirtualObject* vobject =
-                 analysis_result().GetVirtualObject(SkipTypeGuards(node))) {
+  } else if (const VirtualObject* vobject = analysis_result().GetVirtualObject(
+                 SkipValueIdentities(node))) {
     if (vobject->HasEscaped()) return node;
     if (deduplicator->SeenBefore(vobject)) {
       return ObjectIdNode(vobject);
@@ -229,25 +222,15 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
+    const NewArgumentsElementsParameters& params =
+        NewArgumentsElementsParametersOf(node->op());
+    ArgumentsStateType type = params.arguments_type();
+    int mapped_count = type == CreateArgumentsType::kMappedArguments
+                           ? params.formal_parameter_count()
+                           : 0;
 
-    Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
-    if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
-    Node* arguments_length = NodeProperties::GetValueInput(node, 1);
+    Node* arguments_length = NodeProperties::GetValueInput(node, 0);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
-
-    // If mapped arguments are specified, then their number is always equal to
-    // the number of formal parameters. This allows to use just the three-value
-    // {ArgumentsStateType} enum because the deoptimizer can reconstruct the
-    // value of {mapped_count} from the number of formal parameters.
-    DCHECK_IMPLIES(
-        mapped_count != 0,
-        mapped_count == FormalParameterCountOf(arguments_length->op()));
-    ArgumentsStateType type = IsRestLengthOf(arguments_length->op())
-                                  ? ArgumentsStateType::kRestParameter
-                                  : (mapped_count == 0)
-                                        ? ArgumentsStateType::kUnmappedArguments
-                                        : ArgumentsStateType::kMappedArguments;
 
     Node* arguments_length_state = nullptr;
     for (Edge edge : arguments_length->use_edges()) {
@@ -259,7 +242,7 @@ void EscapeAnalysisReducer::Finalize() {
         case IrOpcode::kTypedStateValues:
           if (!arguments_length_state) {
             arguments_length_state = jsgraph()->graph()->NewNode(
-                jsgraph()->common()->ArgumentsLengthState(type));
+                jsgraph()->common()->ArgumentsLengthState());
             NodeProperties::SetType(arguments_length_state,
                                     Type::OtherInternal());
           }
@@ -317,14 +300,39 @@ void EscapeAnalysisReducer::Finalize() {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
             Node* index = NodeProperties::GetValueInput(load, 1);
-            // {offset} is a reverted index starting from 1. The base address is
-            // adapted to allow offsets starting from 1.
+            Node* formal_parameter_count =
+                jsgraph()->Constant(params.formal_parameter_count());
+            NodeProperties::SetType(
+                formal_parameter_count,
+                Type::Constant(params.formal_parameter_count(),
+                               jsgraph()->graph()->zone()));
+            Node* offset_to_first_elem = jsgraph()->Constant(
+                CommonFrameConstants::kFixedSlotCountAboveFp);
+            if (!NodeProperties::IsTyped(offset_to_first_elem)) {
+              NodeProperties::SetType(
+                  offset_to_first_elem,
+                  Type::Constant(CommonFrameConstants::kFixedSlotCountAboveFp,
+                                 jsgraph()->graph()->zone()));
+            }
+
             Node* offset = jsgraph()->graph()->NewNode(
-                jsgraph()->simplified()->NumberSubtract(), arguments_length,
-                index);
+                jsgraph()->simplified()->NumberAdd(), index,
+                offset_to_first_elem);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberAdd(), offset,
+                  formal_parameter_count);
+            }
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
-            NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
+            Node* frame = jsgraph()->graph()->NewNode(
+                jsgraph()->machine()->LoadFramePointer());
+            NodeProperties::SetType(frame, Type::ExternalPointer());
+            NodeProperties::ReplaceValueInput(load, frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
             NodeProperties::ChangeOp(
                 load, jsgraph()->simplified()->LoadStackArgument());
@@ -333,7 +341,7 @@ void EscapeAnalysisReducer::Finalize() {
           case IrOpcode::kLoadField: {
             DCHECK_EQ(FieldAccessOf(load->op()).offset,
                       FixedArray::kLengthOffset);
-            Node* length = NodeProperties::GetValueInput(node, 1);
+            Node* length = NodeProperties::GetValueInput(node, 0);
             ReplaceWithValue(load, length);
             break;
           }

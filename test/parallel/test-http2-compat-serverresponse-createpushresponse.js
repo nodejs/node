@@ -40,8 +40,7 @@ const server = h2.createServer((request, response) => {
   response.createPushResponse({
     ':path': '/pushed',
     ':method': 'GET'
-  }, common.mustCall((error, push) => {
-    assert.ifError(error);
+  }, common.mustSucceed((push) => {
     assert.strictEqual(push.stream.id % 2, 0);
     push.end(pushExpect);
     response.end();

@@ -1,0 +1,226 @@
+<html><head>
+<title>install</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="install">install</h1>
+<span class="description">Download and install node and npm</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#overview">Overview</a></li><li><a href="#checking-your-version-of-npm-and-nodejs">Checking your version of npm and Node.js</a></li><li><a href="#using-a-node-version-manager-to-install-nodejs-and-npm">Using a Node version manager to install Node.js and npm</a></li><ul><li><a href="#osx-or-linux-node-version-managers">OSX or Linux Node version managers</a></li><li><a href="#windows-node-version-managers">Windows Node version managers</a></li></ul><li><a href="#using-a-node-installer-to-install-nodejs-and-npm">Using a Node installer to install Node.js and npm</a></li><ul><li><a href="#os-x-or-windows-node-installers">OS X or Windows Node installers</a></li><li><a href="#linux-or-other-operating-systems-node-installers">Linux or other operating systems Node installers</a></li><li><a href="#less-common-operating-systems">Less-common operating systems</a></li></ul></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>To publish and install packages to and from the public npm registry, you
+must install Node.js and the npm command line interface using either a Node
+version manager or a Node installer. <strong>We strongly recommend using a Node
+version manager to install Node.js and npm.</strong> We do not recommend using a
+Node installer, since the Node installation process installs npm in a
+directory with local permissions and can cause permissions errors when you
+run npm packages globally.</p>
+<h3 id="overview">Overview</h3>
+<ul>
+<li><a href="#checking-your-version-of-npm-and-node-js">Checking your version of npm and
+Node.js</a></li>
+<li><a href="#using-a-node-version-manager-to-install-node-js-and-npm">Using a Node version manager to install Node.js and
+npm</a></li>
+<li><a href="#using-a-node-installer-to-install-node-js-and-npm">Using a Node installer to install Node.js and
+npm</a></li>
+</ul>
+<h3 id="checking-your-version-of-npm-and-nodejs">Checking your version of npm and Node.js</h3>
+<p>To see if you already have Node.js and npm installed and check the
+installed version, run the following commands:</p>
+<pre><code>node -v
+npm -v
+</code></pre>
+<h3 id="using-a-node-version-manager-to-install-nodejs-and-npm">Using a Node version manager to install Node.js and npm</h3>
+<p>Node version managers allow you to install and switch between multiple
+versions of Node.js and npm on your system so you can test your
+applications on multiple versions of npm to ensure they work for users on
+different versions.</p>
+<h4 id="osx-or-linux-node-version-managers">OSX or Linux Node version managers</h4>
+<ul>
+<li><a href="https://github.com/creationix/nvm">nvm</a></li>
+<li><a href="https://github.com/tj/n">n</a></li>
+</ul>
+<h4 id="windows-node-version-managers">Windows Node version managers</h4>
+<ul>
+<li><a href="https://github.com/marcelklehr/nodist">nodist</a></li>
+<li><a href="https://github.com/coreybutler/nvm-windows">nvm-windows</a></li>
+</ul>
+<h3 id="using-a-node-installer-to-install-nodejs-and-npm">Using a Node installer to install Node.js and npm</h3>
+<p>If you are unable to use a Node version manager, you can use a Node
+installer to install both Node.js and npm on your system.</p>
+<ul>
+<li><a href="https://nodejs.org/en/download/">Node.js installer</a></li>
+<li><a href="https://github.com/nodesource/distributions">NodeSource installer</a>. If
+you use Linux, we recommend that you use a NodeSource installer.</li>
+</ul>
+<h4 id="os-x-or-windows-node-installers">OS X or Windows Node installers</h4>
+<p>If you’re using OS X or Windows, use one of the installers from the
+<a href="https://nodejs.org/en/download/">Node.js download page</a>. Be sure to
+install the version labeled <strong>LTS</strong>. Other versions have not yet been
+tested with npm.</p>
+<h4 id="linux-or-other-operating-systems-node-installers">Linux or other operating systems Node installers</h4>
+<p>If you’re using Linux or another operating system, use one of the following
+installers:</p>
+<ul>
+<li><a href="https://github.com/nodesource/distributions">NodeSource installer</a>
+(recommended)</li>
+<li>One of the installers on the <a href="https://nodejs.org/en/download/">Node.js download
+page</a></li>
+</ul>
+<p>Or see <a href="https://nodejs.org/en/download/package-manager/">this page</a> to
+install npm for Linux in the way many Linux developers prefer.</p>
+<h4 id="less-common-operating-systems">Less-common operating systems</h4>
+<p>For more information on installing Node.js on a variety of operating
+systems, see <a href="https://nodejs.org/en/download/package-manager/">this page</a>.</p>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/install.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

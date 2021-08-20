@@ -1,7 +1,7 @@
 'use strict';
-/*
- * This is a regression test for https://github.com/joyent/node/issues/8874.
- */
+
+// This is a regression test for https://github.com/joyent/node/issues/8874.
+
 require('../common');
 const assert = require('assert');
 

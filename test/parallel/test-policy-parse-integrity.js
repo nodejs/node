@@ -2,6 +2,7 @@
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
@@ -20,7 +21,7 @@ function hash(algo, body) {
 }
 
 const tmpdirPath = path.join(tmpdir.path, 'test-policy-parse-integrity');
-fs.rmdirSync(tmpdirPath, { maxRetries: 3, recursive: true });
+fs.rmSync(tmpdirPath, { maxRetries: 3, recursive: true, force: true });
 fs.mkdirSync(tmpdirPath, { recursive: true });
 
 const policyFilepath = path.join(tmpdirPath, 'policy');
@@ -44,7 +45,8 @@ const packageFilepath = path.join(tmpdirPath, 'package.json');
 const packageURL = pathToFileURL(packageFilepath);
 const packageBody = '{"main": "dep.js"}';
 
-function test({ shouldFail, integrity }) {
+function test({ shouldFail, integrity, manifest = {} }) {
+  manifest.resources = {};
   const resources = {
     [packageURL]: {
       body: packageBody,
@@ -54,9 +56,6 @@ function test({ shouldFail, integrity }) {
       body: depBody,
       integrity
     }
-  };
-  const manifest = {
-    resources: {},
   };
   for (const [url, { body, integrity }] of Object.entries(resources)) {
     manifest.resources[url] = {
@@ -68,7 +67,7 @@ function test({ shouldFail, integrity }) {
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy',
     policyFilepath,
-    depFilepath
+    depFilepath,
   ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);
@@ -95,4 +94,18 @@ test({
     'sha256',
     depBody
   )}`,
+});
+test({
+  shouldFail: true,
+  integrity: `sha256-${hash('sha256', 'file:///')}`,
+  manifest: {
+    onerror: 'exit'
+  }
+});
+test({
+  shouldFail: false,
+  integrity: `sha256-${hash('sha256', 'file:///')}`,
+  manifest: {
+    onerror: 'log'
+  }
 });

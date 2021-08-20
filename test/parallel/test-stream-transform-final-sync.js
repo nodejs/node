@@ -5,56 +5,56 @@ const assert = require('assert');
 const stream = require('stream');
 let state = 0;
 
-/*
-What you do
-const stream = new stream.Transform({
-  transform: function transformCallback(chunk, _, next) {
-    // part 1
-    this.push(chunk);
-    //part 2
-    next();
-  },
-  final: function endCallback(done) {
-    // part 1
-    process.nextTick(function () {
-      // part 2
-      done();
-    });
-  },
-  flush: function flushCallback(done) {
-    // part 1
-    process.nextTick(function () {
-      // part 2
-      done();
-    });
-  }
-});
-t.on('data', dataListener);
-t.on('end', endListener);
-t.on('finish', finishListener);
-t.write(1);
-t.write(4);
-t.end(7, endMethodCallback);
 
-The order things are called
-
-1. transformCallback part 1
-2. dataListener
-3. transformCallback part 2
-4. transformCallback part 1
-5. dataListener
-6. transformCallback part 2
-7. transformCallback part 1
-8. dataListener
-9. transformCallback part 2
-10. finalCallback part 1
-11. finalCallback part 2
-12. flushCallback part 1
-13. finishListener
-14. endMethodCallback
-15. flushCallback part 2
-16. endListener
-*/
+// What you do
+//
+// const stream = new stream.Transform({
+//   transform: function transformCallback(chunk, _, next) {
+//     // part 1
+//     this.push(chunk);
+//     //part 2
+//     next();
+//   },
+//   final: function endCallback(done) {
+//     // part 1
+//     process.nextTick(function () {
+//       // part 2
+//       done();
+//     });
+//   },
+//   flush: function flushCallback(done) {
+//     // part 1
+//     process.nextTick(function () {
+//       // part 2
+//       done();
+//     });
+//   }
+// });
+// t.on('data', dataListener);
+// t.on('end', endListener);
+// t.on('finish', finishListener);
+// t.write(1);
+// t.write(4);
+// t.end(7, endMethodCallback);
+//
+// The order things are called
+//
+// 1. transformCallback part 1
+// 2. dataListener
+// 3. transformCallback part 2
+// 4. transformCallback part 1
+// 5. dataListener
+// 6. transformCallback part 2
+// 7. transformCallback part 1
+// 8. dataListener
+// 9. transformCallback part 2
+// 10. finalCallback part 1
+// 11. finalCallback part 2
+// 12. flushCallback part 1
+// 13. finishListener
+// 14. endMethodCallback
+// 15. flushCallback part 2
+// 16. endListener
 
 const t = new stream.Transform({
   objectMode: true,

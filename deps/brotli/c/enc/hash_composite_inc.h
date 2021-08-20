@@ -28,20 +28,25 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) {
 }
 
 typedef struct HashComposite {
-  HasherHandle ha;
-  HasherHandle hb;
+  HASHER_A ha;
+  HASHER_B hb;
+  HasherCommon hb_common;
+
+  /* Shortcuts. */
+  void* extra;
+  HasherCommon* common;
+
+  BROTLI_BOOL fresh;
   const BrotliEncoderParams* params;
 } HashComposite;
 
-static BROTLI_INLINE HashComposite* FN(Self)(HasherHandle handle) {
-  return (HashComposite*)&(GetHasherCommon(handle)[1]);
-}
+static void FN(Initialize)(HasherCommon* common,
+    HashComposite* BROTLI_RESTRICT self, const BrotliEncoderParams* params) {
+  self->common = common;
+  self->extra = common->extra;
 
-static void FN(Initialize)(
-    HasherHandle handle, const BrotliEncoderParams* params) {
-  HashComposite* self = FN(Self)(handle);
-  self->ha = 0;
-  self->hb = 0;
+  self->hb_common = *self->common;
+  self->fresh = BROTLI_TRUE;
   self->params = params;
   /* TODO: Initialize of the hashers is defered to Prepare (and params
      remembered here) because we don't get the one_shot and input_size params
@@ -49,87 +54,71 @@ static void FN(Initialize)(
      those params to all hashers FN(Initialize) */
 }
 
-static void FN(Prepare)(HasherHandle handle, BROTLI_BOOL one_shot,
-    size_t input_size, const uint8_t* data) {
-  HashComposite* self = FN(Self)(handle);
-  if (!self->ha) {
-    HasherCommon* common_a;
-    HasherCommon* common_b;
+static void FN(Prepare)(
+    HashComposite* BROTLI_RESTRICT self, BROTLI_BOOL one_shot,
+    size_t input_size, const uint8_t* BROTLI_RESTRICT data) {
+  if (self->fresh) {
+    self->fresh = BROTLI_FALSE;
+    self->hb_common.extra = (uint8_t*)self->extra +
+        FN_A(HashMemAllocInBytes)(self->params, one_shot, input_size);
 
-    self->ha = handle + sizeof(HasherCommon) + sizeof(HashComposite);
-    common_a = (HasherCommon*)self->ha;
-    common_a->params = self->params->hasher;
-    common_a->is_prepared_ = BROTLI_FALSE;
-    common_a->dict_num_lookups = 0;
-    common_a->dict_num_matches = 0;
-    FN_A(Initialize)(self->ha, self->params);
-
-    self->hb = self->ha + sizeof(HasherCommon) + FN_A(HashMemAllocInBytes)(
-        self->params, one_shot, input_size);
-    common_b = (HasherCommon*)self->hb;
-    common_b->params = self->params->hasher;
-    common_b->is_prepared_ = BROTLI_FALSE;
-    common_b->dict_num_lookups = 0;
-    common_b->dict_num_matches = 0;
-    FN_B(Initialize)(self->hb, self->params);
+    FN_A(Initialize)(self->common, &self->ha, self->params);
+    FN_B(Initialize)(&self->hb_common, &self->hb, self->params);
   }
-  FN_A(Prepare)(self->ha, one_shot, input_size, data);
-  FN_B(Prepare)(self->hb, one_shot, input_size, data);
+  FN_A(Prepare)(&self->ha, one_shot, input_size, data);
+  FN_B(Prepare)(&self->hb, one_shot, input_size, data);
 }
 
 static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
     const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
     size_t input_size) {
-  return sizeof(HashComposite) + 2 * sizeof(HasherCommon) +
-      FN_A(HashMemAllocInBytes)(params, one_shot, input_size) +
+  return FN_A(HashMemAllocInBytes)(params, one_shot, input_size) +
       FN_B(HashMemAllocInBytes)(params, one_shot, input_size);
 }
 
-static BROTLI_INLINE void FN(Store)(HasherHandle BROTLI_RESTRICT handle,
+static BROTLI_INLINE void FN(Store)(HashComposite* BROTLI_RESTRICT self,
     const uint8_t* BROTLI_RESTRICT data, const size_t mask, const size_t ix) {
-  HashComposite* self = FN(Self)(handle);
-  FN_A(Store)(self->ha, data, mask, ix);
-  FN_B(Store)(self->hb, data, mask, ix);
+  FN_A(Store)(&self->ha, data, mask, ix);
+  FN_B(Store)(&self->hb, data, mask, ix);
 }
 
-static BROTLI_INLINE void FN(StoreRange)(HasherHandle handle,
-    const uint8_t* data, const size_t mask, const size_t ix_start,
+static BROTLI_INLINE void FN(StoreRange)(
+    HashComposite* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
+    const size_t mask, const size_t ix_start,
     const size_t ix_end) {
-  HashComposite* self = FN(Self)(handle);
-  FN_A(StoreRange)(self->ha, data, mask, ix_start, ix_end);
-  FN_B(StoreRange)(self->hb, data, mask, ix_start, ix_end);
+  FN_A(StoreRange)(&self->ha, data, mask, ix_start, ix_end);
+  FN_B(StoreRange)(&self->hb, data, mask, ix_start, ix_end);
 }
 
-static BROTLI_INLINE void FN(StitchToPreviousBlock)(HasherHandle handle,
+static BROTLI_INLINE void FN(StitchToPreviousBlock)(
+    HashComposite* BROTLI_RESTRICT self,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ring_buffer_mask) {
-  HashComposite* self = FN(Self)(handle);
-  FN_A(StitchToPreviousBlock)(self->ha, num_bytes, position, ringbuffer,
-      ring_buffer_mask);
-  FN_B(StitchToPreviousBlock)(self->hb, num_bytes, position, ringbuffer,
-      ring_buffer_mask);
+  FN_A(StitchToPreviousBlock)(&self->ha, num_bytes, position,
+      ringbuffer, ring_buffer_mask);
+  FN_B(StitchToPreviousBlock)(&self->hb, num_bytes, position,
+      ringbuffer, ring_buffer_mask);
 }
 
 static BROTLI_INLINE void FN(PrepareDistanceCache)(
-    HasherHandle handle, int* BROTLI_RESTRICT distance_cache) {
-  HashComposite* self = FN(Self)(handle);
-  FN_A(PrepareDistanceCache)(self->ha, distance_cache);
-  FN_B(PrepareDistanceCache)(self->hb, distance_cache);
+    HashComposite* BROTLI_RESTRICT self, int* BROTLI_RESTRICT distance_cache) {
+  FN_A(PrepareDistanceCache)(&self->ha, distance_cache);
+  FN_B(PrepareDistanceCache)(&self->hb, distance_cache);
 }
 
-static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
+static BROTLI_INLINE void FN(FindLongestMatch)(
+    HashComposite* BROTLI_RESTRICT self,
     const BrotliEncoderDictionary* dictionary,
     const uint8_t* BROTLI_RESTRICT data, const size_t ring_buffer_mask,
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
-    const size_t gap, const size_t max_distance,
+    const size_t dictionary_distance, const size_t max_distance,
     HasherSearchResult* BROTLI_RESTRICT out) {
-  HashComposite* self = FN(Self)(handle);
-  FN_A(FindLongestMatch)(self->ha, dictionary, data, ring_buffer_mask,
-      distance_cache, cur_ix, max_length, max_backward, gap,
+  FN_A(FindLongestMatch)(&self->ha, dictionary, data, ring_buffer_mask,
+      distance_cache, cur_ix, max_length, max_backward, dictionary_distance,
       max_distance, out);
-  FN_B(FindLongestMatch)(self->hb, dictionary, data, ring_buffer_mask,
-      distance_cache, cur_ix, max_length, max_backward, gap,
+  FN_B(FindLongestMatch)(&self->hb, dictionary, data, ring_buffer_mask,
+      distance_cache, cur_ix, max_length, max_backward, dictionary_distance,
       max_distance, out);
 }
 

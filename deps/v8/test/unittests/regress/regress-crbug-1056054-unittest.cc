@@ -13,7 +13,7 @@ using EnumIndexOverflowTest = TestWithNativeContextAndZone;
 
 TEST_F(EnumIndexOverflowTest, GlobalObject) {
   Handle<GlobalDictionary> dictionary(
-      isolate()->global_object()->global_dictionary(), isolate());
+      isolate()->global_object()->global_dictionary(kAcquireLoad), isolate());
   dictionary->set_next_enumeration_index(
       PropertyDetails::DictionaryStorageField::kMax);
   Handle<Object> value(Smi::FromInt(static_cast<int>(42)), isolate());

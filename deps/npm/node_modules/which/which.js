@@ -1,120 +1,107 @@
-module.exports = which
-which.sync = whichSync
-
-var isWindows = process.platform === 'win32' ||
+const isWindows = process.platform === 'win32' ||
     process.env.OSTYPE === 'cygwin' ||
     process.env.OSTYPE === 'msys'
 
-var path = require('path')
-var COLON = isWindows ? ';' : ':'
-var isexe = require('isexe')
+const path = require('path')
+const COLON = isWindows ? ';' : ':'
+const isexe = require('isexe')
 
-function getNotFoundError (cmd) {
-  var er = new Error('not found: ' + cmd)
-  er.code = 'ENOENT'
+const getNotFoundError = (cmd) =>
+  Object.assign(new Error(`not found: ${cmd}`), { code: 'ENOENT' })
 
-  return er
-}
+const getPathInfo = (cmd, opt) => {
+  const colon = opt.colon || COLON
 
-function getPathInfo (cmd, opt) {
-  var colon = opt.colon || COLON
-  var pathEnv = opt.path || process.env.PATH || ''
-  var pathExt = ['']
+  // If it has a slash, then we don't bother searching the pathenv.
+  // just check the file itself, and that's it.
+  const pathEnv = cmd.match(/\//) || isWindows && cmd.match(/\\/) ? ['']
+    : (
+      [
+        // windows always checks the cwd first
+        ...(isWindows ? [process.cwd()] : []),
+        ...(opt.path || process.env.PATH ||
+          /* istanbul ignore next: very unusual */ '').split(colon),
+      ]
+    )
+  const pathExtExe = isWindows
+    ? opt.pathExt || process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM'
+    : ''
+  const pathExt = isWindows ? pathExtExe.split(colon) : ['']
 
-  pathEnv = pathEnv.split(colon)
-
-  var pathExtExe = ''
   if (isWindows) {
-    pathEnv.unshift(process.cwd())
-    pathExtExe = (opt.pathExt || process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
-    pathExt = pathExtExe.split(colon)
-
-
-    // Always test the cmd itself first.  isexe will check to make sure
-    // it's found in the pathExt set.
     if (cmd.indexOf('.') !== -1 && pathExt[0] !== '')
       pathExt.unshift('')
   }
 
-  // If it has a slash, then we don't bother searching the pathenv.
-  // just check the file itself, and that's it.
-  if (cmd.match(/\//) || isWindows && cmd.match(/\\/))
-    pathEnv = ['']
-
   return {
-    env: pathEnv,
-    ext: pathExt,
-    extExe: pathExtExe
+    pathEnv,
+    pathExt,
+    pathExtExe,
   }
 }
 
-function which (cmd, opt, cb) {
+const which = (cmd, opt, cb) => {
   if (typeof opt === 'function') {
     cb = opt
     opt = {}
   }
+  if (!opt)
+    opt = {}
 
-  var info = getPathInfo(cmd, opt)
-  var pathEnv = info.env
-  var pathExt = info.ext
-  var pathExtExe = info.extExe
-  var found = []
+  const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt)
+  const found = []
 
-  ;(function F (i, l) {
-    if (i === l) {
-      if (opt.all && found.length)
-        return cb(null, found)
-      else
-        return cb(getNotFoundError(cmd))
-    }
+  const step = i => new Promise((resolve, reject) => {
+    if (i === pathEnv.length)
+      return opt.all && found.length ? resolve(found)
+        : reject(getNotFoundError(cmd))
 
-    var pathPart = pathEnv[i]
-    if (pathPart.charAt(0) === '"' && pathPart.slice(-1) === '"')
-      pathPart = pathPart.slice(1, -1)
+    const ppRaw = pathEnv[i]
+    const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw
 
-    var p = path.join(pathPart, cmd)
-    if (!pathPart && (/^\.[\\\/]/).test(cmd)) {
-      p = cmd.slice(0, 2) + p
-    }
-    ;(function E (ii, ll) {
-      if (ii === ll) return F(i + 1, l)
-      var ext = pathExt[ii]
-      isexe(p + ext, { pathExt: pathExtExe }, function (er, is) {
-        if (!er && is) {
-          if (opt.all)
-            found.push(p + ext)
-          else
-            return cb(null, p + ext)
-        }
-        return E(ii + 1, ll)
-      })
-    })(0, pathExt.length)
-  })(0, pathEnv.length)
+    const pCmd = path.join(pathPart, cmd)
+    const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd
+      : pCmd
+
+    resolve(subStep(p, i, 0))
+  })
+
+  const subStep = (p, i, ii) => new Promise((resolve, reject) => {
+    if (ii === pathExt.length)
+      return resolve(step(i + 1))
+    const ext = pathExt[ii]
+    isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
+      if (!er && is) {
+        if (opt.all)
+          found.push(p + ext)
+        else
+          return resolve(p + ext)
+      }
+      return resolve(subStep(p, i, ii + 1))
+    })
+  })
+
+  return cb ? step(0).then(res => cb(null, res), cb) : step(0)
 }
 
-function whichSync (cmd, opt) {
+const whichSync = (cmd, opt) => {
   opt = opt || {}
 
-  var info = getPathInfo(cmd, opt)
-  var pathEnv = info.env
-  var pathExt = info.ext
-  var pathExtExe = info.extExe
-  var found = []
+  const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt)
+  const found = []
 
-  for (var i = 0, l = pathEnv.length; i < l; i ++) {
-    var pathPart = pathEnv[i]
-    if (pathPart.charAt(0) === '"' && pathPart.slice(-1) === '"')
-      pathPart = pathPart.slice(1, -1)
+  for (let i = 0; i < pathEnv.length; i ++) {
+    const ppRaw = pathEnv[i]
+    const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw
 
-    var p = path.join(pathPart, cmd)
-    if (!pathPart && /^\.[\\\/]/.test(cmd)) {
-      p = cmd.slice(0, 2) + p
-    }
-    for (var j = 0, ll = pathExt.length; j < ll; j ++) {
-      var cur = p + pathExt[j]
-      var is
+    const pCmd = path.join(pathPart, cmd)
+    const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd
+      : pCmd
+
+    for (let j = 0; j < pathExt.length; j ++) {
+      const cur = p + pathExt[j]
       try {
-        is = isexe.sync(cur, { pathExt: pathExtExe })
+        const is = isexe.sync(cur, { pathExt: pathExtExe })
         if (is) {
           if (opt.all)
             found.push(cur)
@@ -133,3 +120,6 @@ function whichSync (cmd, opt) {
 
   throw getNotFoundError(cmd)
 }
+
+module.exports = which
+which.sync = whichSync

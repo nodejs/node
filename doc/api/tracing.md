@@ -80,9 +80,9 @@ string that supports `${rotation}` and `${pid}`:
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
-Starting with Node.js 10.0.0, the tracing system uses the same time source
-as the one used by `process.hrtime()`
-however the trace-event timestamps are expressed in microseconds,
+The tracing system uses the same time source
+as the one used by `process.hrtime()`.
+However the trace-event timestamps are expressed in microseconds,
 unlike `process.hrtime()` which returns nanoseconds.
 
 The features from this module are not available in [`Worker`][] threads.
@@ -207,7 +207,7 @@ t2.enable();
 console.log(trace_events.getEnabledCategories());
 ```
 
-[Performance API]: perf_hooks.html
-[V8]: v8.html
-[`Worker`]: worker_threads.html#worker_threads_class_worker
-[`async_hooks`]: async_hooks.html
+[Performance API]: perf_hooks.md
+[V8]: v8.md
+[`Worker`]: worker_threads.md#worker_threads_class_worker
+[`async_hooks`]: async_hooks.md

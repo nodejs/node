@@ -6,13 +6,15 @@
 #define V8_OBJECTS_JS_REGEXP_STRING_ITERATOR_H_
 
 #include "src/objects/js-objects.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-regexp-string-iterator-tq.inc"
 
 class JSRegExpStringIterator
     : public TorqueGeneratedJSRegExpStringIterator<JSRegExpStringIterator,

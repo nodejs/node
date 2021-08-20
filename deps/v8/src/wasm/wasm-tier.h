@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_TIER_H_
 #define V8_WASM_WASM_TIER_H_
 
@@ -14,7 +18,6 @@ namespace wasm {
 // All the tiers of Wasm execution.
 enum class ExecutionTier : int8_t {
   kNone,
-  kInterpreter,
   kLiftoff,
   kTurbofan,
 };
@@ -25,16 +28,20 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
       return "turbofan";
     case ExecutionTier::kLiftoff:
       return "liftoff";
-    case ExecutionTier::kInterpreter:
-      return "interpreter";
     case ExecutionTier::kNone:
       return "none";
   }
 }
 
-// {kForDebugging} is used for default tiered-down code (potentially with
-// breakpoints), {kForStepping} is code that is flooded with breakpoints.
-enum ForDebugging : int8_t { kNoDebugging = 0, kForDebugging, kForStepping };
+// {kForDebugging} is used for default tiered-down code, {kWithBreakpoints} if
+// the code also contains breakpoints, and {kForStepping} for code that is
+// flooded with breakpoints.
+enum ForDebugging : int8_t {
+  kNoDebugging = 0,
+  kForDebugging,
+  kWithBreakpoints,
+  kForStepping
+};
 
 enum TieringState : int8_t { kTieredUp, kTieredDown };
 

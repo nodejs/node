@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-bigint
-
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestWasmI64ToJSBigInt() {
@@ -164,8 +162,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   try {
     new WebAssembly.Global(argument);
   } catch (e) {
-    assertContains("'value' must be", e.message);
-    assertContains("i64", e.message);
+    assertContains("'value' must be a WebAssembly type", e.message);
   }
 })();
 

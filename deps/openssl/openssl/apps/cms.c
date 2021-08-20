@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -545,9 +545,11 @@ int cms_main(int argc, char **argv)
             if (key_param == NULL || key_param->idx != keyidx) {
                 cms_key_param *nparam;
                 nparam = app_malloc(sizeof(*nparam), "key param buffer");
-                nparam->idx = keyidx;
-                if ((nparam->param = sk_OPENSSL_STRING_new_null()) == NULL)
+                if ((nparam->param = sk_OPENSSL_STRING_new_null()) == NULL) {
+                    OPENSSL_free(nparam);
                     goto end;
+                }
+                nparam->idx = keyidx;
                 nparam->next = NULL;
                 if (key_first == NULL)
                     key_first = nparam;

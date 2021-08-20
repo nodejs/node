@@ -56,8 +56,13 @@
 # define HAVE_PREADV 0
 #endif
 
+#if defined(__linux__)
+# include "sys/utsname.h"
+#endif
+
 #if defined(__linux__) || defined(__sun)
 # include <sys/sendfile.h>
+# include <sys/sysmacros.h>
 #endif
 
 #if defined(__APPLE__)
@@ -79,7 +84,11 @@
     defined(__NetBSD__)
 # include <sys/param.h>
 # include <sys/mount.h>
-#elif defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
+#elif defined(__sun)      || \
+      defined(__MVS__)    || \
+      defined(__NetBSD__) || \
+      defined(__HAIKU__)  || \
+      defined(__QNX__)
 # include <sys/statvfs.h>
 #else
 # include <sys/statfs.h>
@@ -208,14 +217,30 @@ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 UV_UNUSED(static struct timespec uv__fs_to_timespec(double time)) {
   struct timespec ts;
   ts.tv_sec  = time;
-  ts.tv_nsec = (uint64_t)(time * 1000000) % 1000000 * 1000;
+  ts.tv_nsec = (time - ts.tv_sec) * 1e9;
+
+ /* TODO(bnoordhuis) Remove this. utimesat() has nanosecond resolution but we
+  * stick to microsecond resolution for the sake of consistency with other
+  * platforms. I'm the original author of this compatibility hack but I'm
+  * less convinced it's useful nowadays.
+  */
+  ts.tv_nsec -= ts.tv_nsec % 1000;
+
+  if (ts.tv_nsec < 0) {
+    ts.tv_nsec += 1e9;
+    ts.tv_sec -= 1;
+  }
   return ts;
 }
 
 UV_UNUSED(static struct timeval uv__fs_to_timeval(double time)) {
   struct timeval tv;
   tv.tv_sec  = time;
-  tv.tv_usec = (uint64_t)(time * 1000000) % 1000000;
+  tv.tv_usec = (time - tv.tv_sec) * 1e6;
+  if (tv.tv_usec < 0) {
+    tv.tv_usec += 1e6;
+    tv.tv_sec -= 1;
+  }
   return tv;
 }
 
@@ -223,9 +248,6 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 #if defined(__linux__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -306,7 +328,8 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   if (path_length < pattern_size ||
       strcmp(path + path_length - pattern_size, pattern)) {
     errno = EINVAL;
-    return -1;
+    r = -1;
+    goto clobber;
   }
 
   uv_once(&once, uv__mkostemp_initonce);
@@ -321,7 +344,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
     /* If mkostemp() returns EINVAL, it means the kernel doesn't
        support O_CLOEXEC, so we just fallback to mkstemp() below. */
     if (errno != EINVAL)
-      return r;
+      goto clobber;
 
     /* We set the static variable so that next calls don't even
        try to use mkostemp. */
@@ -347,6 +370,9 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   if (req->cb != NULL)
     uv_rwlock_rdunlock(&req->loop->cloexec_lock);
 
+clobber:
+  if (r < 0)
+    path[0] = '\0';
   return r;
 }
 
@@ -625,7 +651,11 @@ static int uv__fs_closedir(uv_fs_t* req) {
 
 static int uv__fs_statfs(uv_fs_t* req) {
   uv_statfs_t* stat_fs;
-#if defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
+#if defined(__sun)      || \
+    defined(__MVS__)    || \
+    defined(__NetBSD__) || \
+    defined(__HAIKU__)  || \
+    defined(__QNX__)
   struct statvfs buf;
 
   if (0 != statvfs(req->path, &buf))
@@ -642,7 +672,12 @@ static int uv__fs_statfs(uv_fs_t* req) {
     return -1;
   }
 
-#if defined(__sun) || defined(__MVS__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__HAIKU__)
+#if defined(__sun)        || \
+    defined(__MVS__)      || \
+    defined(__OpenBSD__)  || \
+    defined(__NetBSD__)   || \
+    defined(__HAIKU__)    || \
+    defined(__QNX__)
   stat_fs->f_type = 0;  /* f_type is not supported. */
 #else
   stat_fs->f_type = buf.f_type;
@@ -870,6 +905,50 @@ out:
 }
 
 
+#ifdef __linux__
+static unsigned uv__kernel_version(void) {
+  static unsigned cached_version;
+  struct utsname u;
+  unsigned version;
+  unsigned major;
+  unsigned minor;
+  unsigned patch;
+
+  version = uv__load_relaxed(&cached_version);
+  if (version != 0)
+    return version;
+
+  if (-1 == uname(&u))
+    return 0;
+
+  if (3 != sscanf(u.release, "%u.%u.%u", &major, &minor, &patch))
+    return 0;
+
+  version = major * 65536 + minor * 256 + patch;
+  uv__store_relaxed(&cached_version, version);
+
+  return version;
+}
+
+
+/* Pre-4.20 kernels have a bug where CephFS uses the RADOS copy-from command
+ * in copy_file_range() when it shouldn't. There is no workaround except to
+ * fall back to a regular copy.
+ */
+static int uv__is_buggy_cephfs(int fd) {
+  struct statfs s;
+
+  if (-1 == fstatfs(fd, &s))
+    return 0;
+
+  if (s.f_type != /* CephFS */ 0xC36400)
+    return 0;
+
+  return uv__kernel_version() < /* 4.20.0 */ 0x041400;
+}
+#endif  /* __linux__ */
+
+
 static ssize_t uv__fs_sendfile(uv_fs_t* req) {
   int in_fd;
   int out_fd;
@@ -883,8 +962,38 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
     ssize_t r;
 
     off = req->off;
+
+#ifdef __linux__
+    {
+      static int no_copy_file_range_support;
+
+      if (uv__load_relaxed(&no_copy_file_range_support) == 0) {
+        r = uv__fs_copy_file_range(in_fd, &off, out_fd, NULL, req->bufsml[0].len, 0);
+
+        if (r == -1 && errno == ENOSYS) {
+          /* ENOSYS - it will never work */
+          errno = 0;
+          uv__store_relaxed(&no_copy_file_range_support, 1);
+        } else if (r == -1 && errno == EACCES && uv__is_buggy_cephfs(in_fd)) {
+          /* EACCES - pre-4.20 kernels have a bug where CephFS uses the RADOS
+                      copy-from command when it shouldn't */
+          errno = 0;
+          uv__store_relaxed(&no_copy_file_range_support, 1);
+        } else if (r == -1 && (errno == ENOTSUP || errno == EXDEV)) {
+          /* ENOTSUP - it could work on another file system type */
+          /* EXDEV - it will not work when in_fd and out_fd are not on the same
+                     mounted filesystem (pre Linux 5.3) */
+          errno = 0;
+        } else {
+          goto ok;
+        }
+      }
+    }
+#endif
+
     r = sendfile(out_fd, in_fd, &off, req->bufsml[0].len);
 
+ok:
     /* sendfile() on SunOS returns EINVAL if the target fd is not a socket but
      * it still writes out data. Fortunately, we can detect it by checking if
      * the offset has been updated.
@@ -974,9 +1083,6 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
     || defined(_AIX71)                                                         \
     || defined(__sun)                                                          \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
@@ -1127,7 +1233,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  dst_flags = O_WRONLY | O_CREAT | O_TRUNC;
+  dst_flags = O_WRONLY | O_CREAT;
 
   if (req->flags & UV_FS_COPYFILE_EXCL)
     dst_flags |= O_EXCL;
@@ -1146,16 +1252,26 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  /* Get the destination file's mode. */
-  if (fstat(dstfd, &dst_statsbuf)) {
-    err = UV__ERR(errno);
-    goto out;
-  }
+  /* If the file is not being opened exclusively, verify that the source and
+     destination are not the same file. If they are the same, bail out early. */
+  if ((req->flags & UV_FS_COPYFILE_EXCL) == 0) {
+    /* Get the destination file's mode. */
+    if (fstat(dstfd, &dst_statsbuf)) {
+      err = UV__ERR(errno);
+      goto out;
+    }
 
-  /* Check if srcfd and dstfd refer to the same file */
-  if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
-      src_statsbuf.st_ino == dst_statsbuf.st_ino) {
-    goto out;
+    /* Check if srcfd and dstfd refer to the same file */
+    if (src_statsbuf.st_dev == dst_statsbuf.st_dev &&
+        src_statsbuf.st_ino == dst_statsbuf.st_ino) {
+      goto out;
+    }
+
+    /* Truncate the file in case the destination already existed. */
+    if (ftruncate(dstfd, 0) != 0) {
+      err = UV__ERR(errno);
+      goto out;
+    }
   }
 
   if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
@@ -1174,7 +1290,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
       if (fstatfs(dstfd, &s) == -1)
         goto out;
 
-      if (s.f_type != /* CIFS */ 0xFF534D42u)
+      if ((unsigned) s.f_type != /* CIFS */ 0xFF534D42u)
         goto out;
     }
 
@@ -1294,7 +1410,8 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_ctimensec;
   dst->st_flags = 0;
   dst->st_gen = 0;
-#elif !defined(_AIX) && (       \
+#elif !defined(_AIX) &&         \
+    !defined(__MVS__) && (      \
     defined(__DragonFly__)   || \
     defined(__FreeBSD__)     || \
     defined(__OpenBSD__)     || \
@@ -1374,8 +1491,9 @@ static int uv__fs_statx(int fd,
   case -1:
     /* EPERM happens when a seccomp filter rejects the system call.
      * Has been observed with libseccomp < 2.3.3 and docker < 18.04.
+     * EOPNOTSUPP is used on DVS exported filesystems
      */
-    if (errno != EINVAL && errno != EPERM && errno != ENOSYS)
+    if (errno != EINVAL && errno != EPERM && errno != ENOSYS && errno != EOPNOTSUPP)
       return -1;
     /* Fall through. */
   default:
@@ -1388,12 +1506,12 @@ static int uv__fs_statx(int fd,
     return UV_ENOSYS;
   }
 
-  buf->st_dev = 256 * statxbuf.stx_dev_major + statxbuf.stx_dev_minor;
+  buf->st_dev = makedev(statxbuf.stx_dev_major, statxbuf.stx_dev_minor);
   buf->st_mode = statxbuf.stx_mode;
   buf->st_nlink = statxbuf.stx_nlink;
   buf->st_uid = statxbuf.stx_uid;
   buf->st_gid = statxbuf.stx_gid;
-  buf->st_rdev = statxbuf.stx_rdev_major;
+  buf->st_rdev = makedev(statxbuf.stx_rdev_major, statxbuf.stx_rdev_minor);
   buf->st_ino = statxbuf.stx_ino;
   buf->st_size = statxbuf.stx_size;
   buf->st_blksize = statxbuf.stx_blksize;
@@ -2027,7 +2145,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
 
   /* Only necessary for asychronous requests, i.e., requests with a callback.
    * Synchronous ones don't copy their arguments and have req->path and
-   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and 
+   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and
    * UV_FS_MKSTEMP are the exception to the rule, they always allocate memory.
    */
   if (req->path != NULL &&

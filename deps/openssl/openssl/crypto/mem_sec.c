@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2004-2014, Akamai Technologies. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -33,6 +33,12 @@
 #   include <linux/mman.h>
 #   include <errno.h>
 #  endif
+# endif
+# if defined(__FreeBSD__)
+#  define MADV_DONTDUMP MADV_NOCORE
+# endif
+# if !defined(MAP_CONCEAL)
+#  define MAP_CONCEAL 0
 # endif
 # include <sys/param.h>
 # include <sys/stat.h>
@@ -442,7 +448,7 @@ static int sh_init(size_t size, int minsize)
     if (1) {
 #ifdef MAP_ANON
         sh.map_result = mmap(NULL, sh.map_size,
-                             PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+                             PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE|MAP_CONCEAL, -1, 0);
     } else {
 #endif
         int fd;
@@ -502,7 +508,7 @@ static void sh_done(void)
     OPENSSL_free(sh.freelist);
     OPENSSL_free(sh.bittable);
     OPENSSL_free(sh.bitmalloc);
-    if (sh.map_result != NULL && sh.map_size)
+    if (sh.map_result != MAP_FAILED && sh.map_size)
         munmap(sh.map_result, sh.map_size);
     memset(&sh, 0, sizeof(sh));
 }

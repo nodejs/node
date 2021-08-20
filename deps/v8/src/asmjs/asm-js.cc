@@ -187,8 +187,7 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
                                AccountingAllocator* allocator)
       : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                  &compilation_info_,
-                                  CanOffThreadFinalize::kNo),
+                                  &compilation_info_),
         allocator_(allocator),
         zone_(allocator, ZONE_NAME),
         compilation_info_(&zone_, parse_info, literal),
@@ -197,13 +196,16 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
         compile_time_(0),
         module_source_size_(0) {}
 
+  AsmJsCompilationJob(const AsmJsCompilationJob&) = delete;
+  AsmJsCompilationJob& operator=(const AsmJsCompilationJob&) = delete;
+
  protected:
   Status ExecuteJobImpl() final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                         OffThreadIsolate* isolate) final {
-    UNREACHABLE();
+                         LocalIsolate* isolate) final {
+    return CompilationJob::RETRY_ON_MAIN_THREAD;
   }
 
  private:
@@ -218,11 +220,11 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
 
   double compile_time_;     // Time (milliseconds) taken to execute step [2].
   int module_source_size_;  // Module source size in bytes.
-
-  DISALLOW_COPY_AND_ASSIGN(AsmJsCompilationJob);
 };
 
 UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
+  DisallowHeapAccess no_heap_access;
+
   // Step 1: Translate asm.js module to WebAssembly module.
   Zone* compile_zone = &zone_;
   Zone translate_zone(allocator_, ZONE_NAME);
@@ -241,9 +243,9 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
     }
     return FAILED;
   }
-  module_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
+  module_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteTo(module_);
-  asm_offsets_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
+  asm_offsets_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteAsmJsOffsetTable(asm_offsets_);
   stdlib_uses_ = *parser.stdlib_uses();
 
@@ -278,8 +280,8 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
 
   RecordHistograms(isolate);
   ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
-                           compilation_info()->literal()->position(),
-                           compile_time_, module_->size());
+                           shared_info->StartPosition(), compile_time_,
+                           module_->size());
   return SUCCEEDED;
 }
 
@@ -298,7 +300,7 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   // Enforce asm.js spec minimum size.
   if (size < (1u << 12u)) return false;
   // Enforce engine-limited and flag-limited maximum allocation size.
-  if (size > wasm::max_initial_mem_pages() * uint64_t{wasm::kWasmPageSize}) {
+  if (size > wasm::max_mem_pages() * uint64_t{wasm::kWasmPageSize}) {
     return false;
   }
   // Enforce power-of-2 sizes for 2^12 - 2^24.

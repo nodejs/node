@@ -20,8 +20,7 @@ server.on('stream', common.mustCall((stream) => {
   // The first pushStream will complete as normal
   stream.pushStream({
     ':path': '/foobar',
-  }, common.mustCall((err, pushedStream) => {
-    assert.ifError(err);
+  }, common.mustSucceed((pushedStream) => {
     pushedStream.respond();
     pushedStream.end();
     pushedStream.on('aborted', common.mustNotCall());
@@ -32,8 +31,7 @@ server.on('stream', common.mustCall((stream) => {
   // being set to only 1
   stream.pushStream({
     ':path': '/foobar',
-  }, common.mustCall((err, pushedStream) => {
-    assert.ifError(err);
+  }, common.mustSucceed((pushedStream) => {
     pushedStream.respond();
     pushedStream.on('aborted', common.mustCall());
     pushedStream.on('error', common.mustNotCall());

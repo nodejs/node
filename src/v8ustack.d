@@ -393,24 +393,6 @@ dtrace:helper:ustack:
 }
 
 /*
- * Like V8, we first check if we've got an ArgumentsAdaptorFrame.  We've got
- * nothing to add for such frames, so we bail out quickly.
- */
-dtrace:helper:ustack:
-{
-	this->ctx = COPYIN_PTR(this->fp + V8_OFF_FP_CONTEXT);
-}
-
-dtrace:helper:ustack:
-/IS_SMI(this->ctx) && SMI_VALUE(this->ctx) == V8_FT_ADAPTOR/
-{
-	this->done = 1;
-	APPEND_CHR8('<','<',' ','a','d','a','p','t');
-	APPEND_CHR8('o','r',' ','>','>','\0','\0','\0');
-	stringof(this->buf);
-}
-
-/*
  * Check for other common frame types for which we also have nothing to add.
  */
 dtrace:helper:ustack:

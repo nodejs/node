@@ -40,7 +40,7 @@ bool IsControlOpcode(IrOpcode::Value opcode) {
 
 bool IsJsOpcode(IrOpcode::Value opcode) {
   switch (opcode) {
-#define OPCODE(Opcode)      \
+#define OPCODE(Opcode, ...) \
   case IrOpcode::k##Opcode: \
     return true;
     JS_OP_LIST(OPCODE)
@@ -66,7 +66,7 @@ bool IsConstantOpcode(IrOpcode::Value opcode) {
 
 bool IsComparisonOpcode(IrOpcode::Value opcode) {
   switch (opcode) {
-#define OPCODE(Opcode)      \
+#define OPCODE(Opcode, ...) \
   case IrOpcode::k##Opcode: \
     return true;
     JS_COMPARE_BINOP_LIST(OPCODE)
@@ -79,13 +79,13 @@ bool IsComparisonOpcode(IrOpcode::Value opcode) {
 }
 
 char const* const kMnemonics[] = {
-#define OPCODE(Opcode) #Opcode,
+#define OPCODE(Opcode, ...) #Opcode,
     ALL_OP_LIST(OPCODE)
 #undef OPCODE
 };
 
 const IrOpcode::Value kOpcodes[] = {
-#define OPCODE(Opcode) IrOpcode::k##Opcode,
+#define OPCODE(Opcode, ...) IrOpcode::k##Opcode,
     ALL_OP_LIST(OPCODE)
 #undef OPCODE
 };

@@ -33,40 +33,9 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
   }
 }
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject obj, HeapObject value) {
-  DCHECK(!marking_state()->IsImpossible(value));
-  DCHECK(!marking_state()->IsImpossible(obj));
-  // The write barrier stub generated with V8_CONCURRENT_MARKING does not
-  // check the color of the source object.
-  const bool need_recording =
-      V8_CONCURRENT_MARKING_BOOL || marking_state()->IsBlack(obj);
-
-  if (need_recording && WhiteToGreyAndPush(value)) {
-    RestartIfNotMarking();
-  }
-  return is_compacting_ && need_recording;
-}
-
-template <typename TSlot>
-void IncrementalMarking::RecordWrite(HeapObject obj, TSlot slot,
-                                     typename TSlot::TObject value) {
-  static_assert(std::is_same<TSlot, ObjectSlot>::value ||
-                    std::is_same<TSlot, MaybeObjectSlot>::value,
-                "Only ObjectSlot and MaybeObjectSlot are expected here");
-  DCHECK_NE(slot.address(), kNullAddress);
-  DCHECK_IMPLIES(!TSlot::kCanBeWeak, !HAS_WEAK_HEAP_OBJECT_TAG((*slot).ptr()));
-  DCHECK_IMPLIES(!TSlot::kCanBeWeak, !HAS_WEAK_HEAP_OBJECT_TAG(value.ptr()));
-  // When writing a weak reference, treat it as strong for the purposes of the
-  // marking barrier.
-  HeapObject value_heap_object;
-  if (IsMarking() && value.GetHeapObject(&value_heap_object)) {
-    RecordWriteSlow(obj, HeapObjectSlot(slot), value_heap_object);
-  }
-}
-
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklists()->Push(obj);
+    local_marking_worklists()->Push(obj);
     return true;
   }
   return false;

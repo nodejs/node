@@ -36,12 +36,14 @@
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <set>
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/mips64/register-mips64.h"
 #include "src/objects/contexts.h"
@@ -167,6 +169,35 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+
+  // Mips uses BlockTrampolinePool to prevent generating trampoline inside a
+  // continuous instruction block. For Call instruction, it prevents generating
+  // trampoline between jalr and delay slot instruction. In the destructor of
+  // BlockTrampolinePool, it must check if it needs to generate trampoline
+  // immediately, if it does not do this, the branch range will go beyond the
+  // max branch offset, that means the pc_offset after call CheckTrampolinePool
+  // may be not the Call instruction's location. So we use last_call_pc here for
+  // safepoint record.
+  int pc_offset_for_safepoint() {
+#ifdef DEBUG
+    Instr instr1 =
+        instr_at(static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize));
+    Instr instr2 = instr_at(
+        static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize * 2));
+    if (GetOpcodeField(instr1) != SPECIAL) {  // instr1 == jialc.
+      DCHECK((kArchVariant == kMips64r6) && GetOpcodeField(instr1) == POP76 &&
+             GetRs(instr1) == 0);
+    } else {
+      if (GetFunctionField(instr1) == SLL) {  // instr1 == nop, instr2 == jalr.
+        DCHECK(GetOpcodeField(instr2) == SPECIAL &&
+               GetFunctionField(instr2) == JALR);
+      } else {  // instr1 == jalr.
+        DCHECK(GetFunctionField(instr1) == JALR);
+      }
+    }
+#endif
+    return static_cast<int>(last_call_pc_ - buffer_start_);
+  }
 
   // Label operations & relative jumps (PPUM Appendix D).
   //
@@ -1404,7 +1435,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockTrampolinePool();
@@ -1421,7 +1452,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // sequences of instructions that must be emitted as a unit, before
   // buffer growth (and relocation) can occur.
   // This blocking scope is not nestable.
-  class BlockGrowBufferScope {
+  class V8_NODISCARD BlockGrowBufferScope {
    public:
     explicit BlockGrowBufferScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockGrowBuffer();
@@ -1445,9 +1476,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data) { dq(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    dq(data, rmode);
+  }
   void dd(Label* label);
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1628,6 +1661,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       CheckTrampolinePool();
     }
   }
+
+  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
 
  private:
   // Avoid overflows for displacements etc.
@@ -1882,6 +1917,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
+  // Keep track of the last Call's position to ensure that safepoint can get the
+  // correct information even if there is a trampoline immediately after the
+  // Call.
+  byte* last_call_pc_;
+
   RegList scratch_register_list_;
 
  private:
@@ -1900,7 +1940,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();
@@ -1911,6 +1951,20 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  private:
   RegList* available_;
   RegList old_available_;
+};
+
+// Helper struct for load lane and store lane to indicate what memory size
+// to be encoded in the opcode, and the new lane index.
+class LoadStoreLaneParams {
+ public:
+  MSASize sz;
+  uint8_t laneidx;
+
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, MSASize sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

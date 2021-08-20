@@ -28,8 +28,8 @@ namespace compiler {
 // - iteration: amortized O(1) per step
 // - Zip: O(n)
 // - equality check: O(n)
-// TODO(tebbi): Cache map transitions to avoid re-allocation of the same map.
-// TODO(tebbi): Implement an O(1) equality check based on hash consing or
+// TODO(turbofan): Cache map transitions to avoid re-allocation of the same map.
+// TODO(turbofan): Implement an O(1) equality check based on hash consing or
 //              something similar.
 template <class Key, class Value, class Hasher = base::hash<Key>>
 class PersistentMap {
@@ -383,7 +383,7 @@ void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
   ZoneMap<Key, Value>* more = nullptr;
   if (!(GetFocusedValue(old, key) != value)) return;
   if (old && !(old->more == nullptr && old->key_value.key() == key)) {
-    more = new (zone_->New(sizeof(*more))) ZoneMap<Key, Value>(zone_);
+    more = zone_->New<ZoneMap<Key, Value>>(zone_);
     if (old->more) {
       *more = *old->more;
     } else {
@@ -391,14 +391,14 @@ void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
     }
     (*more)[key] = value;
   }
-  FocusedTree* tree =
-      new (zone_->New(sizeof(FocusedTree) +
-                      std::max(0, length - 1) * sizeof(const FocusedTree*)))
-          FocusedTree{KeyValue(std::move(key), std::move(value)),
-                      static_cast<int8_t>(length),
-                      key_hash,
-                      more,
-                      {}};
+  size_t size = sizeof(FocusedTree) +
+                std::max(0, length - 1) * sizeof(const FocusedTree*);
+  FocusedTree* tree = new (zone_->Allocate<FocusedTree>(size))
+      FocusedTree{KeyValue(std::move(key), std::move(value)),
+                  static_cast<int8_t>(length),
+                  key_hash,
+                  more,
+                  {}};
   for (int i = 0; i < length; ++i) {
     tree->path(i) = path[i];
   }

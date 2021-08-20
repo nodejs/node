@@ -1,26 +1,24 @@
-'use strict'
-
 // npm install-ci-test
 // Runs `npm ci` and then runs `npm test`
 
-module.exports = installTest
-var ci = require('./ci.js')
-var test = require('./test.js')
-var usage = require('./utils/usage')
+const CI = require('./ci.js')
 
-installTest.usage = usage(
-  'install-ci-test',
-  '\nnpm install-ci-test [args]' +
-  '\nSame args as `npm ci`'
-)
+class InstallCITest extends CI {
+  static get description () {
+    return 'Install a project with a clean slate and run tests'
+  }
 
-installTest.completion = ci.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install-ci-test'
+  }
 
-function installTest (args, cb) {
-  ci(args, function (er) {
-    if (er) {
-      return cb(er)
-    }
-    test([], cb)
-  })
+  exec (args, cb) {
+    this.npm.commands.ci(args, (er) => {
+      if (er)
+        return cb(er)
+      this.npm.commands.test([], cb)
+    })
+  }
 }
+module.exports = InstallCITest

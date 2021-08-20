@@ -25,7 +25,7 @@ child.stdin.write = function(original) {
 }(child.stdin.write);
 
 child.stdout.once('data', function() {
-  child.stdin.write('var throws = 0;');
+  child.stdin.write('let throws = 0;');
   child.stdin.write('process.on("exit",function(){console.log(throws)});');
   child.stdin.write('function thrower(){console.log("THROW",throws++);XXX};');
   child.stdin.write('setTimeout(thrower);""\n');
@@ -40,7 +40,7 @@ child.stdout.once('data', function() {
   function eeTest() {
     child.stdin.write('setTimeout(function() {\n' +
                       '  const events = require("events");\n' +
-                      '  var e = new events.EventEmitter;\n' +
+                      '  let e = new events.EventEmitter;\n' +
                       '  process.nextTick(function() {\n' +
                       '    e.on("x", thrower);\n' +
                       '    setTimeout(function() {\n' +

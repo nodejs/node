@@ -74,7 +74,7 @@ const filename4 = join(tmpdir.path, 'append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, { mode: m });
 
 [
-  true, false, 0, 1, Infinity, () => {}, {}, [], undefined, null
+  true, false, 0, 1, Infinity, () => {}, {}, [], undefined, null,
 ].forEach((value) => {
   assert.throws(
     () => fs.appendFileSync(filename4, value, { mode: m }),

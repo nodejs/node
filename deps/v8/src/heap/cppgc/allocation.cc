@@ -6,7 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/heap-inl.h"
+#include "src/heap/cppgc/object-allocator.h"
 
 namespace cppgc {
 namespace internal {
@@ -15,19 +15,17 @@ STATIC_ASSERT(api_constants::kLargeObjectSizeThreshold ==
               kLargeObjectSizeThreshold);
 
 // static
-void* MakeGarbageCollectedTraitInternal::Allocate(cppgc::Heap* heap,
-                                                  size_t size,
-                                                  GCInfoIndex index) {
-  DCHECK_NOT_NULL(heap);
-  return Heap::From(heap)->Allocate(size, index);
+void* MakeGarbageCollectedTraitInternal::Allocate(
+    cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index) {
+  return static_cast<ObjectAllocator&>(handle).AllocateObject(size, index);
 }
 
 // static
 void* MakeGarbageCollectedTraitInternal::Allocate(
-    cppgc::Heap* heap, size_t size, GCInfoIndex index,
+    cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index,
     CustomSpaceIndex space_index) {
-  DCHECK_NOT_NULL(heap);
-  return Heap::From(heap)->Allocate(size, index, space_index);
+  return static_cast<ObjectAllocator&>(handle).AllocateObject(size, index,
+                                                              space_index);
 }
 
 }  // namespace internal

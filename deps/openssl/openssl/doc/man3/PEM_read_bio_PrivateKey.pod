@@ -206,7 +206,7 @@ RSA structure. The public key is encoded using a PKCS#1 RSAPublicKey
 structure.
 
 The B<RSA_PUBKEY> functions also process an RSA public key using
-an RSA structure. However the public key is encoded using a
+an RSA structure. However, the public key is encoded using a
 SubjectPublicKeyInfo structure and an error occurs if the public
 key is not RSA.
 
@@ -387,7 +387,7 @@ The pseudo code to derive the key would look similar to:
 =head1 BUGS
 
 The PEM read routines in some versions of OpenSSL will not correctly reuse
-an existing structure. Therefore the following:
+an existing structure. Therefore, the following:
 
  PEM_read_bio_X509(bp, &x, 0, NULL);
 
@@ -483,7 +483,7 @@ as they will be formally deprecated in a future releases.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

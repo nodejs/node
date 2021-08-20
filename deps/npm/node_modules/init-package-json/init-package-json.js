@@ -103,7 +103,7 @@ function init (dir, input, config, cb) {
         if (!pkg.description)
           pkg.description = data.description
 
-        var d = JSON.stringify(pkg, null, 2) + '\n'
+        var d = JSON.stringify(updateDeps(pkg), null, 2) + '\n'
         function write (yes) {
           fs.writeFile(packageFile, d, 'utf8', function (er) {
             if (!er && yes && !config.get('silent')) {
@@ -130,6 +130,20 @@ function init (dir, input, config, cb) {
     })
   })
 
+}
+
+function updateDeps(depsData) {
+  // optionalDependencies don't need to be repeated in two places
+  if (depsData.dependencies) {
+    if (depsData.optionalDependencies) {
+      for (const name of Object.keys(depsData.optionalDependencies))
+        delete depsData.dependencies[name]
+    }
+    if (Object.keys(depsData.dependencies).length === 0)
+      delete depsData.dependencies
+  }
+
+  return depsData
 }
 
 // turn the objects into somewhat more humane strings.

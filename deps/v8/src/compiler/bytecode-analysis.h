@@ -99,7 +99,9 @@ struct V8_EXPORT_PRIVATE LoopInfo {
 class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
-                   BailoutId osr_bailout_id, bool analyze_liveness);
+                   BytecodeOffset osr_bailout_id, bool analyze_liveness);
+  BytecodeAnalysis(const BytecodeAnalysis&) = delete;
+  BytecodeAnalysis& operator=(const BytecodeAnalysis&) = delete;
 
   // Return true if the given offset is a loop header
   bool IsLoopHeader(int offset) const;
@@ -126,7 +128,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
     return osr_entry_point_;
   }
   // Return the osr_bailout_id (for verification purposes).
-  BailoutId osr_bailout_id() const { return osr_bailout_id_; }
+  BytecodeOffset osr_bailout_id() const { return osr_bailout_id_; }
 
   // Return whether liveness analysis was performed (for verification purposes).
   bool liveness_analyzed() const { return analyze_liveness_; }
@@ -152,12 +154,20 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
 
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  BytecodeLivenessMap& liveness_map() {
+    DCHECK(analyze_liveness_);
+    return *liveness_map_;
+  }
+  const BytecodeLivenessMap& liveness_map() const {
+    DCHECK(analyze_liveness_);
+    return *liveness_map_;
+  }
 
   std::ostream& PrintLivenessTo(std::ostream& os) const;
 
   Handle<BytecodeArray> const bytecode_array_;
   Zone* const zone_;
-  BailoutId const osr_bailout_id_;
+  BytecodeOffset const osr_bailout_id_;
   bool const analyze_liveness_;
   ZoneStack<LoopStackEntry> loop_stack_;
   ZoneVector<int> loop_end_index_queue_;
@@ -165,9 +175,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
-  BytecodeLivenessMap liveness_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysis);
+  base::Optional<BytecodeLivenessMap> liveness_map_;
 };
 
 }  // namespace compiler

@@ -77,7 +77,7 @@ static void empty_opendir_cb(uv_fs_t* req) {
   ASSERT(req == &opendir_req);
   ASSERT(req->fs_type == UV_FS_OPENDIR);
   ASSERT(req->result == 0);
-  ASSERT(req->ptr != NULL);
+  ASSERT_NOT_NULL(req->ptr);
   dir = req->ptr;
   dir->dirents = dirents;
   dir->nentries = ARRAY_SIZE(dirents);
@@ -118,7 +118,7 @@ TEST_IMPL(fs_readdir_empty_dir) {
   ASSERT(r == 0);
   ASSERT(opendir_req.fs_type == UV_FS_OPENDIR);
   ASSERT(opendir_req.result == 0);
-  ASSERT(opendir_req.ptr != NULL);
+  ASSERT_NOT_NULL(opendir_req.ptr);
   dir = opendir_req.ptr;
   uv_fs_req_cleanup(&opendir_req);
 
@@ -171,7 +171,7 @@ static void non_existing_opendir_cb(uv_fs_t* req) {
   ASSERT(req == &opendir_req);
   ASSERT(req->fs_type == UV_FS_OPENDIR);
   ASSERT(req->result == UV_ENOENT);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
 
   uv_fs_req_cleanup(req);
   ++non_existing_opendir_cb_count;
@@ -191,7 +191,7 @@ TEST_IMPL(fs_readdir_non_existing_dir) {
   ASSERT(r == UV_ENOENT);
   ASSERT(opendir_req.fs_type == UV_FS_OPENDIR);
   ASSERT(opendir_req.result == UV_ENOENT);
-  ASSERT(opendir_req.ptr == NULL);
+  ASSERT_NULL(opendir_req.ptr);
   uv_fs_req_cleanup(&opendir_req);
 
   /* Fill the req to ensure that required fields are cleaned up. */
@@ -223,13 +223,16 @@ static void file_opendir_cb(uv_fs_t* req) {
   ASSERT(req == &opendir_req);
   ASSERT(req->fs_type == UV_FS_OPENDIR);
   ASSERT(req->result == UV_ENOTDIR);
-  ASSERT(req->ptr == NULL);
+  ASSERT_NULL(req->ptr);
 
   uv_fs_req_cleanup(req);
   ++file_opendir_cb_count;
 }
 
 TEST_IMPL(fs_readdir_file) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char* path;
   int r;
 
@@ -244,7 +247,7 @@ TEST_IMPL(fs_readdir_file) {
   ASSERT(r == UV_ENOTDIR);
   ASSERT(opendir_req.fs_type == UV_FS_OPENDIR);
   ASSERT(opendir_req.result == UV_ENOTDIR);
-  ASSERT(opendir_req.ptr == NULL);
+  ASSERT_NULL(opendir_req.ptr);
 
   uv_fs_req_cleanup(&opendir_req);
 
@@ -326,7 +329,7 @@ static void non_empty_opendir_cb(uv_fs_t* req) {
   ASSERT(req == &opendir_req);
   ASSERT(req->fs_type == UV_FS_OPENDIR);
   ASSERT(req->result == 0);
-  ASSERT(req->ptr != NULL);
+  ASSERT_NOT_NULL(req->ptr);
 
   dir = req->ptr;
   dir->dirents = dirents;
@@ -400,7 +403,7 @@ TEST_IMPL(fs_readdir_non_empty_dir) {
   ASSERT(r == 0);
   ASSERT(opendir_req.fs_type == UV_FS_OPENDIR);
   ASSERT(opendir_req.result == 0);
-  ASSERT(opendir_req.ptr != NULL);
+  ASSERT_NOT_NULL(opendir_req.ptr);
 
   entries_count = 0;
   dir = opendir_req.ptr;

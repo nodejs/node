@@ -24,7 +24,6 @@ inline constexpr bool IsHexDigit(uc32 c);
 inline constexpr bool IsOctalDigit(uc32 c);
 inline constexpr bool IsBinaryDigit(uc32 c);
 inline constexpr bool IsRegExpWord(uc32 c);
-inline constexpr bool IsRegExpNewline(uc32 c);
 
 inline constexpr bool IsAsciiLower(uc32 ch);
 inline constexpr bool IsAsciiUpper(uc32 ch);

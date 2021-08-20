@@ -24,10 +24,12 @@
 
 namespace U_ICU_NAMESPACE {
 class Collator;
-}  //  namespace U_ICU_NAMESPACE
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-collator-tq.inc"
 
 class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
  public:

@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class FeedbackNexus;
 class FeedbackSlot;
 
 namespace compiler {
@@ -43,6 +42,8 @@ class JSTypeHintLowering {
 
   JSTypeHintLowering(JSHeapBroker* broker, JSGraph* jsgraph,
                      FeedbackVectorRef feedback_vector, Flags flags);
+  JSTypeHintLowering(const JSTypeHintLowering&) = delete;
+  JSTypeHintLowering& operator=(const JSTypeHintLowering&) = delete;
 
   // {LoweringResult} describes the result of lowering. The following outcomes
   // are possible:
@@ -72,6 +73,7 @@ class JSTypeHintLowering {
                                          Node* control) {
       DCHECK_NOT_NULL(effect);
       DCHECK_NOT_NULL(control);
+      DCHECK(value->op()->HasProperty(Operator::kNoThrow));
       return LoweringResult(LoweringResultKind::kSideEffectFree, value, effect,
                             control);
     }
@@ -142,8 +144,8 @@ class JSTypeHintLowering {
                                             FeedbackSlot call_slot) const;
 
   // Potential reduction of property access operations.
-  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* obj,
-                                          Node* effect, Node* control,
+  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* effect,
+                                          Node* control,
                                           FeedbackSlot slot) const;
   LoweringResult ReduceLoadKeyedOperation(const Operator* op, Node* obj,
                                           Node* key, Node* effect,
@@ -176,8 +178,6 @@ class JSTypeHintLowering {
   JSGraph* const jsgraph_;
   Flags const flags_;
   FeedbackVectorRef const feedback_vector_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
 };
 
 }  // namespace compiler

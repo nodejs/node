@@ -80,46 +80,6 @@ uuidv5('Hello, World!', MY_NAMESPACE); // ⇨ '630eb68f-e0fa-5ecc-887a-7c7a62614
 
 ```
 
-## Quickstart - Browser-ready Versions
-
-Browser-ready versions of this module are available via [wzrd.in](https://github.com/jfhbrook/wzrd.in).
-
-For version 1 uuids:
-
-```html
-<script src="http://wzrd.in/standalone/uuid%2Fv1@latest"></script>
-<script>
-uuidv1(); // -> v1 UUID
-</script>
-```
-
-For version 3 uuids:
-
-```html
-<script src="http://wzrd.in/standalone/uuid%2Fv3@latest"></script>
-<script>
-uuidv3('http://example.com/hello', uuidv3.URL); // -> v3 UUID
-</script>
-```
-
-For version 4 uuids:
-
-```html
-<script src="http://wzrd.in/standalone/uuid%2Fv4@latest"></script>
-<script>
-uuidv4(); // -> v4 UUID
-</script>
-```
-
-For version 5 uuids:
-
-```html
-<script src="http://wzrd.in/standalone/uuid%2Fv5@latest"></script>
-<script>
-uuidv5('http://example.com/hello', uuidv5.URL); // -> v5 UUID
-</script>
-```
-
 ## API
 
 ### Version 1
@@ -167,8 +127,19 @@ Example: In-place generation of two binary IDs
 ```javascript
 // Generate two ids in an array
 const arr = new Array();
-uuidv1(null, arr, 0);  // ⇨ [ 44, 94, 164, 192, 64, 103, 17, 233, 146, 52, 155, 29, 235, 77, 59, 125 ]
-uuidv1(null, arr, 16); // ⇨ [ 44, 94, 164, 192, 64, 103, 17, 233, 146, 52, 155, 29, 235, 77, 59, 125, 44, 94, 164, 193, 64, 103, 17, 233, 146, 52, 155, 29, 235, 77, 59, 125 ]
+uuidv1(null, arr, 0);  // ⇨ 
+  // [
+  //    44,  94, 164, 192,  64, 103,
+  //    17, 233, 146,  52, 155,  29,
+  //   235,  77,  59, 125
+  // ]
+uuidv1(null, arr, 16); // ⇨ 
+  // [
+  //    44, 94, 164, 192,  64, 103, 17, 233,
+  //   146, 52, 155,  29, 235,  77, 59, 125,
+  //    44, 94, 164, 193,  64, 103, 17, 233,
+  //   146, 52, 155,  29, 235,  77, 59, 125
+  // ]
 
 ```
 
@@ -237,8 +208,20 @@ Example: Generate two IDs in a single buffer
 
 ```javascript
 const buffer = new Array();
-uuidv4(null, buffer, 0);  // ⇨ [ 155, 29, 235, 77, 59, 125, 75, 173, 155, 221, 43, 13, 123, 61, 203, 109 ]
-uuidv4(null, buffer, 16); // ⇨ [ 155, 29, 235, 77, 59, 125, 75, 173, 155, 221, 43, 13, 123, 61, 203, 109, 27, 157, 107, 205, 187, 253, 75, 45, 155, 93, 171, 141, 251, 189, 75, 237 ]
+uuidv4(null, buffer, 0);  // ⇨ 
+  // [
+  //   155, 29, 235,  77,  59,
+  //   125, 75, 173, 155, 221,
+  //    43, 13, 123,  61, 203,
+  //   109
+  // ]
+uuidv4(null, buffer, 16); // ⇨ 
+  // [
+  //   155,  29, 235,  77,  59, 125,  75, 173,
+  //   155, 221,  43,  13, 123,  61, 203, 109,
+  //    27, 157, 107, 205, 187, 253,  75,  45,
+  //   155,  93, 171, 141, 251, 189,  75, 237
+  // ]
 
 ```
 

@@ -157,7 +157,7 @@ public:
 //
 //    String Table:
 //       The strings table contains all of the value strings (those of length two or greater)
-//       concatentated together into one long UChar (UTF-16) array.
+//       concatenated together into one long UChar (UTF-16) array.
 //
 //       There is no nul character or other mark between adjacent strings.
 //
@@ -222,7 +222,7 @@ class SpoofData: public UMemory {
     SpoofData(const void *serializedData, int32_t length, UErrorCode &status);
 
     //  Check raw Spoof Data Version compatibility.
-    //  Return TRUE it looks good.
+    //  Return true it looks good.
     UBool validateDataVersion(UErrorCode &status) const;
 
     ~SpoofData();                    // Destructor not normally used.

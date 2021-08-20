@@ -6,7 +6,7 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,6 +16,8 @@ namespace internal {
 
 class NativeContext;
 class WeakCell;
+
+#include "torque-generated/src/objects/js-weak-refs-tq.inc"
 
 // FinalizationRegistry object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
@@ -40,10 +42,9 @@ class JSFinalizationRegistry : public JSObject {
 
   class BodyDescriptor;
 
-  inline static void Register(
+  inline static void RegisterWeakCellWithUnregisterToken(
       Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<JSReceiver> target, Handle<Object> holdings, Handle<Object> key,
-      Isolate* isolate);
+      Handle<WeakCell> weak_cell, Isolate* isolate);
   inline static bool Unregister(
       Handle<JSFinalizationRegistry> finalization_registry,
       Handle<JSReceiver> unregister_token, Isolate* isolate);

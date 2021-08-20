@@ -2,10 +2,10 @@
 
 =head1 NAME
 
-X509_get0_signature, X509_get_signature_nid, X509_get0_tbs_sigalg,
-X509_REQ_get0_signature, X509_REQ_get_signature_nid, X509_CRL_get0_signature,
-X509_CRL_get_signature_nid, X509_get_signature_info, X509_SIG_INFO_get,
-X509_SIG_INFO_set - signature information
+X509_get0_signature, X509_REQ_set0_signature, X509_REQ_set1_signature_algo,
+X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature, 
+X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid, 
+X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set - signature information
 
 =head1 SYNOPSIS
 
@@ -14,6 +14,8 @@ X509_SIG_INFO_set - signature information
  void X509_get0_signature(const ASN1_BIT_STRING **psig,
                           const X509_ALGOR **palg,
                           const X509 *x);
+ void X509_REQ_set0_signature(X509_REQ *req, ASN1_BIT_STRING *psig);
+ int X509_REQ_set1_signature_algo(X509_REQ *req, X509_ALGOR *palg);
  int X509_get_signature_nid(const X509 *x);
  const X509_ALGOR *X509_get0_tbs_sigalg(const X509 *x);
 
@@ -40,6 +42,9 @@ X509_SIG_INFO_set - signature information
 X509_get0_signature() sets B<*psig> to the signature of B<x> and B<*palg>
 to the signature algorithm of B<x>. The values returned are internal
 pointers which B<MUST NOT> be freed up after the call.
+
+X509_set0_signature() and X509_REQ_set1_signature_algo() are the
+equivalent setters for the two values of X509_get0_signature().
 
 X509_get0_tbs_sigalg() returns the signature algorithm in the signed
 portion of B<x>.
@@ -88,6 +93,10 @@ X509_get_signature_info() returns 1 if the signature information
 returned is valid or 0 if the information is not available (e.g.
 unknown algorithms or malformed parameters).
 
+X509_REQ_set1_signature_algo() returns 0 on success; or 1 on an
+error (e.g. null ALGO pointer). X509_REQ_set0_signature does
+not return an error value.
+
 =head1 SEE ALSO
 
 L<d2i_X509(3)>,
@@ -118,9 +127,12 @@ X509_REQ_get0_signature(), X509_REQ_get_signature_nid(),
 X509_CRL_get0_signature() and X509_CRL_get_signature_nid() were
 added in OpenSSL 1.1.0.
 
+The X509_REQ_set0_signature() and X509_REQ_set1_signature_algo()
+were added in OpenSSL 1.1.1e.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

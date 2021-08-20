@@ -24,10 +24,12 @@
 
 namespace U_ICU_NAMESPACE {
 class RelativeDateTimeFormatter;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-relative-time-format-tq.inc"
 
 class JSRelativeTimeFormat
     : public TorqueGeneratedJSRelativeTimeFormat<JSRelativeTimeFormat,

@@ -93,8 +93,8 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
     std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)>
       environment{node::CreateEnvironment(isolate_data.get(),
                                           context,
-                                          0, nullptr,
-                                          0, nullptr),
+                                          {},
+                                          {}),
                   node::FreeEnvironment};
     CHECK(environment);
   }

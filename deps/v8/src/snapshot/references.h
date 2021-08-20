@@ -8,77 +8,40 @@
 #include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
 #include "src/common/assert-scope.h"
+#include "src/execution/isolate.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
 
-// TODO(goszczycki): Move this somewhere every file in src/snapshot can use it.
-// The spaces suported by the serializer. Spaces after LO_SPACE (NEW_LO_SPACE
-// and CODE_LO_SPACE) are not supported.
-enum class SnapshotSpace {
-  kReadOnlyHeap = RO_SPACE,
-  kNew = NEW_SPACE,
-  kOld = OLD_SPACE,
-  kCode = CODE_SPACE,
-  kMap = MAP_SPACE,
-  kLargeObject = LO_SPACE,
-  kNumberOfPreallocatedSpaces = kCode + 1,
-  kNumberOfSpaces = kLargeObject + 1,
-  kSpecialValueSpace = kNumberOfSpaces,
-  // Number of spaces which should be allocated by the heap. Eventually
-  // kReadOnlyHeap will move to the end of this enum and this will be equal to
-  // it.
-  kNumberOfHeapSpaces = kNumberOfSpaces,
+enum class SnapshotSpace : byte {
+  kReadOnlyHeap,
+  kOld,
+  kCode,
+  kMap,
 };
-
-constexpr bool IsPreAllocatedSpace(SnapshotSpace space) {
-  return static_cast<int>(space) <
-         static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
-}
+static constexpr int kNumberOfSnapshotSpaces =
+    static_cast<int>(SnapshotSpace::kMap) + 1;
 
 class SerializerReference {
  private:
   enum SpecialValueType {
-    kInvalidValue,
+    kBackReference,
     kAttachedReference,
     kOffHeapBackingStore,
     kBuiltinReference,
   };
 
-  STATIC_ASSERT(static_cast<int>(SnapshotSpace::kSpecialValueSpace) <
-                (1 << kSpaceTagSize));
-
   SerializerReference(SpecialValueType type, uint32_t value)
-      : bitfield_(SpaceBits::encode(SnapshotSpace::kSpecialValueSpace) |
-                  SpecialValueTypeBits::encode(type)),
-        value_(value) {}
+      : bit_field_(TypeBits::encode(type) | ValueBits::encode(value)) {}
 
  public:
-  SerializerReference() : SerializerReference(kInvalidValue, 0) {}
-
-  SerializerReference(SnapshotSpace space, uint32_t chunk_index,
-                      uint32_t chunk_offset)
-      : bitfield_(SpaceBits::encode(space) |
-                  ChunkIndexBits::encode(chunk_index)),
-        value_(chunk_offset) {}
-
-  static SerializerReference BackReference(SnapshotSpace space,
-                                           uint32_t chunk_index,
-                                           uint32_t chunk_offset) {
-    DCHECK(IsAligned(chunk_offset, kObjectAlignment));
-    return SerializerReference(space, chunk_index, chunk_offset);
-  }
-
-  static SerializerReference MapReference(uint32_t index) {
-    return SerializerReference(SnapshotSpace::kMap, 0, index);
+  static SerializerReference BackReference(uint32_t index) {
+    return SerializerReference(kBackReference, index);
   }
 
   static SerializerReference OffHeapBackingStoreReference(uint32_t index) {
     return SerializerReference(kOffHeapBackingStore, index);
-  }
-
-  static SerializerReference LargeObjectReference(uint32_t index) {
-    return SerializerReference(SnapshotSpace::kLargeObject, 0, index);
   }
 
   static SerializerReference AttachedReference(uint32_t index) {
@@ -89,127 +52,94 @@ class SerializerReference {
     return SerializerReference(kBuiltinReference, index);
   }
 
-  bool is_valid() const {
-    return SpaceBits::decode(bitfield_) != SnapshotSpace::kSpecialValueSpace ||
-           SpecialValueTypeBits::decode(bitfield_) != kInvalidValue;
-  }
-
   bool is_back_reference() const {
-    return SpaceBits::decode(bitfield_) != SnapshotSpace::kSpecialValueSpace;
+    return TypeBits::decode(bit_field_) == kBackReference;
   }
 
-  SnapshotSpace space() const {
+  uint32_t back_ref_index() const {
     DCHECK(is_back_reference());
-    return SpaceBits::decode(bitfield_);
-  }
-
-  uint32_t chunk_offset() const {
-    DCHECK(is_back_reference());
-    return value_;
-  }
-
-  uint32_t chunk_index() const {
-    DCHECK(IsPreAllocatedSpace(space()));
-    return ChunkIndexBits::decode(bitfield_);
-  }
-
-  uint32_t map_index() const {
-    DCHECK_EQ(SnapshotSpace::kMap, SpaceBits::decode(bitfield_));
-    return value_;
+    return ValueBits::decode(bit_field_);
   }
 
   bool is_off_heap_backing_store_reference() const {
-    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
-           SpecialValueTypeBits::decode(bitfield_) == kOffHeapBackingStore;
+    return TypeBits::decode(bit_field_) == kOffHeapBackingStore;
   }
 
   uint32_t off_heap_backing_store_index() const {
     DCHECK(is_off_heap_backing_store_reference());
-    return value_;
-  }
-
-  uint32_t large_object_index() const {
-    DCHECK_EQ(SnapshotSpace::kLargeObject, SpaceBits::decode(bitfield_));
-    return value_;
+    return ValueBits::decode(bit_field_);
   }
 
   bool is_attached_reference() const {
-    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
-           SpecialValueTypeBits::decode(bitfield_) == kAttachedReference;
+    return TypeBits::decode(bit_field_) == kAttachedReference;
   }
 
   uint32_t attached_reference_index() const {
     DCHECK(is_attached_reference());
-    return value_;
+    return ValueBits::decode(bit_field_);
   }
 
   bool is_builtin_reference() const {
-    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
-           SpecialValueTypeBits::decode(bitfield_) == kBuiltinReference;
+    return TypeBits::decode(bit_field_) == kBuiltinReference;
   }
 
   uint32_t builtin_index() const {
     DCHECK(is_builtin_reference());
-    return value_;
+    return ValueBits::decode(bit_field_);
   }
 
  private:
-  using SpaceBits = base::BitField<SnapshotSpace, 0, kSpaceTagSize>;
-  using ChunkIndexBits = SpaceBits::Next<uint32_t, 32 - kSpaceTagSize>;
-  using SpecialValueTypeBits =
-      SpaceBits::Next<SpecialValueType, 32 - kSpaceTagSize>;
+  using TypeBits = base::BitField<SpecialValueType, 0, 2>;
+  using ValueBits = TypeBits::Next<uint32_t, 32 - TypeBits::kSize>;
 
-  // We use two fields to store a reference.
-  // In case of a normal back reference, the bitfield_ stores the space and
-  // the chunk index. In case of special references, it uses a special value
-  // for space and stores the special value type.
-  uint32_t bitfield_;
-  // value_ stores either chunk offset or special value.
-  uint32_t value_;
+  uint32_t bit_field_;
 
   friend class SerializerReferenceMap;
 };
 
-class SerializerReferenceMap
-    : public base::TemplateHashMapImpl<uintptr_t, SerializerReference,
-                                       base::KeyEqualityMatcher<intptr_t>,
-                                       base::DefaultAllocationPolicy> {
+// SerializerReference has to fit in an IdentityMap value field.
+STATIC_ASSERT(sizeof(SerializerReference) <= sizeof(void*));
+
+class SerializerReferenceMap {
  public:
-  using Entry = base::TemplateHashMapEntry<uintptr_t, SerializerReference>;
+  explicit SerializerReferenceMap(Isolate* isolate)
+      : map_(isolate->heap()), attached_reference_index_(0) {}
 
-  SerializerReferenceMap() : attached_reference_index_(0) {}
-
-  SerializerReference LookupReference(void* value) const {
-    uintptr_t key = Key(value);
-    Entry* entry = Lookup(key, Hash(key));
-    if (entry == nullptr) return SerializerReference();
-    return entry->value;
+  const SerializerReference* LookupReference(HeapObject object) const {
+    return map_.Find(object);
   }
 
-  void Add(void* obj, SerializerReference reference) {
-    DCHECK(reference.is_valid());
-    DCHECK(!LookupReference(obj).is_valid());
-    uintptr_t key = Key(obj);
-    LookupOrInsert(key, Hash(key))->value = reference;
+  const SerializerReference* LookupReference(Handle<HeapObject> object) const {
+    return map_.Find(object);
   }
 
-  SerializerReference AddAttachedReference(void* attached_reference) {
+  const SerializerReference* LookupBackingStore(void* backing_store) const {
+    auto it = backing_store_map_.find(backing_store);
+    if (it == backing_store_map_.end()) return nullptr;
+    return &it->second;
+  }
+
+  void Add(HeapObject object, SerializerReference reference) {
+    DCHECK_NULL(LookupReference(object));
+    map_.Insert(object, reference);
+  }
+
+  void AddBackingStore(void* backing_store, SerializerReference reference) {
+    DCHECK(backing_store_map_.find(backing_store) == backing_store_map_.end());
+    backing_store_map_.emplace(backing_store, reference);
+  }
+
+  SerializerReference AddAttachedReference(HeapObject object) {
     SerializerReference reference =
         SerializerReference::AttachedReference(attached_reference_index_++);
-    Add(attached_reference, reference);
+    map_.Insert(object, reference);
     return reference;
   }
 
  private:
-  static inline uintptr_t Key(void* value) {
-    return reinterpret_cast<uintptr_t>(value);
-  }
-
-  static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
-
-  DISALLOW_HEAP_ALLOCATION(no_allocation_)
+  IdentityMap<SerializerReference, base::DefaultAllocationPolicy> map_;
+  std::unordered_map<void*, SerializerReference> backing_store_map_;
   int attached_reference_index_;
-  DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };
 
 }  // namespace internal

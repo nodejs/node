@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --harmony-sharedarraybuffer
 
-(function TestFailsWithNonSharedArray() {
+(function TestNonSharedArrayBehavior() {
   var ab = new ArrayBuffer(16);
 
   var i8a = new Int8Array(ab);
@@ -18,9 +18,13 @@
   var f64a = new Float64Array(ab);
 
   [i8a, i16a, i32a, ui8a, ui8ca, ui16a, ui32a, f32a, f64a].forEach(function(
-      ta) {
+    ta) {
     assertThrows(function() { Atomics.wait(ta, 0, 0); });
-    assertThrows(function() { Atomics.wake(ta, 0, 1); });
+    if (ta === i32a) {
+      assertEquals(0, Atomics.notify(ta, 0, 1));
+    } else {
+      assertThrows(function() { Atomics.notify(ta, 0, 1); });
+    }
   });
 })();
 
@@ -39,7 +43,7 @@
   [i8a, i16a, ui8a, ui8ca, ui16a, ui32a, f32a, f64a].forEach(function(
       ta) {
     assertThrows(function() { Atomics.wait(ta, 0, 0); });
-    assertThrows(function() { Atomics.wake(ta, 0, 1); });
+    assertThrows(function() { Atomics.notify(ta, 0, 1); });
   });
 })();
 
@@ -53,7 +57,7 @@
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);
     assertThrows(function() {
-      Atomics.wake(i32a, invalidIndex, 0);
+      Atomics.notify(i32a, invalidIndex, 0);
     }, RangeError);
     var validIndex = 0;
   });
@@ -64,7 +68,7 @@
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);
     assertThrows(function() {
-      Atomics.wake(i32a, invalidIndex, 0);
+      Atomics.notify(i32a, invalidIndex, 0);
     }, RangeError);
     var validIndex = 0;
   });
@@ -106,7 +110,6 @@
 
 (function TestWakePositiveInfinity() {
   var i32a = new Int32Array(new SharedArrayBuffer(16));
-  Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
   Atomics.notify(i32a, 0, Number.POSITIVE_INFINITY);
 })();
 
@@ -168,9 +171,6 @@ if (this.Worker) {
   };
 
   // Test various infinite timeouts
-  TestWaitWithTimeout(Atomics.wake, undefined);
-  TestWaitWithTimeout(Atomics.wake, NaN);
-  TestWaitWithTimeout(Atomics.wake, Infinity);
   TestWaitWithTimeout(Atomics.notify, undefined);
   TestWaitWithTimeout(Atomics.notify, NaN);
   TestWaitWithTimeout(Atomics.notify, Infinity);
@@ -189,23 +189,24 @@ if (this.Worker) {
     // i32a[4]:
     //   always 0. Each worker is waiting on this index.
 
-    var workerScript =
-      `onmessage = function(msg) {
-         var id = msg.id;
-         var i32a = new Int32Array(msg.sab);
+    function workerCode() {
+      onmessage = function(msg) {
+        var id = msg.id;
+        var i32a = new Int32Array(msg.sab);
 
-         // Wait on i32a[4] (should be zero).
-         var result = Atomics.wait(i32a, 4, 0);
-         // Set i32a[id] to 1 to notify the main thread which workers were
-         // woken up.
-         Atomics.store(i32a, id, 1);
-         postMessage(result);
-       };`;
+        // Wait on i32a[4] (should be zero).
+        var result = Atomics.wait(i32a, 4, 0);
+        // Set i32a[id] to 1 to notify the main thread which workers were
+        // woken up.
+        Atomics.store(i32a, id, 1);
+        postMessage(result);
+      };
+    }
 
     var id;
     var workers = [];
     for (id = 0; id < 4; id++) {
-      workers[id] = new Worker(workerScript, {type: 'string'});
+      workers[id] = new Worker(workerCode, {type: 'function'});
       workers[id].postMessage({sab: sab, id: id});
     }
 
@@ -243,8 +244,5 @@ if (this.Worker) {
 
   };
 
-  TestWakeMulti(Atomics.wake);
-  // TODO(binji): This is hitting d8's max worker count when run with multiple
-  // isolates. Re-enable when workers are cleaned up after termination.
-  // TestWakeMulti(Atomics.notify);
+  TestWakeMulti(Atomics.notify);
 }

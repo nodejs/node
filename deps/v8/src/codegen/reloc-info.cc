@@ -4,6 +4,7 @@
 
 #include "src/codegen/reloc-info.h"
 
+#include "src/base/vlq.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-reference.h"
 #include "src/codegen/external-reference-encoder.h"
@@ -56,11 +57,10 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 //  the following record in the usual way. The long pc jump record has variable
 //  length:
 //               pc-jump:        [PC_JUMP] 11
-//                               [7 bits data] 0
+//                               1 [7 bits data]
 //                                  ...
-//                               [7 bits data] 1
-//               (Bits 6..31 of pc delta, with leading zeroes
-//                dropped, and last non-zero chunk tagged with 1.)
+//                               0 [7 bits data]
+//               (Bits 6..31 of pc delta, encoded with VLQ.)
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
@@ -75,12 +75,6 @@ const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
 const int RelocInfo::kMaxSmallPCDelta = kSmallPCDeltaMask;
 
-const int kChunkBits = 7;
-const int kChunkMask = (1 << kChunkBits) - 1;
-const int kLastChunkTagBits = 1;
-const int kLastChunkTagMask = 1;
-const int kLastChunkTag = 1;
-
 uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   // Return if the pc_delta can fit in kSmallPCDeltaBits bits.
   // Otherwise write a variable length PC jump for the bits that do
@@ -89,13 +83,12 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   WriteMode(RelocInfo::PC_JUMP);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
   DCHECK_GT(pc_jump, 0);
-  // Write kChunkBits size chunks of the pc_jump.
-  for (; pc_jump > 0; pc_jump = pc_jump >> kChunkBits) {
-    byte b = pc_jump & kChunkMask;
-    *--pos_ = b << kLastChunkTagBits;
-  }
-  // Tag the last chunk so it can be identified.
-  *pos_ = *pos_ | kLastChunkTag;
+  base::VLQEncodeUnsigned(
+      [this](byte byte) {
+        *--pos_ = byte;
+        return pos_;
+      },
+      pc_jump);
   // Return the remaining kSmallPCDeltaBits of the pc_delta.
   return pc_delta & kSmallPCDeltaMask;
 }
@@ -205,14 +198,8 @@ void RelocIterator::AdvanceReadData() {
 
 void RelocIterator::AdvanceReadLongPCJump() {
   // Read the 32-kSmallPCDeltaBits most significant bits of the
-  // pc jump in kChunkBits bit chunks and shift them into place.
-  // Stop when the last chunk is encountered.
-  uint32_t pc_jump = 0;
-  for (int i = 0; i < kIntSize; i++) {
-    byte pc_jump_part = *--pos_;
-    pc_jump |= (pc_jump_part >> kLastChunkTagBits) << i * kChunkBits;
-    if ((pc_jump_part & kLastChunkTagMask) == 1) break;
-  }
+  // pc jump as a VLQ encoded integer.
+  uint32_t pc_jump = base::VLQDecodeUnsigned([this] { return *--pos_; });
   // The least significant kSmallPCDeltaBits bits will be added
   // later.
   rinfo_.pc_ += pc_jump << kSmallPCDeltaBits;
@@ -330,7 +317,8 @@ bool RelocInfo::OffHeapTargetIsCodedSpecially() {
   return false;
 #elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_MIPS) || \
     defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_PPC) ||  \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390)
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390) ||  \
+    defined(V8_TARGET_ARCH_RISCV64)
   return true;
 #endif
 }
@@ -369,7 +357,7 @@ void RelocInfo::set_target_address(Address target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       IsCodeTargetMode(rmode_) && !FLAG_disable_write_barriers) {
     Code target_code = Code::GetCodeFromTargetAddress(target);
-    MarkingBarrierForCode(host(), this, target_code);
+    WriteBarrier::Marking(host(), this, target_code);
   }
 }
 
@@ -410,6 +398,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "compressed embedded object";
     case FULL_EMBEDDED_OBJECT:
       return "full embedded object";
+    case DATA_EMBEDDED_OBJECT:
+      return "data embedded object";
     case CODE_TARGET:
       return "code target";
     case RELATIVE_CODE_TARGET:
@@ -447,7 +437,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   return "unknown relocation type";
 }
 
-void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
+void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
   os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
@@ -471,16 +461,16 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     const Address code_target = target_address();
     Code code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code.IsCode());
-    os << " (" << Code::Kind2String(code.kind());
+    os << " (" << CodeKindToString(code.kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code.builtin_index());
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
-  } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
+  } else if (IsRuntimeEntry(rmode_)) {
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      os << "  (" << Deoptimizer::MessageFor(type)
+      os << "  (" << Deoptimizer::MessageFor(type, false)
          << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {
@@ -496,6 +486,7 @@ void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case COMPRESSED_EMBEDDED_OBJECT:
     case FULL_EMBEDDED_OBJECT:
+    case DATA_EMBEDDED_OBJECT:
       Object::VerifyPointer(isolate, target_object());
       break;
     case CODE_TARGET:
@@ -515,14 +506,15 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code code = Code::cast(isolate->FindCodeObject(pc));
-      CHECK(target >= code.InstructionStart());
-      CHECK(target <= code.InstructionEnd());
+      CHECK(target >= code.InstructionStart(isolate, pc));
+      CHECK(target <= code.InstructionEnd(isolate, pc));
       break;
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
-      CHECK(!InstructionStream::TryLookupCode(isolate, addr).is_null());
+      CHECK(Builtins::IsBuiltinId(
+          InstructionStream::TryLookupCode(isolate, addr)));
       break;
     }
     case RUNTIME_ENTRY:

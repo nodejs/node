@@ -18,7 +18,7 @@ builder.addFunction(undefined, kSig_i_iii)
       kExprLocalSet, 1,           // set_local 1
       ...wasmI32Const(16),        // i32.const 0x1
       kExprLocalSet, 2,           // set_local 2
-      kExprLoop, kWasmStmt,       // loop
+      kExprLoop, kWasmVoid,       // loop
       kExprEnd,                   // end
       kExprLocalGet, 0,           // get_local 0
       kExprLocalGet, 1,           // get_local 1

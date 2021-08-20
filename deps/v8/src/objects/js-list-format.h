@@ -24,10 +24,12 @@
 
 namespace U_ICU_NAMESPACE {
 class ListFormatter;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-list-format-tq.inc"
 
 class JSListFormat
     : public TorqueGeneratedJSListFormat<JSListFormat, JSObject> {

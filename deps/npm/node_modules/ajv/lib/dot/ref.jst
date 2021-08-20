@@ -50,7 +50,7 @@
     {{?}}
   {{??}}
     {{
-      $async = $refVal.$async === true;
+      $async = $refVal.$async === true || (it.async && $refVal.$async !== false);
       $refCode = $refVal.code;
     }}
   {{?}}
@@ -65,7 +65,7 @@
     {{ if (!it.async) throw new Error('async schema referenced by sync schema'); }}
     {{? $breakOnError }} var {{=$valid}}; {{?}}
     try {
-      {{=it.yieldAwait}} {{=__callValidate}};
+      await {{=__callValidate}};
       {{? $breakOnError }} {{=$valid}} = true; {{?}}
     } catch (e) {
       if (!(e instanceof ValidationError)) throw e;

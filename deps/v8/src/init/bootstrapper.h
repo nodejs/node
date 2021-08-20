@@ -19,6 +19,8 @@ namespace internal {
 class SourceCodeCache final {
  public:
   explicit SourceCodeCache(Script::Type type) : type_(type) {}
+  SourceCodeCache(const SourceCodeCache&) = delete;
+  SourceCodeCache& operator=(const SourceCodeCache&) = delete;
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
@@ -33,13 +35,15 @@ class SourceCodeCache final {
  private:
   Script::Type type_;
   FixedArray cache_;
-  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper final {
  public:
+  Bootstrapper(const Bootstrapper&) = delete;
+  Bootstrapper& operator=(const Bootstrapper&) = delete;
+
   static void InitializeOncePerProcess();
 
   // Requires: Heap::SetUp has been called.
@@ -108,8 +112,6 @@ class Bootstrapper final {
   friend class NativesExternalStringResource;
 
   explicit Bootstrapper(Isolate* isolate);
-
-  DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };
 
 class BootstrapperActive final {
@@ -118,13 +120,13 @@ class BootstrapperActive final {
       : bootstrapper_(bootstrapper) {
     ++bootstrapper_->nesting_;
   }
+  BootstrapperActive(const BootstrapperActive&) = delete;
+  BootstrapperActive& operator=(const BootstrapperActive&) = delete;
 
   ~BootstrapperActive() { --bootstrapper_->nesting_; }
 
  private:
   Bootstrapper* bootstrapper_;
-
-  DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
 };
 
 }  // namespace internal

@@ -16,10 +16,10 @@ Running test: consoleLogWithDefaultLocale
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -36,7 +36,7 @@ set locale to fr_CA.UTF-8 (has comma as separator)
         args : [
             [0] : {
                 type : string
-                value : a: 0.001ms
+                value : a: 0.001 ms
             }
         ]
         executionContextId : <executionContextId>
@@ -44,10 +44,10 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -73,10 +73,10 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -102,10 +102,10 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }
@@ -119,7 +119,7 @@ set locale to fr_CA.UTF-8 (has comma as separator)
         args : [
             [0] : {
                 type : string
-                value : a: 0.001ms
+                value : a: 0.001 ms
             }
         ]
         executionContextId : <executionContextId>
@@ -127,10 +127,10 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             callFrames : [
                 [0] : {
                     columnNumber : 8
-                    functionName : 
+                    functionName :
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url : 
+                    url :
                 }
             ]
         }

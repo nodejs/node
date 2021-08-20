@@ -179,16 +179,16 @@ struct WasmValWrapper {
 #ifdef DEBUG
 std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
   switch (wrapper.val.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       out << "i32: " << wrapper.val.to<int32_t>();
       break;
-    case ValueType::kI64:
+    case kI64:
       out << "i64: " << wrapper.val.to<int64_t>();
       break;
-    case ValueType::kF32:
+    case kF32:
       out << "f32: " << wrapper.val.to<float>();
       break;
-    case ValueType::kF64:
+    case kF64:
       out << "f64: " << wrapper.val.to<double>();
       break;
     default:
@@ -233,19 +233,19 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
-    int num_locals = debug_info->GetNumLocals(isolate_, frame->pc());
+    int num_locals = debug_info->GetNumLocals(frame->pc());
     CHECK_EQ(expected.locals.size(), num_locals);
     for (int i = 0; i < num_locals; ++i) {
       WasmValue local_value = debug_info->GetLocalValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp(), isolate_);
       CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
-    int stack_depth = debug_info->GetStackDepth(isolate_, frame->pc());
+    int stack_depth = debug_info->GetStackDepth(frame->pc());
     CHECK_EQ(expected.stack.size(), stack_depth);
     for (int i = 0; i < stack_depth; ++i) {
       WasmValue stack_value = debug_info->GetStackValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp(), isolate_);
       CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 
@@ -377,14 +377,14 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   // functions in the code section matches the function indexes.
 
   // return arg0
-  BUILD(runner, WASM_RETURN1(WASM_GET_LOCAL(0)));
+  BUILD(runner, WASM_RETURN1(WASM_LOCAL_GET(0)));
   // for (int i = 0; i < 10; ++i) { f2(i); }
   BUILD(f2, WASM_LOOP(
-                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_GET_LOCAL(0),
+                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_LOCAL_GET(0),
                                          WASM_I32V_1(10))),
-                WASM_SET_LOCAL(
-                    0, WASM_BINOP(kExprI32Sub, WASM_GET_LOCAL(0), WASM_ONE)),
-                WASM_CALL_FUNCTION(runner.function_index(), WASM_GET_LOCAL(0)),
+                WASM_LOCAL_SET(
+                    0, WASM_BINOP(kExprI32Sub, WASM_LOCAL_GET(0), WASM_ONE)),
+                WASM_CALL_FUNCTION(runner.function_index(), WASM_LOCAL_GET(0)),
                 WASM_DROP, WASM_BR(1)));
 
   Isolate* isolate = runner.main_isolate();
@@ -415,11 +415,11 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
 
   BUILD(runner,
         // set [1] to 17
-        WASM_SET_LOCAL(1, WASM_I64V_1(17)),
+        WASM_LOCAL_SET(1, WASM_I64V_1(17)),
         // set [2] to <arg0> = 7
-        WASM_SET_LOCAL(2, WASM_F32_SCONVERT_I32(WASM_GET_LOCAL(0))),
+        WASM_LOCAL_SET(2, WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0))),
         // set [3] to <arg1>/2 = 8.5
-        WASM_SET_LOCAL(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(1)),
+        WASM_LOCAL_SET(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(1)),
                                        WASM_F64(2))));
 
   Isolate* isolate = runner.main_isolate();
@@ -539,6 +539,45 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
+}
+
+WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
+  // This test checks that we don't fail if experimental / post-MVP opcodes are
+  // being used. There was a bug where we were trying to update the "detected"
+  // features set, but we were passing a nullptr when compiling with
+  // breakpoints.
+  WasmRunner<int> runner(execution_tier);
+  Isolate* isolate = runner.main_isolate();
+
+  // [] -> [i32, i32]
+  ValueType sig_types[] = {kWasmI32, kWasmI32};
+  FunctionSig sig{2, 0, sig_types};
+  uint8_t sig_idx = runner.builder().AddSignature(&sig);
+
+  constexpr int kReturn = 13;
+  constexpr int kIgnored = 23;
+  BUILD(runner,
+        WASM_BLOCK_X(sig_idx, WASM_I32V_1(kReturn), WASM_I32V_1(kIgnored)),
+        WASM_DROP);
+
+  Handle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+
+  SetBreakpoint(&runner, runner.function_index(), 3, 3);
+
+  BreakHandler count_breaks(isolate, {{3, BreakHandler::Continue}});
+
+  Handle<Object> global(isolate->context().global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  CHECK_EQ(kReturn, GetIntReturnValue(retval));
+}
+
+WASM_COMPILED_EXEC_TEST(Regress10889) {
+  FLAG_SCOPE(print_wasm_code);
+  WasmRunner<int> runner(execution_tier);
+  BUILD(runner, WASM_I32V_1(0));
+  SetBreakpoint(&runner, runner.function_index(), 1, 1);
 }
 
 }  // namespace wasm

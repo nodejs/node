@@ -1,40 +1,41 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ReceiveBuffer = void 0;
 class ReceiveBuffer {
     constructor(size = 4096) {
-        this._buffer = Buffer.allocUnsafe(size);
-        this._offset = 0;
-        this._originalSize = size;
+        this.buffer = Buffer.allocUnsafe(size);
+        this.offset = 0;
+        this.originalSize = size;
     }
     get length() {
-        return this._offset;
+        return this.offset;
     }
     append(data) {
         if (!Buffer.isBuffer(data)) {
             throw new Error('Attempted to append a non-buffer instance to ReceiveBuffer.');
         }
-        if (this._offset + data.length >= this._buffer.length) {
-            const tmp = this._buffer;
-            this._buffer = Buffer.allocUnsafe(Math.max(this._buffer.length + this._originalSize, this._buffer.length + data.length));
-            tmp.copy(this._buffer);
+        if (this.offset + data.length >= this.buffer.length) {
+            const tmp = this.buffer;
+            this.buffer = Buffer.allocUnsafe(Math.max(this.buffer.length + this.originalSize, this.buffer.length + data.length));
+            tmp.copy(this.buffer);
         }
-        data.copy(this._buffer, this._offset);
-        return (this._offset += data.length);
+        data.copy(this.buffer, this.offset);
+        return (this.offset += data.length);
     }
     peek(length) {
-        if (length > this._offset) {
+        if (length > this.offset) {
             throw new Error('Attempted to read beyond the bounds of the managed internal data.');
         }
-        return this._buffer.slice(0, length);
+        return this.buffer.slice(0, length);
     }
     get(length) {
-        if (length > this._offset) {
+        if (length > this.offset) {
             throw new Error('Attempted to read beyond the bounds of the managed internal data.');
         }
         const value = Buffer.allocUnsafe(length);
-        this._buffer.slice(0, length).copy(value);
-        this._buffer.copyWithin(0, length, length + this._offset - length);
-        this._offset -= length;
+        this.buffer.slice(0, length).copy(value);
+        this.buffer.copyWithin(0, length, length + this.offset - length);
+        this.offset -= length;
         return value;
     }
 }

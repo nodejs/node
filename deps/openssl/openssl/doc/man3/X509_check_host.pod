@@ -19,13 +19,13 @@ X509_check_host, X509_check_email, X509_check_ip, X509_check_ip_asc - X.509 cert
 =head1 DESCRIPTION
 
 The certificate matching functions are used to check whether a
-certificate matches a given host name, email address, or IP address.
+certificate matches a given hostname, email address, or IP address.
 The validity of the certificate and its trust level has to be checked by
 other means.
 
 X509_check_host() checks if the certificate Subject Alternative
-Name (SAN) or Subject CommonName (CN) matches the specified host
-name, which must be encoded in the preferred name syntax described
+Name (SAN) or Subject CommonName (CN) matches the specified hostname, 
+which must be encoded in the preferred name syntax described
 in section 3.5 of RFC 1034.  By default, wildcards are supported
 and they match  only in the left-most label; but they may match
 part of that label with an explicit prefix or suffix.  For example,
@@ -37,7 +37,7 @@ Per section 6.4.2 of RFC 6125, B<name> values representing international
 domain names must be given in A-label form.  The B<namelen> argument
 must be the number of characters in the name string or zero in which
 case the length is calculated with strlen(B<name>).  When B<name> starts
-with a dot (e.g ".example.com"), it will be matched by a certificate
+with a dot (e.g. ".example.com"), it will be matched by a certificate
 valid for any sub-domain of B<name>, (see also
 B<X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS> below).
 
@@ -150,7 +150,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

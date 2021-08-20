@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/atomicops.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
@@ -52,6 +53,15 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   return *holder->GetBuffer();
 }
 
+RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+
+  CHECK_EQ(0, array_buffer->byte_length());
+  size_t byte_length = array_buffer->GetBackingStore()->byte_length();
+  return *isolate->factory()->NewNumberFromSize(byte_length);
+}
 
 namespace {
 
@@ -84,6 +94,14 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
   DCHECK(!array->WasDetached());
 
+#if V8_OS_LINUX
+  if (FLAG_multi_mapped_mock_allocator) {
+    // Sorting is meaningless with the mock allocator, and std::sort
+    // might crash (because aliasing elements violate its assumptions).
+    return *array;
+  }
+#endif
+
   size_t length = array->length();
   DCHECK_LT(1, length);
 
@@ -108,10 +126,11 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
       offheap_copy.resize(bytes);
       data_copy_ptr = &offheap_copy[0];
     }
-    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(data_copy_ptr),
+                         static_cast<base::Atomic8*>(array->DataPtr()), bytes);
   }
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
@@ -147,7 +166,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
     const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
+                         static_cast<base::Atomic8*>(data_copy_ptr), bytes);
   }
 
   return *array;

@@ -6,6 +6,7 @@
 #define V8_V8_PROFILER_H_
 
 #include <limits.h>
+
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -248,6 +249,26 @@ enum CpuProfilingLoggingMode {
   kEagerLogging,
 };
 
+// Enum for returning profiling status. Once StartProfiling is called,
+// we want to return to clients whether the profiling was able to start
+// correctly, or return a descriptive error.
+enum class CpuProfilingStatus {
+  kStarted,
+  kAlreadyStarted,
+  kErrorTooManyProfilers
+};
+
+/**
+ * Delegate for when max samples reached and samples are discarded.
+ */
+class V8_EXPORT DiscardedSamplesDelegate {
+ public:
+  DiscardedSamplesDelegate() {}
+
+  virtual ~DiscardedSamplesDelegate() = default;
+  virtual void Notify() = 0;
+};
+
 /**
  * Optional profiling attributes.
  */
@@ -268,6 +289,8 @@ class V8_EXPORT CpuProfilingOptions {
    *                             interval, set via SetSamplingInterval(). If
    *                             zero, the sampling interval will be equal to
    *                             the profiler's sampling interval.
+   * \param filter_context If specified, profiles will only contain frames
+   *                       using this context. Other frames will be elided.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
@@ -338,7 +361,9 @@ class V8_EXPORT CpuProfiler {
    * profiles may be collected at once. Attempts to start collecting several
    * profiles with the same title are silently ignored.
    */
-  void StartProfiling(Local<String> title, CpuProfilingOptions options);
+  CpuProfilingStatus StartProfiling(
+      Local<String> title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   /**
    * Starts profiling with the same semantics as above, except with expanded
@@ -351,7 +376,7 @@ class V8_EXPORT CpuProfiler {
    * recorded by the profiler. Samples obtained after this limit will be
    * discarded.
    */
-  void StartProfiling(
+  CpuProfilingStatus StartProfiling(
       Local<String> title, CpuProfilingMode mode, bool record_samples = false,
       unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
   /**
@@ -359,7 +384,8 @@ class V8_EXPORT CpuProfiler {
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the
    * profiler.
    */
-  void StartProfiling(Local<String> title, bool record_samples = false);
+  CpuProfilingStatus StartProfiling(Local<String> title,
+                                    bool record_samples = false);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.
@@ -470,7 +496,7 @@ class V8_EXPORT HeapGraphNode {
 /**
  * An interface for exporting data from V8, using "push" model.
  */
-class V8_EXPORT OutputStream {  // NOLINT
+class V8_EXPORT OutputStream {
  public:
   enum WriteResult {
     kContinue = 0,
@@ -496,7 +522,6 @@ class V8_EXPORT OutputStream {  // NOLINT
     return kAbort;
   }
 };
-
 
 /**
  * HeapSnapshots record the state of the JS heap at some moment.
@@ -564,7 +589,7 @@ class V8_EXPORT HeapSnapshot {
  * An interface for reporting progress and controlling long-running
  * activities.
  */
-class V8_EXPORT ActivityControl {  // NOLINT
+class V8_EXPORT ActivityControl {
  public:
   enum ControlOption {
     kContinue = 0,
@@ -577,7 +602,6 @@ class V8_EXPORT ActivityControl {  // NOLINT
    */
   virtual ControlOption ReportProgressValue(int done, int total) = 0;
 };
-
 
 /**
  * AllocationProfile is a sampled profile of allocations done by the program.
@@ -712,6 +736,19 @@ class V8_EXPORT EmbedderGraph {
  public:
   class Node {
    public:
+    /**
+     * Detachedness specifies whether an object is attached or detached from the
+     * main application state. While unkown in general, there may be objects
+     * that specifically know their state. V8 passes this information along in
+     * the snapshot. Users of the snapshot may use it to annotate the object
+     * graph.
+     */
+    enum class Detachedness : uint8_t {
+      kUnknown = 0,
+      kAttached = 1,
+      kDetached = 2,
+    };
+
     Node() = default;
     virtual ~Node() = default;
     virtual const char* Name() = 0;
@@ -735,6 +772,14 @@ class V8_EXPORT EmbedderGraph {
      * |HeapSnapshot|.
      */
     virtual NativeObject GetNativeObject() { return nullptr; }
+
+    /**
+     * Detachedness state of a given object. While unkown in general, there may
+     * be objects that specifically know their state. V8 passes this information
+     * along in the snapshot. Users of the snapshot may use it to annotate the
+     * object graph.
+     */
+    virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
@@ -785,6 +830,18 @@ class V8_EXPORT HeapProfiler {
   typedef void (*BuildEmbedderGraphCallback)(v8::Isolate* isolate,
                                              v8::EmbedderGraph* graph,
                                              void* data);
+
+  /**
+   * Callback function invoked during heap snapshot generation to retrieve
+   * the detachedness state of an object referenced by a TracedReference.
+   *
+   * The callback takes Local<Value> as parameter to allow the embedder to
+   * unpack the TracedReference into a Local and reuse that Local for different
+   * purposes.
+   */
+  using GetDetachednessCallback = EmbedderGraph::Node::Detachedness (*)(
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
+      uint16_t class_id, void* data);
 
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
@@ -845,7 +902,8 @@ class V8_EXPORT HeapProfiler {
   const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control = nullptr,
       ObjectNameResolver* global_object_name_resolver = nullptr,
-      bool treat_global_objects_as_roots = true);
+      bool treat_global_objects_as_roots = true,
+      bool capture_numeric_value = false);
 
   /**
    * Starts tracking of heap objects population statistics. After calling
@@ -935,6 +993,8 @@ class V8_EXPORT HeapProfiler {
                                      void* data);
   void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
                                         void* data);
+
+  void SetGetDetachednessCallback(GetDetachednessCallback callback, void* data);
 
   /**
    * Default value of persistent handle class ID. Must not be used to

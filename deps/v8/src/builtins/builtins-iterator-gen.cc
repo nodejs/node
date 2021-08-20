@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 
 using IteratorRecord = TorqueStructIteratorRecord;
-using compiler::Node;
 
 TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
     TNode<Context> context, TNode<Object> object) {
@@ -55,8 +54,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
     BIND(&get_next);
     TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
-    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
-                          TNode<Object>::UncheckedCast(next)};
+    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator), next};
   }
 }
 
@@ -181,25 +179,26 @@ void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
 }
 
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
 
   Return(IterableToList(context, iterable, iterator_fn));
 }
 
 TF_BUILTIN(IterableToFixedArray, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
 
   Return(IterableToFixedArray(context, iterable, iterator_fn));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Smi> expected_length = CAST(Parameter(Descriptor::kExpectedLength));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto expected_length = Parameter<Smi>(Descriptor::kExpectedLength);
 
   TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
   GrowableFixedArray values(state());
@@ -217,6 +216,7 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   BIND(&done);
   Return(values.var_array()->value());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {
@@ -280,8 +280,8 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 }
 
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
 
   Return(StringListFromIterable(context, iterable));
 }
@@ -296,9 +296,9 @@ TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
 // prototype has no elements). To maintain the correct behavior for holey
 // arrays, use the builtins IterableToList or IterableToListWithSymbolLookup.
 TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterator_fn = Parameter<Object>(Descriptor::kIteratorFn);
 
   Label slow_path(this);
 
@@ -389,8 +389,8 @@ TNode<JSArray> IteratorBuiltinsAssembler::FastIterableToList(
 //   iterator is not partially consumed. To be spec-compliant, after spreading
 //   the iterator is set to be exhausted.
 TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
 
   Label slow_path(this);
 
@@ -409,17 +409,17 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
 
 TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
            IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
-  TNode<Smi> call_slot_smi = CAST(Parameter(Descriptor::kCallSlot));
-  TNode<TaggedIndex> call_slot = SmiToTaggedIndex(call_slot_smi);
-  TNode<FeedbackVector> feedback = CAST(Parameter(Descriptor::kFeedback));
-  TNode<Object> iterator_method = CAST(Parameter(Descriptor::kResult));
+  auto call_slot_smi = Parameter<Smi>(Descriptor::kCallSlot);
+  auto feedback = Parameter<FeedbackVector>(Descriptor::kFeedback);
+  auto iterator_method = Parameter<Object>(Descriptor::kResult);
 
+  // Note, that the builtin also expects the call_slot as a Smi.
   TNode<Object> result =
       CallBuiltin(Builtins::kCallIteratorWithFeedback, context, receiver,
-                  iterator_method, call_slot, feedback);
+                  iterator_method, call_slot_smi, feedback);
   Return(result);
 }
 
@@ -427,8 +427,8 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
 // fast path for anything.
 TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,
            IteratorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
 
   TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
   TailCallBuiltin(Builtins::kIterableToFixedArray, context, iterable,

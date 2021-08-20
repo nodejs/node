@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -423,7 +423,7 @@ static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
         table = data_ascii2bin;
 
     /* trim white space from the start of the line. */
-    while ((conv_ascii2bin(*f, table) == B64_WS) && (n > 0)) {
+    while ((n > 0) && (conv_ascii2bin(*f, table) == B64_WS)) {
         f++;
         n--;
     }

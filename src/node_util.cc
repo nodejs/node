@@ -277,6 +277,11 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
+static void IsConstructor(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  args.GetReturnValue().Set(args[0].As<v8::Function>()->IsConstructor());
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHiddenValue);
   registry->Register(SetHiddenValue);
@@ -293,6 +298,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
+  registry->Register(IsConstructor);
 }
 
 void Initialize(Local<Object> target,
@@ -331,6 +337,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
   env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
+  env->SetMethodNoSideEffect(target, "isConstructor", IsConstructor);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());
@@ -352,19 +359,15 @@ void Initialize(Local<Object> target,
                   env->should_abort_on_uncaught_toggle().GetJSArray())
             .FromJust());
 
-  Local<String> weak_ref_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "WeakReference");
   Local<FunctionTemplate> weak_ref =
       env->NewFunctionTemplate(WeakReference::New);
   weak_ref->InstanceTemplate()->SetInternalFieldCount(
       WeakReference::kInternalFieldCount);
-  weak_ref->SetClassName(weak_ref_string);
   weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);
   env->SetProtoMethod(weak_ref, "decRef", WeakReference::DecRef);
-  target->Set(context, weak_ref_string,
-              weak_ref->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "WeakReference", weak_ref);
 
   env->SetMethod(target, "guessHandleType", GuessHandleType);
 }

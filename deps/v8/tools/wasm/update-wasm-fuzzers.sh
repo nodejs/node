@@ -3,40 +3,29 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-set -e
+set -ex
 
-TOOLS_WASM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd ../..
 
-cd ${TOOLS_WASM_DIR}/../..
+BUILD_DIR=out/mk_wasm_fuzzer_corpus
+CORPUS_DIR=test/fuzzer/wasm_corpus
 
-rm -rf test/fuzzer/wasm_corpus
+rm -rf $BUILD_DIR $CORPUS_DIR
+mkdir -p $CORPUS_DIR
 
-tools/dev/gm.py x64.release all
+# Build optdebug such that the --dump-wasm-module flag is available.
+gn gen $BUILD_DIR --args='is_debug=true v8_optimized_debug=true target_cpu="x64" use_goma=true'
+autoninja -C $BUILD_DIR
 
-mkdir -p test/fuzzer/wasm_corpus
+./tools/run-tests.py --outdir=$BUILD_DIR --extra-flags="--dump-wasm-module \
+  --dump-wasm-module-path=./$CORPUS_DIR/"
 
-# wasm
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" unittests
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" wasm-spec-tests/*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" mjsunit/wasm/*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" \
-  $(cd test/; ls cctest/wasm/test-*.cc | \
-  sed -es/wasm\\///g | sed -es/[.]cc/\\/\\*/g)
+rm -rf $BUILD_DIR
 
 # Delete items over 20k.
-for x in $(find ./test/fuzzer/wasm_corpus/ -type f -size +20k)
-do
-  rm $x
-done
+find $CORPUS_DIR -type f -size +20k | xargs rm
 
 # Upload changes.
-cd test/fuzzer
+cd $CORPUS_DIR/..
 upload_to_google_storage.py -a -b v8-wasm-fuzzer wasm_corpus

@@ -34,8 +34,8 @@ feature set.
 
 The following special commands are supported by all REPL instances:
 
-* `.break`: When in the process of inputting a multi-line expression, entering
-  the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
+* `.break`: When in the process of inputting a multi-line expression, enter
+  the `.break` command (or press <kbd>Ctrl</kbd>+<kbd>C</kbd>) to abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
   multi-line expression being input.
@@ -45,7 +45,8 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load`: Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor`: Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
+* `.editor`: Enter editor mode (<kbd>Ctrl</kbd>+<kbd>D</kbd> to finish,
+  <kbd>Ctrl</kbd>+<kbd>C</kbd> to cancel).
 
 ```console
 > .editor
@@ -63,11 +64,12 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* `<ctrl>-C`: When pressed once, has the same effect as the `.break` command.
+* <kbd>Ctrl</kbd>+<kbd>C</kbd>: When pressed once, has the same effect as the
+  `.break` command.
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
-* `<ctrl>-D`: Has the same effect as the `.exit` command.
-* `<tab>`: When pressed on a blank line, displays global and local (scope)
+* <kbd>Ctrl</kbd>+<kbd>D</kbd>: Has the same effect as the `.exit` command.
+* <kbd>Tab</kbd>: When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
@@ -161,30 +163,21 @@ This use of the [`domain`][] module in the REPL has these side effects:
 
 * Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
   standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
+  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
+
+  ```js
+  const r = repl.start();
+
+  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
+  // Output stream includes:
+  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+  //   cannot be used in the REPL
+
+  r.close();
+  ```
+
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
-
-As standalone program:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-
-throw new Error('foobar');
-// Uncaught
-```
-
-When used in another application:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-// TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-// cannot be used in the REPL
-
-throw new Error('foobar');
-// Thrown:
-// Error: foobar
-```
 
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
@@ -224,8 +217,7 @@ Error: foo
 
 #### `await` keyword
 
-With the [`--experimental-repl-await`][] command line option specified,
-experimental support for the `await` keyword is enabled.
+Support for the `await` keyword is enabled at the top level.
 
 ```console
 > await Promise.resolve(123)
@@ -240,6 +232,25 @@ undefined
 undefined
 ```
 
+One known limitation of using the `await` keyword in the REPL is that
+it will invalidate the lexical scoping of the `const` and `let`
+keywords.
+
+For example:
+
+```console
+> const m = await Promise.resolve(123)
+undefined
+> m
+123
+> const m = await Promise.resolve(234)
+undefined
+> m
+234
+```
+
+[`--no-experimental-repl-await`][] shall disable top-level await in REPL.
+
 ### Reverse-i-search
 <!-- YAML
 added:
@@ -248,14 +259,15 @@ added:
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
-triggered with `<ctrl> + R` to search backwards and `<ctrl> + S` to search
+triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
+<kbd>Ctrl</kbd>+<kbd>S</kbd> to search
 forwards.
 
-Duplicated history entires will be skipped.
+Duplicated history entries will be skipped.
 
-Entries are accepted as soon as any button is pressed that doesn't correspond
-with the reverse search. Cancelling is possible by pressing `escape` or
-`<ctrl> + C`.
+Entries are accepted as soon as any key is pressed that doesn't correspond
+with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or
+<kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
 Changing the direction immediately searches for the next entry in the expected
 direction from the current position on.
@@ -284,10 +296,9 @@ repl.start({ prompt: '> ', eval: myEval });
 
 #### Recoverable errors
 
-As a user is typing input into the REPL prompt, pressing the `<enter>` key will
-send the current line of input to the `eval` function. In order to support
-multi-line input, the eval function can return an instance of `repl.Recoverable`
-to the provided callback function:
+At the REPL prompt, pressing <kbd>Enter</kbd> sends the current line of input to
+the `eval` function. In order to support multi-line input, the `eval` function
+can return an instance of `repl.Recoverable` to the provided callback function:
 
 ```js
 function myEval(cmd, context, filename, callback) {
@@ -381,8 +392,10 @@ added: v0.7.7
 -->
 
 The `'exit'` event is emitted when the REPL is exited either by receiving the
-`.exit` command as input, the user pressing `<ctrl>-C` twice to signal `SIGINT`,
-or by pressing `<ctrl>-D` to signal `'end'` on the input stream. The listener
+`.exit` command as input, the user pressing <kbd>Ctrl</kbd>+<kbd>C</kbd> twice
+to signal `SIGINT`,
+or by pressing <kbd>Ctrl</kbd>+<kbd>D</kbd> to signal `'end'` on the input
+stream. The listener
 callback is invoked without any arguments.
 
 ```js
@@ -539,7 +552,7 @@ added: v11.10.0
   * `repl` {repl.REPLServer}
 
 Initializes a history log file for the REPL instance. When executing the
-Node.js binary and using the command line REPL, a history file is initialized
+Node.js binary and using the command-line REPL, a history file is initialized
 by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
@@ -569,6 +582,9 @@ changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19187
     description: The `REPL_MAGIC_MODE` `replMode` was removed.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakEvalOnSigint` option is supported now.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388
     description: The `options` parameter is optional now.
@@ -612,7 +628,8 @@ changes:
     * `repl.REPL_MODE_STRICT` to evaluate expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
   * `breakEvalOnSigint` {boolean} Stop evaluating the current piece of code when
-    `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
+    `SIGINT` is received, such as when <kbd>Ctrl</kbd>+<kbd>C</kbd> is pressed.
+    This cannot be used
     together with a custom `eval` function. **Default:** `false`.
   * `preview` {boolean} Defines if the repl prints autocomplete and output
     previews or not. **Default:** `true` with the default eval function and
@@ -742,21 +759,21 @@ For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see:
 <https://gist.github.com/TooTallNate/2209310>.
 
-For an example of running a REPL instance over [curl(1)][], see:
+For an example of running a REPL instance over [`curl(1)`][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
+[TTY keybindings]: readline.md#readline_tty_keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
-[`ERR_INVALID_REPL_INPUT`]: errors.html#errors_err_invalid_repl_input
-[`domain`]: domain.html
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
+[`'uncaughtException'`]: process.md#process_event_uncaughtexception
+[`--no-experimental-repl-await`]: cli.md#cli_no_experimental_repl_await
+[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
+[`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
+[`curl(1)`]: https://curl.haxx.se/docs/manpage.html
+[`domain`]: domain.md
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
+[`readline.InterfaceCompleter`]: readline.md#readline_use_of_the_completer_function
 [`repl.ReplServer`]: #repl_class_replserver
 [`repl.start()`]: #repl_repl_start_options
-[`util.inspect()`]: util.html#util_util_inspect_object_options
 [`reverse-i-search`]: #repl_reverse_i_search
-[TTY keybindings]: readline.html#readline_tty_keybindings
-[curl(1)]: https://curl.haxx.se/docs/manpage.html
-[stream]: stream.html
+[`util.inspect()`]: util.md#util_util_inspect_object_options
+[stream]: stream.md

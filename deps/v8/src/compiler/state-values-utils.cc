@@ -119,15 +119,14 @@ Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count,
                                                SparseInputMask mask) {
   StateValuesKey key(count, mask, nodes);
   int hash = StateValuesHashKey(nodes, count);
-  ZoneHashMap::Entry* lookup =
-      hash_map_.LookupOrInsert(&key, hash, ZoneAllocationPolicy(zone()));
+  ZoneHashMap::Entry* lookup = hash_map_.LookupOrInsert(&key, hash);
   DCHECK_NOT_NULL(lookup);
   Node* node;
   if (lookup->value == nullptr) {
     int node_count = static_cast<int>(count);
     node = graph()->NewNode(common()->StateValues(node_count, mask), node_count,
                             nodes);
-    NodeKey* new_key = new (zone()->New(sizeof(NodeKey))) NodeKey(node);
+    NodeKey* new_key = zone()->New<NodeKey>(node);
     lookup->key = new_key;
     lookup->value = node;
   } else {
@@ -380,7 +379,10 @@ void StateValuesAccess::iterator::EnsureValid() {
   }
 }
 
-Node* StateValuesAccess::iterator::node() { return Top()->Get(nullptr); }
+Node* StateValuesAccess::iterator::node() {
+  DCHECK(!done());
+  return Top()->Get(nullptr);
+}
 
 MachineType StateValuesAccess::iterator::type() {
   Node* parent = Top()->parent();
@@ -402,6 +404,7 @@ bool StateValuesAccess::iterator::operator!=(iterator const& other) const {
 }
 
 StateValuesAccess::iterator& StateValuesAccess::iterator::operator++() {
+  DCHECK(!done());
   Advance();
   return *this;
 }

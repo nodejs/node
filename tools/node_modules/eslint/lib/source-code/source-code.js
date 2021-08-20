@@ -12,8 +12,7 @@ const
     { isCommentToken } = require("eslint-utils"),
     TokenStore = require("./token-store"),
     astUtils = require("../shared/ast-utils"),
-    Traverser = require("../shared/traverser"),
-    lodash = require("lodash");
+    Traverser = require("../shared/traverser");
 
 //------------------------------------------------------------------------------
 // Private
@@ -350,7 +349,7 @@ class SourceCode extends TokenStore {
             let currentToken = this.getTokenBefore(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.start < node.parent.start)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.start < node.parent.start)) {
                     break;
                 }
                 comments.leading.push(currentToken);
@@ -362,7 +361,7 @@ class SourceCode extends TokenStore {
             currentToken = this.getTokenAfter(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.end > node.parent.end)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.end > node.parent.end)) {
                     break;
                 }
                 comments.trailing.push(currentToken);
@@ -531,10 +530,12 @@ class SourceCode extends TokenStore {
         }
 
         /*
-         * To figure out which line rangeIndex is on, determine the last index at which rangeIndex could
-         * be inserted into lineIndices to keep the list sorted.
+         * To figure out which line index is on, determine the last place at which index could
+         * be inserted into lineStartIndices to keep the list sorted.
          */
-        const lineNumber = lodash.sortedLastIndex(this.lineStartIndices, index);
+        const lineNumber = index >= this.lineStartIndices[this.lineStartIndices.length - 1]
+            ? this.lineStartIndices.length
+            : this.lineStartIndices.findIndex(el => index < el);
 
         return { line: lineNumber, column: index - this.lineStartIndices[lineNumber - 1] };
     }

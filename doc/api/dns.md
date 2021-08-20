@@ -81,6 +81,7 @@ The following methods from the `dns` module are available:
 * [`resolver.resolve4()`][`dns.resolve4()`]
 * [`resolver.resolve6()`][`dns.resolve6()`]
 * [`resolver.resolveAny()`][`dns.resolveAny()`]
+* [`resolver.resolveCaa()`][`dns.resolveCaa()`]
 * [`resolver.resolveCname()`][`dns.resolveCname()`]
 * [`resolver.resolveMx()`][`dns.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
@@ -96,6 +97,9 @@ The following methods from the `dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
+  - version: v16.7.0
+    pr-url: https://github.com/nodejs/node/pull/39610
+    description: The `options` object now accepts a `tries` option.
   - version: v12.18.3
     pr-url: https://github.com/nodejs/node/pull/33472
     description: The constructor now accepts an `options` object.
@@ -107,6 +111,8 @@ Create a new resolver.
 * `options` {Object}
   * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
     default timeout.
+  * `tries` {integer} The number of tries the resolver will try contacting
+    each name server before giving up. **Default:** `4`
 
 ### `resolver.cancel()`
 <!-- YAML
@@ -115,6 +121,29 @@ added: v8.3.0
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
+
+### `resolver.setLocalAddress([ipv4][, ipv6])`
+<!-- YAML
+added:
+  - v15.1.0
+  - v14.17.0
+-->
+
+* `ipv4` {string} A string representation of an IPv4 address.
+  **Default:** `'0.0.0.0'`
+* `ipv6` {string} A string representation of an IPv6 address.
+  **Default:** `'::0'`
+
+The resolver instance will send its requests from the specified IP address.
+This allows programs to specify outbound interfaces when used on multi-homed
+systems.
+
+If a v4 or v6 address is not specified, it is set to the default, and the
+operating system will choose a local address automatically.
+
+The resolver will use the v4 local address when making requests to IPv4 DNS
+servers, and the v6 local address when making requests to IPv6 DNS servers.
+The `rrtype` of resolution requests has no impact on the local address used.
 
 ## `dns.getServers()`
 <!-- YAML
@@ -133,7 +162,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -162,8 +191,9 @@ changes:
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
     **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future.
-    New code should use `{ verbatim: true }`.
+    expected to change in the not too distant future. Default value is
+    configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
@@ -228,13 +258,13 @@ changes:
 The following flags can be passed as hints to [`dns.lookup()`][].
 
 * `dns.ADDRCONFIG`: Limits returned address types to the types of non-loopback
-addresses configured on the system. For example, IPv4 addresses are only
-returned if the current system has at least one IPv4 address configured.
+  addresses configured on the system. For example, IPv4 addresses are only
+  returned if the current system has at least one IPv4 address configured.
 * `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses were
-found, then return IPv4 mapped IPv6 addresses. It is not supported
-on some operating systems (e.g FreeBSD 10.1).
+  found, then return IPv4 mapped IPv6 addresses. It is not supported
+  on some operating systems (e.g FreeBSD 10.1).
 * `dns.ALL`: If `dns.V4MAPPED` is specified, return resolved IPv6 addresses as
-well as IPv4 mapped IPv6 addresses.
+  well as IPv4 mapped IPv6 addresses.
 
 ## `dns.lookupService(address, port, callback)`
 <!-- YAML
@@ -289,6 +319,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
+| `'CAA'`   | CA authorization records       | {Object}    | [`dns.resolveCaa()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
@@ -413,6 +444,24 @@ Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
+
+## `dns.resolveCaa(hostname, callback)`
+<!-- YAML
+added:
+  - v15.0.0
+  - v14.17.0
+-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {Object[]}
+
+Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
+`addresses` argument passed to the `callback` function
+will contain an array of certification authority authorization records
+available for the `hostname` (e.g. `[{critical: 0, iodef:
+'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
 
 ## `dns.resolveMx(hostname, callback)`
 <!-- YAML
@@ -560,10 +609,12 @@ be an array of objects with the following properties:
 added: v0.1.27
 -->
 
+<!--lint disable no-undefined-references list-item-bullet-indent-->
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
   * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
+<!--lint enable no-undefined-references list-item-bullet-indent-->
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
@@ -588,6 +639,23 @@ array of host names.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
 
+## `dns.setDefaultResultOrder(order)`
+<!-- YAML
+added: v16.4.0
+-->
+
+* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+priority than [`--dns-result-order`][]. When using [worker threads][],
+[`dns.setDefaultResultOrder()`][] from the main thread won't affect the default
+dns orders in workers.
+
 ## `dns.setServers(servers)`
 <!-- YAML
 added: v0.11.3
@@ -604,7 +672,7 @@ dns.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 
@@ -625,6 +693,18 @@ subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 
 ## DNS promises API
+<!-- YAML
+added: v10.6.0
+changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/32953
+    description: Exposed as `require('dns/promises')`.
+  - version:
+    - v11.14.0
+    - v10.17.0
+    pr-url: https://github.com/nodejs/node/pull/26592
+    description: This API is no longer experimental.
+-->
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
@@ -665,6 +745,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolve4()`][`dnsPromises.resolve4()`]
 * [`resolver.resolve6()`][`dnsPromises.resolve6()`]
 * [`resolver.resolveAny()`][`dnsPromises.resolveAny()`]
+* [`resolver.resolveCaa()`][`dnsPromises.resolveCaa()`]
 * [`resolver.resolveCname()`][`dnsPromises.resolveCname()`]
 * [`resolver.resolveMx()`][`dnsPromises.resolveMx()`]
 * [`resolver.resolveNaptr()`][`dnsPromises.resolveNaptr()`]
@@ -675,6 +756,16 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolveTxt()`][`dnsPromises.resolveTxt()`]
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
 * [`resolver.setServers()`][`dnsPromises.setServers()`]
+
+### `resolver.cancel()`
+<!-- YAML
+added:
+  - v15.3.0
+  - v14.17.0
+-->
+
+Cancel all outstanding DNS queries made by this resolver. The corresponding
+promises will be rejected with an error with code `ECANCELLED`.
 
 ### `dnsPromises.getServers()`
 <!-- YAML
@@ -693,7 +784,7 @@ section if a custom port is used.
   '4.4.4.4',
   '2001:4860:4860::8888',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]
 ```
 
@@ -715,8 +806,9 @@ added: v10.6.0
     IPv6 addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
     **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future.
-    New code should use `{ verbatim: true }`.
+    expected to change in the not too distant future. Default value is
+    configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
@@ -806,6 +898,7 @@ based on `rrtype`:
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dnsPromises.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dnsPromises.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
+| `'CAA'`   | CA authorization records       | {Object}    | [`dnsPromises.resolveCaa()`][] |
 | `'CNAME'` | canonical name records         | {string}    | [`dnsPromises.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dnsPromises.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dnsPromises.resolveNaptr()`][] |
@@ -894,6 +987,21 @@ Here is an example of the result object:
     expire: 1800,
     minttl: 60 } ]
 ```
+
+### `dnsPromises.resolveCaa(hostname)`
+<!-- YAML
+added:
+  - v15.0.0
+  - v14.17.0
+-->
+
+* `hostname` {string}
+
+Uses the DNS protocol to resolve `CAA` records for the `hostname`. On success,
+the `Promise` is resolved with an array of objects containing available
+certification authority authorization records available for the `hostname`
+(e.g. `[{critical: 0, iodef: 'mailto:pki@example.com'},{critical: 128, issue:
+'pki.example.com'}]`).
 
 ### `dnsPromises.resolveCname(hostname)`
 <!-- YAML
@@ -1056,6 +1164,23 @@ array of host names.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
 
+### `dnsPromises.setDefaultResultOrder(order)`
+<!-- YAML
+added: v16.4.0
+-->
+
+* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+
+Set the default value of `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+* `ipv4first`: sets default `verbatim` `false`.
+* `verbatim`: sets default `verbatim` `true`.
+
+The default is `ipv4first` and [`dnsPromises.setDefaultResultOrder()`][] have
+higher priority than [`--dns-result-order`][]. When using [worker threads][],
+[`dnsPromises.setDefaultResultOrder()`][] from the main thread won't affect the
+default dns orders in workers.
+
 ### `dnsPromises.setServers(servers)`
 <!-- YAML
 added: v10.6.0
@@ -1072,7 +1197,7 @@ dnsPromises.setServers([
   '4.4.4.4',
   '[2001:4860:4860::8888]',
   '4.4.4.4:1053',
-  '[2001:4860:4860::8888]:1053'
+  '[2001:4860:4860::8888]:1053',
 ]);
 ```
 
@@ -1160,15 +1285,22 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
-[`Error`]: errors.html#errors_class_error
-[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
-[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
+[DNS error codes]: #dns_error_codes
+[Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
+[Implementation considerations section]: #dns_implementation_considerations
+[RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
+[RFC 8482]: https://tools.ietf.org/html/rfc8482
+[`--dns-result-order`]: cli.md#cli_dns_result_order_order
+[`Error`]: errors.md#errors_class_error
+[`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
+[`dgram.createSocket()`]: dgram.md#dgram_dgram_createsocket_options_callback
 [`dns.getServers()`]: #dns_dns_getservers
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 [`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
 [`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
 [`dns.resolveAny()`]: #dns_dns_resolveany_hostname_callback
+[`dns.resolveCaa()`]: #dns_dns_resolvecaa_hostname_callback
 [`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
 [`dns.resolveMx()`]: #dns_dns_resolvemx_hostname_callback
 [`dns.resolveNaptr()`]: #dns_dns_resolvenaptr_hostname_callback
@@ -1178,6 +1310,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
 [`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
 [`dns.reverse()`]: #dns_dns_reverse_ip_callback
+[`dns.setDefaultResultOrder()`]: #dns_dns_setdefaultresultorder_order
 [`dns.setServers()`]: #dns_dns_setservers_servers
 [`dnsPromises.getServers()`]: #dns_dnspromises_getservers
 [`dnsPromises.lookup()`]: #dns_dnspromises_lookup_hostname_options
@@ -1185,6 +1318,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.resolve4()`]: #dns_dnspromises_resolve4_hostname_options
 [`dnsPromises.resolve6()`]: #dns_dnspromises_resolve6_hostname_options
 [`dnsPromises.resolveAny()`]: #dns_dnspromises_resolveany_hostname
+[`dnsPromises.resolveCaa()`]: #dns_dnspromises_resolvecaa_hostname
 [`dnsPromises.resolveCname()`]: #dns_dnspromises_resolvecname_hostname
 [`dnsPromises.resolveMx()`]: #dns_dnspromises_resolvemx_hostname
 [`dnsPromises.resolveNaptr()`]: #dns_dnspromises_resolvenaptr_hostname
@@ -1194,12 +1328,9 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.resolveSrv()`]: #dns_dnspromises_resolvesrv_hostname
 [`dnsPromises.resolveTxt()`]: #dns_dnspromises_resolvetxt_hostname
 [`dnsPromises.reverse()`]: #dns_dnspromises_reverse_ip
+[`dnsPromises.setDefaultResultOrder()`]: #dns_dnspromises_setdefaultresultorder_order
 [`dnsPromises.setServers()`]: #dns_dnspromises_setservers_servers
-[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
-[`util.promisify()`]: util.html#util_util_promisify_original
-[DNS error codes]: #dns_error_codes
-[Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
-[Implementation considerations section]: #dns_implementation_considerations
-[RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
-[RFC 8482]: https://tools.ietf.org/html/rfc8482
+[`socket.connect()`]: net.md#net_socket_connect_options_connectlistener
+[`util.promisify()`]: util.md#util_util_promisify_original
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
+[worker threads]: worker_threads.md

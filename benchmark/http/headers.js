@@ -4,7 +4,7 @@ const common = require('../common.js');
 const http = require('http');
 
 const bench = common.createBenchmark(main, {
-  n: [10, 1000],
+  n: [10, 600],
   len: [1, 100],
   duration: 5
 });

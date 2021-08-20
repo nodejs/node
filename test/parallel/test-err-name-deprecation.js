@@ -9,7 +9,7 @@ common.expectWarning({
      'DEP0111'],
     ['Directly calling process.binding(\'uv\').errname(<val>) is being ' +
      'deprecated. Please make sure to use util.getSystemErrorName() instead.',
-     'DEP0119']
+     'DEP0119'],
   ]
 });
 

@@ -39,11 +39,6 @@
 #include <string>
 #include <vector>
 
-// Custom constants used by both node_constants.cc and node_zlib.cc
-#define Z_MIN_WINDOWBITS 8
-#define Z_MAX_WINDOWBITS 15
-#define Z_DEFAULT_WINDOWBITS 15
-
 struct sockaddr;
 
 namespace node {
@@ -97,12 +92,8 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
-void InitializeContextRuntime(v8::Local<v8::Context>);
-bool InitializePrimordials(v8::Local<v8::Context> context);
-
-namespace task_queue {
-void PromiseRejectCallback(v8::PromiseRejectMessage message);
-}  // namespace task_queue
+v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
+v8::Maybe<bool> InitializePrimordials(v8::Local<v8::Context> context);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -203,6 +194,12 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     int argc,
     v8::Local<v8::Value> argv[],
     async_context asyncContext);
+
+v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           v8::Local<v8::Function> callback,
+                                           int argc,
+                                           v8::Local<v8::Value> argv[]);
 
 class InternalCallbackScope {
  public:
@@ -314,7 +311,20 @@ struct InitializationResult {
   std::vector<std::string> exec_args;
   bool early_return = false;
 };
+
+enum InitializationSettingsFlags : uint64_t {
+  kDefaultInitialization = 1 << 0,
+  kInitializeV8 = 1 << 1,
+  kRunPlatformInit = 1 << 2,
+  kInitOpenSSL = 1 << 3
+};
+
+// TODO(codebytere): eventually document and expose to embedders.
 InitializationResult InitializeOncePerProcess(int argc, char** argv);
+InitializationResult InitializeOncePerProcess(
+  int argc,
+  char** argv,
+  InitializationSettingsFlags flags);
 void TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
@@ -367,6 +377,10 @@ class DiagnosticFilename {
   std::string filename_;
 };
 
+namespace heap {
+bool WriteSnapshot(v8::Isolate* isolate, const char* filename);
+}
+
 class TraceEventScope {
  public:
   TraceEventScope(const char* category,
@@ -397,6 +411,8 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
 namespace fs {
 std::string Basename(const std::string& str, const std::string& extension);
 }  // namespace fs
+
+node_module napi_module_to_node_module(const napi_module* mod);
 
 }  // namespace node
 

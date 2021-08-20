@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const process = require('process');
 
 process.env.TERM = 'dumb';
 
@@ -7,15 +8,6 @@ const repl = require('repl');
 const ArrayStream = require('../common/arraystream');
 
 repl.start('> ');
-process.stdin.push('conso'); // No completion preview.
-process.stdin.push('le.log("foo")\n');
-process.stdin.push('1 + 2'); // No input preview.
-process.stdin.push('\n');
-process.stdin.push('"str"\n');
-process.stdin.push('console.dir({ a: 1 })\n');
-process.stdin.push('{ a: 1 }\n');
-process.stdin.push('\n');
-process.stdin.push('.exit\n');
 
 // Verify <ctrl> + D support.
 {
@@ -34,3 +26,13 @@ process.stdin.push('.exit\n');
   replServer.write(null, { ctrl: true, name: 's' });
   replServer.write(null, { ctrl: true, name: 'd' });
 }
+
+process.stdin.push('conso'); // No completion preview.
+process.stdin.push('le.log("foo")\n');
+process.stdin.push('1 + 2'); // No input preview.
+process.stdin.push('\n');
+process.stdin.push('"str"\n');
+process.stdin.push('console.dir({ a: 1 })\n');
+process.stdin.push('{ a: 1 }\n');
+process.stdin.push('\n');
+process.stdin.push('.exit\n');

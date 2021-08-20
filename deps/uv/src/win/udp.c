@@ -189,6 +189,11 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
 }
 
 
+int uv_udp_using_recvmmsg(const uv_udp_t* handle) {
+  return 0;
+}
+
+
 static int uv_udp_maybe_bind(uv_udp_t* handle,
                              const struct sockaddr* addr,
                              unsigned int addrlen,
@@ -279,7 +284,7 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
 
     handle->recv_buffer = uv_buf_init(NULL, 0);
-    handle->alloc_cb((uv_handle_t*) handle, 65536, &handle->recv_buffer);
+    handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &handle->recv_buffer);
     if (handle->recv_buffer.base == NULL || handle->recv_buffer.len == 0) {
       handle->recv_cb(handle, UV_ENOBUFS, &handle->recv_buffer, NULL, 0);
       return;
@@ -496,7 +501,7 @@ void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
     /* Do a nonblocking receive.
      * TODO: try to read multiple datagrams at once. FIONREAD maybe? */
     buf = uv_buf_init(NULL, 0);
-    handle->alloc_cb((uv_handle_t*) handle, 65536, &buf);
+    handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &buf);
     if (buf.base == NULL || buf.len == 0) {
       handle->recv_cb(handle, UV_ENOBUFS, &buf, NULL, 0);
       goto done;
@@ -1068,7 +1073,7 @@ int uv__udp_connect(uv_udp_t* handle,
 
   err = connect(handle->socket, addr, addrlen);
   if (err)
-    return uv_translate_sys_error(err);
+    return uv_translate_sys_error(WSAGetLastError());
 
   handle->flags |= UV_HANDLE_UDP_CONNECTED;
 
@@ -1084,7 +1089,7 @@ int uv__udp_disconnect(uv_udp_t* handle) {
 
     err = connect(handle->socket, &addr, sizeof(addr));
     if (err)
-      return uv_translate_sys_error(err);
+      return uv_translate_sys_error(WSAGetLastError());
 
     handle->flags &= ~UV_HANDLE_UDP_CONNECTED;
     return 0;

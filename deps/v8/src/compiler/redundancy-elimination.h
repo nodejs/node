@@ -15,6 +15,8 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
  public:
   RedundancyElimination(Editor* editor, Zone* zone);
   ~RedundancyElimination() final;
+  RedundancyElimination(const RedundancyElimination&) = delete;
+  RedundancyElimination& operator=(const RedundancyElimination&) = delete;
 
   const char* reducer_name() const override { return "RedundancyElimination"; }
 
@@ -39,6 +41,8 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
     Node* LookupBoundsCheckFor(Node* node) const;
 
    private:
+    friend Zone;
+
     EffectPathChecks(Check* head, size_t size) : head_(head), size_(size) {}
 
     // We keep track of the list length so that we can find the longest
@@ -71,8 +75,6 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
 
   PathChecksForEffectNodes node_checks_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(RedundancyElimination);
 };
 
 }  // namespace compiler

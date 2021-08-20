@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 56
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
@@ -23,20 +23,20 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
   /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(2),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaZero),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaSmi), I8(10),
-                B(Star), R(8),
+                B(Star8),
                 B(LdaSmi), I8(14),
-                B(Star), R(9),
+                B(Star9),
                 B(Mov), R(2), R(4),
                 B(Mov), R(3), R(5),
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
-                B(Star), R(2),
+                B(Star2),
   /*   14 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
   /*   35 S> */ B(LdaLookupGlobalSlot), U8(3), U8(4), U8(1),
   /*   44 S> */ B(Return),
@@ -56,7 +56,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 57
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
@@ -67,20 +67,20 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
   /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(2),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaZero),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaSmi), I8(10),
-                B(Star), R(8),
+                B(Star8),
                 B(LdaSmi), I8(14),
-                B(Star), R(9),
+                B(Star9),
                 B(Mov), R(2), R(4),
                 B(Mov), R(3), R(5),
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
-                B(Star), R(2),
+                B(Star2),
   /*   14 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
   /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(3), U8(4), U8(1),
                 B(TypeOf),
@@ -101,7 +101,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 57
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
@@ -114,20 +114,20 @@ bytecodes: [
   /*   14 S> */ B(LdaSmi), I8(20),
   /*   16 E> */ B(StaLookupSlot), U8(1), U8(0),
   /*   22 S> */ B(LdaLookupGlobalSlot), U8(2), U8(0), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(3),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaZero),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaSmi), I8(10),
-                B(Star), R(8),
+                B(Star8),
                 B(LdaSmi), I8(29),
-                B(Star), R(9),
+                B(Star9),
                 B(Mov), R(2), R(4),
                 B(Mov), R(3), R(5),
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
-                B(Star), R(2),
+                B(Star2),
   /*   29 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
   /*   38 S> */ B(Return),
 ]
@@ -151,7 +151,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 56
 bytecodes: [
   /*   38 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
@@ -162,20 +162,20 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
   /*   44 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(2),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaZero),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaSmi), I8(38),
-                B(Star), R(8),
+                B(Star8),
                 B(LdaSmi), I8(44),
-                B(Star), R(9),
+                B(Star9),
                 B(Mov), R(2), R(4),
                 B(Mov), R(3), R(5),
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
-                B(Star), R(2),
+                B(Star2),
   /*   44 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
   /*   66 S> */ B(LdaLookupContextSlot), U8(3), U8(4), U8(1),
   /*   75 S> */ B(Return),
@@ -200,7 +200,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 56
 bytecodes: [
   /*   34 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
@@ -211,20 +211,20 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
   /*   40 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(2),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaZero),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaSmi), I8(34),
-                B(Star), R(8),
+                B(Star8),
                 B(LdaSmi), I8(40),
-                B(Star), R(9),
+                B(Star9),
                 B(Mov), R(2), R(4),
                 B(Mov), R(3), R(5),
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
-                B(Star), R(2),
+                B(Star2),
   /*   40 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(2),
   /*   62 S> */ B(LdaLookupGlobalSlot), U8(3), U8(4), U8(1),
   /*   71 S> */ B(Return),

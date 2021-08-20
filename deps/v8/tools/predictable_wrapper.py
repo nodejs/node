@@ -16,6 +16,7 @@ compared. Differences are reported as errors.
 
 
 # for py2/py3 compatibility
+from __future__ import absolute_import
 from __future__ import print_function
 
 import sys

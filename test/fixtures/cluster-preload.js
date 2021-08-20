@@ -8,5 +8,5 @@ const expectedPaths = require('module')._nodeModulePaths(process.cwd());
 assert.deepStrictEqual(module.parent.paths, expectedPaths);
 
 const cluster = require('cluster');
-cluster.isMaster || process.exit(42 + cluster.worker.id); // +42 to distinguish
+cluster.isPrimary || process.exit(42 + cluster.worker.id); // +42 to distinguish
 // from exit(1) for other random reasons

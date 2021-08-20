@@ -47,7 +47,7 @@ Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
-  decorator_ = new (zone()) Decorator(this);
+  decorator_ = zone()->New<Decorator>(this);
   graph_->AddDecorator(decorator_);
 }
 
@@ -61,8 +61,7 @@ class Typer::Visitor : public Reducer {
   explicit Visitor(Typer* typer, LoopVariableOptimizer* induction_vars)
       : typer_(typer),
         induction_vars_(induction_vars),
-        weakened_nodes_(typer->zone()),
-        remembered_types_(typer->zone()) {}
+        weakened_nodes_(typer->zone()) {}
 
   const char* reducer_name() const override { return "Typer"; }
 
@@ -73,8 +72,8 @@ class Typer::Visitor : public Reducer {
 
   Type TypeNode(Node* node) {
     switch (node->opcode()) {
-#define DECLARE_UNARY_CASE(x) \
-  case IrOpcode::k##x:        \
+#define DECLARE_UNARY_CASE(x, ...) \
+  case IrOpcode::k##x:             \
     return Type##x(Operand(node, 0));
       JS_SIMPLE_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
@@ -82,8 +81,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
 #undef DECLARE_UNARY_CASE
-#define DECLARE_BINARY_CASE(x) \
-  case IrOpcode::k##x:         \
+#define DECLARE_BINARY_CASE(x, ...) \
+  case IrOpcode::k##x:              \
     return Type##x(Operand(node, 0), Operand(node, 1));
       JS_SIMPLE_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
@@ -91,8 +90,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
 #undef DECLARE_BINARY_CASE
-#define DECLARE_OTHER_CASE(x) \
-  case IrOpcode::k##x:        \
+#define DECLARE_OTHER_CASE(x, ...) \
+  case IrOpcode::k##x:             \
     return Type##x(node);
       DECLARE_OTHER_CASE(Start)
       DECLARE_OTHER_CASE(IfException)
@@ -103,7 +102,7 @@ class Typer::Visitor : public Reducer {
       JS_CONTEXT_OP_LIST(DECLARE_OTHER_CASE)
       JS_OTHER_OP_LIST(DECLARE_OTHER_CASE)
 #undef DECLARE_OTHER_CASE
-#define DECLARE_IMPOSSIBLE_CASE(x) case IrOpcode::k##x:
+#define DECLARE_IMPOSSIBLE_CASE(x, ...) case IrOpcode::k##x:
       DECLARE_IMPOSSIBLE_CASE(Loop)
       DECLARE_IMPOSSIBLE_CASE(Branch)
       DECLARE_IMPOSSIBLE_CASE(IfTrue)
@@ -116,6 +115,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Deoptimize)
       DECLARE_IMPOSSIBLE_CASE(DeoptimizeIf)
       DECLARE_IMPOSSIBLE_CASE(DeoptimizeUnless)
+      DECLARE_IMPOSSIBLE_CASE(DynamicCheckMapsWithDeoptUnless)
       DECLARE_IMPOSSIBLE_CASE(TrapIf)
       DECLARE_IMPOSSIBLE_CASE(TrapUnless)
       DECLARE_IMPOSSIBLE_CASE(Return)
@@ -141,10 +141,8 @@ class Typer::Visitor : public Reducer {
   Typer* typer_;
   LoopVariableOptimizer* induction_vars_;
   ZoneSet<NodeId> weakened_nodes_;
-  // TODO(tebbi): remove once chromium:906567 is resolved.
-  ZoneUnorderedMap<std::pair<Node*, int>, Type> remembered_types_;
 
-#define DECLARE_METHOD(x) inline Type Type##x(Node* node);
+#define DECLARE_METHOD(x, ...) inline Type Type##x(Node* node);
   DECLARE_METHOD(Start)
   DECLARE_METHOD(IfException)
   COMMON_OP_LIST(DECLARE_METHOD)
@@ -154,7 +152,7 @@ class Typer::Visitor : public Reducer {
   JS_CONTEXT_OP_LIST(DECLARE_METHOD)
   JS_OTHER_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(x) inline Type Type##x(Type input);
+#define DECLARE_METHOD(x, ...) inline Type Type##x(Type input);
   JS_SIMPLE_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -232,13 +230,13 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name)                       \
+#define DECLARE_METHOD(Name, ...)                  \
   inline Type Type##Name(Type left, Type right) {  \
     return TypeBinaryOp(left, right, Name##Typer); \
   }
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name)                      \
+#define DECLARE_METHOD(Name, ...)                 \
   inline Type Type##Name(Type left, Type right) { \
     return TypeBinaryOp(left, right, Name);       \
   }
@@ -247,7 +245,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name) \
+#define DECLARE_METHOD(Name, ...) \
   inline Type Type##Name(Type input) { return TypeUnaryOp(input, Name); }
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
@@ -274,7 +272,7 @@ class Typer::Visitor : public Reducer {
   static ComparisonOutcome JSCompareTyper(Type, Type, Typer*);
   static ComparisonOutcome NumberCompareTyper(Type, Type, Typer*);
 
-#define DECLARE_METHOD(x) static Type x##Typer(Type, Type, Typer*);
+#define DECLARE_METHOD(x, ...) static Type x##Typer(Type, Type, Typer*);
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -303,47 +301,7 @@ class Typer::Visitor : public Reducer {
         AllowHandleDereference allow;
         std::ostringstream ostream;
         node->Print(ostream);
-
-        if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-          ostream << "Previous UpdateType run (inputs first):";
-          for (int i = 0; i < 3; ++i) {
-            ostream << "  ";
-            if (remembered_types_[{node, i}].IsInvalid()) {
-              ostream << "untyped";
-            } else {
-              remembered_types_[{node, i}].PrintTo(ostream);
-            }
-          }
-
-          ostream << "\nCurrent (output) type:  ";
-          previous.PrintTo(ostream);
-
-          ostream << "\nThis UpdateType run (inputs first):";
-          for (int i = 0; i < 2; ++i) {
-            ostream << "  ";
-            Node* input = NodeProperties::GetValueInput(node, i);
-            if (NodeProperties::IsTyped(input)) {
-              NodeProperties::GetType(input).PrintTo(ostream);
-            } else {
-              ostream << "untyped";
-            }
-          }
-          ostream << "  ";
-          current.PrintTo(ostream);
-          ostream << "\n";
-        }
-
         FATAL("UpdateType error for node %s", ostream.str().c_str());
-      }
-
-      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-        for (int i = 0; i < 2; ++i) {
-          Node* input = NodeProperties::GetValueInput(node, i);
-          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
-                                             ? NodeProperties::GetType(input)
-                                             : Type::Invalid();
-        }
-        remembered_types_[{node, 2}] = current;
       }
 
       NodeProperties::SetType(node, current);
@@ -353,16 +311,6 @@ class Typer::Visitor : public Reducer {
       }
       return NoChange();
     } else {
-      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-        for (int i = 0; i < 2; ++i) {
-          Node* input = NodeProperties::GetValueInput(node, i);
-          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
-                                             ? NodeProperties::GetType(input)
-                                             : Type::Invalid();
-        }
-        remembered_types_[{node, 2}] = current;
-      }
-
       // No previous type, simply update the type.
       NodeProperties::SetType(node, current);
       return Changed(node);
@@ -378,7 +326,7 @@ void Typer::Run(const NodeVector& roots,
     induction_vars->ChangeToInductionVariablePhis();
   }
   Visitor visitor(this, induction_vars);
-  GraphReducer graph_reducer(zone(), graph(), tick_counter_);
+  GraphReducer graph_reducer(zone(), graph(), tick_counter_, broker());
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
@@ -629,6 +577,10 @@ Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
 Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
   CHECK(!type.IsNone());
+  if (type.IsHeapConstant() &&
+      type.AsHeapConstant()->Ref().map().is_constructor()) {
+    return t->singleton_true_;
+  }
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
@@ -728,10 +680,7 @@ Type Typer::Visitor::TypeIfException(Node* node) { return Type::NonInternal(); }
 // Common operators.
 
 Type Typer::Visitor::TypeParameter(Node* node) {
-  Node* const start = node->InputAt(0);
-  DCHECK_EQ(IrOpcode::kStart, start->opcode());
-  int const parameter_count = start->op()->ValueOutputCount() - 4;
-  DCHECK_LE(1, parameter_count);
+  StartNode start{node->InputAt(0)};
   int const index = ParameterIndexOf(node->op());
   if (index == Linkage::kJSCallClosureParamIndex) {
     return Type::Function();
@@ -742,15 +691,15 @@ Type Typer::Visitor::TypeParameter(Node* node) {
       // Parameter[this] can be the_hole for derived class constructors.
       return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
     }
-  } else if (index == Linkage::GetJSCallNewTargetParamIndex(parameter_count)) {
+  } else if (index == start.NewTargetParameterIndex()) {
     if (typer_->flags() & Typer::kNewTargetIsReceiver) {
       return Type::Receiver();
     } else {
       return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
     }
-  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
+  } else if (index == start.ArgCountParameterIndex()) {
     return Type::Range(0.0, FixedArray::kMaxLength, typer_->zone());
-  } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
+  } else if (index == start.ContextParameterIndex()) {
     return Type::OtherInternal();
   }
   return Type::NonInternal();
@@ -1040,6 +989,17 @@ Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) { return Type::Any(); }
 
+#if V8_ENABLE_WEBASSEMBLY
+Type Typer::Visitor::TypeJSWasmCall(Node* node) {
+  const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
+  const wasm::FunctionSig* wasm_signature = op_params.signature();
+  if (wasm_signature->return_count() > 0) {
+    return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
+  }
+  return Type::Any();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);
   if (type.Is(Type::None())) return Type::None();
@@ -1249,6 +1209,9 @@ Type Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
 
+Type Typer::Visitor::TypeTierUpCheck(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeUpdateInterruptBudget(Node* node) { UNREACHABLE(); }
+
 // JS conversion operators.
 
 Type Typer::Visitor::TypeToBoolean(Node* node) {
@@ -1357,6 +1320,10 @@ Type Typer::Visitor::TypeJSLoadProperty(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSLoadNamed(Node* node) { return Type::NonInternal(); }
+
+Type Typer::Visitor::TypeJSLoadNamedFromSuper(Node* node) {
+  return Type::NonInternal();
+}
 
 Type Typer::Visitor::TypeJSLoadGlobal(Node* node) {
   return Type::NonInternal();
@@ -1480,7 +1447,7 @@ Type Typer::Visitor::JSOrdinaryHasInstanceTyper(Type lhs, Type rhs, Typer* t) {
 }
 
 Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
-  return Type::Callable();
+  return Type::NonInternal();
 }
 
 // JS context operators.
@@ -1872,8 +1839,6 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToNumber);
     case Runtime::kInlineToObject:
       return TypeUnaryOp(node, ToObject);
-    case Runtime::kInlineToStringRT:
-      return TypeUnaryOp(node, ToString);
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:
@@ -1909,6 +1874,8 @@ Type Typer::Visitor::TypeJSStoreMessage(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeJSLoadModule(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSStoreModule(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeJSGetImportMeta(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSGeneratorStore(Node* node) { UNREACHABLE(); }
 
@@ -2135,6 +2102,7 @@ Type Typer::Visitor::TypeCheckInternalizedString(Node* node) {
 }
 
 Type Typer::Visitor::TypeCheckMaps(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeDynamicCheckMaps(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeCompareMaps(Node* node) { return Type::Boolean(); }
 
@@ -2357,8 +2325,8 @@ Type Typer::Visitor::TypeArgumentsLength(Node* node) {
   return TypeCache::Get()->kArgumentsLengthType;
 }
 
-Type Typer::Visitor::TypeArgumentsFrame(Node* node) {
-  return Type::ExternalPointer();
+Type Typer::Visitor::TypeRestLength(Node* node) {
+  return TypeCache::Get()->kArgumentsLengthType;
 }
 
 Type Typer::Visitor::TypeNewDoubleElements(Node* node) {
@@ -2390,6 +2358,10 @@ Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
 Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeVerifyType(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
 
 // Heap constants.
 

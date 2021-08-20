@@ -4,9 +4,9 @@
 
 // Flags: --expose-wasm
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scrips report the source');
+utils.load('test/inspector/wasm-inspector-test.js');
 
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scrips report the source');
 
 var builder = new WasmModuleBuilder();
 
@@ -20,7 +20,7 @@ var sig_index = builder.addType(kSig_v_v);
 
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprBlock, kWasmStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
+      kExprBlock, kWasmVoid, kExprI32Const, 0, kExprCallIndirect, sig_index,
       kTableZero, kExprEnd
     ])
     .exportAs('main');

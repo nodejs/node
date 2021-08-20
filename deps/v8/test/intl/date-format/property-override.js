@@ -71,7 +71,6 @@ var expectedProperties = [
   'minute',
   'second',
   'timeZoneName',
-  'fractionalSecondDigits',
 ];
 
 assertEquals(expectedProperties.length, properties.length);

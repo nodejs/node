@@ -16,9 +16,8 @@ CpuTraceMarkExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
 void CpuTraceMarkExtension::Mark(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1 || !args[0]->IsUint32()) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(),
-        "First parameter to cputracemark() must be a unsigned int32."));
+    args.GetIsolate()->ThrowError(
+        "First parameter to cputracemark() must be a unsigned int32.");
     return;
   }
 
@@ -34,12 +33,12 @@ void CpuTraceMarkExtension::Mark(
 #if defined(__i386__) && defined(__pic__)
   __asm__ __volatile__("push %%ebx; cpuid; pop %%ebx"
                        : "=a"(magic_dummy)
-                       : "a"(0x4711 | ((unsigned)(param) << 16))
+                       : "a"(0x4711 | (param << 16))
                        : "ecx", "edx");
 #else
   __asm__ __volatile__("cpuid"
                        : "=a"(magic_dummy)
-                       : "a"(0x4711 | ((unsigned)(param) << 16))
+                       : "a"(0x4711 | (param << 16))
                        : "ecx", "edx", "ebx");
 #endif  // defined(__i386__) && defined(__pic__)
 

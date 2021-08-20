@@ -107,7 +107,7 @@ public:
 
     /**
      * Makes the <code>TimeZoneRule</code> ready to handle actual timezone
-     * calcuation APIs.  This method collects time zone rules specified
+     * calculation APIs.  This method collects time zone rules specified
      * by the caller via the constructor and addTransitionRule() and
      * builds internal structure for making the object ready to support
      * time zone APIs such as getOffset(), getNextTransition() and others.
@@ -258,7 +258,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the first transition after the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
@@ -268,7 +268,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the most recent transition before the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
@@ -302,12 +302,16 @@ public:
     virtual void getTimeZoneRules(const InitialTimeZoneRule*& initial,
         const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const;
 
+#ifndef U_FORCE_HIDE_DRAFT_API
     /**
      * Get time zone offsets from local wall time.
-     * @internal
+     * @draft ICU 69
      */
-    virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
         int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const;
+#endif /* U_FORCE_HIDE_DRAFT_API */
 
 private:
     void deleteRules(void);

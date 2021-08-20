@@ -28,6 +28,8 @@
 #include <builtins.h>
 #include <termios.h>
 #include <sys/msg.h>
+#include <sys/resource.h>
+#include "zos-base.h"
 #if defined(__clang__)
 #include "csrsic.h"
 #else
@@ -60,12 +62,6 @@
 
 /* Address of the rsm control and enumeration area. */
 #define CVTRCEP_OFFSET    0x490
-
-/*
-    Number of frames currently available to system.
-    Excluded are frames backing perm storage, frames offline, and bad frames.
-*/
-#define RCEPOOL_OFFSET    0x004
 
 /* Total number of frames currently on all available frame queues. */
 #define RCEAFC_OFFSET     0x088
@@ -144,102 +140,8 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 }
 
 
-/*
-    Get the exe path using the thread entry information
-    in the address space.
-*/
-static int getexe(const int pid, char* buf, size_t len) {
-  struct {
-    int pid;
-    int thid[2];
-    char accesspid;
-    char accessthid;
-    char asid[2];
-    char loginname[8];
-    char flag;
-    char len;
-  } Input_data;
-
-  union {
-    struct {
-      char gthb[4];
-      int pid;
-      int thid[2];
-      char accesspid;
-      char accessthid[3];
-      int lenused;
-      int offsetProcess;
-      int offsetConTTY;
-      int offsetPath;
-      int offsetCommand;
-      int offsetFileData;
-      int offsetThread;
-    } Output_data;
-    char buf[2048];
-  } Output_buf;
-
-  struct Output_path_type {
-    char gthe[4];
-    short int len;
-    char path[1024];
-  };
-
-  int Input_length;
-  int Output_length;
-  void* Input_address;
-  void* Output_address;
-  struct Output_path_type* Output_path;
-  int rv;
-  int rc;
-  int rsn;
-
-  Input_length = PGTH_LEN;
-  Output_length = sizeof(Output_buf);
-  Output_address = &Output_buf;
-  Input_address = &Input_data;
-  memset(&Input_data, 0, sizeof Input_data);
-  Input_data.flag |= PGTHAPATH;
-  Input_data.pid = pid;
-  Input_data.accesspid = PGTH_CURRENT;
-
-#ifdef _LP64
-  BPX4GTH(&Input_length,
-          &Input_address,
-          &Output_length,
-          &Output_address,
-          &rv,
-          &rc,
-          &rsn);
-#else
-  BPX1GTH(&Input_length,
-          &Input_address,
-          &Output_length,
-          &Output_address,
-          &rv,
-          &rc,
-          &rsn);
-#endif
-
-  if (rv == -1) {
-    errno = rc;
-    return -1;
-  }
-
-  /* Check highest byte to ensure data availability */
-  assert(((Output_buf.Output_data.offsetPath >>24) & 0xFF) == 'A');
-
-  /* Get the offset from the lowest 3 bytes */
-  Output_path = (struct Output_path_type*) ((char*) (&Output_buf) +
-      (Output_buf.Output_data.offsetPath & 0x00FFFFFF));
-
-  if (Output_path->len >= len) {
-    errno = ENOBUFS;
-    return -1;
-  }
-
-  uv__strscpy(buf, Output_path->path, len);
-
-  return 0;
+static int getexe(char* buf, size_t len) {
+  return uv__strscpy(buf, __getargv()[0], len);
 }
 
 
@@ -254,81 +156,16 @@ static int getexe(const int pid, char* buf, size_t len) {
 int uv_exepath(char* buffer, size_t* size) {
   int res;
   char args[PATH_MAX];
-  char abspath[PATH_MAX];
-  size_t abspath_size;
   int pid;
 
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
-  pid = getpid();
-  res = getexe(pid, args, sizeof(args));
+  res = getexe(args, sizeof(args));
   if (res < 0)
     return UV_EINVAL;
 
-  /*
-   * Possibilities for args:
-   * i) an absolute path such as: /home/user/myprojects/nodejs/node
-   * ii) a relative path such as: ./node or ../myprojects/nodejs/node
-   * iii) a bare filename such as "node", after exporting PATH variable
-   *     to its location.
-   */
-
-  /* Case i) and ii) absolute or relative paths */
-  if (strchr(args, '/') != NULL) {
-    if (realpath(args, abspath) != abspath)
-      return UV__ERR(errno);
-
-    abspath_size = strlen(abspath);
-
-    *size -= 1;
-    if (*size > abspath_size)
-      *size = abspath_size;
-
-    memcpy(buffer, abspath, *size);
-    buffer[*size] = '\0';
-
-    return 0;
-  } else {
-    /* Case iii). Search PATH environment variable */
-    char trypath[PATH_MAX];
-    char* clonedpath = NULL;
-    char* token = NULL;
-    char* path = getenv("PATH");
-
-    if (path == NULL)
-      return UV_EINVAL;
-
-    clonedpath = uv__strdup(path);
-    if (clonedpath == NULL)
-      return UV_ENOMEM;
-
-    token = strtok(clonedpath, ":");
-    while (token != NULL) {
-      snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
-      if (realpath(trypath, abspath) == abspath) {
-        /* Check the match is executable */
-        if (access(abspath, X_OK) == 0) {
-          abspath_size = strlen(abspath);
-
-          *size -= 1;
-          if (*size > abspath_size)
-            *size = abspath_size;
-
-          memcpy(buffer, abspath, *size);
-          buffer[*size] = '\0';
-
-          uv__free(clonedpath);
-          return 0;
-        }
-      }
-      token = strtok(NULL, ":");
-    }
-    uv__free(clonedpath);
-
-    /* Out of tokens (path entries), and no match found */
-    return UV_EINVAL;
-  }
+  return uv__search_path(args, buffer, size);
 }
 
 
@@ -339,25 +176,25 @@ uint64_t uv_get_free_memory(void) {
   data_area_ptr rcep = {0};
   cvt.assign = *(data_area_ptr_assign_type*)(CVT_PTR);
   rcep.assign = *(data_area_ptr_assign_type*)(cvt.deref + CVTRCEP_OFFSET);
-  freeram = *((uint64_t*)(rcep.deref + RCEAFC_OFFSET)) * 4;
+  freeram = (uint64_t)*((uint32_t*)(rcep.deref + RCEAFC_OFFSET)) * 4096;
   return freeram;
 }
 
 
 uint64_t uv_get_total_memory(void) {
-  uint64_t totalram;
-
-  data_area_ptr cvt = {0};
-  data_area_ptr rcep = {0};
-  cvt.assign = *(data_area_ptr_assign_type*)(CVT_PTR);
-  rcep.assign = *(data_area_ptr_assign_type*)(cvt.deref + CVTRCEP_OFFSET);
-  totalram = *((uint64_t*)(rcep.deref + RCEPOOL_OFFSET)) * 4;
-  return totalram;
+  /* Use CVTRLSTG to get the size of actual real storage online at IPL in K. */
+  return (uint64_t)((int)((char *__ptr32 *__ptr32 *)0)[4][214]) * 1024;
 }
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+  struct rlimit rl;
+
+  /* RLIMIT_MEMLIMIT return value is in megabytes rather than bytes. */
+  if (getrlimit(RLIMIT_MEMLIMIT, &rl) == 0)
+    return rl.rlim_cur * 1024 * 1024;
+
+  return 0; /* There is no memory limit set. */
 }
 
 
@@ -797,6 +634,10 @@ static int os390_message_queue_handler(uv__os390_epoll* ep) {
     /* Some event that we are not interested in. */
     return 0;
 
+  /* `__rfim_utok` is treated as text when it should be treated as binary while
+   * running in ASCII mode, resulting in an unwanted autoconversion.
+   */
+  __a2e_l(msg.__rfim_utok, sizeof(msg.__rfim_utok));
   handle = *(uv_fs_event_t**)(msg.__rfim_utok);
   handle->cb(handle, uv__basename_r(handle->path), events, 0);
   return 1;
@@ -818,6 +659,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
   int op;
   int i;
+  int user_timeout;
+  int reset_timeout;
 
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
@@ -870,8 +713,22 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   real_timeout = timeout;
   int nevents = 0;
 
+  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+    reset_timeout = 1;
+    user_timeout = timeout;
+    timeout = 0;
+  } else {
+    reset_timeout = 0;
+  }
+
   nfds = 0;
   for (;;) {
+    /* Only need to set the provider_entry_time if timeout != 0. The function
+     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+     */
+    if (timeout != 0)
+      uv__metrics_set_provider_entry_time(loop);
+
     if (sizeof(int32_t) == sizeof(long) && timeout >= max_safe_timeout)
       timeout = max_safe_timeout;
 
@@ -887,18 +744,32 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == 0) {
       assert(timeout != -1);
 
-      if (timeout > 0) {
-        timeout = real_timeout - timeout;
-        continue;
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
       }
 
-      return;
+      if (timeout == -1)
+        continue;
+
+      if (timeout == 0)
+        return;
+
+      /* We may have been inside the system call for longer than |timeout|
+       * milliseconds so we need to update the timestamp to avoid drift.
+       */
+      goto update_timeout;
     }
 
     if (nfds == -1) {
 
       if (errno != EINTR)
         abort();
+
+      if (reset_timeout != 0) {
+        timeout = user_timeout;
+        reset_timeout = 0;
+      }
 
       if (timeout == -1)
         continue;
@@ -954,12 +825,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pe->events |= w->pevents & (POLLIN | POLLOUT);
 
       if (pe->events != 0) {
+        uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->events);
         nevents++;
       }
     }
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (reset_timeout != 0) {
+      timeout = user_timeout;
+      reset_timeout = 0;
+    }
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -987,9 +864,6 @@ update_timeout:
   }
 }
 
-void uv__set_process_title(const char* title) {
-  /* do nothing */
-}
 
 int uv__io_fork(uv_loop_t* loop) {
   /*

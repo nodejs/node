@@ -10,7 +10,7 @@ function handleRequest(request, response) {
 const NUMBER_OF_WORKERS = 2;
 var workersOnline = 0;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.on('online', function() {
     if (++workersOnline === NUMBER_OF_WORKERS) {
       console.error('all workers are running');

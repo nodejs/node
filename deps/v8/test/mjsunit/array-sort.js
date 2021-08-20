@@ -98,7 +98,7 @@ function TestArraySortingWithUndefined() {
 TestArraySortingWithUndefined();
 
 // Test that sorting using an unsound comparison function still gives a
-// sane result, i.e. it terminates without error and retains the elements
+// sensible result, i.e. it terminates without error and retains the elements
 // in the array.
 function TestArraySortingWithUnsoundComparisonFunction() {
   var a = [ 3, void 0, 2 ];
@@ -509,6 +509,10 @@ assertThrows(() => {
   Array.prototype.sort.call(undefined);
 }, TypeError);
 
+assertThrows(() => {
+  Array.prototype.sort.call(null);
+}, TypeError);
+
 // This test ensures that RemoveArrayHoles does not shadow indices in the
 // prototype chain. There are multiple code paths, we force both and check that
 // they have the same behavior.
@@ -748,3 +752,15 @@ function TestSortCmpPackedSetLengthToZero() {
   xs.sort(create_cmpfn(() => xs.length = 0));
   assertTrue(HasPackedSmi(xs));
 }
+TestSortCmpPackedSetLengthToZero();
+
+(function TestSortingNonObjectConvertsToObject() {
+  const v1 = Array.prototype.sort.call(true);
+  assertEquals('object', typeof v1);
+
+  const v2 = Array.prototype.sort.call(false);
+  assertEquals('object', typeof v2);
+
+  const v3 = Array.prototype.sort.call(42);
+  assertEquals('object', typeof v3);
+})();

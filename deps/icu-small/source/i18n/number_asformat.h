@@ -25,7 +25,6 @@ namespace impl {
  * A wrapper around LocalizedNumberFormatter implementing the Format interface, enabling improved
  * compatibility with other APIs.
  *
- * @draft ICU 62
  * @see NumberFormatter
  */
 class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {

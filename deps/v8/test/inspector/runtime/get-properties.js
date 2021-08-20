@@ -45,10 +45,30 @@ InspectorTest.runAsyncTestSuite([
     let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
-      if (prop.name === '__proto__')
-        continue;
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
+    }
+    for (let prop of props.result.internalProperties) {
+      InspectorTest.log(prop.name);
+      if (prop.value.objectId)
+        await logGetPropertiesResult(prop.value.objectId);
+    }
+  },
+
+  async function testArrayBufferFromWebAssemblyMemory() {
+    let objectId = await evaluateToObjectId('new WebAssembly.Memory({initial: 1}).buffer');
+    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
+    for (let prop of props.result.result) {
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
+    }
+    for (let prop of props.result.internalProperties) {
+      InspectorTest.log(prop.name);
+      // Skip printing the values of the virtual typed arrays.
+      if (/\[\[.*Array\]\]/.test(prop.name))
+        continue;
+      if (prop.value.objectId)
+        await logGetPropertiesResult(prop.value.objectId);
     }
   },
 
@@ -60,10 +80,11 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({ expression: 'b', generatePreview: true })
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
-      if (prop.name === '__proto__')
-        continue;
       InspectorTest.log(prop.name);
       await logGetPropertiesResult(prop.value.objectId);
+    }
+    for (let prop of props.result.internalProperties) {
+      InspectorTest.log(prop.name + ' ' + prop.value.value);
     }
   },
 
@@ -77,6 +98,10 @@ InspectorTest.runAsyncTestSuite([
       this.Uint8Array = this.uint8array_old;
       delete this.uint8array_old;
     })()`);
+  },
+
+  async function testObjectWithProtoProperty() {
+    await logExpressionProperties('Object.defineProperty({}, "__proto__", {enumerable: true, value: {b:"aaa"}})');
   }
 ]);
 
@@ -105,7 +130,7 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     var v = p.value;
     var own = p.isOwn ? "own" : "inherited";
     if (v)
-      InspectorTest.log("  " + p.name + " " + own + " " + v.type + " " + v.value);
+      InspectorTest.log(`  ${p.name} ${own} ${v.type} ${v.value}`);
     else
       InspectorTest.log("  " + p.name + " " + own + " no value" +
         (hasGetterSetter(p, "get") ? ", getter" : "") + (hasGetterSetter(p, "set") ? ", setter" : ""));
@@ -118,7 +143,11 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     for (var i = 0; i < array.length; i++) {
       var p = array[i];
       var v = p.value;
-      InspectorTest.log('  ' + p.name + ' ' + v.type + ' ' + v.value);
+      if (p.name == "[[ArrayBufferData]]")
+        // Hex value for pointer is non-deterministic
+        InspectorTest.log(`  ${p.name} ${v.type} ${v.value.substr(0, 2)}...`);
+      else
+        InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
     }
   }
 

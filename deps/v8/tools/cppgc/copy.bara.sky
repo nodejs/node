@@ -1,0 +1,41 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+INTERESTING_PATHS = [
+    'AUTHORS',
+    'CODE_OF_CONDUCT.md',
+    'LICENSE',
+    'samples/cppgc/**',
+    'src/base/**',
+    'src/heap/base/**',
+    'src/heap/cppgc/**',
+    'include/cppgc/**',
+    'include/v8config.h',
+    'include/v8-platform.h',
+    'testing/**',
+    'test/unittests/heap/cppgc/**',
+]
+
+origin_url = 'https://chromium.googlesource.com/v8/v8.git'
+# TODO(v8:10724): Add GitHub destination url.
+destination_url = 'TODO'
+
+# This workflow syncs cppgc source inside V8's googlesource repo with GitHub.
+core.workflow(
+    name='default',
+    origin=git.origin(
+        url=origin_url,
+        ref='master',
+    ),
+    destination=git.destination(url=destination_url, ),
+    origin_files=glob(INTERESTING_PATHS,
+                      exclude=['samples/cppgc/cppgc-for-v8-embedders.cc']),
+    destination_files=glob(['**'], exclude=['CMakeLists.txt', 'cmake/**']),
+    mode='SQUASH',
+    authoring=authoring.pass_thru('V8 Team <v8-dev@googlegroups.com>'),
+    transformations=[
+        metadata.squash_notes(prefix='Export of V8 changes from ' +
+                              origin_url + '\n\nList of included changes:\n\n')
+    ]
+)

@@ -17,7 +17,7 @@
 // functions available in a new version of N-API that is not yet ported in all
 // LTS versions, they can set NAPI_VERSION knowing that they have specifically
 // depended on that version.
-#define NAPI_VERSION 6
+#define NAPI_VERSION 8
 #endif
 #endif
 
@@ -529,7 +529,7 @@ NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
                                                void** data);
 #endif  // NAPI_VERSION >= 6
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 7
 // ArrayBuffer detaching
 NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
                                                 napi_value arraybuffer);
@@ -537,6 +537,9 @@ NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
 NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
                                                      napi_value value,
                                                      bool* result);
+#endif  // NAPI_VERSION >= 7
+
+#if NAPI_VERSION >= 8
 // Type tagging
 NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
                                              napi_value value,
@@ -547,7 +550,11 @@ napi_check_object_type_tag(napi_env env,
                            napi_value value,
                            const napi_type_tag* type_tag,
                            bool* result);
-#endif  // NAPI_EXPERIMENTAL
+NAPI_EXTERN napi_status napi_object_freeze(napi_env env,
+                                           napi_value object);
+NAPI_EXTERN napi_status napi_object_seal(napi_env env,
+                                         napi_value object);
+#endif  // NAPI_VERSION >= 8
 
 EXTERN_C_END
 

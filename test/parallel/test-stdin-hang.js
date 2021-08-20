@@ -27,6 +27,6 @@ require('../common');
 // If it does, then the test-runner will nuke it.
 
 // invoke the getter.
-process.stdin;
+process.stdin; // eslint-disable-line no-unused-expressions
 
 console.error('Should exit normally now.');

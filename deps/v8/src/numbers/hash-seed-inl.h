@@ -19,7 +19,6 @@ namespace internal {
 class Isolate;
 class ReadOnlyRoots;
 
-// TODO(v8:7464): Remove the Isolate version of this.
 inline uint64_t HashSeed(Isolate* isolate);
 inline uint64_t HashSeed(ReadOnlyRoots roots);
 

@@ -6,7 +6,8 @@
   "resources": ["run.js"],
   "main": "run.js",
   "path": ["."],
-  "flags": ["--allow-natives-syntax", "--profile-deserialization"],
+  "flags": ["--allow-natives-syntax", "--profile-deserialization",
+            "--serialization-statistics"],
   "tests": [
     {
       "name": "ReservedMemoryIsolate",
@@ -18,7 +19,7 @@
     },
     {
       "name": "SnapshotSizeStartup",
-      "results_regexp": "(\\d+) bytes in \\d+ chunks for startup$"
+      "results_regexp": "(\\d+) bytes for startup$"
     },
     {
       "name": "SnapshotSizeReadOnly",
@@ -26,7 +27,7 @@
     },
     {
       "name": "SnapshotSizeContext",
-      "results_regexp": "(\\d+) bytes in \\d+ chunks for context #0$"
+      "results_regexp": "(\\d+) bytes for context #0$"
     },
     {
       "name": "DeserializationTimeIsolate",

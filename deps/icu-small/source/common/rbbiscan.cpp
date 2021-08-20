@@ -284,7 +284,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doEndAssign:
         {
-            // We have reached the end of an assignement statement.
+            // We have reached the end of an assignment statement.
             //   Current scan char is the ';' that terminates the assignment.
 
             // Terminate expression, leaves expression parse tree rooted in TOS node.
@@ -829,16 +829,14 @@ static const UChar      chRParen    = 0x29;
 UnicodeString RBBIRuleScanner::stripRules(const UnicodeString &rules) {
     UnicodeString strippedRules;
     int32_t rulesLength = rules.length();
-    bool skippingSpaces = false;
 
     for (int32_t idx=0; idx<rulesLength; idx = rules.moveIndex32(idx, 1)) {
         UChar32 cp = rules.char32At(idx);
         bool whiteSpace = u_hasBinaryProperty(cp, UCHAR_PATTERN_WHITE_SPACE);
-        if (skippingSpaces && whiteSpace) {
+        if (whiteSpace) {
             continue;
         }
         strippedRules.append(cp);
-        skippingSpaces = whiteSpace;
     }
     return strippedRules;
 }
@@ -858,6 +856,10 @@ UChar32  RBBIRuleScanner::nextCharLL() {
         return (UChar32)-1;
     }
     ch         = fRB->fRules.char32At(fNextIndex);
+    if (U_IS_SURROGATE(ch)) {
+        error(U_ILLEGAL_CHAR_FOUND);
+        return U_SENTINEL;
+    }
     fNextIndex = fRB->fRules.moveIndex32(fNextIndex, 1);
 
     if (ch == chCR ||

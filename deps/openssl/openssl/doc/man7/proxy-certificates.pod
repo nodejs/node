@@ -217,7 +217,7 @@ The following skeleton code can be used as a starting point:
              * bottom.  You get the CA root first, followed by the
              * possible chain of intermediate CAs, followed by the EE
              * certificate, followed by the possible proxy
-             * certificates.
+             * certificates. 
              */
             X509 *xs = X509_STORE_CTX_get_current_cert(ctx);
 
@@ -236,7 +236,7 @@ The following skeleton code can be used as a starting point:
                      * by pulling them from some database.  If there
                      * are none to be found, clear all rights (making
                      * this and any subsequent proxy certificate void
-                     * of any rights).
+                     * of any rights). 
                      */
                     memset(rights->rights, 0, sizeof(rights->rights));
                     break;

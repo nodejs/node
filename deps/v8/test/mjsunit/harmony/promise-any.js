@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --harmony-promise-any
+// Flags: --allow-natives-syntax
 
 load('test/mjsunit/test-async.js');
 
@@ -90,5 +90,42 @@ load('test/mjsunit/test-async.js');
         assert.equals(1, 1);
       }
     })();
+  });
+})();
+
+// Test that we return a proper array even if (custom) "then" invokes the
+// reject callbacks right away.
+(function() {
+  class MyPromise extends Promise {
+    constructor(executor, id) {
+      super(executor);
+      this.id = id;
+    }
+
+    then(resolve, reject) {
+      if (this.id) return reject(this.id);
+      return super.then(resolve, reject)
+    }
+  };
+  const a = new MyPromise(() => {}, 'a');
+  const b = new MyPromise(() => {}, 'b');
+  testAsync(assert => {
+    assert.plan(1);
+    MyPromise.any([a, b]).then(
+      assert.unreachable,
+        (e) => { assert.equals(['a', 'b'], e.errors) });
+  });
+})();
+
+(function TestErrorsProperties() {
+  testAsync(assert => {
+    assert.plan(3);
+    Promise.any([]).catch(
+      (error) =>  {
+        let desc = Object.getOwnPropertyDescriptor(error, 'errors');
+        assert.equals(true, desc.configurable);
+        assert.equals(false, desc.enumerable);
+        assert.equals(true, desc.writable);
+    });
   });
 })();

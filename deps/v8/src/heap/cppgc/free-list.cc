@@ -8,9 +8,9 @@
 
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
-#include "src/heap/cppgc/sanitizers.h"
+#include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
 namespace internal {
@@ -68,12 +68,17 @@ void FreeList::Add(FreeList::Block block) {
   if (block.size < sizeof(Entry)) {
     // Create wasted entry. This can happen when an almost emptied linear
     // allocation buffer is returned to the freelist.
+    // This could be SET_MEMORY_ACCESSIBLE. Since there's no payload, the next
+    // operating overwrites the memory completely, and we can thus avoid
+    // zeroing it out.
+    ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(HeapObjectHeader));
     new (block.address) HeapObjectHeader(size, kFreeListGCInfoIndex);
     return;
   }
 
-  // Make sure the freelist header is writable.
-  SET_MEMORY_ACCESIBLE(block.address, sizeof(Entry));
+  // Make sure the freelist header is writable. SET_MEMORY_ACCESSIBLE is not
+  // needed as we write the whole payload of Entry.
+  ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(Entry));
   Entry* entry = new (block.address) Entry(size);
   const size_t index = BucketIndexForSize(static_cast<uint32_t>(size));
   entry->Link(&free_list_heads_[index]);
@@ -127,7 +132,7 @@ FreeList::Block FreeList::Allocate(size_t allocation_size) {
       // Final bucket candidate; check initial entry if it is able
       // to service this allocation. Do not perform a linear scan,
       // as it is considered too costly.
-      if (!entry || entry->GetSize() < allocation_size) break;
+      if (!entry || entry->AllocatedSize() < allocation_size) break;
     }
     if (entry) {
       if (!entry->Next()) {
@@ -136,7 +141,7 @@ FreeList::Block FreeList::Allocate(size_t allocation_size) {
       }
       entry->Unlink(&free_list_heads_[index]);
       biggest_free_list_index_ = index;
-      return {entry, entry->GetSize()};
+      return {entry, entry->AllocatedSize()};
     }
   }
   biggest_free_list_index_ = index;
@@ -153,7 +158,7 @@ size_t FreeList::Size() const {
   size_t size = 0;
   for (auto* entry : free_list_heads_) {
     while (entry) {
-      size += entry->GetSize();
+      size += entry->AllocatedSize();
       entry = entry->Next();
     }
   }
@@ -165,12 +170,12 @@ bool FreeList::IsEmpty() const {
                      [](const auto* entry) { return !entry; });
 }
 
-bool FreeList::Contains(Block block) const {
+bool FreeList::ContainsForTesting(Block block) const {
   for (Entry* list : free_list_heads_) {
     for (Entry* entry = list; entry; entry = entry->Next()) {
       if (entry <= block.address &&
           (reinterpret_cast<Address>(block.address) + block.size <=
-           reinterpret_cast<Address>(entry) + entry->GetSize()))
+           reinterpret_cast<Address>(entry) + entry->AllocatedSize()))
         return true;
     }
   }
@@ -184,6 +189,27 @@ bool FreeList::IsConsistent(size_t index) const {
   return (!free_list_heads_[index] && !free_list_tails_[index]) ||
          (free_list_heads_[index] && free_list_tails_[index] &&
           !free_list_tails_[index]->Next());
+}
+
+void FreeList::CollectStatistics(
+    HeapStatistics::FreeListStatistics& free_list_stats) {
+  std::vector<size_t>& bucket_size = free_list_stats.bucket_size;
+  std::vector<size_t>& free_count = free_list_stats.free_count;
+  std::vector<size_t>& free_size = free_list_stats.free_size;
+  DCHECK(bucket_size.empty());
+  DCHECK(free_count.empty());
+  DCHECK(free_size.empty());
+  for (size_t i = 0; i < kPageSizeLog2; ++i) {
+    size_t entry_count = 0;
+    size_t entry_size = 0;
+    for (Entry* entry = free_list_heads_[i]; entry; entry = entry->Next()) {
+      ++entry_count;
+      entry_size += entry->AllocatedSize();
+    }
+    bucket_size.push_back(static_cast<size_t>(1) << i);
+    free_count.push_back(entry_count);
+    free_size.push_back(entry_size);
+  }
 }
 
 }  // namespace internal

@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 
 const levn = require("levn"),
-    ConfigOps = require("../shared/config-ops");
+    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops");
 
 const debug = require("debug")("eslint:config-comment-parser");
 

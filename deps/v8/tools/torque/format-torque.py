@@ -16,8 +16,20 @@ import re
 from subprocess import Popen, PIPE
 
 kPercentEscape = r'α';  # Unicode alpha
+kDerefEscape = r'☆'; # Unicode star
+kAddressofEscape = r'⌂'; # Unicode house
 
 def preprocess(input):
+  # Special handing of '%' for intrinsics, turn the percent
+  # into a unicode character so that it gets treated as part of the
+  # intrinsic's name if it's already adjacent to it.
+  input = re.sub(r'%([A-Za-z])', kPercentEscape + r'\1', input)
+  # Similarly, avoid treating * and & as binary operators when they're
+  # probably used as address operators.
+  input = re.sub(r'([^/])\*([a-zA-Z(])', r'\1' + kDerefEscape + r'\2', input)
+  input = re.sub(r'&([a-zA-Z(])', kAddressofEscape + r'\1', input)
+
+
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
   input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
   input = re.sub(r'\btypeswitch\s*(\([^{]*\))\s{', r' if /*tPsW*/ \1 {', input)
@@ -35,12 +47,7 @@ def preprocess(input):
   input = re.sub(r'@if\(', r'@iF(', input)
   input = re.sub(r'@export', r'@eXpOrT', input)
   input = re.sub(r'js-implicit[ \n]+', r'jS_iMpLiCiT_', input)
-  input = re.sub(r'^(\s*namespace\s+[a-zA-Z_0-9]+\s*{)(\s*)$', r'\1}\2', input, flags = re.MULTILINE);
-
-  # Special handing of '%' for intrinsics, turn the percent
-  # into a unicode character so that it gets treated as part of the
-  # intrinsic's name if it's already adjacent to it.
-  input = re.sub(r'%([A-Za-z])', kPercentEscape + r'\1', input)
+  input = re.sub(r'^(\s*namespace\s+[a-zA-Z_0-9]+\s*{)(\s*)$', r'\1}\2', input, flags = re.MULTILINE)
 
   # includes are not recognized, change them into comments so that the
   # formatter ignores them first, until we can figure out a way to format cpp
@@ -78,6 +85,9 @@ def postprocess(output):
   output = re.sub(r'^(\s*namespace\s+[a-zA-Z_0-9]+\s*{)}(\s*)$', r'\1\2', output, flags = re.MULTILINE);
 
   output = re.sub(kPercentEscape, r'%', output)
+  output = re.sub(kDerefEscape, r'*', output)
+  output = re.sub(kAddressofEscape, r'&', output)
+
 
   output = re.sub( r'^// InClUdE',r'#include', output, flags=re.MULTILINE)
 

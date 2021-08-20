@@ -19,8 +19,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return true; }
-
 void RelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references and immediate branches need extra work.
   if (RelocInfo::IsInternalReference(rmode_)) {
@@ -659,7 +657,9 @@ Address RelocInfo::constant_pool_entry_address() {
 
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
     CHECK(!host_.is_null());
     return HeapObject::cast(Object(DecompressTaggedAny(
         host_.address(),
@@ -681,7 +681,9 @@ HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  if (IsEmbeddedObjectMode(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+  } else if (IsEmbeddedObjectMode(rmode_)) {
     return origin->target_object_handle_at(pc_);
   } else {
     DCHECK(IsCodeTarget(rmode_));
@@ -693,7 +695,10 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
+  if (IsDataEmbeddedObject(rmode_)) {
+    WriteUnalignedValue(pc_, target.ptr());
+    // No need to flush icache since no instructions were changed.
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
   } else {
@@ -1067,17 +1072,21 @@ const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
 
 inline void Assembler::CheckBufferSpace() {
   DCHECK_LT(pc_, buffer_start_ + buffer_->size());
-  if (buffer_space() < kGap) {
+  if (V8_UNLIKELY(buffer_space() < kGap)) {
     GrowBuffer();
   }
 }
 
-inline void Assembler::CheckBuffer() {
+V8_INLINE void Assembler::CheckBuffer() {
   CheckBufferSpace();
   if (pc_offset() >= next_veneer_pool_check_) {
     CheckVeneerPool(false, true);
   }
   constpool_.MaybeCheck();
+}
+
+EnsureSpace::EnsureSpace(Assembler* assembler) : block_pools_scope_(assembler) {
+  assembler->CheckBufferSpace();
 }
 
 }  // namespace internal

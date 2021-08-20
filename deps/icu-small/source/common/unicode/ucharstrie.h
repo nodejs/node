@@ -97,14 +97,13 @@ public:
         return *this;
     }
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns the state of this trie as a 64-bit integer.
      * The state value is never 0.
      *
      * @return opaque state value
      * @see resetToState64
-     * @draft ICU 65
+     * @stable ICU 65
      */
     uint64_t getState64() const {
         return (static_cast<uint64_t>(remainingMatchLength_ + 2) << kState64RemainingShift) |
@@ -123,14 +122,13 @@ public:
      * @see getState64
      * @see resetToState
      * @see reset
-     * @draft ICU 65
+     * @stable ICU 65
      */
     UCharsTrie &resetToState64(uint64_t state) {
         remainingMatchLength_ = static_cast<int32_t>(state >> kState64RemainingShift) - 2;
         pos_ = uchars_ + (state & kState64PosMask);
         return *this;
     }
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * UCharsTrie state object, for saving a trie's current state
@@ -268,16 +266,16 @@ public:
     /**
      * Determines whether all strings reachable from the current state
      * map to the same value.
-     * @param uniqueValue Receives the unique value, if this function returns TRUE.
+     * @param uniqueValue Receives the unique value, if this function returns true.
      *                    (output-only)
-     * @return TRUE if all strings reachable from the current state
+     * @return true if all strings reachable from the current state
      *         map to the same value.
      * @stable ICU 4.8
      */
     inline UBool hasUniqueValue(int32_t &uniqueValue) const {
         const char16_t *pos=pos_;
         // Skip the rest of a pending linear-match node.
-        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, FALSE, uniqueValue);
+        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
     }
 
     /**
@@ -335,7 +333,7 @@ public:
         Iterator &reset();
 
         /**
-         * @return TRUE if there are more elements.
+         * @return true if there are more elements.
          * @stable ICU 4.8
          */
         UBool hasNext() const;
@@ -351,7 +349,7 @@ public:
          *                  pass the U_SUCCESS() test, or else the function returns
          *                  immediately. Check for U_FAILURE() on output or use with
          *                  function chaining. (See User Guide for details.)
-         * @return TRUE if there is another element.
+         * @return true if there is another element.
          * @stable ICU 4.8
          */
         UBool next(UErrorCode &errorCode);
@@ -371,7 +369,7 @@ public:
         UBool truncateAndStop() {
             pos_=NULL;
             value_=-1;  // no real value for str
-            return TRUE;
+            return true;
         }
 
         const char16_t *branchNext(const char16_t *pos, int32_t length, UErrorCode &errorCode);

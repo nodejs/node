@@ -161,7 +161,6 @@ static void post(QUEUE* q, enum uv__work_kind kind) {
 
 
 void uv__threadpool_cleanup(void) {
-#ifndef _WIN32
   unsigned int i;
 
   if (nthreads == 0)
@@ -181,7 +180,6 @@ void uv__threadpool_cleanup(void) {
 
   threads = NULL;
   nthreads = 0;
-#endif
 }
 
 

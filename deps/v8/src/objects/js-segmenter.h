@@ -1,13 +1,12 @@
-// Copyright 2018 the V8 project authors. All rights reserved.
+// Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#ifndef V8_OBJECTS_JS_SEGMENTER_H_
+#define V8_OBJECTS_JS_SEGMENTER_H_
 
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_SEGMENTER_H_
-#define V8_OBJECTS_JS_SEGMENTER_H_
 
 #include <set>
 #include <string>
@@ -24,10 +23,12 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-segmenter-tq.inc"
 
 class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
  public:
@@ -42,7 +43,7 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  Handle<String> GranularityAsString() const;
+  Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // Segmenter accessors.
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
@@ -57,6 +58,9 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
   };
   inline void set_granularity(Granularity granularity);
   inline Granularity granularity() const;
+
+  Handle<String> static GetGranularityString(Isolate* isolate,
+                                             Granularity granularity);
 
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_SEGMENTER_FLAGS()

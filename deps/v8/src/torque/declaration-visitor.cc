@@ -98,9 +98,11 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     }
   }
 
-  if (signature.return_type->StructSupertype()) {
-    Error("Builtins cannot return structs, but the return type is ",
-          *signature.return_type, ".");
+  if (signature.return_type->StructSupertype() && javascript) {
+    Error(
+        "Builtins with JS linkage cannot return structs, but the return type "
+        "is ",
+        *signature.return_type, ".");
   }
 
   if (signature.return_type == TypeOracle::GetVoidType()) {
@@ -133,17 +135,18 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
         "type Context or NoContext, but found type ",
         *signature.parameter_types.types[0]);
   }
-  if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
+  if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType()) ||
         signature.return_type == TypeOracle::GetVoidType() ||
         signature.return_type == TypeOracle::GetNeverType())) {
     ReportError(
-        "runtime functions can only return tagged values, but found type ",
-        signature.return_type);
+        "runtime functions can only return strong tagged values, but "
+        "found type ",
+        *signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
-    if (!parameter_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+    if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
       ReportError(
-          "runtime functions can only take tagged values as parameters, but "
+          "runtime functions can only take strong tagged parameters, but "
           "found type ",
           *parameter_type);
     }
@@ -195,9 +198,10 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     // This argument inference is just to trigger constraint checking on the
     // generic arguments.
     TypeArgumentInference inference = generic->InferSpecializationTypes(
-        TypeVisitor::ComputeTypeVector(decl->generic_parameters),
-        signature_with_types.GetExplicitTypes());
-    if (inference.HasFailed()) continue;
+        TypeVisitor::ComputeTypeVector(decl->generic_parameters), {});
+    if (inference.HasFailed()) {
+      continue;
+    }
     Signature generic_signature_with_types =
         MakeSpecializedSignature(SpecializationKey<GenericCallable>{
             generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
@@ -372,8 +376,10 @@ Callable* DeclarationVisitor::Specialize(
 }
 
 void PredeclarationVisitor::ResolvePredeclarations() {
-  for (auto& p : GlobalContext::AllDeclarables()) {
-    if (const TypeAlias* alias = TypeAlias::DynamicCast(p.get())) {
+  const auto& all_declarables = GlobalContext::AllDeclarables();
+  for (size_t i = 0; i < all_declarables.size(); ++i) {
+    Declarable* declarable = all_declarables[i].get();
+    if (const TypeAlias* alias = TypeAlias::DynamicCast(declarable)) {
       CurrentScope::Scope scope_activator(alias->ParentScope());
       CurrentSourcePosition::Scope position_activator(alias->Position());
       alias->Resolve();

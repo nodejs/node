@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>  // NOLINT(readability/streams)
+#include "src/diagnostics/compilation-statistics.h"
+
+#include <ostream>
 #include <vector>
 
 #include "src/base/platform/platform.h"
-#include "src/diagnostics/compilation-statistics.h"
 
 namespace v8 {
 namespace internal {
@@ -40,11 +41,8 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
   it->second.Accumulate(stats);
 }
 
-void CompilationStatistics::RecordTotalStats(size_t source_size,
-                                             const BasicStats& stats) {
+void CompilationStatistics::RecordTotalStats(const BasicStats& stats) {
   base::MutexGuard guard(&record_mutex_);
-
-  source_size += source_size;
   total_stats_.Accumulate(stats);
 }
 

@@ -55,6 +55,7 @@ using i::ArrayVector;
 using i::SourceLocation;
 using i::Vector;
 using v8::base::Optional;
+using v8::internal::heap::GrowNewSpaceToMaximumCapacity;
 
 namespace {
 
@@ -458,12 +459,13 @@ TEST(HeapSnapshotCodeObjects) {
 
   // Verify that non-compiled function doesn't contain references to "x"
   // literal, while compiled function does. The scope info is stored in
-  // FixedArray objects attached to the SharedFunctionInfo.
+  // ScopeInfo objects attached to the SharedFunctionInfo.
   bool compiled_references_x = false, lazy_references_x = false;
   for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kArray) {
+    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+        !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         compiled_references_x = true;
         break;
@@ -473,7 +475,8 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kArray) {
+    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+        !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         lazy_references_x = true;
         break;
@@ -503,6 +506,34 @@ TEST(HeapSnapshotHeapNumbers) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "b");
   CHECK(b);
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
+}
+
+TEST(HeapSnapshotHeapNumbersCaptureNumericValue) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "a = 1;    // a is Smi\n"
+      "b = 2.5;  // b is HeapNumber");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(nullptr, nullptr, true, true);
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* a =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK(a);
+  CHECK_EQ(1, a->GetChildrenCount());
+  v8::String::Utf8Value value_a(CcTest::isolate(),
+                                a->GetChild(0)->GetToNode()->GetName());
+  CHECK_EQ(0, strcmp("1", *value_a));
+
+  const v8::HeapGraphNode* b =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "b");
+  CHECK(b);
+  CHECK_EQ(2, b->GetChildrenCount());
+  v8::String::Utf8Value value_b(CcTest::isolate(),
+                                b->GetChild(0)->GetToNode()->GetName());
+  CHECK_EQ(0, strcmp("2.5", *value_b));
 }
 
 TEST(HeapSnapshotHeapBigInts) {
@@ -1263,6 +1294,9 @@ static TestStatsStream GetHeapStatsUpdate(
 
 
 TEST(HeapSnapshotObjectsStats) {
+  // Concurrent allocation might break results
+  v8::internal::FLAG_stress_concurrent_allocation = false;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -1803,6 +1837,7 @@ TEST(NativeSnapshotObjectId) {
 }
 
 TEST(NativeSnapshotObjectIdMoving) {
+  if (i::FLAG_enable_third_party_heap) return;
   // Required to allow moving specific objects.
   i::FLAG_manual_evacuation_candidates_selection = true;
 
@@ -2442,27 +2477,18 @@ bool HasWeakGlobalHandle() {
 }
 
 
-static void PersistentHandleCallback(
-    const v8::WeakCallbackInfo<v8::Persistent<v8::Object> >& data) {
-  data.GetParameter()->Reset();
-}
-
-
 TEST(WeakGlobalHandle) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object> handle;
+  v8::Global<v8::Object> handle;
 
   handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
-  handle.SetWeak(&handle, PersistentHandleCallback,
-                 v8::WeakCallbackType::kParameter);
+  handle.SetWeak();
 
   CHECK(HasWeakGlobalHandle());
-  CcTest::CollectAllGarbage();
-  EmptyMessageQueues(env->GetIsolate());
 }
 
 
@@ -2605,8 +2631,8 @@ TEST(ManyLocalsInSharedContext) {
   }
 }
 
-
 TEST(AllocationSitesAreVisible) {
+  i::FLAG_lazy_feedback_allocation = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -2628,12 +2654,12 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kArray, vector->GetType());
-  CHECK_EQ(3, vector->GetChildrenCount());
+  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
+  CHECK_EQ(4, vector->GetChildrenCount());
 
-  // The first value in the feedback vector should be the boilerplate,
-  // after an AllocationSite.
-  const v8::HeapGraphEdge* prop = vector->GetChild(2);
+  // The last value in the feedback vector should be the boilerplate,
+  // found in AllocationSite.transition_info.
+  const v8::HeapGraphEdge* prop = vector->GetChild(3);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(env->GetIsolate(), allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -3893,7 +3919,8 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking ||
+      i::FLAG_stress_concurrent_allocation || i::FLAG_single_generation) {
     return;
   }
 
@@ -3904,10 +3931,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
-  // Grow new space until maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -4075,10 +4099,16 @@ TEST(WeakReference) {
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
   i::Handle<i::Code> code =
-      i::Factory::CodeBuilder(i_isolate, desc, i::Code::STUB).Build();
+      i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
+          .Build();
   CHECK(code->IsCode());
 
-  fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code),
+                               v8::kReleaseStore);
+  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
+                    i::OptimizationTier::kTopTier) |
+                i::FeedbackVector::OptimizationMarkerBits::encode(
+                    i::OptimizationMarker::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
@@ -4125,4 +4155,41 @@ TEST(Bug8373_2) {
   }
 
   heap_profiler->StopTrackingHeapObjects();
+}
+
+TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
+  // Check that a heap snapshot can be deleted during GC while another one
+  // is being taken.
+
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  int gc_calls = 0;
+  v8::Global<v8::Object> handle;
+
+  {
+    struct WeakData {
+      const v8::HeapSnapshot* snapshot;
+      int* gc_calls;
+      v8::Global<v8::Object>* handle;
+    };
+    WeakData* data =
+        new WeakData{heap_profiler->TakeHeapSnapshot(), &gc_calls, &handle};
+
+    v8::HandleScope scope(env->GetIsolate());
+    handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
+    handle.SetWeak(
+        data,
+        [](const v8::WeakCallbackInfo<WeakData>& data) {
+          std::unique_ptr<WeakData> weakdata{data.GetParameter()};
+          const_cast<v8::HeapSnapshot*>(weakdata->snapshot)->Delete();
+          ++*weakdata->gc_calls;
+          weakdata->handle->Reset();
+        },
+        v8::WeakCallbackType::kParameter);
+  }
+  CHECK_EQ(gc_calls, 0);
+
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(gc_calls, 1);
 }

@@ -18,12 +18,11 @@ class FinalizationRegistryCleanupTask : public CancelableTask {
  public:
   explicit FinalizationRegistryCleanupTask(Heap* heap);
   ~FinalizationRegistryCleanupTask() override = default;
-
- private:
   FinalizationRegistryCleanupTask(const FinalizationRegistryCleanupTask&) =
       delete;
   void operator=(const FinalizationRegistryCleanupTask&) = delete;
 
+ private:
   void RunInternal() override;
   void SlowAssertNoActiveJavaScript();
 

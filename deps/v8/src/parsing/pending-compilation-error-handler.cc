@@ -5,13 +5,13 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 
 #include "src/ast/ast-value-factory.h"
+#include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -20,34 +20,35 @@ namespace internal {
 void PendingCompilationErrorHandler::MessageDetails::SetString(
     Handle<String> string, Isolate* isolate) {
   DCHECK_NE(type_, kMainThreadHandle);
-  DCHECK_NE(type_, kOffThreadTransferHandle);
   type_ = kMainThreadHandle;
   arg_handle_ = string;
 }
 
 void PendingCompilationErrorHandler::MessageDetails::SetString(
-    Handle<String> string, OffThreadIsolate* isolate) {
+    Handle<String> string, LocalIsolate* isolate) {
   DCHECK_NE(type_, kMainThreadHandle);
-  DCHECK_NE(type_, kOffThreadTransferHandle);
-  type_ = kOffThreadTransferHandle;
-  arg_transfer_handle_ = isolate->TransferHandle(string);
+  type_ = kMainThreadHandle;
+  arg_handle_ = isolate->heap()->NewPersistentHandle(string);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void PendingCompilationErrorHandler::MessageDetails::Prepare(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   switch (type_) {
     case kAstRawString:
       return SetString(arg_->string(), isolate);
+
     case kNone:
     case kConstCharString:
       // We can delay allocation until ArgumentString(isolate).
       // TODO(leszeks): We don't actually have to transfer this string, since
       // it's a root.
       return;
+
     case kMainThreadHandle:
-    case kOffThreadTransferHandle:
-      UNREACHABLE();
+      // The message details might already be prepared, so skip them if this is
+      // the case.
+      return;
   }
 }
 
@@ -56,8 +57,6 @@ Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgumentString(
   switch (type_) {
     case kMainThreadHandle:
       return arg_handle_;
-    case kOffThreadTransferHandle:
-      return arg_transfer_handle_.ToHandle();
     case kNone:
       return isolate->factory()->undefined_string();
     case kConstCharString:
@@ -102,8 +101,8 @@ void PendingCompilationErrorHandler::ReportWarningAt(int start_position,
       MessageDetails(start_position, end_position, message, arg));
 }
 
-template <typename LocalIsolate>
-void PendingCompilationErrorHandler::PrepareWarnings(LocalIsolate* isolate) {
+template <typename IsolateT>
+void PendingCompilationErrorHandler::PrepareWarnings(IsolateT* isolate) {
   DCHECK(!has_pending_error());
 
   for (MessageDetails& warning : warning_messages_) {
@@ -112,7 +111,7 @@ void PendingCompilationErrorHandler::PrepareWarnings(LocalIsolate* isolate) {
 }
 template void PendingCompilationErrorHandler::PrepareWarnings(Isolate* isolate);
 template void PendingCompilationErrorHandler::PrepareWarnings(
-    OffThreadIsolate* isolate);
+    LocalIsolate* isolate);
 
 void PendingCompilationErrorHandler::ReportWarnings(
     Isolate* isolate, Handle<Script> script) const {
@@ -129,9 +128,9 @@ void PendingCompilationErrorHandler::ReportWarnings(
   }
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void PendingCompilationErrorHandler::PrepareErrors(
-    LocalIsolate* isolate, AstValueFactory* ast_value_factory) {
+    IsolateT* isolate, AstValueFactory* ast_value_factory) {
   if (stack_overflow()) return;
 
   DCHECK(has_pending_error());
@@ -139,10 +138,12 @@ void PendingCompilationErrorHandler::PrepareErrors(
   ast_value_factory->Internalize(isolate);
   error_details_.Prepare(isolate);
 }
-template void PendingCompilationErrorHandler::PrepareErrors(
-    Isolate* isolate, AstValueFactory* ast_value_factory);
-template void PendingCompilationErrorHandler::PrepareErrors(
-    OffThreadIsolate* isolate, AstValueFactory* ast_value_factory);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void PendingCompilationErrorHandler::
+    PrepareErrors(Isolate* isolate, AstValueFactory* ast_value_factory);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void PendingCompilationErrorHandler::
+    PrepareErrors(LocalIsolate* isolate, AstValueFactory* ast_value_factory);
 
 void PendingCompilationErrorHandler::ReportErrors(Isolate* isolate,
                                                   Handle<Script> script) const {

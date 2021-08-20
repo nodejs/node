@@ -109,11 +109,11 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * considered for matching will be text.charAt(limit-1) in the
      * forward direction or text.charAt(limit+1) in the backward
      * direction.
-     * @param incremental  if TRUE, then assume further characters may
+     * @param incremental  if true, then assume further characters may
      * be inserted at limit and check for partial matching.  Otherwise
      * assume the text as given is complete.
      * @return a match degree value indicating a full match, a partial
-     * match, or a mismatch.  If incremental is FALSE then
+     * match, or a mismatch.  If incremental is false then
      * U_PARTIAL_MATCH should never be returned.
      */
     virtual UMatchDegree matches(const Replaceable& text,
@@ -128,16 +128,16 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * @return                  A reference to 'result'.
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = FALSE) const;
+                                     UBool escapeUnprintable = false) const;
 
     /**
      * Implement UnicodeMatcher
-     * Returns TRUE if this matcher will match a character c, where c
+     * Returns true if this matcher will match a character c, where c
      * & 0xFF == v, at offset, in the forward direction (with limit >
      * offset).  This is used by <tt>RuleBasedTransliterator</tt> for
      * indexing.
      * @param v    the given value
-     * @return     TRUE if this matcher will match a character c,
+     * @return     true if this matcher will match a character c,
      *             where c & 0xFF == v
      */
     virtual UBool matchesIndexValue(uint8_t v) const;
@@ -181,7 +181,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * replacer that is equal to this one.
      * @param result the string to receive the pattern.  Previous
      * contents will be deleted.
-     * @param escapeUnprintable if TRUE then convert unprintable
+     * @param escapeUnprintable if true then convert unprintable
      * character to their hex escape representations, \\uxxxx or
      * \\Uxxxxxxxx.  Unprintable characters are defined by
      * Utility.isUnprintable().

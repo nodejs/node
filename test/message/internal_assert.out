@@ -1,12 +1,12 @@
-internal/assert.js:*
+node:internal/assert:*
     throw new ERR_INTERNAL_ASSERTION(message);
     ^
 
 Error [ERR_INTERNAL_ASSERTION]: This is caused by either a bug in Node.js or incorrect usage of Node.js internals.
 Please open an issue with this stack trace at https://github.com/nodejs/node/issues
 
-    at new NodeError (internal/errors.js:*:*)
-    at assert (internal/assert.js:*:*)
+    at new NodeError (node:internal/errors:*:*)
+    at assert (node:internal/assert:*:*)
     at * (*test*message*internal_assert.js:7:1)
     at *
     at *

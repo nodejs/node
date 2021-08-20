@@ -82,8 +82,8 @@ class Message : public BaseJsonAccessor {
   JSON_STRING_ACCESSORS(jsonrpc)
 
  protected:
-  const JsonObject& object() const { return value_.ToObject(); }
-  JsonObject& object() { return value_.ToObject(); }
+  const JsonObject& object() const override { return value_.ToObject(); }
+  JsonObject& object() override { return value_.ToObject(); }
 
  private:
   JsonValue value_;
@@ -96,8 +96,8 @@ class NestedJsonAccessor : public BaseJsonAccessor {
  public:
   explicit NestedJsonAccessor(JsonObject& object) : object_(object) {}
 
-  const JsonObject& object() const { return object_; }
-  JsonObject& object() { return object_; }
+  const JsonObject& object() const override { return object_; }
+  JsonObject& object() override { return object_; }
 
  private:
   JsonObject& object_;

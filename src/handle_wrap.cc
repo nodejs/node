@@ -85,7 +85,23 @@ void HandleWrap::Close(Local<Value> close_callback) {
 
 
 void HandleWrap::OnGCCollect() {
-  Close();
+  // When all references to a HandleWrap are lost and the object is supposed to
+  // be destroyed, we first call Close() to clean up the underlying libuv
+  // handle. The OnClose callback then acquires and destroys another reference
+  // to that object, and when that reference is lost, we perform the default
+  // action (i.e. destroying `this`).
+  if (state_ != kClosed) {
+    Close();
+  } else {
+    BaseObject::OnGCCollect();
+  }
+}
+
+
+bool HandleWrap::IsNotIndicativeOfMemoryLeakAtExit() const {
+  return IsWeakOrDetached() ||
+         !HandleWrap::HasRef(this) ||
+         !uv_is_active(GetHandle());
 }
 
 

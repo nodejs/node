@@ -103,7 +103,7 @@ server.listen(
         ['maxHeaderListSize', -1],
         ['maxHeaderListSize', 2 ** 32],
         ['maxHeaderSize', -1],
-        ['maxHeaderSize', 2 ** 32]
+        ['maxHeaderSize', 2 ** 32],
       ].forEach((i) => {
         const settings = {};
         settings[i[0]] = i[1];

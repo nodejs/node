@@ -38,7 +38,7 @@ B<openssl> B<pkeyutl>
 
 =head1 DESCRIPTION
 
-The B<pkeyutl> command can be used to perform low level public key operations
+The B<pkeyutl> command can be used to perform low-level public key operations
 using any supported algorithm.
 
 =head1 OPTIONS
@@ -74,7 +74,7 @@ The key format PEM, DER or ENGINE. Default is PEM.
 =item B<-passin arg>
 
 The input key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-peerkey file>
 
@@ -327,7 +327,7 @@ L<EVP_PKEY_CTX_set_hkdf_md(3)>, L<EVP_PKEY_CTX_set_tls1_prf_md(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

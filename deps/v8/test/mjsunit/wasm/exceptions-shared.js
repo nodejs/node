@@ -30,11 +30,9 @@ function NewExportedException() {
       ]).exportFunc();
   builder.addFunction("catch", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprCallFunction, fun,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -64,11 +62,9 @@ function NewExportedException() {
       ]).exportFunc();
   builder.addFunction("catch", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprCallFunction, fun,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -101,11 +97,9 @@ function NewExportedException() {
       ]).exportFunc();
   builder.addFunction("catch", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprCallFunction, fun,
-        kExprCatch,
-          kExprBrOnExn, 0, except1,
-          kExprRethrow,
+        kExprCatch, except1,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -142,11 +136,9 @@ function NewExportedException() {
   let except = builder2.addImportedException("m", "ex", kSig_v_v);
   builder2.addFunction("catch", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprCallFunction, fun,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");

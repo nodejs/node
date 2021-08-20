@@ -1,0 +1,79 @@
+c-ares version 1.17.2
+
+This is a security and bugfix release.  It addresses a few security related
+issues along with various bugfixes mostly related to portability.
+
+Security:
+ o NodeJS passes NULL for addr and 0 for addrlen to ares_parse_ptr_reply() on
+   systems where malloc(0) returns NULL.  This would cause a crash. [8]
+ o When building c-ares with CMake, the RANDOM_FILE would not be set and
+   therefore downgrade to the less secure random number generator [12]
+ o If ares_getaddrinfo() was terminated by an ares_destroy(), it would cause
+   a crash [13]
+ o Crash in sortaddrinfo() if the list size equals 0 due to an unexpected
+   DNS response [14]
+ o Expand number of escaped characters in DNS replies as per RFC1035 5.1 to
+   prevent spoofing [16], [17]
+ o Perform validation on hostnames to prevent possible XSS due to applications
+   not performing valiation themselves [18]
+
+Changes:
+ o Use non-blocking /dev/urandom for random data to prevent early startup
+   performance issues [5]
+ o z/OS port [6]
+ o ares_malloc(0) is now defined behavior (returns NULL) rather than
+   system-specific to catch edge cases [7]
+
+Bug fixes:
+ o Fuzz testing files were not distributed with official archives [1]
+ o Building tests should not force building of static libraries except on
+   Windows [2]
+ o Windows builds of the tools would fail if built as static due to a missing
+   CARES_STATICLIB definition [3]
+ o Relative headers must use double quotes to prevent pulling in a system
+   library [4]
+ o Fix OpenBSD building by implementing portability updates for including
+   arpa/nameser.h [9]
+ o Fix building out-of-tree for autotools [10]
+ o Make install on MacOS/iOS with CMake was missing the bundle destination so
+   libraries weren't actually installed [11]
+ o Fix retrieving DNS server configuration on MacOS and iOS if the configuration
+   did not include search domains [15]
+ o ares_parse_a_reply and ares_parse_aaa_reply were erroneously using strdup()
+   instead of ares_strdup() [19]
+
+
+Thanks go to these friendly people for their efforts and contributions:
+  Anton Danielsson (@anton-danielsson)
+  Brad House (@bradh352)
+  Daniel Stenberg (@bagder)
+  Dhrumil Rana (@dhrumilrana)
+  František Dvořák (@valtri)
+  @halx99
+  Jay Freeman (@saurik)
+  Jean-pierre Cartal (@jeanpierrecartal)
+  Michael Kourlas
+  Philipp Jeitner
+  @vburdo
+(11 contributors)
+
+References to bug reports and discussions on issues:
+ [1] = https://github.com/c-ares/c-ares/issues/379
+ [2] = https://github.com/c-ares/c-ares/issues/380
+ [3] = https://github.com/c-ares/c-ares/issues/384
+ [4] = https://github.com/c-ares/c-ares/pull/386
+ [5] = https://github.com/c-ares/c-ares/pull/391
+ [6] = https://github.com/c-ares/c-ares/pull/390
+ [7] = https://github.com/c-ares/c-ares/commit/485fb66
+ [8] = https://github.com/c-ares/c-ares/issues/392
+ [9] = https://github.com/c-ares/c-ares/issues/388
+ [10] = https://github.com/c-ares/c-ares/pull/394
+ [11] = https://github.com/c-ares/c-ares/pull/395
+ [12] = https://github.com/c-ares/c-ares/pull/397
+ [13] = https://github.com/c-ares/c-ares/commit/df94703
+ [14] = https://github.com/c-ares/c-ares/pull/400
+ [15] = https://github.com/c-ares/c-ares/pull/401
+ [16] = https://github.com/c-ares/c-ares/commit/362f91d
+ [17] = https://github.com/c-ares/c-ares/commit/44c009b
+ [18] = https://github.com/c-ares/c-ares/commit/c9b6c60
+ [19] = https://github.com/c-ares/c-ares/pull/408

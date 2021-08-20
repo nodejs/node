@@ -8,7 +8,8 @@ const crypto = require('crypto');
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
+const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
+const dh1 = crypto.createDiffieHellman(size);
 const p1 = dh1.getPrime('buffer');
 const dh2 = crypto.createDiffieHellman(p1, 'buffer');
 let key1 = dh1.generateKeys();
@@ -38,11 +39,19 @@ assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
 });
 
 for (const bits of [-1, 0, 1]) {
-  assert.throws(() => crypto.createDiffieHellman(bits), {
-    code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
-    name: 'Error',
-    message: /bits too small/,
-  });
+  if (common.hasOpenSSL3) {
+    assert.throws(() => crypto.createDiffieHellman(bits), {
+      code: 'ERR_OSSL_DH_MODULUS_TOO_SMALL',
+      name: 'Error',
+      message: /modulus too small/,
+    });
+  } else {
+    assert.throws(() => crypto.createDiffieHellman(bits), {
+      code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
+      name: 'Error',
+      message: /bits too small/,
+    });
+  }
 }
 
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
@@ -102,16 +111,13 @@ for (const g of [Buffer.from([]),
   [0x1, 0x2],
   () => { },
   /abc/,
-  {}
+  {},
 ].forEach((input) => {
   assert.throws(
     () => crypto.createDiffieHellman(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "sizeOrKey" argument must be one of type number or string' +
-               ' or an instance of Buffer, TypedArray, or DataView.' +
-               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -146,13 +152,23 @@ const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret4);
 
-const wrongBlockLength = {
-  message: 'error:0606506D:digital envelope' +
-    ' routines:EVP_DecryptFinal_ex:wrong final block length',
-  code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
-  library: 'digital envelope routines',
-  reason: 'wrong final block length'
-};
+let wrongBlockLength;
+if (common.hasOpenSSL3) {
+  wrongBlockLength = {
+    message: 'error:1C80006B:Provider routines::wrong final block length',
+    code: 'ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH',
+    library: 'Provider routines',
+    reason: 'wrong final block length'
+  };
+} else {
+  wrongBlockLength = {
+    message: 'error:0606506D:digital envelope' +
+      ' routines:EVP_DecryptFinal_ex:wrong final block length',
+    code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
+    library: 'digital envelope routines',
+    reason: 'wrong final block length'
+  };
+}
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -171,7 +187,9 @@ const wrongBlockLength = {
 
 assert.throws(() => {
   dh3.computeSecret('');
-}, { message: 'Supplied key is too small' });
+}, { message: common.hasOpenSSL3 ?
+  'error:02800080:Diffie-Hellman routines::invalid secret' :
+  'Supplied key is too small' });
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');
@@ -182,9 +200,9 @@ const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.strictEqual(aSecret, bSecret);
 
-/* Ensure specific generator (buffer) works as expected.
- * The values below (modp2/modp2buf) are for a 1024 bits long prime from
- * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
+// Ensure specific generator (buffer) works as expected.
+// The values below (modp2/modp2buf) are for a 1024 bits long prime from
+// RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
 const modp2 = crypto.createDiffieHellmanGroup('modp2');
 const modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
@@ -199,7 +217,7 @@ const modp2buf = Buffer.from([
   0x5c, 0xb6, 0xf4, 0x06, 0xb7, 0xed, 0xee, 0x38, 0x6b, 0xfb,
   0x5a, 0x89, 0x9f, 0xa5, 0xae, 0x9f, 0x24, 0x11, 0x7c, 0x4b,
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
-  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 ]);
 
 {
@@ -387,14 +405,14 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert.throws(() => {
     // Error because the public key does not match the private key anymore.
     ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-  }, /^Error: Invalid key pair$/);
+  }, /Invalid key pair/);
 
   // Set to a valid key to show that later attempts to set an invalid key are
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
   // Some invalid private keys for the secp256k1 curve.
-  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
+  const errMessage = /Private key is not valid for specified curve/;
   ['0000000000000000000000000000000000000000000000000000000000000000',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
@@ -471,3 +489,13 @@ assert.throws(
   'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
   'failed to throw the expected error.'
 );
+assert.throws(
+  () => crypto.createDiffieHellman('', true),
+  {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+);
+[true, Symbol(), {}, () => {}, []].forEach((generator) => assert.throws(
+  () => crypto.createDiffieHellman('', 'base64', generator),
+  { code: 'ERR_INVALID_ARG_TYPE' }
+));

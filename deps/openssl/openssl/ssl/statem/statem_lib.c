@@ -52,7 +52,7 @@ int ssl3_do_write(SSL *s, int type)
             if (!ret) {
                 ret = -1;
                 /* QUIC can't sent anything out sice the above failed */
-                SSLerr(SSL_F_SSL3_DO_WRITE, SSL_R_INTERNAL_ERROR);
+                SSLerr(SSL_F_SSL3_DO_WRITE, ERR_R_INTERNAL_ERROR);
             } else {
                 written = s->init_num;
             }
@@ -1377,6 +1377,7 @@ int tls_get_message_body(SSL *s, size_t *len)
 static const X509ERR2ALERT x509table[] = {
     {X509_V_ERR_APPLICATION_VERIFICATION, SSL_AD_HANDSHAKE_FAILURE},
     {X509_V_ERR_CA_KEY_TOO_SMALL, SSL_AD_BAD_CERTIFICATE},
+    {X509_V_ERR_EC_KEY_EXPLICIT_PARAMS, SSL_AD_BAD_CERTIFICATE},
     {X509_V_ERR_CA_MD_TOO_WEAK, SSL_AD_BAD_CERTIFICATE},
     {X509_V_ERR_CERT_CHAIN_TOO_LONG, SSL_AD_UNKNOWN_CA},
     {X509_V_ERR_CERT_HAS_EXPIRED, SSL_AD_CERTIFICATE_EXPIRED},
@@ -1539,8 +1540,8 @@ static int ssl_method_error(const SSL *s, const SSL_METHOD *method)
 
 /*
  * Only called by servers. Returns 1 if the server has a TLSv1.3 capable
- * certificate type, or has PSK or a certificate callback configured. Otherwise
- * returns 0.
+ * certificate type, or has PSK or a certificate callback configured, or has
+ * a servername callback configured. Otherwise returns 0.
  */
 static int is_tls13_capable(const SSL *s)
 {
@@ -1549,6 +1550,17 @@ static int is_tls13_capable(const SSL *s)
     int curve;
     EC_KEY *eckey;
 #endif
+
+    if (!ossl_assert(s->ctx != NULL) || !ossl_assert(s->session_ctx != NULL))
+        return 0;
+
+    /*
+     * A servername callback can change the available certs, so if a servername
+     * cb is set then we just assume TLSv1.3 will be ok
+     */
+    if (s->ctx->ext.servername_cb != NULL
+            || s->session_ctx->ext.servername_cb != NULL)
+        return 1;
 
 #ifndef OPENSSL_NO_PSK
     if (s->psk_server_callback != NULL)
@@ -1692,10 +1704,21 @@ int ssl_check_version_downgrade(SSL *s)
  */
 int ssl_set_version_bound(int method_version, int version, int *bound)
 {
+    int valid_tls;
+    int valid_dtls;
+
     if (version == 0) {
         *bound = version;
         return 1;
     }
+
+    valid_tls = version >= SSL3_VERSION && version <= TLS_MAX_VERSION;
+    valid_dtls =
+        DTLS_VERSION_LE(version, DTLS_MAX_VERSION) &&
+        DTLS_VERSION_GE(version, DTLS1_BAD_VER);
+
+    if (!valid_tls && !valid_dtls)
+        return 0;
 
     /*-
      * Restrict TLS methods to TLS protocol versions.
@@ -1707,31 +1730,24 @@ int ssl_set_version_bound(int method_version, int version, int *bound)
      * configurations.  If the MIN (supported) version ever rises, the user's
      * "floor" remains valid even if no longer available.  We don't expect the
      * MAX ceiling to ever get lower, so making that variable makes sense.
+     *
+     * We ignore attempts to set bounds on version-inflexible methods,
+     * returning success.
      */
     switch (method_version) {
     default:
-        /*
-         * XXX For fixed version methods, should we always fail and not set any
-         * bounds, always succeed and not set any bounds, or set the bounds and
-         * arrange to fail later if they are not met?  At present fixed-version
-         * methods are not subject to controls that disable individual protocol
-         * versions.
-         */
-        return 0;
+        break;
 
     case TLS_ANY_VERSION:
-        if (version < SSL3_VERSION || version > TLS_MAX_VERSION)
-            return 0;
+        if (valid_tls)
+            *bound = version;
         break;
 
     case DTLS_ANY_VERSION:
-        if (DTLS_VERSION_GT(version, DTLS_MAX_VERSION) ||
-            DTLS_VERSION_LT(version, DTLS1_BAD_VER))
-            return 0;
+        if (valid_dtls)
+            *bound = version;
         break;
     }
-
-    *bound = version;
     return 1;
 }
 

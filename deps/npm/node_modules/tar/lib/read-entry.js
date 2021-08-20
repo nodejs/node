@@ -1,5 +1,4 @@
 'use strict'
-const types = require('./types.js')
 const MiniPass = require('minipass')
 
 const SLURP = Symbol('slurp')
@@ -63,8 +62,10 @@ module.exports = class ReadEntry extends MiniPass {
     this.uname = header.uname
     this.gname = header.gname
 
-    if (ex) this[SLURP](ex)
-    if (gex) this[SLURP](gex, true)
+    if (ex)
+      this[SLURP](ex)
+    if (gex)
+      this[SLURP](gex, true)
   }
 
   write (data) {
@@ -87,7 +88,7 @@ module.exports = class ReadEntry extends MiniPass {
   }
 
   [SLURP] (ex, global) {
-    for (let k in ex) {
+    for (const k in ex) {
       // we slurp in everything except for the path attribute in
       // a global extended header, because that's weird.
       if (ex[k] !== null && ex[k] !== undefined &&

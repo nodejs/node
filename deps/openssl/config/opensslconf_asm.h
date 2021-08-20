@@ -32,6 +32,7 @@
   | linux     | s390x      | linux64-s390x        | o   |
   | mac       | ia32       | darwin-i386-cc       | -   |
   | mac       | x64        | darwin64-x86-cc      | o   |
+  | mac       | arm64      | darwin64-arm64-cc    | -   |
   | win       | ia32       | VC-WIN32             | -   |
   | win       | x64        | VC-WIN64A            | o   |
   | solaris   | ia32       | solaris-x86-gcc      | o   |
@@ -104,6 +105,8 @@
 # include "./archs/darwin-i386-cc/asm/include/openssl/opensslconf.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__x86_64__)
 # include "./archs/darwin64-x86_64-cc/asm/include/openssl/opensslconf.h"
+#elif defined(__APPLE__) && defined(__MACH__) && defined(__arm64__)
+# include "./archs/darwin64-arm64-cc/asm/include/openssl/opensslconf.h"
 #elif defined(_WIN32) && defined(_M_IX86)
 # include "./archs/VC-WIN32/asm/include/openssl/opensslconf.h"
 #elif defined(_WIN32) && defined(_M_X64)

@@ -55,6 +55,8 @@ HRESULT CreateULong64(ULONG64 value, IModelObject** pp_int);
 HRESULT UnboxULong64(IModelObject* object, ULONG64* value,
                      bool convert = false);
 
+HRESULT GetInt32(IDebugHostConstant* object, int* value);
+
 HRESULT CreateInt32(int value, IModelObject** pp_int);
 
 HRESULT CreateUInt32(uint32_t value, IModelObject** pp_int);

@@ -1,50 +1,84 @@
-module.exports = adduser
-
 const log = require('npmlog')
-const npm = require('./npm.js')
-const usage = require('./utils/usage')
-let crypto
-
-try {
-  crypto = require('crypto')
-} catch (ex) {}
-
-adduser.usage = usage(
-  'adduser',
-  'npm adduser [--registry=url] [--scope=@orgname] [--auth-type=legacy] [--always-auth]'
-)
-
-function adduser (args, cb) {
-  if (!crypto) {
-    return cb(new Error(
-      'You must compile node with ssl support to use the adduser feature'
-    ))
-  }
-
-  let registry = npm.config.get('registry')
-  const scope = npm.config.get('scope')
-  const creds = npm.config.getCredentialsByURI(npm.config.get('registry'))
-
-  if (scope) {
-    const scopedRegistry = npm.config.get(scope + ':registry')
-    const cliRegistry = npm.config.get('registry', 'cli')
-    if (scopedRegistry && !cliRegistry) registry = scopedRegistry
-  }
-
-  log.disableProgress()
-
-  let auth
-  try {
-    auth = require('./auth/' + npm.config.get('auth-type'))
-  } catch (e) {
-    return cb(new Error('no such auth module'))
-  }
-  auth.login(creds, registry, scope, function (err, newCreds) {
-    if (err) return cb(err)
-
-    npm.config.del('_token', 'user') // prevent legacy pollution
-    if (scope) npm.config.set(scope + ':registry', registry, 'user')
-    npm.config.setCredentialsByURI(registry, newCreds)
-    npm.config.save('user', cb)
-  })
+const replaceInfo = require('./utils/replace-info.js')
+const BaseCommand = require('./base-command.js')
+const authTypes = {
+  legacy: require('./auth/legacy.js'),
+  oauth: require('./auth/oauth.js'),
+  saml: require('./auth/saml.js'),
+  sso: require('./auth/sso.js'),
 }
+
+class AddUser extends BaseCommand {
+  static get description () {
+    return 'Add a registry user account'
+  }
+
+  static get name () {
+    return 'adduser'
+  }
+
+  static get params () {
+    return [
+      'registry',
+      'scope',
+    ]
+  }
+
+  exec (args, cb) {
+    this.adduser(args).then(() => cb()).catch(cb)
+  }
+
+  async adduser (args) {
+    const { scope } = this.npm.flatOptions
+    const registry = this.getRegistry(this.npm.flatOptions)
+    const auth = this.getAuthType(this.npm.flatOptions)
+    const creds = this.npm.config.getCredentialsByURI(registry)
+
+    log.disableProgress()
+
+    log.notice('', `Log in on ${replaceInfo(registry)}`)
+
+    const { message, newCreds } = await auth(this.npm, {
+      ...this.npm.flatOptions,
+      creds,
+      registry,
+      scope,
+    })
+
+    await this.updateConfig({
+      newCreds,
+      registry,
+      scope,
+    })
+
+    this.npm.output(message)
+  }
+
+  getRegistry ({ scope, registry }) {
+    if (scope) {
+      const scopedRegistry = this.npm.config.get(`${scope}:registry`)
+      const cliRegistry = this.npm.config.get('registry', 'cli')
+      if (scopedRegistry && !cliRegistry)
+        return scopedRegistry
+    }
+    return registry
+  }
+
+  getAuthType ({ authType }) {
+    const type = authTypes[authType]
+
+    if (!type)
+      throw new Error('no such auth module')
+
+    return type
+  }
+
+  async updateConfig ({ newCreds, registry, scope }) {
+    this.npm.config.delete('_token', 'user') // prevent legacy pollution
+    this.npm.config.setCredentialsByURI(registry, newCreds)
+    if (scope)
+      this.npm.config.set(scope + ':registry', registry, 'user')
+    await this.npm.config.save('user')
+  }
+}
+module.exports = AddUser

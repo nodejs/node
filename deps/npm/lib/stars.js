@@ -1,37 +1,54 @@
-'use strict'
-
-const BB = require('bluebird')
-
-const npmConfig = require('./config/figgy-config.js')
-const fetch = require('libnpm/fetch')
 const log = require('npmlog')
-const output = require('./utils/output.js')
-const whoami = require('./whoami.js')
+const fetch = require('npm-registry-fetch')
 
-stars.usage = 'npm stars [<user>]'
+const getIdentity = require('./utils/get-identity.js')
 
-module.exports = stars
-function stars ([user], cb) {
-  const opts = npmConfig()
-  return BB.try(() => {
-    return (user ? BB.resolve(user) : whoami([], true, () => {})).then(usr => {
-      return fetch.json('/-/_view/starredByUser', opts.concat({
-        query: {key: `"${usr}"`} // WHY. WHY THE ""?!
-      }))
-    }).then(data => data.rows).then(stars => {
-      if (stars.length === 0) {
-        log.warn('stars', 'user has not starred any packages.')
-      } else {
-        stars.forEach(s => output(s.value))
-      }
+const BaseCommand = require('./base-command.js')
+class Stars extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'View packages marked as favorites'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'stars'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<user>]']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'registry',
+    ]
+  }
+
+  exec (args, cb) {
+    this.stars(args).then(() => cb()).catch(er => {
+      if (er.code === 'ENEEDAUTH')
+        log.warn('stars', 'auth is required to look up your username')
+      cb(er)
     })
-  }).catch(err => {
-    if (err.code === 'ENEEDAUTH') {
-      throw Object.assign(new Error("'npm stars' on your own user account requires auth"), {
-        code: 'ENEEDAUTH'
-      })
-    } else {
-      throw err
-    }
-  }).nodeify(cb)
+  }
+
+  async stars ([user]) {
+    if (!user)
+      user = await getIdentity(this.npm, this.npm.flatOptions)
+
+    const { rows } = await fetch.json('/-/_view/starredByUser', {
+      ...this.npm.flatOptions,
+      query: { key: `"${user}"` },
+    })
+
+    if (rows.length === 0)
+      log.warn('stars', 'user has not starred any packages')
+
+    for (const row of rows)
+      this.npm.output(row.value)
+  }
 }
+module.exports = Stars

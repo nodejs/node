@@ -18,7 +18,7 @@ namespace v8 {
 
 namespace tracing {
 class TracedValue;
-}
+}  // namespace tracing
 
 namespace internal {
 

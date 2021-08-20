@@ -22,8 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const PassThrough = require('_stream_passthrough');
-const Transform = require('_stream_transform');
+const { PassThrough, Transform } = require('stream');
 
 {
   // Verify writable side consumption
@@ -406,7 +405,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;
@@ -447,7 +446,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;

@@ -39,6 +39,13 @@ module.exports = {
                             type: "string"
                         }
                     },
+                    exceptionPatterns: {
+                        type: "array",
+                        uniqueItems: true,
+                        items: {
+                            type: "string"
+                        }
+                    },
                     properties: {
                         enum: ["always", "never"]
                     }
@@ -57,13 +64,19 @@ module.exports = {
         const minLength = typeof options.min !== "undefined" ? options.min : 2;
         const maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
         const properties = options.properties !== "never";
-        const exceptions = (options.exceptions ? options.exceptions : [])
-            .reduce((obj, item) => {
-                obj[item] = true;
-
-                return obj;
-            }, {});
+        const exceptions = new Set(options.exceptions);
+        const exceptionPatterns = (options.exceptionPatterns || []).map(pattern => new RegExp(pattern, "u"));
         const reportedNode = new Set();
+
+        /**
+         * Checks if a string matches the provided exception patterns
+         * @param {string} name The string to check.
+         * @returns {boolean} if the string is a match
+         * @private
+         */
+        function matchesExceptionPattern(name) {
+            return exceptionPatterns.some(pattern => pattern.test(name));
+        }
 
         const SUPPORTED_EXPRESSIONS = {
             MemberExpression: properties && function(parent) {
@@ -112,7 +125,7 @@ module.exports = {
                 const isShort = name.length < minLength;
                 const isLong = name.length > maxLength;
 
-                if (!(isShort || isLong) || exceptions[name]) {
+                if (!(isShort || isLong) || exceptions.has(name) || matchesExceptionPattern(name)) {
                     return; // Nothing to report
                 }
 

@@ -61,8 +61,13 @@ const MB = KB * KB;
     }));
   });
 
+  let wcBuf = '';
   wc.stdout.on('data', common.mustCall((data) => {
-    // Grep always adds one extra byte at the end.
-    assert.strictEqual(data.toString().trim(), (MB + 1).toString());
+    wcBuf += data;
   }));
+
+  process.on('exit', () => {
+    // Grep always adds one extra byte at the end.
+    assert.strictEqual(wcBuf.trim(), (MB + 1).toString());
+  });
 }

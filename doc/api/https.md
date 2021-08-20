@@ -13,13 +13,13 @@ separate module.
 <!-- YAML
 added: v0.4.5
 changes:
+  - version: v5.3.0
+    pr-url: https://github.com/nodejs/node/pull/4252
+    description: support `0` `maxCachedSessions` to disable TLS session caching.
   - version: v2.5.0
     pr-url: https://github.com/nodejs/node/pull/2228
     description: parameter `maxCachedSessions` added to `options` for TLS
                  sessions reuse.
-  - version: v5.3.0
-    pr-url: https://github.com/nodejs/node/pull/4252
-    description: support `0` `maxCachedSessions` to disable TLS session caching.
 -->
 
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
@@ -113,6 +113,15 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 See [`http.Server#maxHeadersCount`][].
 
+### `server.requestTimeout`
+<!-- YAML
+added: v14.11.0
+-->
+
+* {number} **Default:** `0`
+
+See [`http.Server#requestTimeout`][].
+
 ### `server.setTimeout([msecs][, callback])`
 <!-- YAML
 added: v0.11.2
@@ -152,7 +161,7 @@ added: v0.3.4
 -->
 
 * `options` {Object} Accepts `options` from [`tls.createServer()`][],
- [`tls.createSecureContext()`][] and [`http.createServer()`][].
+  [`tls.createSecureContext()`][] and [`http.createServer()`][].
 * `requestListener` {Function} A listener to be added to the `'request'` event.
 * Returns: {https.Server}
 
@@ -242,6 +251,10 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: v16.7.0
+    pr-url: https://github.com/nodejs/node/pull/39310
+    description: When using a `URL` object parsed username
+                 and password will now be properly URI decoded.
   - version:
     - v14.1.0
     - v13.14.0
@@ -266,6 +279,7 @@ changes:
   * `port` **Default:** `443`
   * `agent` **Default:** `https.globalAgent`
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Makes a request to a secure web server.
 
@@ -278,6 +292,10 @@ The following additional `options` from [`tls.connect()`][] are also accepted:
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
+
+`https.request()` returns an instance of the [`http.ClientRequest`][]
+class. The `ClientRequest` instance is a writable stream. If one needs to
+upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
 const https = require('https');
@@ -445,26 +463,28 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 ```
 
 [`Agent`]: #https_class_https_agent
-[`URL`]: url.html#url_the_whatwg_url_api
-[`http.Agent`]: http.html#http_class_http_agent
-[`http.Agent(options)`]: http.html#http_new_agent_options
-[`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
-[`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
-[`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
-[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
-[`http.Server#timeout`]: http.html#http_server_timeout
-[`http.Server`]: http.html#http_class_http_server
-[`http.close()`]: http.html#http_server_close_callback
-[`http.createServer()`]: http.html#http_http_createserver_options_requestlistener
-[`http.get()`]: http.html#http_http_get_options_callback
-[`http.request()`]: http.html#http_http_request_options_callback
+[`Session Resumption`]: tls.md#tls_session_resumption
+[`URL`]: url.md#url_the_whatwg_url_api
+[`http.Agent(options)`]: http.md#http_new_agent_options
+[`http.Agent`]: http.md#http_class_http_agent
+[`http.ClientRequest`]: http.md#http_class_http_clientrequest
+[`http.Server#headersTimeout`]: http.md#http_server_headerstimeout
+[`http.Server#keepAliveTimeout`]: http.md#http_server_keepalivetimeout
+[`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
+[`http.Server#requestTimeout`]: http.md#http_server_requesttimeout
+[`http.Server#setTimeout()`]: http.md#http_server_settimeout_msecs_callback
+[`http.Server#timeout`]: http.md#http_server_timeout
+[`http.Server`]: http.md#http_class_http_server
+[`http.close()`]: http.md#http_server_close_callback
+[`http.createServer()`]: http.md#http_http_createserver_options_requestlistener
+[`http.get()`]: http.md#http_http_get_options_callback
+[`http.request()`]: http.md#http_http_request_options_callback
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
-[`net.Server`]: net.html#net_class_net_server
-[`new URL()`]: url.html#url_new_url_input_base
-[`server.listen()`]: net.html#net_server_listen
-[`tls.connect()`]: tls.html#tls_tls_connect_options_callback
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
-[`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`Session Resumption`]: tls.html#tls_session_resumption
+[`net.Server`]: net.md#net_class_net_server
+[`new URL()`]: url.md#url_new_url_input_base
+[`server.listen()`]: net.md#net_server_listen
+[`tls.connect()`]: tls.md#tls_tls_connect_options_callback
+[`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
+[`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication

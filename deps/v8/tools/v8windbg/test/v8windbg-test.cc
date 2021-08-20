@@ -20,7 +20,7 @@ namespace {
 
 // Loads a named extension library upon construction and unloads it upon
 // destruction.
-class LoadExtensionScope {
+class V8_NODISCARD LoadExtensionScope {
  public:
   LoadExtensionScope(WRL::ComPtr<IDebugControl4> p_debug_control,
                      std::wstring extension_path)
@@ -49,7 +49,7 @@ class LoadExtensionScope {
 };
 
 // Initializes COM upon construction and uninitializes it upon destruction.
-class ComScope {
+class V8_NODISCARD ComScope {
  public:
   ComScope() { hr_ = CoInitializeEx(nullptr, COINIT_MULTITHREADED); }
   ~ComScope() {
@@ -226,12 +226,26 @@ void RunTests() {
       "dx object.Value.map.instance_descriptors.descriptors[1].key",
       {"\"secondProp\"", "SeqOneByteString"}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput(
-      "local variables",
-      "dx -r1 @$curthread.Stack.Frames.Where(f => "
-      "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
-      "First().LocalVariables.@\"memory interpreted as Objects\"",
-      {"\"hello\""}, &output, p_debug_control.Get());
+  // TODO(v8:11527): enable this when symbol information for the in-Isolate
+  // builtins is available.
+  // RunAndCheckOutput(
+  //     "local variables",
+  //     "dx -r1 @$curthread.Stack.Frames.Where(f => "
+  //     "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
+  //     "First().LocalVariables.@\"memory interpreted as Objects\"",
+  //     {"\"hello\""}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[0].function_name",
+                    {"\"a\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
+                    {"\"b\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[2].function_name",
+                    {"empty_string \"\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
 
   // Detach before exiting
   hr = p_client->DetachProcesses();

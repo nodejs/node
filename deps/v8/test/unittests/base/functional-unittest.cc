@@ -45,13 +45,13 @@ class FunctionalTest : public ::testing::Test {
   FunctionalTest()
       : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
   ~FunctionalTest() override = default;
+  FunctionalTest(const FunctionalTest&) = delete;
+  FunctionalTest& operator=(const FunctionalTest&) = delete;
 
   RandomNumberGenerator* rng() { return &rng_; }
 
  private:
   RandomNumberGenerator rng_;
-
-  DISALLOW_COPY_AND_ASSIGN(FunctionalTest);
 };
 
 using FunctionalTypes =

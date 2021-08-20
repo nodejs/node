@@ -16,11 +16,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
-                                                  TNode<Object> receiver,
-                                                  const char* method_name,
-                                                  IterationKind iteration_kind);
-
   void SetupTypedArrayEmbedderFields(TNode<JSTypedArray> holder);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
                     TNode<Map> map, TNode<Smi> length,
@@ -49,9 +44,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
-
-  TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
-                                 TNode<JSTypedArray> array);
 
   TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
                                          TNode<Object> obj,
@@ -85,6 +77,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
+  void AllocateJSTypedArrayExternalPointerEntry(TNode<JSTypedArray> holder);
   void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
                                     TNode<ByteArray> base,
                                     TNode<UintPtrT> offset);
@@ -102,6 +95,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<Object> value,
                                           ElementsKind elements_kind,
                                           Label* if_detached);
+  template <typename TValue>
+  void StoreJSTypedArrayElementFromPreparedValue(
+      TNode<Context> context, TNode<JSTypedArray> typed_array,
+      TNode<UintPtrT> index_node, TNode<TValue> value,
+      ElementsKind elements_kind, Label* if_detached);
 };
 
 }  // namespace internal

@@ -1,22 +1,31 @@
-const URL = require('url')
+const URL = require('url').URL
 
-// replaces auth info in an array
-//  of arguments or in a strings
+// replaces auth info in an array of arguments or in a strings
 function replaceInfo (arg) {
   const isArray = Array.isArray(arg)
-  const isString = typeof arg === 'string'
+  const isString = str => typeof str === 'string'
 
-  if (!isArray && !isString) return arg
+  if (!isArray && !isString(arg))
+    return arg
 
-  const args = isString ? arg.split(' ') : arg
-  const info = args.map(arg => {
+  const testUrlAndReplace = str => {
     try {
-      const url = new URL(arg)
-      return url.password === '' ? arg : arg.replace(url.password, '***')
-    } catch (e) { return arg }
+      const url = new URL(str)
+      return url.password === '' ? str : str.replace(url.password, '***')
+    } catch (e) {
+      return str
+    }
+  }
+
+  const args = isString(arg) ? arg.split(' ') : arg
+  const info = args.map(a => {
+    if (isString(a) && a.indexOf(' ') > -1)
+      return a.split(' ').map(testUrlAndReplace).join(' ')
+
+    return testUrlAndReplace(a)
   })
 
-  return isString ? info.join(' ') : info
+  return isString(arg) ? info.join(' ') : info
 }
 
 module.exports = replaceInfo

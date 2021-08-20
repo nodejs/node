@@ -206,7 +206,7 @@ struct UStringSearch {
 * the text "\u00e6"
 * @param strsrch string search data
 * @param status error status if any
-* @return TRUE if an exact match is found, FALSE otherwise
+* @return true if an exact match is found, false otherwise
 */
 U_CFUNC
 UBool usearch_handleNextExact(UStringSearch *strsrch, UErrorCode *status);
@@ -217,7 +217,7 @@ UBool usearch_handleNextExact(UStringSearch *strsrch, UErrorCode *status);
 * of beginning and ending accents if it overlaps that region.
 * @param strsrch string search data
 * @param status error status if any
-* @return TRUE if a canonical match is found, FALSE otherwise
+* @return true if a canonical match is found, false otherwise
 */
 U_CFUNC
 UBool usearch_handleNextCanonical(UStringSearch *strsrch, UErrorCode *status);
@@ -227,7 +227,7 @@ UBool usearch_handleNextCanonical(UStringSearch *strsrch, UErrorCode *status);
 * Comments follows from handleNextExact
 * @param strsrch string search data
 * @param status error status if any
-* @return True if a exact math is found, FALSE otherwise.
+* @return True if a exact math is found, false otherwise.
 */
 U_CFUNC
 UBool usearch_handlePreviousExact(UStringSearch *strsrch, UErrorCode *status);
@@ -238,7 +238,7 @@ UBool usearch_handlePreviousExact(UStringSearch *strsrch, UErrorCode *status);
 * of beginning and ending accents if it overlaps that region.
 * @param strsrch string search data
 * @param status error status if any
-* @return TRUE if a canonical match is found, FALSE otherwise
+* @return true if a canonical match is found, false otherwise
 */
 U_CFUNC
 UBool usearch_handlePreviousCanonical(UStringSearch *strsrch,

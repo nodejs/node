@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-promise-any
-
 (function TestNoParameters() {
     // Can't omit the "errors" parameter; there's nothing to iterate.
     assertThrows(() => { new AggregateError(); });
@@ -79,35 +77,10 @@
     assertFalse(Object.prototype.hasOwnProperty.call(error, 'message'));
 })();
 
-(function AggregateErrorPrototypeErrorsCalledWithWrongTypeOfObject() {
-    let f = Object.getOwnPropertyDescriptor(AggregateError.prototype, 'errors').get;
-
-    // This works:
-    let error = new AggregateError([3]);
-    let got_errors = f.call(error);
-    assertEquals([3], got_errors);
-
-    // This doesn't:
-    assertThrows(() => { f.call({}) } );
-})();
-
-(function AggregateErrorPrototypeErrorsCalledWithTooManyArguments() {
-    let f = Object.getOwnPropertyDescriptor(AggregateError.prototype, 'errors').get;
-    let error = new AggregateError([3]);
-    let got_errors = f.call(error, ["unnecessary", "arguments"]);
-    assertEquals([3], got_errors);
-})();
-
-(function SetErrorsSloppy() {
+(function SetErrors() {
   let e = new AggregateError([1]);
   e.errors = [4, 5, 6];
-  assertEquals([1], e.errors);
-})();
-
-(function SetErrorsStrict() {
-    "use strict";
-    let e = new AggregateError([1]);
-    assertThrows(() => { e.errors = [4, 5, 6];});
+  assertEquals([4, 5, 6], e.errors);
 })();
 
 (function SubClassProto() {
@@ -135,11 +108,11 @@
   assertEquals([8, 9], e.errors);
 })();
 
-(function ErrorsIsANewArrayForEachGetterCall(){
+(function ErrorsIsTheSameArray(){
     let e = new AggregateError([9, 6, 3]);
     const errors1 = e.errors;
     const errors2 = e.errors;
-    assertNotSame(errors1, errors2);
+    assertSame(errors1, errors2);
 })();
 
 (function ErrorsModified(){
@@ -148,7 +121,7 @@
     errors1[0] = 50;
     const errors2 = e.errors;
     assertEquals([50, 6, 3], errors1);
-    assertEquals([9, 6, 3], errors2);
+    assertEquals([50, 6, 3], errors2);
 })();
 
 (function EmptyErrorsModified1(){
@@ -157,7 +130,7 @@
     errors1[0] = 50;
     const errors2 = e.errors;
     assertEquals([50], errors1);
-    assertEquals([], errors2);
+    assertEquals([50], errors2);
 })();
 
 (function EmptyErrorsModified2(){
@@ -166,7 +139,7 @@
     errors1.push(50);
     const errors2 = e.errors;
     assertEquals([50], errors1);
-    assertEquals([], errors2);
+    assertEquals([50], errors2);
 })();
 
 (function AggregateErrorCreation() {
@@ -211,3 +184,11 @@
     assertEquals(2, to_string_called);
     assertEquals(3, errors_iterated);
  })();
+
+(function TestErrorsProperties() {
+    let error = new AggregateError([1, 20, 4]);
+    let desc = Object.getOwnPropertyDescriptor(error, 'errors');
+    assertEquals(true, desc.configurable);
+    assertEquals(false, desc.enumerable);
+    assertEquals(true, desc.writable);
+})();

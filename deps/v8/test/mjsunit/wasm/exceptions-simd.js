@@ -13,7 +13,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   var kSig_v_s = makeSig([kWasmS128], []);
   var except = builder.addException(kSig_v_s);
   builder.addFunction("throw_simd", kSig_v_v)
-      .addLocals({s128_count: 1})
+      .addLocals(kWasmS128, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprThrow, 0,
@@ -31,18 +31,16 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   var kSig_v_s = makeSig([kWasmS128], []);
   var except = builder.addException(kSig_v_s);
   builder.addFunction("throw_catch_simd", kSig_i_v)
-      .addLocals({s128_count: 1})
+      .addLocals(kWasmS128, 1)
       .addBody([
         kExprTry, kWasmS128,
           kExprLocalGet, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kExprLocalGet, 0,
         kSimdPrefix, kExprI32x4Eq,
-        kSimdPrefix, kExprS1x16AllTrue,
+        kSimdPrefix, kExprI8x16AllTrue,
       ])
       .exportFunc();
   var instance = builder.instantiate();
@@ -65,9 +63,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Const, in_idx,
           kSimdPrefix, kExprS128LoadMem, 0, 0,
           kExprThrow, 0,
-        kExprCatch,
-          kExprBrOnExn, 0, except,
-          kExprRethrow,
+        kExprCatch, except,
         kExprEnd,
         kSimdPrefix, kExprS128StoreMem, 0, 0,
       ])

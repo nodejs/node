@@ -297,7 +297,7 @@ The private format to use: DER or PEM. PEM is the default.
 =item B<-pass val>
 
 The private key password source. For more information about the format of B<val>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-dcert infile>, B<-dkey infile>
 
@@ -432,9 +432,9 @@ used in conjunction with B<-early_data>.
 =item B<-id_prefix val>
 
 Generate SSL/TLS session IDs prefixed by B<val>. This is mostly useful
-for testing any SSL/TLS code (eg. proxies) that wish to deal with multiple
+for testing any SSL/TLS code (e.g. proxies) that wish to deal with multiple
 servers, when each of which might be generating a unique range of session
-IDs (eg. with a certain prefix).
+IDs (e.g. with a certain prefix).
 
 =item B<-rand file...>
 
@@ -845,7 +845,7 @@ The
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -119,7 +119,12 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
-constexpr bool kPadArguments = false;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
 constexpr bool kSimpleFPAliasing = false;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -181,7 +186,10 @@ class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
  public:
   static constexpr int kSizeInBytes = 8;
 
-  inline static int NumRegisters();
+  // This function differs from kNumRegisters by returning the number of double
+  // registers supported by the current CPU, while kNumRegisters always returns
+  // 32.
+  inline static int SupportedRegisterCount();
 
   static void split_code(int reg_code, int* vm, int* m) {
     DCHECK(from_code(reg_code).is_valid());

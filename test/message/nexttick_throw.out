@@ -4,4 +4,4 @@
         ^
 ReferenceError: undefined_reference_error_maker is not defined
     at *test*message*nexttick_throw.js:*:*
-    at processTicksAndRejections (internal/process/task_queues.js:*:*)
+    at processTicksAndRejections (node:internal/process/task_queues:*:*)

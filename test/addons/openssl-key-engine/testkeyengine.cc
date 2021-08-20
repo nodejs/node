@@ -1,9 +1,9 @@
+#include <openssl/engine.h>
+#include <openssl/pem.h>
+
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include <openssl/engine.h>
-#include <openssl/pem.h>
 
 #include <fstream>
 #include <iterator>

@@ -41,13 +41,11 @@ result = fs.realpathSync(filename, 'buffer');
 assert(Buffer.isBuffer(result));
 assert(result.equals(filenameBuffer));
 
-fs.realpath(filename, common.mustCall(function(err, result) {
-  assert.ifError(err);
+fs.realpath(filename, common.mustSucceed((result) => {
   assert.strictEqual(result, filename);
 }));
 
-fs.realpath(filename, 'buffer', common.mustCall(function(err, result) {
-  assert.ifError(err);
+fs.realpath(filename, 'buffer', common.mustSucceed((result) => {
   assert(Buffer.isBuffer(result));
   assert(result.equals(filenameBuffer));
 }));

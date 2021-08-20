@@ -6,7 +6,6 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const URL = require('url').URL;
 
 function pathToFileURL(p) {
   if (!path.isAbsolute(p))
@@ -22,8 +21,7 @@ const url = pathToFileURL(p);
 assert(url instanceof URL);
 
 // Check that we can pass in a URL object successfully
-fs.readFile(url, common.mustCall((err, data) => {
-  assert.ifError(err);
+fs.readFile(url, common.mustSucceed((data) => {
   assert(Buffer.isBuffer(data));
 }));
 

@@ -66,7 +66,8 @@ B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
 EVP_PKEY_new_CMAC_key() works in the same way as EVP_PKEY_new_raw_private_key()
 except it is only for the B<EVP_PKEY_CMAC> algorithm type. In addition to the
 raw private key data, it also takes a cipher algorithm to be used during
-creation of a CMAC in the B<cipher> argument.
+creation of a CMAC in the B<cipher> argument. The cipher should be a standard
+encryption only cipher. For example AEAD and XTS ciphers should not be used.
 
 EVP_PKEY_new_mac_key() works in the same way as EVP_PKEY_new_raw_private_key().
 New applications should use EVP_PKEY_new_raw_private_key() instead.

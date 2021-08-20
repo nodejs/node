@@ -27,4 +27,13 @@ assert.throws(
   const o = {};
   o.toString = () => 'Custom toString';
   assert.strictEqual(o + 'asdf', 'Custom toStringasdf');
+  assert.strictEqual(Object.getOwnPropertyDescriptor(o, 'toString').enumerable,
+                     true);
+}
+
+// Ensure we can not override globalThis
+{
+  assert.throws(() => { globalThis.globalThis = null; },
+                { name: 'TypeError' });
+  assert.strictEqual(globalThis.globalThis, globalThis);
 }

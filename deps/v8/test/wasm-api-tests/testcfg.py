@@ -48,6 +48,7 @@ class TestLoader(testsuite.TestLoader):
     # TODO create an ExecutableTestLoader for refactoring this similar to
     # JSTestLoader.
     test_names = []
+    test_case = ''
     for line in output.stdout.splitlines():
       test_desc = line.strip().split()[0]
       if test_desc.endswith('.'):

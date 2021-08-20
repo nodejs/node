@@ -372,10 +372,7 @@ int32_t ucol_sit_dumpSpecs(CollatorSpec *s, char *destination, int32_t capacity,
                     }
                     len += s->entries[i].length();
                 } else {
-                    len += s->entries[i].length();
-                    if(len < capacity) {
-                        uprv_strncat(destination,s->entries[i].data(), s->entries[i].length());
-                    }
+                    len += s->entries[i].extract(destination + len, capacity - len, *status);
                 }
             }
         }

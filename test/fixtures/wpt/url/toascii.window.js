@@ -28,7 +28,7 @@ function runTests(tests) {
           assert_equals(url.href, "https://" + hostTest.output + "/x")
         } else {
           if(type === "url") {
-            assert_throws(new TypeError, () => makeURL("url", hostTest.input))
+            assert_throws_js(TypeError, () => makeURL("url", hostTest.input))
           } else {
             const url = makeURL(type, hostTest.input)
             assert_equals(url.host, "")

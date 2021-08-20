@@ -43,7 +43,7 @@ class InstructionTest : public TestWithZone {
 
   ParallelMove* CreateParallelMove(
       const std::vector<InstructionOperand>& operand_pairs) {
-    ParallelMove* parallel_move = new (zone()) ParallelMove(zone());
+    ParallelMove* parallel_move = zone()->New<ParallelMove>(zone());
     for (size_t i = 0; i < operand_pairs.size(); i += 2)
       parallel_move->AddMove(operand_pairs[i + 1], operand_pairs[i]);
     return parallel_move;

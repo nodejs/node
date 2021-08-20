@@ -5,6 +5,7 @@
 # found in the LICENSE file.
 
 # for py2/py3 compatibility
+from __future__ import absolute_import
 from __future__ import print_function
 from functools import reduce
 
@@ -15,7 +16,7 @@ import sys
 import tempfile
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-import base_runner
+from . import base_runner
 
 from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS
@@ -26,8 +27,6 @@ from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
 
-
-ARCH_GUESS = utils.DefaultArch()
 
 VARIANTS = ['default']
 
@@ -47,7 +46,7 @@ VARIANT_ALIASES = {
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
   'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
-            'instruction_scheduling'],
+            'instruction_scheduling', 'always_sparkplug'],
 }
 
 # Extra flags passed to all tests using the standard test runner.
@@ -108,11 +107,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Regard pass|fail tests (run|skip|dontcare)')
     parser.add_option('--quickcheck', default=False, action='store_true',
                       help=('Quick check mode (skip slow tests)'))
-    parser.add_option('--dont-skip-slow-simulator-tests',
-                      help='Don\'t skip more slow tests when using a'
-                      ' simulator.',
-                      default=False, action='store_true',
-                      dest='dont_skip_simulator_slow_tests')
 
     # Stress modes
     parser.add_option('--gc-stress',
@@ -281,19 +275,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     variables = (
         super(StandardTestRunner, self)._get_statusfile_variables(options))
 
-    simulator_run = (
-      not options.dont_skip_simulator_slow_tests and
-      self.build_config.arch in [
-        'arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', 'ppc',
-        'ppc64', 's390', 's390x'] and
-      bool(ARCH_GUESS) and
-      self.build_config.arch != ARCH_GUESS)
-
     variables.update({
       'gc_stress': options.gc_stress or options.random_gc_stress,
       'gc_fuzzer': options.random_gc_stress,
       'novfp3': options.novfp3,
-      'simulator_run': simulator_run,
     })
     return variables
 
@@ -379,10 +364,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ]
 
     assert os.path.exists(options.json_test_results)
-    complete_results = []
     with open(options.json_test_results, "r") as f:
-      complete_results = json.loads(f.read())
-    output = complete_results[0]
+      output = json.load(f)
     lines = []
     for test in output['slowest_tests']:
       suffix = ''

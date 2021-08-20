@@ -85,10 +85,12 @@ class OperandGenerator {
                                      GetVReg(node)));
   }
 
+  InstructionOperand DefineSameAsInput(Node* node, int input_index) {
+    return Define(node, UnallocatedOperand(GetVReg(node), input_index));
+  }
+
   InstructionOperand DefineSameAsFirst(Node* node) {
-    return Define(node,
-                  UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT,
-                                     GetVReg(node)));
+    return DefineSameAsInput(node, 0);
   }
 
   InstructionOperand DefineAsFixed(Node* node, Register reg) {
@@ -224,7 +226,7 @@ class OperandGenerator {
   int AllocateVirtualRegister() { return sequence()->NextVirtualRegister(); }
 
   InstructionOperand DefineSameAsFirstForVreg(int vreg) {
-    return UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT, vreg);
+    return UnallocatedOperand(UnallocatedOperand::SAME_AS_INPUT, vreg);
   }
 
   InstructionOperand DefineAsRegistertForVreg(int vreg) {
@@ -356,6 +358,8 @@ class OperandGenerator {
           case MachineRepresentation::kCompressed:
           case MachineRepresentation::kCompressedPointer:
             return Constant(static_cast<int32_t>(0));
+          case MachineRepresentation::kWord64:
+            return Constant(static_cast<int64_t>(0));
           case MachineRepresentation::kFloat64:
             return Constant(static_cast<double>(0));
           case MachineRepresentation::kFloat32:

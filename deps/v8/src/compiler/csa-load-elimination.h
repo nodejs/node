@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
         jsgraph_(jsgraph),
         zone_(zone) {}
   ~CsaLoadElimination() final = default;
+  CsaLoadElimination(const CsaLoadElimination&) = delete;
+  CsaLoadElimination& operator=(const CsaLoadElimination&) = delete;
 
   const char* reducer_name() const override { return "CsaLoadElimination"; }
 
@@ -95,8 +97,11 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  Node* TruncateAndExtend(Node* node, MachineRepresentation from,
+                          MachineType to);
 
   CommonOperatorBuilder* common() const;
+  MachineOperatorBuilder* machine() const;
   Isolate* isolate() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -107,8 +112,6 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
   NodeAuxData<AbstractState const*> node_states_;
   JSGraph* const jsgraph_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CsaLoadElimination);
 };
 
 }  // namespace compiler

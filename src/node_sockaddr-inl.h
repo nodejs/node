@@ -152,6 +152,11 @@ void SocketAddress::Update(uint8_t* data, size_t len) {
   memcpy(&address_, data, len);
 }
 
+void SocketAddress::Update(const sockaddr* data, size_t len) {
+  CHECK_LE(len, sizeof(address_));
+  memcpy(&address_, data, len);
+}
+
 v8::Local<v8::Object> SocketAddress::ToJS(
     Environment* env,
     v8::Local<v8::Object> info) const {

@@ -6,6 +6,7 @@
 // RegExp.prototype.replace with a function as an argument.
 // Flags: --regexp-tier-up --regexp-tier-up-ticks=5
 // Flags: --allow-natives-syntax --no-force-slow-path --no-regexp-interpret-all
+// Flags: --no-enable-experimental-regexp-engine
 
 const kLatin1 = true;
 const kUnicode = false;

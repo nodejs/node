@@ -27,6 +27,19 @@ const fixtureE = fixtures.path('intrinsic-mutation.js');
 const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
 const fixtureG = fixtures.path('worker-from-argv.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
+const fixtureIsPreloading = fixtures.path('ispreloading.js');
+
+// Assert that module.isPreloading is false here
+assert(!module.isPreloading);
+
+// Test that module.isPreloading is set in preloaded module
+// Test preloading a single module works
+childProcess.exec(
+  `"${nodeBinary}" ${preloadOption([fixtureIsPreloading])} "${fixtureB}"`,
+  function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'B\n');
+  });
 
 // Test preloading a single module works
 childProcess.exec(`"${nodeBinary}" ${preloadOption([fixtureA])} "${fixtureB}"`,
@@ -122,7 +135,7 @@ replProc.on('close', function(code) {
   assert.strictEqual(code, 0);
   const output = [
     'A',
-    '> '
+    '> ',
   ];
   assert.ok(replStdout.startsWith(output[0]));
   assert.ok(replStdout.endsWith(output[1]));
@@ -142,8 +155,7 @@ childProcess.exec(
 // Test that preload works with -i
 const interactive = childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureD])}-i`,
-  common.mustCall(function(err, stdout, stderr) {
-    assert.ifError(err);
+  common.mustSucceed((stdout, stderr) => {
     assert.ok(stdout.endsWith("> 'test'\n> "));
   })
 );
@@ -164,8 +176,7 @@ childProcess.exec(
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption(['./printA.js'])} "${fixtureB}"`,
   { cwd: fixtures.fixturesDir },
-  common.mustCall(function(err, stdout, stderr) {
-    assert.ifError(err);
+  common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, 'A\nB\n');
   })
 );
@@ -174,8 +185,7 @@ if (common.isWindows) {
   childProcess.exec(
     `"${nodeBinary}" ${preloadOption(['.\\printA.js'])} "${fixtureB}"`,
     { cwd: fixtures.fixturesDir },
-    common.mustCall(function(err, stdout, stderr) {
-      assert.ifError(err);
+    common.mustSucceed((stdout, stderr) => {
       assert.strictEqual(stdout, 'A\nB\n');
     })
   );

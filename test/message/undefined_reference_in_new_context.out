@@ -5,12 +5,12 @@ foo.bar = 5;
 
 ReferenceError: foo is not defined
     at evalmachine.<anonymous>:1:1
-    at Script.runInContext (vm.js:*)
-    at Script.runInNewContext (vm.js:*)
-    at Object.runInNewContext (vm.js:*)
+    at Script.runInContext (node:vm:*)
+    at Script.runInNewContext (node:vm:*)
+    at Object.runInNewContext (node:vm:*)
     at Object.<anonymous> (*test*message*undefined_reference_in_new_context.js:*)
-    at Module._compile (internal/modules/cjs/loader.js:*)
-    at *..js (internal/modules/cjs/loader.js:*)
-    at Module.load (internal/modules/cjs/loader.js:*)
-    at Function.Module._load (internal/modules/cjs/loader.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
+    at Module._compile (node:internal/modules/cjs/loader:*)
+    at *..js (node:internal/modules/cjs/loader:*)
+    at Module.load (node:internal/modules/cjs/loader:*)
+    at Function.Module._load (node:internal/modules/cjs/loader:*:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)

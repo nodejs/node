@@ -48,7 +48,7 @@ class U_I18N_API Measure: public UObject {
      * Construct an object with the given numeric amount and the given
      * unit.  After this call, the caller must not delete the given
      * unit object.
-     * @param number a numeric object; amount.isNumeric() must be TRUE
+     * @param number a numeric object; amount.isNumeric() must be true
      * @param adoptedUnit the unit object, which must not be NULL
      * @param ec input-output error code. If the amount or the unit
      * is invalid, then this will be set to a failing value.

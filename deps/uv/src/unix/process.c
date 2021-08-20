@@ -44,6 +44,10 @@ extern char **environ;
 # include <grp.h>
 #endif
 
+#if defined(__MVS__)
+# include "zos-base.h"
+#endif
+
 
 static void uv__chld(uv_signal_t* handle, int signum) {
   uv_process_t* process;
@@ -111,68 +115,6 @@ static void uv__chld(uv_signal_t* handle, int signum) {
   assert(QUEUE_EMPTY(&pending));
 }
 
-
-static int uv__make_socketpair(int fds[2]) {
-#if defined(__FreeBSD__) || defined(__linux__)
-  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, fds))
-    return UV__ERR(errno);
-
-  return 0;
-#else
-  int err;
-
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
-    return UV__ERR(errno);
-
-  err = uv__cloexec(fds[0], 1);
-  if (err == 0)
-    err = uv__cloexec(fds[1], 1);
-
-  if (err != 0) {
-    uv__close(fds[0]);
-    uv__close(fds[1]);
-    return UV__ERR(errno);
-  }
-
-  return 0;
-#endif
-}
-
-
-int uv__make_pipe(int fds[2], int flags) {
-#if defined(__FreeBSD__) || defined(__linux__)
-  if (pipe2(fds, flags | O_CLOEXEC))
-    return UV__ERR(errno);
-
-  return 0;
-#else
-  if (pipe(fds))
-    return UV__ERR(errno);
-
-  if (uv__cloexec(fds[0], 1))
-    goto fail;
-
-  if (uv__cloexec(fds[1], 1))
-    goto fail;
-
-  if (flags & UV__F_NONBLOCK) {
-    if (uv__nonblock(fds[0], 1))
-      goto fail;
-
-    if (uv__nonblock(fds[1], 1))
-      goto fail;
-  }
-
-  return 0;
-
-fail:
-  uv__close(fds[0]);
-  uv__close(fds[1]);
-  return UV__ERR(errno);
-#endif
-}
-
-
 /*
  * Used for initializing stdio streams like options.stdin_stream. Returns
  * zero on success. See also the cleanup section in uv_spawn().
@@ -192,7 +134,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
     if (container->data.stream->type != UV_NAMED_PIPE)
       return UV_EINVAL;
     else
-      return uv__make_socketpair(fds);
+      return uv_socketpair(SOCK_STREAM, 0, fds, 0, 0);
 
   case UV_INHERIT_FD:
   case UV_INHERIT_STREAM:
@@ -259,6 +201,12 @@ static void uv__write_int(int fd, int val) {
 }
 
 
+static void uv__write_errno(int error_fd) {
+  uv__write_int(error_fd, UV__ERR(errno));
+  _exit(127);
+}
+
+
 #if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
 /* execvp is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED, so must be
  * avoided. Since this isn't called on those targets, the function
@@ -287,10 +235,8 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (use_fd < 0 || use_fd >= fd)
       continue;
     pipes[fd][1] = fcntl(use_fd, F_DUPFD, stdio_count);
-    if (pipes[fd][1] == -1) {
-      uv__write_int(error_fd, UV__ERR(errno));
-      _exit(127);
-    }
+    if (pipes[fd][1] == -1)
+      uv__write_errno(error_fd);
   }
 
   for (fd = 0; fd < stdio_count; fd++) {
@@ -307,10 +253,8 @@ static void uv__process_child_init(const uv_process_options_t* options,
         use_fd = open("/dev/null", fd == 0 ? O_RDONLY : O_RDWR);
         close_fd = use_fd;
 
-        if (use_fd < 0) {
-          uv__write_int(error_fd, UV__ERR(errno));
-          _exit(127);
-        }
+        if (use_fd < 0)
+          uv__write_errno(error_fd);
       }
     }
 
@@ -319,10 +263,8 @@ static void uv__process_child_init(const uv_process_options_t* options,
     else
       fd = dup2(use_fd, fd);
 
-    if (fd == -1) {
-      uv__write_int(error_fd, UV__ERR(errno));
-      _exit(127);
-    }
+    if (fd == -1)
+      uv__write_errno(error_fd);
 
     if (fd <= 2)
       uv__nonblock_fcntl(fd, 0);
@@ -338,10 +280,8 @@ static void uv__process_child_init(const uv_process_options_t* options,
       uv__close(use_fd);
   }
 
-  if (options->cwd != NULL && chdir(options->cwd)) {
-    uv__write_int(error_fd, UV__ERR(errno));
-    _exit(127);
-  }
+  if (options->cwd != NULL && chdir(options->cwd))
+    uv__write_errno(error_fd);
 
   if (options->flags & (UV_PROCESS_SETUID | UV_PROCESS_SETGID)) {
     /* When dropping privileges from root, the `setgroups` call will
@@ -354,15 +294,11 @@ static void uv__process_child_init(const uv_process_options_t* options,
     SAVE_ERRNO(setgroups(0, NULL));
   }
 
-  if ((options->flags & UV_PROCESS_SETGID) && setgid(options->gid)) {
-    uv__write_int(error_fd, UV__ERR(errno));
-    _exit(127);
-  }
+  if ((options->flags & UV_PROCESS_SETGID) && setgid(options->gid))
+    uv__write_errno(error_fd);
 
-  if ((options->flags & UV_PROCESS_SETUID) && setuid(options->uid)) {
-    uv__write_int(error_fd, UV__ERR(errno));
-    _exit(127);
-  }
+  if ((options->flags & UV_PROCESS_SETUID) && setuid(options->uid))
+    uv__write_errno(error_fd);
 
   if (options->env != NULL) {
     environ = options->env;
@@ -385,22 +321,23 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (SIG_ERR != signal(n, SIG_DFL))
       continue;
 
-    uv__write_int(error_fd, UV__ERR(errno));
-    _exit(127);
+    uv__write_errno(error_fd);
   }
 
   /* Reset signal mask. */
   sigemptyset(&set);
   err = pthread_sigmask(SIG_SETMASK, &set, NULL);
 
-  if (err != 0) {
-    uv__write_int(error_fd, UV__ERR(err));
-    _exit(127);
-  }
+  if (err != 0)
+    uv__write_errno(error_fd);
 
+#ifdef __MVS__
+  execvpe(options->file, options->args, environ);
+#else
   execvp(options->file, options->args);
-  uv__write_int(error_fd, UV__ERR(errno));
-  _exit(127);
+#endif
+
+  uv__write_errno(error_fd);
 }
 #endif
 

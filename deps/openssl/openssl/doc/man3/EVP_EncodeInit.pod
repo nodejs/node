@@ -29,7 +29,7 @@ EVP_DecodeBlock - EVP base 64 encode/decode routines
 
 =head1 DESCRIPTION
 
-The EVP encode routines provide a high level interface to base 64 encoding and
+The EVP encode routines provide a high-level interface to base 64 encoding and
 decoding. Base 64 encoding converts binary data into a printable form that uses
 the characters A-Z, a-z, 0-9, "+" and "/" to represent the data. For every 3
 bytes of binary data provided 4 bytes of base 64 encoded data will be produced
@@ -83,8 +83,8 @@ EVP_ENCODE_CTX_num() will return the number of as yet unprocessed bytes still to
 be encoded or decoded that are pending in the B<ctx> object.
 
 EVP_EncodeBlock() encodes a full block of input data in B<f> and of length
-B<dlen> and stores it in B<t>. For every 3 bytes of input provided 4 bytes of
-output data will be produced. If B<dlen> is not divisible by 3 then the block is
+B<n> and stores it in B<t>. For every 3 bytes of input provided 4 bytes of
+output data will be produced. If B<n> is not divisible by 3 then the block is
 encoded as a final block of data and the output is padded such that it is always
 divisible by 4. Additionally a NUL terminator character will be added. For
 example if 16 bytes of input data is provided then 24 bytes of encoded data is
@@ -151,7 +151,7 @@ L<evp(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

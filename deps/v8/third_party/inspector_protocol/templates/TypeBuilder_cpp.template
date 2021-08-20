@@ -10,13 +10,15 @@
 
 #include "{{config.crdtp.dir}}/cbor.h"
 #include "{{config.crdtp.dir}}/find_by_first.h"
-#include "{{config.crdtp.dir}}/serializer_traits.h"
 #include "{{config.crdtp.dir}}/span.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
 namespace {{domain.domain}} {
+
+using {{config.crdtp.namespace}}::DeserializerState;
+using {{config.crdtp.namespace}}::ProtocolTypeTraits;
 
 // ------------- Enum values from types.
 
@@ -43,6 +45,7 @@ const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
 } // namespace API
       {% endif %}
     {% endif %}
+
     {% for property in type.properties %}
       {% if "enum" in property %}
 
@@ -52,80 +55,28 @@ const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash
       {% endif %}
     {% endfor %}
     {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
-
-std::unique_ptr<{{type.id}}> {{type.id}}::fromValue(protocol::Value* value, ErrorSupport* errors)
-{
-    if (!value || value->type() != protocol::Value::TypeObject) {
-        errors->AddError("object expected");
-        return nullptr;
-    }
-
-    std::unique_ptr<{{type.id}}> result(new {{type.id}}());
-    protocol::DictionaryValue* object = DictionaryValue::cast(value);
-    errors->Push();
-    {% for property in type.properties %}
-    protocol::Value* {{property.name}}Value = object->get("{{property.name}}");
+V8_CRDTP_BEGIN_DESERIALIZER({{type.id}})
+      {% for property in type.properties | sort(attribute = 'name', case_sensitive=True) %}
       {% if property.optional %}
-    if ({{property.name}}Value) {
-        errors->SetName("{{property.name}}");
-        result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
-    }
+    V8_CRDTP_DESERIALIZE_FIELD_OPT("{{property.name}}", m_{{property.name}}),
       {% else %}
-    errors->SetName("{{property.name}}");
-    result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
+    V8_CRDTP_DESERIALIZE_FIELD("{{property.name}}", m_{{property.name}}),
       {% endif %}
-    {% endfor %}
-    errors->Pop();
-    if (!errors->Errors().empty())
-        return nullptr;
-    return result;
-}
+      {% endfor %}
+V8_CRDTP_END_DESERIALIZER()
 
-std::unique_ptr<protocol::DictionaryValue> {{type.id}}::toValue() const
-{
-    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
-    {% for property in type.properties %}
-      {% set property_type = protocol.resolve_type(property) %}
-      {% set property_field = "m_" + property.name %}
-      {% if property.optional %}
-    if ({{property_field}}.isJust())
-        result->setValue("{{property.name}}", ValueConversions<{{property_type.raw_type}}>::toValue({{property_field}}.fromJust()));
-      {% else %}
-    result->setValue("{{property.name}}", ValueConversions<{{property_type.raw_type}}>::toValue({{property_type.to_raw_type % property_field}}));
-      {% endif %}
-    {% endfor %}
-    return result;
-}
+V8_CRDTP_BEGIN_SERIALIZER({{type.id}})
+      {% for property in type.properties %}
+    V8_CRDTP_SERIALIZE_FIELD("{{property.name}}", m_{{property.name}});
+      {% endfor %}
+V8_CRDTP_END_SERIALIZER();
 
-void {{type.id}}::AppendSerialized(std::vector<uint8_t>* out) const {
-    {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
-    envelope_encoder.EncodeStart(out);
-    out->push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
-    {% for property in type.properties %}
-      {% set property_field = "m_" + property.name %}
-      {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{property.name}}"), {{property_field}}, out);
-    {% endfor %}
-    out->push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
-    envelope_encoder.EncodeStop(out);
-}
-
-std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
-{
-    ErrorSupport errors;
-    return fromValue(toValue().get(), &errors);
-}
     {% if protocol.is_exported(domain.domain, type.id) %}
-
 // static
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
 {
-    ErrorSupport errors;
-    std::unique_ptr<Value> value = Value::parseBinary(data, length);
-    if (!value)
-        return nullptr;
-    return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
+    return protocol::{{domain.domain}}::{{type.id}}::FromBinary(data, length);
 }
-
     {% endif %}
   {% endfor %}
 
@@ -174,20 +125,11 @@ void Frontend::{{event.name | to_method_case}}(
     if (!frontend_channel_)
         return;
       {% if event.parameters %}
-    std::unique_ptr<{{event.name | to_title_case}}Notification> messageData = {{event.name | to_title_case}}Notification::{{"create" | to_method_case}}()
+    {{config.crdtp.namespace}}::ObjectSerializer serializer;
         {% for parameter in event.parameters %}
-          {% if not "optional" in parameter %}
-        .{{"set" | to_method_case}}{{parameter.name | to_title_case}}({{protocol.resolve_type(parameter).to_pass_type % parameter.name}})
-          {% endif %}
+    serializer.AddField({{config.crdtp.namespace}}::MakeSpan("{{parameter.name}}"), {{parameter.name}});
         {% endfor %}
-        .{{ "build" | to_method_case }}();
-        {% for parameter in event.parameters %}
-          {% if "optional" in parameter %}
-    if ({{parameter.name}}.isJust())
-        messageData->{{"set" | to_method_case}}{{parameter.name | to_title_case}}(std::move({{parameter.name}}).takeJust());
-          {% endif %}
-        {% endfor %}
-    frontend_channel_->SendProtocolNotification({{config.crdtp.namespace}}::CreateNotification("{{domain.domain}}.{{event.name}}", std::move(messageData)));
+    frontend_channel_->SendProtocolNotification({{config.crdtp.namespace}}::CreateNotification("{{domain.domain}}.{{event.name}}", serializer.Finish()));
       {% else %}
     frontend_channel_->SendProtocolNotification({{config.crdtp.namespace}}::CreateNotification("{{domain.domain}}.{{event.name}}"));
       {% endif %}
@@ -213,14 +155,14 @@ public:
         , m_backend(backend) {}
     ~DomainDispatcherImpl() override { }
 
-    using CallHandler = void (DomainDispatcherImpl::*)(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors);
+    using CallHandler = void (DomainDispatcherImpl::*)(const {{config.crdtp.namespace}}::Dispatchable& dispatchable);
 
     std::function<void(const {{config.crdtp.namespace}}::Dispatchable&)> Dispatch({{config.crdtp.namespace}}::span<uint8_t> command_name) override;
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
-    void {{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors);
+    void {{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable);
   {% endfor %}
  protected:
     Backend* m_backend;
@@ -252,13 +194,9 @@ DomainDispatcherImpl::CallHandler CommandByName({{config.crdtp.namespace}}::span
 std::function<void(const {{config.crdtp.namespace}}::Dispatchable&)> DomainDispatcherImpl::Dispatch({{config.crdtp.namespace}}::span<uint8_t> command_name) {
   CallHandler handler = CommandByName(command_name);
   if (!handler) return nullptr;
-  return [this, handler](const {{config.crdtp.namespace}}::Dispatchable& dispatchable){
-    std::unique_ptr<DictionaryValue> params =
-        DictionaryValue::cast(protocol::Value::parseBinary(dispatchable.Params().data(),
-        dispatchable.Params().size()));
-    ErrorSupport errors;
-    errors.Push();
-    (this->*handler)(dispatchable, params.get(), &errors);
+
+  return [this, handler](const {{config.crdtp.namespace}}::Dispatchable& dispatchable) {
+    (this->*handler)(dispatchable);
   };
 }
 
@@ -284,16 +222,11 @@ public:
         {%- if not loop.last -%}, {% endif -%}
       {%- endfor -%}) override
     {
-        std::vector<uint8_t> result_buffer;
-        {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
-        envelope_encoder.EncodeStart(&result_buffer);
-        result_buffer.push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+        {{config.crdtp.namespace}}::ObjectSerializer serializer;
         {% for parameter in command.returns %}
-          {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{parameter.name}}"), {{parameter.name}}, &result_buffer);
+        serializer.AddField({{config.crdtp.namespace}}::MakeSpan("{{parameter.name}}"), {{parameter.name}});
         {% endfor %}
-        result_buffer.push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
-        envelope_encoder.EncodeStop(&result_buffer);
-        sendIfActive({{config.crdtp.namespace}}::Serializable::From(std::move(result_buffer)), DispatchResponse::Success());
+        sendIfActive(serializer.Finish(), DispatchResponse::Success());
     }
 
     void fallThrough() override
@@ -309,26 +242,45 @@ public:
 };
     {% endif %}
 
-void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors)
-{
+namespace {
+
     {% if "parameters" in command %}
-    // Prepare input parameters.
+struct {{command.name}}Params : public {{config.crdtp.namespace}}::DeserializableProtocolObject<{{command.name}}Params> {
       {% for parameter in command.parameters %}
         {% set parameter_type = protocol.resolve_type(parameter) %}
-    protocol::Value* {{parameter.name}}Value = params ? params->get("{{parameter.name}}") : nullptr;
         {% if parameter.optional %}
-    Maybe<{{parameter_type.raw_type}}> in_{{parameter.name}};
-    if ({{parameter.name}}Value) {
-        errors->SetName("{{parameter.name}}");
-        in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
-    }
+    Maybe<{{parameter_type.raw_type}}> {{parameter.name}};
         {% else %}
-    errors->SetName("{{parameter.name}}");
-    {{parameter_type.type}} in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
+    {{parameter_type.type}} {{parameter.name}};
         {% endif %}
       {% endfor %}
-    if (MaybeReportInvalidParams(dispatchable, *errors)) return;
+    DECLARE_DESERIALIZATION_SUPPORT();
+};
+
+V8_CRDTP_BEGIN_DESERIALIZER({{command.name}}Params)
+      {% for parameter in command.parameters  | sort(attribute = 'name', case_sensitive=True) %}
+      {% if parameter.optional %}
+    V8_CRDTP_DESERIALIZE_FIELD_OPT("{{parameter.name}}", {{parameter.name}}),
+      {% else %}
+    V8_CRDTP_DESERIALIZE_FIELD("{{parameter.name}}", {{parameter.name}}),
+      {% endif %}
+      {% endfor %}
+V8_CRDTP_END_DESERIALIZER()
+     {% endif %}
+
+}  // namespace
+
+void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable)
+{
+    // Prepare input parameters.
+    {% if "parameters" in command %}
+    auto deserializer = {{config.crdtp.namespace}}::DeferredMessage::FromSpan(dispatchable.Params())->MakeDeserializer();
+    {{command.name}}Params params;
+    {{command.name}}Params::Deserialize(&deserializer, &params);
+    if (MaybeReportInvalidParams(dispatchable, deserializer))
+      return;
     {% endif %}
+
     {% if "returns" in command and not protocol.is_async_command(domain.domain, command.name) %}
     // Declare output parameters.
       {% for parameter in command.returns %}
@@ -346,9 +298,9 @@ void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Di
       {%- for parameter in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in parameter -%}
-        std::move(in_{{parameter.name}})
+        std::move(params.{{parameter.name}})
         {%- else -%}
-        {{protocol.resolve_type(parameter).to_pass_type % ("in_" + parameter.name)}}
+        {{protocol.resolve_type(parameter).to_pass_type % ("params." + parameter.name)}}
         {%- endif -%}
       {%- endfor %}
       {%- if "returns" in command %}
@@ -363,18 +315,17 @@ void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Di
     }
       {% if "returns" in command %}
       if (weak->get()) {
-        std::vector<uint8_t> result;
+        std::unique_ptr<{{config.crdtp.namespace}}::Serializable> result;
         if (response.IsSuccess()) {
-          {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
-          envelope_encoder.EncodeStart(&result);
-          result.push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+          {{config.crdtp.namespace}}::ObjectSerializer serializer;
           {% for parameter in command.returns %}
-            {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{parameter.name}}"), out_{{parameter.name}}, &result);
+          serializer.AddField({{config.crdtp.namespace}}::MakeSpan("{{parameter.name}}"), out_{{parameter.name}});
           {% endfor %}
-          result.push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
-          envelope_encoder.EncodeStop(&result);
+          result = serializer.Finish();
+        } else {
+          result = Serializable::From({});
         }
-        weak->get()->sendResponse(dispatchable.CallId(), response, {{config.crdtp.namespace}}::Serializable::From(std::move(result)));
+        weak->get()->sendResponse(dispatchable.CallId(), response, std::move(result));
       }
       {% else %}
     if (weak->get())
@@ -386,9 +337,9 @@ void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Di
       {%- for property in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in property -%}
-        std::move(in_{{property.name}})
+        std::move(params.{{property.name}})
         {%- else -%}
-        {{protocol.resolve_type(property).to_pass_type % ("in_" + property.name)}}
+        {{protocol.resolve_type(property).to_pass_type % ("params." + property.name)}}
         {%- endif -%}
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}

@@ -56,6 +56,7 @@ static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
+static const char globalBindingsKey[] = "";
 }  // namespace V8RuntimeAgentImplState
 
 using protocol::Runtime::RemoteObject;
@@ -108,8 +109,7 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
 }
 
 void innerCallFunctionOn(
-    V8InspectorSessionImpl* session,
-    InjectedScript::Scope& scope,  // NOLINT(runtime/references)
+    V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
     bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,
@@ -203,9 +203,21 @@ void innerCallFunctionOn(
 }
 
 Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
-                       Maybe<int> executionContextId, int* contextId) {
+                       Maybe<int> executionContextId,
+                       Maybe<String16> uniqueContextId, int* contextId) {
   if (executionContextId.isJust()) {
+    if (uniqueContextId.isJust()) {
+      return Response::InvalidParams(
+          "contextId and uniqueContextId are mutually exclusive");
+    }
     *contextId = executionContextId.fromJust();
+  } else if (uniqueContextId.isJust()) {
+    V8DebuggerId uniqueId(uniqueContextId.fromJust());
+    if (!uniqueId.isValid())
+      return Response::InvalidParams("invalid uniqueContextId");
+    int id = inspector->resolveUniqueContextId(uniqueId);
+    if (!id) return Response::InvalidParams("uniqueContextId not found");
+    *contextId = id;
   } else {
     v8::HandleScope handles(inspector->isolate());
     v8::Local<v8::Context> defaultContext =
@@ -214,6 +226,7 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
       return Response::ServerError("Cannot find default execution context");
     *contextId = InspectedContext::contextId(defaultContext);
   }
+
   return Response::Success();
 }
 
@@ -237,12 +250,14 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<bool> generatePreview, Maybe<bool> userGesture,
     Maybe<bool> maybeAwaitPromise, Maybe<bool> throwOnSideEffect,
     Maybe<double> timeout, Maybe<bool> disableBreaks, Maybe<bool> maybeReplMode,
+    Maybe<bool> allowUnsafeEvalBlockedByCSP, Maybe<String16> uniqueContextId,
     std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
-                                    std::move(executionContextId), &contextId);
+                                    std::move(executionContextId),
+                                    std::move(uniqueContextId), &contextId);
   if (!response.IsSuccess()) {
     callback->sendFailure(response);
     return;
@@ -262,8 +277,10 @@ void V8RuntimeAgentImpl::evaluate(
 
   const bool replMode = maybeReplMode.fromMaybe(false);
 
-  // Temporarily enable allow evals for inspector.
-  scope.allowCodeGenerationFromStrings();
+  if (allowUnsafeEvalBlockedByCSP.fromMaybe(true)) {
+    // Temporarily enable allow evals for inspector.
+    scope.allowCodeGenerationFromStrings();
+  }
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     V8InspectorImpl::EvaluateScope evaluateScope(scope);
@@ -374,9 +391,9 @@ void V8RuntimeAgentImpl::callFunctionOn(
                         std::move(callback));
   } else {
     int contextId = 0;
-    Response response =
-        ensureContext(m_inspector, m_session->contextGroupId(),
-                      std::move(executionContextId.fromJust()), &contextId);
+    Response response = ensureContext(m_inspector, m_session->contextGroupId(),
+                                      std::move(executionContextId.fromJust()),
+                                      /* uniqueContextId */ {}, &contextId);
     if (!response.IsSuccess()) {
       callback->sendFailure(response);
       return;
@@ -493,7 +510,8 @@ Response V8RuntimeAgentImpl::compileScript(
 
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
-                                    std::move(executionContextId), &contextId);
+                                    std::move(executionContextId),
+                                    /*uniqueContextId*/ {}, &contextId);
   if (!response.IsSuccess()) return response;
   InjectedScript::ContextScope scope(m_session, contextId);
   response = scope.initialize();
@@ -546,7 +564,8 @@ void V8RuntimeAgentImpl::runScript(
 
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
-                                    std::move(executionContextId), &contextId);
+                                    std::move(executionContextId),
+                                    /*uniqueContextId*/ {}, &contextId);
   if (!response.IsSuccess()) {
     callback->sendFailure(response);
     return;
@@ -611,7 +630,7 @@ Response V8RuntimeAgentImpl::queryObjects(
     return Response::ServerError("Prototype should be instance of Object");
   }
   v8::Local<v8::Array> resultArray = m_inspector->debugger()->queryObjects(
-      scope.context(), v8::Local<v8::Object>::Cast(scope.object()));
+      scope.context(), scope.object().As<v8::Object>());
   return scope.injectedScript()->wrapObject(
       resultArray, objectGroup.fromMaybe(scope.objectGroupName()),
       WrapMode::kNoPreview, objects);
@@ -622,7 +641,8 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
     std::unique_ptr<protocol::Array<String16>>* outNames) {
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
-                                    std::move(executionContextId), &contextId);
+                                    std::move(executionContextId),
+                                    /*uniqueContextId*/ {}, &contextId);
   if (!response.IsSuccess()) return response;
 
   InjectedScript::ContextScope scope(m_session, contextId);
@@ -660,32 +680,60 @@ void V8RuntimeAgentImpl::terminateExecution(
   m_inspector->debugger()->terminateExecution(std::move(callback));
 }
 
+namespace {
+protocol::DictionaryValue* getOrCreateDictionary(
+    protocol::DictionaryValue* dict, const String16& key) {
+  if (protocol::DictionaryValue* bindings = dict->getObject(key))
+    return bindings;
+  dict->setObject(key, protocol::DictionaryValue::create());
+  return dict->getObject(key);
+}
+}  // namespace
+
 Response V8RuntimeAgentImpl::addBinding(const String16& name,
-                                        Maybe<int> executionContextId) {
-  if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
-    m_state->setObject(V8RuntimeAgentImplState::bindings,
-                       protocol::DictionaryValue::create());
-  }
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (bindings->booleanProperty(name, false)) return Response::Success();
+                                        Maybe<int> executionContextId,
+                                        Maybe<String16> executionContextName) {
   if (executionContextId.isJust()) {
+    if (executionContextName.isJust()) {
+      return Response::InvalidParams(
+          "executionContextName is mutually exclusive with executionContextId");
+    }
     int contextId = executionContextId.fromJust();
     InspectedContext* context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
     if (!context) {
-      return Response::ServerError(
+      return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
     }
     addBinding(context, name);
-    // false means that we should not add this binding later.
-    bindings->setBoolean(name, false);
     return Response::Success();
   }
-  bindings->setBoolean(name, true);
+
+  // If it's a globally exposed binding, i.e. no context name specified, use
+  // a special value for the context name.
+  String16 contextKey = V8RuntimeAgentImplState::globalBindingsKey;
+  if (executionContextName.isJust()) {
+    contextKey = executionContextName.fromJust();
+    if (contextKey == V8RuntimeAgentImplState::globalBindingsKey) {
+      return Response::InvalidParams("Invalid executionContextName");
+    }
+  }
+  // Only persist non context-specific bindings, as contextIds don't make
+  // any sense when state is restored in a different process.
+  protocol::DictionaryValue* bindings =
+      getOrCreateDictionary(m_state, V8RuntimeAgentImplState::bindings);
+  protocol::DictionaryValue* contextBindings =
+      getOrCreateDictionary(bindings, contextKey);
+  contextBindings->setBoolean(name, true);
+
   m_inspector->forEachContext(
       m_session->contextGroupId(),
-      [&name, this](InspectedContext* context) { addBinding(context, name); });
+      [&name, &executionContextName, this](InspectedContext* context) {
+        if (executionContextName.isJust() &&
+            executionContextName.fromJust() != context->humanReadableName())
+          return;
+        addBinding(context, name);
+      });
   return Response::Success();
 }
 
@@ -693,8 +741,8 @@ void V8RuntimeAgentImpl::bindingCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1 || !info[0]->IsString()) {
-    info.GetIsolate()->ThrowException(toV8String(
-        isolate, "Invalid arguments: should be exactly one string."));
+    info.GetIsolate()->ThrowError(
+        "Invalid arguments: should be exactly one string.");
     return;
   }
   V8InspectorImpl* inspector =
@@ -702,10 +750,8 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextId = InspectedContext::contextId(isolate->GetCurrentContext());
   int contextGroupId = inspector->contextGroupId(contextId);
 
-  String16 name =
-      toProtocolString(isolate, v8::Local<v8::String>::Cast(info.Data()));
-  String16 payload =
-      toProtocolString(isolate, v8::Local<v8::String>::Cast(info[0]));
+  String16 name = toProtocolString(isolate, info.Data().As<v8::String>());
+  String16 payload = toProtocolString(isolate, info[0].As<v8::String>());
 
   inspector->forEachSession(
       contextGroupId,
@@ -716,6 +762,10 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  auto it = m_activeBindings.find(name);
+  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+    return;
+  }
   v8::HandleScope handles(m_inspector->isolate());
   v8::Local<v8::Context> localContext = context->context();
   v8::Local<v8::Object> global = localContext->Global();
@@ -727,34 +777,47 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
+    if (it == m_activeBindings.end()) {
+      m_activeBindings.emplace(name,
+                               std::unordered_set<int>(context->contextId()));
+    } else {
+      m_activeBindings.at(name).insert(context->contextId());
+    }
   }
 }
 
 Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings) return Response::Success();
-  bindings->remove(name);
+  if (bindings) bindings->remove(name);
+  m_activeBindings.erase(name);
   return Response::Success();
 }
 
 void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        const String16& payload,
                                        int executionContextId) {
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings || !bindings->get(name)) return;
+  if (!m_activeBindings.count(name)) return;
   m_frontend.bindingCalled(name, payload, executionContextId);
 }
 
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
+  const String16 contextName = context->humanReadableName();
   if (!m_enabled) return;
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
   if (!bindings) return;
-  for (size_t i = 0; i < bindings->size(); ++i) {
-    if (!bindings->at(i).second) continue;
-    addBinding(context, bindings->at(i).first);
+  protocol::DictionaryValue* globalBindings =
+      bindings->getObject(V8RuntimeAgentImplState::globalBindingsKey);
+  if (globalBindings) {
+    for (size_t i = 0; i < globalBindings->size(); ++i)
+      addBinding(context, globalBindings->at(i).first);
+  }
+  protocol::DictionaryValue* contextBindings =
+      contextName.isEmpty() ? nullptr : bindings->getObject(contextName);
+  if (contextBindings) {
+    for (size_t i = 0; i < contextBindings->size(); ++i)
+      addBinding(context, contextBindings->at(i).first);
   }
 }
 
@@ -825,6 +888,7 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(
           .setId(context->contextId())
           .setName(context->humanReadableName())
           .setOrigin(context->origin())
+          .setUniqueId(context->uniqueId().toString())
           .build();
   const String16& aux = context->auxData();
   if (!aux.isEmpty()) {

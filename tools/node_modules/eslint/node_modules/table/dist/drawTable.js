@@ -1,59 +1,38 @@
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-var _drawBorder = require("./drawBorder");
-
-var _drawRow = _interopRequireDefault(require("./drawRow"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @param {Array} rows
- * @param {Object} border
- * @param {Array} columnSizeIndex
- * @param {Array} rowSpanIndex
- * @param {Function} drawHorizontalLine
- * @param {boolean} singleLine
- * @returns {string}
- */
-const drawTable = (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine, singleLine) => {
-  let output;
-  let realRowIndex;
-  let rowHeight;
-  const rowCount = rows.length;
-  realRowIndex = 0;
-  output = '';
-
-  if (drawHorizontalLine(realRowIndex, rowCount)) {
-    output += (0, _drawBorder.drawBorderTop)(columnSizeIndex, border);
-  }
-
-  rows.forEach((row, index0) => {
-    output += (0, _drawRow.default)(row, border);
-
-    if (!rowHeight) {
-      rowHeight = rowSpanIndex[realRowIndex];
-      realRowIndex++;
-    }
-
-    rowHeight--;
-
-    if (!singleLine && rowHeight === 0 && index0 !== rowCount - 1 && drawHorizontalLine(realRowIndex, rowCount)) {
-      output += (0, _drawBorder.drawBorderJoin)(columnSizeIndex, border);
-    }
-  });
-
-  if (drawHorizontalLine(realRowIndex, rowCount)) {
-    output += (0, _drawBorder.drawBorderBottom)(columnSizeIndex, border);
-  }
-
-  return output;
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-var _default = drawTable;
-exports.default = _default;
-//# sourceMappingURL=drawTable.js.map
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.drawTable = void 0;
+const string_width_1 = __importDefault(require("string-width"));
+const drawBorder_1 = require("./drawBorder");
+const drawContent_1 = require("./drawContent");
+const drawHeader_1 = require("./drawHeader");
+const drawRow_1 = require("./drawRow");
+const utils_1 = require("./utils");
+const drawTable = (rows, columnWidths, rowHeights, config) => {
+    const { drawHorizontalLine, singleLine, } = config;
+    const contents = utils_1.groupBySizes(rows, rowHeights).map((group) => {
+        return group.map((row) => {
+            return drawRow_1.drawRow(row, config);
+        }).join('');
+    });
+    if (config.header) {
+        // assume that topLeft/right border have width = 1
+        const headerWidth = string_width_1.default(drawRow_1.drawRow(rows[0], config)) - 2 -
+            config.header.paddingLeft - config.header.paddingRight;
+        const header = drawHeader_1.drawHeader(headerWidth, config);
+        contents.unshift(header);
+    }
+    return drawContent_1.drawContent(contents, {
+        drawSeparator: (index, size) => {
+            // Top/bottom border
+            if (index === 0 || index === size) {
+                return drawHorizontalLine(index, size);
+            }
+            return !singleLine && drawHorizontalLine(index, size);
+        },
+        separatorGetter: drawBorder_1.createTableBorderGetter(columnWidths, config),
+    });
+};
+exports.drawTable = drawTable;

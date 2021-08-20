@@ -10,13 +10,12 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/js-objects.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/oddball.h"
@@ -25,13 +24,13 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 
 namespace v8 {
 namespace internal {
 
 Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_alloc;
   if (IsJSReceiverMap()) {
     return *this;
   }
@@ -46,34 +45,16 @@ Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 // static
-MaybeHandle<JSFunction> Map::GetConstructorFunction(
-    Handle<Map> map, Handle<Context> native_context) {
-  if (map->IsPrimitiveMap()) {
-    int const constructor_function_index = map->GetConstructorFunctionIndex();
+base::Optional<JSFunction> Map::GetConstructorFunction(Map map,
+                                                       Context native_context) {
+  DisallowGarbageCollection no_gc;
+  if (map.IsPrimitiveMap()) {
+    int const constructor_function_index = map.GetConstructorFunctionIndex();
     if (constructor_function_index != kNoConstructorFunctionIndex) {
-      return handle(
-          JSFunction::cast(native_context->get(constructor_function_index)),
-          native_context->GetIsolate());
+      return JSFunction::cast(native_context.get(constructor_function_index));
     }
   }
-  return MaybeHandle<JSFunction>();
-}
-
-void Map::PrintReconfiguration(Isolate* isolate, FILE* file,
-                               InternalIndex modify_index, PropertyKind kind,
-                               PropertyAttributes attributes) {
-  OFStream os(file);
-  os << "[reconfiguring]";
-  Name name = instance_descriptors().GetKey(modify_index);
-  if (name.IsString()) {
-    String::cast(name).PrintOn(file);
-  } else {
-    os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
-  }
-  os << ": " << (kind == kData ? "kData" : "ACCESSORS") << ", attrs: ";
-  os << attributes << " [";
-  JavaScriptFrame::PrintTop(isolate, file, false, true);
-  os << "]\n";
+  return {};
 }
 
 Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
@@ -89,7 +70,7 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   case TYPE:                        \
     map = roots.name##_map();       \
     break;
-    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
+    TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
@@ -153,8 +134,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
-    case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
 
@@ -187,12 +166,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case FEEDBACK_METADATA_TYPE:
       return kVisitFeedbackMetadata;
 
-    case FEEDBACK_VECTOR_TYPE:
-      return kVisitFeedbackVector;
-
-    case ODDBALL_TYPE:
-      return kVisitOddball;
-
     case MAP_TYPE:
       return kVisitMap;
 
@@ -205,9 +178,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
-    case DESCRIPTOR_ARRAY_TYPE:
-      return kVisitDescriptorArray;
-
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
 
@@ -217,9 +187,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case CALL_HANDLER_INFO_TYPE:
       return kVisitStruct;
-
-    case SHARED_FUNCTION_INFO_TYPE:
-      return kVisitSharedFunctionInfo;
 
     case JS_PROXY_TYPE:
       return kVisitStruct;
@@ -234,6 +201,13 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSDataView;
 
     case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+    case JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case JS_ARRAY_CONSTRUCTOR_TYPE:
+#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
+  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
+#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       return kVisitJSFunction;
 
     case JS_TYPED_ARRAY_TYPE:
@@ -248,51 +222,54 @@ VisitorId Map::GetVisitorId(Map map) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       return kVisitSmallOrderedNameDictionary;
 
+    case SWISS_NAME_DICTIONARY_TYPE:
+      return kVisitSwissNameDictionary;
+
     case CODE_DATA_CONTAINER_TYPE:
       return kVisitCodeDataContainer;
-
-    case WASM_INSTANCE_OBJECT_TYPE:
-      return kVisitWasmInstanceObject;
 
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 
-    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
-      return kVisitUncompiledDataWithoutPreparseData;
-
-    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
-      return kVisitUncompiledDataWithPreparseData;
-
     case COVERAGE_INFO_TYPE:
       return kVisitCoverageInfo;
 
-    case JS_OBJECT_TYPE:
-    case JS_ERROR_TYPE:
-    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
-    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE:
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-    case JS_MODULE_NAMESPACE_TYPE:
-    case JS_PRIMITIVE_WRAPPER_TYPE:
-    case JS_DATE_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_TYPE:
-    case JS_MESSAGE_OBJECT_TYPE:
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_DATE_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-    case JS_STRING_ITERATOR_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
+    case JS_MODULE_NAMESPACE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_REG_EXP_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-    case JS_FINALIZATION_REGISTRY_TYPE:
+    case JS_REG_EXP_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_SET_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:
@@ -305,16 +282,19 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_RELATIVE_TIME_FORMAT_TYPE:
     case JS_SEGMENT_ITERATOR_TYPE:
     case JS_SEGMENTER_TYPE:
+    case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE: {
       const bool has_raw_data_fields =
-          (FLAG_unbox_double_fields && !map.HasFastPointerLayout()) ||
-          (COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0);
+          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
       return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
     }
     case JS_API_OBJECT_TYPE:
@@ -346,12 +326,14 @@ VisitorId Map::GetVisitorId(Map map) {
       if (instance_type == PROTOTYPE_INFO_TYPE) {
         return kVisitPrototypeInfo;
       }
+#if V8_ENABLE_WEBASSEMBLY
       if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
         return kVisitWasmCapiFunctionData;
       }
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       return kVisitStruct;
 
     case LOAD_HANDLER_TYPE:
@@ -363,10 +345,20 @@ VisitorId Map::GetVisitorId(Map map) {
     case SYNTHETIC_MODULE_TYPE:
       return kVisitSyntheticModule;
 
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_INSTANCE_OBJECT_TYPE:
+      return kVisitWasmInstanceObject;
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:
       return kVisitWasmStruct;
+    case WASM_TYPE_INFO_TYPE:
+      return kVisitWasmTypeInfo;
+    case WASM_JS_FUNCTION_DATA_TYPE:
+      return kVisitWasmJSFunctionData;
+    case WASM_EXPORTED_FUNCTION_DATA_TYPE:
+      return kVisitWasmExportedFunctionData;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \
@@ -377,51 +369,6 @@ VisitorId Map::GetVisitorId(Map map) {
     default:
       UNREACHABLE();
   }
-}
-
-void Map::PrintGeneralization(
-    Isolate* isolate, FILE* file, const char* reason,
-    InternalIndex modify_index, int split, int descriptors,
-    bool descriptor_to_field, Representation old_representation,
-    Representation new_representation, PropertyConstness old_constness,
-    PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
-    MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
-    MaybeHandle<Object> new_value) {
-  OFStream os(file);
-  os << "[generalizing]";
-  Name name = instance_descriptors().GetKey(modify_index);
-  if (name.IsString()) {
-    String::cast(name).PrintOn(file);
-  } else {
-    os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
-  }
-  os << ":";
-  if (descriptor_to_field) {
-    os << "c";
-  } else {
-    os << old_representation.Mnemonic() << "{";
-    if (old_field_type.is_null()) {
-      os << Brief(*(old_value.ToHandleChecked()));
-    } else {
-      old_field_type.ToHandleChecked()->PrintTo(os);
-    }
-    os << ";" << old_constness << "}";
-  }
-  os << "->" << new_representation.Mnemonic() << "{";
-  if (new_field_type.is_null()) {
-    os << Brief(*(new_value.ToHandleChecked()));
-  } else {
-    new_field_type.ToHandleChecked()->PrintTo(os);
-  }
-  os << ";" << new_constness << "} (";
-  if (strlen(reason) > 0) {
-    os << reason;
-  } else {
-    os << "+" << (descriptors - split) << " maps";
-  }
-  os << ") [";
-  JavaScriptFrame::PrintTop(isolate, file, false, true);
-  os << "]\n";
 }
 
 // static
@@ -450,7 +397,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
                                     PropertyConstness constness,
                                     Representation representation,
                                     TransitionFlag flag) {
-  DCHECK(map->instance_descriptors()
+  DCHECK(map->instance_descriptors(isolate)
              .Search(*name, map->NumberOfOwnDescriptors())
              .is_not_found());
 
@@ -494,34 +441,6 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
   Handle<FieldType> type = constant->OptimalType(isolate, representation);
   return CopyWithField(isolate, map, name, type, attributes,
                        PropertyConstness::kConst, representation, flag);
-}
-
-bool Map::TransitionRemovesTaggedField(Map target) const {
-  int inobject = NumberOfFields();
-  int target_inobject = target.NumberOfFields();
-  for (int i = target_inobject; i < inobject; i++) {
-    FieldIndex index = FieldIndex::ForPropertyIndex(*this, i);
-    if (!IsUnboxedDoubleField(index)) return true;
-  }
-  return false;
-}
-
-bool Map::TransitionChangesTaggedFieldToUntaggedField(Map target) const {
-  int inobject = NumberOfFields();
-  int target_inobject = target.NumberOfFields();
-  int limit = Min(inobject, target_inobject);
-  for (int i = 0; i < limit; i++) {
-    FieldIndex index = FieldIndex::ForPropertyIndex(target, i);
-    if (!IsUnboxedDoubleField(index) && target.IsUnboxedDoubleField(index)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Map::TransitionRequiresSynchronizationWithGC(Map target) const {
-  return TransitionRemovesTaggedField(target) ||
-         TransitionChangesTaggedFieldToUntaggedField(target);
 }
 
 bool Map::InstancesNeedRewriting(Map target) const {
@@ -603,15 +522,16 @@ bool Map::HasOutOfObjectProperties() const {
 
 void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (is_deprecated()) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   TransitionsAccessor transitions(isolate, *this, &no_gc);
   int num_transitions = transitions.NumberOfTransitions();
   for (int i = 0; i < num_transitions; ++i) {
     transitions.GetTarget(i).DeprecateTransitionTree(isolate);
   }
-  DCHECK(!constructor_or_backpointer().IsFunctionTemplateInfo());
+  DCHECK(!constructor_or_back_pointer().IsFunctionTemplateInfo());
+  DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
   dependent_code().DeoptimizeDependentCodeGroup(
@@ -621,28 +541,27 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
 
 // Installs |new_descriptors| over the current instance_descriptors to ensure
 // proper sharing of descriptor arrays.
-void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
-                             LayoutDescriptor new_layout_descriptor) {
+void Map::ReplaceDescriptors(Isolate* isolate,
+                             DescriptorArray new_descriptors) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 ||
       GetBackPointer(isolate).IsUndefined(isolate)) {
     return;
   }
 
-  DescriptorArray to_replace = instance_descriptors();
+  DescriptorArray to_replace = instance_descriptors(isolate);
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
   Map current = *this;
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), current, to_replace,
-                                   to_replace.number_of_descriptors());
+  WriteBarrier::Marking(to_replace, to_replace.number_of_descriptors());
 #endif
   while (current.instance_descriptors(isolate) == to_replace) {
     Object next = current.GetBackPointer(isolate);
     if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
     current.SetEnumLength(kInvalidEnumCacheSentinel);
-    current.UpdateDescriptors(isolate, new_descriptors, new_layout_descriptor,
+    current.UpdateDescriptors(isolate, new_descriptors,
                               current.NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
@@ -650,6 +569,7 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
 }
 
 Map Map::FindRootMap(Isolate* isolate) const {
+  DisallowGarbageCollection no_gc;
   Map result = *this;
   while (true) {
     Object back = result.GetBackPointer(isolate);
@@ -657,7 +577,8 @@ Map Map::FindRootMap(Isolate* isolate) const {
       // Initial map must not contain descriptors in the descriptors array
       // that do not belong to the map.
       DCHECK_LE(result.NumberOfOwnDescriptors(),
-                result.instance_descriptors().number_of_descriptors());
+                result.instance_descriptors(isolate, kRelaxedLoad)
+                    .number_of_descriptors());
       return result;
     }
     result = Map::cast(back);
@@ -665,9 +586,10 @@ Map Map::FindRootMap(Isolate* isolate) const {
 }
 
 Map Map::FindFieldOwner(Isolate* isolate, InternalIndex descriptor) const {
-  DisallowHeapAllocation no_allocation;
-  DCHECK_EQ(kField,
-            instance_descriptors(isolate).GetDetails(descriptor).location());
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(kField, instance_descriptors(isolate, kRelaxedLoad)
+                        .GetDetails(descriptor)
+                        .location());
   Map result = *this;
   while (true) {
     Object back = result.GetBackPointer(isolate);
@@ -679,182 +601,15 @@ Map Map::FindFieldOwner(Isolate* isolate, InternalIndex descriptor) const {
   return result;
 }
 
-void Map::UpdateFieldType(Isolate* isolate, InternalIndex descriptor,
-                          Handle<Name> name, PropertyConstness new_constness,
-                          Representation new_representation,
-                          const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
-  // We store raw pointers in the queue, so no allocations are allowed.
-  DisallowHeapAllocation no_allocation;
-  PropertyDetails details = instance_descriptors().GetDetails(descriptor);
-  if (details.location() != kField) return;
-  DCHECK_EQ(kData, details.kind());
-
-  if (new_constness != details.constness() && is_prototype_map()) {
-    JSObject::InvalidatePrototypeChains(*this);
-  }
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ZoneQueue<Map> backlog(&zone);
-  backlog.push(*this);
-
-  while (!backlog.empty()) {
-    Map current = backlog.front();
-    backlog.pop();
-
-    TransitionsAccessor transitions(isolate, current, &no_allocation);
-    int num_transitions = transitions.NumberOfTransitions();
-    for (int i = 0; i < num_transitions; ++i) {
-      Map target = transitions.GetTarget(i);
-      backlog.push(target);
-    }
-    DescriptorArray descriptors = current.instance_descriptors();
-    PropertyDetails details = descriptors.GetDetails(descriptor);
-
-    // It is allowed to change representation here only from None
-    // to something or from Smi or HeapObject to Tagged.
-    DCHECK(details.representation().Equals(new_representation) ||
-           details.representation().CanBeInPlaceChangedTo(new_representation));
-
-    // Skip if already updated the shared descriptor.
-    if (new_constness != details.constness() ||
-        !new_representation.Equals(details.representation()) ||
-        descriptors.GetFieldType(descriptor) != *new_wrapped_type.object()) {
-      Descriptor d = Descriptor::DataField(
-          name, descriptors.GetFieldIndex(descriptor), details.attributes(),
-          new_constness, new_representation, new_wrapped_type);
-      descriptors.Replace(descriptor, &d);
-    }
-  }
-}
-
-bool FieldTypeIsCleared(Representation rep, FieldType type) {
-  return type.IsNone() && rep.IsHeapObject();
-}
-
-// static
-Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
-                                           Handle<FieldType> type1,
-                                           Representation rep2,
-                                           Handle<FieldType> type2,
-                                           Isolate* isolate) {
-  // Cleared field types need special treatment. They represent lost knowledge,
-  // so we must be conservative, so their generalization with any other type
-  // is "Any".
-  if (FieldTypeIsCleared(rep1, *type1) || FieldTypeIsCleared(rep2, *type2)) {
-    return FieldType::Any(isolate);
-  }
-  if (type1->NowIs(type2)) return type2;
-  if (type2->NowIs(type1)) return type1;
-  return FieldType::Any(isolate);
-}
-
-// static
-void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
-                          InternalIndex modify_index,
-                          PropertyConstness new_constness,
-                          Representation new_representation,
-                          Handle<FieldType> new_field_type) {
-  // Check if we actually need to generalize the field type at all.
-  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
-  PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-  PropertyConstness old_constness = old_details.constness();
-  Representation old_representation = old_details.representation();
-  Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
-                                   isolate);
-
-  // Return if the current map is general enough to hold requested constness and
-  // representation/field type.
-  if (IsGeneralizableTo(new_constness, old_constness) &&
-      old_representation.Equals(new_representation) &&
-      !FieldTypeIsCleared(new_representation, *new_field_type) &&
-      // Checking old_field_type for being cleared is not necessary because
-      // the NowIs check below would fail anyway in that case.
-      new_field_type->NowIs(old_field_type)) {
-    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
-                               new_representation, new_field_type, isolate)
-               ->NowIs(old_field_type));
-    return;
-  }
-
-  // Determine the field owner.
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, modify_index), isolate);
-  Handle<DescriptorArray> descriptors(field_owner->instance_descriptors(),
-                                      isolate);
-  DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
-
-  new_field_type =
-      Map::GeneralizeFieldType(old_representation, old_field_type,
-                               new_representation, new_field_type, isolate);
-
-  new_constness = GeneralizeConstness(old_constness, new_constness);
-
-  PropertyDetails details = descriptors->GetDetails(modify_index);
-  Handle<Name> name(descriptors->GetKey(modify_index), isolate);
-
-  MaybeObjectHandle wrapped_type(WrapFieldType(isolate, new_field_type));
-  field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
-                               new_representation, wrapped_type);
-
-  if (new_constness != old_constness) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldConstGroup);
-  }
-
-  if (!new_field_type->Equals(*old_field_type)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldTypeGroup);
-  }
-
-  if (!new_representation.Equals(old_representation)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldRepresentationGroup);
-  }
-
-  if (FLAG_trace_generalization) {
-    map->PrintGeneralization(
-        isolate, stdout, "field type generalization", modify_index,
-        map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
-        details.representation(),
-        descriptors->GetDetails(modify_index).representation(), old_constness,
-        new_constness, old_field_type, MaybeHandle<Object>(), new_field_type,
-        MaybeHandle<Object>());
-  }
-}
-
-// TODO(ishell): remove.
-// static
-Handle<Map> Map::ReconfigureProperty(Isolate* isolate, Handle<Map> map,
-                                     InternalIndex modify_index,
-                                     PropertyKind new_kind,
-                                     PropertyAttributes new_attributes,
-                                     Representation new_representation,
-                                     Handle<FieldType> new_field_type) {
-  DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
-  MapUpdater mu(isolate, map);
-  return mu.ReconfigureToDataField(modify_index, new_attributes,
-                                   PropertyConstness::kConst,
-                                   new_representation, new_field_type);
-}
-
-// TODO(ishell): remove.
-// static
-Handle<Map> Map::ReconfigureElementsKind(Isolate* isolate, Handle<Map> map,
-                                         ElementsKind new_elements_kind) {
-  MapUpdater mu(isolate, map);
-  return mu.ReconfigureElementsKind(new_elements_kind);
-}
-
 namespace {
 
 Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowDeoptimization no_deoptimization(isolate);
 
   Map target = old_map;
   do {
-    target = TransitionsAccessor(isolate, target, &no_allocation)
-                 .GetMigrationTarget();
+    target = TransitionsAccessor(isolate, target, &no_gc).GetMigrationTarget();
   } while (!target.is_null() && target.is_deprecated());
   if (target.is_null()) return Map();
 
@@ -866,12 +621,12 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   // types instead of old_map's types.
   // Go to slow map updating if the old_map has fast properties with cleared
   // field types.
-  DescriptorArray old_descriptors = old_map.instance_descriptors();
+  DescriptorArray old_descriptors = old_map.instance_descriptors(isolate);
   for (InternalIndex i : old_map.IterateOwnDescriptors()) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     if (old_details.location() == kField && old_details.kind() == kData) {
       FieldType old_type = old_descriptors.GetFieldType(i);
-      if (FieldTypeIsCleared(old_details.representation(), old_type)) {
+      if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
         return Map();
       }
     }
@@ -885,7 +640,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
 // TODO(ishell): Move TryUpdate() and friends to MapUpdater
 // static
 MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowDeoptimization no_deoptimization(isolate);
 
   if (!old_map->is_deprecated()) return old_map;
@@ -900,8 +655,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   Map new_map = TryUpdateSlow(isolate, *old_map);
   if (new_map.is_null()) return MaybeHandle<Map>();
   if (FLAG_fast_map_update) {
-    TransitionsAccessor(isolate, *old_map, &no_allocation)
-        .SetMigrationTarget(new_map);
+    TransitionsAccessor(isolate, *old_map, &no_gc).SetMigrationTarget(new_map);
   }
   return handle(new_map, isolate);
 }
@@ -919,14 +673,14 @@ struct IntegrityLevelTransitionInfo {
 };
 
 IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
-    Map map, Isolate* isolate, DisallowHeapAllocation* no_allocation) {
+    Map map, Isolate* isolate, DisallowGarbageCollection* no_gc) {
   IntegrityLevelTransitionInfo info(map);
 
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   DCHECK(!map.is_extensible());
   Map previous = Map::cast(map.GetBackPointer(isolate));
-  TransitionsAccessor last_transitions(isolate, previous, no_allocation);
+  TransitionsAccessor last_transitions(isolate, previous, no_gc);
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           map, &(info.integrity_level_symbol), &(info.integrity_level))) {
     // The last transition was not integrity level transition - just bail out.
@@ -944,7 +698,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // with integrity level transitions, just bail out.
   while (!source_map.is_extensible()) {
     previous = Map::cast(source_map.GetBackPointer(isolate));
-    TransitionsAccessor transitions(isolate, previous, no_allocation);
+    TransitionsAccessor transitions(isolate, previous, no_gc);
     if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
       return info;
     }
@@ -962,7 +716,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
 }  // namespace
 
 Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowDeoptimization no_deoptimization(isolate);
 
   // Check the state of the root map.
@@ -985,7 +739,7 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
   if (root_map.is_extensible() != old_map.is_extensible()) {
     DCHECK(!old_map.is_extensible());
     DCHECK(root_map.is_extensible());
-    info = DetectIntegrityLevelTransitions(old_map, isolate, &no_allocation);
+    info = DetectIntegrityLevelTransitions(old_map, isolate, &no_gc);
     // Bail out if there were some private symbol transitions mixed up
     // with the integrity level transitions.
     if (!info.has_integrity_level_transition) return Map();
@@ -1011,7 +765,7 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
 
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, &no_allocation)
+    result = TransitionsAccessor(isolate, result, &no_gc)
                  .SearchSpecial(info.integrity_level_symbol);
   }
 
@@ -1023,24 +777,24 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
 }
 
 Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowDeoptimization no_deoptimization(isolate);
 
   int root_nof = NumberOfOwnDescriptors();
 
   int old_nof = old_map.NumberOfOwnDescriptors();
-  DescriptorArray old_descriptors = old_map.instance_descriptors();
+  DescriptorArray old_descriptors = old_map.instance_descriptors(isolate);
 
   Map new_map = *this;
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof)) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     Map transition =
-        TransitionsAccessor(isolate, new_map, &no_allocation)
+        TransitionsAccessor(isolate, new_map, &no_gc)
             .SearchTransition(old_descriptors.GetKey(i), old_details.kind(),
                               old_details.attributes());
     if (transition.is_null()) return Map();
     new_map = transition;
-    DescriptorArray new_descriptors = new_map.instance_descriptors();
+    DescriptorArray new_descriptors = new_map.instance_descriptors(isolate);
 
     PropertyDetails new_details = new_descriptors.GetDetails(i);
     DCHECK_EQ(old_details.kind(), new_details.kind());
@@ -1105,19 +859,17 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // Only supports adding slack to owned descriptors.
   DCHECK(map->owns_descriptors());
 
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                      isolate);
   int old_size = map->NumberOfOwnDescriptors();
   if (slack <= descriptors->number_of_slack_descriptors()) return;
 
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
 
-  DisallowHeapAllocation no_allocation;
-  // The descriptors are still the same, so keep the layout descriptor.
-  LayoutDescriptor layout_descriptor = map->GetLayoutDescriptor();
-
+  DisallowGarbageCollection no_gc;
   if (old_size == 0) {
-    map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+    map->UpdateDescriptors(isolate, *new_descriptors,
                            map->NumberOfOwnDescriptors());
     return;
   }
@@ -1133,20 +885,24 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), *map, *descriptors,
-                                   descriptors->number_of_descriptors());
+  WriteBarrier::Marking(*descriptors, descriptors->number_of_descriptors());
 #endif
 
-  Map current = *map;
-  while (current.instance_descriptors() == *descriptors) {
-    Object next = current.GetBackPointer();
-    if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
-    current.UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+  // Update the descriptors from {map} (inclusive) until the initial map
+  // (exclusive). In the case that {map} is the initial map, update it.
+  map->UpdateDescriptors(isolate, *new_descriptors,
+                         map->NumberOfOwnDescriptors());
+  Object next = map->GetBackPointer();
+  if (next.IsUndefined(isolate)) return;
+
+  Map current = Map::cast(next);
+  while (current.instance_descriptors(isolate) == *descriptors) {
+    next = current.GetBackPointer();
+    if (next.IsUndefined(isolate)) break;
+    current.UpdateDescriptors(isolate, *new_descriptors,
                               current.NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
-  map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
-                         map->NumberOfOwnDescriptors());
 }
 
 // static
@@ -1216,7 +972,7 @@ static bool HasElementsKind(MapHandles const& maps,
 
 Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
                                          MapHandles const& candidates) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowDeoptimization no_deoptimization(isolate);
 
   if (IsDetached(isolate)) return Map();
@@ -1309,7 +1065,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
     }
   } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (native_context.GetInitialJSArrayMap(from_kind) == *map) {
       Object maybe_transitioned_map =
           native_context.get(Context::ArrayMapIndex(to_kind));
@@ -1340,7 +1096,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
     return Map::CopyAsElementsKind(isolate, map, to_kind, OMIT_TRANSITION);
   }
 
-  return Map::ReconfigureElementsKind(isolate, map, to_kind);
+  return MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
 }
 
 static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
@@ -1389,7 +1145,7 @@ Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
 
 int Map::NumberOfEnumerableProperties() const {
   int result = 0;
-  DescriptorArray descs = instance_descriptors();
+  DescriptorArray descs = instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
     if ((descs.GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
         !descs.GetKey(i).FilterKey(ENUMERABLE_STRINGS)) {
@@ -1401,7 +1157,7 @@ int Map::NumberOfEnumerableProperties() const {
 
 int Map::NextFreePropertyIndex() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  DescriptorArray descs = instance_descriptors();
+  DescriptorArray descs = instance_descriptors(kRelaxedLoad);
   // Search properties backwards to find the last field.
   for (int i = number_of_own_descriptors - 1; i >= 0; --i) {
     PropertyDetails details = descs.GetDetails(InternalIndex(i));
@@ -1437,8 +1193,9 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
     }
 
     if (IsSlowArgumentsElementsKind(elements_kind)) {
-      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
-      Object arguments = parameter_map.get(isolate, 1);
+      SloppyArgumentsElements elements =
+          SloppyArgumentsElements::cast(current.elements(isolate));
+      Object arguments = elements.arguments();
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }
@@ -1455,8 +1212,8 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
       inobject_properties);
   Handle<HeapObject> prototype(map->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
-  result->set_constructor_or_backpointer(map->GetConstructor());
-  result->set_relaxed_bit_field(map->bit_field());
+  result->set_constructor_or_back_pointer(map->GetConstructor());
+  result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();
   new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);
@@ -1468,6 +1225,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   if (!map->is_dictionary_map()) {
     new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
   }
+  // Same as bit_field comment above.
   result->set_bit_field3(new_bit_field3);
   result->clear_padding();
   return result;
@@ -1532,6 +1290,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                           Map::kSize - offset));
     }
 #endif
+    if (FLAG_log_maps) {
+      LOG(isolate, MapEvent("NormalizeCached", fast_map, new_map, reason));
+    }
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
     new_map->set_elements_kind(new_elements_kind);
@@ -1539,9 +1300,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
-  }
-  if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
+    if (FLAG_log_maps) {
+      LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
+    }
   }
   fast_map->NotifyLeafMapLayoutChange(isolate);
   return new_map;
@@ -1587,27 +1348,25 @@ Handle<Map> Map::TransitionToImmutableProto(Isolate* isolate, Handle<Map> map) {
 namespace {
 void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
 #ifdef DEBUG
-  // Strict function maps have Function as a constructor but the
-  // Function's initial map is a sloppy function map. Same holds for
-  // GeneratorFunction / AsyncFunction and its initial map.
-  Object constructor = map->GetConstructor();
-  DCHECK(constructor.IsJSFunction());
-  DCHECK(*map == JSFunction::cast(constructor).initial_map() ||
+  Object maybe_constructor = map->GetConstructor();
+  DCHECK((maybe_constructor.IsJSFunction() &&
+          *map == JSFunction::cast(maybe_constructor).initial_map()) ||
+         // Below are the exceptions to the check above.
+         // Strict function maps have Function as a constructor but the
+         // Function's initial map is a sloppy function map.
          *map == *isolate->strict_function_map() ||
          *map == *isolate->strict_function_with_name_map() ||
+         // Same holds for GeneratorFunction and its initial map.
          *map == *isolate->generator_function_map() ||
          *map == *isolate->generator_function_with_name_map() ||
-         *map == *isolate->generator_function_with_home_object_map() ||
-         *map == *isolate->generator_function_with_name_and_home_object_map() ||
+         // AsyncFunction has Null as a constructor.
          *map == *isolate->async_function_map() ||
-         *map == *isolate->async_function_with_name_map() ||
-         *map == *isolate->async_function_with_home_object_map() ||
-         *map == *isolate->async_function_with_name_and_home_object_map());
+         *map == *isolate->async_function_with_name_map());
 #endif
   // Initial maps must not contain descriptors in the descriptors array
   // that do not belong to the map.
   DCHECK_EQ(map->NumberOfOwnDescriptors(),
-            map->instance_descriptors().number_of_descriptors());
+            map->instance_descriptors(isolate).number_of_descriptors());
 }
 }  // namespace
 
@@ -1623,10 +1382,6 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
                                 int instance_size, int inobject_properties,
                                 int unused_property_fields) {
   EnsureInitialMap(isolate, map);
-  // Initial map must not contain descriptors in the descriptors array
-  // that do not belong to the map.
-  DCHECK_EQ(map->NumberOfOwnDescriptors(),
-            map->instance_descriptors().number_of_descriptors());
 
   Handle<Map> result =
       RawCopy(isolate, map, instance_size, inobject_properties);
@@ -1637,10 +1392,9 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors > 0) {
     // The copy will use the same descriptors array without ownership.
-    DescriptorArray descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors(isolate);
     result->set_owns_descriptors(false);
-    result->UpdateDescriptors(isolate, descriptors, map->GetLayoutDescriptor(),
-                              number_of_own_descriptors);
+    result->UpdateDescriptors(isolate, descriptors, number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
               result->GetInObjectProperties() - result->UnusedPropertyFields());
@@ -1669,7 +1423,7 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
   // array, implying that its NumberOfOwnDescriptors equals the number of
   // descriptors in the descriptor array.
   DCHECK_EQ(map->NumberOfOwnDescriptors(),
-            map->instance_descriptors().number_of_descriptors());
+            map->instance_descriptors(isolate).number_of_descriptors());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
   Handle<Name> name = descriptor->GetKey();
@@ -1687,20 +1441,14 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
     } else {
       int slack = SlackForArraySize(old_size, kMaxNumberOfDescriptors);
       EnsureDescriptorSlack(isolate, map, slack);
-      descriptors = handle(map->instance_descriptors(), isolate);
+      descriptors = handle(map->instance_descriptors(isolate), isolate);
     }
   }
 
-  Handle<LayoutDescriptor> layout_descriptor =
-      FLAG_unbox_double_fields
-          ? LayoutDescriptor::ShareAppend(isolate, map,
-                                          descriptor->GetDetails())
-          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     descriptors->Append(descriptor);
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors);
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
@@ -1722,29 +1470,31 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
     // |parent| is initial map and it must not contain descriptors in the
     // descriptors array that do not belong to the map.
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
-              parent->instance_descriptors().number_of_descriptors());
+              parent->instance_descriptors(isolate).number_of_descriptors());
   }
   if (parent->IsDetached(isolate)) {
     DCHECK(child->IsDetached(isolate));
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
     }
   } else {
     TransitionsAccessor(isolate, parent).Insert(name, child, flag);
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "", name));
     }
   }
 }
 
-Handle<Map> Map::CopyReplaceDescriptors(
-    Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
-    MaybeHandle<Name> maybe_name, const char* reason,
-    SimpleTransitionFlag simple_flag) {
+Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
+                                        Handle<DescriptorArray> descriptors,
+                                        TransitionFlag flag,
+                                        MaybeHandle<Name> maybe_name,
+                                        const char* reason,
+                                        SimpleTransitionFlag simple_flag) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
+  bool is_connected = false;
 
   // Properly mark the {result} if the {name} is an "interesting symbol".
   Handle<Name> name;
@@ -1753,25 +1503,21 @@ Handle<Map> Map::CopyReplaceDescriptors(
   }
 
   if (map->is_prototype_map()) {
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors);
   } else {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
-      result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+      result->InitializeDescriptors(isolate, *descriptors);
 
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
+      is_connected = true;
     } else {
       descriptors->GeneralizeAllFields();
-      result->InitializeDescriptors(isolate, *descriptors,
-                                    LayoutDescriptor::FastPointerLayout());
+      result->InitializeDescriptors(isolate, *descriptors);
     }
   }
-  if (FLAG_trace_maps &&
-      // Mirror conditions above that did not call ConnectTransition().
-      (map->IsDetached(isolate) ||
-       !(flag == INSERT_TRANSITION &&
-         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
+  if (FLAG_log_maps && !is_connected) {
     LOG(isolate, MapEvent("ReplaceDescriptors", map, result, reason,
                           maybe_name.is_null() ? Handle<HeapObject>() : name));
   }
@@ -1782,10 +1528,8 @@ Handle<Map> Map::CopyReplaceDescriptors(
 // starting from descriptor with index |split_map|.NumberOfOwnDescriptors().
 // The way how it is done is tricky because of GC and special descriptors
 // marking logic.
-Handle<Map> Map::AddMissingTransitions(
-    Isolate* isolate, Handle<Map> split_map,
-    Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> full_layout_descriptor) {
+Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
+                                       Handle<DescriptorArray> descriptors) {
   DCHECK(descriptors->IsSortedNoDuplicates());
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
@@ -1801,8 +1545,7 @@ Handle<Map> Map::AddMissingTransitions(
   // the flag and clear it right before the descriptors are installed. This
   // makes heap verification happy and ensures the flag ends up accurate.
   Handle<Map> last_map = CopyDropDescriptors(isolate, split_map);
-  last_map->InitializeDescriptors(isolate, *descriptors,
-                                  *full_layout_descriptor);
+  last_map->InitializeDescriptors(isolate, *descriptors);
   last_map->SetInObjectUnusedPropertyFields(0);
   last_map->set_may_have_interesting_symbols(true);
 
@@ -1814,15 +1557,14 @@ Handle<Map> Map::AddMissingTransitions(
   Handle<Map> map = split_map;
   for (InternalIndex i : InternalIndex::Range(split_nof, nof_descriptors - 1)) {
     Handle<Map> new_map = CopyDropDescriptors(isolate, map);
-    InstallDescriptors(isolate, map, new_map, i, descriptors,
-                       full_layout_descriptor);
+    InstallDescriptors(isolate, map, new_map, i, descriptors);
 
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange(isolate);
   last_map->set_may_have_interesting_symbols(false);
   InstallDescriptors(isolate, map, last_map, InternalIndex(nof_descriptors - 1),
-                     descriptors, full_layout_descriptor);
+                     descriptors);
   return last_map;
 }
 
@@ -1830,8 +1572,7 @@ Handle<Map> Map::AddMissingTransitions(
 // always insert transitions without checking.
 void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<Map> child, InternalIndex new_descriptor,
-                             Handle<DescriptorArray> descriptors,
-                             Handle<LayoutDescriptor> full_layout_descriptor) {
+                             Handle<DescriptorArray> descriptors) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   child->SetInstanceDescriptors(isolate, *descriptors,
@@ -1840,22 +1581,6 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
   if (details.location() == kField) {
     child->AccountAddedPropertyField();
-  }
-
-  if (FLAG_unbox_double_fields) {
-    Handle<LayoutDescriptor> layout_descriptor =
-        LayoutDescriptor::AppendIfFastOrUseFull(isolate, parent, details,
-                                                full_layout_descriptor);
-    child->set_layout_descriptor(*layout_descriptor);
-#ifdef VERIFY_HEAP
-    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
-    if (FLAG_verify_heap) {
-      CHECK(child->layout_descriptor().IsConsistentWithMap(*child));
-    }
-#else
-    SLOW_DCHECK(child->layout_descriptor().IsConsistentWithMap(*child));
-#endif
-    child->set_visitor_id(Map::GetVisitorId(*child));
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor), isolate);
@@ -1912,7 +1637,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
 
 Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
                                 Handle<SharedFunctionInfo> shared_info) {
-  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
+  DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
   // Initial map for sloppy mode function is stored in the function
   // constructor. Initial maps for strict mode are cached as special transitions
   // using |strict_function_transition_symbol| as a key.
@@ -1959,33 +1684,29 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
     // transfer ownership to the new map.
     // The properties did not change, so reuse descriptors.
     map->set_owns_descriptors(false);
-    new_map->InitializeDescriptors(isolate, map->instance_descriptors(),
-                                   map->GetLayoutDescriptor());
+    new_map->InitializeDescriptors(isolate, map->instance_descriptors(isolate));
   } else {
     // In case the map did not own its own descriptors, a split is forced by
     // copying the map; creating a new descriptor array cell.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+    Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                        isolate);
     int number_of_own_descriptors = map->NumberOfOwnDescriptors();
     Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
         isolate, descriptors, number_of_own_descriptors);
-    Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                   isolate);
-    new_map->InitializeDescriptors(isolate, *new_descriptors,
-                                   *new_layout_descriptor);
+    new_map->InitializeDescriptors(isolate, *new_descriptors);
   }
   return new_map;
 }
 
 Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                      isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, number_of_own_descriptors);
-  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                 isolate);
-  return CopyReplaceDescriptors(
-      isolate, map, new_descriptors, new_layout_descriptor, OMIT_TRANSITION,
-      MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
+                                MaybeHandle<Name>(), reason,
+                                SPECIAL_TRANSITION);
 }
 
 Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
@@ -2018,16 +1739,14 @@ Handle<Map> Map::CopyForPreventExtensions(
     bool old_map_is_dictionary_elements_kind) {
   int num_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
-      isolate, handle(map->instance_descriptors(), isolate), num_descriptors,
-      attrs_to_add);
-  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                 isolate);
+      isolate, handle(map->instance_descriptors(isolate), isolate),
+      num_descriptors, attrs_to_add);
   // Do not track transitions during bootstrapping.
   TransitionFlag flag =
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
-  Handle<Map> new_map = CopyReplaceDescriptors(
-      isolate, map, new_desc, new_layout_descriptor, flag, transition_marker,
-      reason, SPECIAL_TRANSITION);
+  Handle<Map> new_map =
+      CopyReplaceDescriptors(isolate, map, new_desc, flag, transition_marker,
+                             reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
   if (!IsTypedArrayElementsKind(map->elements_kind())) {
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
@@ -2115,13 +1834,13 @@ Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
                                      InternalIndex descriptor,
                                      PropertyConstness constness,
                                      Handle<Object> value) {
-  if (CanHoldValue(map->instance_descriptors(), descriptor, constness,
+  if (CanHoldValue(map->instance_descriptors(isolate), descriptor, constness,
                    *value)) {
     return map;
   }
 
   PropertyAttributes attributes =
-      map->instance_descriptors().GetDetails(descriptor).attributes();
+      map->instance_descriptors(isolate).GetDetails(descriptor).attributes();
   Representation representation = value->OptimalRepresentation(isolate);
   Handle<FieldType> type = value->OptimalType(isolate, representation);
 
@@ -2150,11 +1869,10 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
                                           StoreOrigin store_origin) {
-  RuntimeCallTimerScope stats_scope(
-      isolate,
-      map->IsDetached(isolate)
-          ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
-          : RuntimeCallCounterId::kMap_TransitionToDataProperty);
+  RCS_SCOPE(isolate,
+            map->IsDetached(isolate)
+                ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
+                : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -2168,9 +1886,9 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     Handle<Map> transition(maybe_transition, isolate);
     InternalIndex descriptor = transition->LastAdded();
 
-    DCHECK_EQ(
-        attributes,
-        transition->instance_descriptors().GetDetails(descriptor).attributes());
+    DCHECK_EQ(attributes, transition->instance_descriptors(isolate)
+                              .GetDetails(descriptor)
+                              .attributes());
 
     return UpdateDescriptorForValue(isolate, transition, descriptor, constness,
                                     value);
@@ -2192,7 +1910,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
     std::unique_ptr<ScopedVector<char>> buffer;
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
       buffer.reset(new ScopedVector<char>(128));
@@ -2213,7 +1931,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                               reason);
       initial_map->DeprecateTransitionTree(isolate);
       Handle<HeapObject> prototype(result->prototype(), isolate);
-      JSFunction::SetInitialMap(constructor, result, prototype);
+      JSFunction::SetInitialMap(isolate, constructor, result, prototype);
 
       // Deoptimize all code that embeds the previous initial map.
       initial_map->dependent_code().DeoptimizeDependentCodeGroup(
@@ -2231,40 +1949,13 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   return result;
 }
 
-Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
-                                             InternalIndex descriptor,
-                                             PropertyKind kind,
-                                             PropertyAttributes attributes,
-                                             PropertyConstness constness) {
-  // Dictionaries have to be reconfigured in-place.
-  DCHECK(!map->is_dictionary_map());
-
-  if (!map->GetBackPointer().IsMap()) {
-    // There is no benefit from reconstructing transition tree for maps without
-    // back pointers, normalize and try to hit the map cache instead.
-    return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,
-                          "Normalize_AttributesMismatchProtoMap");
-  }
-
-  if (FLAG_trace_generalization) {
-    map->PrintReconfiguration(isolate, stdout, descriptor, kind, attributes);
-  }
-
-  MapUpdater mu(isolate, map);
-  DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
-  Handle<Map> new_map = mu.ReconfigureToDataField(
-      descriptor, attributes, constness, Representation::None(),
-      FieldType::None(isolate));
-  return new_map;
-}
-
 Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name,
                                               InternalIndex descriptor,
                                               Handle<Object> getter,
                                               Handle<Object> setter,
                                               PropertyAttributes attributes) {
-  RuntimeCallTimerScope stats_scope(
+  RCS_SCOPE(
       isolate,
       map->IsDetached(isolate)
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToAccessorProperty
@@ -2288,7 +1979,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                              .SearchTransition(*name, kAccessor, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
-    DescriptorArray descriptors = transition->instance_descriptors();
+    DescriptorArray descriptors = transition->instance_descriptors(isolate);
     InternalIndex descriptor = transition->LastAdded();
     DCHECK(descriptors.GetKey(descriptor).Equals(*name));
 
@@ -2311,7 +2002,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   }
 
   Handle<AccessorPair> pair;
-  DescriptorArray old_descriptors = map->instance_descriptors();
+  DescriptorArray old_descriptors = map->instance_descriptors(isolate);
   if (descriptor.is_found()) {
     if (descriptor != map->LastAdded()) {
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
@@ -2372,7 +2063,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
 Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                    Descriptor* descriptor,
                                    TransitionFlag flag) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                      isolate);
 
   // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
@@ -2386,20 +2078,16 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
-  Handle<LayoutDescriptor> new_layout_descriptor =
-      FLAG_unbox_double_fields
-          ? LayoutDescriptor::New(isolate, map, new_descriptors, nof + 1)
-          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-
-  return CopyReplaceDescriptors(
-      isolate, map, new_descriptors, new_layout_descriptor, flag,
-      descriptor->GetKey(), "CopyAddDescriptor", SIMPLE_PROPERTY_TRANSITION);
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag,
+                                descriptor->GetKey(), "CopyAddDescriptor",
+                                SIMPLE_PROPERTY_TRANSITION);
 }
 
 Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
                                       Descriptor* descriptor,
                                       TransitionFlag flag) {
-  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(isolate),
+                                          isolate);
 
   // We replace the key if it is already present.
   InternalIndex index =
@@ -2427,33 +2115,27 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
       isolate, descriptors, map->NumberOfOwnDescriptors());
 
   new_descriptors->Replace(insertion_index, descriptor);
-  Handle<LayoutDescriptor> new_layout_descriptor = LayoutDescriptor::New(
-      isolate, map, new_descriptors, new_descriptors->number_of_descriptors());
 
   SimpleTransitionFlag simple_flag =
       (insertion_index.as_int() == descriptors->number_of_descriptors() - 1)
           ? SIMPLE_PROPERTY_TRANSITION
           : PROPERTY_TRANSITION;
-  return CopyReplaceDescriptors(isolate, map, new_descriptors,
-                                new_layout_descriptor, flag, key,
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag, key,
                                 "CopyReplaceDescriptor", simple_flag);
 }
 
 int Map::Hash() {
-  // For performance reasons we only hash the 3 most variable fields of a map:
-  // constructor, prototype and bit_field2. For predictability reasons we
-  // use objects' offsets in respective pages for hashing instead of raw
-  // addresses.
+  // For performance reasons we only hash the 2 most variable fields of a map:
+  // prototype map and bit_field2. For predictability reasons  we use objects'
+  // offsets in respective pages for hashing instead of raw addresses. We use
+  // the map of  the prototype because the prototype itself could be compacted,
+  // whereas the map will not be moved.
+  // NOTE: If we want to compact maps, this hash function won't work as intended
+  // anymore.
 
   // Shift away the tag.
-  int hash = ObjectAddressForHashing(GetConstructor().ptr()) >> 2;
-
-  // XOR-ing the prototype and constructor directly yields too many zero bits
-  // when the two pointers are close (which is fairly common).
-  // To avoid this we shift the prototype bits relatively to the constructor.
-  hash ^= ObjectAddressForHashing(prototype().ptr()) << (32 - kPageSizeBits);
-
-  return hash ^ (hash >> 16) ^ bit_field2();
+  int hash = ObjectAddressForHashing(prototype().map().ptr()) >> 2;
+  return hash ^ bit_field2();
 }
 
 namespace {
@@ -2476,10 +2158,11 @@ bool Map::EquivalentToForTransition(const Map other) const {
   if (bit_field() != other.bit_field()) return false;
   if (new_target_is_base() != other.new_target_is_base()) return false;
   if (prototype() != other.prototype()) return false;
-  if (instance_type() == JS_FUNCTION_TYPE) {
+  if (InstanceTypeChecker::IsJSFunction(instance_type())) {
     // JSFunctions require more checks to ensure that sloppy function is
     // not equivalent to strict function.
-    int nof = Min(NumberOfOwnDescriptors(), other.NumberOfOwnDescriptors());
+    int nof =
+        std::min(NumberOfOwnDescriptors(), other.NumberOfOwnDescriptors());
     return instance_descriptors().IsEqualUpTo(other.instance_descriptors(),
                                               nof);
   }
@@ -2521,63 +2204,48 @@ bool Map::EquivalentToForNormalization(const Map other,
              JSObject::GetEmbedderFieldCount(other);
 }
 
-static void GetMinInobjectSlack(Map map, void* data) {
-  int slack = map.UnusedPropertyFields();
-  if (*reinterpret_cast<int*>(data) > slack) {
-    *reinterpret_cast<int*>(data) = slack;
-  }
-}
-
 int Map::ComputeMinObjectSlack(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Has to be an initial map.
   DCHECK(GetBackPointer().IsUndefined(isolate));
 
   int slack = UnusedPropertyFields();
   TransitionsAccessor transitions(isolate, *this, &no_gc);
-  transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  TransitionsAccessor::TraverseCallback callback = [&](Map map) {
+    slack = std::min(slack, map.UnusedPropertyFields());
+  };
+  transitions.TraverseTransitionTree(callback);
   return slack;
 }
 
-static void ShrinkInstanceSize(Map map, void* data) {
-  int slack = *reinterpret_cast<int*>(data);
-  DCHECK_GE(slack, 0);
-#ifdef DEBUG
-  int old_visitor_id = Map::GetVisitorId(map);
-  int new_unused = map.UnusedPropertyFields() - slack;
-#endif
-  map.set_instance_size(map.InstanceSizeFromSlack(slack));
-  map.set_construction_counter(Map::kNoSlackTracking);
-  DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
-  DCHECK_EQ(new_unused, map.UnusedPropertyFields());
-}
-
-static void StopSlackTracking(Map map, void* data) {
-  map.set_construction_counter(Map::kNoSlackTracking);
-}
-
 void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Has to be an initial map.
   DCHECK(GetBackPointer().IsUndefined(isolate));
 
   int slack = ComputeMinObjectSlack(isolate);
   TransitionsAccessor transitions(isolate, *this, &no_gc);
+  TransitionsAccessor::TraverseCallback callback;
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
-    transitions.TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+    callback = [&](Map map) {
+      MapUpdater::ShrinkInstanceSize(isolate->map_updater_access(), map, slack);
+    };
   } else {
-    transitions.TraverseTransitionTree(&StopSlackTracking, nullptr);
+    callback = [](Map map) {
+      // Stop slack tracking for this map.
+      map.set_construction_counter(Map::kNoSlackTracking);
+    };
   }
+  transitions.TraverseTransitionTree(callback);
 }
 
 void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                  int number_of_own_descriptors) {
-  set_synchronized_instance_descriptors(descriptors);
+  set_instance_descriptors(descriptors, kReleaseStore);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
-                                   number_of_own_descriptors);
+  WriteBarrier::Marking(descriptors, number_of_own_descriptors);
 #endif
 }
 
@@ -2667,8 +2335,7 @@ bool Map::IsPrototypeChainInvalidated(Map map) {
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        Handle<HeapObject> prototype,
                        bool enable_prototype_setup_mode) {
-  RuntimeCallTimerScope stats_scope(isolate,
-                                    RuntimeCallCounterId::kMap_SetPrototype);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
@@ -2710,7 +2377,7 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
 MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          ElementsKind elements_kind,
                                          PropertyNormalizationMode mode) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
   HeapObject heap_object;
   if (!value->GetHeapObjectIfWeak(&heap_object)) {
@@ -2726,7 +2393,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
 }
 
 void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(normalized_map->is_dictionary_map());
   WeakFixedArray::Set(GetIndex(fast_map),
                       HeapObjectReference::Weak(*normalized_map));

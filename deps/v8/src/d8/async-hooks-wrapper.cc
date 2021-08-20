@@ -47,12 +47,11 @@ static AsyncHooksWrap* UnwrapHook(
   AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
 
   if (!hooks->async_hook_ctor.Get(isolate)->HasInstance(hook)) {
-    isolate->ThrowException(String::NewFromUtf8Literal(
-        isolate, "Invalid 'this' passed instead of AsyncHooks instance"));
+    isolate->ThrowError("Invalid 'this' passed instead of AsyncHooks instance");
     return nullptr;
   }
 
-  Local<External> wrap = Local<External>::Cast(hook->GetInternalField(0));
+  Local<External> wrap = hook->GetInternalField(0).As<External>();
   void* ptr = wrap->Value();
   return static_cast<AsyncHooksWrap*>(ptr);
 }
@@ -87,8 +86,7 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Context> currentContext = isolate->GetCurrentContext();
 
   if (args.Length() != 1 || !args[0]->IsObject()) {
-    isolate->ThrowException(String::NewFromUtf8Literal(
-        isolate, "Invalid arguments passed to createHook"));
+    isolate->ThrowError("Invalid arguments passed to createHook");
     return Local<Object>();
   }
 
@@ -128,6 +126,7 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   HandleScope handle_scope(hooks->isolate_);
 
   Local<Context> currentContext = hooks->isolate_->GetCurrentContext();
+  DCHECK(!currentContext.IsEmpty());
 
   if (type == PromiseHookType::kInit) {
     ++hooks->current_async_id;
@@ -195,11 +194,9 @@ void AsyncHooks::Initialize() {
                           async_hook_ctor.Get(isolate_)->InstanceTemplate());
   async_hooks_templ.Get(isolate_)->SetInternalFieldCount(1);
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8Literal(isolate_, "enable"),
-      FunctionTemplate::New(isolate_, EnableHook));
+      isolate_, "enable", FunctionTemplate::New(isolate_, EnableHook));
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8Literal(isolate_, "disable"),
-      FunctionTemplate::New(isolate_, DisableHook));
+      isolate_, "disable", FunctionTemplate::New(isolate_, DisableHook));
 
   async_id_smb.Reset(isolate_, Private::New(isolate_));
   trigger_id_smb.Reset(isolate_, Private::New(isolate_));

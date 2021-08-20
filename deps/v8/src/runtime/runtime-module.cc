@@ -14,9 +14,16 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_LE(2, args.length());
+  DCHECK_GE(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, specifier, 1);
+
+  MaybeHandle<Object> import_assertions;
+  if (args.length() == 3) {
+    CHECK(args[2].IsObject());
+    import_assertions = args.at<Object>(2);
+  }
 
   Handle<Script> script(Script::cast(function->shared().script()), isolate);
 
@@ -24,9 +31,9 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
     script = handle(Script::cast(script->eval_from_shared().script()), isolate);
   }
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      isolate->RunHostImportModuleDynamicallyCallback(script, specifier));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           isolate->RunHostImportModuleDynamicallyCallback(
+                               script, specifier, import_assertions));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
@@ -41,7 +48,8 @@ RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   Handle<SourceTextModule> module(isolate->context().module(), isolate);
-  return *SourceTextModule::GetImportMeta(isolate, module);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           SourceTextModule::GetImportMeta(isolate, module));
 }
 
 }  // namespace internal

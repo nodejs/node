@@ -209,6 +209,10 @@ defineCustomElement('global-timeline', (templateText) =>
   }
 
   drawChart() {
+    setTimeout(() => this._drawChart(), 10);
+  }
+
+  _drawChart() {
     console.assert(this.data, 'invalid data');
     console.assert(this.selection, 'invalid selection');
 

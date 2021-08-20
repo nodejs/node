@@ -7,8 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OPENSSL_NO_QUIC
-
 #include "ssl_local.h"
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
@@ -37,8 +35,45 @@ void SSL_get_peer_quic_transport_params(const SSL *ssl,
                                         const uint8_t **out_params,
                                         size_t *out_params_len)
 {
-    *out_params = ssl->ext.peer_quic_transport_params;
-    *out_params_len = ssl->ext.peer_quic_transport_params_len;
+    if (ssl->ext.peer_quic_transport_params_len) {
+        *out_params = ssl->ext.peer_quic_transport_params;
+        *out_params_len = ssl->ext.peer_quic_transport_params_len;
+    } else {
+        *out_params = ssl->ext.peer_quic_transport_params_draft;
+        *out_params_len = ssl->ext.peer_quic_transport_params_draft_len;
+    }
+}
+
+/* Returns the negotiated version, or -1 on error */
+int SSL_get_peer_quic_transport_version(const SSL *ssl)
+{
+    if (ssl->ext.peer_quic_transport_params_len != 0
+            && ssl->ext.peer_quic_transport_params_draft_len != 0)
+        return -1;
+    if (ssl->ext.peer_quic_transport_params_len != 0)
+        return TLSEXT_TYPE_quic_transport_parameters;
+    if (ssl->ext.peer_quic_transport_params_draft_len != 0)
+        return TLSEXT_TYPE_quic_transport_parameters_draft;
+
+    return -1;
+}
+
+void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy)
+{
+    if (use_legacy)
+        ssl->quic_transport_version = TLSEXT_TYPE_quic_transport_parameters_draft;
+    else
+        ssl->quic_transport_version = TLSEXT_TYPE_quic_transport_parameters;
+}
+
+void SSL_set_quic_transport_version(SSL *ssl, int version)
+{
+    ssl->quic_transport_version = version;
+}
+
+int SSL_get_quic_transport_version(const SSL *ssl)
+{
+    return ssl->quic_transport_version;
 }
 
 size_t SSL_quic_max_handshake_flight_len(const SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
@@ -93,9 +128,7 @@ OSSL_ENCRYPTION_LEVEL SSL_quic_write_level(const SSL *ssl)
 int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
                           const uint8_t *data, size_t len)
 {
-    size_t l;
-    uint8_t mt;
-    QUIC_DATA *qd;
+    size_t l, offset;
 
     if (!SSL_IS_QUIC(ssl)) {
         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -104,112 +137,80 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 
     /* Level can be different than the current read, but not less */
     if (level < ssl->quic_read_level
-            || (ssl->quic_input_data_tail != NULL && level < ssl->quic_input_data_tail->level)) {
+            || (ssl->quic_input_data_tail != NULL && level < ssl->quic_input_data_tail->level)
+            || level < ssl->quic_latest_level_received) {
         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
         return 0;
     }
 
-    if (len == 0) {
-      return 1;
-    }
+    if (len == 0)
+        return 1;
 
-    /* Check for an incomplete block */
-    qd = ssl->quic_input_data_tail;
-    if (qd != NULL) {
-        l = qd->length - qd->offset;
-        if (l != 0) {
-            /* we still need to copy `l` bytes into the last data block */
-            if (l > len)
-                l = len;
-            memcpy((char *)(qd + 1) + qd->offset, data, l);
-            qd->offset += l;
-            len -= l;
-            data += l;
-        }
-    }
-
-    /* Split the QUIC messages up, if necessary */
-    while (len > 0) {
-        const uint8_t *p;
-        uint8_t *dst;
-
-        if (ssl->quic_msg_hd_offset != 0) {
-            /* If we have already buffered premature message header,
-               try to add new data to it to form complete message
-               header. */
-            size_t nread =
-                SSL3_HM_HEADER_LENGTH - ssl->quic_msg_hd_offset;
-
-            if (len < nread)
-                nread = len;
-            memcpy(ssl->quic_msg_hd + ssl->quic_msg_hd_offset, data, nread);
-            ssl->quic_msg_hd_offset += nread;
-
-            if (ssl->quic_msg_hd_offset < SSL3_HM_HEADER_LENGTH) {
-                /* We still have premature message header. */
-                break;
-            }
-            data += nread;
-            len -= nread;
-            /* TLS Handshake message header has 1-byte type and 3-byte length */
-            mt = *ssl->quic_msg_hd;
-            p = ssl->quic_msg_hd + 1;
-            n2l3(p, l);
-        } else if (len < SSL3_HM_HEADER_LENGTH) {
-            /* We don't get complete message header.  Just buffer the
-               received data and wait for the next data to arrive. */
-            memcpy(ssl->quic_msg_hd, data, len);
-            ssl->quic_msg_hd_offset += len;
-            break;
-        } else {
-            /* We have complete message header in data. */
-            /* TLS Handshake message header has 1-byte type and 3-byte length */
-            mt = *data;
-            p = data + 1;
-            n2l3(p, l);
-        }
-        l += SSL3_HM_HEADER_LENGTH;
-        if (mt == SSL3_MT_KEY_UPDATE) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
+    if (ssl->quic_buf == NULL) {
+        BUF_MEM *buf;
+        if ((buf = BUF_MEM_new()) == NULL) {
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
             return 0;
         }
+        if (!BUF_MEM_grow(buf, SSL3_RT_MAX_PLAIN_LENGTH)) {
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+            BUF_MEM_free(buf);
+            return 0;
+        }
+        ssl->quic_buf = buf;
+        /* We preallocated storage, but there's still no *data*. */
+        ssl->quic_buf->length = 0;
+        buf = NULL;
+    }
 
-        qd = OPENSSL_zalloc(sizeof(QUIC_DATA) + l);
+    /* A TLS message must not cross an encryption level boundary */
+    if (ssl->quic_buf->length != ssl->quic_next_record_start
+            && level != ssl->quic_latest_level_received) {
+        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA,
+               SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
+        return 0;
+    }
+    ssl->quic_latest_level_received = level;
+
+    offset = ssl->quic_buf->length;
+    if (!BUF_MEM_grow(ssl->quic_buf, offset + len)) {
+        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+    memcpy(ssl->quic_buf->data + offset, data, len);
+
+    /* Split on handshake message boundaries */
+    while (ssl->quic_buf->length > ssl->quic_next_record_start
+                                   + SSL3_HM_HEADER_LENGTH) {
+        QUIC_DATA *qd;
+        const uint8_t *p;
+
+        /* TLS Handshake message header has 1-byte type and 3-byte length */
+        p = (const uint8_t *)ssl->quic_buf->data
+            + ssl->quic_next_record_start + 1;
+        n2l3(p, l);
+        l += SSL3_HM_HEADER_LENGTH;
+        /* Don't allocate a QUIC_DATA if we don't have a full record */
+        if (l > ssl->quic_buf->length - ssl->quic_next_record_start)
+            break;
+
+        qd = OPENSSL_zalloc(sizeof(*qd));
         if (qd == NULL) {
-            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_INTERNAL_ERROR);
             return 0;
         }
 
         qd->next = NULL;
         qd->length = l;
+        qd->start = ssl->quic_next_record_start;
         qd->level = level;
 
-        dst = (uint8_t *)(qd + 1);
-        if (ssl->quic_msg_hd_offset) {
-            memcpy(dst, ssl->quic_msg_hd, ssl->quic_msg_hd_offset);
-            dst += ssl->quic_msg_hd_offset;
-            l -= SSL3_HM_HEADER_LENGTH;
-            if (l > len)
-                l = len;
-            qd->offset = SSL3_HM_HEADER_LENGTH + l;
-            memcpy(dst, data, l);
-        } else {
-            /* partial data received? */
-            if (l > len)
-                l = len;
-            qd->offset = l;
-            memcpy(dst, data, l);
-        }
         if (ssl->quic_input_data_tail != NULL)
             ssl->quic_input_data_tail->next = qd;
         else
             ssl->quic_input_data_head = qd;
         ssl->quic_input_data_tail = qd;
-
-        data += l;
-        len -= l;
-
-        ssl->quic_msg_hd_offset = 0;
+        ssl->quic_next_record_start += l;
     }
 
     return 1;
@@ -260,24 +261,49 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
         return 1;
     }
 
-    md = ssl_handshake_md(ssl);
-    if (md == NULL) {
-        /* May not have selected cipher, yet */
-        const SSL_CIPHER *c = NULL;
-
-        /*
-         * It probably doesn't make sense to use an (external) PSK session,
-         * but in theory some kinds of external session caches could be
-         * implemented using it, so allow psksession to be used as well as
-         * the regular session.
-         */
-        if (ssl->session != NULL)
-            c = SSL_SESSION_get0_cipher(ssl->session);
-        else if (ssl->psksession != NULL)
+    if (level == ssl_encryption_early_data) {
+        const SSL_CIPHER *c = SSL_SESSION_get0_cipher(ssl->session);
+        if (ssl->early_data_state == SSL_EARLY_DATA_CONNECTING
+                && ssl->max_early_data > 0
+                && ssl->session->ext.max_early_data == 0) {
+            if (!ossl_assert(ssl->psksession != NULL
+                             && ssl->max_early_data
+                                    == ssl->psksession->ext.max_early_data)) {
+                SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
+                         SSL_F_QUIC_SET_ENCRYPTION_SECRETS,
+                         ERR_R_INTERNAL_ERROR);
+                return 0;
+            }
             c = SSL_SESSION_get0_cipher(ssl->psksession);
+        }
 
-        if (c != NULL)
-            md = SSL_CIPHER_get_handshake_digest(c);
+        if (c == NULL) {
+            SSLfatal(ssl, SSL_AD_INTERNAL_ERROR,
+                     SSL_F_QUIC_SET_ENCRYPTION_SECRETS, ERR_R_INTERNAL_ERROR);
+            return 0;
+        }
+
+        md = ssl_md(c->algorithm2);
+    } else {
+        md = ssl_handshake_md(ssl);
+        if (md == NULL) {
+            /* May not have selected cipher, yet */
+            const SSL_CIPHER *c = NULL;
+
+            /*
+             * It probably doesn't make sense to use an (external) PSK session,
+             * but in theory some kinds of external session caches could be
+             * implemented using it, so allow psksession to be used as well as
+             * the regular session.
+             */
+            if (ssl->session != NULL)
+                c = SSL_SESSION_get0_cipher(ssl->session);
+            else if (ssl->psksession != NULL)
+                c = SSL_SESSION_get0_cipher(ssl->psksession);
+
+            if (c != NULL)
+                md = SSL_CIPHER_get_handshake_digest(c);
+        }
     }
 
     if ((len = EVP_MD_size(md)) <= 0) {
@@ -314,17 +340,20 @@ int SSL_process_quic_post_handshake(SSL *ssl)
         return 0;
     }
 
-    /*
-     * This is always safe (we are sure to be at a record boundary) because
-     * SSL_read()/SSL_write() are never used for QUIC connections -- the
-     * application data is handled at the QUIC layer instead.
-     */
-    ossl_statem_set_in_init(ssl, 1);
-    ret = ssl->handshake_func(ssl);
-    ossl_statem_set_in_init(ssl, 0);
+    /* if there is no data, return success as BoringSSL */
+    while (ssl->quic_input_data_head != NULL) {
+        /*
+         * This is always safe (we are sure to be at a record boundary) because
+         * SSL_read()/SSL_write() are never used for QUIC connections -- the
+         * application data is handled at the QUIC layer instead.
+         */
+        ossl_statem_set_in_init(ssl, 1);
+        ret = ssl->handshake_func(ssl);
+        ossl_statem_set_in_init(ssl, 0);
 
-    if (ret <= 0)
-        return 0;
+        if (ret <= 0)
+            return 0;
+    }
     return 1;
 }
 
@@ -333,4 +362,24 @@ int SSL_is_quic(SSL* ssl)
     return SSL_IS_QUIC(ssl);
 }
 
-#endif  // OPENSSL_NO_QUIC
+void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled)
+{
+    if (!SSL_is_quic(ssl) || !SSL_in_before(ssl))
+        return;
+
+    if (!enabled) {
+      ssl->early_data_state = SSL_EARLY_DATA_NONE;
+      return;
+    }
+
+    if (ssl->server) {
+        ssl->early_data_state = SSL_EARLY_DATA_ACCEPTING;
+        return;
+    }
+
+    if ((ssl->session == NULL || ssl->session->ext.max_early_data == 0)
+            && ssl->psk_use_session_cb == NULL)
+        return;
+
+    ssl->early_data_state = SSL_EARLY_DATA_CONNECTING;
+}

@@ -21,16 +21,14 @@ const { inspect } = require('util');
   assert.strictEqual(writable._writableState.highWaterMark, ovfl);
 
   for (const invalidHwm of [true, false, '5', {}, -5, NaN]) {
-    const expected = typeof invalidHwm === 'string' ?
-      invalidHwm : inspect(invalidHwm);
     for (const type of [stream.Readable, stream.Writable]) {
       assert.throws(() => {
         type({ highWaterMark: invalidHwm });
       }, {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message:
-          `The value "${expected}" is invalid for option "highWaterMark"`
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.highWaterMark' is invalid. " +
+          `Received ${inspect(invalidHwm)}`
       });
     }
   }
@@ -58,4 +56,17 @@ const { inspect } = require('util');
 
   readable._read = common.mustCall();
   readable.read(0);
+}
+
+{
+  // Parse size as decimal integer
+  ['1', '1.0', 1].forEach((size) => {
+    const readable = new stream.Readable({
+      read: common.mustCall(),
+      highWaterMark: 0,
+    });
+    readable.read(size);
+
+    assert.strictEqual(readable._readableState.highWaterMark, Number(size));
+  });
 }

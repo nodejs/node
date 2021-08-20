@@ -324,12 +324,17 @@ void PerIsolatePlatformData::DecreaseHandleCount() {
 }
 
 NodePlatform::NodePlatform(int thread_pool_size,
-                           v8::TracingController* tracing_controller) {
+                           v8::TracingController* tracing_controller,
+                           v8::PageAllocator* page_allocator) {
   if (tracing_controller != nullptr) {
     tracing_controller_ = tracing_controller;
   } else {
     tracing_controller_ = new v8::TracingController();
   }
+
+  // V8 will default to its built in allocator if none is provided.
+  page_allocator_ = page_allocator;
+
   // TODO(addaleax): It's a bit icky that we use global state here, but we can't
   // really do anything about it unless V8 starts exposing a way to access the
   // current v8::Platform instance.
@@ -409,6 +414,9 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
                                    InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
+    // The task is moved out of InternalCallbackScope if env is not available.
+    // This is a required else block, and should not be removed.
+    // See comment: https://github.com/nodejs/node/pull/34688#pullrequestreview-463867489
     task->Run();
   }
 }
@@ -510,6 +518,12 @@ bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return per_isolate->FlushForegroundTasksInternal();
 }
 
+std::unique_ptr<v8::JobHandle> NodePlatform::PostJob(v8::TaskPriority priority,
+                                       std::unique_ptr<v8::JobTask> job_task) {
+  return v8::platform::NewDefaultJobHandle(
+      this, priority, std::move(job_task), NumberOfWorkerThreads());
+}
+
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {
   return ForIsolate(isolate)->IdleTasksEnabled();
 }
@@ -539,6 +553,10 @@ Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
     DumpBacktrace(stderr);
     fflush(stderr);
   };
+}
+
+v8::PageAllocator* NodePlatform::GetPageAllocator() {
+  return page_allocator_;
 }
 
 template <class T>

@@ -18,12 +18,12 @@ kExprEnd,   // @3
             ]);
   // Generate function 2 (out of 2).
   builder.addFunction(undefined, 1 /* sig */)
-    .addLocals({f64_count: 8})
+    .addLocals(kWasmF64, 8)
     .addBodyWithEnd([
 // signature: d_v
 // body:
 kExprBlock, kWasmF64,   // @3 f64
-  kExprBlock, kWasmStmt,   // @5
+  kExprBlock, kWasmVoid,   // @5
     kExprF64Const, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
     kExprLocalTee, 0x00,
     kExprLocalTee, 0x01,

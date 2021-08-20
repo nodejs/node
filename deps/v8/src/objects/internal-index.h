@@ -40,17 +40,19 @@ class InternalIndex {
     return static_cast<uint32_t>(entry_);
   }
   constexpr int as_int() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_LE(entry_, std::numeric_limits<int>::max());
-#endif
+    DCHECK_GE(std::numeric_limits<int>::max(), entry_);
     return static_cast<int>(entry_);
   }
 
-  bool operator==(const InternalIndex& other) { return entry_ == other.entry_; }
+  bool operator==(const InternalIndex& other) const {
+    return entry_ == other.entry_;
+  }
 
   // Iteration support.
   InternalIndex operator*() { return *this; }
-  bool operator!=(const InternalIndex& other) { return entry_ != other.entry_; }
+  bool operator!=(const InternalIndex& other) const {
+    return entry_ != other.entry_;
+  }
   InternalIndex& operator++() {
     entry_++;
     return *this;

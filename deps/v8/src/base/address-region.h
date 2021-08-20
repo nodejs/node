@@ -25,9 +25,9 @@ class AddressRegion {
 
   using Address = uintptr_t;
 
-  AddressRegion() = default;
+  constexpr AddressRegion() = default;
 
-  AddressRegion(Address address, size_t size)
+  constexpr AddressRegion(Address address, size_t size)
       : address_(address), size_(size) {}
 
   Address begin() const { return address_; }

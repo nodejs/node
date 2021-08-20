@@ -6,6 +6,20 @@
 
 namespace regexp {
 
+extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForMatch(
+    implicit context: Context)(HeapObject): never labels IsFast,
+    IsSlow;
+macro IsFastRegExpForMatch(implicit context: Context)(o: HeapObject): bool {
+  BranchIfFastRegExpForMatch(o) otherwise return true, return false;
+}
+
+extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForSearch(
+    implicit context: Context)(HeapObject): never labels IsFast,
+    IsSlow;
+macro IsFastRegExpForSearch(implicit context: Context)(o: HeapObject): bool {
+  BranchIfFastRegExpForSearch(o) otherwise return true, return false;
+}
+
 extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
     implicit context: Context)(HeapObject): never labels IsFast,
     IsSlow;
@@ -51,8 +65,8 @@ transitioning macro RegExpExec(implicit context: Context)(
 }
 
 extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-    implicit context: Context)(
-    JSRegExp, RegExpMatchInfo, String, Number): JSRegExpResult;
+    implicit context: Context)(JSRegExp, RegExpMatchInfo, String, Number):
+    JSRegExpResult|JSRegExpResultWithIndices;
 
 const kGlobalOrSticky: constexpr int31
     generates 'JSRegExp::kGlobal | JSRegExp::kSticky';
@@ -155,10 +169,8 @@ transitioning macro RegExpPrototypeExecBody(implicit context: Context)(
       regexp, matchIndices, string, lastIndex);
 }
 
-macro LoadRegExpFunction(implicit context: Context)(
-    nativeContext: NativeContext): JSFunction {
-  return UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
+macro LoadRegExpFunction(nativeContext: NativeContext): JSFunction {
+  return *NativeContextSlot(nativeContext, ContextSlot::REGEXP_FUNCTION_INDEX);
 }
 
 // Note this doesn't guarantee const-ness of object properties, just
@@ -187,11 +199,11 @@ extern enum Flag constexpr 'JSRegExp::Flag' {
   kSticky,
   kUnicode,
   kDotAll,
-  kInvalid
+  kHasIndices,
+  kLinear
 }
 
-const kRegExpPrototypeOldFlagGetter: constexpr int31
-    generates 'v8::Isolate::kRegExpPrototypeOldFlagGetter';
+const kNoCounterFlagGetter: constexpr int31 = -1;
 const kRegExpPrototypeStickyGetter: constexpr int31
     generates 'v8::Isolate::kRegExpPrototypeStickyGetter';
 const kRegExpPrototypeUnicodeGetter: constexpr int31
@@ -225,8 +237,7 @@ macro FlagGetter(implicit context: Context)(
 transitioning javascript builtin RegExpPrototypeGlobalGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
-      receiver, Flag::kGlobal, kRegExpPrototypeOldFlagGetter,
-      'RegExp.prototype.global');
+      receiver, Flag::kGlobal, kNoCounterFlagGetter, 'RegExp.prototype.global');
 }
 
 // ES6 21.2.5.5.
@@ -234,7 +245,7 @@ transitioning javascript builtin RegExpPrototypeGlobalGetter(
 transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
-      receiver, Flag::kIgnoreCase, kRegExpPrototypeOldFlagGetter,
+      receiver, Flag::kIgnoreCase, kNoCounterFlagGetter,
       'RegExp.prototype.ignoreCase');
 }
 
@@ -243,16 +254,28 @@ transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
 transitioning javascript builtin RegExpPrototypeMultilineGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
-      receiver, Flag::kMultiline, kRegExpPrototypeOldFlagGetter,
+      receiver, Flag::kMultiline, kNoCounterFlagGetter,
       'RegExp.prototype.multiline');
+}
+
+transitioning javascript builtin RegExpPrototypeHasIndicesGetter(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return FlagGetter(
+      receiver, Flag::kHasIndices, kNoCounterFlagGetter,
+      'RegExp.prototype.hasIndices');
+}
+
+transitioning javascript builtin RegExpPrototypeLinearGetter(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return FlagGetter(
+      receiver, Flag::kLinear, kNoCounterFlagGetter, 'RegExp.prototype.linear');
 }
 
 // ES #sec-get-regexp.prototype.dotAll
 transitioning javascript builtin RegExpPrototypeDotAllGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
-  const kNoCounter: constexpr int31 = -1;
   return FlagGetter(
-      receiver, Flag::kDotAll, kNoCounter, 'RegExp.prototype.dotAll');
+      receiver, Flag::kDotAll, kNoCounterFlagGetter, 'RegExp.prototype.dotAll');
 }
 
 // ES6 21.2.5.12.
@@ -347,9 +370,6 @@ transitioning macro StoreLastIndex(implicit context: Context)(
   }
 }
 
-extern builtin
-StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
-
 extern macro RegExpBuiltinsAssembler::AdvanceStringIndex(
     String, Number, bool, constexpr bool): Number;
 extern macro
@@ -363,8 +383,6 @@ const kRegExpMatchIsTrueishOnNonJSRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp';
 const kRegExpMatchIsFalseishOnJSRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp';
-const kRegExpPrototypeSourceGetter: constexpr UseCounterFeature
-    generates 'v8::Isolate::kRegExpPrototypeSourceGetter';
 const kRegExpExecCalledOnSlowRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpExecCalledOnSlowRegExp';
 

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --ignore-unhandled-promises
 
 // Make sure we don't rely on functions patchable by monkeys.
 var call = Function.prototype.call.call.bind(Function.prototype.call)
@@ -67,7 +67,7 @@ function clearProp(o, name) {
 
 // Find intrinsics and null them out.
 var globals = Object.getOwnPropertyNames(this)
-var whitelist = {
+var allowlist = {
   Promise: true,
   TypeError: true,
   String: true,
@@ -78,7 +78,7 @@ var whitelist = {
 
 for (var i in globals) {
   var name = globals[i]
-  if (name in whitelist || name[0] === name[0].toLowerCase()) delete globals[i]
+  if (name in allowlist || name[0] === name[0].toLowerCase()) delete globals[i]
 }
 for (var i in globals) {
   if (globals[i]) clearProp(this, globals[i])

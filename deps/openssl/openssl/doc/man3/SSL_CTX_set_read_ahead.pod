@@ -21,7 +21,7 @@ SSL_CTX_get_default_read_ahead
 =head1 DESCRIPTION
 
 SSL_CTX_set_read_ahead() and SSL_set_read_ahead() set whether we should read as
-many input bytes as possible (for non-blocking reads) or not. For example if
+many input bytes as possible (for nonblocking reads) or not. For example if
 B<x> bytes are currently required by OpenSSL, but B<y> bytes are available from
 the underlying BIO (where B<y> > B<x>), then OpenSSL will read all B<y> bytes
 into its buffer (providing that the buffer is large enough) if reading ahead is
@@ -64,7 +64,7 @@ L<ssl(7)>, L<SSL_pending(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -202,17 +202,17 @@ static void close_pipe(uv_pipe_t* pipe) {
 }
 
 
-int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
-    char* name, size_t nameSize) {
+static int uv__pipe_server(
+    HANDLE* pipeHandle_ptr, DWORD access,
+    char* name, size_t nameSize, char* random) {
   HANDLE pipeHandle;
   int err;
-  char* ptr = (char*)handle;
 
   for (;;) {
-    uv_unique_pipe_name(ptr, name, nameSize);
+    uv_unique_pipe_name(random, name, nameSize);
 
     pipeHandle = CreateNamedPipeA(name,
-      access | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE | WRITE_DAC,
+      access | FILE_FLAG_FIRST_PIPE_INSTANCE,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 65536, 65536, 0,
       NULL);
 
@@ -226,27 +226,225 @@ int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
       goto error;
     }
 
-    /* Pipe name collision.  Increment the pointer and try again. */
-    ptr++;
+    /* Pipe name collision.  Increment the random number and try again. */
+    random++;
   }
 
-  if (CreateIoCompletionPort(pipeHandle,
+  *pipeHandle_ptr = pipeHandle;
+
+  return 0;
+
+ error:
+  if (pipeHandle != INVALID_HANDLE_VALUE)
+    CloseHandle(pipeHandle);
+
+  return err;
+}
+
+
+static int uv__create_pipe_pair(
+    HANDLE* server_pipe_ptr, HANDLE* client_pipe_ptr,
+    unsigned int server_flags, unsigned int client_flags,
+    int inherit_client, char* random) {
+  /* allowed flags are: UV_READABLE_PIPE | UV_WRITABLE_PIPE | UV_NONBLOCK_PIPE */
+  char pipe_name[64];
+  SECURITY_ATTRIBUTES sa;
+  DWORD server_access;
+  DWORD client_access;
+  HANDLE server_pipe;
+  HANDLE client_pipe;
+  int err;
+
+  server_pipe = INVALID_HANDLE_VALUE;
+  client_pipe = INVALID_HANDLE_VALUE;
+
+  server_access = 0;
+  if (server_flags & UV_READABLE_PIPE)
+    server_access |= PIPE_ACCESS_INBOUND;
+  if (server_flags & UV_WRITABLE_PIPE)
+    server_access |= PIPE_ACCESS_OUTBOUND;
+  if (server_flags & UV_NONBLOCK_PIPE)
+    server_access |= FILE_FLAG_OVERLAPPED;
+  server_access |= WRITE_DAC;
+
+  client_access = 0;
+  if (client_flags & UV_READABLE_PIPE)
+    client_access |= GENERIC_READ;
+  else
+    client_access |= FILE_READ_ATTRIBUTES;
+  if (client_flags & UV_WRITABLE_PIPE)
+    client_access |= GENERIC_WRITE;
+  else
+    client_access |= FILE_WRITE_ATTRIBUTES;
+  client_access |= WRITE_DAC;
+
+  /* Create server pipe handle. */
+  err = uv__pipe_server(&server_pipe,
+                        server_access,
+                        pipe_name,
+                        sizeof(pipe_name),
+                        random);
+  if (err)
+    goto error;
+
+  /* Create client pipe handle. */
+  sa.nLength = sizeof sa;
+  sa.lpSecurityDescriptor = NULL;
+  sa.bInheritHandle = inherit_client;
+
+  client_pipe = CreateFileA(pipe_name,
+                            client_access,
+                            0,
+                            &sa,
+                            OPEN_EXISTING,
+                            (client_flags & UV_NONBLOCK_PIPE) ? FILE_FLAG_OVERLAPPED : 0,
+                            NULL);
+  if (client_pipe == INVALID_HANDLE_VALUE) {
+    err = GetLastError();
+    goto error;
+  }
+
+#ifndef NDEBUG
+  /* Validate that the pipe was opened in the right mode. */
+  {
+    DWORD mode;
+    BOOL r;
+    r = GetNamedPipeHandleState(client_pipe, &mode, NULL, NULL, NULL, NULL, 0);
+    if (r == TRUE) {
+      assert(mode == (PIPE_READMODE_BYTE | PIPE_WAIT));
+    } else {
+      fprintf(stderr, "libuv assertion failure: GetNamedPipeHandleState failed\n");
+    }
+  }
+#endif
+
+  /* Do a blocking ConnectNamedPipe.  This should not block because we have
+   * both ends of the pipe created. */
+  if (!ConnectNamedPipe(server_pipe, NULL)) {
+    if (GetLastError() != ERROR_PIPE_CONNECTED) {
+      err = GetLastError();
+      goto error;
+    }
+  }
+
+  *client_pipe_ptr = client_pipe;
+  *server_pipe_ptr = server_pipe;
+  return 0;
+
+ error:
+  if (server_pipe != INVALID_HANDLE_VALUE)
+    CloseHandle(server_pipe);
+
+  if (client_pipe != INVALID_HANDLE_VALUE)
+    CloseHandle(client_pipe);
+
+  return err;
+}
+
+
+int uv_pipe(uv_file fds[2], int read_flags, int write_flags) {
+  uv_file temp[2];
+  int err;
+  HANDLE readh;
+  HANDLE writeh;
+
+  /* Make the server side the inbound (read) end, */
+  /* so that both ends will have FILE_READ_ATTRIBUTES permission. */
+  /* TODO: better source of local randomness than &fds? */
+  read_flags |= UV_READABLE_PIPE;
+  write_flags |= UV_WRITABLE_PIPE;
+  err = uv__create_pipe_pair(&readh, &writeh, read_flags, write_flags, 0, (char*) &fds[0]);
+  if (err != 0)
+    return err;
+  temp[0] = _open_osfhandle((intptr_t) readh, 0);
+  if (temp[0] == -1) {
+    if (errno == UV_EMFILE)
+      err = UV_EMFILE;
+    else
+      err = UV_UNKNOWN;
+    CloseHandle(readh);
+    CloseHandle(writeh);
+    return err;
+  }
+  temp[1] = _open_osfhandle((intptr_t) writeh, 0);
+  if (temp[1] == -1) {
+    if (errno == UV_EMFILE)
+      err = UV_EMFILE;
+    else
+      err = UV_UNKNOWN;
+    _close(temp[0]);
+    CloseHandle(writeh);
+    return err;
+  }
+  fds[0] = temp[0];
+  fds[1] = temp[1];
+  return 0;
+}
+
+
+int uv__create_stdio_pipe_pair(uv_loop_t* loop,
+    uv_pipe_t* parent_pipe, HANDLE* child_pipe_ptr, unsigned int flags) {
+  /* The parent_pipe is always the server_pipe and kept by libuv.
+   * The child_pipe is always the client_pipe and is passed to the child.
+   * The flags are specified with respect to their usage in the child. */
+  HANDLE server_pipe;
+  HANDLE client_pipe;
+  unsigned int server_flags;
+  unsigned int client_flags;
+  int err;
+
+  server_pipe = INVALID_HANDLE_VALUE;
+  client_pipe = INVALID_HANDLE_VALUE;
+
+  server_flags = 0;
+  client_flags = 0;
+  if (flags & UV_READABLE_PIPE) {
+    /* The server needs inbound (read) access too, otherwise CreateNamedPipe()
+     * won't give us the FILE_READ_ATTRIBUTES permission. We need that to probe
+     * the state of the write buffer when we're trying to shutdown the pipe. */
+    server_flags |= UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+    client_flags |= UV_READABLE_PIPE;
+  }
+  if (flags & UV_WRITABLE_PIPE) {
+    server_flags |= UV_READABLE_PIPE;
+    client_flags |= UV_WRITABLE_PIPE;
+  }
+  server_flags |= UV_NONBLOCK_PIPE;
+  if (flags & UV_NONBLOCK_PIPE || parent_pipe->ipc) {
+    client_flags |= UV_NONBLOCK_PIPE;
+  }
+
+  err = uv__create_pipe_pair(&server_pipe, &client_pipe,
+          server_flags, client_flags, 1, (char*) server_pipe);
+  if (err)
+    goto error;
+
+  if (CreateIoCompletionPort(server_pipe,
                              loop->iocp,
-                             (ULONG_PTR)handle,
+                             (ULONG_PTR) parent_pipe,
                              0) == NULL) {
     err = GetLastError();
     goto error;
   }
 
-  uv_pipe_connection_init(handle);
-  handle->handle = pipeHandle;
+  uv_pipe_connection_init(parent_pipe);
+  parent_pipe->handle = server_pipe;
+  *child_pipe_ptr = client_pipe;
+
+  /* The server end is now readable and/or writable. */
+  if (flags & UV_READABLE_PIPE)
+    parent_pipe->flags |= UV_HANDLE_WRITABLE;
+  if (flags & UV_WRITABLE_PIPE)
+    parent_pipe->flags |= UV_HANDLE_READABLE;
 
   return 0;
 
  error:
-  if (pipeHandle != INVALID_HANDLE_VALUE) {
-    CloseHandle(pipeHandle);
-  }
+  if (server_pipe != INVALID_HANDLE_VALUE)
+    CloseHandle(server_pipe);
+
+  if (client_pipe != INVALID_HANDLE_VALUE)
+    CloseHandle(client_pipe);
 
   return err;
 }
@@ -554,7 +752,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Convert name to UTF16. */
   nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)uv__malloc(nameSize);
+  handle->name = uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
@@ -621,9 +819,8 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
   while (WaitNamedPipeW(handle->name, 30000)) {
     /* The pipe is now available, try to connect. */
     pipeHandle = open_named_pipe(handle->name, &duplex_flags);
-    if (pipeHandle != INVALID_HANDLE_VALUE) {
+    if (pipeHandle != INVALID_HANDLE_VALUE)
       break;
-    }
 
     SwitchToThread();
   }
@@ -655,7 +852,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
   /* Convert name to UTF16. */
   nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)uv__malloc(nameSize);
+  handle->name = uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
@@ -714,9 +911,8 @@ error:
     handle->name = NULL;
   }
 
-  if (pipeHandle != INVALID_HANDLE_VALUE) {
+  if (pipeHandle != INVALID_HANDLE_VALUE)
     CloseHandle(pipeHandle);
-  }
 
   /* Make this req pending reporting an error. */
   SET_REQ_ERROR(req, err);
@@ -2147,7 +2343,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   if (pipe->ipc) {
     assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));
     pipe->pipe.conn.ipc_remote_pid = uv_os_getppid();
-    assert(pipe->pipe.conn.ipc_remote_pid != (DWORD) -1);
+    assert(pipe->pipe.conn.ipc_remote_pid != (DWORD)(uv_pid_t) -1);
   }
   return 0;
 }

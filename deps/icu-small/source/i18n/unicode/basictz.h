@@ -56,7 +56,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the first transition after the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const = 0;
@@ -66,7 +66,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the most recent transition before the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const = 0;
@@ -152,6 +152,17 @@ public:
     virtual void getSimpleRulesNear(UDate date, InitialTimeZoneRule*& initial,
         AnnualTimeZoneRule*& std, AnnualTimeZoneRule*& dst, UErrorCode& status) const;
 
+#ifndef U_FORCE_HIDE_DRAFT_API
+    /**
+     * Get time zone offsets from local wall time.
+     * @draft ICU 69
+     */
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt, int32_t& rawOffset,
+        int32_t& dstOffset, UErrorCode& status) const;
+
+#endif /* U_FORCE_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -161,17 +172,17 @@ public:
     enum {
         kStandard = 0x01,
         kDaylight = 0x03,
-        kFormer = 0x04,
-        kLatter = 0x0C
+        kFormer = 0x04, /* UCAL_TZ_LOCAL_FORMER */
+        kLatter = 0x0C  /* UCAL_TZ_LOCAL_LATTER */
     };
-#endif  /* U_HIDE_INTERNAL_API */
 
     /**
      * Get time zone offsets from local wall time.
      * @internal
      */
-    virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
+    void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
         int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const;
+#endif  /* U_HIDE_INTERNAL_API */
 
 protected:
 

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_ENGINE_H_
 #define V8_WASM_WASM_ENGINE_H_
 
@@ -14,6 +18,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/tasks/cancelable-task.h"
+#include "src/tasks/operations-barrier.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -34,7 +39,7 @@ namespace wasm {
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 namespace gdb_server {
 class GdbServer;
-}
+}  // namespace gdb_server
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
 class AsyncCompileJob;
@@ -137,6 +142,8 @@ class NativeModuleCache {
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
   WasmEngine();
+  WasmEngine(const WasmEngine&) = delete;
+  WasmEngine& operator=(const WasmEngine&) = delete;
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded Wasm
@@ -239,15 +246,15 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // for tearing down an isolate, or to clean it up to be reused.
   void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
+  // Get a token for compiling wrappers for an Isolate. The token is used to
+  // synchronize background tasks on isolate shutdown. The caller should only
+  // hold the token while compiling export wrappers. If the isolate is already
+  // shutting down, this method will return an invalid token.
+  OperationsBarrier::Token StartWrapperCompilation(Isolate*);
+
   // Manage the set of Isolates that use this WasmEngine.
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
-
-  template <typename T, typename... Args>
-  std::unique_ptr<T> NewBackgroundCompileTask(Args&&... args) {
-    return std::make_unique<T>(&background_compile_task_manager_,
-                               std::forward<Args>(args)...);
-  }
 
   // Trigger code logging for the given code objects in all Isolates which have
   // access to the NativeModule containing this code. This method can be called
@@ -336,16 +343,22 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   Handle<Script> GetOrCreateScript(Isolate*,
                                    const std::shared_ptr<NativeModule>&,
-                                   Vector<const char> source_url = {});
+                                   Vector<const char> source_url);
+
+  // Returns a barrier allowing background compile operations if valid and
+  // preventing this object from being destroyed.
+  std::shared_ptr<OperationsBarrier> GetBarrierForBackgroundCompile();
+
+  void SampleThrowEvent(Isolate*);
+  void SampleRethrowEvent(Isolate*);
+  void SampleCatchEvent(Isolate*);
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
-  // Returns a reference to the WasmEngine shared by the entire process. Try to
-  // use {Isolate::wasm_engine} instead if it is available, which encapsulates
-  // engine lifetime decisions during Isolate bootstrapping.
-  static std::shared_ptr<WasmEngine> GetWasmEngine();
+  // Returns a reference to the WasmEngine shared by the entire process.
+  static WasmEngine* GetWasmEngine();
 
  private:
   struct CurrentGCInfo;
@@ -356,7 +369,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, const WasmFeatures& enabled,
       std::unique_ptr<byte[]> bytes_copy, size_t length,
       Handle<Context> context, const char* api_method_name,
-      std::shared_ptr<CompilationResultResolver> resolver);
+      std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerGC(int8_t gc_sequence_index);
 
@@ -372,14 +385,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
   WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 
-  // Task manager managing all background compile jobs. Before shut down of the
-  // engine, they must all be finished because they access the allocator.
-  CancelableTaskManager background_compile_task_manager_;
-
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   // Implements a GDB-remote stub for WebAssembly debugging.
   std::unique_ptr<gdb_server::GdbServer> gdb_server_;
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
+  std::atomic<int> next_compilation_id_{0};
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
@@ -403,6 +414,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<NativeModule*, std::unique_ptr<NativeModuleInfo>>
       native_modules_;
 
+  std::shared_ptr<OperationsBarrier> operations_barrier_{
+      std::make_shared<OperationsBarrier>()};
+
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
   size_t new_potentially_dead_code_size_ = 0;
@@ -415,8 +429,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(WasmEngine);
 };
 
 }  // namespace wasm

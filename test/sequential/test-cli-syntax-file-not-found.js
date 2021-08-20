@@ -10,7 +10,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
-  ['--check']
+  ['--check'],
 ];
 
 const notFoundRE = /^Error: Cannot find module/m;
@@ -18,7 +18,7 @@ const notFoundRE = /^Error: Cannot find module/m;
 // test file not found
 [
   'syntax/file_not_found.js',
-  'syntax/file_not_found'
+  'syntax/file_not_found',
 ].forEach(function(file) {
   file = fixtures.path(file);
 

@@ -10,7 +10,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
-  ['--check']
+  ['--check'],
 ];
 
 // Match on the name of the `Error` but not the message as it is different
@@ -22,7 +22,7 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
   'syntax/bad_syntax.js',
   'syntax/bad_syntax',
   'syntax/bad_syntax_shebang.js',
-  'syntax/bad_syntax_shebang'
+  'syntax/bad_syntax_shebang',
 ].forEach(function(file) {
   file = fixtures.path(file);
 

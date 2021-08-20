@@ -9,6 +9,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
 * [CPU Profiler module](#cpu-profiler-module)
+* [Debugger module](#debugger-module)
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Environment variables](#environment-variables)
@@ -40,12 +41,12 @@ The `benchmark` module is used by tests to run benchmarks.
 The `common` module is used by tests for consistency across repeated
 tasks.
 
-### `allowGlobals(...whitelist)`
+### `allowGlobals(...allowlist)`
 
-* `whitelist` [&lt;Array>][] Array of Globals
+* `allowlist` [&lt;Array>][] Array of Globals
 * return [&lt;Array>][]
 
-Takes `whitelist` and concats that with predefined `knownGlobals`.
+Takes `allowlist` and concats that with predefined `knownGlobals`.
 
 ### `canCreateSymLink()`
 
@@ -60,21 +61,6 @@ On non-Windows platforms, this always returns `true`.
 ### `createZeroFilledFile(filename)`
 
 Creates a 10 MB file of all null characters.
-
-### `disableCrashOnUnhandledRejection()`
-
-Removes the `process.on('unhandledRejection')` handler that crashes the process
-after a tick. The handler is useful for tests that use Promises and need to make
-sure no unexpected rejections occur, because currently they result in silent
-failures. However, it is useful in some rare cases to disable it, for example if
-the `unhandledRejection` hook is directly used by the test.
-
-### `enoughTestCpu`
-
-* [&lt;boolean>][]
-
-Indicates if there is more than 1 CPU or that the single CPU has a speed of at
-least 1 GHz.
 
 ### `enoughTestMem`
 
@@ -115,12 +101,12 @@ expectWarning('Warning', 'Foobar is really bad');
 expectWarning('DeprecationWarning', 'Foobar is deprecated', 'DEP0XXX');
 
 expectWarning('DeprecationWarning', [
-  'Foobar is deprecated', 'DEP0XXX'
+  'Foobar is deprecated', 'DEP0XXX',
 ]);
 
 expectWarning('DeprecationWarning', [
   ['Foobar is deprecated', 'DEP0XXX'],
-  ['Baz is also deprecated', 'DEP0XX2']
+  ['Baz is also deprecated', 'DEP0XX2'],
 ]);
 
 expectWarning('DeprecationWarning', {
@@ -135,7 +121,7 @@ expectWarning({
   },
   Warning: [
     ['Multiple array entries are fine', 'SpecialWarningCode'],
-    ['No code is also fine']
+    ['No code is also fine'],
   ],
   SingleEntry: ['This will also work', 'WarningCode'],
   SingleString: 'Single string entries without code will also work'
@@ -314,6 +300,15 @@ If `fn` is not provided, an empty function will be used.
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
+### `mustSucceed([fn])`
+
+* `fn` [&lt;Function>][] default = () => {}
+* return [&lt;Function>][]
+
+Returns a function that accepts arguments `(err, ...args)`. If `err` is not
+`undefined` or `null`, it triggers an `AssertionError`. Otherwise, it calls
+`fn(...args)`.
+
 ### `nodeProcessAborted(exitCode, signal)`
 
 * `exitCode` [&lt;number>][]
@@ -368,6 +363,13 @@ const { spawn } = require('child_process');
 
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
+
+### `requireNoPackageJSONAbove([dir])`
+
+* `dir` [&lt;string>][] default = \_\_dirname
+
+Throws an `AssertionError` if a `package.json` file exists in any ancestor
+directory above `dir`. Such files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 
@@ -497,6 +499,34 @@ Sampling interval in microseconds.
 Throws an `AssertionError` if there are no call frames with the expected
 `suffix` in the profiling data contained in `file`.
 
+## Debugger module
+
+Provides common functionality for tests for `node inspect`.
+
+### `startCLI(args[[, flags], spawnOpts])`
+
+* `args` [&lt;string>][]
+* `flags` [&lt;string>][] default = []
+* `showOpts` [&lt;Object>][] default = {}
+* return [&lt;Object>][]
+
+Returns a null-prototype object with properties that are functions and getters
+used to interact with the `node inspect` CLI. These functions are:
+
+* `flushOutput()`
+* `waitFor()`
+* `waitForPrompt()`
+* `waitForInitialBreak()`
+* `breakInfo`
+* `ctrlC()`
+* `output`
+* `rawOutput`
+* `parseSourceLines()`
+* `writeLine()`
+* `command()`
+* `stepCommand()`
+* `quit()`
+
 ## `DNS` Module
 
 The `DNS` module provides utilities related to the `dns` built-in module.
@@ -587,7 +617,7 @@ If set, crypto tests are skipped.
 ### `NODE_TEST_KNOWN_GLOBALS`
 
 A comma-separated list of variables names that are appended to the global
-variable whitelist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
+variable allowlist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
 global leak detection is disabled.
 
 ## Fixtures Module
@@ -651,9 +681,9 @@ validateSnapshotNodes('TLSWRAP', [
     children: [
       { name: 'enc_out' },
       { name: 'enc_in' },
-      { name: 'TLSWrap' }
+      { name: 'TLSWrap' },
     ]
-  }
+  },
 ]);
 ```
 
@@ -888,8 +918,8 @@ functionality.
 * `dir` [&lt;string>][] Directory to search for diagnostic report files.
 * return [&lt;Array>][]
 
-Returns an array of diagnotic report file names found in `dir`. The files should
-have been generated by a process whose PID matches `pid`.
+Returns an array of diagnostic report file names found in `dir`. The files
+should have been generated by a process whose PID matches `pid`.
 
 ### `validate(filepath)`
 
@@ -931,12 +961,17 @@ The realpath of the testing temporary directory.
 
 Deletes and recreates the testing temporary directory.
 
-The first time `refresh()` runs,  it adds a listener to process `'exit'` that
+The first time `refresh()` runs, it adds a listener to process `'exit'` that
 cleans the temporary directory. Thus, every file under `tmpdir.path` needs to
 be closed before the test completes. A good way to do this is to add a
 listener to process `'beforeExit'`. If a file needs to be left open until
 Node.js completes, use a child process and call `refresh()` only in the
 parent.
+
+It is usually only necessary to call `refresh()` once in a test file.
+Avoid calling it more than once in an asynchronous context as one call
+might refresh the temporary directory of a different context, causing
+the test to fail somewhat mysteriously.
 
 ## UDP pair helper
 
@@ -963,7 +998,7 @@ the original WPT harness, see [the WPT tests README][].
 
 ### Class: WPTRunner
 
-A driver class for running WPT with the WPT harness in a vm.
+A driver class for running WPT with the WPT harness in a worker thread.
 
 See [the WPT tests README][] for details.
 

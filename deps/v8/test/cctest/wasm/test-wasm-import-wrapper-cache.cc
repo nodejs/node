@@ -36,15 +36,17 @@ TEST(CacheHit) {
       module->import_wrapper_cache());
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto sig = sigs.i_i();
+  int expected_arity = static_cast<int>(sig->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                           isolate->counters(), kind, sigs.i_i(), &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
+                                      isolate->counters(), kind, sig,
+                                      expected_arity, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 = cache_scope[{kind, sigs.i_i()}];
+  WasmCode* c2 = cache_scope[{kind, sig, expected_arity}];
 
   CHECK_NOT_NULL(c2);
   CHECK_EQ(c1, c2);
@@ -59,15 +61,19 @@ TEST(CacheMissSig) {
       module->import_wrapper_cache());
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto sig1 = sigs.i_i();
+  int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  auto sig2 = sigs.i_ii();
+  int expected_arity2 = static_cast<int>(sig2->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                           isolate->counters(), kind, sigs.i_i(), &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
+                                      isolate->counters(), kind, sig1,
+                                      expected_arity1, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 = cache_scope[{kind, sigs.i_ii()}];
+  WasmCode* c2 = cache_scope[{kind, sig2, expected_arity2}];
 
   CHECK_NULL(c2);
 }
@@ -82,15 +88,17 @@ TEST(CacheMissKind) {
 
   auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
   auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
+  auto sig = sigs.i_i();
+  int expected_arity = static_cast<int>(sig->parameter_count());
 
   WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                                      isolate->counters(), kind1, sigs.i_i(),
-                                      &cache_scope);
+                                      isolate->counters(), kind1, sig,
+                                      expected_arity, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 = cache_scope[{kind2, sigs.i_i()}];
+  WasmCode* c2 = cache_scope[{kind2, sig, expected_arity}];
 
   CHECK_NULL(c2);
 }
@@ -104,30 +112,34 @@ TEST(CacheHitMissSig) {
       module->import_wrapper_cache());
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto sig1 = sigs.i_i();
+  int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  auto sig2 = sigs.i_ii();
+  int expected_arity2 = static_cast<int>(sig2->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                           isolate->counters(), kind, sigs.i_i(), &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
+                                      isolate->counters(), kind, sig1,
+                                      expected_arity1, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 = cache_scope[{kind, sigs.i_ii()}];
+  WasmCode* c2 = cache_scope[{kind, sig2, expected_arity2}];
 
   CHECK_NULL(c2);
 
   c2 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                            isolate->counters(), kind, sigs.i_ii(),
+                            isolate->counters(), kind, sig2, expected_arity2,
                             &cache_scope);
 
   CHECK_NE(c1, c2);
 
-  WasmCode* c3 = cache_scope[{kind, sigs.i_i()}];
+  WasmCode* c3 = cache_scope[{kind, sig1, expected_arity1}];
 
   CHECK_NOT_NULL(c3);
   CHECK_EQ(c1, c3);
 
-  WasmCode* c4 = cache_scope[{kind, sigs.i_ii()}];
+  WasmCode* c4 = cache_scope[{kind, sig2, expected_arity2}];
 
   CHECK_NOT_NULL(c4);
   CHECK_EQ(c2, c4);

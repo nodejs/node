@@ -7,7 +7,7 @@
 
 `node [options] [V8 options] [script.js | -e "script" | - ] [arguments]`
 
-Please see the [Command Line Options][] document for more information.
+Please see the [Command-line options][] document for more information.
 
 ## Example
 An example of a [web server][] written with Node.js which responds with
@@ -20,8 +20,8 @@ there to show the start of each command.
 Lines that don’t start with `$` or `>` character show the output of the previous
 command.
 
-First, make sure to have downloaded and installed Node.js. See [this guide][]
-for further install information.
+First, make sure to have downloaded and installed Node.js. See
+[Installing Node.js via package manager][] for further install information.
 
 Now, create an empty project folder called `projects`, then navigate into it.
 
@@ -86,6 +86,6 @@ Now, open any preferred web browser and visit `http://127.0.0.1:3000`.
 If the browser displays the string `Hello, World!`, that indicates
 the server is working.
 
-[Command Line Options]: cli.html#cli_command_line_options
-[this guide]: https://nodejs.org/en/download/package-manager/
-[web server]: http.html
+[Command-line options]: cli.md#cli_command_line_options
+[Installing Node.js via package manager]: https://nodejs.org/en/download/package-manager/
+[web server]: http.md

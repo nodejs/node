@@ -11,4 +11,4 @@ builder.addFunction(undefined, kSig_v_i) .addBodyWithEnd([
 // Intentionally add just a numeric opcode prefix without the index byte.
 
 const b = builder.toBuffer();
-WebAssembly.compile(b);
+WebAssembly.compile(b).then(() => assertUnreachable(), () => { /* ignore */ })

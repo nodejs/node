@@ -30,6 +30,16 @@ typedef enum {
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
+
+#if NAPI_VERSION >= 8
+  // Default for class methods.
+  napi_default_method = napi_writable | napi_configurable,
+
+  // Default for object properties, like in JS obj[prop].
+  napi_default_jsproperty = napi_writable |
+                            napi_enumerable |
+                            napi_configurable,
+#endif  // NAPI_VERSION >= 8
 } napi_property_attributes;
 
 typedef enum {
@@ -140,11 +150,11 @@ typedef enum {
 } napi_key_conversion;
 #endif  // NAPI_VERSION >= 6
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 8
 typedef struct {
   uint64_t lower;
   uint64_t upper;
 } napi_type_tag;
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 8
 
 #endif  // SRC_JS_NATIVE_API_TYPES_H_

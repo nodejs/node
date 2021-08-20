@@ -187,8 +187,10 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * BasicTimeZone API.
      */
-    virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
-        int32_t& rawoff, int32_t& dstoff, UErrorCode& ec) const;
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
+        int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const;
 
     /**
      * TimeZone API.  This method has no effect since objects of this
@@ -208,7 +210,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.  For a historical zone, whether DST is used or
      * not varies over time.  In order to approximate expected
-     * behavior, this method returns TRUE if DST is observed at any
+     * behavior, this method returns true if DST is observed at any
      * point in the current year.
      */
     virtual UBool useDaylightTime() const;
@@ -234,7 +236,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the first transition after the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      */
     virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 
@@ -244,7 +246,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the most recent transition before the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      */
     virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 

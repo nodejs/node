@@ -1,0 +1,26 @@
+{
+  "name": "@babel/helper-validator-identifier",
+  "version": "7.14.5",
+  "description": "Validate identifier/keywords name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-helper-validator-identifier"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./lib/index.js",
+  "exports": "./lib/index.js",
+  "devDependencies": {
+    "@babel/helper-validator-identifier-baseline": "npm:@babel/helper-validator-identifier@7.10.4",
+    "@unicode/unicode-13.0.0": "^1.0.6",
+    "benchmark": "^2.1.4",
+    "charcodes": "^0.2.0"
+  },
+  "engines": {
+    "node": ">=6.9.0"
+  },
+  "author": "The Babel Team (https://babel.dev/team)"
+}

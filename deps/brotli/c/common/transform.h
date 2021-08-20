@@ -37,6 +37,8 @@ enum BrotliWordTransformType {
   BROTLI_TRANSFORM_OMIT_FIRST_7 = 18,
   BROTLI_TRANSFORM_OMIT_FIRST_8 = 19,
   BROTLI_TRANSFORM_OMIT_FIRST_9 = 20,
+  BROTLI_TRANSFORM_SHIFT_FIRST = 21,
+  BROTLI_TRANSFORM_SHIFT_ALL = 22,
   BROTLI_NUM_TRANSFORM_TYPES  /* Counts transforms, not a transform itself. */
 };
 
@@ -50,6 +52,9 @@ typedef struct BrotliTransforms {
   uint32_t num_transforms;
   /* Each entry is a [prefix_id, transform, suffix_id] triplet. */
   const uint8_t* transforms;
+  /* Shift for BROTLI_TRANSFORM_SHIFT_FIRST and BROTLI_TRANSFORM_SHIFT_ALL,
+     must be NULL if and only if no such transforms are present. */
+  const uint8_t* params;
   /* Indices of transforms like ["", BROTLI_TRANSFORM_OMIT_LAST_#, ""].
      0-th element corresponds to ["", BROTLI_TRANSFORM_IDENTITY, ""].
      -1, if cut-off transform does not exist. */

@@ -457,9 +457,17 @@ Maybe<bool> SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     SetError(UV_ENOMEM);
     return Just(false);
   }
-  CHECK_EQ(uv_loop_init(uv_loop_), 0);
+
+  r = uv_loop_init(uv_loop_);
+  if (r < 0) {
+    delete uv_loop_;
+    uv_loop_ = nullptr;
+    SetError(r);
+    return Just(false);
+  }
 
   if (!ParseOptions(options).To(&r)) return Nothing<bool>();
+
   if (r < 0) {
     SetError(r);
     return Just(false);

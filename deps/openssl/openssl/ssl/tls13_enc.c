@@ -390,11 +390,18 @@ static int derive_secret_key_and_iv(SSL *s, int sending, const EVP_MD *md,
         uint32_t algenc;
 
         ivlen = EVP_CCM_TLS_IV_LEN;
-        if (s->s3->tmp.new_cipher == NULL) {
+        if (s->s3->tmp.new_cipher != NULL) {
+            algenc = s->s3->tmp.new_cipher->algorithm_enc;
+        } else if (s->session->cipher != NULL) {
             /* We've not selected a cipher yet - we must be doing early data */
             algenc = s->session->cipher->algorithm_enc;
+        } else if (s->psksession != NULL && s->psksession->cipher != NULL) {
+            /* We must be doing early data with out-of-band PSK */
+            algenc = s->psksession->cipher->algorithm_enc;
         } else {
-            algenc = s->s3->tmp.new_cipher->algorithm_enc;
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_DERIVE_SECRET_KEY_AND_IV,
+                     ERR_R_EVP_LIB);
+            goto err;
         }
         if (algenc & (SSL_AES128CCM8 | SSL_AES256CCM8))
             taglen = EVP_CCM8_TLS_TAG_LEN;
@@ -461,21 +468,81 @@ static int quic_change_cipher_state(SSL *s, int which)
     int is_server_write = ((which & SSL3_CHANGE_CIPHER_SERVER_WRITE) == SSL3_CHANGE_CIPHER_SERVER_WRITE);
     int is_early = (which & SSL3_CC_EARLY);
 
-    md = ssl_handshake_md(s);
-    if (!ssl3_digest_cached_records(s, 1)
-        || !ssl_handshake_hash(s, hash, sizeof(hash), &hashlen)) {
-        /* SSLfatal() already called */;
-        goto err;
-    }
+    if (is_early) {
+        EVP_MD_CTX *mdctx = NULL;
+        long handlen;
+        void *hdata;
+        unsigned int hashlenui;
+        const SSL_CIPHER *sslcipher = SSL_SESSION_get0_cipher(s->session);
 
-    /* Ensure cast to size_t is safe */
-    hashleni = EVP_MD_size(md);
-    if (!ossl_assert(hashleni >= 0)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
-                 ERR_R_EVP_LIB);
-        goto err;
+        handlen = BIO_get_mem_data(s->s3->handshake_buffer, &hdata);
+        if (handlen <= 0) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
+                     SSL_R_BAD_HANDSHAKE_LENGTH);
+            goto err;
+        }
+
+        if (s->early_data_state == SSL_EARLY_DATA_CONNECTING
+                && s->max_early_data > 0 && s->session->ext.max_early_data == 0) {
+            /*
+             * If we are attempting to send early data, and we've decided to
+             * actually do it but max_early_data in s->session is 0 then we
+             * must be using an external PSK.
+             */
+            if (!ossl_assert(s->psksession != NULL
+                             && s->max_early_data
+                                    == s->psksession->ext.max_early_data)) {
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR,
+                         SSL_F_QUIC_CHANGE_CIPHER_STATE, ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+            sslcipher = SSL_SESSION_get0_cipher(s->psksession);
+        }
+        if (sslcipher == NULL) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
+                     SSL_R_BAD_PSK);
+            goto err;
+        }
+
+        /*
+         * We need to calculate the handshake digest using the digest from
+         * the session. We haven't yet selected our ciphersuite so we can't
+         * use ssl_handshake_md().
+         */
+        mdctx = EVP_MD_CTX_new();
+        if (mdctx == NULL) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
+                     ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+        md = ssl_md(sslcipher->algorithm2);
+        if (md == NULL || !EVP_DigestInit_ex(mdctx, md, NULL)
+                || !EVP_DigestUpdate(mdctx, hdata, handlen)
+                || !EVP_DigestFinal_ex(mdctx, hash, &hashlenui)) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
+                     ERR_R_INTERNAL_ERROR);
+            EVP_MD_CTX_free(mdctx);
+            goto err;
+        }
+        hashlen = hashlenui;
+        EVP_MD_CTX_free(mdctx);
+    } else {
+        md = ssl_handshake_md(s);
+        if (!ssl3_digest_cached_records(s, 1)
+                || !ssl_handshake_hash(s, hash, sizeof(hash), &hashlen)) {
+            /* SSLfatal() already called */;
+            goto err;
+        }
+
+        /* Ensure cast to size_t is safe */
+        hashleni = EVP_MD_size(md);
+        if (!ossl_assert(hashleni >= 0)) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_CHANGE_CIPHER_STATE,
+                     ERR_R_EVP_LIB);
+            goto err;
+        }
+        hashlen = (size_t)hashleni;
     }
-    hashlen = (size_t)hashleni;
 
     if (is_client_read || is_server_write) {
         if (is_handshake) {
@@ -581,10 +648,12 @@ static int quic_change_cipher_state(SSL *s, int which)
             }
         }
 
-        if (s->server)
-            s->quic_read_level = level;
-        else
-            s->quic_write_level = level;
+        if (level != ssl_encryption_early_data) {
+            if (s->server)
+                s->quic_read_level = level;
+            else
+                s->quic_write_level = level;
+        }
     }
 
     ret = 1;

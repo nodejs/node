@@ -54,7 +54,7 @@ server.listen(0, common.mustCall(() => {
     // header to be set for non-payload bearing requests...
     const req = client.request({ 'content-length': 1 });
     req.resume();
-    req.on('end', common.mustCall());
+    req.on('end', common.mustNotCall());
     req.on('close', common.mustCall(() => countdown.dec()));
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',

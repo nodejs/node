@@ -196,6 +196,14 @@ void String16Builder::appendUnsignedAsHex(uint32_t number) {
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
+void String16Builder::appendUnsignedAsHex(uint8_t number) {
+  constexpr int kBufferSize = 3;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%02" PRIx8, number);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
 String16 String16Builder::toString() {
   return String16(m_buffer.data(), m_buffer.size());
 }
@@ -208,8 +216,21 @@ String16 String16::fromUTF8(const char* stringStart, size_t length) {
   return String16(UTF8ToUTF16(stringStart, length));
 }
 
-String16 String16::fromUTF16(const UChar* stringStart, size_t length) {
+String16 String16::fromUTF16LE(const UChar* stringStart, size_t length) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  // Need to flip the byte order on big endian machines.
+  String16Builder builder;
+  builder.reserveCapacity(length);
+  for (size_t i = 0; i < length; i++) {
+    const UChar utf16be_char =
+        stringStart[i] << 8 | (stringStart[i] >> 8 & 0x00FF);
+    builder.append(utf16be_char);
+  }
+  return builder.toString();
+#else
+  // No need to do anything on little endian machines.
   return String16(stringStart, length);
+#endif  // V8_TARGET_BIG_ENDIAN
 }
 
 std::string String16::utf8() const {

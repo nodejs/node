@@ -4,7 +4,7 @@ const assert = require('assert');
 const { spawn } = require('child_process');
 
 const child = spawn(process.execPath, [
-  '--interactive'
+  '--interactive',
 ]);
 child.stdin.end(`
 import('fs').then(

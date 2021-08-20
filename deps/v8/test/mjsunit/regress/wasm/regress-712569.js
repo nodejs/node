@@ -1,7 +1,8 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
+// Flags: --ignore-unhandled-promises
 
 var v11 = {};
 Object.defineProperty(v11.__proto__, 0, {
@@ -9,7 +10,9 @@ Object.defineProperty(v11.__proto__, 0, {
   },
   set: function() {
     try {
-      WebAssembly.instantiate();
+      WebAssembly.instantiate().then(
+          () => assertUnreachable(),
+          () => { /* ignore */ });
       v11[0] = 0;
     } catch (e) {
       assertTrue(e instanceof RangeError);

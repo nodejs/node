@@ -8,6 +8,7 @@
 #include <cinttypes>
 
 #include "src/common/globals.h"
+#include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
@@ -67,9 +68,13 @@ void PlatformEmbeddedFileWriterGeneric::DeclarePointerToSymbol(
 
 void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
   fprintf(fp_, ".global %s%s\n", SYMBOL_PREFIX, name);
+  // These symbols are not visible outside of the final binary, this allows for
+  // reduced binary size, and less work for the dynamic linker.
+  fprintf(fp_, ".hidden %s\n", name);
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
+  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
 }
 
@@ -78,6 +83,7 @@ void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
   // instructions are used to retrieve v8_Default_embedded_blob_ and/or
   // v8_Default_embedded_blob_size_. The generated instructions require the
   // load target to be aligned at 8 bytes (2^3).
+  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 
@@ -97,6 +103,10 @@ void PlatformEmbeddedFileWriterGeneric::SourceInfo(int fileid,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
                                                              uint32_t size) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
+
   DeclareLabel(name);
 
   if (target_arch_ == EmbeddedTargetArch::kArm ||
@@ -114,9 +124,7 @@ void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionEnd(const char* name) {}
 
-void PlatformEmbeddedFileWriterGeneric::FilePrologue() {
-  // TODO(v8:10026): Add ELF note required for BTI.
-}
+void PlatformEmbeddedFileWriterGeneric::FilePrologue() {}
 
 void PlatformEmbeddedFileWriterGeneric::DeclareExternalFilename(
     int fileid, const char* filename) {

@@ -1,0 +1,19 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-display-names.h'
+
+type JSDisplayNamesStyle extends int32 constexpr 'JSDisplayNames::Style';
+type JSDisplayNamesFallback extends int32
+constexpr 'JSDisplayNames::Fallback';
+bitfield struct JSDisplayNamesFlags extends uint31 {
+  style: JSDisplayNamesStyle: 2 bit;
+  fallback: JSDisplayNamesFallback: 1 bit;
+}
+
+@generateCppClass
+extern class JSDisplayNames extends JSObject {
+  internal: Foreign;  // Managed<DisplayNamesInternal>
+  flags: SmiTagged<JSDisplayNamesFlags>;
+}

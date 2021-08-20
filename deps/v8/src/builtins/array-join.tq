@@ -3,7 +3,11 @@
 // found in the LICENSE file.
 
 namespace array {
+
 type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
+
+const kMaxArrayLength:
+    constexpr uint32 generates 'JSArray::kMaxArrayLength';
 
 // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
 // string.
@@ -163,7 +167,7 @@ struct Buffer {
     const nofSeparatorsInt: intptr = nofSeparators;
     const sepsLen: intptr = separatorLength * nofSeparatorsInt;
     // Detect integer overflow
-    // TODO(tebbi): Replace with overflow-checked multiplication.
+    // TODO(turbofan): Replace with overflow-checked multiplication.
     if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
         ThrowInvalidStringLength(context);
       }
@@ -296,7 +300,7 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = ToString(context, obj);
+          next = string::ToString(context, obj);
         }
       }
     }
@@ -414,17 +418,18 @@ const kMinJoinStackSize:
     constexpr int31 generates 'JSArray::kMinJoinStackSize';
 macro LoadJoinStack(implicit context: Context)(): FixedArray
     labels IfUninitialized {
-  const nativeContext: NativeContext = LoadNativeContext(context);
-  const stack: HeapObject = UnsafeCast<HeapObject>(
-      nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
-  if (stack == Undefined) goto IfUninitialized;
-  assert(IsFixedArray(stack));
-  return UnsafeCast<FixedArray>(stack);
+  typeswitch (*NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX)) {
+    case (Undefined): {
+      goto IfUninitialized;
+    }
+    case (stack: FixedArray): {
+      return stack;
+    }
+  }
 }
 
 macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
-  const nativeContext: NativeContext = LoadNativeContext(context);
-  nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
+  *NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX) = stack;
 }
 
 // Adds a receiver to the stack. The FixedArray will automatically grow to
@@ -554,8 +559,9 @@ ArrayPrototypeJoin(
 
   // Only handle valid array lengths. Although the spec allows larger
   // values, this matches historical V8 behavior.
-  if (len > kMaxArrayIndex + 1)
+  if (len > kMaxArrayLength) {
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
+  }
 
   return CycleProtectedArrayJoin<JSArray>(
       false, o, len, separator, Undefined, Undefined);
@@ -575,8 +581,9 @@ transitioning javascript builtin ArrayPrototypeToLocaleString(
 
   // Only handle valid array lengths. Although the spec allows larger
   // values, this matches historical V8 behavior.
-  if (len > kMaxArrayIndex + 1)
+  if (len > kMaxArrayLength) {
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
+  }
 
   return CycleProtectedArrayJoin<JSArray>(true, o, len, ',', locales, options);
 }

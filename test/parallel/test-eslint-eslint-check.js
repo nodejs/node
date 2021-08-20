@@ -18,7 +18,7 @@ new RuleTester().run('eslint-check', rule, {
     'foo;',
     'require("common")\n' +
       'common.skipIfEslintMissing();\n' +
-      'require("../../tools/node_modules/eslint")'
+      'require("../../tools/node_modules/eslint")',
   ],
   invalid: [
     {
@@ -28,6 +28,6 @@ new RuleTester().run('eslint-check', rule, {
       output: 'require("common")\n' +
               'common.skipIfEslintMissing();\n' +
               'require("../../tools/node_modules/eslint").RuleTester'
-    }
+    },
   ]
 });

@@ -17,13 +17,9 @@
     at *
     at *
     at *
-(node:*) [DEP0018] DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.
-    at *
-    at *
-    at *
 (node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
-    at handledRejection (internal/process/promises.js:*)
-    at promiseRejectHandler (internal/process/promises.js:*)
+    at handledRejection (node:internal/process/promises:*)
+    at promiseRejectHandler (node:internal/process/promises:*)
     at Promise.then *
     at Promise.catch *
     at Immediate.<anonymous> (*test*message*unhandled_promise_trace_warnings.js:*)

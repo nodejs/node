@@ -29,9 +29,8 @@ if (process.argv[2] === 'wasi-child') {
 
   const child = cp.spawnSync(process.execPath, [
     '--experimental-wasi-unstable-preview1',
-    '--experimental-wasm-bigint',
     __filename,
-    'wasi-child'
+    'wasi-child',
   ], {
     env: { ...process.env, NODE_DEBUG_NATIVE: 'wasi' }
   });

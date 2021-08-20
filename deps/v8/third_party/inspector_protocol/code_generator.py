@@ -371,7 +371,6 @@ class Protocol(object):
                                  for rule in config.imported.options]
 
     self.patch_full_qualified_refs()
-    self.create_notification_types()
     self.create_type_definitions()
     self.generate_used_types()
 
@@ -434,8 +433,6 @@ class Protocol(object):
         for event in domain["events"]:
           if self.generate_event(domain_name, event["name"]):
             all_refs |= self.all_references(event)
-            all_refs.add('%s.%sNotification' % (domain_name,
-                                                to_title_case(event["name"])))
 
     dependencies = self.generate_type_dependencies()
     queue = set(all_refs)
@@ -456,20 +453,6 @@ class Protocol(object):
         if len(related_types):
           dependencies[domain_name + "." + type["id"]] = related_types
     return dependencies
-
-  def create_notification_types(self):
-    for domain in self.json_api["domains"]:
-      if "events" in domain:
-        for event in domain["events"]:
-          event_type = dict()
-          event_type["description"] = "Wrapper for notification params"
-          event_type["type"] = "object"
-          event_type["id"] = to_title_case(event["name"]) + "Notification"
-          if "parameters" in event:
-            event_type["properties"] = copy.deepcopy(event["parameters"])
-          if "types" not in domain:
-            domain["types"] = list()
-          domain["types"].append(event_type)
 
   def create_type_definitions(self):
     imported_namespace = ""
@@ -664,6 +647,7 @@ def main():
       "Protocol_cpp.template",
       "Values_cpp.template",
       "Object_cpp.template",
+      "ValueConversions_cpp.template",
     ]
 
     forward_h_templates = [

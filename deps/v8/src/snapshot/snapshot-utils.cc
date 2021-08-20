@@ -4,7 +4,7 @@
 
 #include "src/snapshot/snapshot-utils.h"
 
-#include "src/sanitizer/msan.h"
+#include "src/base/sanitizer/msan.h"
 #include "third_party/zlib/zlib.h"
 
 namespace v8 {
@@ -17,7 +17,7 @@ uint32_t Checksum(Vector<const byte> payload) {
   MSAN_MEMORY_IS_INITIALIZED(payload.begin(), payload.length());
 #endif  // MEMORY_SANITIZER
   // Priming the adler32 call so it can see what CPU features are available.
-  adler32(0, NULL, 0);
+  adler32(0, nullptr, 0);
   return static_cast<uint32_t>(adler32(0, payload.begin(), payload.length()));
 }
 

@@ -428,7 +428,7 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
   // and thus one.e >= -60.
   DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
-  DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DCHECK(0xFFFF'FFFF'FFFF'FFFF / 10 >= one.f());
   while (true) {
     fractionals *= 10;
     unit *= 10;
@@ -531,7 +531,7 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
   // and thus one.e >= -60.
   DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
-  DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DCHECK(0xFFFF'FFFF'FFFF'FFFF / 10 >= one.f());
   while (requested_digits > 0 && fractionals > w_error) {
     fractionals *= 10;
     w_error *= 10;

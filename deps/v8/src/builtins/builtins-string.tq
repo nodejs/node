@@ -5,6 +5,44 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 namespace string {
+
+namespace runtime {
+extern transitioning runtime ToString(Context, JSAny): String;
+}
+
+@export
+transitioning macro ToStringImpl(context: Context, o: JSAny): String {
+  let result: JSAny = o;
+  while (true) {
+    typeswitch (result) {
+      case (num: Number): {
+        return NumberToString(num);
+      }
+      case (str: String): {
+        return str;
+      }
+      case (oddball: Oddball): {
+        return oddball.to_string;
+      }
+      case (JSReceiver): {
+        result = NonPrimitiveToPrimitive_String(context, result);
+        continue;
+      }
+      case (Symbol): {
+        ThrowTypeError(MessageTemplate::kSymbolToString);
+      }
+      case (JSAny): {
+        return runtime::ToString(context, o);
+      }
+    }
+  }
+  unreachable;
+}
+
+transitioning builtin ToString(context: Context, o: JSAny): String {
+  return ToStringImpl(context, o);
+}
+
 extern macro StringBuiltinsAssembler::SubString(
     String, uintptr, uintptr): String;
 
@@ -78,9 +116,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
       // Max string length fits Smi range, so we can do an unsigned bounds
       // check.
-      const kMaxStringLengthFitsSmi: constexpr bool =
-          kStringMaxLengthUintptr < kSmiMaxValue;
-      StaticAssert(kMaxStringLengthFitsSmi);
+      StaticAssertStringLengthFitsSmi();
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }
@@ -101,7 +137,7 @@ transitioning javascript builtin StringPrototypeCharAt(
     GenerateStringAt(receiver, position, 'String.prototype.charAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: char16 = StringCharCodeAt(string, index);
     return StringFromSingleCharCode(code);
   } label IfOutOfBounds {
     return kEmptyString;
@@ -116,7 +152,7 @@ transitioning javascript builtin StringPrototypeCharCodeAt(
     GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: uint32 = StringCharCodeAt(string, index);
     return Convert<Smi>(code);
   } label IfOutOfBounds {
     return kNaN;
@@ -212,7 +248,7 @@ transitioning builtin StringAddConvertRight(implicit context: Context)(
 builtin StringCharAt(implicit context: Context)(
     receiver: String, position: uintptr): String {
   // Load the character code at the {position} from the {receiver}.
-  const code: int32 = StringCharCodeAt(receiver, position);
+  const code: char16 = StringCharCodeAt(receiver, position);
   // And return the single character string with only that {code}
   return StringFromSingleCharCode(code);
 }

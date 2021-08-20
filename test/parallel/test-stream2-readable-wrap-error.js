@@ -2,15 +2,17 @@
 const common = require('../common');
 const assert = require('assert');
 
-const Readable = require('_stream_readable');
+const { Readable } = require('stream');
 const EE = require('events').EventEmitter;
 
-const oldStream = new EE();
-oldStream.pause = () => {};
-oldStream.resume = () => {};
+class LegacyStream extends EE {
+  pause() {}
+  resume() {}
+}
 
 {
   const err = new Error();
+  const oldStream = new LegacyStream();
   const r = new Readable({ autoDestroy: true })
     .wrap(oldStream)
     .on('error', common.mustCall(() => {
@@ -23,6 +25,7 @@ oldStream.resume = () => {};
 
 {
   const err = new Error();
+  const oldStream = new LegacyStream();
   const r = new Readable({ autoDestroy: false })
     .wrap(oldStream)
     .on('error', common.mustCall(() => {

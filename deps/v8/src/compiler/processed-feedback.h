@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_PROCESSED_FEEDBACK_H_
 #define V8_COMPILER_PROCESSED_FEEDBACK_H_
 
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 
 namespace v8 {
@@ -19,6 +20,7 @@ class ForInFeedback;
 class GlobalAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
+class MinimorphicLoadPropertyAccessFeedback;
 class NamedAccessFeedback;
 class RegExpLiteralFeedback;
 class TemplateObjectFeedback;
@@ -35,6 +37,7 @@ class ProcessedFeedback : public ZoneObject {
     kGlobalAccess,
     kInstanceOf,
     kLiteral,
+    kMinimorphicPropertyAccess,
     kNamedAccess,
     kRegExpLiteral,
     kTemplateObject,
@@ -52,6 +55,8 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
+  MinimorphicLoadPropertyAccessFeedback const& AsMinimorphicPropertyAccess()
+      const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
   TemplateObjectFeedback const& AsTemplateObject() const;
@@ -168,23 +173,48 @@ class NamedAccessFeedback : public ProcessedFeedback {
   ZoneVector<Handle<Map>> const maps_;
 };
 
+class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
+ public:
+  MinimorphicLoadPropertyAccessFeedback(NameRef const& name,
+                                        FeedbackSlotKind slot_kind,
+                                        Handle<Object> handler,
+                                        ZoneVector<Handle<Map>> const& maps,
+                                        bool has_migration_target_maps);
+
+  NameRef const& name() const { return name_; }
+  bool is_monomorphic() const { return maps_.size() == 1; }
+  Handle<Object> handler() const { return handler_; }
+  ZoneVector<Handle<Map>> const& maps() const { return maps_; }
+  bool has_migration_target_maps() const { return has_migration_target_maps_; }
+
+ private:
+  NameRef const name_;
+  Handle<Object> const handler_;
+  ZoneVector<Handle<Map>> const maps_;
+  bool const has_migration_target_maps_;
+};
+
 class CallFeedback : public ProcessedFeedback {
  public:
   CallFeedback(base::Optional<HeapObjectRef> target, float frequency,
-               SpeculationMode mode, FeedbackSlotKind slot_kind)
+               SpeculationMode mode, CallFeedbackContent call_feedback_content,
+               FeedbackSlotKind slot_kind)
       : ProcessedFeedback(kCall, slot_kind),
         target_(target),
         frequency_(frequency),
-        mode_(mode) {}
+        mode_(mode),
+        content_(call_feedback_content) {}
 
   base::Optional<HeapObjectRef> target() const { return target_; }
   float frequency() const { return frequency_; }
   SpeculationMode speculation_mode() const { return mode_; }
+  CallFeedbackContent call_feedback_content() const { return content_; }
 
  private:
   base::Optional<HeapObjectRef> const target_;
   float const frequency_;
   SpeculationMode const mode_;
+  CallFeedbackContent const content_;
 };
 
 template <class T, ProcessedFeedback::Kind K>
@@ -220,7 +250,7 @@ class LiteralFeedback
 };
 
 class RegExpLiteralFeedback
-    : public SingleValueFeedback<JSRegExpRef,
+    : public SingleValueFeedback<RegExpBoilerplateDescriptionRef,
                                  ProcessedFeedback::kRegExpLiteral> {
   using SingleValueFeedback::SingleValueFeedback;
 };

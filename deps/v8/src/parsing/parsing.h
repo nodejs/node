@@ -15,36 +15,37 @@ class SharedFunctionInfo;
 
 namespace parsing {
 
-enum class ReportErrorsAndStatisticsMode { kYes, kNo };
+enum class ReportStatisticsMode { kYes, kNo };
 
 // Parses the top-level source code represented by the parse info and sets its
 // function literal. Returns false (and deallocates any allocated AST nodes) if
 // parsing failed.
-V8_EXPORT_PRIVATE bool ParseProgram(
-    ParseInfo* info, Handle<Script> script, Isolate* isolate,
-    ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
+V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info, Handle<Script> script,
+                                    Isolate* isolate,
+                                    ReportStatisticsMode mode);
 
 // Parses the top-level source code represented by the parse info and sets its
 // function literal. Allows passing an |outer_scope| for programs that exist in
 // another scope (e.g. eval). Returns false (and deallocates any allocated AST
 // nodes) if parsing failed.
-V8_EXPORT_PRIVATE bool ParseProgram(
-    ParseInfo* info, Handle<Script> script, MaybeHandle<ScopeInfo> outer_scope,
-    Isolate* isolate,
-    ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
+V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info, Handle<Script> script,
+                                    MaybeHandle<ScopeInfo> outer_scope,
+                                    Isolate* isolate,
+                                    ReportStatisticsMode mode);
 
 // Like ParseProgram but for an individual function which already has a
 // allocated shared function info.
-V8_EXPORT_PRIVATE bool ParseFunction(
-    ParseInfo* info, Handle<SharedFunctionInfo> shared_info, Isolate* isolate,
-    ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
+V8_EXPORT_PRIVATE bool ParseFunction(ParseInfo* info,
+                                     Handle<SharedFunctionInfo> shared_info,
+                                     Isolate* isolate,
+                                     ReportStatisticsMode mode);
 
 // If you don't know whether info->is_toplevel() is true or not, use this method
 // to dispatch to either of the above functions. Prefer to use the above methods
 // whenever possible.
-V8_EXPORT_PRIVATE bool ParseAny(
-    ParseInfo* info, Handle<SharedFunctionInfo> shared_info, Isolate* isolate,
-    ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
+V8_EXPORT_PRIVATE bool ParseAny(ParseInfo* info,
+                                Handle<SharedFunctionInfo> shared_info,
+                                Isolate* isolate, ReportStatisticsMode mode);
 
 }  // namespace parsing
 }  // namespace internal

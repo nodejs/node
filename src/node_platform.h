@@ -138,7 +138,8 @@ class WorkerThreadsTaskRunner {
 class NodePlatform : public MultiIsolatePlatform {
  public:
   NodePlatform(int thread_pool_size,
-               v8::TracingController* tracing_controller);
+               v8::TracingController* tracing_controller,
+               v8::PageAllocator* page_allocator = nullptr);
   ~NodePlatform() override;
 
   void DrainTasks(v8::Isolate* isolate) override;
@@ -154,6 +155,9 @@ class NodePlatform : public MultiIsolatePlatform {
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
   bool FlushForegroundTasks(v8::Isolate* isolate) override;
+  std::unique_ptr<v8::JobHandle> PostJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override;
 
   void RegisterIsolate(v8::Isolate* isolate, uv_loop_t* loop) override;
   void RegisterIsolate(v8::Isolate* isolate,
@@ -167,6 +171,7 @@ class NodePlatform : public MultiIsolatePlatform {
       v8::Isolate* isolate) override;
 
   Platform::StackTracePrinter GetStackTracePrinter() override;
+  v8::PageAllocator* GetPageAllocator() override;
 
  private:
   IsolatePlatformDelegate* ForIsolate(v8::Isolate* isolate);
@@ -178,6 +183,7 @@ class NodePlatform : public MultiIsolatePlatform {
   std::unordered_map<v8::Isolate*, DelegatePair> per_isolate_;
 
   v8::TracingController* tracing_controller_;
+  v8::PageAllocator* page_allocator_;
   std::shared_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;
   bool has_shut_down_ = false;
 };

@@ -4,11 +4,11 @@ Calling instantiate function for module A.
 Waiting for wasm script to be parsed.
 Got wasm script!
 Setting breakpoint in line 1:
-Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Calling instantiate function for module B.
 Calling main function on module B.
 Paused at 0:33.
-Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Getting current stack trace via "new Error().stack".
 Error
     at v8://test/getStack:1:1

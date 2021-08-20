@@ -123,14 +123,14 @@ public:
 
     /**
      * Transliterate the given text with the given UTransPosition
-     * indices.  Return TRUE if the transliteration should continue
-     * or FALSE if it should halt (because of a U_PARTIAL_MATCH match).
-     * Note that FALSE is only ever returned if isIncremental is TRUE.
+     * indices.  Return true if the transliteration should continue
+     * or false if it should halt (because of a U_PARTIAL_MATCH match).
+     * Note that false is only ever returned if isIncremental is true.
      * @param text the text to be transliterated
      * @param index the position indices, which will be updated
-     * @param isIncremental if TRUE, assume new text may be inserted
-     * at index.limit, and return FALSE if thre is a partial match.
-     * @return TRUE unless a U_PARTIAL_MATCH has been obtained,
+     * @param isIncremental if true, assume new text may be inserted
+     * at index.limit, and return false if thre is a partial match.
+     * @return true unless a U_PARTIAL_MATCH has been obtained,
      * indicating that transliteration should stop until more text
      * arrives.
      */

@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces.h"
@@ -34,7 +36,7 @@ class MemoryFailureRegion {
 // Implement the memory-reading callback. This one just fetches memory from the
 // current process, but a real implementation for a debugging extension would
 // fetch memory from the debuggee process or crash dump.
-d::MemoryAccessResult ReadMemory(uintptr_t address, uint8_t* destination,
+d::MemoryAccessResult ReadMemory(uintptr_t address, void* destination,
                                  size_t byte_count) {
   if (address >= memory_fail_start && address <= memory_fail_end) {
     // Simulate failure to read debuggee memory.
@@ -182,8 +184,8 @@ TEST(GetObjectProperties) {
               : Contains(props->brief, "maybe EmptyFixedArray"));
 
     // Provide a heap first page so the API can be more sure.
-    heap_addresses.read_only_space_first_page = reinterpret_cast<uintptr_t>(
-        i_isolate->heap()->read_only_space()->first_page());
+    heap_addresses.read_only_space_first_page =
+        i_isolate->heap()->read_only_space()->FirstPageAddress();
     props =
         d::GetObjectProperties(properties_or_hash, &ReadMemory, heap_addresses);
     CHECK(props->type_check_result ==
@@ -213,7 +215,7 @@ TEST(GetObjectProperties) {
   CHECK(props->type == std::string("v8::internal::SeqOneByteString"));
   CHECK_EQ(props->num_properties, 4);
   CheckProp(*props->properties[0], "v8::internal::Map", "map");
-  CheckProp(*props->properties[1], "uint32_t", "hash_field");
+  CheckProp(*props->properties[1], "uint32_t", "raw_hash_field");
   CheckProp(*props->properties[2], "int32_t", "length", 2);
   CheckProp(*props->properties[3], "char", "chars",
             d::PropertyKind::kArrayOfKnownSize, 2);
@@ -227,10 +229,13 @@ TEST(GetObjectProperties) {
   d::ObjectPropertiesResultPtr props2;
   {
     heap_addresses.read_only_space_first_page = 0;
+    uintptr_t map_ptr = props->properties[0]->address;
+    uintptr_t map_map_ptr = *reinterpret_cast<i::Tagged_t*>(map_ptr);
+#if V8_MAP_PACKING
+    map_map_ptr = reinterpret_cast<i::MapWord*>(&map_map_ptr)->ToMap().ptr();
+#endif
     uintptr_t map_address =
-        d::GetObjectProperties(
-            *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address),
-            &ReadMemory, heap_addresses)
+        d::GetObjectProperties(map_map_ptr, &ReadMemory, heap_addresses)
             ->properties[0]
             ->address;
     MemoryFailureRegion failure(map_address, map_address + i::Map::kSize);
@@ -260,7 +265,7 @@ TEST(GetObjectProperties) {
     }
     CheckProp(*props2->properties[0], "v8::internal::Map", "map",
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
-    CheckProp(*props2->properties[1], "uint32_t", "hash_field",
+    CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
               *reinterpret_cast<int32_t*>(props->properties[1]->address));
     CheckProp(*props2->properties[2], "int32_t", "length", 2);
   }
@@ -275,7 +280,7 @@ TEST(GetObjectProperties) {
   CHECK_EQ(props2->num_properties, 4);
   CheckProp(*props2->properties[0], "v8::internal::Map", "map",
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
-  CheckProp(*props2->properties[1], "uint32_t", "hash_field",
+  CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
             *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address));
   CheckProp(*props2->properties[2], "int32_t", "length", 2);
 
@@ -336,8 +341,11 @@ TEST(GetObjectProperties) {
   // Verify the result for a heap object field which is itself a struct: the
   // "descriptors" field on a DescriptorArray.
   // Start by getting the object's map and the map's descriptor array.
-  props = d::GetObjectProperties(ReadProp<i::Tagged_t>(*props, "map"),
-                                 &ReadMemory, heap_addresses);
+  uintptr_t map_ptr = ReadProp<i::Tagged_t>(*props, "map");
+#if V8_MAP_PACKING
+  map_ptr = reinterpret_cast<i::MapWord*>(&map_ptr)->ToMap().ptr();
+#endif
+  props = d::GetObjectProperties(map_ptr, &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
       heap_addresses);
@@ -408,6 +416,106 @@ TEST(ListObjectClasses) {
   CHECK_NE(class_set.find("v8::internal::HeapObject"), class_set.end());
   CHECK_NE(class_set.find("v8::internal::String"), class_set.end());
   CHECK_NE(class_set.find("v8::internal::JSRegExp"), class_set.end());
+}
+
+static void FrameIterationCheck(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
+  for (int i = 0; !iter.done(); i++) {
+    i::StackFrame* frame = iter.frame();
+    CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
+    d::StackFrameResultPtr props = d::GetStackFrame(frame->fp(), &ReadMemory);
+    if (frame->is_java_script()) {
+      JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+      CHECK_EQ(props->num_properties, 5);
+      auto js_function = js_frame->function();
+      CheckProp(*props->properties[0], "v8::internal::JSFunction",
+                "currently_executing_jsfunction", js_function.ptr());
+      auto shared_function_info = js_function.shared();
+      auto script = i::Script::cast(shared_function_info.script());
+      CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
+                static_cast<i::Tagged_t>(script.name().ptr()));
+      CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
+                static_cast<i::Tagged_t>(script.source().ptr()));
+
+      auto scope_info = shared_function_info.scope_info();
+      CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
+                static_cast<i::Tagged_t>(scope_info.FunctionName().ptr()));
+
+      CheckProp(*props->properties[4], "", "function_character_offset");
+      const d::ObjectProperty& function_character_offset =
+          *props->properties[4];
+      CHECK_EQ(function_character_offset.num_struct_fields, 2);
+      CheckStructProp(*function_character_offset.struct_fields[0],
+                      "v8::internal::Object", "start", 0);
+      CheckStructProp(*function_character_offset.struct_fields[1],
+                      "v8::internal::Object", "end", 4);
+    } else {
+      CHECK_EQ(props->num_properties, 0);
+    }
+    iter.Advance();
+  }
+}
+
+THREADED_TEST(GetFrameStack) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
+  obj->SetAccessor(v8_str("xxx"), FrameIterationCheck);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("obj"),
+                  obj->NewInstance(env.local()).ToLocalChecked())
+            .FromJust());
+  v8::Script::Compile(env.local(), v8_str("function foo() {"
+                                          "  return obj.xxx;"
+                                          "}"
+                                          "foo();"))
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+}
+
+TEST(SmallOrderedHashSetGetObjectProperties) {
+  LocalContext context;
+  Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
+  const size_t number_of_buckets = 2;
+  CHECK_EQ(number_of_buckets, set->NumberOfBuckets());
+  CHECK_EQ(0, set->NumberOfElements());
+
+  // Verify with the definition of SmallOrderedHashSet in
+  // src\objects\ordered-hash-table.tq.
+  d::HeapAddresses heap_addresses{0, 0, 0, 0};
+  d::ObjectPropertiesResultPtr props =
+      d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
+  CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
+  CHECK_EQ(props->type, std::string("v8::internal::SmallOrderedHashSet"));
+  CHECK_EQ(props->num_properties, 8);
+
+  CheckProp(*props->properties[0], "v8::internal::Map", "map");
+  CheckProp(*props->properties[1], "uint8_t", "number_of_elements");
+  CheckProp(*props->properties[2], "uint8_t", "number_of_deleted_elements");
+  CheckProp(*props->properties[3], "uint8_t", "number_of_buckets");
+#if TAGGED_SIZE_8_BYTES
+  CheckProp(*props->properties[4], "uint8_t", "padding",
+            d::PropertyKind::kArrayOfKnownSize, 5);
+#else
+  CheckProp(*props->properties[4], "uint8_t", "padding",
+            d::PropertyKind::kArrayOfKnownSize, 1);
+#endif
+  CheckProp(*props->properties[5], "v8::internal::Object", "data_table",
+            d::PropertyKind::kArrayOfKnownSize,
+            number_of_buckets * OrderedHashMap::kLoadFactor);
+  CheckProp(*props->properties[6], "uint8_t", "hash_table",
+            d::PropertyKind::kArrayOfKnownSize, number_of_buckets);
+  CheckProp(*props->properties[7], "uint8_t", "chain_table",
+            d::PropertyKind::kArrayOfKnownSize,
+            number_of_buckets * OrderedHashMap::kLoadFactor);
 }
 
 }  // namespace internal

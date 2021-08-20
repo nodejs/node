@@ -55,3 +55,12 @@ nf = new Intl.NumberFormat('en', {maximumFractionDigits: 3, style: 'currency', c
 assertEquals("$54,306.405", nf.format(54306.4047970));
 assertEquals("$54,306.40", nf.format(54306.4));
 assertEquals("$54,306.00", nf.format(54306));
+
+nf = new Intl.NumberFormat('en', {maximumFractionDigits: 0, style: 'currency', currency: 'USD'});
+
+assertEquals("$54,306", nf.format(54306.4047970));
+assertEquals("$54,306", nf.format(54306.4));
+assertEquals("$54,306", nf.format(54306));
+
+assertThrows(() => new Intl.NumberFormat('en',
+      {minimumFractionDigits: 1, maximumFractionDigits: 0, style: 'currency', currency: 'USD'}));

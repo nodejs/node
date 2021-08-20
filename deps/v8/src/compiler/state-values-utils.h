@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/zone/zone-hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -125,6 +126,17 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
   size_t size() const;
   iterator begin() const { return iterator(node_); }
+  iterator begin_without_receiver() const {
+    return ++begin();  // Skip the receiver.
+  }
+  iterator begin_without_receiver_and_skip(int n_skips) {
+    iterator it = begin_without_receiver();
+    while (n_skips > 0 && !it.done()) {
+      ++it;
+      --n_skips;
+    }
+    return it;
+  }
   iterator end() const { return iterator(); }
 
  private:

@@ -1,0 +1,203 @@
+.TH "WORKSPACES" "7" "July 2021" "" ""
+.SH "NAME"
+\fBworkspaces\fR \- Working with workspaces
+.SS Description
+.P
+\fBWorkspaces\fR is a generic term that refers to the set of features in the
+npm cli that provides support to managing multiple packages from your local
+files system from within a singular top\-level, root package\.
+.P
+This set of features makes up for a much more streamlined workflow handling
+linked packages from the local file system\. Automating the linking process
+as part of \fBnpm install\fP and avoiding manually having to use \fBnpm link\fP in
+order to add references to packages that should be symlinked into the current
+\fBnode_modules\fP folder\.
+.P
+We also refer to these packages being auto\-symlinked during \fBnpm install\fP as a
+single \fBworkspace\fR, meaning it's a nested package within the current local
+file system that is explicitly defined in the npm help \fBpackage\.json\fP
+\fBworkspaces\fP configuration\.
+.SS Defining workspaces
+.P
+Workspaces are usually defined via the \fBworkspaces\fP property of the
+npm help \fBpackage\.json\fP file, e\.g:
+.P
+.RS 2
+.nf
+{
+  "name": "my\-workspaces\-powered\-project",
+  "workspaces": [
+    "workspace\-a"
+  ]
+}
+.fi
+.RE
+.P
+Given the above \fBpackage\.json\fP example living at a current working
+directory \fB\|\.\fP that contains a folder named \fBworkspace\-a\fP that itself contains
+a \fBpackage\.json\fP inside it, defining a Node\.js package, e\.g:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- workspace\-a
+   `\-\- package\.json
+.fi
+.RE
+.P
+The expected result once running \fBnpm install\fP in this current working
+directory \fB\|\.\fP is that the folder \fBworkspace\-a\fP will get symlinked to the
+\fBnode_modules\fP folder of the current working dir\.
+.P
+Below is a post \fBnpm install\fP example, given that same previous example
+structure of files and folders:
+.P
+.RS 2
+.nf
+\|\.
++\-\- node_modules
+|  `\-\- workspace\-a \-> \.\./workspace\-a
++\-\- package\-lock\.json
++\-\- package\.json
+`\-\- workspace\-a
+   `\-\- package\.json
+.fi
+.RE
+.SS Getting started with workspaces
+.P
+You may automate the required steps to define a new workspace using
+npm help init\. For example in a project that already has a
+\fBpackage\.json\fP defined you can run:
+.P
+.RS 2
+.nf
+npm init \-w \./packages/a
+.fi
+.RE
+.P
+This command will create the missing folders and a new \fBpackage\.json\fP
+file (if needed) while also making sure to properly configure the
+\fB"workspaces"\fP property of your root project \fBpackage\.json\fP\|\.
+.SS Adding dependencies to a workspace
+.P
+It's possible to directly add/remove/update dependencies of your workspaces
+using the npm help \fBworkspace\fP config\.
+.P
+For example, assuming the following structure:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
+   `\-\- b
+       `\-\- package\.json
+.fi
+.RE
+.P
+If you want to add a dependency named \fBabbrev\fP from the registry as a
+dependency of your workspace \fBa\fR, you may use the workspace config to tell
+the npm installer that package should be added as a dependency of the provided
+workspace:
+.P
+.RS 2
+.nf
+npm install abbrev \-w a
+.fi
+.RE
+.P
+Note: other installing commands such as \fBuninstall\fP, \fBci\fP, etc will also
+respect the provided \fBworkspace\fP configuration\.
+.SS Using workspaces
+.P
+Given the specifities of how Node\.js handles module resolution \fIhttps://nodejs\.org/dist/latest\-v14\.x/docs/api/modules\.html#modules_all_together\fR it's possible to consume any defined workspace
+by it's declared \fBpackage\.json\fP \fBname\fP\|\. Continuing from the example defined
+above, let's also create a Node\.js script that will require the \fBworkspace\-a\fP
+example module, e\.g:
+.P
+.RS 2
+.nf
+// \./workspace\-a/index\.js
+module\.exports = 'a'
+
+// \./lib/index\.js
+const moduleA = require('workspace\-a')
+console\.log(moduleA) // \-> a
+.fi
+.RE
+.P
+When running it with:
+.P
+\fBnode lib/index\.js\fP
+.P
+This demonstrates how the nature of \fBnode_modules\fP resolution allows for
+\fBworkspaces\fR to enable a portable workflow for requiring each \fBworkspace\fR
+in such a way that is also easy to npm help publish these
+nested workspaces to be consumed elsewhere\.
+.SS Running commands in the context of workspaces
+.P
+You can use the \fBworkspace\fP configuration option to run commands in the context
+of a configured workspace\.
+.P
+Following is a quick example on how to use the \fBnpm run\fP command in the context
+of nested workspaces\. For a project containing multiple workspaces, e\.g:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
+   `\-\- b
+       `\-\- package\.json
+.fi
+.RE
+.P
+By running a command using the \fBworkspace\fP option, it's possible to run the
+given command in the context of that specific workspace\. e\.g:
+.P
+.RS 2
+.nf
+npm run test \-\-workspace=a
+.fi
+.RE
+.P
+This will run the \fBtest\fP script defined within the
+\fB\|\./packages/a/package\.json\fP file\.
+.P
+Please note that you can also specify this argument multiple times in the
+command\-line in order to target multiple workspaces, e\.g:
+.P
+.RS 2
+.nf
+npm run test \-\-workspace=a \-\-workspace=b
+.fi
+.RE
+.P
+It's also possible to use the \fBworkspaces\fP (plural) configuration option to
+enable the same behavior but running that command in the context of \fBall\fR
+configured workspaces\. e\.g:
+.P
+.RS 2
+.nf
+npm run test \-\-workspaces
+.fi
+.RE
+.P
+Will run the \fBtest\fP script in both \fB\|\./packages/a\fP and \fB\|\./packages/b\fP\|\.
+.SS See also
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help config
+
+.RE

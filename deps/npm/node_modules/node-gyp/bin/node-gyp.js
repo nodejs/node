@@ -131,9 +131,8 @@ function errorMessage () {
 
 function issueMessage () {
   errorMessage()
-  log.error('', ['This is a bug in `node-gyp`.',
-    'Try to update node-gyp and file an Issue if it does not help:',
-    '    <https://github.com/nodejs/node-gyp/issues>'
+  log.error('', ['Node-gyp failed to build your package.',
+    'Try to update npm and/or node-gyp and if it does not help file an issue with the package author.'
   ].join('\n'))
 }
 

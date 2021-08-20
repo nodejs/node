@@ -11,7 +11,7 @@ builder.addMemory(1, 1, false, true);
 const sig = builder.addType(makeSig([], [kWasmI32]));
 
 builder.addFunction(undefined, sig)
-  .addLocals({i32_count: 1002}).addLocals({i64_count: 3})
+  .addLocals(kWasmI32, 1002).addLocals(kWasmI64, 3)
   .addBodyWithEnd([
 // signature: i_v
 // body:
@@ -25,7 +25,7 @@ builder.addFunction(undefined, sig)
   kExprElse,  // else @45
     kExprI32Const, 0x00,  // i32.const
     kExprEnd,  // end @48
-  kExprIf, kWasmStmt,  // if @49
+  kExprIf, kWasmVoid,  // if @49
     kExprI32Const, 0x00,  // i32.const
     kExprI32Const, 0x00,  // i32.const
     kAtomicPrefix, kExprI32AtomicSub, 0x01, 0x04,  // i32.atomic.sub

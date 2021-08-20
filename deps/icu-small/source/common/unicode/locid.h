@@ -253,7 +253,7 @@ public:
     /**
      * Construct a locale from language, country, variant.
      * If an error occurs, then the constructed object will be "bogus"
-     * (isBogus() will return TRUE).
+     * (isBogus() will return true).
      *
      * @param language Lowercase two-letter or three-letter ISO-639 code.
      *  This parameter can instead be an ICU style C locale (e.g. "en_US"),
@@ -393,13 +393,17 @@ public:
      * If the specified language tag contains any ill-formed subtags,
      * the first such subtag and all following subtags are ignored.
      * <p>
-     * This implements the 'Language-Tag' production of BCP47, and so
-     * supports grandfathered (regular and irregular) as well as private
-     * use language tags.  Private use tags are represented as 'x-whatever',
-     * and grandfathered tags are converted to their canonical replacements
-     * where they exist.  Note that a few grandfathered tags have no modern
-     * replacement, these will be converted using the fallback described in
+     * This implements the 'Language-Tag' production of BCP 47, and so
+     * supports legacy language tags (marked as “Type: grandfathered” in BCP 47)
+     * (regular and irregular) as well as private use language tags.
+     *
+     * Private use tags are represented as 'x-whatever',
+     * and legacy tags are converted to their canonical replacements where they exist.
+     *
+     * Note that a few legacy tags have no modern replacement;
+     * these will be converted using the fallback described in
      * the first paragraph, so some information might be lost.
+     *
      * @param tag     the input BCP47 language tag.
      * @param status  error information if creating the Locale failed.
      * @return        the Locale for the specified BCP47 language tag.
@@ -567,15 +571,13 @@ public:
      */
     void minimizeSubtags(UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Canonicalize the locale ID of this object according to CLDR.
      * @param status the status code
-     * @draft ICU 67
+     * @stable ICU 67
      * @see createCanonical
      */
     void canonicalize(UErrorCode& status);
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * Gets the list of keywords for the specified locale.
@@ -795,14 +797,14 @@ public:
     /**
      * Returns whether this locale's script is written right-to-left.
      * If there is no script subtag, then the likely script is used, see uloc_addLikelySubtags().
-     * If no likely script is known, then FALSE is returned.
+     * If no likely script is known, then false is returned.
      *
      * A script is right-to-left according to the CLDR script metadata
      * which corresponds to whether the script's letters have Bidi_Class=R or AL.
      *
-     * Returns TRUE for "ar" and "en-Hebr", FALSE for "zh" and "fa-Cyrl".
+     * Returns true for "ar" and "en-Hebr", false for "zh" and "fa-Cyrl".
      *
-     * @return TRUE if the locale's script is written right-to-left
+     * @return true if the locale's script is written right-to-left
      * @stable ICU 54
      */
     UBool isRightToLeft() const;
@@ -956,7 +958,7 @@ public:
 
     /**
      * Gets the bogus state. Locale object can be bogus if it doesn't exist
-     * @return FALSE if it is a real locale, TRUE if it is a bogus locale
+     * @return false if it is a real locale, true if it is a bogus locale
      * @stable ICU 2.1
      */
     inline UBool isBogus(void) const;
@@ -1005,32 +1007,31 @@ public:
      */
     virtual UClassID getDynamicClassID() const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * A Locale iterator interface similar to a Java Iterator<Locale>.
-     * @draft ICU 65
+     * @stable ICU 65
      */
     class U_COMMON_API Iterator /* not : public UObject because this is an interface/mixin class */ {
     public:
-        /** @draft ICU 65 */
+        /** @stable ICU 65 */
         virtual ~Iterator();
 
         /**
-         * @return TRUE if next() can be called again.
-         * @draft ICU 65
+         * @return true if next() can be called again.
+         * @stable ICU 65
          */
         virtual UBool hasNext() const = 0;
 
         /**
          * @return the next locale.
-         * @draft ICU 65
+         * @stable ICU 65
          */
         virtual const Locale &next() = 0;
     };
 
     /**
      * A generic Locale iterator implementation over Locale input iterators.
-     * @draft ICU 65
+     * @stable ICU 65
      */
     template<typename Iter>
     class RangeIterator : public Iterator, public UMemory {
@@ -1042,19 +1043,19 @@ public:
          *
          * @param begin Start of range.
          * @param end Exclusive end of range.
-         * @draft ICU 65
+         * @stable ICU 65
          */
         RangeIterator(Iter begin, Iter end) : it_(begin), end_(end) {}
 
         /**
-         * @return TRUE if next() can be called again.
-         * @draft ICU 65
+         * @return true if next() can be called again.
+         * @stable ICU 65
          */
         UBool hasNext() const override { return it_ != end_; }
 
         /**
          * @return the next locale.
-         * @draft ICU 65
+         * @stable ICU 65
          */
         const Locale &next() override { return *it_++; }
 
@@ -1066,7 +1067,7 @@ public:
     /**
      * A generic Locale iterator implementation over Locale input iterators.
      * Calls the converter to convert each *begin to a const Locale &.
-     * @draft ICU 65
+     * @stable ICU 65
      */
     template<typename Iter, typename Conv>
     class ConvertingIterator : public Iterator, public UMemory {
@@ -1079,20 +1080,20 @@ public:
          * @param begin Start of range.
          * @param end Exclusive end of range.
          * @param converter Converter from *begin to const Locale & or compatible.
-         * @draft ICU 65
+         * @stable ICU 65
          */
         ConvertingIterator(Iter begin, Iter end, Conv converter) :
                 it_(begin), end_(end), converter_(converter) {}
 
         /**
-         * @return TRUE if next() can be called again.
-         * @draft ICU 65
+         * @return true if next() can be called again.
+         * @stable ICU 65
          */
         UBool hasNext() const override { return it_ != end_; }
 
         /**
          * @return the next locale.
-         * @draft ICU 65
+         * @stable ICU 65
          */
         const Locale &next() override { return converter_(*it_++); }
 
@@ -1101,7 +1102,6 @@ public:
         const Iter end_;
         Conv converter_;
     };
-#endif  // U_HIDE_DRAFT_API
 
 protected: /* only protected for testing purposes. DO NOT USE. */
 #ifndef U_HIDE_INTERNAL_API

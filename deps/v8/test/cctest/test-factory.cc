@@ -60,7 +60,8 @@ TEST(Factory_CodeBuilder) {
   HandleScope scope(isolate);
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = kMaxRegularHeapObjectSize + 1;
+  const int instruction_size =
+      Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + 1;
   std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
 
   CodeDesc desc;
@@ -73,7 +74,7 @@ TEST(Factory_CodeBuilder) {
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, Code::WASM_FUNCTION).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
   CHECK(isolate->heap()->InSpace(*code, CODE_LO_SPACE));
 #if VERIFY_HEAP
@@ -89,9 +90,9 @@ UNINITIALIZED_TEST(Factory_CodeBuilder_BuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const Handle<Code> code =
-      Factory::CodeBuilder(isolate_scope.isolate(), desc, Code::WASM_FUNCTION)
-          .Build();
+  const Handle<Code> code = Factory::CodeBuilder(isolate_scope.isolate(), desc,
+                                                 CodeKind::WASM_FUNCTION)
+                                .Build();
 
   CHECK(!code.is_null());
   CHECK(isolate_scope.oom_triggered());
@@ -106,7 +107,8 @@ UNINITIALIZED_TEST(Factory_CodeBuilder_TryBuildOOM) {
   desc.buffer = instructions.get();
 
   const MaybeHandle<Code> code =
-      Factory::CodeBuilder(isolate_scope.isolate(), desc, Code::WASM_FUNCTION)
+      Factory::CodeBuilder(isolate_scope.isolate(), desc,
+                           CodeKind::WASM_FUNCTION)
           .TryBuild();
 
   CHECK(code.is_null());

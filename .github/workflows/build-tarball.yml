@@ -2,9 +2,11 @@ name: Build from tarball
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - master
+      - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
 
@@ -13,13 +15,14 @@ env:
 
 jobs:
   build-tarball:
+    if: github.event.pull_request.draft == false
     env:
-      PYTHON_VERSION: 3.8
+      PYTHON_VERSION: 3.9
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -39,13 +42,13 @@ jobs:
           path: tarballs
   test-tarball-linux:
     env:
-      PYTHON_VERSION: 3.8
+      PYTHON_VERSION: 3.9
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -56,8 +59,8 @@ jobs:
           name: tarballs
       - name: Extract tarball
         run: |
-          tar xzf tarballs/*.tar.gz
-          echo "::set-env name=TAR_DIR::`basename tarballs/*.tar.gz .tar.gz`"
+          tar xzf tarballs/*.tar.gz -C $RUNNER_TEMP
+          echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
       - name: Copy directories needed for testing
         run: |
           cp -r tools/node_modules $TAR_DIR/tools

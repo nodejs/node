@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-uint32_t flags = OptimizedCompilationInfo::kInliningEnabled;
+uint32_t flags = OptimizedCompilationInfo::kInlining;
 
 TEST(Call) {
   FunctionTester T("(function(a,b) { return %_Call(b, a, 1, 2, 3); })", flags);

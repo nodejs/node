@@ -122,6 +122,9 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 
   if (!incremental_marking->IsStopped()) {
+    // All objects are initialized at that point.
+    heap->new_space()->MarkLabStartInitialized();
+    heap->new_lo_space()->ResetPendingObject();
     StepResult step_result = Step(heap);
     if (!incremental_marking->IsStopped()) {
       const TaskType task_type =

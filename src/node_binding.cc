@@ -6,16 +6,12 @@
 #include "node_native_module_env.h"
 #include "util.h"
 
+#include <string>
+
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
 #else
 #define NODE_BUILTIN_OPENSSL_MODULES(V)
-#endif
-
-#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
-#define NODE_BUILTIN_QUIC_MODULES(V) V(quic)
-#else
-#define NODE_BUILTIN_QUIC_MODULES(V)
 #endif
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -44,6 +40,7 @@
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
   V(async_wrap)                                                                \
+  V(blob)                                                                      \
   V(block_list)                                                                \
   V(buffer)                                                                    \
   V(cares_wrap)                                                                \
@@ -96,7 +93,6 @@
 #define NODE_BUILTIN_MODULES(V)                                                \
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
-  NODE_BUILTIN_QUIC_MODULES(V)                                                 \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
   NODE_BUILTIN_PROFILER_MODULES(V)                                             \
   NODE_BUILTIN_DTRACE_MODULES(V)
@@ -424,13 +420,13 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   CHECK_NULL(thread_local_modpending);
 
   if (args.Length() < 2) {
-    env->ThrowError("process.dlopen needs at least 2 arguments.");
-    return;
+    return THROW_ERR_MISSING_ARGS(
+        env, "process.dlopen needs at least 2 arguments");
   }
 
   int32_t flags = DLib::kDefaultFlags;
   if (args.Length() > 2 && !args[2]->Int32Value(context).To(&flags)) {
-    return env->ThrowTypeError("flag argument must be an integer.");
+    return THROW_ERR_INVALID_ARG_TYPE(env, "flag argument must be an integer.");
   }
 
   Local<Object> module;
@@ -456,21 +452,19 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     thread_local_modpending = nullptr;
 
     if (!is_opened) {
-      Local<String> errmsg =
-          OneByteString(env->isolate(), dlib->errmsg_.c_str());
+      std::string errmsg = dlib->errmsg_.c_str();
       dlib->Close();
 #ifdef _WIN32
       // Windows needs to add the filename into the error message
-      errmsg = String::Concat(
-          env->isolate(), errmsg, args[1]->ToString(context).ToLocalChecked());
+      errmsg += *filename;
 #endif  // _WIN32
-      env->isolate()->ThrowException(Exception::Error(errmsg));
+      THROW_ERR_DLOPEN_FAILED(env, errmsg.c_str());
       return false;
     }
 
     if (mp != nullptr) {
       if (mp->nm_context_register_func == nullptr) {
-        if (env->options()->force_context_aware) {
+        if (env->force_context_aware()) {
           dlib->Close();
           THROW_ERR_NON_CONTEXT_AWARE_DISABLED(env);
           return false;
@@ -494,7 +488,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
                    sizeof(errmsg),
                    "Module did not self-register: '%s'.",
                    *filename);
-          env->ThrowError(errmsg);
+          THROW_ERR_DLOPEN_FAILED(env, errmsg);
           return false;
         }
       }
@@ -525,7 +519,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       // NOTE: `mp` is allocated inside of the shared library's memory, calling
       // `dlclose` will deallocate it
       dlib->Close();
-      env->ThrowError(errmsg);
+      THROW_ERR_DLOPEN_FAILED(env, errmsg);
       return false;
     }
     CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
@@ -538,7 +532,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       mp->nm_register_func(exports, module, mp->nm_priv);
     } else {
       dlib->Close();
-      env->ThrowError("Module has no declared entry point.");
+      THROW_ERR_DLOPEN_FAILED(env, "Module has no declared entry point.");
       return false;
     }
 
@@ -577,12 +571,6 @@ static Local<Object> InitModule(Environment* env,
   return exports;
 }
 
-static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
-  char errmsg[1024];
-  snprintf(errmsg, sizeof(errmsg), "No such module: %s", module_v);
-  env->ThrowError(errmsg);
-}
-
 void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -595,6 +583,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
+    env->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(
@@ -611,7 +600,9 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
                         env->isolate()))
               .FromJust());
   } else {
-    return ThrowIfNoSuchModule(env, *module_v);
+    char errmsg[1024];
+    snprintf(errmsg, sizeof(errmsg), "No such module: %s", *module_v);
+    return THROW_ERR_INVALID_MODULE(env, errmsg);
   }
 
   args.GetReturnValue().Set(exports);
@@ -646,7 +637,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
              sizeof(errmsg),
              "No such module was linked: %s",
              *module_name_v);
-    return env->ThrowError(errmsg);
+    return THROW_ERR_INVALID_MODULE(env, errmsg);
   }
 
   Local<Object> module = Object::New(env->isolate());
@@ -661,7 +652,9 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   } else if (mod->nm_register_func != nullptr) {
     mod->nm_register_func(exports, module, mod->nm_priv);
   } else {
-    return env->ThrowError("Linked module has no declared entry point.");
+    return THROW_ERR_INVALID_MODULE(
+        env,
+        "Linked moduled has no declared entry point.");
   }
 
   auto effective_exports =

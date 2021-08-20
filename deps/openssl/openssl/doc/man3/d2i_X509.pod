@@ -365,7 +365,7 @@ i2d_X509_VAL,
 
 =for comment generic
 
- TYPE *d2i_TYPE(TYPE **a, unsigned char **ppin, long length);
+ TYPE *d2i_TYPE(TYPE **a, const unsigned char **ppin, long length);
  TYPE *d2i_TYPE_bio(BIO *bp, TYPE **a);
  TYPE *d2i_TYPE_fp(FILE *fp, TYPE **a);
 
@@ -436,8 +436,8 @@ The actual TYPE structure passed to i2d_TYPE() must be a valid
 populated B<TYPE> structure -- it B<cannot> simply be fed with an
 empty structure such as that returned by TYPE_new().
 
-The encoded data is in binary form and may contain embedded zeroes.
-Therefore any FILE pointers or BIOs should be opened in binary mode.
+The encoded data is in binary form and may contain embedded zeros.
+Therefore, any FILE pointers or BIOs should be opened in binary mode.
 Functions such as strlen() will B<not> return the correct length
 of the encoded structure.
 
@@ -529,7 +529,8 @@ Allocate and encode the DER encoding of an X509 structure:
 Attempt to decode a buffer:
 
  X509 *x;
- unsigned char *buf, *p;
+ unsigned char *buf;
+ const unsigned char *p;
  int len;
 
  /* Set up buf and len to point to the input buffer. */
@@ -541,7 +542,8 @@ Attempt to decode a buffer:
 Alternative technique:
 
  X509 *x;
- unsigned char *buf, *p;
+ unsigned char *buf;
+ const unsigned char *p;
  int len;
 
  /* Set up buf and len to point to the input buffer. */

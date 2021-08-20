@@ -6,6 +6,8 @@ namespace runtime {
 extern runtime
 ShrinkFinalizationRegistryUnregisterTokenMap(
     Context, JSFinalizationRegistry): void;
+extern runtime JSFinalizationRegistryRegisterWeakCellWithUnregisterToken(
+    implicit context: Context)(JSFinalizationRegistry, WeakCell): void;
 }
 
 namespace weakref {
@@ -52,6 +54,19 @@ PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
   }
 }
 
+transitioning macro PushCell(
+    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell) {
+  cell.next = finalizationRegistry.active_cells;
+  typeswitch (finalizationRegistry.active_cells) {
+    case (Undefined): {
+    }
+    case (oldHead: WeakCell): {
+      oldHead.prev = cell;
+    }
+  }
+  finalizationRegistry.active_cells = cell;
+}
+
 transitioning macro
 FinalizationRegistryCleanupLoop(implicit context: Context)(
     finalizationRegistry: JSFinalizationRegistry, callback: Callable) {
@@ -75,6 +90,103 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
 
   runtime::ShrinkFinalizationRegistryUnregisterTokenMap(
       context, finalizationRegistry);
+}
+
+transitioning javascript builtin
+FinalizationRegistryConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(cleanupCallback: JSAny): JSFinalizationRegistry {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(
+        MessageTemplate::kConstructorNotFunction, 'FinalizationRegistry');
+  }
+  // 2. If IsCallable(cleanupCallback) is false, throw a TypeError exception.
+  const cleanupCallback = Cast<Callable>(cleanupCallback) otherwise
+  ThrowTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable);
+  // 3. Let finalizationRegistry be ? OrdinaryCreateFromConstructor(NewTarget,
+  // "%FinalizationRegistryPrototype%", « [[Realm]], [[CleanupCallback]],
+  // [[Cells]] »).
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  const finalizationRegistry = UnsafeCast<JSFinalizationRegistry>(
+      AllocateFastOrSlowJSObjectFromMap(map));
+  // 4. Let fn be the active function object.
+  // 5. Set finalizationRegistry.[[Realm]] to fn.[[Realm]].
+  finalizationRegistry.native_context = context;
+  // 6. Set finalizationRegistry.[[CleanupCallback]] to cleanupCallback.
+  finalizationRegistry.cleanup = cleanupCallback;
+  finalizationRegistry.flags =
+      SmiTag(FinalizationRegistryFlags{scheduled_for_cleanup: false});
+  // 7. Set finalizationRegistry.[[Cells]] to be an empty List.
+  assert(finalizationRegistry.active_cells == Undefined);
+  assert(finalizationRegistry.cleared_cells == Undefined);
+  assert(finalizationRegistry.key_map == Undefined);
+  // 8. Return finalizationRegistry.
+  return finalizationRegistry;
+}
+
+transitioning javascript builtin
+FinalizationRegistryRegister(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let finalizationRegistry be the this value.
+  // 2. Perform ? RequireInternalSlot(finalizationRegistry, [[Cells]]).
+  const finalizationRegistry = Cast<JSFinalizationRegistry>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'FinalizationRegistry.prototype.register', receiver);
+  // 3. If Type(target) is not Object, throw a TypeError exception.
+  const target = Cast<JSReceiver>(arguments[0]) otherwise ThrowTypeError(
+      MessageTemplate::kWeakRefsRegisterTargetMustBeObject);
+  const heldValue = arguments[1];
+  // 4. If SameValue(target, heldValue), throw a TypeError exception.
+  if (target == heldValue) {
+    ThrowTypeError(
+        MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame);
+  }
+  const unregisterToken = arguments[2];
+  // 5. If Type(unregisterToken) is not Object,
+  //   a. If unregisterToken is not undefined, throw a TypeError exception.
+  //   b. Set unregisterToken to empty.
+  let hasUnregisterToken: bool = false;
+  typeswitch (unregisterToken) {
+    case (Undefined): {
+    }
+    case (JSReceiver): {
+      hasUnregisterToken = true;
+    }
+    case (JSAny): deferred {
+      ThrowTypeError(
+          MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
+          unregisterToken);
+    }
+  }
+  // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
+  //    heldValue, [[UnregisterToken]]: unregisterToken }.
+  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
+  // handling is only implemented in the old space 2) they're supposedly
+  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
+  const cell = new (Pretenured) WeakCell{
+    map: GetWeakCellMap(),
+    finalization_registry: finalizationRegistry,
+    target: target,
+    unregister_token: unregisterToken,
+    holdings: heldValue,
+    prev: Undefined,
+    next: Undefined,
+    key_list_prev: Undefined,
+    key_list_next: Undefined
+  };
+  // 7. Append cell to finalizationRegistry.[[Cells]].
+  PushCell(finalizationRegistry, cell);
+  if (hasUnregisterToken) {
+    // If an unregister token is provided, a runtime call is needed to
+    // do some OrderedHashTable operations and register the mapping.
+    // See v8:10705.
+    runtime::JSFinalizationRegistryRegisterWeakCellWithUnregisterToken(
+        finalizationRegistry, cell);
+  }
+  // 8. Return undefined.
+  return Undefined;
 }
 
 transitioning javascript builtin

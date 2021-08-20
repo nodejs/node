@@ -225,10 +225,8 @@ public:
      * Normalizes a UTF-8 string and optionally records how source substrings
      * relate to changed and unchanged result substrings.
      *
-     * Currently implemented completely only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * Otherwise currently converts to & from UTF-16 and does not support edits.
+     * Implemented completely for all built-in modes except for FCD.
+     * The base class implementation converts to & from UTF-16 and does not support edits.
      *
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       Source UTF-8 string.
@@ -290,13 +288,13 @@ public:
      * Gets the decomposition mapping of c.
      * Roughly equivalent to normalizing the String form of c
      * on a UNORM2_DECOMPOSE Normalizer2 instance, but much faster, and except that this function
-     * returns FALSE and does not write a string
+     * returns false and does not write a string
      * if c does not have a decomposition mapping in this instance's data.
      * This function is independent of the mode of the Normalizer2.
      * @param c code point
      * @param decomposition String object which will be set to c's
      *                      decomposition mapping, if there is one.
-     * @return TRUE if c has a decomposition, otherwise FALSE
+     * @return true if c has a decomposition, otherwise false
      * @stable ICU 4.6
      */
     virtual UBool
@@ -319,11 +317,11 @@ public:
      * in this case, the result contains either one or two code points (=1..4 char16_ts).
      *
      * This function is independent of the mode of the Normalizer2.
-     * The default implementation returns FALSE.
+     * The default implementation returns false.
      * @param c code point
      * @param decomposition String object which will be set to c's
      *                      raw decomposition mapping, if there is one.
-     * @return TRUE if c has a decomposition, otherwise FALSE
+     * @return true if c has a decomposition, otherwise false
      * @stable ICU 49
      */
     virtual UBool
@@ -369,7 +367,7 @@ public:
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
      *                  function chaining. (See User Guide for details.)
-     * @return TRUE if s is normalized
+     * @return true if s is normalized
      * @stable ICU 4.4
      */
     virtual UBool
@@ -381,18 +379,16 @@ public:
      * resolves to "yes" or "no" to provide a definitive result,
      * at the cost of doing more work in those cases.
      *
-     * This works for all normalization modes,
-     * but it is currently optimized for UTF-8 only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * For other modes it currently converts to UTF-16 and calls isNormalized().
+     * This works for all normalization modes.
+     * It is optimized for UTF-8 for all built-in modes except for FCD.
+     * The base class implementation converts to UTF-16 and calls isNormalized().
      *
      * @param s UTF-8 input string
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
      *                  function chaining. (See User Guide for details.)
-     * @return TRUE if s is normalized
+     * @return true if s is normalized
      * @stable ICU 60
      */
     virtual UBool
@@ -452,7 +448,7 @@ public:
      * character independently.
      * This is used for iterative normalization. See the class documentation for details.
      * @param c character to test
-     * @return TRUE if c has a normalization boundary before it
+     * @return true if c has a normalization boundary before it
      * @stable ICU 4.4
      */
     virtual UBool hasBoundaryBefore(UChar32 c) const = 0;
@@ -468,7 +464,7 @@ public:
      * This is used for iterative normalization. See the class documentation for details.
      * Note that this operation may be significantly slower than hasBoundaryBefore().
      * @param c character to test
-     * @return TRUE if c has a normalization boundary after it
+     * @return true if c has a normalization boundary after it
      * @stable ICU 4.4
      */
     virtual UBool hasBoundaryAfter(UChar32 c) const = 0;
@@ -483,7 +479,7 @@ public:
      * This is used for iterative normalization. See the class documentation for details.
      * Note that this operation may be significantly slower than hasBoundaryBefore().
      * @param c character to test
-     * @return TRUE if c is normalization-inert
+     * @return true if c is normalization-inert
      * @stable ICU 4.4
      */
     virtual UBool isInert(UChar32 c) const = 0;
@@ -543,10 +539,8 @@ public:
      * Normalizes a UTF-8 string and optionally records how source substrings
      * relate to changed and unchanged result substrings.
      *
-     * Currently implemented completely only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * Otherwise currently converts to & from UTF-16 and does not support edits.
+     * Implemented completely for most built-in modes except for FCD.
+     * The base class implementation converts to & from UTF-16 and does not support edits.
      *
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       Source UTF-8 string.
@@ -612,7 +606,7 @@ public:
      * @param c code point
      * @param decomposition String object which will be set to c's
      *                      decomposition mapping, if there is one.
-     * @return TRUE if c has a decomposition, otherwise FALSE
+     * @return true if c has a decomposition, otherwise false
      * @stable ICU 4.6
      */
     virtual UBool
@@ -626,7 +620,7 @@ public:
      * @param c code point
      * @param decomposition String object which will be set to c's
      *                      raw decomposition mapping, if there is one.
-     * @return TRUE if c has a decomposition, otherwise FALSE
+     * @return true if c has a decomposition, otherwise false
      * @stable ICU 49
      */
     virtual UBool
@@ -664,7 +658,7 @@ public:
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
      *                  function chaining. (See User Guide for details.)
-     * @return TRUE if s is normalized
+     * @return true if s is normalized
      * @stable ICU 4.4
      */
     virtual UBool
@@ -676,18 +670,16 @@ public:
      * resolves to "yes" or "no" to provide a definitive result,
      * at the cost of doing more work in those cases.
      *
-     * This works for all normalization modes,
-     * but it is currently optimized for UTF-8 only for "compose" modes,
-     * such as for NFC, NFKC, and NFKC_Casefold
-     * (UNORM2_COMPOSE and UNORM2_COMPOSE_CONTIGUOUS).
-     * For other modes it currently converts to UTF-16 and calls isNormalized().
+     * This works for all normalization modes.
+     * It is optimized for UTF-8 for all built-in modes except for FCD.
+     * The base class implementation converts to UTF-16 and calls isNormalized().
      *
      * @param s UTF-8 input string
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
      *                  immediately. Check for U_FAILURE() on output or use with
      *                  function chaining. (See User Guide for details.)
-     * @return TRUE if s is normalized
+     * @return true if s is normalized
      * @stable ICU 60
      */
     virtual UBool
@@ -724,7 +716,7 @@ public:
      * regardless of context.
      * For details see the Normalizer2 base class documentation.
      * @param c character to test
-     * @return TRUE if c has a normalization boundary before it
+     * @return true if c has a normalization boundary before it
      * @stable ICU 4.4
      */
     virtual UBool hasBoundaryBefore(UChar32 c) const U_OVERRIDE;
@@ -734,7 +726,7 @@ public:
      * regardless of context.
      * For details see the Normalizer2 base class documentation.
      * @param c character to test
-     * @return TRUE if c has a normalization boundary after it
+     * @return true if c has a normalization boundary after it
      * @stable ICU 4.4
      */
     virtual UBool hasBoundaryAfter(UChar32 c) const U_OVERRIDE;
@@ -743,7 +735,7 @@ public:
      * Tests if the character is normalization-inert.
      * For details see the Normalizer2 base class documentation.
      * @param c character to test
-     * @return TRUE if c is normalization-inert
+     * @return true if c is normalization-inert
      * @stable ICU 4.4
      */
     virtual UBool isInert(UChar32 c) const U_OVERRIDE;

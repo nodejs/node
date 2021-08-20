@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.14',
+    'v8_embedder_string': '-node.19',
 
     ##### V8 defaults for Node.js #####
 
@@ -99,7 +99,7 @@
         'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
       }],
       ['openssl_fips != ""', {
-        'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
+        'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }, {
         'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }],
@@ -111,6 +111,9 @@
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
+      ['OS=="linux"', {
+        'node_section_ordering_info%': ''
+      }]
     ],
   },
 
@@ -161,17 +164,42 @@
           'v8_enable_handle_zapping': 0,
           'pgo_generate': ' -fprofile-generate ',
           'pgo_use': ' -fprofile-use -fprofile-correction ',
-          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
           'conditions': [
             ['node_shared != "true"', {
               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
             }, {
               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
             }],
+            ['llvm_version=="0.0"', {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
+            }, {
+              'lto': ' -flto ', # Clang
+            }],
           ],
         },
         'cflags': [ '-O3' ],
         'conditions': [
+          ['enable_lto=="true"', {
+            'cflags': ['<(lto)'],
+            'ldflags': ['<(lto)'],
+            'xcode_settings': {
+              'LLVM_LTO': 'YES',
+            },
+          }],
+          ['OS=="linux"', {
+            'conditions': [
+              ['node_section_ordering_info!=""', {
+                'cflags': [
+                  '-fuse-ld=gold',
+                  '-ffunction-sections',
+                ],
+                'ldflags': [
+                  '-fuse-ld=gold',
+                  '-Wl,--section-ordering-file=<(node_section_ordering_info)',
+                ],
+              }],
+            ],
+          }],
           ['OS=="solaris"', {
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
@@ -188,10 +216,6 @@
               ['enable_pgo_use=="true"', {
                 'cflags': ['<(pgo_use)'],
                 'ldflags': ['<(pgo_use)'],
-              },],
-              ['enable_lto=="true"', {
-                'cflags': ['<(lto)'],
-                'ldflags': ['<(lto)'],
               },],
             ],
           },],
@@ -228,6 +252,7 @@
     'defines': [
       'V8_DEPRECATION_WARNINGS',
       'V8_IMMINENT_DEPRECATION_WARNINGS',
+      '_GLIBCXX_USE_CXX11_ABI=1',
     ],
 
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
@@ -331,7 +356,10 @@
         ],
       }],
       ['v8_enable_pointer_compression == 1', {
-        'defines': ['V8_COMPRESS_POINTERS'],
+        'defines': [
+          'V8_COMPRESS_POINTERS',
+          'V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE',
+        ],
       }],
       ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
@@ -357,7 +385,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++14' ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
@@ -478,8 +506,7 @@
           ['_type!="static_library"', {
             'xcode_settings': {
               'OTHER_LDFLAGS': [
-                '-Wl,-no_pie',
-                '-Wl,-search_paths_first',
+                '-Wl,-search_paths_first'
               ],
             },
           }],
@@ -491,10 +518,18 @@
           ['target_arch=="x64"', {
             'xcode_settings': {'ARCHS': ['x86_64']},
           }],
+          ['target_arch=="arm64"', {
+            'xcode_settings': {
+              'ARCHS': ['arm64'],
+              'OTHER_LDFLAGS!': [
+                '-Wl,-no_pie',
+              ],
+            },
+          }],
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1y',  # -std=gnu++1y
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++14',  # -std=gnu++14
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],

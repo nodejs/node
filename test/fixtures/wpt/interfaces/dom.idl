@@ -1,6 +1,6 @@
 // GENERATED CONTENT - DO NOT EDIT
-// Content was automatically extracted by Reffy into reffy-reports
-// (https://github.com/tidoust/reffy-reports)
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
 // Source: DOM Standard (https://dom.spec.whatwg.org/)
 
 [Exposed=(Window,Worker,AudioWorklet)]
@@ -9,7 +9,7 @@ interface Event {
 
   readonly attribute DOMString type;
   readonly attribute EventTarget? target;
-  readonly attribute EventTarget? srcElement; // historical
+  readonly attribute EventTarget? srcElement; // legacy
   readonly attribute EventTarget? currentTarget;
   sequence<EventTarget> composedPath();
 
@@ -19,21 +19,21 @@ interface Event {
   const unsigned short BUBBLING_PHASE = 3;
   readonly attribute unsigned short eventPhase;
 
-  void stopPropagation();
-           attribute boolean cancelBubble; // historical alias of .stopPropagation
-  void stopImmediatePropagation();
+  undefined stopPropagation();
+           attribute boolean cancelBubble; // legacy alias of .stopPropagation()
+  undefined stopImmediatePropagation();
 
   readonly attribute boolean bubbles;
   readonly attribute boolean cancelable;
-           attribute boolean returnValue;  // historical
-  void preventDefault();
+           attribute boolean returnValue;  // legacy
+  undefined preventDefault();
   readonly attribute boolean defaultPrevented;
   readonly attribute boolean composed;
 
   [LegacyUnforgeable] readonly attribute boolean isTrusted;
   readonly attribute DOMHighResTimeStamp timeStamp;
 
-  void initEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // historical
+  undefined initEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
 };
 
 dictionary EventInit {
@@ -43,7 +43,7 @@ dictionary EventInit {
 };
 
 partial interface Window {
-  [Replaceable] readonly attribute any event; // historical
+  [Replaceable] readonly attribute (Event or undefined) event; // legacy
 };
 
 [Exposed=(Window,Worker)]
@@ -52,7 +52,7 @@ interface CustomEvent : Event {
 
   readonly attribute any detail;
 
-  void initCustomEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any detail = null); // historical
+  undefined initCustomEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any detail = null); // legacy
 };
 
 dictionary CustomEventInit : EventInit {
@@ -63,13 +63,13 @@ dictionary CustomEventInit : EventInit {
 interface EventTarget {
   constructor();
 
-  void addEventListener(DOMString type, EventListener? callback, optional (AddEventListenerOptions or boolean) options = {});
-  void removeEventListener(DOMString type, EventListener? callback, optional (EventListenerOptions or boolean) options = {});
+  undefined addEventListener(DOMString type, EventListener? callback, optional (AddEventListenerOptions or boolean) options = {});
+  undefined removeEventListener(DOMString type, EventListener? callback, optional (EventListenerOptions or boolean) options = {});
   boolean dispatchEvent(Event event);
 };
 
 callback interface EventListener {
-  void handleEvent(Event event);
+  undefined handleEvent(Event event);
 };
 
 dictionary EventListenerOptions {
@@ -79,6 +79,7 @@ dictionary EventListenerOptions {
 dictionary AddEventListenerOptions : EventListenerOptions {
   boolean passive = false;
   boolean once = false;
+  AbortSignal signal;
 };
 
 [Exposed=(Window,Worker)]
@@ -87,11 +88,13 @@ interface AbortController {
 
   [SameObject] readonly attribute AbortSignal signal;
 
-  void abort();
+  undefined abort();
 };
 
 [Exposed=(Window,Worker)]
 interface AbortSignal : EventTarget {
+  [NewObject] static AbortSignal abort();
+
   readonly attribute boolean aborted;
 
   attribute EventHandler onabort;
@@ -113,9 +116,9 @@ interface mixin ParentNode {
   readonly attribute Element? lastElementChild;
   readonly attribute unsigned long childElementCount;
 
-  [CEReactions, Unscopable] void prepend((Node or DOMString)... nodes);
-  [CEReactions, Unscopable] void append((Node or DOMString)... nodes);
-  [CEReactions, Unscopable] void replaceChildren((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined prepend((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined append((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined replaceChildren((Node or DOMString)... nodes);
 
   Element? querySelector(DOMString selectors);
   [NewObject] NodeList querySelectorAll(DOMString selectors);
@@ -132,10 +135,10 @@ Element includes NonDocumentTypeChildNode;
 CharacterData includes NonDocumentTypeChildNode;
 
 interface mixin ChildNode {
-  [CEReactions, Unscopable] void before((Node or DOMString)... nodes);
-  [CEReactions, Unscopable] void after((Node or DOMString)... nodes);
-  [CEReactions, Unscopable] void replaceWith((Node or DOMString)... nodes);
-  [CEReactions, Unscopable] void remove();
+  [CEReactions, Unscopable] undefined before((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined after((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined replaceWith((Node or DOMString)... nodes);
+  [CEReactions, Unscopable] undefined remove();
 };
 DocumentType includes ChildNode;
 Element includes ChildNode;
@@ -165,12 +168,12 @@ interface HTMLCollection {
 interface MutationObserver {
   constructor(MutationCallback callback);
 
-  void observe(Node target, optional MutationObserverInit options = {});
-  void disconnect();
+  undefined observe(Node target, optional MutationObserverInit options = {});
+  undefined disconnect();
   sequence<MutationRecord> takeRecords();
 };
 
-callback MutationCallback = void (sequence<MutationRecord> mutations, MutationObserver observer);
+callback MutationCallback = undefined (sequence<MutationRecord> mutations, MutationObserver observer);
 
 dictionary MutationObserverInit {
   boolean childList = false;
@@ -201,14 +204,14 @@ interface Node : EventTarget {
   const unsigned short ATTRIBUTE_NODE = 2;
   const unsigned short TEXT_NODE = 3;
   const unsigned short CDATA_SECTION_NODE = 4;
-  const unsigned short ENTITY_REFERENCE_NODE = 5; // historical
-  const unsigned short ENTITY_NODE = 6; // historical
+  const unsigned short ENTITY_REFERENCE_NODE = 5; // legacy
+  const unsigned short ENTITY_NODE = 6; // legacy
   const unsigned short PROCESSING_INSTRUCTION_NODE = 7;
   const unsigned short COMMENT_NODE = 8;
   const unsigned short DOCUMENT_NODE = 9;
   const unsigned short DOCUMENT_TYPE_NODE = 10;
   const unsigned short DOCUMENT_FRAGMENT_NODE = 11;
-  const unsigned short NOTATION_NODE = 12; // historical
+  const unsigned short NOTATION_NODE = 12; // legacy
   readonly attribute unsigned short nodeType;
   readonly attribute DOMString nodeName;
 
@@ -228,11 +231,11 @@ interface Node : EventTarget {
 
   [CEReactions] attribute DOMString? nodeValue;
   [CEReactions] attribute DOMString? textContent;
-  [CEReactions] void normalize();
+  [CEReactions] undefined normalize();
 
   [CEReactions, NewObject] Node cloneNode(optional boolean deep = false);
   boolean isEqualNode(Node? otherNode);
-  boolean isSameNode(Node? otherNode); // historical alias of ===
+  boolean isSameNode(Node? otherNode); // legacy alias of ===
 
   const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
   const unsigned short DOCUMENT_POSITION_PRECEDING = 0x02;
@@ -266,8 +269,8 @@ interface Document : Node {
   readonly attribute USVString documentURI;
   readonly attribute DOMString compatMode;
   readonly attribute DOMString characterSet;
-  readonly attribute DOMString charset; // historical alias of .characterSet
-  readonly attribute DOMString inputEncoding; // historical alias of .characterSet
+  readonly attribute DOMString charset; // legacy alias of .characterSet
+  readonly attribute DOMString inputEncoding; // legacy alias of .characterSet
   readonly attribute DOMString contentType;
 
   readonly attribute DocumentType? doctype;
@@ -290,7 +293,7 @@ interface Document : Node {
   [NewObject] Attr createAttribute(DOMString localName);
   [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName);
 
-  [NewObject] Event createEvent(DOMString interface); // historical
+  [NewObject] Event createEvent(DOMString interface); // legacy
 
   [NewObject] Range createRange();
 
@@ -330,11 +333,14 @@ interface DocumentFragment : Node {
 [Exposed=Window]
 interface ShadowRoot : DocumentFragment {
   readonly attribute ShadowRootMode mode;
+  readonly attribute boolean delegatesFocus;
+  readonly attribute SlotAssignmentMode slotAssignment;
   readonly attribute Element host;
   attribute EventHandler onslotchange;
 };
 
 enum ShadowRootMode { "open", "closed" };
+enum SlotAssignmentMode { "manual", "named" };
 
 [Exposed=Window]
 interface Element : Node {
@@ -353,10 +359,10 @@ interface Element : Node {
   sequence<DOMString> getAttributeNames();
   DOMString? getAttribute(DOMString qualifiedName);
   DOMString? getAttributeNS(DOMString? namespace, DOMString localName);
-  [CEReactions] void setAttribute(DOMString qualifiedName, DOMString value);
-  [CEReactions] void setAttributeNS(DOMString? namespace, DOMString qualifiedName, DOMString value);
-  [CEReactions] void removeAttribute(DOMString qualifiedName);
-  [CEReactions] void removeAttributeNS(DOMString? namespace, DOMString localName);
+  [CEReactions] undefined setAttribute(DOMString qualifiedName, DOMString value);
+  [CEReactions] undefined setAttributeNS(DOMString? namespace, DOMString qualifiedName, DOMString value);
+  [CEReactions] undefined removeAttribute(DOMString qualifiedName);
+  [CEReactions] undefined removeAttributeNS(DOMString? namespace, DOMString localName);
   [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
   boolean hasAttribute(DOMString qualifiedName);
   boolean hasAttributeNS(DOMString? namespace, DOMString localName);
@@ -372,19 +378,20 @@ interface Element : Node {
 
   Element? closest(DOMString selectors);
   boolean matches(DOMString selectors);
-  boolean webkitMatchesSelector(DOMString selectors); // historical alias of .matches
+  boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
 
   HTMLCollection getElementsByTagName(DOMString qualifiedName);
   HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
 
-  [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // historical
-  void insertAdjacentText(DOMString where, DOMString data); // historical
+  [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
+  undefined insertAdjacentText(DOMString where, DOMString data); // legacy
 };
 
 dictionary ShadowRootInit {
   required ShadowRootMode mode;
   boolean delegatesFocus = false;
+  SlotAssignmentMode slotAssignment = "named";
 };
 
 [Exposed=Window,
@@ -417,10 +424,10 @@ interface CharacterData : Node {
   attribute [LegacyNullToEmptyString] DOMString data;
   readonly attribute unsigned long length;
   DOMString substringData(unsigned long offset, unsigned long count);
-  void appendData(DOMString data);
-  void insertData(unsigned long offset, DOMString data);
-  void deleteData(unsigned long offset, unsigned long count);
-  void replaceData(unsigned long offset, unsigned long count, DOMString data);
+  undefined appendData(DOMString data);
+  undefined insertData(unsigned long offset, DOMString data);
+  undefined deleteData(unsigned long offset, unsigned long count);
+  undefined replaceData(unsigned long offset, unsigned long count, DOMString data);
 };
 
 [Exposed=Window]
@@ -470,15 +477,15 @@ interface Range : AbstractRange {
 
   readonly attribute Node commonAncestorContainer;
 
-  void setStart(Node node, unsigned long offset);
-  void setEnd(Node node, unsigned long offset);
-  void setStartBefore(Node node);
-  void setStartAfter(Node node);
-  void setEndBefore(Node node);
-  void setEndAfter(Node node);
-  void collapse(optional boolean toStart = false);
-  void selectNode(Node node);
-  void selectNodeContents(Node node);
+  undefined setStart(Node node, unsigned long offset);
+  undefined setEnd(Node node, unsigned long offset);
+  undefined setStartBefore(Node node);
+  undefined setStartAfter(Node node);
+  undefined setEndBefore(Node node);
+  undefined setEndAfter(Node node);
+  undefined collapse(optional boolean toStart = false);
+  undefined selectNode(Node node);
+  undefined selectNodeContents(Node node);
 
   const unsigned short START_TO_START = 0;
   const unsigned short START_TO_END = 1;
@@ -486,14 +493,14 @@ interface Range : AbstractRange {
   const unsigned short END_TO_START = 3;
   short compareBoundaryPoints(unsigned short how, Range sourceRange);
 
-  [CEReactions] void deleteContents();
+  [CEReactions] undefined deleteContents();
   [CEReactions, NewObject] DocumentFragment extractContents();
   [CEReactions, NewObject] DocumentFragment cloneContents();
-  [CEReactions] void insertNode(Node node);
-  [CEReactions] void surroundContents(Node newParent);
+  [CEReactions] undefined insertNode(Node node);
+  [CEReactions] undefined surroundContents(Node newParent);
 
   [NewObject] Range cloneRange();
-  void detach();
+  undefined detach();
 
   boolean isPointInRange(Node node, unsigned long offset);
   short comparePoint(Node node, unsigned long offset);
@@ -514,7 +521,7 @@ interface NodeIterator {
   Node? nextNode();
   Node? previousNode();
 
-  void detach();
+  undefined detach();
 };
 
 [Exposed=Window]
@@ -545,14 +552,14 @@ callback interface NodeFilter {
   const unsigned long SHOW_ATTRIBUTE = 0x2;
   const unsigned long SHOW_TEXT = 0x4;
   const unsigned long SHOW_CDATA_SECTION = 0x8;
-  const unsigned long SHOW_ENTITY_REFERENCE = 0x10; // historical
-  const unsigned long SHOW_ENTITY = 0x20; // historical
+  const unsigned long SHOW_ENTITY_REFERENCE = 0x10; // legacy
+  const unsigned long SHOW_ENTITY = 0x20; // legacy
   const unsigned long SHOW_PROCESSING_INSTRUCTION = 0x40;
   const unsigned long SHOW_COMMENT = 0x80;
   const unsigned long SHOW_DOCUMENT = 0x100;
   const unsigned long SHOW_DOCUMENT_TYPE = 0x200;
   const unsigned long SHOW_DOCUMENT_FRAGMENT = 0x400;
-  const unsigned long SHOW_NOTATION = 0x800; // historical
+  const unsigned long SHOW_NOTATION = 0x800; // legacy
 
   unsigned short acceptNode(Node node);
 };
@@ -562,8 +569,8 @@ interface DOMTokenList {
   readonly attribute unsigned long length;
   getter DOMString? item(unsigned long index);
   boolean contains(DOMString token);
-  [CEReactions] void add(DOMString... tokens);
-  [CEReactions] void remove(DOMString... tokens);
+  [CEReactions] undefined add(DOMString... tokens);
+  [CEReactions] undefined remove(DOMString... tokens);
   [CEReactions] boolean toggle(DOMString token, optional boolean force);
   [CEReactions] boolean replace(DOMString token, DOMString newToken);
   boolean supports(DOMString token);
@@ -620,3 +627,16 @@ interface XPathEvaluator {
 };
 
 XPathEvaluator includes XPathEvaluatorBase;
+
+[Exposed=Window]
+interface XSLTProcessor {
+  constructor();
+  undefined importStylesheet(Node style);
+  [CEReactions] DocumentFragment transformToFragment(Node source, Document output);
+  [CEReactions] Document transformToDocument(Node source);
+  undefined setParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName, any value);
+  any getParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName);
+  undefined removeParameter([LegacyNullToEmptyString] DOMString namespaceURI, DOMString localName);
+  undefined clearParameters();
+  undefined reset();
+};

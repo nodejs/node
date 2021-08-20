@@ -88,13 +88,13 @@ public:
     ~LocalPointerBase() { /* delete ptr; */ }
     /**
      * NULL check.
-     * @return TRUE if ==NULL
+     * @return true if ==NULL
      * @stable ICU 4.4
      */
     UBool isNull() const { return ptr==NULL; }
     /**
      * NULL check.
-     * @return TRUE if !=NULL
+     * @return true if !=NULL
      * @stable ICU 4.4
      */
     UBool isValid() const { return ptr!=NULL; }

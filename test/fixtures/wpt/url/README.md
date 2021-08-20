@@ -44,6 +44,10 @@ expected to fail.
 Tests in `/encoding` and `/html/infrastructure/urls/resolving-urls/query-encoding/` cover the
 encoding argument to the URL parser.
 
+There's also limited coverage in `resources/percent-encoding.json` for percent-encode after encoding
+with _percentEncodeSet_ set to special-query percent-encode set and _spaceAsPlus_ set to false.
+(Improvements to expand coverage here are welcome.)
+
 ## Specification
 
 The tests in this directory assert conformance with [the URL Standard][URL].

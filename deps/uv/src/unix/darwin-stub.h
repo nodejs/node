@@ -27,6 +27,7 @@
 struct CFArrayCallBacks;
 struct CFRunLoopSourceContext;
 struct FSEventStreamContext;
+struct CFRange;
 
 typedef double CFAbsoluteTime;
 typedef double CFTimeInterval;
@@ -42,12 +43,22 @@ typedef unsigned CFStringEncoding;
 typedef void* CFAllocatorRef;
 typedef void* CFArrayRef;
 typedef void* CFBundleRef;
+typedef void* CFDataRef;
 typedef void* CFDictionaryRef;
+typedef void* CFMutableDictionaryRef;
+typedef struct CFRange CFRange;
 typedef void* CFRunLoopRef;
 typedef void* CFRunLoopSourceRef;
 typedef void* CFStringRef;
 typedef void* CFTypeRef;
 typedef void* FSEventStreamRef;
+
+typedef uint32_t IOOptionBits;
+typedef unsigned int io_iterator_t;
+typedef unsigned int io_object_t;
+typedef unsigned int io_service_t;
+typedef unsigned int io_registry_entry_t;
+
 
 typedef void (*FSEventStreamCallback)(const FSEventStreamRef,
                                       void*,
@@ -67,6 +78,11 @@ struct FSEventStreamContext {
   CFIndex version;
   void* info;
   void* pad[3];
+};
+
+struct CFRange {
+  CFIndex location;
+  CFIndex length;
 };
 
 static const CFStringEncoding kCFStringEncodingUTF8 = 0x8000100;

@@ -34,9 +34,7 @@ let gotThanks = false;
 let tcpLengthSeen = 0;
 
 
-/*
- * 5MB of random buffer.
- */
+// 5MB of random buffer.
 const buffer = Buffer.allocUnsafe(bufferSize);
 for (let i = 0; i < buffer.length; i++) {
   buffer[i] = parseInt(Math.random() * 10000) % 256;

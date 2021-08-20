@@ -145,6 +145,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl() {
+  v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
   m_profilerAgent->disable();
@@ -152,6 +153,20 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
   m_inspector->disconnect(this);
+}
+
+std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+V8InspectorSessionImpl::initializeCommandLineAPIScope(int executionContextId) {
+  auto scope =
+      std::make_unique<InjectedScript::ContextScope>(this, executionContextId);
+  auto result = scope->initialize();
+  if (!result.IsSuccess()) {
+    return nullptr;
+  }
+
+  scope->installCommandLineAPI();
+
+  return scope;
 }
 
 protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
@@ -239,6 +254,8 @@ Response V8InspectorSessionImpl::findInjectedScript(
 
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
+  if (objectId->isolateId() != m_inspector->isolateId())
+    return Response::ServerError("Cannot find context with specified id");
   return findInjectedScript(objectId->contextId(), injectedScript);
 }
 
@@ -463,7 +480,7 @@ void V8InspectorSessionImpl::resume(bool terminateOnResume) {
   m_debuggerAgent->resume(terminateOnResume);
 }
 
-void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver(); }
+void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver({}); }
 
 std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
 V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
 #define V8_WASM_WASM_EXTERNAL_REFS_H_
 
@@ -45,6 +49,14 @@ V8_EXPORT_PRIVATE int32_t float64_to_int64_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t float64_to_uint64_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void float32_to_int64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float32_to_uint64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float64_to_int64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float64_to_uint64_sat_wrapper(Address data);
+
 V8_EXPORT_PRIVATE int32_t int64_div_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t int64_mod_wrapper(Address data);
@@ -70,6 +82,22 @@ V8_EXPORT_PRIVATE void word64_rol_wrapper(Address data);
 V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_floor_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_trunc_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_nearest_int_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_ceil_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_floor_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_trunc_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_nearest_int_wrapper(Address data);
 
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.

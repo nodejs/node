@@ -26,6 +26,8 @@ function TestSetWithModifiedIterator(ctor) {
   arrayIteratorProto.next = originalNext;
 }
 %PrepareFunctionForOptimization(TestSetWithModifiedIterator);
+%EnsureFeedbackVectorForFunction(assertTrue);
+%EnsureFeedbackVectorForFunction(assertEquals);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);

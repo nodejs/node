@@ -101,6 +101,9 @@ class AsmValueType {
 
 class V8_EXPORT_PRIVATE AsmCallableType : public NON_EXPORTED_BASE(ZoneObject) {
  public:
+  AsmCallableType(const AsmCallableType&) = delete;
+  AsmCallableType& operator=(const AsmCallableType&) = delete;
+
   virtual std::string Name() = 0;
 
   virtual bool CanBeInvokedWith(AsmType* return_type,
@@ -118,12 +121,13 @@ class V8_EXPORT_PRIVATE AsmCallableType : public NON_EXPORTED_BASE(ZoneObject) {
 
  private:
   friend class AsmType;
-
-  DISALLOW_COPY_AND_ASSIGN(AsmCallableType);
 };
 
 class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
  public:
+  AsmFunctionType(const AsmFunctionType&) = delete;
+  AsmFunctionType& operator=(const AsmFunctionType&) = delete;
+
   AsmFunctionType* AsFunctionType() final { return this; }
 
   void AddArgument(AsmType* type) { args_.push_back(type); }
@@ -139,14 +143,13 @@ class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
 
  private:
   friend AsmType;
+  friend Zone;
 
   std::string Name() override;
   bool IsA(AsmType* other) override;
 
   AsmType* return_type_;
   ZoneVector<AsmType*> args_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsmFunctionType);
 };
 
 class V8_EXPORT_PRIVATE AsmOverloadedFunctionType final
@@ -160,6 +163,7 @@ class V8_EXPORT_PRIVATE AsmOverloadedFunctionType final
 
  private:
   friend AsmType;
+  friend Zone;
 
   explicit AsmOverloadedFunctionType(Zone* zone) : overloads_(zone) {}
 
@@ -196,14 +200,14 @@ class V8_EXPORT_PRIVATE AsmType {
   // A function returning ret. Callers still need to invoke AddArgument with the
   // returned type to fully create this type.
   static AsmType* Function(Zone* zone, AsmType* ret) {
-    AsmFunctionType* f = new (zone) AsmFunctionType(zone, ret);
+    AsmFunctionType* f = zone->New<AsmFunctionType>(zone, ret);
     return reinterpret_cast<AsmType*>(f);
   }
 
   // Overloaded function types. Not creatable by asm source, but useful to
   // represent the overloaded stdlib functions.
   static AsmType* OverloadedFunction(Zone* zone) {
-    auto* f = new (zone) AsmOverloadedFunctionType(zone);
+    auto* f = zone->New<AsmOverloadedFunctionType>(zone);
     return reinterpret_cast<AsmType*>(f);
   }
 

@@ -29,6 +29,9 @@ template <typename T, typename BaseClass,
 class ThreadedListBase final : public BaseClass {
  public:
   ThreadedListBase() : head_(nullptr), tail_(&head_) {}
+  ThreadedListBase(const ThreadedListBase&) = delete;
+  ThreadedListBase& operator=(const ThreadedListBase&) = delete;
+
   void Add(T* v) {
     DCHECK_NULL(*tail_);
     DCHECK_NULL(*TLTraits::next(v));
@@ -253,7 +256,6 @@ class ThreadedListBase final : public BaseClass {
  private:
   T* head_;
   T** tail_;
-  DISALLOW_COPY_AND_ASSIGN(ThreadedListBase);
 };
 
 struct EmptyBase {};

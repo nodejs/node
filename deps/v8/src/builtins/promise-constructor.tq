@@ -36,11 +36,12 @@ HasAccessCheckFailed(implicit context: Context)(
   return false;
 }
 
-extern macro ConstructorBuiltinsAssembler::EmitFastNewObject(
+extern macro ConstructorBuiltinsAssembler::FastNewObject(
     Context, JSFunction, JSReceiver): JSObject;
 
 extern macro
-PromiseBuiltinsAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate(): bool;
+PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
+    uint32): bool;
 
 // https://tc39.es/ecma262/#sec-promise-executor
 transitioning javascript builtin
@@ -57,8 +58,7 @@ PromiseConstructor(
     ThrowTypeError(MessageTemplate::kResolverNotAFunction, executor);
   }
 
-  const promiseFun = UnsafeCast<JSFunction>(
-      context[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
 
   // Silently fail if the stack looks fishy.
   if (HasAccessCheckFailed(context, promiseFun, executor)) {
@@ -71,12 +71,10 @@ PromiseConstructor(
   if (promiseFun == newTarget) {
     result = NewJSPromise();
   } else {
-    result = UnsafeCast<JSPromise>(EmitFastNewObject(
-        context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
+    result = UnsafeCast<JSPromise>(
+        FastNewObject(context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
     PromiseInit(result);
-    if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
-      runtime::PromiseHookInit(result, Undefined);
-    }
+    RunAnyPromiseHookInit(result, Undefined);
   }
 
   const isDebugActive = IsDebugActive();
@@ -102,7 +100,10 @@ PromisePrototypeCatch(
     js-implicit context: Context, receiver: JSAny)(onRejected: JSAny): JSAny {
   // 1. Let promise be the this value.
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
-  const nativeContext = LoadNativeContext(context);
+  // This builtin is attached to JSFunction created by the bootstrapper so
+  // `context` is the native context.
+  check(Is<NativeContext>(context));
+  const nativeContext = UnsafeCast<NativeContext>(context);
   return UnsafeCast<JSAny>(
       InvokeThen(nativeContext, receiver, Undefined, onRejected));
 }

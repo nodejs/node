@@ -1272,7 +1272,7 @@ function readAlias(state) {
 
   alias = state.input.slice(_position, state.position);
 
-  if (!state.anchorMap.hasOwnProperty(alias)) {
+  if (!_hasOwnProperty.call(state.anchorMap, alias)) {
     throwError(state, 'unidentified alias "' + alias + '"');
   }
 

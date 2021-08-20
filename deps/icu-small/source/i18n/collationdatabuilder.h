@@ -73,12 +73,12 @@ public:
     }
 
     /**
-     * @return TRUE if this builder has mappings (e.g., add() has been called)
+     * @return true if this builder has mappings (e.g., add() has been called)
      */
     UBool hasMappings() const { return modified; }
 
     /**
-     * @return TRUE if c has CEs in this builder
+     * @return true if c has CEs in this builder
      */
     UBool isAssigned(UChar32 c) const;
 
@@ -118,7 +118,7 @@ public:
      * @param primary primary weight for 'start'
      * @param step per-code point primary-weight increment
      * @param errorCode ICU in/out error code
-     * @return TRUE if an OFFSET_TAG range was used for start..end
+     * @return true if an OFFSET_TAG range was used for start..end
      */
     UBool maybeSetPrimaryRange(UChar32 start, UChar32 end,
                                uint32_t primary, int32_t step,
@@ -150,7 +150,7 @@ public:
     void optimize(const UnicodeSet &set, UErrorCode &errorCode);
     void suppressContractions(const UnicodeSet &set, UErrorCode &errorCode);
 
-    void enableFastLatin() { fastLatinEnabled = TRUE; }
+    void enableFastLatin() { fastLatinEnabled = true; }
     virtual void build(CollationData &data, UErrorCode &errorCode);
 
     /**

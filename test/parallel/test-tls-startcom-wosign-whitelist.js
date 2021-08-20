@@ -39,7 +39,7 @@ const testCases = [
       rejectUnauthorized: true
     },
     errorCode: 'CERT_REVOKED'
-  }
+  },
 ];
 
 

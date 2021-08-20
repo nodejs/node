@@ -8,11 +8,11 @@ const DELAY = 1000;
 
 const expected = ['Start to Now', 'A to Now', 'A to B'];
 const obs = new PerformanceObserver(common.mustCall((items) => {
-  const entries = items.getEntries();
-  const { name, duration } = entries[0];
-  assert.ok(duration > DELAY);
-  assert.strictEqual(expected.shift(), name);
-}, 3));
+  items.getEntries().forEach(({ name, duration }) => {
+    assert.ok(duration > DELAY);
+    assert.strictEqual(expected.shift(), name);
+  });
+}));
 obs.observe({ entryTypes: ['measure'] });
 
 performance.mark('A');

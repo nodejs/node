@@ -10,5 +10,5 @@ module.exports = {
   silly: noop,
   http: noop,
   pause: noop,
-  resume: noop
+  resume: noop,
 }

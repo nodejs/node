@@ -10,8 +10,7 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
-#include "torque-generated/class-definitions-tq.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,6 +26,9 @@ enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 class NativeContext;
+class IsCompiledScope;
+
+#include "torque-generated/src/objects/js-objects-tq.inc"
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
@@ -42,8 +44,13 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects.
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is not set).
   DECL_GETTER(property_dictionary, NameDictionary)
+
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is set).
+  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -105,6 +112,7 @@ class JSReceiver : public HeapObject {
   // maybe_excluded_properties list.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+      PropertiesEnumerationMode mode,
       const ScopedVector<Handle<Object>>* excluded_properties = nullptr,
       bool use_set = true);
 
@@ -219,7 +227,7 @@ class JSReceiver : public HeapObject {
   // returned instead.
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
+  V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
@@ -237,7 +245,7 @@ class JSReceiver : public HeapObject {
       LookupIterator* it);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
       Handle<JSReceiver> object, Handle<Object> value, bool from_javascript,
       ShouldThrow should_throw);
 
@@ -278,6 +286,9 @@ class JSReceiver : public HeapObject {
                                 TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
 
+  // TC39 "Dynamic Code Brand Checks"
+  bool IsCodeLike(Isolate* isolate) const;
+
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
 
@@ -299,6 +310,19 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
+
+  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+
+  // Acquire/release semantics on this field are explicitly forbidden to avoid
+  // confusion, since the default setter uses relaxed semantics. If
+  // acquire/release semantics ever become necessary, the default setter should
+  // be reverted to non-atomic behavior, and setters with explicit tags
+  // introduced and used when required.
+  FixedArrayBase elements(PtrComprCageBase cage_base,
+                          AcquireLoadTag tag) const = delete;
+  void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
@@ -416,10 +440,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                           const char* name, Handle<Object> value,
                           PropertyAttributes attributes);
 
-  V8_EXPORT_PRIVATE static void AddDataElement(Handle<JSObject> receiver,
-                                               uint32_t index,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static Maybe<bool> AddDataElement(
+      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
@@ -566,6 +589,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
+  inline void InitializeEmbedderField(Isolate* isolate, int index);
   inline Object GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
@@ -595,7 +619,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
-  static void ForceSetPrototype(Handle<JSObject> object,
+  static void ForceSetPrototype(Isolate* isolate, Handle<JSObject> object,
                                 Handle<HeapObject> proto);
 
   // Convert the object to use the canonical dictionary
@@ -618,28 +642,23 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(const Isolate* isolate,
-                                   FieldIndex index) const;
+  // Access property in dictionary mode object at the given dictionary index.
+  static Handle<Object> DictionaryPropertyAt(Handle<JSObject> object,
+                                             InternalIndex dict_index);
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(const Isolate* isolate,
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
                                   FieldIndex index) const;
-  inline double RawFastDoublePropertyAt(FieldIndex index) const;
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
-  inline void FastPropertyAtPut(FieldIndex index, Object value);
-  inline void RawFastPropertyAtPut(
-      FieldIndex index, Object value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 
@@ -660,11 +679,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Initializes the body starting at |start_offset|. It is responsibility of
   // the caller to initialize object header. Fill the pre-allocated fields with
-  // pre_allocated_value and the rest with filler_value.
+  // undefined_value and the rest with filler_map.
   // Note: this call does not update write barrier, the caller is responsible
-  // to ensure that |filler_value| can be collected without WB here.
+  // to ensure that |filler_map| can be collected without WB here.
   inline void InitializeBody(Map map, int start_offset,
-                             Object pre_allocated_value, Object filler_value);
+                             bool is_slack_tracking_in_progress,
+                             MapWord filler_map, Object undefined_value);
 
   // Check whether this object references another object
   bool ReferencesObject(Object obj);
@@ -682,11 +702,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_PRINTER(JSObject)
   DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  bool PrintProperties(std::ostream& os);  // NOLINT
-  void PrintElements(std::ostream& os);    // NOLINT
+  bool PrintProperties(std::ostream& os);
+  void PrintElements(std::ostream& os);
 #endif
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-  void PrintTransitions(std::ostream& os);  // NOLINT
+  void PrintTransitions(std::ostream& os);
 #endif
 
   static void PrintElementsTransition(FILE* file, Handle<JSObject> object,
@@ -723,14 +743,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(const Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(
+      PtrComprCageBase cage_base) const;
 #endif
 
   Object SlowReverseLookup(Object value);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
-  static const uint32_t kMaxElementCount = 0xffffffffu;
+  static constexpr uint32_t kMaxElementCount = kMaxUInt32;
+  static constexpr uint32_t kMaxElementIndex = kMaxElementCount - 1;
 
   // Constants for heuristics controlling conversion of fast elements
   // to slow elements.
@@ -925,271 +947,6 @@ class JSIteratorResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
-// An abstract superclass for classes representing JavaScript function values.
-// It doesn't carry any functionality but allows function classes to be
-// identified in the type system.
-class JSFunctionOrBoundFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
-                                                      JSObject> {
- public:
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
-};
-
-// JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<JSBoundFunction,
-                                            JSFunctionOrBoundFunction> {
- public:
-  static MaybeHandle<String> GetName(Isolate* isolate,
-                                     Handle<JSBoundFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              Handle<JSBoundFunction> function);
-  static MaybeHandle<NativeContext> GetFunctionRealm(
-      Handle<JSBoundFunction> function);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSBoundFunction)
-  DECL_VERIFIER(JSBoundFunction)
-
-  // The bound function's string representation implemented according
-  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
-
-  TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
-};
-
-// JSFunction describes JavaScript functions.
-class JSFunction : public JSFunctionOrBoundFunction {
- public:
-  // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
-
-  // [shared]: The information about the function that
-  // can be shared by instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
-
-  static const int kLengthDescriptorIndex = 0;
-  static const int kNameDescriptorIndex = 1;
-  // Home object descriptor index when function has a [[HomeObject]] slot.
-  static const int kMaybeHomeObjectDescriptorIndex = 2;
-
-  // [context]: The context for this function.
-  inline Context context();
-  inline bool has_context() const;
-  inline void set_context(HeapObject context);
-  inline JSGlobalProxy global_proxy();
-  inline NativeContext native_context();
-  inline int length();
-
-  static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
-
-  // [code]: The generated code object for this function.  Executed
-  // when the function is invoked, e.g. foo() or new foo(). See
-  // [[Call]] and [[Construct]] description in ECMA-262, section
-  // 8.6.2, page 27.
-  inline Code code() const;
-  inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
-
-  // Get the abstract code associated with the function, which will either be
-  // a Code object or a BytecodeArray.
-  inline AbstractCode abstract_code();
-
-  // Tells whether or not this function is interpreted.
-  //
-  // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the closure might have been
-  // optimized.
-  inline bool IsInterpreted();
-
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
-
-  // Tells whether or not this function holds optimized code.
-  //
-  // Note: Returning false does not necessarily mean that this function hasn't
-  // been optimized, as it may have optimized code on its feedback vector.
-  inline bool IsOptimized();
-
-  // Tells whether or not this function has optimized code available to it,
-  // either because it is optimized or because it has optimized code in its
-  // feedback vector.
-  inline bool HasOptimizedCode();
-
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
-
-  // Mark this function for lazy recompilation. The function will be recompiled
-  // the next time it is executed.
-  void MarkForOptimization(ConcurrencyMode mode);
-
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
-
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
-
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
-
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
-
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
-
-  // If slack tracking is active, it computes instance size of the initial map
-  // with minimum permissible object slack.  If it is not active, it simply
-  // returns the initial map's instance size.
-  int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
-
-  // Completes inobject slack tracking on initial map if it is active.
-  inline void CompleteInobjectSlackTrackingIfActive();
-
-  // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
-  /// FeedbackVector eventually. Generally this shouldn't be used to get the
-  // feedback_vector, instead use feedback_vector() which correctly deals with
-  // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
-
-  // Functions related to feedback vector. feedback_vector() can be used once
-  // the function has feedback vectors allocated. feedback vectors may not be
-  // available after compile when lazily allocating feedback vectors.
-  inline FeedbackVector feedback_vector() const;
-  inline bool has_feedback_vector() const;
-  V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function);
-
-  // Functions related to clousre feedback cell array that holds feedback cells
-  // used to create closures from this function. We allocate closure feedback
-  // cell arrays after compile, when we want to allocate feedback vectors
-  // lazily.
-  inline bool has_closure_feedback_cell_array() const;
-  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
-
-  // Initializes the feedback cell of |function|. In lite mode, this would be
-  // initialized to the closure feedback cell array that holds the feedback
-  // cells for create closure calls from this function. In the regular mode,
-  // this allocates feedback vector.
-  static void InitializeFeedbackCell(Handle<JSFunction> function);
-
-  // Unconditionally clear the type feedback vector.
-  void ClearTypeFeedbackInfo();
-
-  // Resets function to clear compiled data after bytecode has been flushed.
-  inline bool NeedsResetDueToFlushedBytecode();
-  inline void ResetIfBytecodeFlushed(
-      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                        HeapObject target)>>
-          gc_notify_updated_slot = base::nullopt);
-
-  DECL_GETTER(has_prototype_slot, bool)
-
-  // The initial map for an object created by this constructor.
-  DECL_GETTER(initial_map, Map)
-
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
-  DECL_GETTER(has_initial_map, bool)
-  V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
-      Handle<JSFunction> function);
-
-  // Creates a map that matches the constructor's initial map, but with
-  // [[prototype]] being new.target.prototype. Because new.target can be a
-  // JSProxy, this can call back into JavaScript.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
-      Isolate* isolate, Handle<JSFunction> constructor,
-      Handle<JSReceiver> new_target);
-
-  // Get and set the prototype property on a JSFunction. If the
-  // function has an initial map the prototype is set on the initial
-  // map. Otherwise, the prototype is put in the initial map field
-  // until an initial map is needed.
-  DECL_GETTER(has_prototype, bool)
-  DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Object)
-  DECL_GETTER(instance_prototype, HeapObject)
-  DECL_GETTER(has_prototype_property, bool)
-  DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
-  static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
-
-  // Returns if this function has been compiled to native code yet.
-  inline bool is_compiled() const;
-
-  static int GetHeaderSize(bool function_has_prototype_slot) {
-    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
-                                       : JSFunction::kSizeWithoutPrototype;
-  }
-
-  // Prints the name of the function using PrintF.
-  void PrintName(FILE* out = stdout);
-
-  DECL_CAST(JSFunction)
-
-  // Calculate the instance size and in-object properties count.
-  static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
-      Isolate* isolate, Handle<JSFunction> function);
-  static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
-                                          int requested_embedder_fields,
-                                          int requested_in_object_properties,
-                                          int* instance_size,
-                                          int* in_object_properties);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSFunction)
-  DECL_VERIFIER(JSFunction)
-
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
-  static Handle<String> GetName(Handle<JSFunction> function);
-
-  // ES6 section 9.2.11 SetFunctionName
-  // Because of the way this abstract operation is used in the spec,
-  // it should never fail, but in practice it will fail if the generated
-  // function name's length exceeds String::kMaxLength.
-  static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
-                                            Handle<Name> name,
-                                            Handle<String> prefix);
-
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
-  // debug name.
-  static Handle<String> GetDebugName(Handle<JSFunction> function);
-
-  // The function's string representation implemented according to
-  // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSFunction> function);
-
-  struct FieldOffsets {
-    DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
-                                  TORQUE_GENERATED_JS_FUNCTION_FIELDS)
-  };
-  static constexpr int kSharedFunctionInfoOffset =
-      FieldOffsets::kSharedFunctionInfoOffset;
-  static constexpr int kContextOffset = FieldOffsets::kContextOffset;
-  static constexpr int kFeedbackCellOffset = FieldOffsets::kFeedbackCellOffset;
-  static constexpr int kCodeOffset = FieldOffsets::kCodeOffset;
-  static constexpr int kPrototypeOrInitialMapOffset =
-      FieldOffsets::kPrototypeOrInitialMapOffset;
-
- private:
-  // JSFunction doesn't have a fixed header size:
-  // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
-  static const int kHeaderSize;
-
- public:
-  static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = FieldOffsets::kHeaderSize;
-
-  OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
-};
-
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
 // and the prototype is hidden. JSGlobalProxy always delegates
 // property accesses to its prototype if the prototype is not null.
@@ -1202,6 +959,7 @@ class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(JSGlobalObject global) const;
+  V8_EXPORT_PRIVATE bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1221,16 +979,10 @@ class JSGlobalObject : public JSSpecialObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
-  // Gets global object properties.
-  DECL_GETTER(global_dictionary, GlobalDictionary)
-  inline void set_global_dictionary(GlobalDictionary dictionary);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsureEmptyPropertyCell(
-      Handle<JSGlobalObject> global, Handle<Name> name,
-      PropertyCellType cell_type, InternalIndex* entry_out = nullptr);
 
   DECL_CAST(JSGlobalObject)
 
@@ -1371,6 +1123,9 @@ class JSMessageObject : public JSObject {
   // Returns the offset of the given position within the containing line.
   // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
+
+  // Returns the source code
+  V8_EXPORT_PRIVATE String GetSource() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.

@@ -59,6 +59,7 @@ printUsage(const char *pname, UBool isHelp) {
             "%csage: %s [-h|-?|--help ] [-tl|-tb|-te] [-c] [-C comment]\n"
             "\t[-a list] [-r list] [-x list] [-l [-o outputListFileName]]\n"
             "\t[-s path] [-d path] [-w] [-m mode]\n"
+            "\t[--ignore-deps]\n"
             "\t[--auto_toc_prefix] [--auto_toc_prefix_with_type] [--toc_prefix]\n"
             "\tinfilename [outfilename]\n",
             isHelp ? 'U' : 'u', pname);
@@ -119,6 +120,10 @@ printUsage(const char *pname, UBool isHelp) {
             "\t-m mode or --matchmode mode  set the matching mode for item names with\n"
             "\t                             wildcards\n"
             "\t        noslash: the '*' wildcard does not match the '/' tree separator\n");
+        fprintf(where,
+            "\n"
+            "\t--ignore-deps     Do not fail if not all resource dependencies are met. Use this\n"
+            "\t                  option if the missing resources come from another source.");
         fprintf(where,
             "\n"
             "\tIn the .dat package, the Table of Contents (ToC) contains an entry\n"
@@ -198,6 +203,8 @@ static UOption options[]={
 
     UOPTION_DEF("matchmode", 'm', UOPT_REQUIRES_ARG),
 
+    UOPTION_DEF("ignore-deps", '\1', UOPT_NO_ARG),
+
     UOPTION_DEF("add", 'a', UOPT_REQUIRES_ARG),
     UOPTION_DEF("remove", 'r', UOPT_REQUIRES_ARG),
     UOPTION_DEF("extract", 'x', UOPT_REQUIRES_ARG),
@@ -224,6 +231,8 @@ enum {
     OPT_WRITEPKG,
 
     OPT_MATCHMODE,
+
+    OPT_IGNORE_DEPS,
 
     OPT_ADD_LIST,
     OPT_REMOVE_LIST,
@@ -501,7 +510,7 @@ main(int argc, char *argv[]) {
     }
 
     /* check dependencies between items */
-    if(!pkg->checkDependencies()) {
+    if(!options[OPT_IGNORE_DEPS].doesOccur && !pkg->checkDependencies()) {
         /* some dependencies are not fulfilled */
         return U_MISSING_RESOURCE_ERROR;
     }

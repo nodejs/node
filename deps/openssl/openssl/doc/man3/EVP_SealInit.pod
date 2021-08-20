@@ -17,7 +17,7 @@ EVP_SealInit, EVP_SealUpdate, EVP_SealFinal - EVP envelope encryption
 
 =head1 DESCRIPTION
 
-The EVP envelope routines are a high level interface to envelope
+The EVP envelope routines are a high-level interface to envelope
 encryption. They generate a random key and IV (if required) then
 "envelope" it by using public key encryption. Data can then be
 encrypted using this key.
@@ -82,7 +82,7 @@ L<RAND(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -484,7 +484,7 @@ assert.strictEqual(
   5n,
   5,
   'test',
-  Symbol()
+  Symbol(),
 ].forEach((invalidOptions) => {
   assert.throws(() => {
     util.formatWithOptions(invalidOptions, { a: true });

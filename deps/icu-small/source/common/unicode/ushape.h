@@ -98,7 +98,7 @@
  *         the return value indicates the necessary destination buffer size.
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 u_shapeArabic(const UChar *source, int32_t sourceLength,
               UChar *dest, int32_t destSize,
               uint32_t options,
@@ -323,7 +323,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 #define U_SHAPE_PRESERVE_PRESENTATION           0x8000
 /** Presentation form option:
  * Replace Arabic Presentation Forms-A and Arabic Presentationo Forms-B with
- * their unshaped correspondants in range 0+06xx, before shaping.
+ * their unshaped correspondents in range 0+06xx, before shaping.
  * @stable ICU 3.6
  */
 #define U_SHAPE_PRESERVE_PRESENTATION_NOOP      0

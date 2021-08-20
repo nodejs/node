@@ -1,8 +1,8 @@
-# Security Release Process
+# Security release process
 
 The security release process covers the steps required to plan/implement a
 security release. This document is copied into the description of the Next
-Security Release, and used to track progress on the release. It contains ***TEXT
+Security Release and used to track progress on the release. It contains ***TEXT
 LIKE THIS*** which will be replaced during the release process with the
 information described.
 
@@ -17,10 +17,15 @@ information described.
   * ...
 
 * [ ] PR release announcements in [private](https://github.com/nodejs-private/nodejs.org-private):
-  * (Use previous PRs as templates, don't forget to update the site banner, and
+  * (Use previous PRs as templates. Don't forget to update the site banner and
     the date in the slug so that it will move to the top of the blog list.)
   * [ ] pre-release: ***LINK TO PR***
   * [ ] post-release: ***LINK TO PR***
+    * Ask the HackerOne reporter if they would like to be credited on the
+      security release blog page:
+      ```text
+      Thank you to <name> for reporting this vulnerability.
+      ```
 
 * [ ] Get agreement on the planned date for the release: ***RELEASE DATE***
 
@@ -38,36 +43,64 @@ information described.
   * Described in the pre/post announcements
 
 * [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
+   * CC: `oss-security@lists.openwall.com`
+   * Subject: `Node.js security updates for all active release lines, Month Year`
+   * Body:
+  ```text
+  The Node.js project will release new versions of all supported release lines on or shortly after Day of week, Month Day of Month, Year
+  For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
   (Get access from existing manager: Ben Noordhuis, Rod Vagg, Michael Dawson)
 
 * [ ] Pre-release announcement to nodejs.org blog: ***LINK TO BLOG***
   (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
   nodejs/nodejs.org)
 
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
+  asking that the social team tweet/retweet the pre-announcement.
+  If you are on Twitter, you can just direct message the `@nodejs` handle.
+
 * [ ] Request releaser(s) to start integrating the PRs to be released.
 
 * [ ] Notify [docker-node][] of upcoming security release date: ***LINK***
+  ```text
+  Heads up of Node.js security releases Day Month Year
+
+  As per the Node.js security release process this is the FYI that there is going to be a security release Day Month Year
+  ```
 
 * [ ] Notify build-wg of upcoming security release date by opening an issue
   in [nodejs/build][] to request WG members are available to fix any CI issues.
+  ```text
+  Heads up of Node.js security releases Day Month Year
+
+  As per security release process this is a heads up that there will be security releases Day Month Year and we'll need people from build to lock/unlock ci and to support and build issues we see.
+  ```
 
 ## Release day
 
-* [ ] [Lock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#before-the-release)
+* [ ] [Lock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#before-the-release)
 
 * [ ] The releaser(s) run the release process to completion.
 
-* [ ] [Unlock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#after-the-release)
+* [ ] [Unlock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#after-the-release)
 
 * [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
+   * CC: `oss-security@lists.openwall.com`
+   * Subject: `Node.js security updates for all active release lines, Month Year`
+   * Body:
+  ```text
+  The Node.js project has now released new versions of all supported release lines.
+  For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
 
 * [ ] Post-release announcement to Nodejs.org blog: ***LINK TO BLOG POST***
   * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
     nodejs/nodejs.org)
 
-* [ ] Email `"Rachel Romoff" <rromoff@linuxfoundation.org>` to tweet an
-  announcement, or if you are on twitter you can just direct message the
-  `@nodejs` handle.
+* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
+  asking that the social team tweet/retweet the announcement.
+  If you are on Twitter, you can just direct message the `@nodejs` handle.
 
 * [ ] Comment in [docker-node][] issue that release is ready for integration.
   The docker-node team will build and release docker image updates.
@@ -80,8 +113,12 @@ information described.
       links to the release blogs in the "Public Reference" section)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
-  [core](https://github.com/nodejs/security-wg/tree/master/vuln/core)
+  [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
   vulnerability DB. ***LINK TO PR***
+  * For each vulnerability add a `#.json` file, one can copy an existing
+    [json](https://github.com/nodejs/security-wg/blob/0d82062d917cb9ddab88f910559469b2b13812bf/vuln/core/78.json)
+    file, and increment the latest created file number and use that as the name
+    of the new file to be added. For example, `79.json`.
 
 * [ ] Close this issue
 
@@ -89,5 +126,5 @@ information described.
 
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
-[nodejs/build]: https://github.com/nodejs/build/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
+[nodejs/build]: https://github.com/nodejs/build/issues

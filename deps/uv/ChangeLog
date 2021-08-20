@@ -1,3 +1,348 @@
+2021.07.21, Version 1.42.0 (Stable)
+
+Changes since version 1.41.0:
+
+* doc: fix code highlighting (Darshan Sen)
+
+* test: move to ASSERT_NULL and ASSERT_NOT_NULL test macros (tjarlama)
+
+* zos: build in ascii code page (Shuowang (Wayne) Zhang)
+
+* zos: don't use nanosecond timestamp fields (Shuowang (Wayne) Zhang)
+
+* zos: introduce zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use strnlen() from zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use nanosleep() from zoslib (Shuowang (Wayne) Zhang)
+
+* zos: use __getargv() from zoslib to get exe path (Shuowang (Wayne) Zhang)
+
+* zos: treat __rfim_utok as binary (Shuowang (Wayne) Zhang)
+
+* zos: use execvpe() to set environ explictly (Shuowang (Wayne) Zhang)
+
+* zos: use custom proctitle implementation (Shuowang (Wayne) Zhang)
+
+* doc: add instructions for building on z/OS (Shuowang (Wayne) Zhang)
+
+* linux,udp: enable full ICMP error reporting (Ondřej Surý)
+
+* test: fix test-udp-send-unreachable (Ondřej Surý)
+
+* include: fix typo in documentation (Tobias Nießen)
+
+* chore: use for(;;) instead of while (Yash Ladha)
+
+* test: remove string + int warning on udp-pummel (Juan José Arboleda)
+
+* cmake: fix linker flags (Zhao Zhili)
+
+* test: fix stack-use-after-scope (Zhao Zhili)
+
+* unix: expose thread_stack_size() internally (Brandon Cheng)
+
+* darwin: use RLIMIT_STACK for fsevents pthread (Brandon Cheng)
+
+* darwin: abort on pthread_attr_init fail (Brandon Cheng)
+
+* benchmark: remove unreachable code (Matvii Hodovaniuk)
+
+* macos: fix memleaks in uv__get_cpu_speed (George Zhao)
+
+* Make Thread Sanitizer aware of file descriptor close in uv__close() (Ondřej
+  Surý)
+
+* darwin: fix iOS compilation and functionality (Hayden)
+
+* linux: work around copy_file_range() cephfs bug (Ben Noordhuis)
+
+* zos: implement uv_get_constrained_memory() (Shuowang (Wayne) Zhang)
+
+* zos: fix uv_get_free_memory() (Shuowang (Wayne) Zhang)
+
+* zos: use CVTRLSTG to get total memory accurately (Shuowang (Wayne) Zhang)
+
+* ibmi: Handle interface names longer than 10 chars (Kevin Adler)
+
+* docs: update read-the-docs version of sphinx (Jameson Nash)
+
+* unix: refactor uv_try_write (twosee)
+
+* linux-core: add proper divide by zero assert (yiyuaner)
+
+* misc: remove unnecessary _GNU_SOURCE macros (Darshan Sen)
+
+* test: log to stdout to conform TAP spec (bbara)
+
+* win,fs: fix C4090 warning with MSVC (SeverinLeonhardt)
+
+* build: some systems provide dlopen() in libc (Andy Fiddaman)
+
+* include: add EOVERFLOW status code mapping (Darshan Sen)
+
+* unix,fs: use uv__load_relaxed and uv__store_relaxed (Darshan Sen)
+
+* win: fix string encoding issue of uv_os_gethostname (Eagle Liang)
+
+* unix,process: add uv__write_errno helper function (Ricky Zhou)
+
+* Re-merge "unix,stream: clear read/write states on close/eof" (Jameson Nash)
+
+* unix,core: fix errno handling in uv__getpwuid_r (Darshan Sen)
+
+* errors: map ESOCKTNOSUPPORT errno (Ryan Liptak)
+
+* doc: uv_read_stop always succeeds (Simon Kissane)
+
+* inet: fix inconsistent return value of inet_ntop6 (twosee)
+
+* darwin: fix -Wsometimes-uninitialized warning (twosee)
+
+* stream: introduce uv_try_write2 function (twosee)
+
+* poll,win: UV_PRIORITIZED option should not assert (twosee)
+
+* src: DragonFlyBSD has mmsghdr struct too (David Carlier)
+
+* cleanup,win: Remove _WIN32 guards on threadpool (James M Snell)
+
+* freebsd: fix an incompatible pointer type warning (Darshan Sen)
+
+* core: Correct the conditionals for {cloexec,nonblock}_ioctl (Ali Mohammad
+  Pur)
+
+* win,tcp: make uv_close work more like unix (Jameson Nash)
+
+* doc: more accurate list of valid send_handle's (twosee)
+
+* win,tcp: translate system errors correctly (twosee)
+
+* unix: implement cpu_relax() on ppc64 (Ben Noordhuis)
+
+* docs: move list of project links under PR control (Jameson Nash)
+
+* test: wrong pointer arithmetic multiplier (Erkhes N)
+
+* doc: switch discussion forum to github (Jameson Nash)
+
+* idna: fix OOB read in punycode decoder (Ben Noordhuis)
+
+* build: make sure -fvisibility=hidden is set (Santiago Gimeno)
+
+* illumos: event ports to epoll (tjarlama)
+
+* illumos,tty: UV_TTY_MODE_IO waits for 4 bytes (Joshua M. Clulow)
+
+* doc: add vtjnash GPG ID (Jameson Nash)
+
+* linux: read CPU model information on ppc (Richard Lau)
+
+* darwin: fix uv_barrier race condition (Guilherme Íscaro)
+
+* unix,stream: fix loop hang after uv_shutdown (Jameson Nash)
+
+* doc,udp: note that suggested_size is 1 max-sized dgram (Ryan Liptak)
+
+* mingw: fix building for ARM/AArch64 (Martin Storsjö)
+
+* unix: strnlen is not available on Solaris 10 (Claes Nästén)
+
+* sunos: restore use of event ports (Andy Fiddaman)
+
+* sunos,cmake: use thread-safe errno (Andy Fiddaman)
+
+
+2021.02.14, Version 1.41.0 (Stable), 1dff88e5161cba5c59276d2070d2e304e4dcb242
+
+Changes since version 1.40.0:
+
+* mailmap: update contact information for richardlau (Richard Lau)
+
+* build: add asan checks (gengjiawen)
+
+* unix: report bind error in uv_tcp_connect() (Ben Noordhuis)
+
+* doc: uv_tcp_bind() never returns UV_EADDRINUSE (Ben Noordhuis)
+
+* test: fix pump and tcp_write_batch benchmarks (Santiago Gimeno)
+
+* doc: mark IBM i as Tier 2 support (Jesse Gorzinski)
+
+* doc,poll: add notes (repeated cb & cancel pending cb) (Elad Nachmias)
+
+* linux: fix -Wincompatible-pointer-types warning (Ben Noordhuis)
+
+* linux: fix -Wsign-compare warning (Ben Noordhuis)
+
+* android: add system call api guards (Ben Noordhuis)
+
+* unix,win: harmonize uv_read_start() error handling (Ben Noordhuis)
+
+* unix,win: more uv_read_start() argument validation (Ben Noordhuis)
+
+* build: turn on -fno-strict-aliasing (Ben Noordhuis)
+
+* stream: add uv_pipe and uv_socketpair to the API (Jameson Nash)
+
+* unix,win: initialize timer `timeout` field (Ben Noordhuis)
+
+* bsd-ifaddrs: improve comments (Darshan Sen)
+
+* test: remove unnecessary uv_fs_stat() calls (Ben Noordhuis)
+
+* fs: fix utime/futime timestamp rounding errors (Ben Noordhuis)
+
+* test: ensure reliable floating point comparison (Jameson Nash)
+
+* unix,fs: fix uv_fs_sendfile() (Santiago Gimeno)
+
+* unix: fix uv_fs_stat when using statx (Simon Kadisch)
+
+* linux,macos: fix uv_set_process_title regression (Momtchil Momtchev)
+
+* doc: clarify UDP errors and recvmmsg (Ethel Weston)
+
+* test-getaddrinfo: use example.invalid (Drew DeVault)
+
+* Revert "build: fix android autotools build" (Bernardo Ramos)
+
+* unix,fs: on DVS fs, statx returns EOPNOTSUPP (Mark Klein)
+
+* win, fs: mkdir really return UV_EINVAL for invalid names (Nicholas Vavilov)
+
+* tools: migrate tools/make_dist_html.py to python3 (Dominique Dumont)
+
+* unix: fix uv_uptime() on linux (schamberg97)
+
+* unix: check for partial copy_file_range support (Momtchil Momtchev)
+
+* win: bump minimum supported version to windows 8 (Ben Noordhuis)
+
+* poll,unix: ensure safety of rapid fd reuse (Bob Weinand)
+
+* test: fix some warnings (Issam E. Maghni)
+
+* unix: fix uv_uptime() regression (Santiago Gimeno)
+
+* doc: fix versionadded metadata (cjihrig)
+
+* test: fix 'incompatible pointer types' warnings (cjihrig)
+
+* unix: check for EXDEV in uv__fs_sendfile() (Darshan Sen)
+
+
+2020.09.26, Version 1.40.0 (Stable), 4e69e333252693bd82d6338d6124f0416538dbfc
+
+Changes since version 1.39.0:
+
+* udp: add UV_UDP_MMSG_FREE recv_cb flag (Ryan Liptak)
+
+* include: re-map UV__EPROTO from 4046 to -4046 (YuMeiJie)
+
+* doc: correct UV_UDP_MMSG_FREE version added (cjihrig)
+
+* doc: add uv_metrics_idle_time() version metadata (Ryan Liptak)
+
+* win,tty: pass through utf-16 surrogate pairs (Mustafa M)
+
+* unix: fix DragonFly BSD build (Aleksej Lebedev)
+
+* win,udp: fix error code returned by connect() (Santiago Gimeno)
+
+* src: suppress user_timeout maybe-uninitialized (Daniel Bevenius)
+
+* test: fix compiler warning (Vladimír Čunát)
+
+* build: fix the Haiku cmake build (David Carlier)
+
+* linux: fix i386 sendmmsg/recvmmsg support (Ben Noordhuis)
+
+* build: add libuv-static pkg-config file (Nikolay Mitev)
+
+* unix,win: add uv_timer_get_due_in() (Ulrik Strid)
+
+* build,unix: add QNX support (Elad Lahav)
+
+* include: remove incorrect UV__ERR() for EPROTO (cjihrig)
+
+
+2020.08.26, Version 1.39.0 (Stable), 25f4b8b8a3c0f934158cd37a37b0525d75ca488e
+
+Changes since version 1.38.1:
+
+* unix: use relaxed loads/stores for clock id (Ben Noordhuis)
+
+* build,win: link to user32.lib and advapi32.lib (George Zhao)
+
+* unix: squelch harmless valgrind warning (ssrlive)
+
+* include: fx c++ style comments warnings (Turbinya)
+
+* build,cmake: Change installation location on MinGW (erw7)
+
+* linux: use copy_file_range for uv_fs_copyfile when possible (Carter Li)
+
+* win,tcp: avoid reinserting a pending request (
+
+* docs: improve the descriptions for get memory info (Juan Sebastian velez
+  Posada)
+
+* test: add udp-mmsg test (Ryan Liptak)
+
+* udp: add uv_udp_using_recvmmsg query (Ryan Liptak)
+
+* doc: add more error constants (TK-one)
+
+* zos: fix potential event loop stall (Trevor Norris)
+
+* include: add internal fields struct to uv_loop_t (Trevor Norris)
+
+* core: add API to measure event loop idle time (Trevor Norris)
+
+* win,fs: use CreateDirectoryW instead of _wmkdir (Mustafa M)
+
+* win,nfc: fix integer comparison signedness (escherstair)
+
+* win,nfc: use
+
+* win,nfc: removed some unused variables (escherstair)
+
+* win,nfc: add missing return statement (escherstair)
+
+* win,nfc: disable clang-format for
+
+* darwin: use IOKit for uv_cpu_info (Evan Lucas)
+
+* test: fix thread race in process_title_threadsafe (Ben Noordhuis)
+
+* win,fs: avoid implicit access to _doserrno (Jameson Nash)
+
+* test: give hrtime test a custom 20s timeout (Jameson Nash)
+
+* build: add more failed test, for qemu version bump (gengjiawen)
+
+* unix: handle src, dest same in uv_fs_copyfile() (cjihrig)
+
+* unix: error when uv_setup_args() is not called (Ryan Liptak)
+
+* aix: protect uv_exepath() from uv_set_process_title() (Richard Lau)
+
+* fs: clobber req->path on uv_fs_mkstemp() error (tjarlama)
+
+* cmake: fix compile error C2001 on Chinese Windows (司徒玟琅)
+
+* test: avoid double evaluation in ASSERT_BASE macro (tjarlama)
+
+* tcp: fail instantly if local port is unbound (Bartosz Sosnowski)
+
+* doc: fix most sphinx warnings (Jameson Nash)
+
+* nfci: address some style nits (Jameson Nash)
+
+* unix: don't use _POSIX_PATH_MAX (Ben Noordhuis)
+
+
 2020.07.04, Version 1.38.1 (Stable), e8b989ea1f7f9d4083511a2caec7791e9abd1871
 
 Changes since version 1.38.0:

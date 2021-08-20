@@ -35,7 +35,7 @@ message then the amplification attack has succeeded.
 If DTLS is used over UDP (or any datagram based protocol that does not validate
 the source IP) then it is susceptible to this type of attack. TLSv1.3 is
 designed to operate over a stream-based transport protocol (such as TCP).
-If TCP is being used then there is no need to use SSL_stateless(). However some
+If TCP is being used then there is no need to use SSL_stateless(). However, some
 stream-based transport protocols (e.g. QUIC) may not validate the source
 address. In this case a TLSv1.3 application would be susceptible to this attack.
 
@@ -98,7 +98,7 @@ will be set up ready to continue the handshake.  the B<peer> value will also be
 filled in.
 
 A return value of 0 indicates a non-fatal error. This could (for
-example) be because of non-blocking IO, or some invalid message having been
+example) be because of nonblocking IO, or some invalid message having been
 received from a peer. Errors may be placed on the OpenSSL error queue with
 further information if appropriate. Typically user code is expected to retry the
 call to DTLSv1_listen() in the event of a non-fatal error.
@@ -126,7 +126,7 @@ The type of "peer" also changed in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1107,7 +1107,7 @@ void MessageFormat::format(int32_t msgStart, const void *plNumber,
         } else if (argType == UMSGPAT_ARG_TYPE_NONE || (cachedFormatters && uhash_iget(cachedFormatters, i - 2))) {
             // We arrive here if getCachedFormatter returned NULL, but there was actually an element in the hash table.
             // This can only happen if the hash table contained a DummyFormat, so the if statement above is a check
-            // for the hash table containind DummyFormat.
+            // for the hash table containing DummyFormat.
             if (arg->isNumeric()) {
                 const NumberFormat* nf = getDefaultNumberFormat(success);
                 appendTo.formatAndAppend(nf, *arg, success);
@@ -1440,7 +1440,7 @@ MessageFormat::parse(int32_t msgStart,
             argType==UMSGPAT_ARG_TYPE_NONE || (cachedFormatters && uhash_iget(cachedFormatters, i -2))) {
             // We arrive here if getCachedFormatter returned NULL, but there was actually an element in the hash table.
             // This can only happen if the hash table contained a DummyFormat, so the if statement above is a check
-            // for the hash table containind DummyFormat.
+            // for the hash table containing DummyFormat.
 
             // Match as a string.
             // if at end, use longest possible match

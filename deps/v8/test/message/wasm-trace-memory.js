@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-opt --trace-wasm-memory --no-liftoff --no-future
+// Flags: --no-stress-opt --trace-wasm-memory --no-liftoff
 // Flags: --experimental-wasm-simd
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
