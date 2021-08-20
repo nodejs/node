@@ -2492,6 +2492,18 @@ const util = require('util');
 util.log('Timestamped message.');
 ```
 
+
+### `util.toUSVString(string)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `string` {string}
+
+Returns the `string` after replacing any surrogate code points
+(or equivalently, any unpaired surrogate code units) with the
+Unicode "replacement character" U+FFFD.
+
 [Common System Errors]: errors.md#errors_common_system_errors
 [Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
