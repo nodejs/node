@@ -4,6 +4,8 @@ const common = require('../common');
 
 process.on('warning', common.mustCall());
 
-let obj = {};
-obj.__proto__;
+const obj = {};
+// eslint-disable-next-line
+const _ = obj.__proto__;
+// eslint-disable-next-line
 obj.__proto__ = null;
