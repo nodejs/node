@@ -686,6 +686,7 @@ bool SignTraits::DeriveBits(
               nullptr,
               params.key.get())) {
         crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        return false;
       }
       break;
     case SignConfiguration::kVerify:
@@ -696,6 +697,7 @@ bool SignTraits::DeriveBits(
               nullptr,
               params.key.get())) {
         crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        return false;
       }
       break;
   }
@@ -713,6 +715,7 @@ bool SignTraits::DeriveBits(
           padding,
           salt_length)) {
     crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+    return false;
   }
 
   switch (params.mode) {
