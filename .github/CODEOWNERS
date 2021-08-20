@@ -99,8 +99,8 @@
 
 # gyp
 
-/**/*.gyp @nodejs/gyp
-/**/*.gypi @nodejs/gyp
+*.gyp @nodejs/gyp
+*.gypi @nodejs/gyp
 /tools/gyp/**/* @nodejs/gyp
 
 # WASI
