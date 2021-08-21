@@ -507,7 +507,7 @@ const testVectors = [
       true,
       ['verify']);
     const jwk = await subtle.exportKey('jwk', key);
-    assert.equal(jwk.alg, 'PS256');
+    assert.strictEqual(jwk.alg, 'PS256');
   })().then(common.mustCall());
 
   (async () => {
@@ -518,6 +518,6 @@ const testVectors = [
       true,
       ['sign']);
     const jwk = await subtle.exportKey('jwk', key);
-    assert.equal(jwk.alg, 'PS256');
+    assert.strictEqual(jwk.alg, 'PS256');
   })().then(common.mustCall());
 }
