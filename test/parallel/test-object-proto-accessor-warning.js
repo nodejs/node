@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-process.on('warning', common.mustCall());
+common.expectWarning('DeprecationWarning', '__proto__ is deprecated', 'DEP0XXX');
 
 const obj = {};
 // eslint-disable-next-line
