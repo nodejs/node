@@ -100,6 +100,85 @@ async function getCollaboratorsFromReadme() {
   return returnedArray;
 }
 
+async function moveCollaboratorToEmeritus(peopleToMove) {
+  const readmeText = readline.createInterface({
+    input: fs.createReadStream(new URL('../README.md', import.meta.url)),
+    crlfDelay: Infinity,
+  });
+  let fileContents = '';
+  let inCollaboratorsSection = false;
+  let inCollaboratorEmeritusSection = false;
+  let collaboratorFirstLine = '';
+  const textToMove = [];
+  for await (const line of readmeText) {
+    // If we've been processing collaborator emeriti and we reach the end of
+    // the list, print out the remaining entries to be moved because they come
+    // alphabetically after the last item.
+    if (inCollaboratorEmeritusSection && line === '' &&
+        fileContents.endsWith('&gt;\n')) {
+      while (textToMove.length) {
+        fileContents += textToMove.pop();
+      }
+    }
+
+    // If we've found the collaborator heading already, stop processing at the
+    // next heading.
+    if (line.startsWith('#')) {
+      inCollaboratorsSection = false;
+      inCollaboratorEmeritusSection = false;
+    }
+
+    const isCollaborator = inCollaboratorsSection && line.length;
+    const isCollaboratorEmeritus = inCollaboratorEmeritusSection && line.length;
+
+    if (line === '### Collaborators') {
+      inCollaboratorsSection = true;
+    }
+    if (line === '### Collaborator emeriti') {
+      inCollaboratorEmeritusSection = true;
+    }
+
+    if (isCollaborator) {
+      if (line.startsWith('* ')) {
+        collaboratorFirstLine = line;
+      } else if (line.startsWith('**')) {
+        const [, name, email] = /^\*\*([^*]+)\*\* &lt;(.+)&gt;/.exec(line);
+        if (peopleToMove.some((entry) => {
+          return entry.name === name && entry.email === email;
+        })) {
+          textToMove.push(`${collaboratorFirstLine}\n${line}\n`);
+        } else {
+          fileContents += `${collaboratorFirstLine}\n${line}\n`;
+        }
+      } else {
+        fileContents += `${line}\n`;
+      }
+    }
+
+    if (isCollaboratorEmeritus) {
+      if (line.startsWith('* ')) {
+        collaboratorFirstLine = line;
+      } else if (line.startsWith('**')) {
+        const currentLine = `${collaboratorFirstLine}\n${line}\n`;
+        // If textToMove is empty, this still works because when undefined is
+        // used in a comparison with <, the result is always false.
+        while (textToMove[0] < currentLine) {
+          fileContents += textToMove.shift();
+        }
+        fileContents += currentLine;
+      } else {
+        fileContents += `${line}\n`;
+      }
+    }
+
+    if (!isCollaborator && !isCollaboratorEmeritus) {
+      fileContents += `${line}\n`;
+    }
+  }
+
+  return fileContents;
+}
+
 // Get list of current collaborators from README.md.
 const collaborators = await getCollaboratorsFromReadme();
 
@@ -113,9 +192,13 @@ const inactive = collaborators.filter((collaborator) =>
   !authors.has(collaborator.mailmap) &&
   !landers.has(collaborator.mailmap) &&
   !approvingReviewers.has(collaborator.name)
-).map((collaborator) => collaborator.name);
+);
 
 if (inactive.length) {
   console.log('\nInactive collaborators:\n');
-  console.log(inactive.map((name) => `* ${name}`).join('\n'));
+  console.log(inactive.map((entry) => `* ${entry.name}`).join('\n'));
+  console.log('\nGenerating new README.md file...');
+  const newReadmeText = await moveCollaboratorToEmeritus(inactive);
+  fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
+  console.log('Updated README.md generated. Please commit these changes.');
 }
