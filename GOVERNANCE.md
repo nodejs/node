@@ -15,15 +15,16 @@
 
 ## Triagers
 
-Triagers assess newly-opened issues in the nodejs/node and nodejs/help
-repositories. There is no GitHub team for triagers at the moment.
+Triagers assess newly-opened issues in the [nodejs/node][] and [nodejs/help][]
+repositories. The GitHub team for Node.js triagers is @nodejs/issue-triage.
+Triagers are given the "Triage" GitHub role and have:
 
-Triagers have:
-* ability to label issues
-* ability to comment, close, and reopen issues
+* Ability to label issues and pull requests
+* Ability to comment, close, and reopen issues and pull requests
 
 See:
 
+* [List of triagers](./README.md#triagers)
 * [A guide for triagers](./doc/guides/contributing/issues.md#triaging-a-bug-report)
 
 ## Collaborators
@@ -174,4 +175,5 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
 [collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
+[nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
