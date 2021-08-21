@@ -461,7 +461,7 @@ static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
   instr &= ~kImm12Mask;
   int32_t imm12 = offset << kImm12Shift;
   DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
-  DCHECK(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)) == offset);
+  DCHECK_EQ(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)), offset);
   return instr | (imm12 & kImm12Mask);
 }
 
@@ -702,7 +702,7 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
          InstructionBase::kIType);
   DCHECK(IsAuipc(auipc));
   int32_t imm_auipc = AuipcOffset(auipc);
-  int32_t imm12 = (instr_I & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr_I & kImm12Mask) >> 20;
   int32_t offset = imm12 + imm_auipc;
   return offset;
 }
@@ -723,19 +723,19 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
 
 int Assembler::LdOffset(Instr instr) {
   DCHECK(IsLd(instr));
-  int32_t imm12 = (instr & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
   return imm12;
 }
 
 int Assembler::JalrOffset(Instr instr) {
   DCHECK(IsJalr(instr));
-  int32_t imm12 = (instr & kImm12Mask) >> 20;
+  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
   return imm12;
 }
 
 int Assembler::AuipcOffset(Instr instr) {
   DCHECK(IsAuipc(instr));
-  int32_t imm20 = instr & kImm20Mask;
+  int32_t imm20 = static_cast<int32_t>(instr & kImm20Mask);
   return imm20;
 }
 // We have to use a temporary register for things that can be relocated even
@@ -1277,7 +1277,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       DCHECK_EQ(imm18 & 3, 0);
       int32_t imm16 = imm18 >> 2;
       DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, (imm16 & kImm16Mask));
+      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
     } else {
       target_pos = kEndOfJumpChain;
       instr_at_put(at_offset, target_pos);
@@ -2692,7 +2692,7 @@ void Assembler::GrowBuffer() {
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate runtime entries.
-  Vector<byte> instructions{buffer_start_, pc_offset()};
+  Vector<byte> instructions{buffer_start_, static_cast<size_t>(pc_offset())};
   Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
   for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
