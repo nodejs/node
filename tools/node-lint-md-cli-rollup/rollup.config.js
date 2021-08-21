@@ -43,7 +43,7 @@ module.exports = {
     json({
       preferConst: true
     }),
-    nodeResolve({exportConditions: ['node']}),
+    nodeResolve({ exportConditions: ['node'] }),
     commonjs(),
     {
       name: 'banner',
