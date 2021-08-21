@@ -506,7 +506,8 @@ const testVectors = [
       { name: 'RSA-PSS', hash: 'SHA-256' },
       true,
       ['verify']);
-    await subtle.exportKey('jwk', key);
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.equal(jwk.alg, 'PS256');
   })().then(common.mustCall());
 
   (async () => {
@@ -516,6 +517,7 @@ const testVectors = [
       { name: 'RSA-PSS', hash: 'SHA-256' },
       true,
       ['sign']);
-    await subtle.exportKey('jwk', key);
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.equal(jwk.alg, 'PS256');
   })().then(common.mustCall());
 }
