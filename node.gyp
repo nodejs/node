@@ -236,6 +236,19 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
         }],
+        [ 'enable_lto=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              # man ld -export_dynamic:
+              # Preserves all global symbols in main executables during LTO.
+              # Without this option, Link Time Optimization is allowed to
+              # inline and remove global functions. This option is used when
+              # a main executable may load a plug-in which requires certain
+              # symbols from the main executable.
+              '-Wl,-export_dynamic',
+            ],
+          },
+        }],
         ['OS=="win"', {
           'libraries': [
             'Dbghelp.lib',
