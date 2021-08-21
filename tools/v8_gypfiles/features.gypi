@@ -169,9 +169,6 @@
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
 
-    # Enable mitigations for executing untrusted code.
-    'v8_untrusted_code_mitigations%': 1,
-
     # Enable minor mark compact.
     'v8_enable_minor_mc%': 1,
 
@@ -357,9 +354,6 @@
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
-      }],
-      ['v8_untrusted_code_mitigations==0', {
-        'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
       ['v8_use_perfetto==1', {
         'defines': ['V8_USE_PERFETTO',],

@@ -66,10 +66,6 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Disable V8 untrusted code mitigations.
-    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
-    'v8_untrusted_code_mitigations': 0,
-
     # This is more of a V8 dev setting
     # https://github.com/nodejs/node/pull/22920/files#r222779926
     'v8_enable_fast_mksnapshot': 0,

@@ -509,12 +509,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
-          '<(V8_ROOT)/include/v8-cppgc.h',
-          '<(V8_ROOT)/include/v8-fast-api-calls.h',
-          '<(V8_ROOT)/include/v8-internal.h',
-          '<(V8_ROOT)/include/v8-profiler.h',
-          '<(V8_ROOT)/include/v8-util.h',
-          '<(V8_ROOT)/include/v8.h',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_headers\\".*?sources = ")',
 
           '<(V8_ROOT)/include/v8-wasm-trap-handler-posix.h',
           '<(V8_ROOT)/include/v8-wasm-trap-handler-win.h',
