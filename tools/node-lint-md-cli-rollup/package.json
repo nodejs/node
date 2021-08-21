@@ -19,6 +19,6 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "npx rollup -c",
-    "build-node": "npm run build && npx shx cp dist/index.js ../lint-md.js"
+    "build-node": "npm run build && npx shx cp dist/index.mjs ../lint-md.mjs"
   }
 }

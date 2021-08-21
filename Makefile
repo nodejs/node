@@ -1235,7 +1235,7 @@ LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
-run-lint-md = tools/lint-md.js -q -f --no-stdout $(LINT_MD_FILES)
+run-lint-md = tools/lint-md.mjs -q -f --no-stdout $(LINT_MD_FILES)
 # Lint all changed markdown files maintained by us
 tools/.mdlintstamp: $(LINT_MD_FILES)
 	$(info Running Markdown linter...)
