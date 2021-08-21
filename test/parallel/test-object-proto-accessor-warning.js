@@ -2,9 +2,9 @@
 
 const common = require('../common');
 
-common.expectWarning('DeprecationWarning',
-  '__proto__ is deprecated, use Object.getPrototypeOf instead',
-  'DEP0XXX');
+common.expectWarning(
+  'DeprecationWarning',
+  '__proto__ is deprecated, use Object.getPrototypeOf instead', 'DEP0XXX');
 
 const obj = {};
 // eslint-disable-next-line
