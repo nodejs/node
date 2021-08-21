@@ -2805,8 +2805,8 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/38906
-    description: Documentation-only deprecation.
+    pr-url: https://github.com/nodejs/node/pull/39824
+    description: Runtime deprecation.
 -->
 
 Type: Runtime
