@@ -2801,7 +2801,7 @@ non-number value for `hints` option, a non-nullish non-boolean value for `all`
 option, or a non-nullish non-boolean value for `verbatim` option in
 [`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
 
-### DEP0154: `Object.prototype` Legacy Accessors
+### DEP0XXX: `Object.prototype` Legacy Accessors
 <!-- YAML
 changes:
   - version: REPLACEME
