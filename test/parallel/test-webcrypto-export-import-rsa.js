@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -478,3 +479,45 @@ const testVectors = [
   });
   await Promise.all(variations);
 })().then(common.mustCall());
+
+{
+  const publicPem = fixtures.readKey('rsa_pss_public_2048.pem', 'ascii');
+  const privatePem = fixtures.readKey('rsa_pss_private_2048.pem', 'ascii');
+
+  const publicDer = Buffer.from(
+    publicPem.replace(
+      /(?:-----(?:BEGIN|END) PUBLIC KEY-----|\s)/g,
+      ''
+    ),
+    'base64'
+  );
+  const privateDer = Buffer.from(
+    privatePem.replace(
+      /(?:-----(?:BEGIN|END) PRIVATE KEY-----|\s)/g,
+      ''
+    ),
+    'base64'
+  );
+
+  (async () => {
+    const key = await subtle.importKey(
+      'spki',
+      publicDer,
+      { name: 'RSA-PSS', hash: 'SHA-256' },
+      true,
+      ['verify']);
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.strictEqual(jwk.alg, 'PS256');
+  })().then(common.mustCall());
+
+  (async () => {
+    const key = await subtle.importKey(
+      'pkcs8',
+      privateDer,
+      { name: 'RSA-PSS', hash: 'SHA-256' },
+      true,
+      ['sign']);
+    const jwk = await subtle.exportKey('jwk', key);
+    assert.strictEqual(jwk.alg, 'PS256');
+  })().then(common.mustCall());
+}

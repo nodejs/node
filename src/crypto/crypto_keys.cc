@@ -489,8 +489,13 @@ std::shared_ptr<KeyObjectData> ImportJWKSecretKey(
 Maybe<bool> ExportJWKAsymmetricKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+    Local<Object> target,
+    bool handleRsaPss) {
   switch (EVP_PKEY_id(key->GetAsymmetricKey().get())) {
+    case EVP_PKEY_RSA_PSS: {
+      if (handleRsaPss) return ExportJWKRsaKey(env, key, target);
+      break;
+    }
     case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
     case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
@@ -609,14 +614,16 @@ static inline Maybe<bool> Tristate(bool b) {
 
 Maybe<bool> ExportJWKInner(Environment* env,
                            std::shared_ptr<KeyObjectData> key,
-                           Local<Value> result) {
+                           Local<Value> result,
+                           bool handleRsaPss) {
   switch (key->GetKeyType()) {
     case kKeyTypeSecret:
       return ExportJWKSecretKey(env, key, result.As<Object>());
     case kKeyTypePublic:
       // Fall through
     case kKeyTypePrivate:
-      return ExportJWKAsymmetricKey(env, key, result.As<Object>());
+      return ExportJWKAsymmetricKey(
+        env, key, result.As<Object>(), handleRsaPss);
     default:
       UNREACHABLE();
   }
@@ -638,7 +645,7 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
     *out = Object::New(env->isolate());
-    return ExportJWKInner(env, data, *out);
+    return ExportJWKInner(env, data, *out, false);
   }
 
   return Tristate(WritePublicKey(env, key.get(), config).ToLocal(out));
@@ -658,7 +665,7 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
     *out = Object::New(env->isolate());
-    return ExportJWKInner(env, data, *out);
+    return ExportJWKInner(env, data, *out, false);
   }
 
   return Tristate(WritePrivateKey(env, key.get(), config).ToLocal(out));
@@ -1237,8 +1244,9 @@ void KeyObjectHandle::ExportJWK(
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsBoolean());
 
-  ExportJWKInner(env, key->Data(), args[0]);
+  ExportJWKInner(env, key->Data(), args[0], args[1]->IsTrue());
 
   args.GetReturnValue().Set(args[0]);
 }
