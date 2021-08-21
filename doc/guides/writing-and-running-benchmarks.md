@@ -62,8 +62,15 @@ from [nghttp2.org][] or built from source.
 
 ### Benchmark analysis requirements
 
-To analyze the results, `R` should be installed. Use one of the available
-package managers or download it from <https://www.r-project.org/>.
+To analyze the results statistically, you can use either the
+[node-benchmark-compare][] tool or the R script `benchmark/compare.R`.
+
+[node-benchmark-compare][] is a Node.js script that can be installed with
+`npm install -g node-benchmark-compare`.
+
+To draw comparison plots when analyzing the results, `R` must be installed.
+Use one of the available package managers or download it from
+<https://www.r-project.org/>.
 
 The R packages `ggplot2` and `plyr` are also used and can be installed using
 the R REPL.
@@ -285,10 +292,11 @@ module, you can use the `--filter` option:*
   --no-progress                 don't show benchmark progress indicator
 ```
 
-For analysing the benchmark results use the `compare.R` tool.
+For analysing the benchmark results, use [node-benchmark-compare][] or the R
+script `benchmark/compare.R`.
 
 ```console
-$ cat compare-pr-5134.csv | Rscript benchmark/compare.R
+$ node-benchmark-compare compare-pr-5134.csv # or cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
                                                                                              confidence improvement accuracy (*)    (**)   (***)
  string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='ascii'                  ***     -3.76 %       ±1.36%  ±1.82%  ±2.40%
@@ -315,17 +323,18 @@ consider at least two stars (`**`) as the threshold, in that case the risk
 is 1%. If three stars (`***`) is considered the risk is 0.1%. However this
 may require more runs to obtain (can be set with `--runs`).
 
-_For the statistically minded, the R script performs an [independent/unpaired
+_For the statistically minded, the script performs an [independent/unpaired
 2-group t-test][t-test], with the null hypothesis that the performance is the
 same for both versions. The confidence field will show a star if the p-value
 is less than `0.05`._
 
-The `compare.R` tool can also produce a box plot by using the `--plot filename`
-option. In this case there are 48 different benchmark combinations, and there
-may be a need to filter the csv file. This can be done while benchmarking
-using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering
-results afterwards using tools such as `sed` or `grep`. In the `sed` case be
-sure to keep the first line since that contains the header information.
+The `compare.R` tool can additionally produce a box plot by using the
+`--plot filename` option. In this case there are 48 different benchmark
+combinations, and there may be a need to filter the csv file. This can be done
+while benchmarking using the `--set` parameter (e.g. `--set encoding=ascii`) or
+by filtering results afterwards using tools such as `sed` or `grep`. In the
+`sed` case be sure to keep the first line since that contains the header
+information.
 
 ```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding='"'"ascii"'"'/!d' | Rscript benchmark/compare.R --plot compare-plot.png
@@ -560,5 +569,6 @@ Supported options keys are:
 [benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win
 [nghttp2.org]: https://nghttp2.org
+[node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
 [wrk]: https://github.com/wg/wrk
