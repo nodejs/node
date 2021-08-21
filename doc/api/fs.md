@@ -545,6 +545,9 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v15.14.0
+    pr-url: https://github.com/nodejs/node/pull/37490
+    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
@@ -555,14 +558,16 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|Object}
+* `data` {string|Buffer|TypedArray|DataView|Object|AsyncIterable|Iterable
+  |Stream}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, or an object with an own `toString` function
+`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object, or an
+object with an own `toString` function
 property. The promise is resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
@@ -1341,7 +1346,7 @@ added: v10.0.0
 changes:
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` & `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
