@@ -13,16 +13,12 @@ module.exports = {
     exports: 'none',
   },
   external: [
-    'stream',
-    'path',
-    'module',
-    'util',
-    'tty',
-    'os',
-    'fs',
-    'fsevents',
-    'events',
-    'assert',
+    'node:events',
+    'node:fs',
+    'node:path',
+    'node:process',
+    'node:stream',
+    'node:url',
   ],
   plugins: [
     {
@@ -47,7 +43,7 @@ module.exports = {
     json({
       preferConst: true
     }),
-    nodeResolve(), // tells Rollup how to find date-fns in node_modules
+    nodeResolve({exportConditions: ['node']}),
     commonjs(),
     {
       name: 'banner',
