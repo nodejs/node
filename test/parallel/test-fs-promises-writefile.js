@@ -67,9 +67,10 @@ async function doWriteStreamWithCancel() {
   const controller = new AbortController();
   const { signal } = controller;
   process.nextTick(() => controller.abort());
-  assert.rejects(fsPromises.writeFile(otherDest, stream, { signal }), {
-    name: 'AbortError'
-  });
+  await assert.rejects(
+    fsPromises.writeFile(otherDest, stream, { signal }),
+    { name: 'AbortError' }
+  );
 }
 
 async function doWriteIterable() {
@@ -121,9 +122,10 @@ async function doWriteWithCancel() {
   const controller = new AbortController();
   const { signal } = controller;
   process.nextTick(() => controller.abort());
-  assert.rejects(fsPromises.writeFile(otherDest, buffer, { signal }), {
-    name: 'AbortError'
-  });
+  await assert.rejects(
+    fsPromises.writeFile(otherDest, buffer, { signal }),
+    { name: 'AbortError' }
+  );
 }
 
 async function doAppend() {
