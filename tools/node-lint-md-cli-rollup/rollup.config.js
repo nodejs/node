@@ -7,8 +7,8 @@ const json = require('@rollup/plugin-json');
 module.exports = {
   input: 'src/cli-entry.mjs',
   output: {
-    file: 'dist/index.js',
-    format: 'cjs',
+    file: 'dist/index.mjs',
+    format: 'es',
     sourcemap: false,
     exports: 'none',
   },

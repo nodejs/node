@@ -1,60 +1,19 @@
-'use strict';
-
-// Don't change this file manually,
-// it is generated from tools/node-lint-md-cli-rollup
-
-var path$b = require('path');
-var require$$0$3 = require('fs');
-var url = require('url');
-var process$2 = require('node:process');
-var stream = require('node:stream');
-var require$$0$2 = require('os');
-var tty$1 = require('tty');
-var require$$0$5 = require('events');
-var require$$0$4 = require('util');
-var require$$1 = require('stream');
-var path$c = require('node:path');
-var node_url = require('node:url');
-var assert$2 = require('assert');
-var fs$a = require('node:fs');
-var node_events = require('node:events');
-var process$1 = require('process');
-
-function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
-
-function _interopNamespace(e) {
-	if (e && e.__esModule) return e;
-	var n = Object.create(null);
-	if (e) {
-		Object.keys(e).forEach(function (k) {
-			if (k !== 'default') {
-				var d = Object.getOwnPropertyDescriptor(e, k);
-				Object.defineProperty(n, k, d.get ? d : {
-					enumerable: true,
-					get: function () {
-						return e[k];
-					}
-				});
-			}
-		});
-	}
-	n['default'] = e;
-	return Object.freeze(n);
-}
-
-var path__default = /*#__PURE__*/_interopDefaultLegacy(path$b);
-var require$$0__default$1 = /*#__PURE__*/_interopDefaultLegacy(require$$0$3);
-var process__default$1 = /*#__PURE__*/_interopDefaultLegacy(process$2);
-var stream__default = /*#__PURE__*/_interopDefaultLegacy(stream);
-var require$$0__default = /*#__PURE__*/_interopDefaultLegacy(require$$0$2);
-var tty__default = /*#__PURE__*/_interopDefaultLegacy(tty$1);
-var require$$0__default$3 = /*#__PURE__*/_interopDefaultLegacy(require$$0$5);
-var require$$0__default$2 = /*#__PURE__*/_interopDefaultLegacy(require$$0$4);
-var require$$1__default = /*#__PURE__*/_interopDefaultLegacy(require$$1);
-var path__default$1 = /*#__PURE__*/_interopDefaultLegacy(path$c);
-var assert__default = /*#__PURE__*/_interopDefaultLegacy(assert$2);
-var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs$a);
-var process__default = /*#__PURE__*/_interopDefaultLegacy(process$1);
+import path$b from 'path';
+import require$$0$3, { realpathSync as realpathSync$1, statSync, Stats } from 'fs';
+import { URL as URL$1, fileURLToPath, pathToFileURL } from 'url';
+import process$2 from 'node:process';
+import stream, { PassThrough } from 'node:stream';
+import require$$0$2 from 'os';
+import tty$1 from 'tty';
+import require$$0$5 from 'events';
+import require$$0$4, { format as format$2, inspect as inspect$1 } from 'util';
+import require$$1 from 'stream';
+import path$c from 'node:path';
+import { pathToFileURL as pathToFileURL$1 } from 'node:url';
+import assert$2 from 'assert';
+import fs$a from 'node:fs';
+import { EventEmitter as EventEmitter$1 } from 'node:events';
+import process$1 from 'process';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -1422,8 +1381,8 @@ var hasFlag$4 = (flag, argv = process.argv) => {
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 };
 
-const os$2 = require$$0__default['default'];
-const tty = tty__default['default'];
+const os$2 = require$$0$2;
+const tty = tty$1;
 const hasFlag$3 = hasFlag$4;
 
 const {env: env$2} = process;
@@ -1962,7 +1921,7 @@ var chokidar = {};
 
 var utils$7 = {};
 
-const path$a = path__default['default'];
+const path$a = path$b;
 const WIN_SLASH = '\\\\/';
 const WIN_NO_SLASH = `[^${WIN_SLASH}]`;
 
@@ -2142,7 +2101,7 @@ var constants$5 = {
 
 (function (exports) {
 
-const path = path__default['default'];
+const path = path$b;
 const win32 = process.platform === 'win32';
 const {
   REGEX_BACKSLASH,
@@ -3665,7 +3624,7 @@ parse$e.fastpaths = (input, options) => {
 
 var parse_1$2 = parse$e;
 
-const path$9 = path__default['default'];
+const path$9 = path$b;
 const scan = scan_1;
 const parse$d = parse_1$2;
 const utils$4 = utils$7;
@@ -4005,10 +3964,10 @@ var picomatch_1 = picomatch$3;
 
 var picomatch$2 = picomatch_1;
 
-const fs$9 = require$$0__default$1['default'];
-const { Readable } = require$$1__default['default'];
-const sysPath$3 = path__default['default'];
-const { promisify: promisify$3 } = require$$0__default$2['default'];
+const fs$9 = require$$0$3;
+const { Readable } = require$$1;
+const sysPath$3 = path$b;
+const { promisify: promisify$3 } = require$$0$4;
 const picomatch$1 = picomatch$2;
 
 const readdir$1 = promisify$3(fs$9.readdir);
@@ -4503,8 +4462,8 @@ var isGlob$2 = function isGlob(str, options) {
 };
 
 var isGlob$1 = isGlob$2;
-var pathPosixDirname = path__default['default'].posix.dirname;
-var isWin32 = require$$0__default['default'].platform() === 'win32';
+var pathPosixDirname = path$b.posix.dirname;
+var isWin32 = require$$0$2.platform() === 'win32';
 
 var slash = '/';
 var backslash = /\\/g;
@@ -5000,7 +4959,7 @@ var toRegexRange_1 = toRegexRange$1;
  * Licensed under the MIT License.
  */
 
-const util$3 = require$$0__default$2['default'];
+const util$3 = require$$0$4;
 const toRegexRange = toRegexRange_1;
 
 const isObject$2 = val => val !== null && typeof val === 'object' && !Array.isArray(val);
@@ -6226,7 +6185,7 @@ var require$$0$1 = [
 
 var binaryExtensions$1 = require$$0$1;
 
-const path$8 = path__default['default'];
+const path$8 = path$b;
 const binaryExtensions = binaryExtensions$1;
 
 const extensions = new Set(binaryExtensions);
@@ -6237,9 +6196,9 @@ var constants$1 = {};
 
 (function (exports) {
 
-const {sep} = path__default['default'];
+const {sep} = path$b;
 const {platform} = process;
-const os = require$$0__default['default'];
+const os = require$$0$2;
 
 exports.EV_ALL = 'all';
 exports.EV_READY = 'ready';
@@ -6302,9 +6261,9 @@ exports.isLinux = platform === 'linux';
 exports.isIBMi = os.type() === 'OS400';
 }(constants$1));
 
-const fs$8 = require$$0__default$1['default'];
-const sysPath$2 = path__default['default'];
-const { promisify: promisify$2 } = require$$0__default$2['default'];
+const fs$8 = require$$0$3;
+const sysPath$2 = path$b;
+const { promisify: promisify$2 } = require$$0$4;
 const isBinaryPath = isBinaryPath$1;
 const {
   isWindows: isWindows$3,
@@ -6939,9 +6898,9 @@ var nodefsHandler = NodeFsHandler$1;
 
 var fseventsHandler = {exports: {}};
 
-const fs$7 = require$$0__default$1['default'];
-const sysPath$1 = path__default['default'];
-const { promisify: promisify$1 } = require$$0__default$2['default'];
+const fs$7 = require$$0$3;
+const sysPath$1 = path$b;
+const { promisify: promisify$1 } = require$$0$4;
 
 let fsevents;
 try {
@@ -7462,10 +7421,10 @@ async _addToFsEvents(path, transform, forceAdd, priorDepth) {
 fseventsHandler.exports = FsEventsHandler$1;
 fseventsHandler.exports.canUse = canUse;
 
-const { EventEmitter } = require$$0__default$3['default'];
-const fs$6 = require$$0__default$1['default'];
-const sysPath = path__default['default'];
-const { promisify } = require$$0__default$2['default'];
+const { EventEmitter } = require$$0$5;
+const fs$6 = require$$0$3;
+const sysPath = path$b;
+const { promisify } = require$$0$4;
 const readdirp = readdirp_1;
 const anymatch = anymatch$2.exports.default;
 const globParent = globParent$1;
@@ -12513,7 +12472,7 @@ var isArrayish$2 = function isArrayish(obj) {
 		(obj.length >= 0 && obj.splice instanceof Function);
 };
 
-var util$2 = require$$0__default$2['default'];
+var util$2 = require$$0$4;
 var isArrayish$1 = isArrayish$2;
 
 var errorEx$1 = function errorEx(name, properties) {
@@ -14439,7 +14398,7 @@ var hasFlag$2 = (flag, argv) => {
 	return pos !== -1 && (terminatorPos === -1 ? true : pos < terminatorPos);
 };
 
-const os$1 = require$$0__default['default'];
+const os$1 = require$$0$2;
 const hasFlag$1 = hasFlag$2;
 
 const env$1 = process.env;
@@ -15979,8 +15938,8 @@ var node = {exports: {}};
  */
 
 (function (module, exports) {
-const tty = tty__default['default'];
-const util = require$$0__default$2['default'];
+const tty = tty$1;
+const util = require$$0$4;
 
 /**
  * This is the Node.js implementation of `debug()`.
@@ -19041,7 +19000,7 @@ var packageJsonReader = reader;
  * @returns {{string: string}}
  */
 function read$3(jsonPath) {
-  return find$1(path__default['default'].dirname(jsonPath))
+  return find$1(path$b.dirname(jsonPath))
 }
 
 /**
@@ -19050,14 +19009,14 @@ function read$3(jsonPath) {
  */
 function find$1(dir) {
   try {
-    const string = require$$0__default$1['default'].readFileSync(
-      path__default['default'].toNamespacedPath(path__default['default'].join(dir, 'package.json')),
+    const string = require$$0$3.readFileSync(
+      path$b.toNamespacedPath(path$b.join(dir, 'package.json')),
       'utf8'
     );
     return {string}
   } catch (error) {
     if (error.code === 'ENOENT') {
-      const parent = path__default['default'].dirname(dir);
+      const parent = path$b.dirname(dir);
       if (dir !== parent) return find$1(parent)
       return {string: undefined}
       // Throw all other errors.
@@ -19132,7 +19091,7 @@ codes.ERR_INVALID_PACKAGE_TARGET = createError(
       target.length > 0 &&
       !target.startsWith('./');
     if (key === '.') {
-      assert__default['default'](isImport === false);
+      assert$2(isImport === false);
       return (
         `Invalid "exports" main target ${JSON.stringify(target)} defined ` +
         `in the package config ${pkgPath}package.json${
@@ -19220,7 +19179,7 @@ codes.ERR_INVALID_ARG_VALUE = createError(
    * @param {string} [reason='is invalid']
    */
   (name, value, reason = 'is invalid') => {
-    let inspected = require$$0$4.inspect(value);
+    let inspected = inspect$1(value);
 
     if (inspected.length > 128) {
       inspected = `${inspected.slice(0, 128)}...`;
@@ -19395,7 +19354,7 @@ function getMessage(key, args, self) {
   const message = messages.get(key);
 
   if (typeof message === 'function') {
-    assert__default['default'](
+    assert$2(
       message.length <= args.length, // Default options do not count.
       `Code: ${key}; The provided arguments length (${args.length}) does not ` +
         `match the required ones (${message.length}).`
@@ -19404,7 +19363,7 @@ function getMessage(key, args, self) {
   }
 
   const expectedLength = (message.match(/%[dfijoOs]/g) || []).length;
-  assert__default['default'](
+  assert$2(
     expectedLength === args.length,
     `Code: ${key}; The provided arguments length (${args.length}) does not ` +
       `match the required ones (${expectedLength}).`
@@ -19412,7 +19371,7 @@ function getMessage(key, args, self) {
   if (args.length === 0) return message
 
   args.unshift(message);
-  return Reflect.apply(require$$0$4.format, null, args)
+  return Reflect.apply(format$2, null, args)
 }
 
 // Manually “tree shaken” from:
@@ -19430,12 +19389,12 @@ const extensionFormatMap = {
  * @param {string} url
  * @returns {{format: string|null}}
  */
-function defaultGetFormat(url$1) {
-  if (url$1.startsWith('node:')) {
+function defaultGetFormat(url) {
+  if (url.startsWith('node:')) {
     return {format: 'builtin'}
   }
 
-  const parsed = new url.URL(url$1);
+  const parsed = new URL$1(url);
 
   if (parsed.protocol === 'data:') {
     const {1: mime} = /^([^/]+\/[^;,]+)[^,]*?(;base64)?,/.exec(
@@ -19446,7 +19405,7 @@ function defaultGetFormat(url$1) {
   }
 
   if (parsed.protocol === 'file:') {
-    const ext = path__default['default'].extname(parsed.pathname);
+    const ext = path$b.extname(parsed.pathname);
     /** @type {string} */
     let format;
     if (ext === '.js') {
@@ -19456,7 +19415,7 @@ function defaultGetFormat(url$1) {
     }
 
     if (!format) {
-      throw new ERR_UNKNOWN_FILE_EXTENSION(ext, url.fileURLToPath(url$1))
+      throw new ERR_UNKNOWN_FILE_EXTENSION(ext, fileURLToPath(url))
     }
 
     return {format: format || null}
@@ -19502,7 +19461,7 @@ const packageJsonCache = new Map();
  * @returns {void}
  */
 function emitFolderMapDeprecation(match, pjsonUrl, isExports, base) {
-  const pjsonPath = url.fileURLToPath(pjsonUrl);
+  const pjsonPath = fileURLToPath(pjsonUrl);
 
   if (emittedPackageWarnings.has(pjsonPath + '|' + match)) return
   emittedPackageWarnings.add(pjsonPath + '|' + match);
@@ -19510,7 +19469,7 @@ function emitFolderMapDeprecation(match, pjsonUrl, isExports, base) {
     `Use of deprecated folder mapping "${match}" in the ${
       isExports ? '"exports"' : '"imports"'
     } field module resolution of the package at ${pjsonPath}${
-      base ? ` imported from ${url.fileURLToPath(base)}` : ''
+      base ? ` imported from ${fileURLToPath(base)}` : ''
     }.\n` +
       `Update this package.json to use a subpath pattern like "${match}*".`,
     'DeprecationWarning',
@@ -19525,12 +19484,12 @@ function emitFolderMapDeprecation(match, pjsonUrl, isExports, base) {
  * @param {unknown} [main]
  * @returns {void}
  */
-function emitLegacyIndexDeprecation(url$1, packageJsonUrl, base, main) {
-  const {format} = defaultGetFormat(url$1.href);
+function emitLegacyIndexDeprecation(url, packageJsonUrl, base, main) {
+  const {format} = defaultGetFormat(url.href);
   if (format !== 'module') return
-  const path = url.fileURLToPath(url$1.href);
-  const pkgPath = url.fileURLToPath(new url.URL('.', packageJsonUrl));
-  const basePath = url.fileURLToPath(base);
+  const path = fileURLToPath(url.href);
+  const pkgPath = fileURLToPath(new URL$1('.', packageJsonUrl));
+  const basePath = fileURLToPath(base);
   if (main)
     process.emitWarning(
       `Package ${pkgPath} has a "main" field set to ${JSON.stringify(main)}, ` +
@@ -19578,9 +19537,9 @@ function getConditionsSet(conditions) {
 function tryStatSync(path) {
   // Note: from Node 15 onwards we can use `throwIfNoEntry: false` instead.
   try {
-    return require$$0$3.statSync(path)
+    return statSync(path)
   } catch {
-    return new require$$0$3.Stats()
+    return new Stats()
   }
 }
 
@@ -19620,7 +19579,7 @@ function getPackageConfig(path, specifier, base) {
   } catch (error) {
     throw new ERR_INVALID_PACKAGE_CONFIG(
       path,
-      (base ? `"${specifier}" from ` : '') + url.fileURLToPath(base || specifier),
+      (base ? `"${specifier}" from ` : '') + fileURLToPath(base || specifier),
       error.message
     )
   }
@@ -19648,7 +19607,7 @@ function getPackageConfig(path, specifier, base) {
  * @returns {PackageConfig}
  */
 function getPackageScopeConfig(resolved) {
-  let packageJsonUrl = new url.URL('./package.json', resolved);
+  let packageJsonUrl = new URL$1('./package.json', resolved);
 
   while (true) {
     const packageJsonPath = packageJsonUrl.pathname;
@@ -19656,20 +19615,20 @@ function getPackageScopeConfig(resolved) {
     if (packageJsonPath.endsWith('node_modules/package.json')) break
 
     const packageConfig = getPackageConfig(
-      url.fileURLToPath(packageJsonUrl),
+      fileURLToPath(packageJsonUrl),
       resolved
     );
     if (packageConfig.exists) return packageConfig
 
     const lastPackageJsonUrl = packageJsonUrl;
-    packageJsonUrl = new url.URL('../package.json', packageJsonUrl);
+    packageJsonUrl = new URL$1('../package.json', packageJsonUrl);
 
     // Terminates at root where ../package.json equals ../../package.json
     // (can't just check "/package.json" for Windows support).
     if (packageJsonUrl.pathname === lastPackageJsonUrl.pathname) break
   }
 
-  const packageJsonPath = url.fileURLToPath(packageJsonUrl);
+  const packageJsonPath = fileURLToPath(packageJsonUrl);
   /** @type {PackageConfig} */
   const packageConfig = {
     pjsonPath: packageJsonPath,
@@ -19695,8 +19654,8 @@ function getPackageScopeConfig(resolved) {
  * @param {URL} url
  * @returns {boolean}
  */
-function fileExists(url$1) {
-  return tryStatSync(url.fileURLToPath(url$1)).isFile()
+function fileExists(url) {
+  return tryStatSync(fileURLToPath(url)).isFile()
 }
 
 /**
@@ -19709,7 +19668,7 @@ function legacyMainResolve(packageJsonUrl, packageConfig, base) {
   /** @type {URL} */
   let guess;
   if (packageConfig.main !== undefined) {
-    guess = new url.URL(`./${packageConfig.main}`, packageJsonUrl);
+    guess = new URL$1(`./${packageConfig.main}`, packageJsonUrl);
     // Note: fs check redundances will be handled by Descriptor cache here.
     if (fileExists(guess)) return guess
 
@@ -19724,7 +19683,7 @@ function legacyMainResolve(packageJsonUrl, packageConfig, base) {
     let i = -1;
 
     while (++i < tries.length) {
-      guess = new url.URL(tries[i], packageJsonUrl);
+      guess = new URL$1(tries[i], packageJsonUrl);
       if (fileExists(guess)) break
       guess = undefined;
     }
@@ -19745,7 +19704,7 @@ function legacyMainResolve(packageJsonUrl, packageConfig, base) {
   let i = -1;
 
   while (++i < tries.length) {
-    guess = new url.URL(tries[i], packageJsonUrl);
+    guess = new URL$1(tries[i], packageJsonUrl);
     if (fileExists(guess)) break
     guess = undefined;
   }
@@ -19757,8 +19716,8 @@ function legacyMainResolve(packageJsonUrl, packageConfig, base) {
 
   // Not found.
   throw new ERR_MODULE_NOT_FOUND(
-    url.fileURLToPath(new url.URL('.', packageJsonUrl)),
-    url.fileURLToPath(base)
+    fileURLToPath(new URL$1('.', packageJsonUrl)),
+    fileURLToPath(base)
   )
 }
 
@@ -19772,15 +19731,15 @@ function finalizeResolution(resolved, base) {
     throw new ERR_INVALID_MODULE_SPECIFIER(
       resolved.pathname,
       'must not include encoded "/" or "\\" characters',
-      url.fileURLToPath(base)
+      fileURLToPath(base)
     )
 
-  const path = url.fileURLToPath(resolved);
+  const path = fileURLToPath(resolved);
 
   const stats = tryStatSync(path.endsWith('/') ? path.slice(-1) : path);
 
   if (stats.isDirectory()) {
-    const error = new ERR_UNSUPPORTED_DIR_IMPORT(path, url.fileURLToPath(base));
+    const error = new ERR_UNSUPPORTED_DIR_IMPORT(path, fileURLToPath(base));
     // @ts-expect-error Add this for `import.meta.resolve`.
     error.url = String(resolved);
     throw error
@@ -19789,7 +19748,7 @@ function finalizeResolution(resolved, base) {
   if (!stats.isFile()) {
     throw new ERR_MODULE_NOT_FOUND(
       path || resolved.pathname,
-      base && url.fileURLToPath(base),
+      base && fileURLToPath(base),
       'module'
     )
   }
@@ -19806,8 +19765,8 @@ function finalizeResolution(resolved, base) {
 function throwImportNotDefined(specifier, packageJsonUrl, base) {
   throw new ERR_PACKAGE_IMPORT_NOT_DEFINED(
     specifier,
-    packageJsonUrl && url.fileURLToPath(new url.URL('.', packageJsonUrl)),
-    url.fileURLToPath(base)
+    packageJsonUrl && fileURLToPath(new URL$1('.', packageJsonUrl)),
+    fileURLToPath(base)
   )
 }
 
@@ -19819,9 +19778,9 @@ function throwImportNotDefined(specifier, packageJsonUrl, base) {
  */
 function throwExportsNotFound(subpath, packageJsonUrl, base) {
   throw new ERR_PACKAGE_PATH_NOT_EXPORTED(
-    url.fileURLToPath(new url.URL('.', packageJsonUrl)),
+    fileURLToPath(new URL$1('.', packageJsonUrl)),
     subpath,
-    base && url.fileURLToPath(base)
+    base && fileURLToPath(base)
   )
 }
 
@@ -19835,12 +19794,12 @@ function throwExportsNotFound(subpath, packageJsonUrl, base) {
 function throwInvalidSubpath(subpath, packageJsonUrl, internal, base) {
   const reason = `request is not a valid subpath for the "${
     internal ? 'imports' : 'exports'
-  }" resolution of ${url.fileURLToPath(packageJsonUrl)}`;
+  }" resolution of ${fileURLToPath(packageJsonUrl)}`;
 
   throw new ERR_INVALID_MODULE_SPECIFIER(
     subpath,
     reason,
-    base && url.fileURLToPath(base)
+    base && fileURLToPath(base)
   )
 }
 
@@ -19865,11 +19824,11 @@ function throwInvalidPackageTarget(
       : `${target}`;
 
   throw new ERR_INVALID_PACKAGE_TARGET(
-    url.fileURLToPath(new url.URL('.', packageJsonUrl)),
+    fileURLToPath(new URL$1('.', packageJsonUrl)),
     subpath,
     target,
     internal,
-    base && url.fileURLToPath(base)
+    base && fileURLToPath(base)
   )
 }
 
@@ -19902,7 +19861,7 @@ function resolvePackageTargetString(
       let isURL = false;
 
       try {
-        new url.URL(target);
+        new URL$1(target);
         isURL = true;
       } catch {}
 
@@ -19921,9 +19880,9 @@ function resolvePackageTargetString(
   if (invalidSegmentRegEx.test(target.slice(2)))
     throwInvalidPackageTarget(match, target, packageJsonUrl, internal, base);
 
-  const resolved = new url.URL(target, packageJsonUrl);
+  const resolved = new URL$1(target, packageJsonUrl);
   const resolvedPath = resolved.pathname;
-  const packagePath = new url.URL('.', packageJsonUrl).pathname;
+  const packagePath = new URL$1('.', packageJsonUrl).pathname;
 
   if (!resolvedPath.startsWith(packagePath))
     throwInvalidPackageTarget(match, target, packageJsonUrl, internal, base);
@@ -19933,8 +19892,8 @@ function resolvePackageTargetString(
   if (invalidSegmentRegEx.test(subpath))
     throwInvalidSubpath(match + subpath, packageJsonUrl, internal, base);
 
-  if (pattern) return new url.URL(resolved.href.replace(patternRegEx, subpath))
-  return new url.URL(subpath, resolved)
+  if (pattern) return new URL$1(resolved.href.replace(patternRegEx, subpath))
+  return new URL$1(subpath, resolved)
 }
 
 /**
@@ -20038,7 +19997,7 @@ function resolvePackageTarget(
       const key = keys[i];
       if (isArrayIndex(key)) {
         throw new ERR_INVALID_PACKAGE_CONFIG(
-          url.fileURLToPath(packageJsonUrl),
+          fileURLToPath(packageJsonUrl),
           base,
           '"exports" cannot contain numeric property keys.'
         )
@@ -20104,7 +20063,7 @@ function isConditionalExportsMainSugar(exports, packageJsonUrl, base) {
       isConditionalSugar = curIsConditionalSugar;
     } else if (isConditionalSugar !== curIsConditionalSugar) {
       throw new ERR_INVALID_PACKAGE_CONFIG(
-        url.fileURLToPath(packageJsonUrl),
+        fileURLToPath(packageJsonUrl),
         base,
         '"exports" cannot contain some keys starting with \'.\' and some not.' +
           ' The exports object must either be an object of package subpath keys' +
@@ -20207,7 +20166,7 @@ function packageExportsResolve(
 function packageImportsResolve(name, base, conditions) {
   if (name === '#' || name.startsWith('#/')) {
     const reason = 'is not a valid internal imports specifier name';
-    throw new ERR_INVALID_MODULE_SPECIFIER(name, reason, url.fileURLToPath(base))
+    throw new ERR_INVALID_MODULE_SPECIFIER(name, reason, fileURLToPath(base))
   }
 
   /** @type {URL} */
@@ -20216,7 +20175,7 @@ function packageImportsResolve(name, base, conditions) {
   const packageConfig = getPackageScopeConfig(base);
 
   if (packageConfig.exists) {
-    packageJsonUrl = url.pathToFileURL(packageConfig.pjsonPath);
+    packageJsonUrl = pathToFileURL(packageConfig.pjsonPath);
     const imports = packageConfig.imports;
     if (imports) {
       if (own$d.call(imports, name)) {
@@ -20325,7 +20284,7 @@ function parsePackageName(specifier, base) {
     throw new ERR_INVALID_MODULE_SPECIFIER(
       specifier,
       'is not a valid package name',
-      url.fileURLToPath(base)
+      fileURLToPath(base)
     )
   }
 
@@ -20353,7 +20312,7 @@ function packageResolve(specifier, base, conditions) {
   // Can’t test.
   /* c8 ignore next 16 */
   if (packageConfig.exists) {
-    const packageJsonUrl = url.pathToFileURL(packageConfig.pjsonPath);
+    const packageJsonUrl = pathToFileURL(packageConfig.pjsonPath);
     if (
       packageConfig.name === packageName &&
       packageConfig.exports !== undefined &&
@@ -20369,24 +20328,24 @@ function packageResolve(specifier, base, conditions) {
     }
   }
 
-  let packageJsonUrl = new url.URL(
+  let packageJsonUrl = new URL$1(
     './node_modules/' + packageName + '/package.json',
     base
   );
-  let packageJsonPath = url.fileURLToPath(packageJsonUrl);
+  let packageJsonPath = fileURLToPath(packageJsonUrl);
   /** @type {string} */
   let lastPath;
   do {
     const stat = tryStatSync(packageJsonPath.slice(0, -13));
     if (!stat.isDirectory()) {
       lastPath = packageJsonPath;
-      packageJsonUrl = new url.URL(
+      packageJsonUrl = new URL$1(
         (isScoped ? '../../../../node_modules/' : '../../../node_modules/') +
           packageName +
           '/package.json',
         packageJsonUrl
       );
-      packageJsonPath = url.fileURLToPath(packageJsonUrl);
+      packageJsonPath = fileURLToPath(packageJsonUrl);
       continue
     }
 
@@ -20402,11 +20361,11 @@ function packageResolve(specifier, base, conditions) {
       ).resolved
     if (packageSubpath === '.')
       return legacyMainResolve(packageJsonUrl, packageConfig, base)
-    return new url.URL(packageSubpath, packageJsonUrl)
+    return new URL$1(packageSubpath, packageJsonUrl)
     // Cross-platform root check.
   } while (packageJsonPath.length !== lastPath.length)
 
-  throw new ERR_MODULE_NOT_FOUND(packageName, url.fileURLToPath(base))
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base))
 }
 
 /**
@@ -20455,12 +20414,12 @@ function moduleResolve(specifier, base, conditions) {
   let resolved;
 
   if (shouldBeTreatedAsRelativeOrAbsolutePath(specifier)) {
-    resolved = new url.URL(specifier, base);
+    resolved = new URL$1(specifier, base);
   } else if (specifier[0] === '#') {
 ({resolved} = packageImportsResolve(specifier, base, conditions));
   } else {
     try {
-      resolved = new url.URL(specifier);
+      resolved = new URL$1(specifier);
     } catch {
       resolved = packageResolve(specifier, base, conditions);
     }
@@ -20480,7 +20439,7 @@ function defaultResolve(specifier, context = {}) {
   let parsed;
 
   try {
-    parsed = new url.URL(specifier);
+    parsed = new URL$1(specifier);
     if (parsed.protocol === 'data:') {
       return {url: specifier}
     }
@@ -20496,20 +20455,20 @@ function defaultResolve(specifier, context = {}) {
 
   if (parentURL.startsWith('data:')) {
     // This is gonna blow up, we want the error
-    new url.URL(specifier, parentURL);
+    new URL$1(specifier, parentURL);
   }
 
   const conditions = getConditionsSet(context.conditions);
-  let url$1 = moduleResolve(specifier, new url.URL(parentURL), conditions);
+  let url = moduleResolve(specifier, new URL$1(parentURL), conditions);
 
-  const urlPath = url.fileURLToPath(url$1);
-  const real = require$$0$3.realpathSync(urlPath);
-  const old = url$1;
-  url$1 = url.pathToFileURL(real + (urlPath.endsWith(path__default['default'].sep) ? '/' : ''));
-  url$1.search = old.search;
-  url$1.hash = old.hash;
+  const urlPath = fileURLToPath(url);
+  const real = realpathSync$1(urlPath);
+  const old = url;
+  url = pathToFileURL(real + (urlPath.endsWith(path$b.sep) ? '/' : ''));
+  url.search = old.search;
+  url.hash = old.hash;
 
-  return {url: `${url$1}`}
+  return {url: `${url}`}
 }
 
 /**
@@ -20625,7 +20584,7 @@ class FiggyPudding {
   }
 }
 try {
-  const util = require$$0__default$2['default'];
+  const util = require$$0$4;
   FiggyPudding.prototype[util.inspect.custom] = function (depth, opts) {
     return (
       this[Symbol.toStringTag] + ' '
@@ -20746,7 +20705,7 @@ var locatePath$1 = {exports: {}};
 
 var pathExists$1 = {exports: {}};
 
-const fs$5 = require$$0__default$1['default'];
+const fs$5 = require$$0$3;
 
 pathExists$1.exports = fp => new Promise(resolve => {
 	fs$5.access(fp, err => {
@@ -20866,7 +20825,7 @@ var pLocate$1 = (iterable, tester, opts) => {
 		.catch(err => err instanceof EndError ? err.value : Promise.reject(err));
 };
 
-const path$7 = path__default['default'];
+const path$7 = path$b;
 const pathExists = pathExists$1.exports;
 const pLocate = pLocate$1;
 
@@ -20890,7 +20849,7 @@ locatePath$1.exports.sync = (iterable, options) => {
 	}
 };
 
-const path$6 = path__default['default'];
+const path$6 = path$b;
 const locatePath = locatePath$1.exports;
 
 findUp$1.exports = (filename, opts = {}) => {
@@ -21145,12 +21104,12 @@ function unsafe$1 (val, doUnesc) {
   return val
 }
 
-const fs$4 = require$$0__default$1['default'];
+const fs$4 = require$$0$3;
 const figgyPudding = figgyPudding_1;
 const findUp = findUp$1.exports;
 const ini = ini$1;
-const os = require$$0__default['default'];
-const path$5 = path__default['default'];
+const os = require$$0$2;
+const path$5 = path$b;
 
 const NpmConfig = figgyPudding({}, {
   // Open up the pudding object.
@@ -21276,7 +21235,7 @@ let builtinNpmConfig;
 // pass to `libnpmconfig` explicitly:
 /* c8 ignore next 4 */
 if (windows && appData) {
-  builtinNpmConfig = {prefix: path__default['default'].join(appData, 'npm')};
+  builtinNpmConfig = {prefix: path$b.join(appData, 'npm')};
 }
 
 /**
@@ -21291,12 +21250,12 @@ let npmPrefix = libnpmconfig.read(null, builtinNpmConfig).prefix;
 /* c8 ignore next 5 */
 if (!npmPrefix) {
   npmPrefix = windows
-    ? path__default['default'].dirname(process.execPath)
-    : path__default['default'].resolve(process.execPath, '../..');
+    ? path$b.dirname(process.execPath)
+    : path$b.resolve(process.execPath, '../..');
 }
 
 const globalsDefault = electron || argv.indexOf(npmPrefix) === 0;
-let globalDir = path__default['default'].resolve(npmPrefix, globalsLibrary, 'node_modules');
+let globalDir = path$b.resolve(npmPrefix, globalsLibrary, 'node_modules');
 
 // If we’re in Electron, we’re running in a modified Node that cannot really
 // install global node modules.
@@ -21307,8 +21266,8 @@ let globalDir = path__default['default'].resolve(npmPrefix, globalsLibrary, 'nod
 // Luckily NVM leaks some environment variables that we can pick up on to try
 // and detect the actual modules.
 /* c8 ignore next 3 */
-if (electron && nvm && !require$$0__default$1['default'].existsSync(globalDir)) {
-  globalDir = path__default['default'].resolve(nvm, '..', globalsLibrary, 'node_modules');
+if (electron && nvm && !require$$0$3.existsSync(globalDir)) {
+  globalDir = path$b.resolve(nvm, '..', globalsLibrary, 'node_modules');
 }
 
 /**
@@ -21324,7 +21283,7 @@ async function loadPlugin(name, options = {}) {
   /** @type {Object.<string, unknown>} */
   // Bug with coverage on Node@12.
   /* c8 ignore next 3 */
-  const mod = await Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require(url.pathToFileURL(fp).href)); });
+  const mod = await import(pathToFileURL(fp).href);
   return key === false ? mod : mod[key]
 }
 
@@ -21418,8 +21377,8 @@ async function resolvePlugin(name, options = {}) {
     try {
       // `import-meta-resolve` resolves from files, whereas `load-plugin` works
       // on folders, which is why we add a `/` at the end.
-      return url.fileURLToPath(
-        await resolve(name, url.pathToFileURL(base).href + '/')
+      return fileURLToPath(
+        await resolve(name, pathToFileURL(base).href + '/')
       )
       // Bug with coverage on Node@12.
       /* c8 ignore next 1 */
@@ -21639,7 +21598,7 @@ class FindUp {
 
     /** @type {string|undefined} */
     this.givenFilePath = options.filePath
-      ? path__default$1['default'].resolve(options.cwd, options.filePath)
+      ? path$c.resolve(options.cwd, options.filePath)
       : undefined;
 
     /* eslint-disable no-unused-expressions */
@@ -21664,12 +21623,12 @@ class FindUp {
         const cbs = [callback];
         this.givenFile = cbs;
         debug$b('Checking given file `%s`', givenFilePath);
-        fs__default['default'].readFile(givenFilePath, (error, buf) => {
+        fs$a.readFile(givenFilePath, (error, buf) => {
           if (error) {
             /** @type {NodeJS.ErrnoException} */
             const result = fault(
               'Cannot read given file `%s`\n%s',
-              path__default$1['default'].relative(this.cwd, givenFilePath),
+              path$c.relative(this.cwd, givenFilePath),
               error.stack
             );
             result.code = 'ENOENT';
@@ -21683,7 +21642,7 @@ class FindUp {
                 loaded(
                   fault(
                     'Cannot parse given file `%s`\n%s',
-                    path__default$1['default'].relative(this.cwd, givenFilePath),
+                    path$c.relative(this.cwd, givenFilePath),
                     error.stack
                   )
                 );
@@ -21709,8 +21668,8 @@ class FindUp {
       return callback(null)
     }
 
-    filePath = path__default$1['default'].resolve(this.cwd, filePath);
-    const parent = path__default$1['default'].dirname(filePath);
+    filePath = path$c.resolve(this.cwd, filePath);
+    const parent = path$c.dirname(filePath);
 
     if (parent in this.cache) {
       apply(callback, this.cache[parent]);
@@ -21732,9 +21691,9 @@ class FindUp {
         // We do not use `readdir` because on huge directories, that could be
         // *very* slow.
         if (++index < self.names.length) {
-          fs__default['default'].readFile(path__default$1['default'].join(directory, self.names[index]), done);
+          fs$a.readFile(path$c.join(directory, self.names[index]), done);
         } else {
-          const parent = path__default$1['default'].dirname(directory);
+          const parent = path$c.dirname(directory);
 
           if (directory === parent) {
             debug$b('No files found for `%s`', filePath);
@@ -21754,7 +21713,7 @@ class FindUp {
        * @returns {void}
        */
       function done(error, buf) {
-        const fp = path__default$1['default'].join(directory, self.names[index]);
+        const fp = path$c.join(directory, self.names[index]);
 
         if (error) {
           // Hard to test.
@@ -21767,7 +21726,7 @@ class FindUp {
           return found(
             fault(
               'Cannot read file `%s`\n%s',
-              path__default$1['default'].relative(self.cwd, fp),
+              path$c.relative(self.cwd, fp),
               error.message
             )
           )
@@ -21778,7 +21737,7 @@ class FindUp {
             found(
               fault(
                 'Cannot parse file `%s`\n%s',
-                path__default$1['default'].relative(self.cwd, fp),
+                path$c.relative(self.cwd, fp),
                 error.message
               )
             );
@@ -21955,7 +21914,7 @@ class Configuration {
    */
   load(filePath, callback) {
     this.findUp.load(
-      filePath || path__default$1['default'].resolve(this.cwd, 'stdin.js'),
+      filePath || path$c.resolve(this.cwd, 'stdin.js'),
       (error, file) => {
         if (error || file) {
           return callback(error, file)
@@ -21976,7 +21935,7 @@ class Configuration {
   async create(buf, filePath) {
     const options = {prefix: this.pluginPrefix, cwd: this.cwd};
     const result = {settings: {}, plugins: []};
-    const extname = filePath ? path__default$1['default'].extname(filePath) : undefined;
+    const extname = filePath ? path$c.extname(filePath) : undefined;
     const loader =
       extname && extname in loaders ? loaders[extname] : defaultLoader;
     /** @type {Preset|undefined} */
@@ -21994,7 +21953,7 @@ class Configuration {
     if (
       filePath &&
       value === undefined &&
-      path__default$1['default'].basename(filePath) === 'package.json'
+      path$c.basename(filePath) === 'package.json'
     ) {
       return
     }
@@ -22012,7 +21971,7 @@ class Configuration {
         result,
         value,
         // @ts-expect-error: `value` can only exist if w/ `filePath`.
-        Object.assign({}, options, {root: path__default$1['default'].dirname(filePath)})
+        Object.assign({}, options, {root: path$c.dirname(filePath)})
       );
     }
 
@@ -22042,7 +22001,7 @@ async function loadYaml(buf, filePath) {
   // C8 bug on Node@12
   /* c8 ignore next 4 */
   // @ts-expect-error: Assume it matches config.
-  return jsYaml.load(String(buf), {filename: path__default$1['default'].basename(filePath)})
+  return jsYaml.load(String(buf), {filename: path$c.basename(filePath)})
 }
 
 /** @type {Loader} */
@@ -22053,7 +22012,7 @@ async function loadJson(buf, filePath) {
   // C8 bug on Node@12
   /* c8 ignore next 8 */
   // @ts-expect-error: Assume it matches config.
-  return path__default$1['default'].basename(filePath) === 'package.json'
+  return path$c.basename(filePath) === 'package.json'
     ? // @ts-expect-error: `this` is the configuration context, TS doesn’t like
       // `this` on callbacks.
       // type-coverage:ignore-next-line
@@ -22180,14 +22139,14 @@ async function merge(target, raw, options) {
         await merge(
           target,
           result,
-          Object.assign({}, options, {root: path__default$1['default'].dirname(fp)})
+          Object.assign({}, options, {root: path$c.dirname(fp)})
         );
       }
     } catch {
       throw fault(
         'Error: Expected preset or plugin, not %s, at `%s`',
         result,
-        path__default$1['default'].relative(options.root, fp)
+        path$c.relative(options.root, fp)
       )
     }
     // C8 bug on Node@12
@@ -22251,7 +22210,7 @@ function find(entries, plugin) {
 async function loadFromAbsolutePath(fp, base) {
   try {
     /** @type {{default?: unknown}} */
-    const result = await Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require(node_url.pathToFileURL(fp).href)); });
+    const result = await import(pathToFileURL$1(fp).href);
 
     if (!('default' in result)) {
       throw new Error(
@@ -22264,7 +22223,7 @@ async function loadFromAbsolutePath(fp, base) {
     // C8 bug on Node@12
     /* c8 ignore next 4 */
   } catch (error) {
-    throw fault('Cannot import `%s`\n%s', path__default$1['default'].relative(base, fp), error.stack)
+    throw fault('Cannot import `%s`\n%s', path$c.relative(base, fp), error.stack)
   }
 }
 
@@ -22924,19 +22883,19 @@ class Ignore {
       if (error) {
         callback(error);
       } else if (ignoreSet) {
-        const normal = path__default$1['default'].relative(
-          path__default$1['default'].resolve(
+        const normal = path$c.relative(
+          path$c.resolve(
             this.cwd,
             this.ignorePathResolveFrom === 'cwd' ? '.' : ignoreSet.filePath
           ),
-          path__default$1['default'].resolve(this.cwd, filePath)
+          path$c.resolve(this.cwd, filePath)
         );
 
         if (
           normal === '' ||
           normal === '..' ||
-          normal.charAt(0) === path__default$1['default'].sep ||
-          normal.slice(0, 3) === '..' + path__default$1['default'].sep
+          normal.charAt(0) === path$c.sep ||
+          normal.slice(0, 3) === '..' + path$c.sep
         ) {
           callback(null, false);
         } else {
@@ -22957,7 +22916,7 @@ class Ignore {
 function create(buf, filePath) {
   /** @type {IgnoreConfig} */
   return Object.assign(ignore().add(String(buf)), {
-    filePath: path__default$1['default'].dirname(filePath)
+    filePath: path$c.dirname(filePath)
   })
 }
 
@@ -22984,9 +22943,9 @@ var old$1 = {};
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var pathModule = path__default['default'];
+var pathModule = path$b;
 var isWindows = process.platform === 'win32';
-var fs$3 = require$$0__default$1['default'];
+var fs$3 = require$$0$3;
 
 // JavaScript implementation of realpath, ported from node pre-v6
 
@@ -23274,7 +23233,7 @@ realpath.realpathSync = realpathSync;
 realpath.monkeypatch = monkeypatch;
 realpath.unmonkeypatch = unmonkeypatch;
 
-var fs$2 = require$$0__default$1['default'];
+var fs$2 = require$$0$3;
 var origRealpath = fs$2.realpath;
 var origRealpathSync = fs$2.realpathSync;
 
@@ -23609,7 +23568,7 @@ minimatch$3.Minimatch = Minimatch$1;
 
 var path$4 = { sep: '/' };
 try {
-  path$4 = path__default['default'];
+  path$4 = path$b;
 } catch (er) {}
 
 var GLOBSTAR = minimatch$3.GLOBSTAR = Minimatch$1.GLOBSTAR = {};
@@ -24561,7 +24520,7 @@ if (typeof Object.create === 'function') {
 }
 
 try {
-  var util$1 = require$$0__default$2['default'];
+  var util$1 = require$$0$4;
   /* istanbul ignore next */
   if (typeof util$1.inherits !== 'function') throw '';
   inherits$2.exports = util$1.inherits;
@@ -24607,7 +24566,7 @@ function ownProp$2 (obj, field) {
   return Object.prototype.hasOwnProperty.call(obj, field)
 }
 
-var path$3 = path__default['default'];
+var path$3 = path$b;
 var minimatch$2 = minimatch_1;
 var isAbsolute$2 = pathIsAbsolute.exports;
 var Minimatch = minimatch$2.Minimatch;
@@ -24837,11 +24796,11 @@ function childrenIgnored$2 (self, path) {
 var sync$1 = globSync$1;
 globSync$1.GlobSync = GlobSync$1;
 
-var fs$1 = require$$0__default$1['default'];
+var fs$1 = require$$0$3;
 var rp$1 = fs_realpath;
 var minimatch$1 = minimatch_1;
-var path$2 = path__default['default'];
-var assert$1 = assert__default['default'];
+var path$2 = path$b;
+var assert$1 = assert$2;
 var isAbsolute$1 = pathIsAbsolute.exports;
 var common$1 = common$2;
 common$1.alphasort;
@@ -25490,13 +25449,13 @@ function slice$1 (args) {
 
 var glob_1 = glob;
 
-var fs = require$$0__default$1['default'];
+var fs = require$$0$3;
 var rp = fs_realpath;
 var minimatch = minimatch_1;
 var inherits$1 = inherits$2.exports;
-var EE = require$$0__default$3['default'].EventEmitter;
-var path$1 = path__default['default'];
-var assert = assert__default['default'];
+var EE = require$$0$5.EventEmitter;
+var path$1 = path$b;
+var assert = assert$2;
 var isAbsolute = pathIsAbsolute.exports;
 var globSync = sync$1;
 var common = common$2;
@@ -26629,7 +26588,7 @@ class VFile {
    * Access parent path (`~`).
    */
   get dirname() {
-    return typeof this.path === 'string' ? path__default['default'].dirname(this.path) : undefined
+    return typeof this.path === 'string' ? path$b.dirname(this.path) : undefined
   }
 
   /**
@@ -26638,14 +26597,14 @@ class VFile {
    */
   set dirname(dirname) {
     assertPath(this.path, 'dirname');
-    this.path = path__default['default'].join(dirname || '', this.basename);
+    this.path = path$b.join(dirname || '', this.basename);
   }
 
   /**
    * Access basename (including extname) (`index.min.js`).
    */
   get basename() {
-    return typeof this.path === 'string' ? path__default['default'].basename(this.path) : undefined
+    return typeof this.path === 'string' ? path$b.basename(this.path) : undefined
   }
 
   /**
@@ -26656,14 +26615,14 @@ class VFile {
   set basename(basename) {
     assertNonEmpty(basename, 'basename');
     assertPart(basename, 'basename');
-    this.path = path__default['default'].join(this.dirname || '', basename);
+    this.path = path$b.join(this.dirname || '', basename);
   }
 
   /**
    * Access extname (including dot) (`.js`).
    */
   get extname() {
-    return typeof this.path === 'string' ? path__default['default'].extname(this.path) : undefined
+    return typeof this.path === 'string' ? path$b.extname(this.path) : undefined
   }
 
   /**
@@ -26684,7 +26643,7 @@ class VFile {
       }
     }
 
-    this.path = path__default['default'].join(this.dirname, this.stem + (extname || ''));
+    this.path = path$b.join(this.dirname, this.stem + (extname || ''));
   }
 
   /**
@@ -26692,7 +26651,7 @@ class VFile {
    */
   get stem() {
     return typeof this.path === 'string'
-      ? path__default['default'].basename(this.path, this.extname)
+      ? path$b.basename(this.path, this.extname)
       : undefined
   }
 
@@ -26703,7 +26662,7 @@ class VFile {
   set stem(stem) {
     assertNonEmpty(stem, 'stem');
     assertPart(stem, 'stem');
-    this.path = path__default['default'].join(this.dirname || '', stem + (this.extname || ''));
+    this.path = path$b.join(this.dirname || '', stem + (this.extname || ''));
   }
 
   /**
@@ -26786,9 +26745,9 @@ class VFile {
  * @returns {void}
  */
 function assertPart(part, name) {
-  if (part && part.includes(path__default['default'].sep)) {
+  if (part && part.includes(path$b.sep)) {
     throw new Error(
-      '`' + name + '` cannot be a path: did not expect `' + path__default['default'].sep + '`'
+      '`' + name + '` cannot be a path: did not expect `' + path$b.sep + '`'
     )
   }
 }
@@ -26845,8 +26804,8 @@ function assertPath(path, name) {
 function toVFile(options) {
   if (typeof options === 'string' || isBuffer(options)) {
     options = {path: String(options)};
-  } else if (options instanceof url.URL) {
-    options = {path: url.fileURLToPath(options)};
+  } else if (options instanceof URL$1) {
+    options = {path: fileURLToPath(options)};
   }
 
   return looksLikeAVFile$1(options) ? options : new VFile(options)
@@ -26861,7 +26820,7 @@ function toVFile(options) {
  */
 function readSync(description, options) {
   var file = toVFile(description);
-  file.value = require$$0__default$1['default'].readFileSync(path__default['default'].resolve(file.cwd, file.path), options);
+  file.value = require$$0$3.readFileSync(path$b.resolve(file.cwd, file.path), options);
   return file
 }
 
@@ -26874,7 +26833,7 @@ function readSync(description, options) {
  */
 function writeSync(description, options) {
   var file = toVFile(description);
-  require$$0__default$1['default'].writeFileSync(path__default['default'].resolve(file.cwd, file.path), file.value || '', options);
+  require$$0$3.writeFileSync(path$b.resolve(file.cwd, file.path), file.value || '', options);
   return file
 }
 
@@ -26924,12 +26883,12 @@ const read$2 =
         var fp;
 
         try {
-          fp = path__default['default'].resolve(file.cwd, file.path);
+          fp = path$b.resolve(file.cwd, file.path);
         } catch (error) {
           return reject(error)
         }
 
-        require$$0__default$1['default'].readFile(fp, options, done);
+        require$$0$3.readFile(fp, options, done);
 
         /**
          * @param {Error} error
@@ -26994,12 +26953,12 @@ const write =
         var fp;
 
         try {
-          fp = path__default['default'].resolve(file.cwd, file.path);
+          fp = path$b.resolve(file.cwd, file.path);
         } catch (error) {
           return reject(error)
         }
 
-        require$$0__default$1['default'].writeFile(fp, file.value || '', options, done);
+        require$$0$3.writeFile(fp, file.value || '', options, done);
 
         /**
          * @param {Error} error
@@ -27129,11 +27088,11 @@ function expand(input, options, next) {
       } else {
         // `relative` to make the paths canonical.
         file =
-          path__default$1['default'].relative(options.cwd, path__default$1['default'].resolve(options.cwd, file)) || '.';
+          path$c.relative(options.cwd, path$c.resolve(options.cwd, file)) || '.';
         paths.push(file);
       }
     } else {
-      const fp = file.path ? path__default$1['default'].relative(options.cwd, file.path) : options.cwd;
+      const fp = file.path ? path$c.relative(options.cwd, file.path) : options.cwd;
       file.cwd = options.cwd;
       file.path = fp;
       file.history = [fp];
@@ -27187,11 +27146,11 @@ function search$1(input, options, next) {
    * @param {string|VFile} file
    */
   function each(file) {
-    const ext = typeof file === 'string' ? path__default$1['default'].extname(file) : file.extname;
+    const ext = typeof file === 'string' ? path$c.extname(file) : file.extname;
 
     // Normalise globs.
     if (typeof file === 'string') {
-      file = file.split('/').join(path__default$1['default'].sep);
+      file = file.split('/').join(path$c.sep);
     }
 
     const part = base$1(file);
@@ -27214,8 +27173,8 @@ function search$1(input, options, next) {
         }
 
         if (!ignored && dir) {
-          return fs__default['default'].readdir(
-            path__default$1['default'].resolve(options.cwd, filePath(file)),
+          return fs$a.readdir(
+            path$c.resolve(options.cwd, filePath(file)),
             (error, basenames) => {
               // Should not happen often: the directory is `stat`ed first, which was ok,
               // but reading it is not.
@@ -27231,7 +27190,7 @@ function search$1(input, options, next) {
                 one(null, [otherFile]);
               } else {
                 search$1(
-                  basenames.map((name) => path__default$1['default'].join(filePath(file), name)),
+                  basenames.map((name) => path$c.join(filePath(file), name)),
                   Object.assign({}, options, {nested: true}),
                   one
                 );
@@ -27301,8 +27260,8 @@ function search$1(input, options, next) {
  * @param {(error: NodeJS.ErrnoException|null, result?: SearchResults) => void} callback
  */
 function statAndIgnore(file, options, callback) {
-  const fp = path__default$1['default'].resolve(options.cwd, filePath(file));
-  const normal = path__default$1['default'].relative(options.cwd, fp);
+  const fp = path$c.resolve(options.cwd, filePath(file));
+  const normal = path$c.relative(options.cwd, fp);
   let expected = 1;
   let actual = 0;
   /** @type {Stats|undefined} */
@@ -27312,7 +27271,7 @@ function statAndIgnore(file, options, callback) {
 
   if (typeof file === 'string' || !file.value) {
     expected++;
-    fs__default['default'].stat(fp, (error, value) => {
+    fs$a.stat(fp, (error, value) => {
       stats = value;
       onStartOrCheck(error);
     });
@@ -27339,8 +27298,8 @@ function statAndIgnore(file, options, callback) {
           ignored ||
           (normal === '' ||
           normal === '..' ||
-          normal.charAt(0) === path__default$1['default'].sep ||
-          normal.slice(0, 3) === '..' + path__default$1['default'].sep
+          normal.charAt(0) === path$c.sep ||
+          normal.slice(0, 3) === '..' + path$c.sep
             ? false
             : options.extraIgnore.ignores(normal))
       });
@@ -27353,7 +27312,7 @@ function statAndIgnore(file, options, callback) {
  * @returns {string}
  */
 function base$1(file) {
-  return typeof file === 'string' ? path__default$1['default'].basename(file) : file.basename
+  return typeof file === 'string' ? path$c.basename(file) : file.basename
 }
 
 /**
@@ -28159,7 +28118,7 @@ function packF32(v) { return packIEEE754(v, 8, 23); }
 }());
 }(typedarray));
 
-var Writable = require$$1__default['default'].Writable;
+var Writable = require$$1.Writable;
 var inherits = inherits$2.exports;
 var bufferFrom = bufferFrom_1;
 
@@ -28369,7 +28328,7 @@ function stdin(context, settings, next) {
  * @typedef {import('trough').Pipeline} Pipeline
  */
 
-class FileSet extends node_events.EventEmitter {
+class FileSet extends EventEmitter$1 {
   /**
    * FileSet constructor.
    * A FileSet is created to process multiple files through unified processors.
@@ -28497,10 +28456,10 @@ function read$1(context, file, next) {
     debug$8('Not reading failed file `%s`', filePath);
     next();
   } else {
-    filePath = path__default$1['default'].resolve(context.settings.cwd, filePath);
+    filePath = path$c.resolve(context.settings.cwd, filePath);
 
     debug$8('Reading `%s` in `%s`', filePath, 'utf8');
-    fs__default['default'].readFile(filePath, 'utf8', (error, value) => {
+    fs$a.readFile(filePath, 'utf8', (error, value) => {
       debug$8('Read `%s` (error: %s)', filePath, error);
 
       file.value = value || '';
@@ -29196,15 +29155,15 @@ function copy(context, file, next) {
     return
   }
 
-  const outpath = path__default$1['default'].resolve(context.settings.cwd, output);
+  const outpath = path$c.resolve(context.settings.cwd, output);
 
   debug$2('Copying `%s`', currentPath);
 
-  fs__default['default'].stat(outpath, (error, stats) => {
+  fs$a.stat(outpath, (error, stats) => {
     if (error) {
       if (
         error.code !== 'ENOENT' ||
-        output.charAt(output.length - 1) === path__default$1['default'].sep
+        output.charAt(output.length - 1) === path$c.sep
       ) {
         return next(
           new Error('Cannot read output directory. Error:\n' + error.message)
@@ -29213,7 +29172,7 @@ function copy(context, file, next) {
 
       // This is either given an error, or the parent exists which is a directory,
       // but we should keep the basename of the given file.
-      fs__default['default'].stat(path__default$1['default'].dirname(outpath), (error) => {
+      fs$a.stat(path$c.dirname(outpath), (error) => {
         if (error) {
           next(
             new Error('Cannot read parent directory. Error:\n' + error.message)
@@ -29237,7 +29196,7 @@ function copy(context, file, next) {
       )
     }
 
-    file[directory ? 'dirname' : 'path'] = path__default$1['default'].relative(file.cwd, outpath);
+    file[directory ? 'dirname' : 'path'] = path$c.relative(file.cwd, outpath);
 
     debug$2('Copying document from %s to %s', currentPath, file.path);
 
@@ -29318,11 +29277,11 @@ function fileSystem(context, file, next) {
     return next()
   }
 
-  destinationPath = path__default$1['default'].resolve(context.settings.cwd, destinationPath);
+  destinationPath = path$c.resolve(context.settings.cwd, destinationPath);
   debug('Writing document to `%s`', destinationPath);
 
   file.stored = true;
-  fs__default['default'].writeFile(destinationPath, file.toString(), next);
+  fs$a.writeFile(destinationPath, file.toString(), next);
 }
 
 /**
@@ -29435,14 +29394,14 @@ function transform$1(context, settings, next) {
   }
 }
 
-function hasFlag(flag, argv = process__default['default'].argv) {
+function hasFlag(flag, argv = process$1.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
 	const terminatorPosition = argv.indexOf('--');
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 }
 
-const {env} = process__default['default'];
+const {env} = process$1;
 
 let flagForceColor;
 if (hasFlag('no-color') ||
@@ -29518,10 +29477,10 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 		return min;
 	}
 
-	if (process__default['default'].platform === 'win32') {
+	if (process$1.platform === 'win32') {
 		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
 		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
-		const osRelease = require$$0__default['default'].release().split('.');
+		const osRelease = require$$0$2.release().split('.');
 		if (
 			Number(osRelease[0]) >= 10 &&
 			Number(osRelease[2]) >= 10586
@@ -29585,8 +29544,8 @@ function createSupportsColor(stream, options = {}) {
 }
 
 const supportsColor = {
-	stdout: createSupportsColor({isTTY: tty__default['default'].isatty(1)}),
-	stderr: createSupportsColor({isTTY: tty__default['default'].isatty(2)})
+	stdout: createSupportsColor({isTTY: tty$1.isatty(1)}),
+	stderr: createSupportsColor({isTTY: tty$1.isatty(2)})
 };
 
 function ansiRegex({onlyFirst = false} = {}) {
@@ -30367,10 +30326,10 @@ function engine(options, callback) {
   const settings = {};
   /** @type {NodeJS.ReadStream} */
   // @ts-expect-error: `PassThrough` sure is readable.
-  let stdin = new stream.PassThrough();
+  let stdin = new PassThrough();
 
   try {
-    stdin = process__default$1['default'].stdin;
+    stdin = process$2.stdin;
     // Obscure bug in Node (seen on Windows).
     // See: <https://github.com/nodejs/node/blob/f856234/lib/internal/process/stdio.js#L82>,
     // <https://github.com/AtomLinter/linter-markdown/pull/85>.
@@ -30393,7 +30352,7 @@ function engine(options, callback) {
   settings.processor = options.processor;
 
   // Path to run as.
-  settings.cwd = options.cwd || process__default$1['default'].cwd();
+  settings.cwd = options.cwd || process$2.cwd();
 
   // Input.
   settings.files = options.files || [];
@@ -30405,8 +30364,8 @@ function engine(options, callback) {
   settings.streamIn = options.streamIn || stdin;
 
   // Output.
-  settings.streamOut = options.streamOut || process__default$1['default'].stdout;
-  settings.streamError = options.streamError || process__default$1['default'].stderr;
+  settings.streamOut = options.streamOut || process$2.stdout;
+  settings.streamError = options.streamError || process$2.stderr;
   settings.alwaysStringify = options.alwaysStringify;
   settings.output = options.output;
   settings.out = options.out;
@@ -32913,15 +32872,15 @@ function parseJSON(value) {
  */
 
 // Fake TTY stream.
-const ttyStream = Object.assign(new stream__default['default'].Readable(), {isTTY: true});
+const ttyStream = Object.assign(new stream.Readable(), {isTTY: true});
 
 // Exit, lazily, with the correct exit status code.
 let exitStatus = 0;
 
-process__default$1['default'].on('exit', onexit);
+process$2.on('exit', onexit);
 
 // Handle uncaught errors, such as from unexpected async behaviour.
-process__default$1['default'].on('uncaughtException', fail);
+process$2.on('uncaughtException', fail);
 
 /**
  * Start the CLI.
@@ -32938,13 +32897,13 @@ function args(cliConfig) {
 
   try {
     // @ts-expect-error: Close enough.
-    config = options(process__default$1['default'].argv.slice(2), cliConfig);
+    config = options(process$2.argv.slice(2), cliConfig);
   } catch (error) {
     return fail(error, true)
   }
 
   if (config.help) {
-    process__default$1['default'].stdout.write(
+    process$2.stdout.write(
       [
         'Usage: ' + cliConfig.name + ' [options] [path | glob ...]',
         '',
@@ -32962,7 +32921,7 @@ function args(cliConfig) {
   }
 
   if (config.version) {
-    process__default$1['default'].stdout.write(cliConfig.version + '\n', noop$1);
+    process$2.stdout.write(cliConfig.version + '\n', noop$1);
 
     return
   }
@@ -32977,7 +32936,7 @@ function args(cliConfig) {
     // Do not write to stdout(4).
     config.out = false;
 
-    process__default$1['default'].stderr.write(
+    process$2.stderr.write(
       source$1.bold('Watching...') + ' (press CTRL+C to exit)\n',
       noop$1
     );
@@ -32986,7 +32945,7 @@ function args(cliConfig) {
     if (output === true) {
       config.output = false;
 
-      process__default$1['default'].stderr.write(
+      process$2.stderr.write(
         source$1.yellow('Note') + ': Ignoring `--output` until exit.\n',
         noop$1
       );
@@ -33037,14 +32996,14 @@ function args(cliConfig) {
         engine(config, done);
       });
 
-    process__default$1['default'].on('SIGINT', onsigint);
+    process$2.on('SIGINT', onsigint);
 
     /**
      * Handle a SIGINT.
      */
     function onsigint() {
       // Hide the `^C` in terminal.
-      process__default$1['default'].stderr.write('\n', noop$1);
+      process$2.stderr.write('\n', noop$1);
 
       clean();
 
@@ -33071,12 +33030,12 @@ function fail(error, pretty) {
 
   exitStatus = 1;
 
-  process__default$1['default'].stderr.write(message.trim() + '\n', noop$1);
+  process$2.stderr.write(message.trim() + '\n', noop$1);
 }
 
 function onexit() {
   /* eslint-disable unicorn/no-process-exit */
-  process__default$1['default'].exit(exitStatus);
+  process$2.exit(exitStatus);
   /* eslint-enable unicorn/no-process-exit */
 }
 
@@ -45473,7 +45432,7 @@ const dependencies = {
 const main = "dist/index.js";
 const scripts = {
 	build: "npx rollup -c",
-	"build-node": "npm run build && npx shx cp dist/index.js ../lint-md.js"
+	"build-node": "npm run build && npx shx cp dist/index.mjs ../lint-md.mjs"
 };
 var cli = {
 	name: name,
@@ -56030,12 +55989,12 @@ function* getLinksRecursively(node) {
 }
 
 function validateLinks(tree, vfile) {
-  const currentFileURL = url.pathToFileURL(path__default['default'].join(vfile.cwd, vfile.path));
+  const currentFileURL = pathToFileURL(path$b.join(vfile.cwd, vfile.path));
   let previousDefinitionLabel;
   for (const node of getLinksRecursively(tree)) {
     if (node.url[0] !== "#") {
       const targetURL = new URL(node.url, currentFileURL);
-      if (targetURL.protocol === "file:" && !require$$0__default$1['default'].existsSync(targetURL)) {
+      if (targetURL.protocol === "file:" && !require$$0$3.existsSync(targetURL)) {
         vfile.message("Broken link", node);
       } else if (targetURL.pathname === currentFileURL.pathname) {
         const expected = node.url.includes("#")
