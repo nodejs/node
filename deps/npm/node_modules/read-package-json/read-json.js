@@ -469,6 +469,6 @@ function parseIndex (data) {
 function parseError (ex, file) {
   var e = new Error('Failed to parse json\n' + ex.message)
   e.code = 'EJSONPARSE'
-  e.file = file
+  e.path = file
   return e
 }

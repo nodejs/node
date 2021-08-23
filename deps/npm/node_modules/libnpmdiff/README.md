@@ -61,7 +61,7 @@ hesitate to jump in if you'd like to, or even ask us questions if something
 isn't clear.
 
 All participants and maintainers in this project are expected to follow the
-[npm Code of Conduct](https://www.npmjs.com/policies/conduct), and just
+[npm Code of Conduct](https://docs.npmjs.com/policies/conduct), and just
 generally be excellent to each other.
 
 Please refer to the [Changelog](CHANGELOG.md) for project history details, too.

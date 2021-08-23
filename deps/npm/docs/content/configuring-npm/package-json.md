@@ -286,12 +286,10 @@ Certain files are always included, regardless of settings:
 
 * `package.json`
 * `README`
-* `CHANGES` / `CHANGELOG` / `HISTORY`
 * `LICENSE` / `LICENCE`
-* `NOTICE`
 * The file in the "main" field
 
-`README`, `CHANGES`, `LICENSE` & `NOTICE` can have any case and extension.
+`README` & `LICENSE` can have any case and extension.
 
 Conversely, some files are always ignored:
 

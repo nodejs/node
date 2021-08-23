@@ -1537,9 +1537,7 @@ Object {
       String(
         Merge conflict detected in your package.json.
         
-        Please resolve the package.json conflict and retry the command:
-        
-        $ arg v
+        Please resolve the package.json conflict and retry.
       ),
     ],
   ],

@@ -160,6 +160,12 @@ define('access', {
     (and installable) set \`--access=public\`. The only valid values for
     \`access\` are \`public\` and \`restricted\`. Unscoped packages _always_
     have an access level of \`public\`.
+
+    Note: Using the \`--access\` flag on the \`npm publish\` command will only
+    set the package access level on the initial publish of the package. Any
+    subsequent \`npm publish\` commands using the \`--access\` flag will not
+    have an effect to the access level.  To make changes to the access level
+    after the initial publish use \`npm access\`.
   `,
   flatten,
 })
@@ -438,6 +444,9 @@ define('cidr', {
   flatten,
 })
 
+// This should never be directly used, the flattened value is the derived value
+// and is sent to other modules, and is also exposed as `npm.color` for use
+// inside npm itself.
 define('color', {
   default: !process.env.NO_COLOR || process.env.NO_COLOR === '0',
   usage: '--color|--no-color|--color always',

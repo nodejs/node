@@ -188,8 +188,10 @@ module.exports = cls => class ActualLoader extends cls {
       const tree = this[_actualTree]
       const actualRoot = tree.isLink ? tree.target : tree
       const { dependencies = {} } = actualRoot.package
-      for (const name of actualRoot.children.keys())
-        dependencies[name] = dependencies[name] || '*'
+      for (const [name, kid] of actualRoot.children.entries()) {
+        const def = kid.isLink ? `file:${kid.realpath}` : '*'
+        dependencies[name] = dependencies[name] || def
+      }
       actualRoot.package = { ...actualRoot.package, dependencies }
     }
     return this[_actualTree]

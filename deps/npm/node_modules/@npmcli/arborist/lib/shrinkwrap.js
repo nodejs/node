@@ -255,9 +255,11 @@ class Shrinkwrap {
       if (val)
         meta[key.replace(/^_/, '')] = val
     })
-    // we only include name if different from the node path name
+    // we only include name if different from the node path name, and for the
+    // root to help prevent churn based on the name of the directory the
+    // project is in
     const pname = node.packageName
-    if (pname && pname !== node.name)
+    if (pname && (node === node.root || pname !== node.name))
       meta.name = pname
 
     if (node.isTop && node.package.devDependencies)

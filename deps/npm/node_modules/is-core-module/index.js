@@ -44,7 +44,7 @@ function versionIncluded(nodeVersion, specifierValue) {
 	}
 
 	var current = typeof nodeVersion === 'undefined'
-		? process.versions && process.versions.node && process.versions.node
+		? process.versions && process.versions.node
 		: nodeVersion;
 
 	if (typeof current !== 'string') {

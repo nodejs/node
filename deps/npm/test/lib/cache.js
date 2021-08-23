@@ -1,6 +1,7 @@
 const t = require('tap')
 const { fake: mockNpm } = require('../fixtures/mock-npm.js')
 const path = require('path')
+const npa = require('npm-package-arg')
 
 const usageUtil = () => 'usage instructions'
 
@@ -34,15 +35,103 @@ const pacote = {
   },
 }
 
+let cacacheEntries = {}
+let cacacheContent = {}
+
+const setupCacacheFixture = () => {
+  cacacheEntries = {}
+  cacacheContent = {}
+  const pkgs = [
+    ['webpack@4.44.1', 'https://registry.npmjs.org', true],
+    ['npm@1.2.0', 'https://registry.npmjs.org', true],
+    ['webpack@4.47.0', 'https://registry.npmjs.org', true],
+    ['foo@1.2.3-beta', 'https://registry.npmjs.org', true],
+    ['ape-ecs@2.1.7', 'https://registry.npmjs.org', true],
+    ['@fritzy/staydown@3.1.1', 'https://registry.npmjs.org', true],
+    ['@gar/npm-expansion@2.1.0', 'https://registry.npmjs.org', true],
+    ['@gar/npm-expansion@3.0.0-beta', 'https://registry.npmjs.org', true],
+    ['extemporaneously@44.2.2', 'https://somerepo.github.org', false],
+    ['corrupted@3.1.0', 'https://registry.npmjs.org', true],
+    ['missing-dist@23.0.0', 'https://registry.npmjs.org', true],
+    ['missing-version@16.2.0', 'https://registry.npmjs.org', true],
+  ]
+  pkgs.forEach(pkg => addCacachePkg(...pkg))
+  // corrupt the packument
+  cacacheContent[
+    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted'].integrity]
+  ].data = Buffer.from('<>>>}"')
+  // nuke the version dist
+  cacacheContent[
+    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist'].integrity]
+  ].data = Buffer.from(JSON.stringify({ versions: { '23.0.0': {} } }))
+  // make the version a non-object
+  cacacheContent[
+    [cacacheEntries['make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version'].integrity]
+  ].data = Buffer.from(JSON.stringify({ versions: 'hello' }))
+}
+
+const packuments = {}
+
+let contentId = 0
 const cacacheVerifyStats = {
   keptSize: 100,
   verifiedContent: 1,
   totalEntries: 1,
   runTime: { total: 2000 },
 }
+
+const addCacacheKey = (key, content) => {
+  contentId++
+  cacacheEntries[key] = { integrity: `${contentId}` }
+  cacacheContent[`${contentId}`] = {}
+}
+const addCacachePkg = (spec, registry, publicURL) => {
+  const parts = npa(spec)
+  const ver = parts.rawSpec || '1.0.0'
+  let url = `${registry}/${parts.name}/-/${parts.name}-${ver}.tgz`
+  if (!publicURL)
+    url = `${registry}/aabbcc/${contentId}`
+  const key = `make-fetch-happen:request-cache:${url}`
+  const pkey = `make-fetch-happen:request-cache:${registry}/${parts.escapedName}`
+  if (!packuments[parts.escapedName]) {
+    packuments[parts.escapedName] = {
+      versions: {},
+    }
+    addCacacheKey(pkey)
+  }
+  packuments[parts.escapedName].versions[ver] = {
+    dist: {
+      tarball: url,
+    },
+  }
+  addCacacheKey(key)
+  cacacheContent[cacacheEntries[pkey].integrity] = {
+    data: Buffer.from(JSON.stringify(packuments[parts.escapedName])),
+  }
+}
+
 const cacache = {
   verify: (path) => {
     return cacacheVerifyStats
+  },
+  get: (path, key) => {
+    if (cacacheEntries[key] === undefined
+      || cacacheContent[cacacheEntries[key].integrity] === undefined)
+      throw new Error()
+    return cacacheContent[cacacheEntries[key].integrity]
+  },
+  rm: {
+    entry: (path, key) => {
+      if (cacacheEntries[key] === undefined)
+        throw new Error()
+      delete cacacheEntries[key]
+    },
+    content: (path, sha) => {
+      delete cacacheContent[sha]
+    },
+  },
+  ls: (path) => {
+    return cacacheEntries
   },
 }
 
@@ -60,6 +149,11 @@ const npm = mockNpm({
   config: { force: false },
   output: (msg) => {
     outputOutput.push(msg)
+  },
+  log: {
+    warn: (...args) => {
+      logOutput.push(['warn', ...args])
+    },
   },
 })
 const cache = new Cache(npm)
@@ -90,13 +184,6 @@ t.test('cache clean (force)', t => {
   cache.exec(['clear'], err => {
     t.error(err)
     t.equal(rimrafPath, path.join(npm.cache, '_cacache'))
-    t.end()
-  })
-})
-
-t.test('cache clean with arg', t => {
-  cache.exec(['rm', 'pkg'], err => {
-    t.match(err.message, 'does not accept arguments', 'should throw error')
     t.end()
   })
 })
@@ -136,7 +223,7 @@ t.test('cache add pkg only', t => {
 
 t.test('cache add multiple pkgs', t => {
   t.teardown(() => {
-    logOutput = []
+    outputOutput = []
     tarballStreamSpec = ''
     tarballStreamOpts = {}
   })
@@ -150,6 +237,182 @@ t.test('cache add multiple pkgs', t => {
     ], 'logs correctly')
     t.equal(tarballStreamSpec, 'anotherpkg', 'passes the correct spec to pacote')
     t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
+    t.end()
+  })
+})
+
+t.test('cache ls', t => {
+  t.teardown(() => {
+    outputOutput = []
+    logOutput = []
+  })
+  setupCacacheFixture()
+  cache.exec(['ls'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy/staydown/-/@fritzy/staydown-3.1.1.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy%2fstaydown',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-2.1.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-3.0.0-beta.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar%2fnpm-expansion',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/ape-ecs',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/ape-ecs/-/ape-ecs-2.1.7.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted/-/corrupted-3.1.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/foo',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/foo/-/foo-1.2.3-beta.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist/-/missing-dist-23.0.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version/-/missing-version-16.2.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/npm',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/npm/-/npm-1.2.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.47.0.tgz',
+      'make-fetch-happen:request-cache:https://somerepo.github.org/aabbcc/14',
+      'make-fetch-happen:request-cache:https://somerepo.github.org/extemporaneously',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls pkgs', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'webpack@>4.44.1', 'npm'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/npm',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/npm/-/npm-1.2.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.47.0.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls special', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'foo@1.2.3-beta'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/foo',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/foo/-/foo-1.2.3-beta.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls nonpublic registry', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'extemporaneously'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://somerepo.github.org/aabbcc/14',
+      'make-fetch-happen:request-cache:https://somerepo.github.org/extemporaneously',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls tagged', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'webpack@latest'], err => {
+    t.match(err.message, 'tagged package', 'should throw warning')
+    t.end()
+  })
+})
+
+t.test('cache ls scoped and scoped slash', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', '@fritzy/staydown', '@gar/npm-expansion'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy/staydown/-/@fritzy/staydown-3.1.1.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy%2fstaydown',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-2.1.0.tgz',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar%2fnpm-expansion',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls corrupted', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'corrupted'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/corrupted/-/corrupted-3.1.0.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls missing packument dist', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'missing-dist'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-dist/-/missing-dist-23.0.0.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache ls missing packument version not an object', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['ls', 'missing-version'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version',
+      'make-fetch-happen:request-cache:https://registry.npmjs.org/missing-version/-/missing-version-16.2.0.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache rm', t => {
+  t.teardown(() => {
+    outputOutput = []
+  })
+  cache.exec(['rm',
+    'make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz'], err => {
+    t.error(err)
+    t.strictSame(outputOutput, [
+      'Deleted: make-fetch-happen:request-cache:https://registry.npmjs.org/webpack/-/webpack-4.44.1.tgz',
+    ])
+    t.end()
+  })
+})
+
+t.test('cache rm unfound', t => {
+  t.teardown(() => {
+    outputOutput = []
+    logOutput = []
+  })
+  cache.exec(['rm', 'made-up-key'], err => {
+    t.error(err)
+    t.strictSame(logOutput, [
+      ['warn', 'Not Found: made-up-key'],
+    ], 'logs correctly')
     t.end()
   })
 })

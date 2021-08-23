@@ -104,6 +104,32 @@ t.test('calling with --versions calls npm version with no args', async t => {
   t.strictSame(exitHandlerCalled, [])
 })
 
+t.test('logged argv is sanitized', async t => {
+  const proc = processMock({
+    argv: ['node', 'npm', 'testcommand', 'https://username:password@npmjs.org/test_url_with_a_password'],
+  })
+  const { npm } = mockNpm(t)
+  const cli = cliMock(npm)
+
+  npm.commands.testcommand = (args, cb) => {
+    cb()
+  }
+
+  await cli(proc)
+  t.equal(proc.title, 'npm')
+  t.strictSame(logs, [
+    'pause',
+    ['verbose', 'cli', [
+      'node',
+      'npm',
+      'testcommand',
+      'https://username:***@npmjs.org/test_url_with_a_password',
+    ]],
+    ['info', 'using', 'npm@%s', npm.version],
+    ['info', 'using', 'node@%s', process.version],
+  ])
+})
+
 t.test('print usage if no params provided', async t => {
   const proc = processMock({
     argv: ['node', 'npm'],

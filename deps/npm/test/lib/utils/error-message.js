@@ -15,6 +15,9 @@ const { resolve } = require('path')
 const npm = require('../../../lib/npm.js')
 const CACHE = '/some/cache/dir'
 npm.config = {
+  flat: {
+    color: false,
+  },
   loaded: false,
   localPrefix: '/some/prefix/dir',
   get: key => {
@@ -289,7 +292,7 @@ t.test('json parse', t => {
     process.argv = ['arg', 'v']
     t.matchSnapshot(errorMessage(Object.assign(new Error('conflicted'), {
       code: 'EJSONPARSE',
-      file: resolve(dir, 'package.json'),
+      path: resolve(dir, 'package.json'),
     }), npm))
     t.end()
   })
@@ -311,7 +314,7 @@ t.test('json parse', t => {
     process.argv = ['arg', 'v']
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
-      file: resolve(dir, 'package.json'),
+      path: resolve(dir, 'package.json'),
     }), npm))
     t.end()
   })
@@ -327,7 +330,7 @@ t.test('json parse', t => {
     process.argv = ['arg', 'v']
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
-      file: `${dir}/blerg.json`,
+      path: `${dir}/blerg.json`,
     }), npm))
     t.end()
   })
@@ -467,7 +470,7 @@ t.test('explain ERESOLVE errors', t => {
   t.matchSnapshot(errorMessage(er, npm))
   t.match(EXPLAIN_CALLED, [[
     er,
-    undefined,
+    false,
     path.resolve(npm.cache, 'eresolve-report.txt'),
   ]])
   t.end()

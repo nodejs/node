@@ -251,7 +251,8 @@ All commands:
                     npm cache add <tarball url>
                     npm cache add <git url>
                     npm cache add <name>@<version>
-                    npm cache clean
+                    npm cache clean [<key>]
+                    npm cache ls [<name>@<version>]
                     npm cache verify
                     
                     Options:

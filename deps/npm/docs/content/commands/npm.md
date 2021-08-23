@@ -31,7 +31,7 @@ Run `npm help` to get a list of available commands.
 npm comes preconfigured to use npm's public registry at
 https://registry.npmjs.org by default. Use of the npm public registry is
 subject to terms of use available at
-https://www.npmjs.com/policies/terms.
+https://docs.npmjs.com/policies/terms.
 
 You can configure npm to use any compatible registry you like, and even
 run your own registry. Use of someone else's registry is governed by

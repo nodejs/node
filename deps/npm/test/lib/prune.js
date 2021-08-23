@@ -1,7 +1,9 @@
 const t = require('tap')
+const { real: mockNpm } = require('../fixtures/mock-npm')
 
-t.test('should prune using Arborist', (t) => {
-  const Prune = t.mock('../../lib/prune.js', {
+t.test('should prune using Arborist', async (t) => {
+  t.plan(4)
+  const { command, npm } = mockNpm(t, {
     '@npmcli/arborist': function (args) {
       t.ok(args, 'gets options object')
       t.ok(args.path, 'gets path option')
@@ -13,16 +15,6 @@ t.test('should prune using Arborist', (t) => {
       t.ok(arb, 'gets arborist tree')
     },
   })
-  const prune = new Prune({
-    prefix: 'foo',
-    flatOptions: {
-      foo: 'bar',
-    },
-  })
-  prune.exec(null, er => {
-    if (er)
-      throw er
-    t.ok(true, 'callback is called')
-    t.end()
-  })
+  await npm.load()
+  await command('prune')
 })
