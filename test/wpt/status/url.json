@@ -13,9 +13,6 @@
   "urlencoded-parser.any.js": {
     "fail": "missing Request and Response"
   },
-  "idlharness.any.js": {
-    "fail": "getter/setter names are wrong, etc."
-  },
   "urlsearchparams-constructor.any.js": {
     "fail": "FormData is not defined"
   },
