@@ -15,4 +15,5 @@ runner.setInitScript(`
   global.DOMException = DOMException;
 `);
 
+runner.pretendGlobalThisAs('Window');
 runner.runJsTests();
