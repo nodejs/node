@@ -309,14 +309,20 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
       modulusLength: 512,
-      publicExponent: 65537n
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
     });
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
       modulusLength: 512,
-      publicExponent: 65537n
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
     });
 
     // Unlike RSA, RSA-PSS does not allow encryption.

@@ -547,10 +547,84 @@ Maybe<bool> GetRsaKeyDetail(
       reinterpret_cast<unsigned char*>(public_exponent.data());
   CHECK_EQ(BN_bn2binpad(e, data, len), len);
 
-  return target->Set(
-      env->context(),
-      env->public_exponent_string(),
-      public_exponent.ToArrayBuffer());
+  if (target
+          ->Set(
+              env->context(),
+              env->public_exponent_string(),
+              public_exponent.ToArrayBuffer())
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  if (type == EVP_PKEY_RSA_PSS) {
+    // Due to the way ASN.1 encoding works, default values are omitted when
+    // encoding the data structure. However, there are also RSA-PSS keys for
+    // which no parameters are set. In that case, the ASN.1 RSASSA-PSS-params
+    // sequence will be missing entirely and RSA_get0_pss_params will return
+    // nullptr. If parameters are present but all parameters are set to their
+    // default values, an empty sequence will be stored in the ASN.1 structure.
+    // In that case, RSA_get0_pss_params does not return nullptr but all fields
+    // of the returned RSA_PSS_PARAMS will be set to nullptr.
+
+    const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa);
+    if (params != nullptr) {
+      int hash_nid = NID_sha1;
+      int mgf_nid = NID_mgf1;
+      int mgf1_hash_nid = NID_sha1;
+      int64_t salt_length = 20;
+
+      if (params->hashAlgorithm != nullptr) {
+        hash_nid = OBJ_obj2nid(params->hashAlgorithm->algorithm);
+      }
+
+      if (target
+              ->Set(
+                  env->context(),
+                  env->hash_algorithm_string(),
+                  OneByteString(env->isolate(), OBJ_nid2ln(hash_nid)))
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
+
+      if (params->maskGenAlgorithm != nullptr) {
+        mgf_nid = OBJ_obj2nid(params->maskGenAlgorithm->algorithm);
+        if (mgf_nid == NID_mgf1) {
+          mgf1_hash_nid = OBJ_obj2nid(params->maskHash->algorithm);
+        }
+      }
+
+      // If, for some reason, the MGF is not MGF1, then the MGF1 hash function
+      // is intentionally not added to the object.
+      if (mgf_nid == NID_mgf1) {
+        if (target
+                ->Set(
+                    env->context(),
+                    env->mgf1_hash_algorithm_string(),
+                    OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
+                .IsNothing()) {
+          return Nothing<bool>();
+        }
+      }
+
+      if (params->saltLength != nullptr) {
+        if (ASN1_INTEGER_get_int64(&salt_length, params->saltLength) != 1) {
+          ThrowCryptoError(env, ERR_get_error(), "ASN1_INTEGER_get_in64 error");
+          return Nothing<bool>();
+        }
+      }
+
+      if (target
+              ->Set(
+                  env->context(),
+                  env->salt_length_string(),
+                  Number::New(env->isolate(), static_cast<double>(salt_length)))
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
+    }
+  }
+
+  return Just<bool>(true);
 }
 
 namespace RSAAlg {

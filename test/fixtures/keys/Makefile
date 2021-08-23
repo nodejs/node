@@ -64,9 +64,11 @@ all: \
   rsa_pss_private_2048.pem \
   rsa_pss_private_2048_sha256_sha256_16.pem \
   rsa_pss_private_2048_sha512_sha256_20.pem \
+  rsa_pss_private_2048_sha1_sha1_20.pem \
   rsa_pss_public_2048.pem \
   rsa_pss_public_2048_sha256_sha256_16.pem \
   rsa_pss_public_2048_sha512_sha256_20.pem \
+  rsa_pss_public_2048_sha1_sha1_20.pem \
   ed25519_private.pem \
   ed25519_public.pem \
   x25519_private.pem \
@@ -708,6 +710,9 @@ rsa_pss_private_2048_sha256_sha256_16.pem:
 rsa_pss_private_2048_sha512_sha256_20.pem:
 	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha512 -pkeyopt rsa_pss_keygen_mgf1_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha512_sha256_20.pem
 
+rsa_pss_private_2048_sha1_sha1_20.pem:
+	openssl genpkey -algorithm RSA-PSS -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -pkeyopt rsa_pss_keygen_md:sha1 -pkeyopt rsa_pss_keygen_mgf1_md:sha1 -pkeyopt rsa_pss_keygen_saltlen:20 -out rsa_pss_private_2048_sha1_sha1_20.pem
+
 rsa_pss_public_2048.pem: rsa_pss_private_2048.pem
 	openssl pkey -in rsa_pss_private_2048.pem -pubout -out rsa_pss_public_2048.pem
 
@@ -716,6 +721,9 @@ rsa_pss_public_2048_sha256_sha256_16.pem: rsa_pss_private_2048_sha256_sha256_16.
 
 rsa_pss_public_2048_sha512_sha256_20.pem: rsa_pss_private_2048_sha512_sha256_20.pem
 	openssl pkey -in rsa_pss_private_2048_sha512_sha256_20.pem -pubout -out rsa_pss_public_2048_sha512_sha256_20.pem
+
+rsa_pss_public_2048_sha1_sha1_20.pem: rsa_pss_private_2048_sha1_sha1_20.pem
+	openssl pkey -in rsa_pss_private_2048_sha1_sha1_20.pem -pubout -out rsa_pss_public_2048_sha1_sha1_20.pem
 
 ed25519_private.pem:
 	openssl genpkey -algorithm ED25519 -out ed25519_private.pem

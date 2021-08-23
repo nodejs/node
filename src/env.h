@@ -268,6 +268,7 @@ constexpr size_t kFsStatsBufferLength =
   V(gid_string, "gid")                                                         \
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
+  V(hash_algorithm_string, "hashAlgorithm")                                    \
   V(help_text_string, "helpText")                                              \
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
@@ -316,6 +317,7 @@ constexpr size_t kFsStatsBufferLength =
   V(message_port_string, "messagePort")                                        \
   V(message_string, "message")                                                 \
   V(messageerror_string, "messageerror")                                       \
+  V(mgf1_hash_algorithm_string, "mgf1HashAlgorithm")                           \
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
@@ -385,6 +387,7 @@ constexpr size_t kFsStatsBufferLength =
   V(replacement_string, "replacement")                                         \
   V(require_string, "require")                                                 \
   V(retry_string, "retry")                                                     \
+  V(salt_length_string, "saltLength")                                          \
   V(scheme_string, "scheme")                                                   \
   V(scopeid_string, "scopeid")                                                 \
   V(serial_number_string, "serialNumber")                                      \

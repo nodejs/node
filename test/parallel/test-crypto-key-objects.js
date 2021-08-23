@@ -581,11 +581,21 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     const publicKey = createPublicKey(publicPem);
     const privateKey = createPrivateKey(privatePem);
 
+    // Because no RSASSA-PSS-params appears in the PEM, no defaults should be
+    // added for the PSS parameters. This is different from an empty
+    // RSASSA-PSS-params sequence (see test below).
+    const expectedKeyDetails = {
+      modulusLength: 2048,
+      publicExponent: 65537n
+    };
+
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, expectedKeyDetails);
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, expectedKeyDetails);
 
     assert.throws(
       () => publicKey.export({ format: 'jwk' }),
@@ -621,6 +631,38 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     }, {
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
     });
+  }
+
+  {
+    // This key pair enforces sha1 as the message digest and the MGF1
+    // message digest and a salt length of 20 bytes.
+
+    const publicPem = fixtures.readKey('rsa_pss_public_2048_sha1_sha1_20.pem');
+    const privatePem =
+        fixtures.readKey('rsa_pss_private_2048_sha1_sha1_20.pem');
+
+    const publicKey = createPublicKey(publicPem);
+    const privateKey = createPrivateKey(privatePem);
+
+    // Unlike the previous key pair, this key pair contains an RSASSA-PSS-params
+    // sequence. However, because all values in the RSASSA-PSS-params are set to
+    // their defaults (see RFC 3447), the ASN.1 structure contains an empty
+    // sequence. Node.js should add the default values to the key details.
+    const expectedKeyDetails = {
+      modulusLength: 2048,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha1',
+      mgf1HashAlgorithm: 'sha1',
+      saltLength: 20
+    };
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, expectedKeyDetails);
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, expectedKeyDetails);
   }
 
   {
@@ -681,11 +723,21 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     const publicKey = createPublicKey(publicPem);
     const privateKey = createPrivateKey(privatePem);
 
+    const expectedKeyDetails = {
+      modulusLength: 2048,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha512',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 20
+    };
+
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, expectedKeyDetails);
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, expectedKeyDetails);
 
     // Node.js usually uses the same hash function for the message and for MGF1.
     // However, when a different MGF1 message digest algorithm has been
