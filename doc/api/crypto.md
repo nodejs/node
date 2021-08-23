@@ -1913,6 +1913,9 @@ added: v15.7.0
 * {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {bigint} Public exponent (RSA).
+  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
+  * `mgf1Hash`: {string} Name of the message digest used by MGF1 (RSA-PSS).
+  * `saltLength`: {number} Salt length in bytes (RSA-PSS).
   * `divisorLength`: {number} Size of `q` in bits (DSA).
   * `namedCurve`: {string} Name of the curve (EC).
 
@@ -1921,8 +1924,10 @@ this object contains information about the key. None of the information obtained
 through this property can be used to uniquely identify a key or to compromise
 the security of the key.
 
-RSA-PSS parameters, DH, or any future key type details might be exposed via this
-API using additional attributes.
+For RSA-PSS keys, if the key material contains a `RSASSA-PSS-params` sequence,
+the `hashAlgorithm`, `mgf1Hash`, and `saltLength` properties will be set.
+
+Other key details might be exposed via this API using additional attributes.
 
 ### `keyObject.asymmetricKeyType`
 <!-- YAML
