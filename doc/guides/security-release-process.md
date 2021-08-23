@@ -40,6 +40,9 @@ information described.
   * Approved
   * Pass `make test`
   * Have CVEs
+     * Make sure that dependent libraries have CVEs for their issues. We should
+       only create CVEs for vulnerabilities in Node.js itself. This is to avoid
+       having duplicate CVEs for the same vulnerability.
   * Described in the pre/post announcements
 
 * [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
