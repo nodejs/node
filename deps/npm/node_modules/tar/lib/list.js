@@ -11,6 +11,7 @@ const Parser = require('./parse.js')
 const fs = require('fs')
 const fsm = require('fs-minipass')
 const path = require('path')
+const stripSlash = require('./strip-trailing-slashes.js')
 
 const t = module.exports = (opt_, files, cb) => {
   if (typeof opt_ === 'function')
@@ -56,7 +57,7 @@ const onentryFunction = opt => {
 // construct a filter that limits the file entries listed
 // include child entries if a dir is included
 const filesFilter = (opt, files) => {
-  const map = new Map(files.map(f => [f.replace(/\/+$/, ''), true]))
+  const map = new Map(files.map(f => [stripSlash(f), true]))
   const filter = opt.filter
 
   const mapHas = (file, r) => {
@@ -70,8 +71,8 @@ const filesFilter = (opt, files) => {
   }
 
   opt.filter = filter
-    ? (file, entry) => filter(file, entry) && mapHas(file.replace(/\/+$/, ''))
-    : file => mapHas(file.replace(/\/+$/, ''))
+    ? (file, entry) => filter(file, entry) && mapHas(stripSlash(file))
+    : file => mapHas(stripSlash(file))
 }
 
 const listFileSync = opt => {

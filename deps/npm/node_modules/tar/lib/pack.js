@@ -56,6 +56,7 @@ const ONDRAIN = Symbol('ondrain')
 const fs = require('fs')
 const path = require('path')
 const warner = require('./warn-mixin.js')
+const normPath = require('./normalize-windows-path.js')
 
 const Pack = warner(class Pack extends MiniPass {
   constructor (opt) {
@@ -67,7 +68,7 @@ const Pack = warner(class Pack extends MiniPass {
     this.preservePaths = !!opt.preservePaths
     this.strict = !!opt.strict
     this.noPax = !!opt.noPax
-    this.prefix = (opt.prefix || '').replace(/(\\|\/)+$/, '')
+    this.prefix = normPath(opt.prefix || '')
     this.linkCache = opt.linkCache || new Map()
     this.statCache = opt.statCache || new Map()
     this.readdirCache = opt.readdirCache || new Map()
@@ -132,10 +133,7 @@ const Pack = warner(class Pack extends MiniPass {
   }
 
   [ADDTARENTRY] (p) {
-    const absolute = path.resolve(this.cwd, p.path)
-    if (this.prefix)
-      p.path = this.prefix + '/' + p.path.replace(/^\.(\/+|$)/, '')
-
+    const absolute = normPath(path.resolve(this.cwd, p.path))
     // in this case, we don't have to wait for the stat
     if (!this.filter(p.path, p))
       p.resume()
@@ -151,10 +149,7 @@ const Pack = warner(class Pack extends MiniPass {
   }
 
   [ADDFSENTRY] (p) {
-    const absolute = path.resolve(this.cwd, p)
-    if (this.prefix)
-      p = this.prefix + '/' + p.replace(/^\.(\/+|$)/, '')
-
+    const absolute = normPath(path.resolve(this.cwd, p))
     this[QUEUE].push(new PackJob(p, absolute))
     this[PROCESS]()
   }
@@ -298,7 +293,8 @@ const Pack = warner(class Pack extends MiniPass {
       linkCache: this.linkCache,
       statCache: this.statCache,
       noMtime: this.noMtime,
-      mtime: this.mtime
+      mtime: this.mtime,
+      prefix: this.prefix,
     }
   }
 
@@ -324,10 +320,7 @@ const Pack = warner(class Pack extends MiniPass {
 
     if (job.readdir)
       job.readdir.forEach(entry => {
-        const p = this.prefix ?
-          job.path.slice(this.prefix.length + 1) || './'
-          : job.path
-
+        const p = job.path
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })
@@ -380,10 +373,7 @@ class PackSync extends Pack {
 
     if (job.readdir)
       job.readdir.forEach(entry => {
-        const p = this.prefix ?
-          job.path.slice(this.prefix.length + 1) || './'
-          : job.path
-
+        const p = job.path
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)
       })
