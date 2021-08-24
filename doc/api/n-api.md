@@ -2614,8 +2614,8 @@ napi_status napi_create_string_latin1(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
-* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
-  is null-terminated.
+* `[in] length`: The length of the string in bytes excluding the null
+  terminator, or `NAPI_AUTO_LENGTH` if it is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2641,8 +2641,8 @@ napi_status napi_create_string_utf16(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing a UTF16-LE-encoded string.
-* `[in] length`: The length of the string in two-byte code units, or
-  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[in] length`: The length of the string in two-byte code units excluding the
+  null terminator, or `NAPI_AUTO_LENGTH` if it is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2668,8 +2668,8 @@ napi_status napi_create_string_utf8(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing a UTF8-encoded string.
-* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
-  is null-terminated.
+* `[in] length`: The length of the string in bytes excluding the null
+  terminator, or `NAPI_AUTO_LENGTH` if it is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
 
 Returns `napi_ok` if the API succeeded.
