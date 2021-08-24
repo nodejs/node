@@ -18,4 +18,5 @@ jobs:
           body: "If this PR exists, there's presumably new additions to the AUTHORS file. This is an automatically generated PR by the `authors.yml` GitHub Action, which runs `tools/update-authors.js` and submits a new PR or updates an existing PR.\n\nPlease note that there might be duplicate entries. If there are, please remove them and add the duplicate emails to .mailmap directly to this PR."
           branch: "actions/authors-update" # custom branch *just* for this Action.
           commit-message: "meta: update AUTHORS"
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           labels: meta
