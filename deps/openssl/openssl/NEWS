@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1k and OpenSSL 1.1.1l [24 Aug 2021]
+
+      o Fixed an SM2 Decryption Buffer Overflow (CVE-2021-3711)
+      o Fixed various read buffer overruns processing ASN.1 strings (CVE-2021-3712)
+
   Major changes between OpenSSL 1.1.1j and OpenSSL 1.1.1k [25 Mar 2021]
 
       o Fixed a problem with verifying a certificate chain when using the

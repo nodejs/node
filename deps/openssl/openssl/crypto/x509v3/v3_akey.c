@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,20 +39,48 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
                                                  STACK_OF(CONF_VALUE)
                                                  *extlist)
 {
-    char *tmp;
+    char *tmp = NULL;
+    STACK_OF(CONF_VALUE) *origextlist = extlist, *tmpextlist;
+
     if (akeyid->keyid) {
         tmp = OPENSSL_buf2hexstr(akeyid->keyid->data, akeyid->keyid->length);
-        X509V3_add_value("keyid", tmp, &extlist);
+        if (tmp == NULL) {
+            X509V3err(X509V3_F_I2V_AUTHORITY_KEYID, ERR_R_MALLOC_FAILURE);
+            return NULL;
+        }
+        if (!X509V3_add_value("keyid", tmp, &extlist)) {
+            OPENSSL_free(tmp);
+            X509V3err(X509V3_F_I2V_AUTHORITY_KEYID, ERR_R_X509_LIB);
+            goto err;
+        }
         OPENSSL_free(tmp);
     }
-    if (akeyid->issuer)
-        extlist = i2v_GENERAL_NAMES(NULL, akeyid->issuer, extlist);
+    if (akeyid->issuer) {
+        tmpextlist = i2v_GENERAL_NAMES(NULL, akeyid->issuer, extlist);
+        if (tmpextlist == NULL) {
+            X509V3err(X509V3_F_I2V_AUTHORITY_KEYID, ERR_R_X509_LIB);
+            goto err;
+        }
+        extlist = tmpextlist;
+    }
     if (akeyid->serial) {
         tmp = OPENSSL_buf2hexstr(akeyid->serial->data, akeyid->serial->length);
-        X509V3_add_value("serial", tmp, &extlist);
+        if (tmp == NULL) {
+            X509V3err(X509V3_F_I2V_AUTHORITY_KEYID, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+        if (!X509V3_add_value("serial", tmp, &extlist)) {
+            OPENSSL_free(tmp);
+            X509V3err(X509V3_F_I2V_AUTHORITY_KEYID, ERR_R_X509_LIB);
+            goto err;
+        }
         OPENSSL_free(tmp);
     }
     return extlist;
+ err:
+    if (origextlist == NULL)
+        sk_CONF_VALUE_pop_free(extlist, X509V3_conf_free);
+    return NULL;
 }
 
 /*-

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -243,7 +243,8 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
         }
     }
 
-# ifdef IPV6_V6ONLY
+  /* On OpenBSD it is always ipv6 only with ipv6 sockets thus read-only */
+# if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
     if (BIO_ADDR_family(addr) == AF_INET6) {
         /*
          * Note: Windows default of IPV6_V6ONLY is ON, and Linux is OFF.

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -172,9 +172,9 @@ int ssl3_read_n(SSL *s, size_t n, size_t max, int extend, int clearold,
     /*
      * If extend == 0, obtain new n-byte packet; if extend == 1, increase
      * packet by another n bytes. The packet will be in the sub-array of
-     * s->s3->rbuf.buf specified by s->packet and s->packet_length. (If
-     * s->rlayer.read_ahead is set, 'max' bytes may be stored in rbuf [plus
-     * s->packet_length bytes if extend == 1].)
+     * s->rlayer.rbuf.buf specified by s->rlayer.packet and
+     * s->rlayer.packet_length. (If s->rlayer.read_ahead is set, 'max' bytes may
+     * be stored in rbuf [plus s->rlayer.packet_length bytes if extend == 1].)
      * if clearold == 1, move the packet to the start of the buffer; if
      * clearold == 0 then leave any old packets where they were
      */
