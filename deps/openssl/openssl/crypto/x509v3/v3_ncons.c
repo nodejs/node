@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -63,8 +63,31 @@ ASN1_SEQUENCE(NAME_CONSTRAINTS) = {
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(GENERAL_SUBTREE)
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(NAME_CONSTRAINTS)
 
+
+#define IA5_OFFSET_LEN(ia5base, offset) \
+    ((ia5base)->length - ((unsigned char *)(offset) - (ia5base)->data))
+
+/* Like memchr but for ASN1_IA5STRING. Additionally you can specify the
+ * starting point to search from
+ */
+# define ia5memchr(str, start, c) memchr(start, c, IA5_OFFSET_LEN(str, start))
+
+/* Like memrrchr but for ASN1_IA5STRING */
+static char *ia5memrchr(ASN1_IA5STRING *str, int c)
+{
+    int i;
+
+    for (i = str->length; i > 0 && str->data[i - 1] != c; i--);
+
+    if (i == 0)
+        return NULL;
+
+    return (char *)&str->data[i - 1];
+}
+
 /*
- * We cannot use strncasecmp here because that applies locale specific rules.
+ * We cannot use strncasecmp here because that applies locale specific rules. It
+ * also doesn't work with ASN1_STRINGs that may have embedded NUL characters.
  * For example in Turkish 'I' is not the uppercase character for 'i'. We need to
  * do a simple ASCII case comparison ignoring the locale (that is why we use
  * numeric constants below).
@@ -89,18 +112,10 @@ static int ia5ncasecmp(const char *s1, const char *s2, size_t n)
 
             /* c1 > c2 */
             return 1;
-        } else if (*s1 == 0) {
-            /* If we get here we know that *s2 == 0 too */
-            return 0;
         }
     }
 
     return 0;
-}
-
-static int ia5casecmp(const char *s1, const char *s2)
-{
-    return ia5ncasecmp(s1, s2, SIZE_MAX);
 }
 
 static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
@@ -337,7 +352,7 @@ static int cn2dnsid(ASN1_STRING *cn, unsigned char **dnsid, size_t *idlen)
         --utf8_length;
 
     /* Reject *embedded* NULs */
-    if ((size_t)utf8_length != strlen((char *)utf8_value)) {
+    if (memchr(utf8_value, 0, utf8_length) != NULL) {
         OPENSSL_free(utf8_value);
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
     }
@@ -536,9 +551,14 @@ static int nc_dns(ASN1_IA5STRING *dns, ASN1_IA5STRING *base)
 {
     char *baseptr = (char *)base->data;
     char *dnsptr = (char *)dns->data;
+
     /* Empty matches everything */
-    if (!*baseptr)
+    if (base->length == 0)
         return X509_V_OK;
+
+    if (dns->length < base->length)
+        return X509_V_ERR_PERMITTED_VIOLATION;
+
     /*
      * Otherwise can add zero or more components on the left so compare RHS
      * and if dns is longer and expect '.' as preceding character.
@@ -549,7 +569,7 @@ static int nc_dns(ASN1_IA5STRING *dns, ASN1_IA5STRING *base)
             return X509_V_ERR_PERMITTED_VIOLATION;
     }
 
-    if (ia5casecmp(baseptr, dnsptr))
+    if (ia5ncasecmp(baseptr, dnsptr, base->length))
         return X509_V_ERR_PERMITTED_VIOLATION;
 
     return X509_V_OK;
@@ -560,16 +580,17 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
 {
     const char *baseptr = (char *)base->data;
     const char *emlptr = (char *)eml->data;
+    const char *baseat = ia5memrchr(base, '@');
+    const char *emlat = ia5memrchr(eml, '@');
+    size_t basehostlen, emlhostlen;
 
-    const char *baseat = strchr(baseptr, '@');
-    const char *emlat = strchr(emlptr, '@');
     if (!emlat)
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
     /* Special case: initial '.' is RHS match */
-    if (!baseat && (*baseptr == '.')) {
+    if (!baseat && base->length > 0 && (*baseptr == '.')) {
         if (eml->length > base->length) {
             emlptr += eml->length - base->length;
-            if (ia5casecmp(baseptr, emlptr) == 0)
+            if (ia5ncasecmp(baseptr, emlptr, base->length) == 0)
                 return X509_V_OK;
         }
         return X509_V_ERR_PERMITTED_VIOLATION;
@@ -589,8 +610,10 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
         baseptr = baseat + 1;
     }
     emlptr = emlat + 1;
+    basehostlen = IA5_OFFSET_LEN(base, baseptr);
+    emlhostlen = IA5_OFFSET_LEN(eml, emlptr);
     /* Just have hostname left to match: case insensitive */
-    if (ia5casecmp(baseptr, emlptr))
+    if (basehostlen != emlhostlen || ia5ncasecmp(baseptr, emlptr, emlhostlen))
         return X509_V_ERR_PERMITTED_VIOLATION;
 
     return X509_V_OK;
@@ -601,10 +624,14 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 {
     const char *baseptr = (char *)base->data;
     const char *hostptr = (char *)uri->data;
-    const char *p = strchr(hostptr, ':');
+    const char *p = ia5memchr(uri, (char *)uri->data, ':');
     int hostlen;
+
     /* Check for foo:// and skip past it */
-    if (!p || (p[1] != '/') || (p[2] != '/'))
+    if (p == NULL
+            || IA5_OFFSET_LEN(uri, p) < 3
+            || p[1] != '/'
+            || p[2] != '/')
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
     hostptr = p + 3;
 
@@ -612,13 +639,13 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 
     /* Look for a port indicator as end of hostname first */
 
-    p = strchr(hostptr, ':');
+    p = ia5memchr(uri, hostptr, ':');
     /* Otherwise look for trailing slash */
-    if (!p)
-        p = strchr(hostptr, '/');
+    if (p == NULL)
+        p = ia5memchr(uri, hostptr, '/');
 
-    if (!p)
-        hostlen = strlen(hostptr);
+    if (p == NULL)
+        hostlen = IA5_OFFSET_LEN(uri, hostptr);
     else
         hostlen = p - hostptr;
 
@@ -626,7 +653,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
 
     /* Special case: initial '.' is RHS match */
-    if (*baseptr == '.') {
+    if (base->length > 0 && *baseptr == '.') {
         if (hostlen > base->length) {
             p = hostptr + hostlen - base->length;
             if (ia5ncasecmp(p, baseptr, base->length) == 0)

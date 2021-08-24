@@ -306,7 +306,6 @@ static int test_rsa_oaep(int idx)
     int ret = 0;
     RSA *key = NULL;
     unsigned char ptext[256];
-    unsigned char ctext[256];
     static unsigned char ptext_ex[] = "\x54\x85\x9b\x34\x2c\x49\xea\x2a";
     unsigned char ctext_ex[256];
     int plen;
@@ -328,17 +327,17 @@ static int test_rsa_oaep(int idx)
 
     /* Try decrypting corrupted ciphertexts. */
     for (n = 0; n < clen; ++n) {
-        ctext[n] ^= 1;
-        num = RSA_private_decrypt(clen, ctext, ptext, key,
+        ctext_ex[n] ^= 1;
+        num = RSA_private_decrypt(clen, ctext_ex, ptext, key,
                                       RSA_PKCS1_OAEP_PADDING);
         if (!TEST_int_le(num, 0))
             goto err;
-        ctext[n] ^= 1;
+        ctext_ex[n] ^= 1;
     }
 
     /* Test truncated ciphertexts, as well as negative length. */
     for (n = -1; n < clen; ++n) {
-        num = RSA_private_decrypt(n, ctext, ptext, key,
+        num = RSA_private_decrypt(n, ctext_ex, ptext, key,
                                   RSA_PKCS1_OAEP_PADDING);
         if (!TEST_int_le(num, 0))
             goto err;

@@ -1001,7 +1001,8 @@ size_t ossl_statem_client_max_message_size(SSL *s)
         return CCS_MAX_LENGTH;
 
     case TLS_ST_CR_SESSION_TICKET:
-        return SSL3_RT_MAX_PLAIN_LENGTH;
+        return (SSL_IS_TLS13(s)) ? SESSION_TICKET_MAX_LENGTH_TLS13
+                                 : SESSION_TICKET_MAX_LENGTH_TLS12;
 
     case TLS_ST_CR_FINISHED:
         return FINISHED_MAX_LENGTH;
@@ -2833,7 +2834,7 @@ int tls_process_initial_server_flight(SSL *s)
         if (ret < 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PROCESS_INITIAL_SERVER_FLIGHT,
-                     ERR_R_MALLOC_FAILURE);
+                     SSL_R_OCSP_CALLBACK_FAILURE);
             return 0;
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,16 +55,16 @@ void cmll_t4_decrypt(const unsigned char *in, unsigned char *out,
 
 void cmll128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
                             size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec);
+                            unsigned char *ivec, int /*unused*/);
 void cmll128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                               size_t blocks, const CAMELLIA_KEY *key,
                               unsigned char *ivec);
