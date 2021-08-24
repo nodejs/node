@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -370,6 +370,7 @@ static OSSL_STORE_INFO *try_decode_PKCS8Encrypted(const char *pem_name,
     mem->data = (char *)new_data;
     mem->max = mem->length = (size_t)new_data_len;
     X509_SIG_free(p8);
+    p8 = NULL;
 
     store_info = ossl_store_info_new_EMBEDDED(PEM_STRING_PKCS8INF, mem);
     if (store_info == NULL) {
