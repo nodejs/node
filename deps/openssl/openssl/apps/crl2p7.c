@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -120,19 +120,20 @@ int crl2pkcs7_main(int argc, char **argv)
 
     if (!ASN1_INTEGER_set(p7s->version, 1))
         goto end;
-    if ((crl_stack = sk_X509_CRL_new_null()) == NULL)
-        goto end;
-    p7s->crl = crl_stack;
+
     if (crl != NULL) {
+        if ((crl_stack = sk_X509_CRL_new_null()) == NULL)
+            goto end;
+        p7s->crl = crl_stack;
         sk_X509_CRL_push(crl_stack, crl);
         crl = NULL;             /* now part of p7 for OPENSSL_freeing */
     }
 
-    if ((cert_stack = sk_X509_new_null()) == NULL)
-        goto end;
-    p7s->cert = cert_stack;
+    if (certflst != NULL) {
+        if ((cert_stack = sk_X509_new_null()) == NULL)
+            goto end;
+        p7s->cert = cert_stack;
 
-    if (certflst != NULL)
         for (i = 0; i < sk_OPENSSL_STRING_num(certflst); i++) {
             certfile = sk_OPENSSL_STRING_value(certflst, i);
             if (add_certs_from_file(cert_stack, certfile) < 0) {
@@ -141,6 +142,7 @@ int crl2pkcs7_main(int argc, char **argv)
                 goto end;
             }
         }
+    }
 
     out = bio_open_default(outfile, 'w', outformat);
     if (out == NULL)

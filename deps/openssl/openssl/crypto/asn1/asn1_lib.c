@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -292,7 +292,12 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len_in)
     }
     if ((size_t)str->length <= len || str->data == NULL) {
         c = str->data;
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+        /* No NUL terminator in fuzzing builds */
+        str->data = OPENSSL_realloc(c, len);
+#else
         str->data = OPENSSL_realloc(c, len + 1);
+#endif
         if (str->data == NULL) {
             ASN1err(ASN1_F_ASN1_STRING_SET, ERR_R_MALLOC_FAILURE);
             str->data = c;
@@ -302,8 +307,13 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len_in)
     str->length = len;
     if (data != NULL) {
         memcpy(str->data, data, len);
-        /* an allowance for strings :-) */
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+        /*
+         * Add a NUL terminator. This should not be necessary - but we add it as
+         * a safety precaution
+         */
         str->data[len] = '\0';
+#endif
     }
     return 1;
 }
