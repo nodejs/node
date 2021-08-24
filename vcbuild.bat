@@ -82,6 +82,7 @@ if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2019"        set target_env=vs2019&goto arg-ok
+if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -176,6 +177,7 @@ set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
+if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 
 :: skip building if the only argument received was lint
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
@@ -238,6 +240,46 @@ set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 @rem also if both are x86
 if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
+
+@rem Look for Visual Studio 2022
+:vs-set-2022
+if defined target_env if "%target_env%" NEQ "vs2022" goto vs-set-2019
+echo Looking for Visual Studio 2022
+@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
+@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
+@rem detect the version searched for
+if not defined target_env set "VCINSTALLDIR="
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" "prerelease"
+if "_%VCINSTALLDIR%_" == "__" goto vs-set-2019
+set "WIXSDKDIR=%WIX%\SDK\VS2017"
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2022...
+  if not exist "%WIXSDKDIR%" (
+    echo Failed to find WiX install for Visual Studio 2022
+    echo VS2022 support for WiX is only present starting at version 3.XX
+    goto vs-set-2019
+  )
+  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
+    echo Failed to find the WiX Toolset Visual Studio 2022 Extension
+    goto vs-set-2019
+  )
+)
+@rem check if VS2022 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
+set "VSINSTALLDIR="
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
+echo calling: %vcvars_call%
+call %vcvars_call%
+if errorlevel 1 goto vs-set-2019
+if defined DEBUG_HELPER @ECHO ON
+:found_vs2022
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2022
+set PLATFORM_TOOLSET=v143
+goto msbuild-found
 
 @rem Look for Visual Studio 2019
 :vs-set-2019
@@ -691,7 +733,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
