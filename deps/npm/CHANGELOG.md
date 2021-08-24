@@ -1,3 +1,12 @@
+## 6.14.15 (2021-08-23)
+
+### DEPENDENCIES
+
+* [`8160e6e4b`](https://github.com/npm/cli/commit/8160e6e4b58c0f76e720183f2057e26c6d9d8470)
+  `path-parse@1.0.7`
+* [`3079f5038`](https://github.com/npm/cli/commit/3079f503896323ab10bfad5bbdb7fe5ca9207d4b)
+  `tar@4.4.1`
+
 ## 6.14.14 (2021-07-27)
 
 ### DEPENDENCIES
