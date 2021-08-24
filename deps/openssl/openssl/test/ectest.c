@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -1124,7 +1124,56 @@ err:
     BN_free(yplusone);
     return r;
 }
-# endif
+
+static int hybrid_point_encoding_test(void)
+{
+    BIGNUM *x = NULL, *y = NULL;
+    EC_GROUP *group = NULL;
+    EC_POINT *point = NULL;
+    unsigned char *buf = NULL;
+    size_t len;
+    int r = 0;
+
+    if (!TEST_true(BN_dec2bn(&x, "0"))
+        || !TEST_true(BN_dec2bn(&y, "1"))
+        || !TEST_ptr(group = EC_GROUP_new_by_curve_name(NID_sect571k1))
+        || !TEST_ptr(point = EC_POINT_new(group))
+        || !TEST_true(EC_POINT_set_affine_coordinates(group, point, x, y, NULL))
+        || !TEST_size_t_ne(0, (len = EC_POINT_point2oct(group,
+                                                        point,
+                                                        POINT_CONVERSION_HYBRID,
+                                                        NULL,
+                                                        0,
+                                                        NULL)))
+        || !TEST_ptr(buf = OPENSSL_malloc(len))
+        || !TEST_size_t_eq(len, EC_POINT_point2oct(group,
+                                                   point,
+                                                   POINT_CONVERSION_HYBRID,
+                                                   buf,
+                                                   len,
+                                                   NULL)))
+        goto err;
+
+    r = 1;
+
+    /* buf contains a valid hybrid point, check that we can decode it. */
+    if (!TEST_true(EC_POINT_oct2point(group, point, buf, len, NULL)))
+        r = 0;
+
+    /* Flip the y_bit and verify that the invalid encoding is rejected. */
+    buf[0] ^= 1;
+    if (!TEST_false(EC_POINT_oct2point(group, point, buf, len, NULL)))
+        r = 0;
+
+err:
+    BN_free(x);
+    BN_free(y);
+    EC_GROUP_free(group);
+    EC_POINT_free(point);
+    OPENSSL_free(buf);
+    return r;
+}
+#endif
 
 static int internal_curve_test(int n)
 {
@@ -2195,6 +2244,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(cardinality_test, crv_len);
     ADD_TEST(prime_field_tests);
 # ifndef OPENSSL_NO_EC2M
+    ADD_TEST(hybrid_point_encoding_test);
     ADD_TEST(char2_field_tests);
     ADD_ALL_TESTS(char2_curve_test, OSSL_NELEM(char2_curve_tests));
 # endif

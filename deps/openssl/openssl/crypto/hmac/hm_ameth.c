@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,7 +47,8 @@ static int hmac_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 
 static int hmac_pkey_public_cmp(const EVP_PKEY *a, const EVP_PKEY *b)
 {
-    return ASN1_OCTET_STRING_cmp(EVP_PKEY_get0(a), EVP_PKEY_get0(b));
+    /* the ameth pub_cmp must return 1 on match, 0 on mismatch */
+    return ASN1_OCTET_STRING_cmp(EVP_PKEY_get0(a), EVP_PKEY_get0(b)) == 0;
 }
 
 static int hmac_set_priv_key(EVP_PKEY *pkey, const unsigned char *priv,

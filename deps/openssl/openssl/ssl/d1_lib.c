@@ -342,12 +342,11 @@ int dtls1_is_timer_expired(SSL *s)
     return 1;
 }
 
-void dtls1_double_timeout(SSL *s)
+static void dtls1_double_timeout(SSL *s)
 {
     s->d1->timeout_duration_us *= 2;
     if (s->d1->timeout_duration_us > 60000000)
         s->d1->timeout_duration_us = 60000000;
-    dtls1_start_timer(s);
 }
 
 void dtls1_stop_timer(SSL *s)

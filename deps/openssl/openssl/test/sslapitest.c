@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,6 +17,7 @@
 #include <openssl/srp.h>
 #include <openssl/txt_db.h>
 #include <openssl/aes.h>
+#include <openssl/x509v3.h>
 
 #include "ssltestlib.h"
 #include "testutil.h"
@@ -1626,6 +1627,168 @@ static int test_psk_tickets(void)
 
     return testresult;
 }
+
+static int test_extra_tickets(int idx)
+{
+    SSL_CTX *sctx = NULL, *cctx = NULL;
+    SSL *serverssl = NULL, *clientssl = NULL;
+    BIO *bretry = BIO_new(bio_s_always_retry());
+    BIO *tmp = NULL;
+    int testresult = 0;
+    int stateful = 0;
+    size_t nbytes;
+    unsigned char c, buf[1];
+
+    new_called = 0;
+    do_cache = 1;
+
+    if (idx >= 3) {
+        idx -= 3;
+        stateful = 1;
+    }
+
+    if (!TEST_ptr(bretry) || !setup_ticket_test(stateful, idx, &sctx, &cctx))
+        goto end;
+    SSL_CTX_sess_set_new_cb(sctx, new_session_cb);
+    /* setup_ticket_test() uses new_cachesession_cb which we don't need. */
+    SSL_CTX_sess_set_new_cb(cctx, new_session_cb);
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl,
+                                          &clientssl, NULL, NULL)))
+        goto end;
+
+    /*
+     * Note that we have new_session_cb on both sctx and cctx, so new_called is
+     * incremented by both client and server.
+     */
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl,
+                                                SSL_ERROR_NONE))
+               /* Check we got the number of tickets we were expecting */
+            || !TEST_int_eq(idx * 2, new_called)
+            || !TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_int_eq(idx * 2, new_called))
+        goto end;
+
+    /* Now try a (real) write to actually send the tickets */
+    c = '1';
+    if (!TEST_true(SSL_write_ex(serverssl, &c, 1, &nbytes))
+            || !TEST_size_t_eq(1, nbytes)
+            || !TEST_int_eq(idx * 2 + 2, new_called)
+            || !TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(idx * 2 + 4, new_called)
+            || !TEST_int_eq(sizeof(buf), nbytes)
+            || !TEST_int_eq(c, buf[0])
+            || !TEST_false(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes)))
+        goto end;
+
+    /* Try with only requesting one new ticket, too */
+    c = '2';
+    new_called = 0;
+    if (!TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_write_ex(serverssl, &c, sizeof(c), &nbytes))
+            || !TEST_size_t_eq(sizeof(c), nbytes)
+            || !TEST_int_eq(1, new_called)
+            || !TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(2, new_called)
+            || !TEST_size_t_eq(sizeof(buf), nbytes)
+            || !TEST_int_eq(c, buf[0]))
+        goto end;
+
+    /* Do it again but use dummy writes to drive the ticket generation */
+    c = '3';
+    new_called = 0;
+    if (!TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_write_ex(serverssl, &c, 0, &nbytes))
+            || !TEST_size_t_eq(0, nbytes)
+            || !TEST_int_eq(2, new_called)
+            || !TEST_false(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(4, new_called))
+        goto end;
+
+    /* Once more, but with SSL_do_handshake() to drive the ticket generation */
+    c = '4';
+    new_called = 0;
+    if (!TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_do_handshake(serverssl))
+            || !TEST_int_eq(2, new_called)
+            || !TEST_false(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(4, new_called))
+        goto end;
+
+    /*
+     * Use the always-retry BIO to exercise the logic that forces ticket
+     * generation to wait until a record boundary.
+     */
+    c = '5';
+    new_called = 0;
+    tmp = SSL_get_wbio(serverssl);
+    if (!TEST_ptr(tmp) || !TEST_true(BIO_up_ref(tmp))) {
+        tmp = NULL;
+        goto end;
+    }
+    SSL_set0_wbio(serverssl, bretry);
+    bretry = NULL;
+    if (!TEST_false(SSL_write_ex(serverssl, &c, 1, &nbytes))
+            || !TEST_int_eq(SSL_get_error(serverssl, 0), SSL_ERROR_WANT_WRITE)
+            || !TEST_size_t_eq(nbytes, 0))
+        goto end;
+    /* Restore a BIO that will let the write succeed */
+    SSL_set0_wbio(serverssl, tmp);
+    tmp = NULL;
+    /*
+     * These calls should just queue the request and not send anything
+     * even if we explicitly try to hit the state machine.
+     */
+    if (!TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_true(SSL_new_session_ticket(serverssl))
+            || !TEST_int_eq(0, new_called)
+            || !TEST_true(SSL_do_handshake(serverssl))
+            || !TEST_int_eq(0, new_called))
+        goto end;
+    /* Re-do the write; still no tickets sent */
+    if (!TEST_true(SSL_write_ex(serverssl, &c, 1, &nbytes))
+            || !TEST_size_t_eq(1, nbytes)
+            || !TEST_int_eq(0, new_called)
+            || !TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(0, new_called)
+            || !TEST_int_eq(sizeof(buf), nbytes)
+            || !TEST_int_eq(c, buf[0])
+            || !TEST_false(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes)))
+        goto end;
+    /* Even trying to hit the state machine now will still not send tickets */
+    if (!TEST_true(SSL_do_handshake(serverssl))
+            || !TEST_int_eq(0, new_called))
+        goto end;
+    /* Now the *next* write should send the tickets */
+    c = '6';
+    if (!TEST_true(SSL_write_ex(serverssl, &c, 1, &nbytes))
+            || !TEST_size_t_eq(1, nbytes)
+            || !TEST_int_eq(2, new_called)
+            || !TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes))
+            || !TEST_int_eq(4, new_called)
+            || !TEST_int_eq(sizeof(buf), nbytes)
+            || !TEST_int_eq(c, buf[0])
+            || !TEST_false(SSL_read_ex(clientssl, buf, sizeof(buf), &nbytes)))
+        goto end;
+
+    SSL_shutdown(clientssl);
+    SSL_shutdown(serverssl);
+    testresult = 1;
+
+ end:
+    BIO_free(bretry);
+    BIO_free(tmp);
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    clientssl = serverssl = NULL;
+    sctx = cctx = NULL;
+    return testresult;
+}
 #endif
 
 #define USE_NULL            0
@@ -1826,8 +1989,10 @@ static int execute_test_ssl_bio(int pop_ssl, bio_change_t change_bio)
 
     /* Verify changing the rbio/wbio directly does not cause leaks */
     if (change_bio != NO_BIO_CHANGE) {
-        if (!TEST_ptr(membio2 = BIO_new(BIO_s_mem())))
+        if (!TEST_ptr(membio2 = BIO_new(BIO_s_mem()))) {
+            ssl = NULL;
             goto end;
+        }
         if (change_bio == CHANGE_RBIO)
             SSL_set0_rbio(ssl, membio2);
         else
@@ -6713,6 +6878,118 @@ end:
     return testresult;
 }
 #endif
+/*
+ * Test that setting an ALPN does not violate RFC
+ */
+static int test_set_alpn(void)
+{
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    int testresult = 0;
+
+    unsigned char bad0[] = { 0x00, 'b', 'a', 'd' };
+    unsigned char good[] = { 0x04, 'g', 'o', 'o', 'd' };
+    unsigned char bad1[] = { 0x01, 'b', 'a', 'd' };
+    unsigned char bad2[] = { 0x03, 'b', 'a', 'd', 0x00};
+    unsigned char bad3[] = { 0x03, 'b', 'a', 'd', 0x01, 'b', 'a', 'd'};
+    unsigned char bad4[] = { 0x03, 'b', 'a', 'd', 0x06, 'b', 'a', 'd'};
+
+    /* Create an initial SSL_CTX with no certificate configured */
+    ctx = SSL_CTX_new(TLS_server_method());
+    if (!TEST_ptr(ctx))
+        goto end;
+
+    /* the set_alpn functions return 0 (false) on success, non-zero (true) on failure */
+    if (!TEST_false(SSL_CTX_set_alpn_protos(ctx, NULL, 2)))
+        goto end;
+    if (!TEST_false(SSL_CTX_set_alpn_protos(ctx, good, 0)))
+        goto end;
+    if (!TEST_false(SSL_CTX_set_alpn_protos(ctx, good, sizeof(good))))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, good, 1)))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, bad0, sizeof(bad0))))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, bad1, sizeof(bad1))))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, bad2, sizeof(bad2))))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, bad3, sizeof(bad3))))
+        goto end;
+    if (!TEST_true(SSL_CTX_set_alpn_protos(ctx, bad4, sizeof(bad4))))
+        goto end;
+
+    ssl = SSL_new(ctx);
+    if (!TEST_ptr(ssl))
+        goto end;
+
+    if (!TEST_false(SSL_set_alpn_protos(ssl, NULL, 2)))
+        goto end;
+    if (!TEST_false(SSL_set_alpn_protos(ssl, good, 0)))
+        goto end;
+    if (!TEST_false(SSL_set_alpn_protos(ssl, good, sizeof(good))))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, good, 1)))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, bad0, sizeof(bad0))))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, bad1, sizeof(bad1))))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, bad2, sizeof(bad2))))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, bad3, sizeof(bad3))))
+        goto end;
+    if (!TEST_true(SSL_set_alpn_protos(ssl, bad4, sizeof(bad4))))
+        goto end;
+
+    testresult = 1;
+
+end:
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    return testresult;
+}
+
+static int test_inherit_verify_param(void)
+{
+    int testresult = 0;
+
+    SSL_CTX *ctx = NULL;
+    X509_VERIFY_PARAM *cp = NULL;
+    SSL *ssl = NULL;
+    X509_VERIFY_PARAM *sp = NULL;
+    int hostflags = X509_CHECK_FLAG_NEVER_CHECK_SUBJECT;
+
+    ctx = SSL_CTX_new(TLS_server_method());
+    if (!TEST_ptr(ctx))
+        goto end;
+
+    cp = SSL_CTX_get0_param(ctx);
+    if (!TEST_ptr(cp))
+        goto end;
+    if (!TEST_int_eq(X509_VERIFY_PARAM_get_hostflags(cp), 0))
+        goto end;
+
+    X509_VERIFY_PARAM_set_hostflags(cp, hostflags);
+
+    ssl = SSL_new(ctx);
+    if (!TEST_ptr(ssl))
+        goto end;
+
+    sp = SSL_get0_param(ssl);
+    if (!TEST_ptr(sp))
+        goto end;
+    if (!TEST_int_eq(X509_VERIFY_PARAM_get_hostflags(sp), hostflags))
+        goto end;
+
+    testresult = 1;
+
+ end:
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    return testresult;
+}
 
 #ifndef OPENSSL_NO_QUIC
 
@@ -7115,6 +7392,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_stateful_tickets, 3);
     ADD_ALL_TESTS(test_stateless_tickets, 3);
     ADD_TEST(test_psk_tickets);
+    ADD_ALL_TESTS(test_extra_tickets, 6);
 #endif
     ADD_ALL_TESTS(test_ssl_set_bio, TOTAL_SSL_SET_BIO_TESTS);
     ADD_TEST(test_ssl_bio_pop_next_bio);
@@ -7193,6 +7471,8 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_TLS1_3
     ADD_TEST(test_sni_tls13);
 #endif
+    ADD_TEST(test_set_alpn);
+    ADD_TEST(test_inherit_verify_param);
 #ifndef OPENSSL_NO_QUIC
     ADD_ALL_TESTS(test_quic_api, 9);
     ADD_ALL_TESTS(test_quic_early_data, 3);

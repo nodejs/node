@@ -2,42 +2,47 @@
 
 =head1 NAME
 
-BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_is_odd - BIGNUM comparison and test functions
+BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_abs_is_word, BN_is_odd - BIGNUM comparison and test functions
 
 =head1 SYNOPSIS
 
  #include <openssl/bn.h>
 
- int BN_cmp(BIGNUM *a, BIGNUM *b);
- int BN_ucmp(BIGNUM *a, BIGNUM *b);
+ int BN_cmp(const BIGNUM *a, const BIGNUM *b);
+ int BN_ucmp(const BIGNUM *a, const BIGNUM *b);
 
- int BN_is_zero(BIGNUM *a);
- int BN_is_one(BIGNUM *a);
- int BN_is_word(BIGNUM *a, BN_ULONG w);
- int BN_is_odd(BIGNUM *a);
+ int BN_is_zero(const BIGNUM *a);
+ int BN_is_one(const BIGNUM *a);
+ int BN_is_word(const BIGNUM *a, const BN_ULONG w);
+ int BN_abs_is_word(const BIGNUM *a, const BN_ULONG w);
+ int BN_is_odd(const BIGNUM *a);
 
 =head1 DESCRIPTION
 
-BN_cmp() compares the numbers B<a> and B<b>. BN_ucmp() compares their
+BN_cmp() compares the numbers I<a> and I<b>. BN_ucmp() compares their
 absolute values.
 
-BN_is_zero(), BN_is_one() and BN_is_word() test if B<a> equals 0, 1,
-or B<w> respectively. BN_is_odd() tests if a is odd.
-
-BN_is_zero(), BN_is_one(), BN_is_word() and BN_is_odd() are macros.
+BN_is_zero(), BN_is_one(), BN_is_word() and BN_abs_is_word() test if
+I<a> equals 0, 1, I<w>, or E<verbar>I<w>E<verbar> respectively.
+BN_is_odd() tests if I<a> is odd.
 
 =head1 RETURN VALUES
 
-BN_cmp() returns -1 if B<a> E<lt> B<b>, 0 if B<a> == B<b> and 1 if
-B<a> E<gt> B<b>. BN_ucmp() is the same using the absolute values
-of B<a> and B<b>.
+BN_cmp() returns -1 if I<a> E<lt> I<b>, 0 if I<a> == I<b> and 1 if
+I<a> E<gt> I<b>. BN_ucmp() is the same using the absolute values
+of I<a> and I<b>.
 
-BN_is_zero(), BN_is_one() BN_is_word() and BN_is_odd() return 1 if
-the condition is true, 0 otherwise.
+BN_is_zero(), BN_is_one() BN_is_word(), BN_abs_is_word() and
+BN_is_odd() return 1 if the condition is true, 0 otherwise.
+
+=head1 HISTORY
+
+Prior to OpenSSL 1.1.0, BN_is_zero(), BN_is_one(), BN_is_word(),
+BN_abs_is_word() and BN_is_odd() were macros.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

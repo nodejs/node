@@ -1320,6 +1320,8 @@ struct ssl_st {
 
         /* RFC4507 session ticket expected to be received or sent */
         int ticket_expected;
+        /* TLS 1.3 tickets requested by the application. */
+        int extra_tickets_expected;
 # ifndef OPENSSL_NO_EC
         size_t ecpointformats_len;
         /* our list */
@@ -2361,6 +2363,7 @@ __owur int ssl_cert_set_cert_store(CERT *c, X509_STORE *store, int chain,
 __owur int ssl_security(const SSL *s, int op, int bits, int nid, void *other);
 __owur int ssl_ctx_security(const SSL_CTX *ctx, int op, int bits, int nid,
                             void *other);
+int ssl_get_security_level_bits(const SSL *s, const SSL_CTX *ctx, int *levelp);
 
 __owur int ssl_cert_lookup_by_nid(int nid, size_t *pidx);
 __owur const SSL_CERT_LOOKUP *ssl_cert_lookup_by_pkey(const EVP_PKEY *pk,
@@ -2482,7 +2485,6 @@ __owur int dtls1_handle_timeout(SSL *s);
 void dtls1_start_timer(SSL *s);
 void dtls1_stop_timer(SSL *s);
 __owur int dtls1_is_timer_expired(SSL *s);
-void dtls1_double_timeout(SSL *s);
 __owur int dtls_raw_hello_verify_request(WPACKET *pkt, unsigned char *cookie,
                                          size_t cookie_len);
 __owur size_t dtls1_min_mtu(SSL *s);
