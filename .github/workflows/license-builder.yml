@@ -1,10 +1,10 @@
 name: license update
 on:
+  workflow_dispatch:
   schedule:
     # 00:00:00 every Monday
     # https://crontab.guru/#0_0_*_*_1
-    - cron: "0 0 * * 1"
-  workflow_dispatch:
+    - cron: 0 0 * * 1
 
 jobs:
   update_license:
@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: "./tools/license-builder.sh" # run the license builder tool
-      - uses: gr2m/create-or-update-pull-request-action@v1.x # create a PR or update the Action's existing PR
+      - run: ./tools/license-builder.sh # run the license builder tool
+      - uses: gr2m/create-or-update-pull-request-action@v1 # create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          title: "doc: run license-builder"
-          body: "License is likely out of date. This is an automatically generated PR by the `license-builder.yml` GitHub Action, which runs `license-builder.sh` and submits a new PR or updates an existing PR."
+          title: 'doc: run license-builder'
           commit-message: 'doc: run license-builder'
+          body: >
+            License is likely out of date. This is an automatically generated PR by
+            the `license-builder.yml` GitHub Action, which runs `license-builder.sh`
+            and submits a new PR or updates an existing PR.
           labels: meta

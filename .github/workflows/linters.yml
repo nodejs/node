@@ -3,12 +3,10 @@ name: linters
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: [AUTHORS, .mailmap]
   push:
-    branches:
-      - master
-      - main
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
+    branches: [master, main, 'v[0-9]+.x-staging', 'v[0-9]+.x']
+    paths-ignore: [AUTHORS, .mailmap]
 
 env:
   PYTHON_VERSION: 3.9
@@ -93,7 +91,7 @@ jobs:
           NODE=$(command -v node) make lint-py
   lint-sh:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - run: shellcheck -V
@@ -104,9 +102,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: mszostok/codeowners-validator@v0.4.0
+      - uses: mszostok/codeowners-validator@v0.6.0
         with:
-          checks: "files,duppatterns"
+          checks: files,duppatterns
   lint-pr-url:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest

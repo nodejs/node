@@ -5,18 +5,25 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
+      - benchmark/**
+      - deps/**
+      - doc/**,
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/coverage-linux.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - 'tools/**'
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/coverage-linux.yml'
 
 env:
   PYTHON_VERSION: 3.9

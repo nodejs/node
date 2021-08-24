@@ -9,16 +9,22 @@ on:
       - 'deps/**'
       - 'doc/**'
       - 'tools/**'
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - '**.md'
       - 'benchmark/**'
       - 'deps/**'
       - 'doc/**'
       - 'tools/**'
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
 
 env:
   PYTHON_VERSION: 3.9

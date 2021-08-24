@@ -1,14 +1,10 @@
-name: misc
+name: Test and upload documentation to artifacts
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
-    branches:
-      - master
-      - main
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
+    branches: [master, main, 'v[0-9]+.x-staging', 'v[0-9]+.x']
 
 env:
   NODE_VERSION: lts/*
@@ -27,7 +23,7 @@ jobs:
         run: npx envinfo
       - name: Build
         run: NODE=$(command -v node) make doc-only
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         with:
           name: docs
           path: out/doc

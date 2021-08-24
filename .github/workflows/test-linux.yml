@@ -3,13 +3,18 @@ name: test-linux
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/test-linux.yml'
   push:
-    branches:
-      - master
-      - main
-      - canary
-      - v[0-9]+.x-staging
-      - v[0-9]+.x
+    branches: [master, main, canary, 'v[0-9]+.x-staging', 'v[0-9]+.x']
+    paths-ignore:
+      - AUTHORS
+      - .mailmap
+      - .github/**
+      - '!.github/workflows/test-linux.yml'
 
 env:
   PYTHON_VERSION: 3.9
