@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,6 +137,11 @@ static int asn1_bio_free(BIO *b)
     ctx = BIO_get_data(b);
     if (ctx == NULL)
         return 0;
+
+    if (ctx->prefix_free != NULL)
+        ctx->prefix_free(b, &ctx->ex_buf, &ctx->ex_len, &ctx->ex_arg);
+    if (ctx->suffix_free != NULL)
+        ctx->suffix_free(b, &ctx->ex_buf, &ctx->ex_len, &ctx->ex_arg);
 
     OPENSSL_free(ctx->buf);
     OPENSSL_free(ctx);

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -476,10 +476,10 @@ sub testssl {
     subtest 'RSA/(EC)DHE/PSK tests' => sub {
 	######################################################################
 
-	plan tests => 5;
+	plan tests => 6;
 
       SKIP: {
-	  skip "TLSv1.0 is not supported by this OpenSSL build", 5
+	  skip "TLSv1.0 is not supported by this OpenSSL build", 6
 	      if $no_tls1;
 
 	SKIP: {
@@ -513,6 +513,14 @@ sub testssl {
 
 	    ok(run(test([@ssltest, "-bio_pair", "-tls1", "-cipher", "PSK", "-psk", "abc123"])),
 	       'test tls1 with PSK via BIO pair');
+	  }
+
+	SKIP: {
+	    skip "skipping auto PSK tests", 1
+	        if ($no_dh || $no_psk || $no_ec);
+
+	    ok(run(test(['ssltest_old', '-psk', '0102030405', '-cipher', '@SECLEVEL=2:DHE-PSK-AES128-CCM'])),
+	       'test auto DH meets security strength');
 	  }
 	}
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -195,17 +195,14 @@ $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
 plan tests => 11;
 ok(TLSProxy::Message->success(), "Initial connection");
 
-#Test 2: Attempt a resume with no kex modes extension. Should not resume
+#Test 2: Attempt a resume with no kex modes extension. Should fail (server
+#        MUST abort handshake with pre_shared key and no psk_kex_modes)
 $proxy->clear();
 $proxy->clientflags("-sess_in ".$session);
 my $testtype = DELETE_EXTENSION;
 $proxy->filter(\&modify_kex_modes_filter);
 $proxy->start();
-checkhandshake($proxy, checkhandshake::DEFAULT_HANDSHAKE,
-               checkhandshake::DEFAULT_EXTENSIONS
-               | checkhandshake::KEY_SHARE_SRV_EXTENSION
-               | checkhandshake::PSK_CLI_EXTENSION,
-               "Resume with no kex modes");
+ok(TLSProxy::Message->fail(), "Resume with no kex modes");
 
 #Test 3: Attempt a resume with empty kex modes extension. Should fail (empty
 #        extension is invalid)
@@ -243,6 +240,7 @@ checkhandshake($proxy, checkhandshake::RESUME_HANDSHAKE,
                "Resume with non-dhe kex mode");
 
 #Test 6: Attempt a resume with only unrecognised kex modes. Should not resume
+#        but rather fall back to full handshake
 $proxy->clear();
 $proxy->clientflags("-sess_in ".$session);
 $testtype = UNKNOWN_KEX_MODES;
@@ -252,7 +250,7 @@ checkhandshake($proxy, checkhandshake::DEFAULT_HANDSHAKE,
                | checkhandshake::PSK_KEX_MODES_EXTENSION
                | checkhandshake::KEY_SHARE_SRV_EXTENSION
                | checkhandshake::PSK_CLI_EXTENSION,
-               "Resume with empty kex modes");
+               "Resume with unrecognized kex mode");
 
 #Test 7: Attempt a resume with both non-dhe and dhe kex mode. Should resume with
 #        a key_share

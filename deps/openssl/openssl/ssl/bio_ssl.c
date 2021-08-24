@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -451,6 +451,7 @@ BIO *BIO_new_ssl_connect(SSL_CTX *ctx)
         goto err;
     return ret;
  err:
+    BIO_free(ssl);
     BIO_free(con);
 #endif
     return NULL;

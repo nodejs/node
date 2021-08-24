@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -268,7 +268,7 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
     BIGNUM *tmp, *snum, *sdiv, *res;
     BN_ULONG *resp, *wnum, *wnumtop;
     BN_ULONG d0, d1;
-    int num_n, div_n;
+    int num_n, div_n, num_neg;
 
     assert(divisor->top > 0 && divisor->d[divisor->top - 1] != 0);
 
@@ -326,7 +326,8 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
     /* Setup quotient */
     if (!bn_wexpand(res, loop))
         goto err;
-    res->neg = (num->neg ^ divisor->neg);
+    num_neg = num->neg;
+    res->neg = (num_neg ^ divisor->neg);
     res->top = loop;
     res->flags |= BN_FLG_FIXED_TOP;
     resp = &(res->d[loop]);
@@ -442,7 +443,7 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
         *--resp = q;
     }
     /* snum holds remainder, it's as wide as divisor */
-    snum->neg = num->neg;
+    snum->neg = num_neg;
     snum->top = div_n;
     snum->flags |= BN_FLG_FIXED_TOP;
     if (rm != NULL)

@@ -324,15 +324,15 @@ build_apps build_tests: build_programs
 # Convenience target to prebuild all generated files, not just the mandatory
 # ones
 build_all_generated: $(GENERATED_MANDATORY) $(GENERATED)
-	@{- output_off() if $disabled{makedepend}; "" -}
+	@{- output_off() if $disabled{makedepend}; "\@rem" -}
 	@$(ECHO) "Warning: consider configuring with no-makedepend, because if"
 	@$(ECHO) "         target system doesn't have $(PERL),"
 	@$(ECHO) "         then make will fail..."
-	@{- output_on() if $disabled{makedepend}; "" -}
+	@{- output_on() if $disabled{makedepend}; "\@rem" -}
 
 test: tests
 {- dependmagic('tests'); -}: build_programs_nodep build_engines_nodep
-	@{- output_off() if $disabled{tests}; "" -}
+	@{- output_off() if $disabled{tests}; "\@rem" -}
 	-mkdir $(BLDDIR)\test\test-runs
 	set SRCTOP=$(SRCDIR)
 	set BLDTOP=$(BLDDIR)
@@ -341,17 +341,17 @@ test: tests
 	set OPENSSL_ENGINES=$(MAKEDIR)\engines
 	set OPENSSL_DEBUG_MEMORY=on
 	"$(PERL)" "$(SRCDIR)\test\run_tests.pl" $(TESTS)
-	@{- if ($disabled{tests}) { output_on(); } else { output_off(); } "" -}
+	@{- if ($disabled{tests}) { output_on(); } else { output_off(); } "\@rem" -}
 	@$(ECHO) "Tests are not supported with your chosen Configure options"
-	@{- output_on() if !$disabled{tests}; "" -}
+	@{- output_on() if !$disabled{tests}; "\@rem" -}
 
 list-tests:
-	@{- output_off() if $disabled{tests}; "" -}
+	@{- output_off() if $disabled{tests}; "\@rem" -}
 	@set SRCTOP=$(SRCDIR)
 	@"$(PERL)" "$(SRCDIR)\test\run_tests.pl" list
-	@{- if ($disabled{tests}) { output_on(); } else { output_off(); } "" -}
+	@{- if ($disabled{tests}) { output_on(); } else { output_off(); } "\@rem" -}
 	@$(ECHO) "Tests are not supported with your chosen Configure options"
-	@{- output_on() if !$disabled{tests}; "" -}
+	@{- output_on() if !$disabled{tests}; "\@rem" -}
 
 install: install_sw install_ssldirs install_docs
 
@@ -362,7 +362,7 @@ libclean:
 	-del /Q /F $(LIBS) libcrypto.* libssl.* ossl_static.pdb
 
 clean: libclean
-	{- join("\n\t", map { "-del /Q /F $_" } @PROGRAMS) -}
+	{- join("\n\t", map { "-del /Q /F $_" } @PROGRAMS) || "\@rem" -}
 	-del /Q /F $(ENGINES)
 	-del /Q /F $(SCRIPTS)
 	-del /Q /F $(GENERATED_MANDATORY)
@@ -378,9 +378,9 @@ distclean: clean
 	-del /Q /F makefile
 
 depend:
-	@ {- output_off() if $disabled{makedepend}; "" -}
+	@ {- output_off() if $disabled{makedepend}; "\@rem" -}
 	@ "$(PERL)" "$(SRCDIR)\util\add-depends.pl" "VC"
-	@ {- output_on() if $disabled{makedepend}; "" -}
+	@ {- output_on() if $disabled{makedepend}; "\@rem" -}
 
 # Install helper targets #############################################
 
@@ -413,10 +413,10 @@ install_dev: install_runtime_libs
 	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
 	@$(ECHO) "*** Installing development files"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\include\openssl"
-	@{- output_off() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@{- output_off() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "\@rem" -}
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(SRCDIR)\ms\applink.c" \
 				       "$(INSTALLTOP)\include\openssl"
-	@{- output_on() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@{- output_on() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "\@rem" -}
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "-exclude_re=/__DECC_" \
 				       "$(SRCDIR)\include\openssl\*.h" \
 				       "$(INSTALLTOP)\include\openssl"

@@ -396,7 +396,8 @@ ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"]
 ok(verify("root-cert-rsa2", "sslserver", ["root-cert-rsa2"], [], "-check_ss_sig"),
     "Public Key Algorithm rsa instead of rsaEncryption");
 
-    ok(verify("ee-self-signed", "sslserver", ["ee-self-signed"], []),
+ok(verify("ee-self-signed", "sslserver", ["ee-self-signed"], [],
+          "-attime", "1593565200"),
        "accept trusted self-signed EE cert excluding key usage keyCertSign");
 
 SKIP: {

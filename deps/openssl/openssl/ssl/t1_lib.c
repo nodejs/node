@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -2441,7 +2441,8 @@ DH *ssl_get_auto_dh(SSL *s)
 {
     DH *dhp = NULL;
     BIGNUM *p = NULL, *g = NULL;
-    int dh_secbits = 80;
+    int dh_secbits = 80, sec_level_bits;
+
     if (s->cert->dh_tmp_auto != 2) {
         if (s->s3->tmp.new_cipher->algorithm_auth & (SSL_aNULL | SSL_aPSK)) {
             if (s->s3->tmp.new_cipher->strength_bits == 256)
@@ -2464,6 +2465,12 @@ DH *ssl_get_auto_dh(SSL *s)
         BN_free(g);
         return NULL;
     }
+
+    /* Do not pick a prime that is too weak for the current security level */
+    sec_level_bits = ssl_get_security_level_bits(s, NULL, NULL);
+    if (dh_secbits < sec_level_bits)
+        dh_secbits = sec_level_bits;
+
     if (dh_secbits >= 192)
         p = BN_get_rfc3526_prime_8192(NULL);
     else if (dh_secbits >= 152)

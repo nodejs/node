@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -151,7 +151,7 @@ static int pkey_sm2_decrypt(EVP_PKEY_CTX *ctx,
     const EVP_MD *md = (dctx->md == NULL) ? EVP_sm3() : dctx->md;
 
     if (out == NULL) {
-        if (!sm2_plaintext_size(ec, md, inlen, outlen))
+        if (!sm2_plaintext_size(in, inlen, outlen))
             return -1;
         else
             return 1;

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -471,7 +471,7 @@ sub SSSE3ROUND {	# critical path is 20 "SIMD ticks" per round
 	&por	($b,$t);
 }
 
-my $xframe = $win64 ? 32+8 : 8;
+my $xframe = $win64 ? 160+8 : 8;
 
 $code.=<<___;
 .type	ChaCha20_ssse3,\@function,5
@@ -2499,7 +2499,7 @@ sub AVX512ROUND {	# critical path is 14 "SIMD ticks" per round
 	&vprold	($b,$b,7);
 }
 
-my $xframe = $win64 ? 32+8 : 8;
+my $xframe = $win64 ? 160+8 : 8;
 
 $code.=<<___;
 .type	ChaCha20_avx512,\@function,5
@@ -2515,8 +2515,16 @@ ChaCha20_avx512:
 	sub	\$64+$xframe,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x28(%r9)
-	movaps	%xmm7,-0x18(%r9)
+	movaps	%xmm6,-0xa8(%r9)
+	movaps	%xmm7,-0x98(%r9)
+	movaps	%xmm8,-0x88(%r9)
+	movaps	%xmm9,-0x78(%r9)
+	movaps	%xmm10,-0x68(%r9)
+	movaps	%xmm11,-0x58(%r9)
+	movaps	%xmm12,-0x48(%r9)
+	movaps	%xmm13,-0x38(%r9)
+	movaps	%xmm14,-0x28(%r9)
+	movaps	%xmm15,-0x18(%r9)
 .Lavx512_body:
 ___
 $code.=<<___;
@@ -2683,8 +2691,16 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x28(%r9),%xmm6
-	movaps	-0x18(%r9),%xmm7
+	movaps	-0xa8(%r9),%xmm6
+	movaps	-0x98(%r9),%xmm7
+	movaps	-0x88(%r9),%xmm8
+	movaps	-0x78(%r9),%xmm9
+	movaps	-0x68(%r9),%xmm10
+	movaps	-0x58(%r9),%xmm11
+	movaps	-0x48(%r9),%xmm12
+	movaps	-0x38(%r9),%xmm13
+	movaps	-0x28(%r9),%xmm14
+	movaps	-0x18(%r9),%xmm15
 ___
 $code.=<<___;
 	lea	(%r9),%rsp
@@ -2711,8 +2727,16 @@ ChaCha20_avx512vl:
 	sub	\$64+$xframe,%rsp
 ___
 $code.=<<___	if ($win64);
-	movaps	%xmm6,-0x28(%r9)
-	movaps	%xmm7,-0x18(%r9)
+	movaps	%xmm6,-0xa8(%r9)
+	movaps	%xmm7,-0x98(%r9)
+	movaps	%xmm8,-0x88(%r9)
+	movaps	%xmm9,-0x78(%r9)
+	movaps	%xmm10,-0x68(%r9)
+	movaps	%xmm11,-0x58(%r9)
+	movaps	%xmm12,-0x48(%r9)
+	movaps	%xmm13,-0x38(%r9)
+	movaps	%xmm14,-0x28(%r9)
+	movaps	%xmm15,-0x18(%r9)
 .Lavx512vl_body:
 ___
 $code.=<<___;
@@ -2836,8 +2860,16 @@ $code.=<<___;
 	vzeroall
 ___
 $code.=<<___	if ($win64);
-	movaps	-0x28(%r9),%xmm6
-	movaps	-0x18(%r9),%xmm7
+	movaps	-0xa8(%r9),%xmm6
+	movaps	-0x98(%r9),%xmm7
+	movaps	-0x88(%r9),%xmm8
+	movaps	-0x78(%r9),%xmm9
+	movaps	-0x68(%r9),%xmm10
+	movaps	-0x58(%r9),%xmm11
+	movaps	-0x48(%r9),%xmm12
+	movaps	-0x38(%r9),%xmm13
+	movaps	-0x28(%r9),%xmm14
+	movaps	-0x18(%r9),%xmm15
 ___
 $code.=<<___;
 	lea	(%r9),%rsp

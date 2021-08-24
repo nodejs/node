@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,10 +45,16 @@
 
 static const char *sessionfile = NULL;
 /* Dummy ALPN protocols used to pad out the size of the ClientHello */
+/* ASCII 'O' = 79 = 0x4F = EBCDIC '|'*/
+#ifdef CHARSET_EBCDIC
 static const char alpn_prots[] =
-    "0123456789012345678901234567890123456789012345678901234567890123456789"
-    "0123456789012345678901234567890123456789012345678901234567890123456789"
-    "01234567890123456789";
+    "|1234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    "|1234567890123456789012345678901234567890123456789012345678901234567890123456789";
+#else
+static const char alpn_prots[] =
+    "O1234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    "O1234567890123456789012345678901234567890123456789012345678901234567890123456789";
+#endif
 
 static int test_client_hello(int currtest)
 {

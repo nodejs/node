@@ -797,7 +797,7 @@ server.
 
 The B<s_client> utility is a test tool and is designed to continue the
 handshake after any certificate verification errors. As a result it will
-accept any certificate chain (trusted or not) sent by the peer. None test
+accept any certificate chain (trusted or not) sent by the peer. Non-test
 applications should B<not> do this as it makes them vulnerable to a MITM
 attack. This behaviour can be changed by with the B<-verify_return_error>
 option: any verify errors are then returned aborting the handshake.

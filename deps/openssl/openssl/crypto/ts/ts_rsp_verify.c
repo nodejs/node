@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -612,6 +612,7 @@ static int ts_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
  err:
     EVP_MD_CTX_free(md_ctx);
     X509_ALGOR_free(*md_alg);
+    *md_alg = NULL;
     OPENSSL_free(*imprint);
     *imprint_len = 0;
     *imprint = 0;

@@ -211,6 +211,12 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 # if __GLIBC_PREREQ(2, 16)
 #  include <sys/auxv.h>
 #  define OSSL_IMPLEMENT_GETAUXVAL
+# elif defined(__ANDROID_API__)
+/* see https://developer.android.google.cn/ndk/guides/cpu-features */
+#  if __ANDROID_API__ >= 18
+#   include <sys/auxv.h>
+#   define OSSL_IMPLEMENT_GETAUXVAL
+#  endif
 # endif
 #endif
 

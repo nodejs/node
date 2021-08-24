@@ -142,6 +142,9 @@ static int ndef_prefix_free(BIO *b, unsigned char **pbuf, int *plen,
 
     ndef_aux = *(NDEF_SUPPORT **)parg;
 
+    if (ndef_aux == NULL)
+        return 0;
+
     OPENSSL_free(ndef_aux->derbuf);
 
     ndef_aux->derbuf = NULL;

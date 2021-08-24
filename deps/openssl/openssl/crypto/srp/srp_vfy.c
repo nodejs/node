@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2004, EdelKey Project. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -684,7 +684,7 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
     BIGNUM *x = NULL;
     BN_CTX *bn_ctx = BN_CTX_new();
     unsigned char tmp2[MAX_LEN];
-    BIGNUM *salttmp = NULL;
+    BIGNUM *salttmp = NULL, *verif;
 
     if ((user == NULL) ||
         (pass == NULL) ||
@@ -707,17 +707,18 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
     if (x == NULL)
         goto err;
 
-    *verifier = BN_new();
-    if (*verifier == NULL)
+    verif = BN_new();
+    if (verif == NULL)
         goto err;
 
-    if (!BN_mod_exp(*verifier, g, x, N, bn_ctx)) {
-        BN_clear_free(*verifier);
+    if (!BN_mod_exp(verif, g, x, N, bn_ctx)) {
+        BN_clear_free(verif);
         goto err;
     }
 
     result = 1;
     *salt = salttmp;
+    *verifier = verif;
 
  err:
     if (salt != NULL && *salt != salttmp)

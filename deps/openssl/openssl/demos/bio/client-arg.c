@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -90,12 +90,6 @@ int main(int argc, char **argv)
     out = BIO_new_fp(stdout, BIO_NOCLOSE);
     if (BIO_do_connect(sbio) <= 0) {
         fprintf(stderr, "Error connecting to server\n");
-        ERR_print_errors_fp(stderr);
-        goto end;
-    }
-
-    if (BIO_do_handshake(sbio) <= 0) {
-        fprintf(stderr, "Error establishing SSL connection\n");
         ERR_print_errors_fp(stderr);
         goto end;
     }

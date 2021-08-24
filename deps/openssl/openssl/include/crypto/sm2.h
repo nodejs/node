@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
@@ -60,8 +60,7 @@ int sm2_verify(const unsigned char *dgst, int dgstlen,
 int sm2_ciphertext_size(const EC_KEY *key, const EVP_MD *digest, size_t msg_len,
                         size_t *ct_size);
 
-int sm2_plaintext_size(const EC_KEY *key, const EVP_MD *digest, size_t msg_len,
-                       size_t *pt_size);
+int sm2_plaintext_size(const unsigned char *ct, size_t ct_size, size_t *pt_size);
 
 int sm2_encrypt(const EC_KEY *key,
                 const EVP_MD *digest,
