@@ -1,5 +1,5 @@
 {
-  "version": "6.14.14",
+  "version": "6.14.15",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -134,7 +134,7 @@
     "sorted-union-stream": "~2.1.3",
     "ssri": "^6.0.2",
     "stringify-package": "^1.0.1",
-    "tar": "^4.4.15",
+    "tar": "^4.4.19",
     "text-table": "~0.2.0",
     "tiny-relative-date": "^1.3.0",
     "uid-number": "0.0.6",
