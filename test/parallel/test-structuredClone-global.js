@@ -6,7 +6,7 @@ require('../common');
 
 const {
   structuredClone: _structuredClone
-} = require('internal/structuredClone');
+} = require('internal/structured_clone');
 const {
   strictEqual
 } = require('assert');
