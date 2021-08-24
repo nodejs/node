@@ -523,7 +523,6 @@ clean: libclean
 	$(RM) -r test/test-runs
 	$(RM) openssl.pc libcrypto.pc libssl.pc
 	-$(RM) `find . -type l \! -name '.*' -print`
-	$(RM) $(TARFILE)
 
 distclean: clean
 	$(RM) configdata.pm

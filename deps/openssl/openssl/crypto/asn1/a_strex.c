@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -280,6 +280,8 @@ static int do_dump(unsigned long lflags, char_io *io_ch, void *arg,
     t.type = str->type;
     t.value.ptr = (char *)str;
     der_len = i2d_ASN1_TYPE(&t, NULL);
+    if (der_len <= 0)
+        return -1;
     if ((der_buf = OPENSSL_malloc(der_len)) == NULL) {
         ASN1err(ASN1_F_DO_DUMP, ERR_R_MALLOC_FAILURE);
         return -1;

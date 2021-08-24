@@ -180,8 +180,8 @@ Debug the BIOs used for I/O.
 
 =item B<-z>
 
-Compress or decompress clear text using zlib before encryption or after
-decryption. This option exists only if OpenSSL with compiled with zlib
+Compress or decompress encrypted data using zlib after encryption or before
+decryption. This option exists only if OpenSSL was compiled with the zlib
 or zlib-dynamic option.
 
 =item B<-none>
