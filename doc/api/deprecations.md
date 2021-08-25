@@ -2787,7 +2787,7 @@ deprecated and should no longer be used.
 ### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.8.0
     pr-url: https://github.com/nodejs/node/pull/38906
     description: Documentation-only deprecation.
 -->

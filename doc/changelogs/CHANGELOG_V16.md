@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.8.0">16.8.0</a><br/>
 <a href="#16.7.0">16.7.0</a><br/>
 <a href="#16.6.2">16.6.2</a><br/>
 <a href="#16.6.1">16.6.1</a><br/>
@@ -43,6 +44,51 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.8.0"></a>
+## 2021-08-25, Version 16.8.0 (Current), @targos
+
+### Notable Changes
+
+* [[`2e90b10f35`](https://github.com/nodejs/node/commit/2e90b10f35)] - **doc**: deprecate type coercion for `dns.lookup` options (Antoine du Hamel) [#38906](https://github.com/nodejs/node/pull/38906)
+* [[`a6d50a18a0`](https://github.com/nodejs/node/commit/a6d50a18a0)] - **(SEMVER-MINOR)** **stream**: add `stream.Duplex.from` utility (Robert Nagy) [#39519](https://github.com/nodejs/node/pull/39519)
+* [[`af7047a815`](https://github.com/nodejs/node/commit/af7047a815)] - **(SEMVER-MINOR)** **stream**: add `isDisturbed` helper (Robert Nagy) [#39628](https://github.com/nodejs/node/pull/39628)
+* [[`66400374de`](https://github.com/nodejs/node/commit/66400374de)] - **(SEMVER-MINOR)** **util**: expose `toUSVString` (Robert Nagy) [#39814](https://github.com/nodejs/node/pull/39814)
+
+### Commits
+
+* [[`90bf247a55`](https://github.com/nodejs/node/commit/90bf247a55)] - **build**: fix update authors commit (Mestery) [#39858](https://github.com/nodejs/node/pull/39858)
+* [[`c968372e37`](https://github.com/nodejs/node/commit/c968372e37)] - **build**: add authors.yml (Tierney Cyren) [#35831](https://github.com/nodejs/node/pull/35831)
+* [[`3f284cf65c`](https://github.com/nodejs/node/commit/3f284cf65c)] - **build**: add option to hide console window (Cheng Zhao) [#39712](https://github.com/nodejs/node/pull/39712)
+* [[`a01e3ab41d`](https://github.com/nodejs/node/commit/a01e3ab41d)] - **deps**: V8: cherry-pick 00bb1a77c03e (Darshan Sen) [#39829](https://github.com/nodejs/node/pull/39829)
+* [[`cce95c4c5b`](https://github.com/nodejs/node/commit/cce95c4c5b)] - **deps**: upgrade npm to 7.21.0 (Myles Borins) [#39813](https://github.com/nodejs/node/pull/39813)
+* [[`254810a22e`](https://github.com/nodejs/node/commit/254810a22e)] - **doc**: add duplicate CVE check in sec. release doc (Daniel Bevenius) [#39845](https://github.com/nodejs/node/pull/39845)
+* [[`8c50d16712`](https://github.com/nodejs/node/commit/8c50d16712)] - **doc**: improve description of the triagers team (Michaël Zasso) [#39833](https://github.com/nodejs/node/pull/39833)
+* [[`c02165d992`](https://github.com/nodejs/node/commit/c02165d992)] - **doc**: update instructions for cc (Michael Dawson) [#39674](https://github.com/nodejs/node/pull/39674)
+* [[`208305fd8f`](https://github.com/nodejs/node/commit/208305fd8f)] - **doc**: move util.toUSVString() outside of deprecated group (Luigi Pinca) [#39840](https://github.com/nodejs/node/pull/39840)
+* [[`2e90b10f35`](https://github.com/nodejs/node/commit/2e90b10f35)] - **doc**: deprecate type coercion for `dns.lookup` options (Antoine du Hamel) [#38906](https://github.com/nodejs/node/pull/38906)
+* [[`8460a3216c`](https://github.com/nodejs/node/commit/8460a3216c)] - **doc**: deprecate using non-boolean values in the `verbatim` option (Antoine du Hamel) [#38906](https://github.com/nodejs/node/pull/38906)
+* [[`3041d57201`](https://github.com/nodejs/node/commit/3041d57201)] - **doc**: fix malformed changelog entries (Rich Trott) [#39791](https://github.com/nodejs/node/pull/39791)
+* [[`2b02f747c3`](https://github.com/nodejs/node/commit/2b02f747c3)] - **doc**: fix lint errors in packages.md (Rich Trott) [#39792](https://github.com/nodejs/node/pull/39792)
+* [[`a387600d8f`](https://github.com/nodejs/node/commit/a387600d8f)] - **doc**: add example of self-reference in scoped packages (Jesús Leganés-Combarro 'piranna) [#37630](https://github.com/nodejs/node/pull/37630)
+* [[`7a25bf3a6d`](https://github.com/nodejs/node/commit/7a25bf3a6d)] - **doc**: add himadriganguly as a triager (Himadri Ganguly) [#39757](https://github.com/nodejs/node/pull/39757)
+* [[`d1900f43ce`](https://github.com/nodejs/node/commit/d1900f43ce)] - **fs**: combine require() and destructure (Colin Ihrig) [#39806](https://github.com/nodejs/node/pull/39806)
+* [[`158d4464d2`](https://github.com/nodejs/node/commit/158d4464d2)] - **meta**: add gyp as owner of gyp files and tools/gyp (Mary Marchini) [#34847](https://github.com/nodejs/node/pull/34847)
+* [[`8fa38500f2`](https://github.com/nodejs/node/commit/8fa38500f2)] - **policy**: canonicalize before resolving specifiers (Bradley Farias) [#37863](https://github.com/nodejs/node/pull/37863)
+* [[`a7a217be13`](https://github.com/nodejs/node/commit/a7a217be13)] - **repl**: fix tla function hoisting (Don Jayamanne) [#39745](https://github.com/nodejs/node/pull/39745)
+* [[`3a8399ee61`](https://github.com/nodejs/node/commit/3a8399ee61)] - **src**: return Maybe\<bool\> from InitializeContextRuntime() (Darshan Sen) [#39695](https://github.com/nodejs/node/pull/39695)
+* [[`a704c9dfce`](https://github.com/nodejs/node/commit/a704c9dfce)] - **(SEMVER-MINOR)** **src**: call overload ctor from the original ctor (Darshan Sen) [#39768](https://github.com/nodejs/node/pull/39768)
+* [[`0918ea0683`](https://github.com/nodejs/node/commit/0918ea0683)] - **(SEMVER-MINOR)** **src**: add a constructor overload for CallbackScope (Darshan Sen) [#39768](https://github.com/nodejs/node/pull/39768)
+* [[`a6d50a18a0`](https://github.com/nodejs/node/commit/a6d50a18a0)] - **(SEMVER-MINOR)** **stream**: duplexify (Robert Nagy) [#39519](https://github.com/nodejs/node/pull/39519)
+* [[`af7047a815`](https://github.com/nodejs/node/commit/af7047a815)] - **(SEMVER-MINOR)** **stream**: add isDisturbed helper (Robert Nagy) [#39628](https://github.com/nodejs/node/pull/39628)
+* [[`f98311a7c8`](https://github.com/nodejs/node/commit/f98311a7c8)] - **tools**: update workflow to open a pull request (Rich Trott) [#39825](https://github.com/nodejs/node/pull/39825)
+* [[`d33f897509`](https://github.com/nodejs/node/commit/d33f897509)] - **tools**: use find-inactive-collaborators to modify README.md (Rich Trott) [#39825](https://github.com/nodejs/node/pull/39825)
+* [[`d82ee96861`](https://github.com/nodejs/node/commit/d82ee96861)] - **tools**: update gyp-next to v0.9.5 (Jiawen Geng) [#39818](https://github.com/nodejs/node/pull/39818)
+* [[`79079ea01b`](https://github.com/nodejs/node/commit/79079ea01b)] - **tools**: fix markdown linting (Rich Trott) [#39832](https://github.com/nodejs/node/pull/39832)
+* [[`01093b07cc`](https://github.com/nodejs/node/commit/01093b07cc)] - **tools**: update markdown linter dependencies and move to ESM (Antoine du Hamel) [#39801](https://github.com/nodejs/node/pull/39801)
+* [[`9dc0c91392`](https://github.com/nodejs/node/commit/9dc0c91392)] - **tools**: update rollup to latest version in markdown linter (Rich Trott) [#39797](https://github.com/nodejs/node/pull/39797)
+* [[`c34e2534ab`](https://github.com/nodejs/node/commit/c34e2534ab)] - **tools**: update markdown lint dependencies (Rich Trott) [#39770](https://github.com/nodejs/node/pull/39770)
+* [[`66400374de`](https://github.com/nodejs/node/commit/66400374de)] - **(SEMVER-MINOR)** **util**: expose toUSVString (Robert Nagy) [#39814](https://github.com/nodejs/node/pull/39814)
 
 <a id="16.7.0"></a>
 ## 2021-08-17, Version 16.7.0 (Current), @danielleadams

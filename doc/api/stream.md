@@ -1261,7 +1261,7 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 
 ##### `readable.readableAborted`
 <!-- YAML
-added: REPLACEME
+added: v16.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1956,7 +1956,7 @@ for performance reasons.
 
 ### `stream.Readable.isDisturbed(stream)`
 <!-- YAML
-added: REPLACEME
+added: v16.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1968,7 +1968,7 @@ Returns whether the stream has been read from or cancelled.
 
 ### `stream.Duplex.from(src)`
 <!-- YAML
-added: REPLACEME
+added: v16.8.0
 -->
 
 * `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
