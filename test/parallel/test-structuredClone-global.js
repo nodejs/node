@@ -15,5 +15,5 @@ strictEqual(globalThis.structuredClone, _structuredClone);
 structuredClone = undefined;
 strictEqual(globalThis.structuredClone, undefined);
 
-// Restore the value of performance for the known globals check
+// Restore the value for the known globals check.
 structuredClone = _structuredClone;
