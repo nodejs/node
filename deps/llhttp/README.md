@@ -99,6 +99,20 @@ For more information on API usage, please refer to [src/native/api.h](https://gi
 * Python: [pallas/pyllhttp][8]
 * Ruby: [metabahn/llhttp][9]
 
+
+### Using with CMake
+
+If you want to use this library in a CMake project you can use the snippet below.
+
+```
+FetchContent_Declare(llhttp
+  URL "https://github.com/nodejs/llhttp/releases/download/v6.0.4/llhttp-release-v6.0.4.tar.gz")  # Using version 6.0.4
+
+FetchContent_MakeAvailable(llhttp)
+
+target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp ${PROJECT_NAME})
+```
+
 #### LICENSE
 
 This software is licensed under the MIT License.
