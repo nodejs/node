@@ -62,8 +62,10 @@ from [nghttp2.org][] or built from source.
 
 ### Benchmark analysis requirements
 
-To analyze the results statistically, [node-benchmark-compare][] must be used.
-It is a Node.js script that can be installed with
+To analyze the results statistically, you can use either the
+[node-benchmark-compare][] tool or the R script `benchmark/compare.R`.
+
+[node-benchmark-compare][] is a Node.js script that can be installed with
 `npm install -g node-benchmark-compare`.
 
 To draw comparison plots when analyzing the results, `R` must be installed.
