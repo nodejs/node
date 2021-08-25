@@ -78,7 +78,18 @@ The following binaries are provided through Corepack:
 | [Yarn][]        | `yarn`, `yarnpkg` |
 | [pnpm][]        | `pnpm`, `pnpx` |
 
-## Troubleshooting
+## Common questions
+
+### How does Corepack currently interact with npm?
+
+While Corepack could easily support npm like any other package manager, its
+shims aren't currently enabled by default. This has a few consequences:
+
+* It's always possible to run a `npm` command within a project configured to
+be used with another package manager, since Corepack cannot intercept it.
+
+* While `npm` is a valid option in the [`"packageManager"`][] property, the
+lack of shim will cause the global npm to be used.
 
 ### Running `npm install -g yarn` doesn't work
 

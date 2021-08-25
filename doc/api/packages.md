@@ -167,8 +167,9 @@ tool called [Corepack][] that aims to make all package managers transparently
 available in your environment - provided you have Node.js installed.
 
 By default Corepack won't enforce any specific package manager and will use
-generic "Last Known Good" versions, but you can improve this experience by
-setting the [`"packageManager"`][] field in your project's `package.json`.
+the generic "Last Known Good" versions associated with each Node.js release,
+but you can improve this experience by setting the [`"packageManager"`][] field
+in your project's `package.json`.
 
 ## Package entry points
 
