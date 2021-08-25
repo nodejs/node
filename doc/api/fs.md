@@ -618,6 +618,9 @@ exist. `data` can be a string or a {Buffer}.
 
 If `options` is a string, then it specifies the `encoding`.
 
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
+
 The `path` may be specified as a {FileHandle} that has been opened
 for appending (using `fsPromises.open()`).
 
@@ -1333,6 +1336,9 @@ The `encoding` option is ignored if `data` is a buffer.
 
 If `options` is a string, then it specifies the encoding.
 
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
+
 Any specified {FileHandle} has to support writing.
 
 It is unsafe to use `fsPromises.writeFile()` multiple times on the same file
@@ -1598,6 +1604,9 @@ changes:
 
 Asynchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
+
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
 
 ```mjs
 import { appendFile } from 'fs';
@@ -4032,6 +4041,9 @@ a file descriptor.
 
 The `encoding` option is ignored if `data` is a buffer.
 
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
+
 If `data` is a plain object, it must have an own (not inherited) `toString`
 function property.
 
@@ -4205,6 +4217,9 @@ changes:
 
 Synchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
+
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
 
 ```mjs
 import { appendFileSync } from 'fs';
@@ -5161,6 +5176,9 @@ Returns `undefined`.
 
 If `data` is a plain object, it must have an own (not inherited) `toString`
 function property.
+
+The `mode` option only affects the newly created file. See [`fs.open()`][]
+for more details.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
