@@ -292,10 +292,11 @@ module, you can use the `--filter` option:*
   --no-progress                 don't show benchmark progress indicator
 ```
 
-For analysing the benchmark results, use [node-benchmark-compare][].
+For analysing the benchmark results, use [node-benchmark-compare][] or the R
+script `benchmark/compare.R`.
 
 ```console
-$ node-benchmark-compare compare-pr-5134.csv
+$ node-benchmark-compare compare-pr-5134.csv # or cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
                                                                                              confidence improvement accuracy (*)    (**)   (***)
  string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='ascii'                  ***     -3.76 %       ±1.36%  ±1.82%  ±2.40%
