@@ -343,6 +343,7 @@ The location information will be one of:
    to Node.js.
 * `/absolute/path/to/file.js:line:column`, if the frame represents a call in
   a user program, or its dependencies.
+* `file:///absolute/path/to/file.js:line:column`, if the frame represents a call in ES module files.
 
 The string representing the stack trace is lazily generated when the
 `error.stack` property is **accessed**.
