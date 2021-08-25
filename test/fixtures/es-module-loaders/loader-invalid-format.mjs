@@ -7,11 +7,12 @@ export async function resolve(specifier, { parentURL }, defaultResolve) {
   return defaultResolve(specifier, {parentURL}, defaultResolve);
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+export async function load(url, context, next) {
   if (url === 'file:///asdf') {
     return {
-      format: 'esm'
+      format: 'esm',
+      source: '',
     }
   }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return next(url, context, next);
 }
