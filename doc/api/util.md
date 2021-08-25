@@ -1308,7 +1308,7 @@ The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
 ## `util.toUSVString(string)`
 <!-- YAML
-added: REPLACEME
+added: v16.8.0
 -->
 
 * `string` {string}
