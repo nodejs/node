@@ -624,6 +624,8 @@ maintaining the Node.js project.
 **Himadri Ganguly** &lt;himadri.tech@gmail.com&gt; (he/him)
 * [marsonya](https://github.com/marsonya) -
 **Akhil Marsonya** &lt;akhil.marsonya27@gmail.com&gt; (he/him)
+* [Mesteery](https://github.com/Mesteery) -
+**Mestery** &lt;mestery@pm.me&gt;
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
 **Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
 * [RaisinTen](https://github.com/RaisinTen) -
