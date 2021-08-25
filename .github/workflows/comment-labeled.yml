@@ -30,6 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Request Fast-Track
-        run: gh pr comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body "$FAST_TRACK_MESSAGE"
+        run: gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$FAST_TRACK_MESSAGE"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
