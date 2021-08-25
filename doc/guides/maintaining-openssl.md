@@ -7,14 +7,13 @@ currently need to generate three PRs as follows:
 
 * a PR for master which is generated following the instructions
   below.
-* a PR for 14.x following the instruction below based on the
-  14,x branch. This PR should cherry pick back to the active release
-  lines except for the 10.x line.
+* a PR for 14.x following the instructions in the v14.x-staging version
+  of this guide.
 * a PR which uses the same commit from the second PR to apply the
   updates to the openssl source code, with a new commit generated
-  by following steps 2 onwards on the 10.x line. This is
-  necessary because differences in 10.x requires that the
-  configuration files be regenerated specifically for 10.x.
+  by following steps 2 onwards on the 12.x line. This is
+  necessary because the configuration files have embedded timestamps
+  which lead to merge conflicts if cherry-picked from the second PR.
 
 ## Use of the quictls/openssl fork
 
