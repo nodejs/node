@@ -6,6 +6,14 @@
 added: v8.5.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37468
+    description:
+      Consolidate loader hooks, removed `getFormat`, `getSource`,
+      `transformSource`, and `getGlobalPreloadCode` hooks
+      added `load` and `globalPreload` hooks
+      allowed returning `format` from either `resolve` or `load` hooks.
+  - version:
     - v15.3.0
     - v14.17.0
     - v12.22.0
@@ -603,20 +611,29 @@ CommonJS modules loaded.
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string[]}
-  * `parentURL` {string}
-* `defaultResolve` {Function}
+  * `parentURL` {string|undefined}
+* `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
-  * `url` {string}
+  * `format` {string|null|undefined}
+  `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
+  * `url` {string} The absolute url to the import target (such as `file://…`)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
-and parent URL. The module specifier is the string in an `import` statement or
+and parent URL, and optionally its format (such as `'module'`) as a hint to the
+`load` hook. If a format is specified, the `load` hook is ultimately responsible
+for providing the final `format` value (and it is free to ignore the hint
+provided by `resolve`); if `resolve` provides a `format`, a custom `load`
+hook is required even if only to pass the value to the Node.js default `load`
+hook.
+
+The module specifier is the string in an `import` statement or
 `import()` expression, and the parent URL is the URL of the module that imported
 this one, or `undefined` if this is the main entry point for the application.
 
-The `conditions` property on the `context` is an array of conditions for
-[Conditional exports][] that apply to this resolution request. They can be used
-for looking up conditional mappings elsewhere or to modify the list when calling
-the default resolution logic.
+The `conditions` property in `context` is an array of conditions for
+[package exports conditions][Conditional Exports] that apply to this resolution
+request. They can be used for looking up conditional mappings elsewhere or to
+modify the list when calling the default resolution logic.
 
 The current [package exports conditions][Conditional Exports] are always in
 the `context.conditions` array passed into the hook. To guarantee _default
@@ -658,23 +675,29 @@ export async function resolve(specifier, context, defaultResolve) {
 }
 ```
 
-#### `getFormat(url, context, defaultGetFormat)`
+#### `load(url, context, defaultLoad)`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
+> Note: In a previous version of this API, this was split across 3 separate, now
+> deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
+
 * `url` {string}
 * `context` {Object}
-* `defaultGetFormat` {Function}
+  * `format` {string|null|undefined} The format optionally supplied by the
+  `resolve` hook.
+* `defaultLoad` {Function}
 * Returns: {Object}
   * `format` {string}
+  * `source` {string|ArrayBuffer|TypedArray}
 
-The `getFormat` hook provides a way to define a custom method of determining how
-a URL should be interpreted. The `format` returned also affects what the
-acceptable forms of source values are for a module when parsing. This can be one
-of the following:
+The `load` hook provides a way to define a custom method of determining how
+a URL should be interpreted, retrieved, and parsed.
 
-| `format`     | Description                    | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
+The final value of `format` must be one of the following:
+
+| `format`     | Description                    | Acceptable types For `source` returned by `resolve` or `load` |
 | ------------ | ------------------------------ | -------------------------------------------------------------------------- |
 | `'builtin'`  | Load a Node.js builtin module  | Not applicable                                                             |
 | `'commonjs'` | Load a Node.js CommonJS module | Not applicable                                                             |
@@ -682,126 +705,78 @@ of the following:
 | `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
 | `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
 
-Note: These types all correspond to classes defined in ECMAScript.
+The value of `source` is ignored for type `'builtin'` because currently it is
+not possible to replace the value of a Node.js builtin (core) module. The value
+of `source` is ignored for type `'commonjs'` because the CommonJS module loader
+does not provide a mechanism for the ES module loader to override the
+[CommonJS module return value](#commonjs-namespaces). This limitation might be
+overcome in the future.
+
+> **Caveat**: The ESM `load` hook and namespaced exports from CommonJS modules
+> are incompatible. Attempting to use them together will result in an empty
+> object from the import. This may be addressed in the future.
+
+> Note: These types all correspond to classes defined in ECMAScript.
 
 * The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
 * The specific [`TypedArray`][] object is a [`Uint8Array`][].
 
-Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
-not a string, it is converted to a string using [`util.TextDecoder`][].
+If the source value of a text-based format (i.e., `'json'`, `'module'`)
+is not a string, it is converted to a string using [`util.TextDecoder`][].
+
+The `load` hook provides a way to define a custom method for retrieving the
+source code of an ES module specifier. This would allow a loader to potentially
+avoid reading files from disk. It could also be used to map an unrecognized
+format to a supported one, for example `yaml` to `module`.
 
 ```js
 /**
  * @param {string} url
- * @param {Object} context (currently empty)
- * @param {Function} defaultGetFormat
- * @returns {Promise<{ format: string }>}
+ * @param {{
+    format: string,
+  }} context If resolve settled with a `format`, that value is included here.
+ * @param {Function} defaultLoad
+ * @returns {Promise<{
+    format: !string,
+    source: !(string | ArrayBuffer | SharedArrayBuffer | Uint8Array),
+  }>}
  */
-export async function getFormat(url, context, defaultGetFormat) {
-  if (Math.random() > 0.5) { // Some condition.
-    // For some or all URLs, do some custom logic for determining format.
-    // Always return an object of the form {format: <string>}, where the
-    // format is one of the strings in the preceding table.
-    return {
-      format: 'module',
-    };
-  }
-  // Defer to Node.js for all other URLs.
-  return defaultGetFormat(url, context, defaultGetFormat);
-}
-```
-
-#### `getSource(url, context, defaultGetSource)`
-
-> Note: The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
-
-* `url` {string}
-* `context` {Object}
-  * `format` {string}
-* `defaultGetSource` {Function}
-* Returns: {Object}
-  * `source` {string|SharedArrayBuffer|Uint8Array}
-
-The `getSource` hook provides a way to define a custom method for retrieving
-the source code of an ES module specifier. This would allow a loader to
-potentially avoid reading files from disk.
-
-```js
-/**
- * @param {string} url
- * @param {{ format: string }} context
- * @param {Function} defaultGetSource
- * @returns {Promise<{ source: !(string | SharedArrayBuffer | Uint8Array) }>}
- */
-export async function getSource(url, context, defaultGetSource) {
+export async function load(url, context, defaultLoad) {
   const { format } = context;
   if (Math.random() > 0.5) { // Some condition.
-    // For some or all URLs, do some custom logic for retrieving the source.
-    // Always return an object of the form {source: <string|buffer>}.
+    /*
+      For some or all URLs, do some custom logic for retrieving the source.
+      Always return an object of the form {
+        format: <string>,
+        source: <string|buffer>,
+      }.
+    */
     return {
+      format,
       source: '...',
     };
   }
   // Defer to Node.js for all other URLs.
-  return defaultGetSource(url, context, defaultGetSource);
+  return defaultLoad(url, context, defaultLoad);
 }
 ```
 
-#### `transformSource(source, context, defaultTransformSource)`
+In a more advanced scenario, this can also be used to transform an unsupported
+source to a supported one (see [Examples](#examples) below).
+
+#### `globalPreload()`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-* `source` {string|SharedArrayBuffer|Uint8Array}
-* `context` {Object}
-  * `format` {string}
-  * `url` {string}
-* Returns: {Object}
-  * `source` {string|SharedArrayBuffer|Uint8Array}
-
-The `transformSource` hook provides a way to modify the source code of a loaded
-ES module file after the source string has been loaded but before Node.js has
-done anything with it.
-
-If this hook is used to convert unknown-to-Node.js file types into executable
-JavaScript, a resolve hook is also necessary in order to register any
-unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
-
-```js
-/**
- * @param {!(string | SharedArrayBuffer | Uint8Array)} source
- * @param {{
- *   format: string,
- *   url: string,
- * }} context
- * @param {Function} defaultTransformSource
- * @returns {Promise<{ source: !(string | SharedArrayBuffer | Uint8Array) }>}
- */
-export async function transformSource(source, context, defaultTransformSource) {
-  const { url, format } = context;
-  if (Math.random() > 0.5) { // Some condition.
-    // For some or all URLs, do some custom logic for modifying the source.
-    // Always return an object of the form {source: <string|buffer>}.
-    return {
-      source: '...',
-    };
-  }
-  // Defer to Node.js for all other sources.
-  return defaultTransformSource(source, context, defaultTransformSource);
-}
-```
-
-#### `getGlobalPreloadCode()`
-
-> Note: The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
+> Note: In a previous version of this API, this hook was named
+> `getGlobalPreloadCode`.
 
 * Returns: {string}
 
-Sometimes it might be necessary to run some code inside of the same global scope
-that the application runs in. This hook allows the return of a string that is
-run as sloppy-mode script on startup.
+Sometimes it might be necessary to run some code inside of the same global
+scope that the application runs in. This hook allows the return of a string
+that is run as a sloppy-mode script on startup.
 
 Similar to how CommonJS wrappers work, the code runs in an implicit function
 scope. The only argument is a `require`-like function that can be used to load
@@ -814,7 +789,7 @@ its own `require` using  `module.createRequire()`.
 /**
  * @returns {string} Code to run before application startup
  */
-export function getGlobalPreloadCode() {
+export function globalPreload() {
   return `\
 globalThis.someInjectedProperty = 42;
 console.log('I just set some globals!');
@@ -866,19 +841,7 @@ export function resolve(specifier, context, defaultResolve) {
   return defaultResolve(specifier, context, defaultResolve);
 }
 
-export function getFormat(url, context, defaultGetFormat) {
-  // This loader assumes all network-provided JavaScript is ES module code.
-  if (url.startsWith('https://')) {
-    return {
-      format: 'module'
-    };
-  }
-
-  // Let Node.js handle all other URLs.
-  return defaultGetFormat(url, context, defaultGetFormat);
-}
-
-export function getSource(url, context, defaultGetSource) {
+export function load(url, context, defaultLoad) {
   // For JavaScript to be loaded over the network, we need to fetch and
   // return it.
   if (url.startsWith('https://')) {
@@ -886,13 +849,18 @@ export function getSource(url, context, defaultGetSource) {
       get(url, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
-        res.on('end', () => resolve({ source: data }));
+        res.on('end', () => resolve({
+          // This example assumes all network-provided JavaScript is ES module
+          // code.
+          format: 'module',
+          source: data,
+        }));
       }).on('error', (err) => reject(err));
     });
   }
 
   // Let Node.js handle all other URLs.
-  return defaultGetSource(url, context, defaultGetSource);
+  return defaultLoad(url, context, defaultLoad);
 }
 ```
 
@@ -911,9 +879,9 @@ prints the current version of CoffeeScript per the module at the URL in
 #### Transpiler loader
 
 Sources that are in formats Node.js doesn’t understand can be converted into
-JavaScript using the [`transformSource` hook][]. Before that hook gets called,
-however, other hooks need to tell Node.js not to throw an error on unknown file
-types; and to tell Node.js how to load this new file type.
+JavaScript using the [`load` hook][load hook]. Before that hook gets called,
+however, a [`resolve` hook][resolve hook] hook needs to tell Node.js not to
+throw an error on unknown file types.
 
 This is less performant than transpiling source files before running
 Node.js; a transpiler loader should only be used for development and testing
@@ -921,16 +889,21 @@ purposes.
 
 ```js
 // coffeescript-loader.mjs
-import { URL, pathToFileURL } from 'url';
-import CoffeeScript from 'coffeescript';
+import { readFile } from 'fs/promises';
+import { readFileSync } from 'fs';
+import { createRequire } from 'module';
+import { dirname, extname, resolve as resolvePath } from 'path';
 import { cwd } from 'process';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const baseURL = pathToFileURL(`${cwd()}/`).href;
+import CoffeeScript from 'coffeescript';
+
+const baseURL = pathToFileURL(`${cwd}/`).href;
 
 // CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
-export function resolve(specifier, context, defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = baseURL } = context;
 
   // Node.js normally errors on unknown file extensions, so return a URL for
@@ -945,31 +918,72 @@ export function resolve(specifier, context, defaultResolve) {
   return defaultResolve(specifier, context, defaultResolve);
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+export async function load(url, context, defaultLoad) {
   // Now that we patched resolve to let CoffeeScript URLs through, we need to
-  // tell Node.js what format such URLs should be interpreted as. For the
-  // purposes of this loader, all CoffeeScript URLs are ES modules.
+  // tell Node.js what format such URLs should be interpreted as. Because
+  // CoffeeScript transpiles into JavaScript, it should be one of the two
+  // JavaScript formats: 'commonjs' or 'module'.
   if (extensionsRegex.test(url)) {
+    // CoffeeScript files can be either CommonJS or ES modules, so we want any
+    // CoffeeScript file to be treated by Node.js the same as a .js file at the
+    // same location. To determine how Node.js would interpret an arbitrary .js
+    // file, search up the file system for the nearest parent package.json file
+    // and read its "type" field.
+    const format = await getPackageType(url);
+    // When a hook returns a format of 'commonjs', `source` is be ignored.
+    // To handle CommonJS files, a handler needs to be registered with
+    // `require.extensions` in order to process the files with the CommonJS
+    // loader. Avoiding the need for a separate CommonJS handler is a future
+    // enhancement planned for ES module loaders.
+    if (format === 'commonjs') {
+      return { format };
+    }
+
+    const { source: rawSource } = await defaultLoad(url, { format });
+    // This hook converts CoffeeScript source code into JavaScript source code
+    // for all imported CoffeeScript files.
+    const transformedSource = CoffeeScript.compile(rawSource.toString(), {
+      bare: true,
+      filename: url,
+    });
+
     return {
-      format: 'module'
+      format,
+      source: transformedSource,
     };
   }
 
   // Let Node.js handle all other URLs.
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return defaultLoad(url, context, defaultLoad);
 }
 
-export function transformSource(source, context, defaultTransformSource) {
-  const { url, format } = context;
-
-  if (extensionsRegex.test(url)) {
-    return {
-      source: CoffeeScript.compile(source, { bare: true })
-    };
-  }
-
-  // Let Node.js handle all other sources.
-  return defaultTransformSource(source, context, defaultTransformSource);
+async function getPackageType(url) {
+  // `url` is only a file path during the first iteration when passed the
+  // resolved url from the load() hook
+  // an actual file path from load() will contain a file extension as it's
+  // required by the spec
+  // this simple truthy check for whether `url` contains a file extension will
+  // work for most projects but does not cover some edge-cases (such as
+  // extension-less files or a url ending in a trailing space)
+  const isFilePath = !!extname(url);
+  // If it is a file path, get the directory it's in
+  const dir = isFilePath ?
+    dirname(fileURLToPath(url)) :
+    url;
+  // Compose a file path to a package.json in the same directory,
+  // which may or may not exist
+  const packagePath = resolvePath(dir, 'package.json');
+  // Try to read the possibly non-existant package.json
+  const type = await readFile(packagePath, { encoding: 'utf8' })
+    .then((filestring) => JSON.parse(filestring).type)
+    .catch((err) => {
+      if (err?.code !== 'ENOENT') console.error(err);
+    });
+  // Ff package.json existed and contained a `type` field with a value, voila
+  if (type) return type;
+  // Otherwise, (if not at the root) continue checking the next directory up
+  // If at the root, stop and return false
+  return dir.length > 1 && getPackageType(resolvePath(dir, '..'));
 }
 ```
 
@@ -1374,11 +1388,11 @@ success!
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
-[`transformSource` hook]: #transformsourcesource-context-defaulttransformsource
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #https-loader
+[load hook]: #loadurl-context-defaultload
+[resolve hook]: #resolvespecifier-context-defaultresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
-[transpiler loader example]: #transpiler-loader
 [url.pathToFileURL]: url.md#urlpathtofileurlpath
