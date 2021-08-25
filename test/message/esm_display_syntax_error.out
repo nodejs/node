@@ -3,7 +3,8 @@ await async () => 0;
 ^^^^^
 
 SyntaxError: Unexpected reserved word
-    at Loader.moduleStrategy (node:internal/modules/esm/translators:*:*)
+    at ESMLoader.moduleStrategy (node:internal/modules/esm/translators:*:*)
+    at ESMLoader.moduleProvider (node:internal/modules/esm/loader:*:*)
     at async link (node:internal/modules/esm/module_job:*:*)
 
 Node.js *
