@@ -121,7 +121,7 @@ class Config extends BaseCommand {
           break
         case 'list':
         case 'ls':
-          await (this.npm.config.get('json') ? this.listJson() : this.list())
+          await (this.npm.flatOptions.json ? this.listJson() : this.list())
           break
         case 'edit':
           await this.edit()
@@ -138,7 +138,7 @@ class Config extends BaseCommand {
     if (!args.length)
       throw this.usageError()
 
-    const where = this.npm.config.get('location')
+    const where = this.npm.flatOptions.location
     for (const [key, val] of Object.entries(keyValues(args))) {
       this.npm.log.info('config', 'set %j %j', key, val)
       this.npm.config.set(key, val || '', where)
@@ -168,15 +168,15 @@ class Config extends BaseCommand {
     if (!keys.length)
       throw this.usageError()
 
-    const where = this.npm.config.get('location')
+    const where = this.npm.flatOptions.location
     for (const key of keys)
       this.npm.config.delete(key, where)
     await this.npm.config.save(where)
   }
 
   async edit () {
-    const e = this.npm.config.get('editor')
-    const where = this.npm.config.get('location')
+    const e = this.npm.flatOptions.editor
+    const where = this.npm.flatOptions.location
     const file = this.npm.config.data.get(where).source
 
     // save first, just to make sure it's synced up
@@ -232,6 +232,7 @@ ${defData}
 
   async list () {
     const msg = []
+    // long does not have a flattener
     const long = this.npm.config.get('long')
     for (const [where, { data, source }] of this.npm.config.data.entries()) {
       if (where === 'default' && !long)

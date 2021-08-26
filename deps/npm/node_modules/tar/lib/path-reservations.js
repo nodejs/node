@@ -7,7 +7,7 @@
 // while still allowing maximal safe parallelization.
 
 const assert = require('assert')
-const normPath = require('./normalize-windows-path.js')
+const normalize = require('./normalize-unicode.js')
 const stripSlashes = require('./strip-trailing-slashes.js')
 const { join } = require('path')
 
@@ -28,7 +28,7 @@ module.exports = () => {
   const getDirs = path => {
     const dirs = path.split('/').slice(0, -1).reduce((set, path) => {
       if (set.length)
-        path = normPath(join(set[set.length - 1], path))
+        path = join(set[set.length - 1], path)
       set.push(path || '/')
       return set
     }, [])
@@ -116,9 +116,8 @@ module.exports = () => {
     // So, we just pretend that every path matches every other path here,
     // effectively removing all parallelization on windows.
     paths = isWindows ? ['win32 parallelization disabled'] : paths.map(p => {
-      return stripSlashes(normPath(join(p)))
-        .normalize('NFKD')
-        .toLowerCase()
+      // don't need normPath, because we skip this entirely for windows
+      return normalize(stripSlashes(join(p))).toLowerCase()
     })
 
     const dirs = new Set(

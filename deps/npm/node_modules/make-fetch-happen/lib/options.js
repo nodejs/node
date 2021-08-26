@@ -7,10 +7,9 @@ const conditionalHeaders = [
 ]
 
 const configureOptions = (opts) => {
-  const options = { ...opts }
+  const {strictSSL, ...options} = { ...opts }
   options.method = options.method ? options.method.toUpperCase() : 'GET'
-  if (Object.prototype.hasOwnProperty.call(options, 'strictSSL'))
-    options.rejectUnauthorized = options.strictSSL
+  options.rejectUnauthorized = strictSSL !== false
 
   if (!options.retry)
     options.retry = { retries: 0 }

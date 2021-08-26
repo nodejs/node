@@ -203,6 +203,19 @@ will default the `start` command to `node server.js`.  `prestart` and
 * `test`
 * `posttest`
 
+#### A Note on a lack of [`npm uninstall`](/commands/npm-uninstall) scripts
+
+While npm v6 had `uninstall` lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful.
+
+Reasons for a package removal include:
+
+* a user directly uninstalled this package
+* a user uninstalled a dependant package and so this dependency is being uninstalled
+* a user uninstalled a dependant package but another package also depends on this version
+* this version has been merged as a duplicate with another version
+* etc.
+
+Due to the lack of necessary context, `uninstall` lifecycle scripts are not implemented and will not function.
 
 ### User
 
