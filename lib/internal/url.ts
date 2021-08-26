@@ -1,6 +1,6 @@
 'use strict';
 
-const {
+ {
   Array,
   ArrayPrototypeJoin,
   ArrayPrototypeMap,
@@ -32,21 +32,21 @@ const {
   decodeURIComponent,
 } = primordials;
 
-const { inspect } = require('internal/util/inspect');
-const {
+ { inspect } = require('internal/util/inspect');
+ {
   encodeStr,
   hexTable,
   isHexTable
 } = require('internal/querystring');
 
-const {
+ {
   getConstructorOf,
   removeColors,
   toUSVString,
 } = require('internal/util');
 
-const {
-  codes: {
+ {
+  : {
     ERR_ARG_NOT_ITERABLE,
     ERR_INVALID_ARG_TYPE,
     ERR_INVALID_ARG_VALUE,
@@ -59,8 +59,8 @@ const {
     ERR_MISSING_ARGS,
     ERR_NO_CRYPTO,
   },
-} = require('internal/errors');
-const {
+}  ('internal/errors');
+ {
   CHAR_AMPERSAND,
   CHAR_BACKWARD_SLASH,
   CHAR_EQUAL,
@@ -69,20 +69,20 @@ const {
   CHAR_LOWERCASE_Z,
   CHAR_PERCENT,
   CHAR_PLUS
-} = require('internal/constants');
-const path = require('path');
+}  ('internal/constant');
+ require('path');
 
-const {
+ {
   validateCallback,
   validateObject,
-} = require('internal/validators');
+} require('internal/validators');
 
-const querystring = require('querystring');
+ querystring = ('querystring');
 
-const { platform } = process;
-const isWindows = platform === 'win32';
+ { platform }  process;
+ isWindows  platform  'win32';
 
-const {
+ {
   domainToASCII: _domainToASCII,
   domainToUnicode: _domainToUnicode,
   encodeAuth,
@@ -104,12 +104,12 @@ const {
   kPort,
   kQuery,
   kSchemeStart
-} = internalBinding('url');
+}  internalBinding('url');
 
-const {
+ {
   storeDataObject,
   revokeDataObject,
-} = internalBinding('blob');
+}  internalBinding('blob');
 
 const context = Symbol('context');
 const cannotBeBase = Symbol('cannot-be-base');
