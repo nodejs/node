@@ -290,6 +290,26 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBposttest\fP
 
 .RE
+.SS A Note on a lack of npm help \fBuninstall\fP scripts
+.P
+While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
+.P
+Reasons for a package removal include:
+.RS 0
+.IP \(bu 2
+a user directly uninstalled this package
+.IP \(bu 2
+a user uninstalled a dependant package and so this dependency is being uninstalled
+.IP \(bu 2
+a user uninstalled a dependant package but another package also depends on this version
+.IP \(bu 2
+this version has been merged as a duplicate with another version
+.IP \(bu 2
+etc\.
+
+.RE
+.P
+Due to the lack of necessary context, \fBuninstall\fP lifecycle scripts are not implemented and will not function\.
 .SS User
 .P
 When npm is run as root, scripts are always run with the effective uid

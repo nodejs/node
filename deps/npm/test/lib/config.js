@@ -1,659 +1,379 @@
+const { join } = require('path')
+const { promisify } = require('util')
+const fs = require('fs')
+const spawk = require('spawk')
 const t = require('tap')
 
-const { EventEmitter } = require('events')
+spawk.preventUnmatched()
 
-const redactCwd = (path) => {
-  const normalizePath = p => p
-    .replace(/\\+/g, '/')
-    .replace(/\r\n/g, '\n')
-  const replaceCwd = p => p
-    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
-  const cleanupWinPaths = p => p
-    .replace(normalizePath(process.execPath), '/path/to/node')
-    .replace(normalizePath(process.env.HOME), '~/')
+const readFile = promisify(fs.readFile)
 
-  return cleanupWinPaths(
-    replaceCwd(
-      normalizePath(path)
-    )
-  )
-}
+const Sandbox = require('../fixtures/sandbox.js')
 
-t.cleanSnapshot = (str) => redactCwd(str)
+t.test('config no args', async (t) => {
+  const sandbox = new Sandbox(t)
 
-let result = ''
+  await t.rejects(sandbox.run('config', []), {
+    code: 'EUSAGE',
+  }, 'rejects with usage')
+})
 
-const configDefs = require('../../lib/utils/config')
-const definitions = Object.entries(configDefs.definitions)
-  .filter(([key, def]) => {
-    return [
-      'init-author-name',
-      'init.author.name',
-      'init-version',
-      'init.version',
-    ].includes(key)
-  }).reduce((defs, [key, def]) => {
-    defs[key] = def
-    return defs
-  }, {})
+t.test('config ignores workspaces', async (t) => {
+  const sandbox = new Sandbox(t)
 
-const defaults = {
-  'init-author-name': '',
-  'init-version': '1.0.0',
-  'init.author.name': '',
-  'init.version': '1.0.0',
-}
+  await t.rejects(sandbox.run('config', ['--workspaces']), {
+    code: 'EUSAGE',
+  }, 'rejects with usage')
 
-const cliConfig = {
-  editor: 'vi',
-  json: false,
-  location: 'user',
-  long: false,
-  cat: true,
-  chai: true,
-  dog: true,
-}
+  t.match(sandbox.logs.warn, [['config', 'This command does not support workspaces.']], 'logged the warning')
+})
 
-const npm = {
-  log: {
-    warn: () => null,
-    info: () => null,
-    enableProgress: () => null,
-    disableProgress: () => null,
-  },
-  config: {
-    data: new Map(Object.entries({
-      default: { data: defaults, source: 'default values' },
-      global: { data: {}, source: '/etc/npmrc' },
-      cli: { data: cliConfig, source: 'command line options' },
-    })),
-    get (key) {
-      return cliConfig[key]
+t.test('config list', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  const temp = t.testdir({
+    global: {
+      npmrc: 'globalloaded=yes',
     },
-    validate () {
-      return true
+    project: {
+      '.npmrc': 'projectloaded=yes',
     },
-  },
-  output: msg => {
-    result = msg
-  },
-}
-
-const usageUtil = () => 'usage instructions'
-
-const mocks = {
-  '../../lib/utils/config/index.js': { defaults, definitions },
-  '../../lib/utils/usage.js': usageUtil,
-}
-
-const Config = t.mock('../../lib/config.js', mocks)
-const config = new Config(npm)
-
-t.test('config no args', t => {
-  config.exec([], (err) => {
-    t.match(err, /usage instructions/, 'should not error out on empty locations')
-    t.end()
-  })
-})
-
-t.test('config ignores workspaces', t => {
-  npm.log.warn = (title, msg) => {
-    t.equal(title, 'config', 'should warn with expected title')
-    t.equal(
-      msg,
-      'This command does not support workspaces.',
-      'should warn with unsupported option msg'
-    )
-  }
-  config.execWorkspaces([], [], (err) => {
-    t.match(err, /usage instructions/, 'should not error out when workspaces are defined')
-    npm.log.warn = () => null
-    t.end()
-  })
-})
-
-t.test('config list', t => {
-  t.plan(2)
-
-  npm.config.find = () => 'cli'
-  result = ''
-  t.teardown(() => {
-    result = ''
-    delete npm.config.find
-  })
-
-  config.exec(['list'], (err) => {
-    t.error(err, 'npm config list')
-    t.matchSnapshot(result, 'should list configs')
-  })
-})
-
-t.test('config list overrides', t => {
-  t.plan(2)
-
-  npm.config.data.set('user', {
-    data: {
-      'init.author.name': 'Foo',
-      '//private-reg.npmjs.org/:_authThoken': 'f00ba1',
+    home: {
+      '.npmrc': 'userloaded=yes',
     },
-    source: '~/.npmrc',
   })
-  cliConfig['init.author.name'] = 'Bar'
-  npm.config.find = () => 'cli'
-  result = ''
-  t.teardown(() => {
-    result = ''
-    npm.config.data.delete('user')
-    delete cliConfig['init.author.name']
-    delete npm.config.find
-  })
+  const global = join(temp, 'global')
+  const project = join(temp, 'project')
+  const home = join(temp, 'home')
 
-  config.exec(['list'], (err) => {
-    t.error(err, 'npm config list')
-    t.matchSnapshot(result, 'should list overridden configs')
-  })
+  await sandbox.run('config', ['list'], { global, project, home })
+
+  t.matchSnapshot(sandbox.output, 'output matches snapshot')
 })
 
-t.test('config list --long', t => {
-  t.plan(2)
-
-  npm.config.find = key => key in cliConfig ? 'cli' : 'default'
-  cliConfig.long = true
-  result = ''
-  t.teardown(() => {
-    delete npm.config.find
-    cliConfig.long = false
-    result = ''
-  })
-
-  config.exec(['list'], (err) => {
-    t.error(err, 'npm config list --long')
-    t.matchSnapshot(result, 'should list all configs')
-  })
-})
-
-t.test('config list --json', t => {
-  t.plan(2)
-
-  cliConfig.json = true
-  result = ''
-  npm.config.list = [{
-    '//private-reg.npmjs.org/:_authThoken': 'f00ba1',
-    ...npm.config.data.get('cli').data,
-  }]
-  const npmConfigGet = npm.config.get
-  npm.config.get = key => npm.config.list[0][key]
-
-  t.teardown(() => {
-    delete npm.config.list
-    cliConfig.json = false
-    npm.config.get = npmConfigGet
-    result = ''
-  })
-
-  config.exec(['list'], (err) => {
-    t.error(err, 'npm config list --json')
-    t.same(
-      JSON.parse(result),
-      {
-        editor: 'vi',
-        json: true,
-        location: 'user',
-        long: false,
-        cat: true,
-        chai: true,
-        dog: true,
-      },
-      'should list configs usin json'
-    )
-  })
-})
-
-t.test('config delete no args', t => {
-  config.exec(['delete'], (err) => {
-    t.match(err, { message: '\nUsage: usage instructions' })
-    t.end()
-  })
-})
-
-t.test('config delete key', t => {
-  t.plan(4)
-
-  npm.config.delete = (key, where) => {
-    t.equal(key, 'foo', 'should delete expected keyword')
-    t.equal(where, 'user', 'should delete key from user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config post-delete')
-  }
-
-  config.exec(['delete', 'foo'], (err) => {
-    t.error(err, 'npm config delete key')
-  })
-
-  t.teardown(() => {
-    delete npm.config.delete
-    delete npm.config.save
-  })
-})
-
-t.test('config delete multiple key', t => {
-  t.plan(6)
-
-  const expect = [
-    'foo',
-    'bar',
-  ]
-
-  npm.config.delete = (key, where) => {
-    t.equal(key, expect.shift(), 'should delete expected keyword')
-    t.equal(where, 'user', 'should delete key from user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config post-delete')
-  }
-
-  config.exec(['delete', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config delete keys')
-  })
-
-  t.teardown(() => {
-    delete npm.config.delete
-    delete npm.config.save
-  })
-})
-
-t.test('config delete key --location=global', t => {
-  t.plan(4)
-
-  npm.config.delete = (key, where) => {
-    t.equal(key, 'foo', 'should delete expected keyword from global configs')
-    t.equal(where, 'global', 'should delete key from global config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'global', 'should save global config post-delete')
-  }
-
-  cliConfig.location = 'global'
-  config.exec(['delete', 'foo'], (err) => {
-    t.error(err, 'npm config delete key --location=global')
-  })
-
-  t.teardown(() => {
-    cliConfig.location = 'user'
-    delete npm.config.delete
-    delete npm.config.save
-  })
-})
-
-t.test('config set no args', t => {
-  config.exec(['set'], (err) => {
-    t.match(err, { message: '\nUsage: usage instructions' })
-    t.end()
-  })
-})
-
-t.test('config set key', t => {
-  t.plan(5)
-
-  npm.config.set = (key, val, where) => {
-    t.equal(key, 'foo', 'should set expected key to user config')
-    t.equal(val, 'bar', 'should set expected value to user config')
-    t.equal(where, 'user', 'should set key/val in user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config')
-  }
-
-  config.exec(['set', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config set key')
-  })
-
-  t.teardown(() => {
-    delete npm.config.set
-    delete npm.config.save
-  })
-})
-
-t.test('config set key=val', t => {
-  t.plan(5)
-
-  npm.config.set = (key, val, where) => {
-    t.equal(key, 'foo', 'should set expected key to user config')
-    t.equal(val, 'bar', 'should set expected value to user config')
-    t.equal(where, 'user', 'should set key/val in user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config')
-  }
-
-  config.exec(['set', 'foo=bar'], (err) => {
-    t.error(err, 'npm config set key')
-  })
-
-  t.teardown(() => {
-    delete npm.config.set
-    delete npm.config.save
-  })
-})
-
-t.test('config set multiple keys', t => {
-  t.plan(11)
-
-  const expect = [
-    ['foo', 'bar'],
-    ['bar', 'baz'],
-    ['asdf', ''],
-  ]
-  const args = ['foo', 'bar', 'bar=baz', 'asdf']
-
-  npm.config.set = (key, val, where) => {
-    const [expectKey, expectVal] = expect.shift()
-    t.equal(key, expectKey, 'should set expected key to user config')
-    t.equal(val, expectVal, 'should set expected value to user config')
-    t.equal(where, 'user', 'should set key/val in user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config')
-  }
-
-  config.exec(['set', ...args], (err) => {
-    t.error(err, 'npm config set key')
-  })
-
-  t.teardown(() => {
-    delete npm.config.set
-    delete npm.config.save
-  })
-})
-
-t.test('config set key to empty value', t => {
-  t.plan(5)
-
-  npm.config.set = (key, val, where) => {
-    t.equal(key, 'foo', 'should set expected key to user config')
-    t.equal(val, '', 'should set "" to user config')
-    t.equal(where, 'user', 'should set key/val in user config by default')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'user', 'should save user config')
-  }
-
-  config.exec(['set', 'foo'], (err) => {
-    t.error(err, 'npm config set key to empty value')
-  })
-
-  t.teardown(() => {
-    delete npm.config.set
-    delete npm.config.save
-  })
-})
-
-t.test('config set invalid key', t => {
-  t.plan(3)
-
-  const npmConfigValidate = npm.config.validate
-  npm.config.save = () => null
-  npm.config.set = () => null
-  npm.config.validate = () => false
-  npm.log.warn = (title, msg) => {
-    t.equal(title, 'config', 'should warn with expected title')
-    t.equal(msg, 'omitting invalid config values', 'should use expected msg')
-  }
-  t.teardown(() => {
-    npm.config.validate = npmConfigValidate
-    delete npm.config.save
-    delete npm.config.set
-    npm.log.warn = () => null
-  })
-
-  config.exec(['set', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config set invalid key')
-  })
-})
-
-t.test('config set key --location=global', t => {
-  t.plan(5)
-
-  npm.config.set = (key, val, where) => {
-    t.equal(key, 'foo', 'should set expected key to global config')
-    t.equal(val, 'bar', 'should set expected value to global config')
-    t.equal(where, 'global', 'should set key/val in global config')
-  }
-
-  npm.config.save = where => {
-    t.equal(where, 'global', 'should save global config')
-  }
-
-  cliConfig.location = 'global'
-  config.exec(['set', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config set key --location=global')
-  })
-
-  t.teardown(() => {
-    cliConfig.location = 'user'
-    delete npm.config.set
-    delete npm.config.save
-  })
-})
-
-t.test('config get no args', t => {
-  t.plan(2)
-
-  npm.config.find = () => 'cli'
-  result = ''
-  t.teardown(() => {
-    result = ''
-    delete npm.config.find
-  })
-
-  config.exec(['get'], (err) => {
-    t.error(err, 'npm config get no args')
-    t.matchSnapshot(result, 'should list configs on config get no args')
-  })
-})
-
-t.test('config get key', t => {
-  t.plan(2)
-
-  const npmConfigGet = npm.config.get
-  npm.config.get = (key) => {
-    t.equal(key, 'foo', 'should use expected key')
-    return 'bar'
-  }
-
-  npm.config.save = where => {
-    throw new Error('should not save')
-  }
-
-  config.exec(['get', 'foo'], (err) => {
-    t.error(err, 'npm config get key')
-  })
-
-  t.teardown(() => {
-    npm.config.get = npmConfigGet
-    delete npm.config.save
-  })
-})
-
-t.test('config get multiple keys', t => {
-  t.plan(4)
-
-  const expect = [
-    'foo',
-    'bar',
-  ]
-
-  const npmConfigGet = npm.config.get
-  npm.config.get = (key) => {
-    t.equal(key, expect.shift(), 'should use expected key')
-    return 'asdf'
-  }
-
-  npm.config.save = where => {
-    throw new Error('should not save')
-  }
-
-  config.exec(['get', 'foo', 'bar'], (err) => {
-    t.error(err, 'npm config get multiple keys')
-    t.equal(result, 'foo=asdf\nbar=asdf')
-  })
-
-  t.teardown(() => {
-    result = ''
-    npm.config.get = npmConfigGet
-    delete npm.config.save
-  })
-})
-
-t.test('config get private key', t => {
-  config.exec(['get', '//private-reg.npmjs.org/:_authThoken'], (err) => {
-    t.match(
-      err,
-      /The \/\/private-reg.npmjs.org\/:_authThoken option is protected, and cannot be retrieved in this way/,
-      'should throw unable to retrieve error'
-    )
-    t.end()
-  })
-})
-
-t.test('config edit', t => {
-  t.plan(12)
-  const npmrc = `//registry.npmjs.org/:_authToken=0000000
-init.author.name=Foo
-sign-git-commit=true`
-  npm.config.data.set('user', {
-    source: '~/.npmrc',
-  })
-  npm.config.save = async where => {
-    t.equal(where, 'user', 'should save to user config by default')
-  }
-  const editMocks = {
-    ...mocks,
-    'mkdirp-infer-owner': async () => null,
-    fs: {
-      readFile (path, encoding, cb) {
-        cb(null, npmrc)
-      },
-      writeFile (file, data, encoding, cb) {
-        t.equal(file, '~/.npmrc', 'should save to expected file location')
-        t.matchSnapshot(data, 'should write config file')
-        cb()
-      },
+t.test('config list --long', async (t) => {
+  const temp = t.testdir({
+    global: {
+      npmrc: 'globalloaded=yes',
     },
-    child_process: {
-      spawn: (bin, args) => {
-        t.equal(bin, 'vi', 'should use default editor')
-        t.strictSame(args, ['~/.npmrc'], 'should match user source data')
-        const ee = new EventEmitter()
-        process.nextTick(() => {
-          ee.emit('exit', 0)
-        })
-        return ee
-      },
+    project: {
+      '.npmrc': 'projectloaded=yes',
     },
-  }
-  const Config = t.mock('../../lib/config.js', editMocks)
-  const config = new Config(npm)
+    home: {
+      '.npmrc': 'userloaded=yes',
+    },
+  })
+  const global = join(temp, 'global')
+  const project = join(temp, 'project')
+  const home = join(temp, 'home')
 
-  config.exec(['edit'], (err) => {
-    t.error(err, 'npm config edit')
+  const sandbox = new Sandbox(t, { global, project, home })
+  await sandbox.run('config', ['list', '--long'])
 
-    // test no config file result
-    editMocks.fs.readFile = (p, e, cb) => {
-      cb(new Error('ERR'))
-    }
-    const Config = t.mock('../../lib/config.js', editMocks)
-    const config = new Config(npm)
-    config.exec(['edit'], (err) => {
-      t.error(err, 'npm config edit')
-    })
+  t.matchSnapshot(sandbox.output, 'output matches snapshot')
+})
+
+t.test('config list --json', async (t) => {
+  const temp = t.testdir({
+    global: {
+      npmrc: 'globalloaded=yes',
+    },
+    project: {
+      '.npmrc': 'projectloaded=yes',
+    },
+    home: {
+      '.npmrc': 'userloaded=yes',
+    },
+  })
+  const global = join(temp, 'global')
+  const project = join(temp, 'project')
+  const home = join(temp, 'home')
+
+  const sandbox = new Sandbox(t, { global, project, home })
+  await sandbox.run('config', ['list', '--json'])
+
+  t.matchSnapshot(sandbox.output, 'output matches snapshot')
+})
+
+t.test('config delete no args', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await t.rejects(sandbox.run('config', ['delete']), {
+    code: 'EUSAGE',
+  }, 'rejects with usage')
+})
+
+t.test('config delete single key', async (t) => {
+  // location defaults to user, so we work with a userconfig
+  const home = t.testdir({
+    '.npmrc': 'foo=bar\nbar=baz',
+  })
+
+  const sandbox = new Sandbox(t)
+  await sandbox.run('config', ['delete', 'foo'], { home })
+
+  t.equal(sandbox.config.get('foo'), undefined, 'foo should no longer be set')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo='), 'foo was removed on disk')
+})
+
+t.test('config delete multiple keys', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar\nbar=baz\nbaz=buz',
+  })
+
+  const sandbox = new Sandbox(t)
+  await sandbox.run('config', ['delete', 'foo', 'bar'], { home })
+
+  t.equal(sandbox.config.get('foo'), undefined, 'foo should no longer be set')
+  t.equal(sandbox.config.get('bar'), undefined, 'bar should no longer be set')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo='), 'foo was removed on disk')
+  t.not(contents.includes('bar='), 'bar was removed on disk')
+})
+
+t.test('config delete key --location=global', async (t) => {
+  const global = t.testdir({
+    npmrc: 'foo=bar\nbar=baz',
+  })
+
+  const sandbox = new Sandbox(t)
+  await sandbox.run('config', ['delete', 'foo', '--location=global'], { global })
+
+  t.equal(sandbox.config.get('foo', 'global'), undefined, 'foo should no longer be set')
+
+  const contents = await readFile(join(global, 'npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo='), 'foo was removed on disk')
+})
+
+t.test('config delete key --global', async (t) => {
+  const global = t.testdir({
+    npmrc: 'foo=bar\nbar=baz',
+  })
+
+  const sandbox = new Sandbox(t)
+  await sandbox.run('config', ['delete', 'foo', '--global'], { global })
+
+  t.equal(sandbox.config.get('foo', 'global'), undefined, 'foo should no longer be set')
+
+  const contents = await readFile(join(global, 'npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo='), 'foo was removed on disk')
+})
+
+t.test('config set no args', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await t.rejects(sandbox.run('config', ['set']), {
+    code: 'EUSAGE',
+  }, 'rejects with usage')
+})
+
+t.test('config set key', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar',
+  })
+
+  const sandbox = new Sandbox(t, { home })
+
+  await sandbox.run('config', ['set', 'foo'])
+
+  t.equal(sandbox.config.get('foo'), '', 'set the value for foo')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.ok(contents.includes('foo='), 'wrote foo to disk')
+})
+
+t.test('config set key value', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar',
+  })
+
+  const sandbox = new Sandbox(t, { home })
+
+  await sandbox.run('config', ['set', 'foo', 'baz'])
+
+  t.equal(sandbox.config.get('foo'), 'baz', 'set the value for foo')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.ok(contents.includes('foo=baz'), 'wrote foo to disk')
+})
+
+t.test('config set key=value', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar',
+  })
+
+  const sandbox = new Sandbox(t, { home })
+
+  await sandbox.run('config', ['set', 'foo=baz'])
+
+  t.equal(sandbox.config.get('foo'), 'baz', 'set the value for foo')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.ok(contents.includes('foo=baz'), 'wrote foo to disk')
+})
+
+t.test('config set key1 value1 key2=value2 key3', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar\nbar=baz\nbaz=foo',
+  })
+
+  const sandbox = new Sandbox(t, { home })
+  await sandbox.run('config', ['set', 'foo', 'oof', 'bar=rab', 'baz'])
+
+  t.equal(sandbox.config.get('foo'), 'oof', 'foo was set')
+  t.equal(sandbox.config.get('bar'), 'rab', 'bar was set')
+  t.equal(sandbox.config.get('baz'), '', 'baz was set')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.ok(contents.includes('foo=oof'), 'foo was written to disk')
+  t.ok(contents.includes('bar=rab'), 'bar was written to disk')
+  t.ok(contents.includes('baz='), 'baz was written to disk')
+})
+
+t.test('config set invalid key logs warning', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  // this doesn't reject, it only logs a warning
+  await sandbox.run('config', ['set', 'access=foo'])
+  t.match(sandbox.logs.warn, [
+    ['invalid config', 'access="foo"', `set in ${join(sandbox.home, '.npmrc')}`],
+  ], 'logged warning')
+})
+
+t.test('config set key=value --location=global', async (t) => {
+  const global = t.testdir({
+    npmrc: 'foo=bar\nbar=baz',
+  })
+
+  const sandbox = new Sandbox(t, { global })
+  await sandbox.run('config', ['set', 'foo=buzz', '--location=global'])
+
+  t.equal(sandbox.config.get('foo', 'global'), 'buzz', 'foo should be set')
+
+  const contents = await readFile(join(global, 'npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo=buzz'), 'foo was saved on disk')
+})
+
+t.test('config set key=value --global', async (t) => {
+  const global = t.testdir({
+    npmrc: 'foo=bar\nbar=baz',
+  })
+
+  const sandbox = new Sandbox(t, { global })
+  await sandbox.run('config', ['set', 'foo=buzz', '--global'])
+
+  t.equal(sandbox.config.get('foo', 'global'), 'buzz', 'foo should be set')
+
+  const contents = await readFile(join(global, 'npmrc'), { encoding: 'utf8' })
+  t.not(contents.includes('foo=buzz'), 'foo was saved on disk')
+})
+
+t.test('config get no args', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await sandbox.run('config', ['get'])
+  const getOutput = sandbox.output
+
+  sandbox.reset()
+
+  await sandbox.run('config', ['list'])
+  const listOutput = sandbox.output
+
+  t.equal(listOutput, getOutput, 'get with no args outputs list')
+})
+
+t.test('config get single key', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await sandbox.run('config', ['get', 'node-version'])
+  t.equal(sandbox.output, sandbox.config.get('node-version'), 'should get the value')
+})
+
+t.test('config get multiple keys', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await sandbox.run('config', ['get', 'node-version', 'npm-version'])
+  t.ok(sandbox.output.includes(`node-version=${sandbox.config.get('node-version')}`), 'outputs node-version')
+  t.ok(sandbox.output.includes(`npm-version=${sandbox.config.get('npm-version')}`), 'outputs npm-version')
+})
+
+t.test('config get private key', async (t) => {
+  const sandbox = new Sandbox(t)
+
+  await t.rejects(sandbox.run('config', ['get', '_authToken']), '_authToken is protected', 'rejects with protected string')
+})
+
+t.test('config edit', async (t) => {
+  const home = t.testdir({
+    '.npmrc': 'foo=bar\nbar=baz',
   })
 
   t.teardown(() => {
-    npm.config.data.delete('user')
-    delete npm.config.save
+    spawk.clean()
   })
+
+  const EDITOR = 'vim'
+  const editor = spawk.spawn(EDITOR).exit(0)
+
+  const sandbox = new Sandbox(t, { home })
+  sandbox.process.env.EDITOR = EDITOR
+  await sandbox.run('config', ['edit'])
+
+  t.ok(editor.called, 'editor was spawned')
+  t.same(editor.calledWith.args, [join(sandbox.home, '.npmrc')], 'editor opened the user config file')
+
+  const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
+  t.ok(contents.includes('foo=bar'), 'kept foo')
+  t.ok(contents.includes('bar=baz'), 'kept bar')
+  t.ok(contents.includes('shown below with default values'), 'appends defaults to file')
 })
 
-t.test('config edit --location=global', t => {
-  t.plan(6)
-
-  cliConfig.location = 'global'
-  const npmrc = 'init.author.name=Foo'
-  npm.config.data.set('global', {
-    source: '/etc/npmrc',
-  })
-  npm.config.save = async where => {
-    t.equal(where, 'global', 'should save to global config')
-  }
-  const editMocks = {
-    ...mocks,
-    'mkdirp-infer-owner': async () => null,
-    fs: {
-      readFile (path, encoding, cb) {
-        cb(null, npmrc)
-      },
-      writeFile (file, data, encoding, cb) {
-        t.equal(file, '/etc/npmrc', 'should save to global file location')
-        t.matchSnapshot(data, 'should write global config file')
-        cb()
-      },
-    },
-    child_process: {
-      spawn: (bin, args, cb) => {
-        t.equal(bin, 'vi', 'should use default editor')
-        t.strictSame(args, ['/etc/npmrc'], 'should match global source data')
-        const ee = new EventEmitter()
-        process.nextTick(() => {
-          ee.emit('exit', 137)
-        })
-        return ee
-      },
-    },
-  }
-  const Config = t.mock('../../lib/config.js', editMocks)
-  const config = new Config(npm)
-  config.exec(['edit'], (err) => {
-    t.match(err, /exited with code: 137/, 'propagated exit code from editor')
-  })
-
+t.test('config edit - editor exits non-0', async (t) => {
   t.teardown(() => {
-    cliConfig.location = 'user'
-    npm.config.data.delete('user')
-    delete npm.config.save
+    spawk.clean()
   })
+
+  const EDITOR = 'vim'
+  const editor = spawk.spawn(EDITOR).exit(1)
+
+  const sandbox = new Sandbox(t)
+  sandbox.process.env.EDITOR = EDITOR
+  await t.rejects(sandbox.run('config', ['edit']), {
+    message: 'editor process exited with code: 1',
+  }, 'rejects with error about editor code')
+
+  t.ok(editor.called, 'editor was spawned')
+  t.same(editor.calledWith.args, [join(sandbox.home, '.npmrc')], 'editor opened the user config file')
 })
 
-t.test('completion', t => {
-  const { completion } = config
+t.test('completion', async (t) => {
+  const sandbox = new Sandbox(t)
 
-  const testComp = (argv, expect) => {
-    t.resolveMatch(completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
+  let allKeys
+  const testComp = async (argv, expect) => {
+    t.match(await sandbox.complete('config', argv), expect, argv.join(' '))
+    if (!allKeys)
+      allKeys = Object.keys(sandbox.config.definitions)
+    sandbox.reset()
   }
 
-  testComp(['npm', 'foo'], [])
-  testComp(['npm', 'config'], ['get', 'set', 'delete', 'ls', 'rm', 'edit', 'list'])
-  testComp(['npm', 'config', 'set', 'foo'], [])
+  await testComp([], ['get', 'set', 'delete', 'ls', 'rm', 'edit', 'list'])
+  await testComp(['set', 'foo'], [])
+  await testComp(['get'], allKeys)
+  await testComp(['set'], allKeys)
+  await testComp(['delete'], allKeys)
+  await testComp(['rm'], allKeys)
+  await testComp(['edit'], [])
+  await testComp(['list'], [])
+  await testComp(['ls'], [])
 
-  const possibleConfigKeys = [...Object.keys(definitions)]
-  testComp(['npm', 'config', 'get'], possibleConfigKeys)
-  testComp(['npm', 'config', 'set'], possibleConfigKeys)
-  testComp(['npm', 'config', 'delete'], possibleConfigKeys)
-  testComp(['npm', 'config', 'rm'], possibleConfigKeys)
-  testComp(['npm', 'config', 'edit'], [])
-  testComp(['npm', 'config', 'list'], [])
-  testComp(['npm', 'config', 'ls'], [])
+  const getCommand = await sandbox.complete('get')
+  t.match(getCommand, allKeys, 'also works for just npm get')
+  sandbox.reset()
 
-  const partial = completion({conf: { argv: { remain: ['npm', 'config'] } }, partialWord: 'l'})
-  t.resolveMatch(partial, ['get', 'set', 'delete', 'ls', 'rm', 'edit'], 'npm config')
-
-  t.end()
+  const partial = await sandbox.complete('config', 'l')
+  t.match(partial, ['get', 'set', 'delete', 'ls', 'rm', 'edit'], 'and works on partials')
 })

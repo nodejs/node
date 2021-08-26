@@ -1,24 +1,13 @@
-// this is the only approach that was significantly faster than using
-// str.replace(/\/+$/, '') for strings ending with a lot of / chars and
-// containing multiple / chars.
-const batchStrings = [
-  '/'.repeat(1024),
-  '/'.repeat(512),
-  '/'.repeat(256),
-  '/'.repeat(128),
-  '/'.repeat(64),
-  '/'.repeat(32),
-  '/'.repeat(16),
-  '/'.repeat(8),
-  '/'.repeat(4),
-  '/'.repeat(2),
-  '/',
-]
-
+// warning: extremely hot code path.
+// This has been meticulously optimized for use
+// within npm install on large package trees.
+// Do not edit without careful benchmarking.
 module.exports = str => {
-  for (const s of batchStrings) {
-    while (str.length >= s.length && str.slice(-1 * s.length) === s)
-      str = str.slice(0, -1 * s.length)
+  let i = str.length - 1
+  let slashesStart = -1
+  while (i > -1 && str.charAt(i) === '/') {
+    slashesStart = i
+    i--
   }
-  return str
+  return slashesStart === -1 ? str : str.slice(0, slashesStart)
 }
