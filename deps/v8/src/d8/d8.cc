@@ -1877,6 +1877,11 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
+  global_template->Set(Symbol::GetToStringTag(isolate),
+                       String::NewFromUtf8Literal(isolate, "global"));
+  global_template->Set(isolate, "version",
+                       FunctionTemplate::New(isolate, Version));
+
   global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
   global_template->Set(isolate, "printErr",
                        FunctionTemplate::New(isolate, PrintErr));
@@ -1895,8 +1900,77 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   if (!options.omit_quit) {
     global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
+  global_template->Set(isolate, "testRunner",
+                       Shell::CreateTestRunnerTemplate(isolate));
+  global_template->Set(isolate, "Realm", Shell::CreateRealmTemplate(isolate));
+  global_template->Set(isolate, "performance",
+                       Shell::CreatePerformanceTemplate(isolate));
+  global_template->Set(isolate, "Worker", Shell::CreateWorkerTemplate(isolate));
+  global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
+  global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
+
+  if (i::FLAG_expose_async_hooks) {
+    global_template->Set(isolate, "async_hooks",
+                         Shell::CreateAsyncHookTemplate(isolate));
+  }
+
+  return global_template;
+}
+
+Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
+  AddOSMethods(isolate, os_template);
+  return os_template;
+}
+
+Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
+  Local<FunctionTemplate> worker_fun_template =
+      FunctionTemplate::New(isolate, WorkerNew);
+  Local<Signature> worker_signature =
+      Signature::New(isolate, worker_fun_template);
+  worker_fun_template->SetClassName(
+      String::NewFromUtf8Literal(isolate, "Worker"));
+  worker_fun_template->ReadOnlyPrototype();
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "terminate",
+      FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "postMessage",
+      FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "getMessage",
+      FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
+  return worker_fun_template;
+}
+
+Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
+  async_hooks_templ->Set(isolate, "createHook",
+                         FunctionTemplate::New(isolate, AsyncHooksCreateHook));
+  async_hooks_templ->Set(
+      isolate, "executionAsyncId",
+      FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
+  async_hooks_templ->Set(
+      isolate, "triggerAsyncId",
+      FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
+  return async_hooks_templ;
+}
+
+Local<ObjectTemplate> Shell::CreatePromiseHookTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> promise_hooks_templ = ObjectTemplate::New(isolate);
+  promise_hooks_templ->Set(
+      isolate, "setHooks",
+      FunctionTemplate::New(isolate, SetPromiseHooks, Local<Value>(),
+                            Local<Signature>(), 4));
+  return promise_hooks_templ;
+}
+
+Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
   Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  global_template->Set(isolate, "testRunner", test_template);
   test_template->Set(isolate, "notifyDone",
                      FunctionTemplate::New(isolate, NotifyDone));
   test_template->Set(isolate, "waitUntilDone",
@@ -1905,13 +1979,20 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
   test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
+  return test_template;
+}
 
-  global_template->Set(isolate, "version",
-                       FunctionTemplate::New(isolate, Version));
-  global_template->Set(Symbol::GetToStringTag(isolate),
-                       String::NewFromUtf8Literal(isolate, "global"));
+Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
+  performance_template->Set(isolate, "now",
+                            FunctionTemplate::New(isolate, PerformanceNow));
+  performance_template->Set(
+      isolate, "measureMemory",
+      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
+  return performance_template;
+}
 
-  // Bind the Realm object.
+Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
   realm_template->Set(isolate, "current",
                       FunctionTemplate::New(isolate, RealmCurrent));
@@ -1936,64 +2017,13 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                       FunctionTemplate::New(isolate, RealmEval));
   realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
-  global_template->Set(isolate, "Realm", realm_template);
-
-  Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
-  performance_template->Set(isolate, "now",
-                            FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(
-      isolate, "measureMemory",
-      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
-  global_template->Set(isolate, "performance", performance_template);
-
-  Local<FunctionTemplate> worker_fun_template =
-      FunctionTemplate::New(isolate, WorkerNew);
-  Local<Signature> worker_signature =
-      Signature::New(isolate, worker_fun_template);
-  worker_fun_template->SetClassName(
-      String::NewFromUtf8Literal(isolate, "Worker"));
-  worker_fun_template->ReadOnlyPrototype();
-  worker_fun_template->PrototypeTemplate()->Set(
-      isolate, "terminate",
-      FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
-                            worker_signature));
-  worker_fun_template->PrototypeTemplate()->Set(
-      isolate, "postMessage",
-      FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
-                            worker_signature));
-  worker_fun_template->PrototypeTemplate()->Set(
-      isolate, "getMessage",
-      FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
-                            worker_signature));
-  worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
-  global_template->Set(isolate, "Worker", worker_fun_template);
-
-  Local<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
-  AddOSMethods(isolate, os_templ);
-  global_template->Set(isolate, "os", os_templ);
-
-  if (i::FLAG_expose_async_hooks) {
-    Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
-    async_hooks_templ->Set(
-        isolate, "createHook",
-        FunctionTemplate::New(isolate, AsyncHooksCreateHook));
-    async_hooks_templ->Set(
-        isolate, "executionAsyncId",
-        FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
-    async_hooks_templ->Set(
-        isolate, "triggerAsyncId",
-        FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
-    global_template->Set(isolate, "async_hooks", async_hooks_templ);
-  }
-  {
-    Local<ObjectTemplate> promise_template = ObjectTemplate::New(isolate);
-    promise_template->Set(
-        isolate, "setHooks",
-        FunctionTemplate::New(isolate, SetPromiseHooks, Local<Value>(),
-                              Local<Signature>(), 4));
-    global_template->Set(isolate, "promise", promise_template);
-  }
-  return global_template;
+  return realm_template;
+}
+Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
+  Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
+  d8_template->Set(isolate, "promise",
+                   Shell::CreatePromiseHookTemplate(isolate));
+  return d8_template;
 }
 
 static void PrintMessageCallback(Local<Message> message, Local<Value> error) {

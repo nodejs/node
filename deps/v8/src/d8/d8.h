@@ -492,7 +492,17 @@ class Shell : public i::AllStatic {
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
+
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
+  static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreatePromiseHookTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateTestRunnerTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreatePerformanceTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateRealmTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
+
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args, int index,
       v8::MaybeLocal<Value> global_object);
