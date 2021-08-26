@@ -148,7 +148,17 @@ assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
-assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
+// Lead surrogates: D800..DBFF
+assert.strictEqual(util.toUSVString('string\ud800'), 'string\ufffd');
+assert.strictEqual(util.toUSVString('string\udabc'), 'string\ufffd');
+assert.strictEqual(util.toUSVString('string\udbff'), 'string\ufffd');
+// Trail surrogates: DC00..DFFF
+assert.strictEqual(util.toUSVString('string\udc00'), 'string\ufffd');
+assert.strictEqual(util.toUSVString('string\ude12'), 'string\ufffd');
+assert.strictEqual(util.toUSVString('string\udfff'), 'string\ufffd');
+// Verify surrogate pairs are unaffected.
+assert.strictEqual(util.toUSVString('string\ud800\udc00'),
+                   'string\ud800\udc00');
 
 {
   assert.strictEqual(util.types.isNativeError(new Error()), true);
