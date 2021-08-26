@@ -1263,7 +1263,7 @@ added: v16.7.0
 
 * Type: {ReadableStream}
 
-#### `deccompressionStream.writable`
+#### `decompressionStream.writable`
 <!-- YAML
 added: v16.7.0
 -->
