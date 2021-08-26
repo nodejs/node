@@ -1219,57 +1219,6 @@ added: v16.6.0
 
 * Type: {WritableStream}
 
-### Class: `CompressionStream`
-<!-- YAML
-added: v16.7.0
--->
-#### `new CompressionStream(format)`
-<!-- YAML
-added: v16.7.0
--->
-
-* `format` {string} One of either `'deflate'` or `'gzip'`.
-
-#### `compressionStream.readable`
-<!-- YAML
-added: v16.7.0
--->
-
-* Type: {ReadableStream}
-
-#### `compressionStream.writable`
-<!-- YAML
-added: v16.7.0
--->
-
-* Type: {WritableStream}
-
-### Class: `DecompressionStream`
-<!-- YAML
-added: v16.7.0
--->
-
-#### `new DecompressionStream(format)`
-<!-- YAML
-added: v16.7.0
--->
-
-* `format` {string} One of either `'deflate'` or `'gzip'`.
-
-#### `decompressionStream.readable`
-<!-- YAML
-added: v16.7.0
--->
-
-* Type: {ReadableStream}
-
-#### `deccompressionStream.writable`
-<!-- YAML
-added: v16.7.0
--->
-
-* Type: {WritableStream}
-
 ### Utility Consumers
 <!-- YAML
 added: v16.7.0
