@@ -1,0 +1,36 @@
+{
+  "name": "@npmcli/fs",
+  "version": "1.0.0",
+  "description": "filesystem utilities for the npm cli",
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "bin"
+  ],
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "snap": "tap",
+    "test": "tap",
+    "npmclilint": "npmcli-lint",
+    "lint": "npm run npmclilint -- \"lib/**/*.*js\" \"test/**/*.*js\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint --",
+    "postsnap": "npm run lintfix --"
+  },
+  "keywords": [
+    "npm",
+    "oss"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/lint": "^1.0.1",
+    "tap": "^15.0.9"
+  },
+  "dependencies": {
+    "@gar/promisify": "^1.0.1",
+    "semver": "^7.3.5"
+  }
+}

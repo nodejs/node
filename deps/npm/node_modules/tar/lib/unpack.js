@@ -17,6 +17,7 @@ const pathReservations = require('./path-reservations.js')
 const stripAbsolutePath = require('./strip-absolute-path.js')
 const normPath = require('./normalize-windows-path.js')
 const stripSlash = require('./strip-trailing-slashes.js')
+const normalize = require('./normalize-unicode.js')
 
 const ONENTRY = Symbol('onEntry')
 const CHECKFS = Symbol('checkFs')
@@ -101,8 +102,7 @@ const uint32 = (a, b, c) =>
 // Note that on windows, we always drop the entire cache whenever a
 // symbolic link is encountered, because 8.3 filenames are impossible
 // to reason about, and collisions are hazards rather than just failures.
-const cacheKeyNormalize = path => stripSlash(normPath(path))
-  .normalize('NFKD')
+const cacheKeyNormalize = path => normalize(stripSlash(normPath(path)))
   .toLowerCase()
 
 const pruneCache = (cache, abs) => {

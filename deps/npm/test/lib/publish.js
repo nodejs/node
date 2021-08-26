@@ -9,6 +9,14 @@ const fs = require('fs')
 const log = require('npmlog')
 log.level = 'silent'
 
+const cleanGithead = (result) => {
+  return result.map((r) => {
+    if (r.gitHead)
+      r.gitHead = '{GITHEAD}'
+
+    return r
+  })
+}
 const {definitions} = require('../../lib/utils/config')
 const defaults = Object.entries(definitions).reduce((defaults, [key, def]) => {
   defaults[key] = def.default
@@ -581,7 +589,7 @@ t.test('workspaces', (t) => {
     log.level = 'info'
     publish.execWorkspaces([], [], (err) => {
       t.notOk(err)
-      t.matchSnapshot(publishes, 'should publish all workspaces')
+      t.matchSnapshot(cleanGithead(publishes), 'should publish all workspaces')
       t.matchSnapshot(outputs, 'should output all publishes')
       t.end()
     })
@@ -591,7 +599,7 @@ t.test('workspaces', (t) => {
     log.level = 'info'
     publish.execWorkspaces([], ['workspace-a'], (err) => {
       t.notOk(err)
-      t.matchSnapshot(publishes, 'should publish given workspace')
+      t.matchSnapshot(cleanGithead(publishes), 'should publish given workspace')
       t.matchSnapshot(outputs, 'should output one publish')
       t.end()
     })
@@ -610,7 +618,7 @@ t.test('workspaces', (t) => {
     npm.config.set('json', true)
     publish.execWorkspaces([], [], (err) => {
       t.notOk(err)
-      t.matchSnapshot(publishes, 'should publish all workspaces')
+      t.matchSnapshot(cleanGithead(publishes), 'should publish all workspaces')
       t.matchSnapshot(outputs, 'should output all publishes as json')
       t.end()
     })
@@ -699,7 +707,7 @@ t.test('private workspaces', (t) => {
     npm.color = true
     publish.execWorkspaces([], [], (err) => {
       t.notOk(err)
-      t.matchSnapshot(publishes, 'should publish all non-private workspaces')
+      t.matchSnapshot(cleanGithead(publishes), 'should publish all non-private workspaces')
       t.matchSnapshot(outputs, 'should output all publishes')
       npm.color = false
       t.end()
@@ -726,7 +734,7 @@ t.test('private workspaces', (t) => {
 
     publish.execWorkspaces([], [], (err) => {
       t.notOk(err)
-      t.matchSnapshot(publishes, 'should publish all non-private workspaces')
+      t.matchSnapshot(cleanGithead(publishes), 'should publish all non-private workspaces')
       t.matchSnapshot(outputs, 'should output all publishes')
       t.end()
     })
