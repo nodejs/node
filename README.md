@@ -630,6 +630,8 @@ maintaining the Node.js project.
 **Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
 * [RaisinTen](https://github.com/RaisinTen) -
 **Darshan Sen** &lt;raisinten@gmail.com&gt;
+* [VoltrexMaster](https://github.com/VoltrexMaster) -
+**Voltrex** &lt;mohammadkeyvanzade94@gmail.com&gt; (he/him)
 
 ### Release keys
 
