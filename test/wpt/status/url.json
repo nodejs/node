@@ -1,7 +1,6 @@
 {
   "toascii.window.js": {
-    "requires": ["small-icu"],
-    "skip": "TODO: port from .window.js"
+    "requires": ["small-icu"]
   },
   "percent-encoding.window.js": {
     "requires": ["small-icu"],
