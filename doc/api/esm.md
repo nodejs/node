@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40250
+    description: Add support for import assertions.
   - version:
     - v17.0.0
     - v16.12.0
@@ -219,6 +222,28 @@ absolute URL strings.
 ```js
 import fs from 'node:fs/promises';
 ```
+
+## Import assertions
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The [Import Assertions proposal][] adds an inline syntax for module import
+statements to pass on more information alongside the module specifier.
+
+```js
+import fooData from './foo.json' assert { type: 'json' };
+
+const { default: barData } =
+  await import('./bar.json', { assert: { type: 'json' } });
+```
+
+Node.js supports the following `type` values:
+
+| `type`   | Resolves to      |
+| -------- | ---------------- |
+| `'json'` | [JSON modules][] |
 
 ## Builtin modules
 
@@ -517,10 +542,8 @@ same path.
 
 Assuming an `index.mjs` with
 
-<!-- eslint-skip -->
-
 ```js
-import packageConfig from './package.json';
+import packageConfig from './package.json' assert { type: 'json' };
 ```
 
 The `--experimental-json-modules` flag is needed for the module
@@ -608,12 +631,20 @@ CommonJS modules loaded.
 
 #### `resolve(specifier, context, defaultResolve)`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40250
+    description: Add support for import assertions.
+-->
+
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]}
+  * `importAssertions` {Object}
   * `parentURL` {string|undefined}
 * `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
@@ -690,13 +721,15 @@ export async function resolve(specifier, context, defaultResolve) {
 * `context` {Object}
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook.
+  * `importAssertions` {Object}
 * `defaultLoad` {Function}
 * Returns: {Object}
   * `format` {string}
   * `source` {string|ArrayBuffer|TypedArray}
 
 The `load` hook provides a way to define a custom method of determining how
-a URL should be interpreted, retrieved, and parsed.
+a URL should be interpreted, retrieved, and parsed. It is also in charge of
+validating the import assertion.
 
 The final value of `format` must be one of the following:
 
@@ -1358,6 +1391,8 @@ success!
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
+[JSON modules]: #json-modules
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
