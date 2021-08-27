@@ -1689,6 +1689,36 @@ is set for the `Http2Stream`.
 
 An attempt was made to construct an object using a non-public constructor.
 
+<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion has failed, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion is missing, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion is not supported by this version of Node.js.
+
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`

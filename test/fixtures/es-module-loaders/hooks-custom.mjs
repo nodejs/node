@@ -63,6 +63,7 @@ export function resolve(specifier, context, next) {
   if (specifier.startsWith('esmHook')) return {
     format,
     url: specifier,
+    importAssertions: context.importAssertions,
   };
 
   return next(specifier, context, next);

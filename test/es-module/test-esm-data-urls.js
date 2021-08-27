@@ -59,21 +59,22 @@ function createBase64URL(mime, body) {
     assert.strictEqual(ns.default, plainESMURL);
   }
   {
-    const ns = await import('data:application/json;foo="test,"this"');
+    const ns = await import('data:application/json;foo="test,"this"',
+      { assert: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default, 'this');
   }
   {
     const ns = await import(`data:application/json;foo=${
       encodeURIComponent('test,')
-    },0`);
+    },0`, { assert: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default, 0);
   }
   {
-    await assert.rejects(async () => {
-      return import('data:application/json;foo="test,",0');
-    }, {
+    await assert.rejects(async () =>
+      import('data:application/json;foo="test,",0',
+        { assert: { type: 'json' } }), {
       name: 'SyntaxError',
       message: /Unexpected end of JSON input/
     });
@@ -81,14 +82,14 @@ function createBase64URL(mime, body) {
   {
     const body = '{"x": 1}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL);
+    const ns = await import(plainESMURL, { assert: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default.x, 1);
   }
   {
     const body = '{"default": 2}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL);
+    const ns = await import(plainESMURL, { assert: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default.default, 2);
   }

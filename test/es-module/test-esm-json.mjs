@@ -4,7 +4,7 @@ import { path } from '../common/fixtures.mjs';
 import { strictEqual, ok } from 'assert';
 import { spawn } from 'child_process';
 
-import secret from '../fixtures/experimental.json';
+import secret from '../fixtures/experimental.json' assert { type: 'json' };
 
 strictEqual(secret.ofLife, 42);
 

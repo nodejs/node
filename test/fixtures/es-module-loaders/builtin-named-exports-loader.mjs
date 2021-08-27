@@ -19,6 +19,7 @@ export function resolve(specifier, context, next) {
   if (def.url.startsWith('node:')) {
     return {
       url: `custom-${def.url}`,
+      importAssertions: context.importAssertions,
     };
   }
   return def;
