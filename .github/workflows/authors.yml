@@ -12,11 +12,11 @@ jobs:
       - run: "tools/update-authors.js" # run the AUTHORS tool
       - uses: gr2m/create-or-update-pull-request-action@v1 # create a PR or update the Action's existing PR
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
-          title: "meta: update AUTHORS"
+          author: Node.js GitHub Bot <github-bot@iojs.org>
           body: "If this PR exists, there's presumably new additions to the AUTHORS file. This is an automatically generated PR by the `authors.yml` GitHub Action, which runs `tools/update-authors.js` and submits a new PR or updates an existing PR.\n\nPlease note that there might be duplicate entries. If there are, please remove them and add the duplicate emails to .mailmap directly to this PR."
           branch: "actions/authors-update" # custom branch *just* for this Action.
           commit-message: "meta: update AUTHORS"
-          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           labels: meta
+          title: "meta: update AUTHORS"
