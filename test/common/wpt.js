@@ -301,6 +301,8 @@ class WPTRunner {
     this.inProgress = new Set();
     this.workers = new Map();
     this.unexpectedFailures = [];
+
+    this.scriptsModifier = null;
   }
 
   /**
@@ -319,6 +321,14 @@ class WPTRunner {
     this.initScript = script;
   }
 
+  /**
+   * Set the scripts modifier for each script.
+   * @param {(meta: { code: string, filename: string }) => void}
+   */
+  setScriptModifier(modifier) {
+    this.scriptsModifier = modifier;
+  }
+
   get fullInitScript() {
     if (this.initScript === null && this.dummyGlobalThisScript === null) {
       return null;
@@ -330,7 +340,7 @@ class WPTRunner {
       return this.initScript;
     }
 
-    return `${this.fullInitScript}\n\n//===\n${this.initScript}`;
+    return `${this.dummyGlobalThisScript}\n\n//===\n${this.initScript}`;
   }
 
   /**
@@ -387,17 +397,21 @@ class WPTRunner {
       // Scripts specified with the `// META: script=` header
       if (meta.script) {
         for (const script of meta.script) {
-          scriptsToRun.push({
+          const obj = {
             filename: this.resource.toRealFilePath(relativePath, script),
             code: this.resource.read(relativePath, script, false)
-          });
+          };
+          this.scriptsModifier?.(obj);
+          scriptsToRun.push(obj);
         }
       }
       // The actual test
-      scriptsToRun.push({
+      const obj = {
         code: content,
         filename: absolutePath
-      });
+      };
+      this.scriptsModifier?.(obj);
+      scriptsToRun.push(obj);
 
       const workerPath = path.join(__dirname, 'wpt/worker.js');
       const worker = new Worker(workerPath, {
