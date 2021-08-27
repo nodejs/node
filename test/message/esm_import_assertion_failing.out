@@ -1,0 +1,10 @@
+node:internal/errors:*
+    ErrorCaptureStackTrace(err);
+    ^
+
+TypeError [ERR_FAILED_IMPORT_ASSERTION]: Failed to load module "data:text/javascript,export{}", expected type to be "json", got "module" instead
+    at new NodeError (node:internal/errors:*:*)
+    at ESMLoader.moduleProvider (node:internal/modules/esm/loader:*:*) {
+  code: 'ERR_FAILED_IMPORT_ASSERTION'
+}
+Node.js *

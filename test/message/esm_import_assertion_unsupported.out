@@ -1,0 +1,13 @@
+node:internal/errors:*
+    ErrorCaptureStackTrace(err);
+    ^
+
+TypeError [ERR_INVALID_IMPORT_ASSERTION]: Invalid "type" import assertion: "unsupported"
+    at new NodeError (node:internal/errors:*:*)
+    at ESMLoader.getModuleJob (node:internal/modules/esm/loader:*:*)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:*:*)
+    at link (node:internal/modules/esm/module_job:*:*) {
+  code: 'ERR_INVALID_IMPORT_ASSERTION'
+}
+
+Node.js *

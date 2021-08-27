@@ -602,9 +602,20 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     UNREACHABLE();
   }
 
+  Local<Object> assertions =
+    Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+  for (int i = 0; i < import_assertions->Length(); i += 2) {
+    assertions
+        ->Set(env->context(),
+              Local<String>::Cast(import_assertions->Get(env->context(), i)),
+              Local<Value>::Cast(import_assertions->Get(env->context(), i + 1)))
+        .ToChecked();
+  }
+
   Local<Value> import_args[] = {
     object,
     Local<Value>(specifier),
+    assertions,
   };
 
   Local<Value> result;

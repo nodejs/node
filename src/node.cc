@@ -803,11 +803,11 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
     return 12;
   }
 
-  // TODO(mylesborins): remove this when the harmony-top-level-await flag
+  // TODO(mylesborins): remove this when the harmony-import-assertions flag
   // is removed in V8
   if (std::find(v8_args.begin(), v8_args.end(),
-                "--no-harmony-top-level-await") == v8_args.end()) {
-    v8_args.push_back("--harmony-top-level-await");
+                "--no-harmony-import-assertions") == v8_args.end()) {
+    v8_args.push_back("--harmony-import-assertions");
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;

@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Add support for import assertions.
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37468
@@ -229,6 +232,25 @@ absolute URL strings.
 ```js
 import fs from 'node:fs/promises';
 ```
+
+## Import assertions
+<!-- YAML
+added: REPLACEME
+-->
+
+The [Import Assertions proposal][] adds an inline syntax for module import
+statements to pass on more information alongside the module specifier.
+
+```js
+import json from './foo.json' assert { type: "json" };
+await import('foo.json', { assert: { type: "json" } });
+```
+
+Node.js supports the following `type` values:
+
+| `type`   | Resolves to      |
+| -------- | ---------------- |
+| `"json"` | [JSON modules][] |
 
 ## Builtin modules
 
@@ -518,9 +540,8 @@ same path.
 
 Assuming an `index.mjs` with
 
-<!-- eslint-skip -->
 ```js
-import packageConfig from './package.json';
+import packageConfig from './package.json' assert { type: 'json' };
 ```
 
 The `--experimental-json-modules` flag is needed for the module
@@ -1351,6 +1372,8 @@ success!
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
+[JSON modules]: #json-modules
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/

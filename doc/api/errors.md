@@ -1109,6 +1109,14 @@ The JS execution context is not associated with a Node.js environment.
 This may occur when Node.js is used as an embedded library and some hooks
 for the JS engine are not set up properly.
 
+<a id="ERR_FAILED_IMPORT_ASSERTION"></a>
+### `ERR_FAILED_IMPORT_ASSERTION`
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion has failed, preventing the specified module to be imported.
+
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### `ERR_FALSY_VALUE_REJECTION`
 
@@ -1659,6 +1667,14 @@ for more information.
 ### `ERR_INVALID_HTTP_TOKEN`
 
 An invalid HTTP token was supplied.
+
+<a id="ERR_INVALID_IMPORT_ASSERTION"></a>
+### `ERR_INVALID_IMPORT_ASSERTION`
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion is not supported by this version of Node.js.
 
 <a id="ERR_INVALID_IP_ADDRESS"></a>
 ### `ERR_INVALID_IP_ADDRESS`
