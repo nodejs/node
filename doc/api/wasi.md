@@ -56,7 +56,7 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {
   const wasm = await WebAssembly.compile(
-    await readFile(resolve(__dirname, './demo.wasm'))
+    await readFile(join(__dirname, 'demo.wasm'))
   );
   const instance = await WebAssembly.instantiate(wasm, importObject);
 
