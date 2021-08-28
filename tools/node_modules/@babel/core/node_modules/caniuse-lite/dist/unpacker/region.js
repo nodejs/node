@@ -1,4 +1,6 @@
-const { browsers } = require('./browsers')
+'use strict'
+
+const browsers = require('./browsers').browsers
 
 function unpackRegion(packed) {
   return Object.keys(packed).reduce((list, browser) => {

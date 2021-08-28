@@ -1,6 +1,8 @@
+'use strict'
+
 const statuses = require('../lib/statuses')
 const supported = require('../lib/supported')
-const { browsers } = require('./browsers')
+const browsers = require('./browsers').browsers
 const versions = require('./browserVersions').browserVersions
 
 const MATH2LOG = Math.log(2)

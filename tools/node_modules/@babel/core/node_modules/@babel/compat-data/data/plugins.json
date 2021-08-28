@@ -211,11 +211,12 @@
     "chrome": "47",
     "opera": "34",
     "edge": "13",
-    "firefox": "45",
+    "firefox": "43",
     "safari": "10",
     "node": "6",
     "ios": "10",
     "samsung": "5",
+    "rhino": "1.7.13",
     "electron": "0.36"
   },
   "transform-block-scoped-functions": {
@@ -371,13 +372,14 @@
     "node": "0.12",
     "ios": "9",
     "samsung": "3",
+    "rhino": "1.7.13",
     "electron": "0.20"
   },
   "transform-new-target": {
     "chrome": "46",
     "opera": "33",
     "edge": "14",
-    "firefox": "41",
+    "firefox": "45",
     "safari": "10",
     "node": "5",
     "ios": "10",
@@ -407,6 +409,7 @@
     "ios": "6",
     "phantom": "2",
     "samsung": "1",
+    "rhino": "1.7.13",
     "electron": "0.20"
   },
   "transform-property-literals": {
@@ -421,6 +424,7 @@
     "ios": "6",
     "phantom": "2",
     "samsung": "1",
+    "rhino": "1.7.13",
     "electron": "0.20"
   },
   "transform-reserved-words": {
@@ -435,6 +439,7 @@
     "ios": "6",
     "phantom": "2",
     "samsung": "1",
+    "rhino": "1.7.13",
     "electron": "0.20"
   },
   "proposal-export-namespace-from": {
