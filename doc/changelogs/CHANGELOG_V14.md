@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.17.6">14.17.6</a><br/>
 <a href="#14.17.5">14.17.5</a><br/>
 <a href="#14.17.4">14.17.4</a><br/>
 <a href="#14.17.3">14.17.3</a><br/>
@@ -65,6 +66,35 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.17.6"></a>
+## 2021-08-31, Version 14.17.6 'Fermium' (LTS), @MylesBorins
+
+This is a security release.
+
+### Notable Changes
+
+These are vulnerabilities in the node-tar, arborist, and npm cli modules which
+are related to the initial reports and subsequent remediation of node-tar
+vulnerabilities [CVE-2021-32803](https://github.com/advisories/GHSA-r628-mhmh-qjhw)
+and [CVE-2021-32804](https://github.com/advisories/GHSA-3jfq-g458-7qm9).
+Subsequent internal security review of node-tar and additional external bounty
+reports have resulted in another 5 CVE being remediated in core npm CLI
+dependencies including node-tar, and npm arborist.
+
+You can read more about it in:
+
+* [CVE-2021-37701](https://github.com/npm/node-tar/security/advisories/GHSA-9r2w-394v-53qc)
+* [CVE-2021-37712](https://github.com/npm/node-tar/security/advisories/GHSA-qq89-hq3f-393p)
+* [CVE-2021-37713](https://github.com/npm/node-tar/security/advisories/GHSA-5955-9wpr-37jh)
+* [CVE-2021-39134](https://github.com/npm/arborist/security/advisories/GHSA-2h3h-q99f-3fhc)
+* [CVE-2021-39135](https://github.com/npm/arborist/security/advisories/GHSA-gmw6-94gg-2rc2)
+
+### Commits
+
+* [[`5b3f70bfb5`](https://github.com/nodejs/node/commit/5b3f70bfb5)] - **deps**: update archs files for OpenSSL-1.1.1l (Richard Lau) [#39868](https://github.com/nodejs/node/pull/39868)
+* [[`71372625ae`](https://github.com/nodejs/node/commit/71372625ae)] - **deps**: upgrade openssl sources to 1.1.1l (Richard Lau) [#39868](https://github.com/nodejs/node/pull/39868)
+* [[`4276984803`](https://github.com/nodejs/node/commit/4276984803)] - **deps**: upgrade npm to 6.14.15 (Darcy Clarke) [#39856](https://github.com/nodejs/node/pull/39856)
 
 <a id="14.17.5"></a>
 ## 2021-08-11, Version 14.17.5 'Fermium' (LTS), @BethGriggs
