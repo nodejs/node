@@ -1,4 +1,6 @@
-const { browsers } = require('./browsers')
+'use strict'
+
+const browsers = require('./browsers').browsers
 const versions = require('./browserVersions').browserVersions
 const agentsData = require('../../data/agents')
 
