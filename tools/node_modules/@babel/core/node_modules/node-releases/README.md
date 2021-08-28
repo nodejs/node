@@ -4,7 +4,7 @@ All data is located in `data` directory.
 
 `data/raw` contains raw data `nodejs.json` and `iojs.json`.
 
-`data/processed` contains `envs.js` with both node.js and io.js data preprocessed to be used by [browserlist](https://github.com/ai/browserslist) and other projects. Each version in this file contains only necessary info: version, release date and optionally LTS flag.
+`data/processed` contains `envs.js` with both node.js and io.js data preprocessed to be used by [Browserslist](https://github.com/ai/browserslist) and other projects. Each version in this file contains only necessary info: version, release date and optionally LTS flag.
 
 ## Installation
 ```bash
