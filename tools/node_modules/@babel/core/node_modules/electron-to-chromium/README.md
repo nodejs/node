@@ -122,7 +122,7 @@ If a query does not match an Electron version, it will return `undefined`.
 
 ```js
 var electronVersion = e2c.chromiumToElectron('10');
-// chromeVersion is undefined
+// electronVersion is undefined
 ```
 
 #### `electronToBrowserList(query)` **DEPRECATED**
