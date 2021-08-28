@@ -24,7 +24,9 @@ const wasi = new WASI({
 });
 const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
-const wasm = await WebAssembly.compile(fs.readFileSync(new URL('./demo.wasm', import.meta.url)));
+const wasm = await WebAssembly.compile(
+  fs.readFileSync(new URL('./demo.wasm', import.meta.url))
+);
 const instance = await WebAssembly.instantiate(wasm, importObject);
 
 wasi.start(instance);
