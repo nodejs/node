@@ -98,6 +98,7 @@
     "ie": "11",
     "ios": "11",
     "samsung": "5",
+    "rhino": "1.7.13",
     "electron": "0.37"
   },
   "transform-template-literals": {

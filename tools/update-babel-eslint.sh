@@ -16,7 +16,7 @@ ROOT="$PWD/../.."
 NPM="$ROOT/deps/npm"
 
 "$NODE" "$NPM" init --yes
-"$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock @babel/core @babel/eslint-parser@latest @babel/plugin-syntax-class-properties@latest @babel/plugin-syntax-top-level-await@latest
+"$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock @babel/core @babel/eslint-parser@latest @babel/plugin-syntax-class-properties@latest @babel/plugin-syntax-import-assertions@latest @babel/plugin-syntax-top-level-await@latest
 
 # Use dmn to remove some unneeded files.
 "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
