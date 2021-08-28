@@ -40,6 +40,7 @@ wasi.start(instance);
 const { readFile } = require('fs/promises');
 const { WASI } = require('wasi');
 const { argv, env } = require('process');
+const { resolve } = require('path');
 
 const wasi = new WASI({
   args: argv,
@@ -55,7 +56,7 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {
   const wasm = await WebAssembly.compile(
-    await readFile(new URL('./demo.wasm', import.meta.url))
+    await readFile(resolve(__dirname, './demo.wasm'))
   );
   const instance = await WebAssembly.instantiate(wasm, importObject);
 
