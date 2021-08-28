@@ -11,7 +11,7 @@ specification. WASI gives sandboxed WebAssembly applications access to the
 underlying operating system via a collection of POSIX-like functions.
 
 ```mjs
-import fs from 'fs';
+import { readFile } from 'fs/promises';
 import { WASI } from 'wasi';
 import { argv, env } from 'process';
 
@@ -22,9 +22,14 @@ const wasi = new WASI({
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }
 });
+
+// Some WASI binaries require:
+//   const importObject = { wasi_unstable: wasi.wasiImport };
 const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
-const wasm = await WebAssembly.compile(fs.readFileSync('./demo.wasm'));
+const wasm = await WebAssembly.compile(
+  await readFile(new URL('./demo.wasm', import.meta.url))
+);
 const instance = await WebAssembly.instantiate(wasm, importObject);
 
 wasi.start(instance);
@@ -32,9 +37,10 @@ wasi.start(instance);
 
 ```cjs
 'use strict';
-const fs = require('fs');
+const { readFile } = require('fs/promises');
 const { WASI } = require('wasi');
 const { argv, env } = require('process');
+const { join } = require('path');
 
 const wasi = new WASI({
   args: argv,
@@ -43,10 +49,15 @@ const wasi = new WASI({
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }
 });
+
+// Some WASI binaries require:
+//   const importObject = { wasi_unstable: wasi.wasiImport };
 const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {
-  const wasm = await WebAssembly.compile(fs.readFileSync('./demo.wasm'));
+  const wasm = await WebAssembly.compile(
+    await readFile(join(__dirname, 'demo.wasm'))
+  );
   const instance = await WebAssembly.instantiate(wasm, importObject);
 
   wasi.start(instance);
