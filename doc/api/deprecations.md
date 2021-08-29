@@ -2801,7 +2801,30 @@ non-number value for `hints` option, a non-nullish non-boolean value for `all`
 option, or a non-nullish non-boolean value for `verbatim` option in
 [`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
 
+### DEP0XXX: `Object.prototype` Legacy Accessors
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39824
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Accessors on `Object.prototype` are subject to object traversal attacks and
+cause concerns for security audits. A variety of these are considered deprecated
+by the [Legacy Object.prototype Accessor Methods][] by the JS standard. Modern
+replacements are `Object.defineProperty`, `Object.getPrototypeOf`, and
+`Object.setPrototypeOf` and not subject to path traversal. This affects:
+
+* `Object.prototype.__defineGetter__`
+* `Object.prototype.__defineSetter__`
+* `Object.prototype.__lookupGetter__`
+* `Object.prototype.__lookupSetter__`
+* `Object.prototype.__proto__`
+
 [Legacy URL API]: url.md#url_legacy_url_api
+[Legacy Object.prototype Accessor Methods]: https://tc39.es/ecma262/#sec-object.prototype-legacy-accessor-methods
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [WHATWG URL API]: url.md#url_the_whatwg_url_api
