@@ -9,17 +9,31 @@ const { processTopLevelAwait } = require('internal/repl/await');
 // This test was created based on
 // https://cs.chromium.org/chromium/src/third_party/WebKit/LayoutTests/http/tests/inspector-unit/preprocess-top-level-awaits.js?rcl=358caaba5e763e71c4abb9ada2d9cd8b1188cac9
 
+const surrogate = (
+  '"\u{1F601}\u{1f468}\u200d\u{1f469}\u200d\u{1f467}\u200d\u{1f466}"'
+);
+
 const testCases = [
   [ '0',
     null ],
   [ 'await 0',
     '(async () => { return (await 0) })()' ],
+  [ `await ${surrogate}`,
+    `(async () => { return (await ${surrogate}) })()` ],
   [ 'await 0;',
     '(async () => { return (await 0); })()' ],
+  [ `await ${surrogate};`,
+    `(async () => { return (await ${surrogate}); })()` ],
+  [ `await ${surrogate};`,
+    `(async () => { return (await ${surrogate}); })()` ],
   [ '(await 0)',
     '(async () => { return ((await 0)) })()' ],
+  [ `(await ${surrogate})`,
+    `(async () => { return ((await ${surrogate})) })()` ],
   [ '(await 0);',
     '(async () => { return ((await 0)); })()' ],
+  [ `(await ${surrogate});`,
+    `(async () => { return ((await ${surrogate})); })()` ],
   [ 'async function foo() { await 0; }',
     null ],
   [ 'async () => await 0',
@@ -28,8 +42,12 @@ const testCases = [
     null ],
   [ 'await 0; return 0;',
     null ],
+  [ `await ${surrogate}; await ${surrogate};`,
+    `(async () => { await ${surrogate}; return (await ${surrogate}); })()` ],
   [ 'var a = await 1',
     'var a; (async () => { void (a = await 1) })()' ],
+  [ `var a = await ${surrogate}`,
+    `var a; (async () => { void (a = await ${surrogate}) })()` ],
   [ 'let a = await 1',
     'let a; (async () => { void (a = await 1) })()' ],
   [ 'const a = await 1',
