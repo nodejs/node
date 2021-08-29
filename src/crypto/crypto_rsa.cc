@@ -599,7 +599,7 @@ Maybe<bool> GetRsaKeyDetail(
         if (target
                 ->Set(
                     env->context(),
-                    env->mgf1_hash_string(),
+                    env->mgf1_hash_algorithm_string(),
                     OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
                 .IsNothing()) {
           return Nothing<bool>();

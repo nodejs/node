@@ -652,7 +652,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       modulusLength: 2048,
       publicExponent: 65537n,
       hashAlgorithm: 'sha1',
-      mgf1Hash: 'sha1',
+      mgf1HashAlgorithm: 'sha1',
       saltLength: 20
     };
 
@@ -727,7 +727,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       modulusLength: 2048,
       publicExponent: 65537n,
       hashAlgorithm: 'sha512',
-      mgf1Hash: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
       saltLength: 20
     };
 

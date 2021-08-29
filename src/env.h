@@ -317,7 +317,7 @@ constexpr size_t kFsStatsBufferLength =
   V(message_port_string, "messagePort")                                        \
   V(message_string, "message")                                                 \
   V(messageerror_string, "messageerror")                                       \
-  V(mgf1_hash_string, "mgf1Hash")                                              \
+  V(mgf1_hash_algorithm_string, "mgf1HashAlgorithm")                           \
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
