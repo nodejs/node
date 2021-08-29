@@ -35,6 +35,20 @@ static napi_value CreateExternal(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value CreateSymbol(napi_env env, napi_callback_info info) {
+  
+    size_t argc = 1;
+    napi_value args[1];
+    
+    NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL,NULL));
+    NODE_API_ASSERT(env, argc == 1, "Expect one argument only (symbol description)");
+    
+    napi_value result_symbol;
+    
+    NODE_API_CALL(env, napi_create_symbol(env, args[0], &result_symbol));
+    return result_symbol;
+}
+
 static napi_value
 CreateExternalWithFinalize(napi_env env, napi_callback_info info) {
   napi_value result;
@@ -175,6 +189,7 @@ napi_value Init(napi_env env, napi_value exports) {
         CreateExternalWithFinalize),
     DECLARE_NODE_API_PROPERTY("checkExternal", CheckExternal),
     DECLARE_NODE_API_PROPERTY("createReference", CreateReference),
+    DECLARE_NODE_API_PROPERTY("createSymbol", CreateSymbol),
     DECLARE_NODE_API_PROPERTY("deleteReference", DeleteReference),
     DECLARE_NODE_API_PROPERTY("incrementRefcount", IncrementRefcount),
     DECLARE_NODE_API_PROPERTY("decrementRefcount", DecrementRefcount),
