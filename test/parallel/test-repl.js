@@ -86,7 +86,7 @@ async function runReplTests(socket, prompt, tests) {
 
       console.error('in:', JSON.stringify(actualLine));
 
-      // Match a string directly, or a RegExp through .test().
+      // Match a string directly, or a RegExp.
       if (typeof expectedLine === 'string') {
         assert.strictEqual(actualLine, expectedLine);
       } else {
@@ -226,7 +226,12 @@ const errorTests = [
   // should throw
   {
     send: '/(/;',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^Uncaught SyntaxError: /,
+    ]
   },
   // invalid RegExp modifiers are a special case of syntax error,
   // should throw (GH-4012)
