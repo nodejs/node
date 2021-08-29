@@ -9,6 +9,7 @@ DOM.defineCustomElement(
       _targetNode;
       _content;
       _isHidden = true;
+
       constructor() {
         super(templateText);
         this._intersectionObserver = new IntersectionObserver((entries) => {
@@ -19,7 +20,15 @@ DOM.defineCustomElement(
             this.requestUpdate(true);
           }
         });
-        document.addEventListener('click', (e) => this.hide());
+        document.addEventListener('click', (event) => {
+          // Only hide the tooltip if we click anywhere outside of it.
+          let target = event.target;
+          while (target) {
+            if (target == this) return;
+            target = target.parentNode;
+          }
+          this.hide()
+        });
       }
 
       _update() {
@@ -28,9 +37,7 @@ DOM.defineCustomElement(
         rect.x += rect.width / 2;
         let atRight = this._useRight(rect.x);
         let atBottom = this._useBottom(rect.y);
-        if (atBottom) {
-          rect.y += rect.height;
-        }
+        if (atBottom) rect.y += rect.height;
         this._setPosition(rect, atRight, atBottom);
         this.requestUpdate(true);
       }
@@ -46,10 +53,11 @@ DOM.defineCustomElement(
       set targetNode(targetNode) {
         this._intersectionObserver.disconnect();
         this._targetNode = targetNode;
-        if (targetNode) {
+        if (targetNode === undefined) return;
+        if (!(targetNode instanceof SVGElement)) {
           this._intersectionObserver.observe(targetNode);
-          this.requestUpdate(true);
         }
+        this.requestUpdate(true);
       }
 
       set position(position) {
@@ -82,12 +90,25 @@ DOM.defineCustomElement(
         if (typeof content === 'string') {
           this.contentNode.innerHTML = content;
           this.contentNode.className = 'textContent';
+        } else if (content?.nodeType && content?.nodeName) {
+          this._setContentNode(content);
         } else {
-          const newContent = DOM.div();
-          newContent.appendChild(content);
-          this.contentNode.replaceWith(newContent);
-          newContent.id = 'content';
+          if (this.contentNode.firstChild?.localName == 'property-link-table') {
+            this.contentNode.firstChild.propertyDict = content;
+          } else {
+            const node = DOM.element('property-link-table');
+            node.instanceLinkButtons = true;
+            node.propertyDict = content;
+            this._setContentNode(node);
+          }
         }
+      }
+
+      _setContentNode(content) {
+        const newContent = DOM.div();
+        newContent.appendChild(content);
+        this.contentNode.replaceWith(newContent);
+        newContent.id = 'content';
       }
 
       hide() {

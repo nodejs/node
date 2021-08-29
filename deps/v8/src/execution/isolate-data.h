@@ -66,9 +66,10 @@ class IsolateData final {
   static constexpr int builtin_entry_table_offset() {
     return kBuiltinEntryTableOffset - kIsolateRootBias;
   }
-  static constexpr int builtin_entry_slot_offset(Builtins::Name builtin_index) {
-    DCHECK(Builtins::IsBuiltinId(builtin_index));
-    return builtin_entry_table_offset() + builtin_index * kSystemPointerSize;
+  static constexpr int builtin_entry_slot_offset(Builtin builtin) {
+    DCHECK(Builtins::IsBuiltinId(builtin));
+    return builtin_entry_table_offset() +
+           static_cast<int>(builtin) * kSystemPointerSize;
   }
 
   // Root-register-relative offset of the builtins table.
@@ -107,8 +108,8 @@ class IsolateData final {
   }
 
   // Root-register-relative offset of the builtin table entry.
-  static int builtin_slot_offset(Builtins::Name id) {
-    return builtins_table_offset() + id * kSystemPointerSize;
+  static int builtin_slot_offset(Builtin id) {
+    return builtins_table_offset() + static_cast<int>(id) * kSystemPointerSize;
   }
 
   // The FP and PC that are saved right before TurboAssembler::CallCFunction.
@@ -165,8 +166,8 @@ class IsolateData final {
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
-  V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
-  V(kBuiltinsTableOffset, Builtins::builtin_count* kSystemPointerSize)        \
+  V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize)    \
+  V(kBuiltinsTableOffset, Builtins::kBuiltinCount* kSystemPointerSize)        \
   FIELDS_HEAP_SANDBOX(V)                                                      \
   V(kStackIsIterableOffset, kUInt8Size)                                       \
   /* This padding aligns IsolateData size by 8 bytes. */                      \
@@ -218,10 +219,10 @@ class IsolateData final {
   // The entry points for all builtins. This corresponds to
   // Code::InstructionStart() for each Code object in the builtins table below.
   // The entry table is in IsolateData for easy access through kRootRegister.
-  Address builtin_entry_table_[Builtins::builtin_count] = {};
+  Address builtin_entry_table_[Builtins::kBuiltinCount] = {};
 
   // The entries in this array are tagged pointers to Code objects.
-  Address builtins_[Builtins::builtin_count] = {};
+  Address builtins_[Builtins::kBuiltinCount] = {};
 
   // Table containing pointers to external objects.
 #ifdef V8_HEAP_SANDBOX

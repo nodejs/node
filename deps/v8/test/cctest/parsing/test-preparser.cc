@@ -4,13 +4,14 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparse-data-impl.h"
 #include "src/parsing/preparse-data.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -680,8 +681,8 @@ TEST(PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, code, inner.params, inner.source);
+      v8::base::ScopedVector<char> program(len + 1);
+      v8::base::SNPrintF(program, code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
 

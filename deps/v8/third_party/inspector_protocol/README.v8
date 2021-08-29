@@ -2,7 +2,7 @@ Name: inspector protocol
 Short Name: inspector_protocol
 URL: https://chromium.googlesource.com/deps/inspector_protocol/
 Version: 0
-Revision: 35e8d2d89cb017d72cf905362672de77c978e1e6
+Revision: 32cf5f2bf4dc20c73ead291e68d2e2f6b638cd57
 License: BSD
 License File: LICENSE
 Security Critical: no

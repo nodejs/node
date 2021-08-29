@@ -5,6 +5,7 @@
 #ifndef INCLUDE_CPPGC_SOURCE_LOCATION_H_
 #define INCLUDE_CPPGC_SOURCE_LOCATION_H_
 
+#include <cstddef>
 #include <string>
 
 #include "v8config.h"  // NOLINT(build/include_directory)

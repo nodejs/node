@@ -53,13 +53,13 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
-    Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
+    base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
     : code_kind_(code_kind),
       zone_(zone),
       optimization_id_(kNoOptimizationId),
       debug_name_(debug_name) {
   SetTracingFlags(
-      PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
+      PassesFilter(debug_name, base::CStrVector(FLAG_trace_turbo_filter)));
   ConfigureFlags();
 }
 
@@ -165,10 +165,10 @@ std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   if (!shared_info().is_null()) {
     return shared_info()->DebugNameCStr();
   }
-  Vector<const char> name_vec = debug_name_;
-  if (name_vec.empty()) name_vec = ArrayVector("unknown");
+  base::Vector<const char> name_vec = debug_name_;
+  if (name_vec.empty()) name_vec = base::ArrayVector("unknown");
   std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
-  base::Memcpy(name.get(), name_vec.begin(), name_vec.length());
+  memcpy(name.get(), name_vec.begin(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
 }
@@ -193,7 +193,6 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNIMPLEMENTED();
-      return StackFrame::NONE;
   }
 }
 

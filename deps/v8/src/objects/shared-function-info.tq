@@ -11,13 +11,15 @@ extern class PreparseData extends HeapObject {
 
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
-  interpreter_trampoline: Code;
+  @if(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: Code;
 }
 
 @generateCppClass
 @generatePrint
 extern class BaselineData extends Struct {
-  baseline_code: Code;
+  @if(V8_EXTERNAL_CODE_SPACE) baseline_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) baseline_code: Code;
   data: BytecodeArray|InterpreterData;
 }
 
@@ -42,7 +44,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   name_should_print_as_anonymous: bool: 1 bit;
   has_reported_binary_coverage: bool: 1 bit;
   is_top_level: bool: 1 bit;
-  is_oneshot_iife_or_properties_are_final: bool: 1 bit;
+  properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
 }
 
@@ -75,7 +77,7 @@ class SharedFunctionInfo extends HeapObject {
   // SharedFunctionInfo represents within its script, or -1 if this
   // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
   function_literal_id: int32;
-  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
+  // [unique_id] - For --log-maps purposes, an identifier that's persistent
   // even if the GC moves this SharedFunctionInfo.
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }

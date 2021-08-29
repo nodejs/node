@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Script, SourcePosition} from '../../profile.mjs';
-import {LogEntry} from '../log/log.mjs';
+import {App} from '../index.mjs'
 
 import {FocusEvent, ToolTipEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
@@ -128,8 +127,7 @@ DOM.defineCustomElement('view/list-panel',
 
   _logEntryMouseOverHandler(e) {
     const group = e.currentTarget.group;
-    this.dispatchEvent(
-        new ToolTipEvent(group.key.toStringLong(), e.currentTarget));
+    this.dispatchEvent(new ToolTipEvent(group.key, e.currentTarget));
   }
 
   _handleDetailsClick(event) {
@@ -178,7 +176,7 @@ DOM.defineCustomElement('view/list-panel',
   _render(groups, table) {
     let last;
     new LazyTable(table, groups, group => {
-      if (last && last.count < group.count) {
+      if (last && last.count < group.length) {
         console.log(last, group);
       }
       last = group;
@@ -187,22 +185,14 @@ DOM.defineCustomElement('view/list-panel',
       const details = tr.appendChild(DOM.td('', 'toggle'));
       details.onclick = this._detailsClickHandler;
       tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
-      tr.appendChild(DOM.td(group.count, 'count'));
-      const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
-      if (this._isClickable(group.key)) {
+      tr.appendChild(DOM.td(group.length, 'count'));
+      const valueTd = tr.appendChild(DOM.td(group.key?.toString(), 'key'));
+      if (App.isClickable(group.key)) {
         tr.onclick = this._logEntryClickHandler;
         tr.onmouseover = this._logEntryMouseOverHandler;
         valueTd.classList.add('clickable');
       }
       return tr;
     }, 10);
-  }
-
-  _isClickable(object) {
-    if (typeof object !== 'object') return false;
-    if (object instanceof LogEntry) return true;
-    if (object instanceof SourcePosition) return true;
-    if (object instanceof Script) return true;
-    return false;
   }
 });

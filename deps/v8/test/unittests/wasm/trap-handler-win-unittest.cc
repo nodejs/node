@@ -73,8 +73,8 @@ class ExceptionHandlerFallbackTest : public ::testing::Test {
 };
 
 TEST_F(ExceptionHandlerFallbackTest, DoTest) {
-  constexpr bool use_default_handler = true;
-  EXPECT_TRUE(v8::V8::EnableWebAssemblyTrapHandler(use_default_handler));
+  constexpr bool kUseDefaultTrapHandler = true;
+  EXPECT_TRUE(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
   // In the original test setup the test memory is protected against any kind of
   // access. Therefore the access here causes an access violation exception,
   // which should be caught by the exception handler we install above. In the

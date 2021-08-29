@@ -123,6 +123,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   heap()->CopyBlock(target.address() + kTaggedSize,
                     source.address() + kTaggedSize, size - kTaggedSize);
 
+  // This release CAS is paired with the load acquire in ScavengeObject.
   if (!source.release_compare_and_swap_map_word(
           MapWord::FromMap(map), MapWord::FromForwardingAddress(target))) {
     // Other task migrated the object.
@@ -391,7 +392,9 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(Heap::InFromPage(object));
 
-  // Synchronized load that consumes the publishing CAS of MigrateObject.
+  // Synchronized load that consumes the publishing CAS of MigrateObject. We
+  // need memory ordering in order to read the page header of the forwarded
+  // object (using Heap::InYoungGeneration).
   MapWord first_word = object.map_word(kAcquireLoad);
 
   // If the first word is a forwarding address, the object has already been
@@ -402,6 +405,8 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     DCHECK_IMPLIES(Heap::InYoungGeneration(dest),
                    Heap::InToPage(dest) || Heap::IsLargeObject(dest));
 
+    // This load forces us to have memory ordering for the map load above. We
+    // need to have the page header properly initialized.
     return Heap::InYoungGeneration(dest) ? KEEP_SLOT : REMOVE_SLOT;
   }
 

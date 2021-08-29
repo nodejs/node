@@ -4,52 +4,56 @@
 
 #include "src/wasm/wasm-init-expr.h"
 
+#include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-module.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-std::ostream& operator<<(std::ostream& os, const WasmInitExpr& expr) {
-  os << "(";
-  switch (expr.kind()) {
-    case WasmInitExpr::kNone:
-      UNREACHABLE();
-    case WasmInitExpr::kGlobalGet:
-      os << "global.get " << expr.immediate().index;
-      break;
-    case WasmInitExpr::kI32Const:
-      os << "i32.const " << expr.immediate().i32_const;
-      break;
-    case WasmInitExpr::kI64Const:
-      os << "i64.const " << expr.immediate().i64_const;
-      break;
-    case WasmInitExpr::kF32Const:
-      os << "f32.const " << expr.immediate().f32_const;
-      break;
-    case WasmInitExpr::kF64Const:
-      os << "f64.const " << expr.immediate().f64_const;
-      break;
-    case WasmInitExpr::kS128Const:
-      os << "s128.const 0x" << std::hex;
-      for (uint8_t b : expr.immediate().s128_const) {
-        os << b;
+ValueType WasmInitExpr::type(const WasmModule* module,
+                             const WasmFeatures& enabled_features) const {
+  switch (kind()) {
+    case kNone:
+      return kWasmBottom;
+    case kGlobalGet:
+      return immediate().index < module->globals.size()
+                 ? module->globals[immediate().index].type
+                 : kWasmBottom;
+    case kI32Const:
+      return kWasmI32;
+    case kI64Const:
+      return kWasmI64;
+    case kF32Const:
+      return kWasmF32;
+    case kF64Const:
+      return kWasmF64;
+    case kS128Const:
+      return kWasmS128;
+    case kRefFuncConst: {
+      uint32_t heap_type = enabled_features.has_typed_funcref()
+                               ? module->functions[immediate().index].sig_index
+                               : HeapType::kFunc;
+      return ValueType::Ref(heap_type, kNonNullable);
+    }
+    case kRefNullConst:
+      return ValueType::Ref(immediate().heap_type, kNullable);
+    case kStructNewWithRtt:
+    case kArrayInit:
+      return ValueType::Ref(immediate().index, kNonNullable);
+    case kRttCanon:
+      return ValueType::Rtt(immediate().heap_type, 0);
+    case kRttSub:
+    case kRttFreshSub: {
+      ValueType operand_type = operands()[0].type(module, enabled_features);
+      if (!operand_type.is_rtt()) return kWasmBottom;
+      if (operand_type.has_depth()) {
+        return ValueType::Rtt(immediate().heap_type, operand_type.depth() + 1);
+      } else {
+        return ValueType::Rtt(immediate().heap_type);
       }
-      os << std::dec;
-      break;
-    case WasmInitExpr::kRefNullConst:
-      os << "ref.null " << expr.immediate().heap_type;
-      break;
-    case WasmInitExpr::kRefFuncConst:
-      os << "ref.func " << expr.immediate().index;
-      break;
-    case WasmInitExpr::kRttCanon:
-      os << "rtt.canon " << expr.immediate().heap_type;
-      break;
-    case WasmInitExpr::kRttSub:
-      os << "rtt.sub " << *expr.operand();
-      break;
+    }
   }
-  os << ")";
-  return os;
 }
 
 }  // namespace wasm

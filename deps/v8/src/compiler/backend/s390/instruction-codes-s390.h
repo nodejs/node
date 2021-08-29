@@ -69,12 +69,14 @@ namespace compiler {
   V(S390_FloorFloat)                        \
   V(S390_CeilFloat)                         \
   V(S390_TruncateFloat)                     \
+  V(S390_FloatNearestInt)                   \
   V(S390_AbsFloat)                          \
   V(S390_SqrtDouble)                        \
   V(S390_FloorDouble)                       \
   V(S390_CeilDouble)                        \
   V(S390_TruncateDouble)                    \
   V(S390_RoundDouble)                       \
+  V(S390_DoubleNearestInt)                  \
   V(S390_MaxFloat)                          \
   V(S390_MaxDouble)                         \
   V(S390_MinFloat)                          \

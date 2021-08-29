@@ -174,7 +174,7 @@ void RegExpMacroAssemblerTracer::LoadCurrentCharacterImpl(
 
 class PrintablePrinter {
  public:
-  explicit PrintablePrinter(uc16 character) : character_(character) { }
+  explicit PrintablePrinter(base::uc16 character) : character_(character) {}
 
   const char* operator*() {
     if (character_ >= ' ' && character_ <= '~') {
@@ -189,12 +189,12 @@ class PrintablePrinter {
   }
 
  private:
-  uc16 character_;
+  base::uc16 character_;
   char buffer_[4];
 };
 
-
-void RegExpMacroAssemblerTracer::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerTracer::CheckCharacterLT(base::uc16 limit,
+                                                  Label* on_less) {
   PrintablePrinter printable(limit);
   PrintF(" CheckCharacterLT(c=0x%04x%s, label[%08x]);\n",
          limit,
@@ -203,8 +203,7 @@ void RegExpMacroAssemblerTracer::CheckCharacterLT(uc16 limit, Label* on_less) {
   assembler_->CheckCharacterLT(limit, on_less);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckCharacterGT(uc16 limit,
+void RegExpMacroAssemblerTracer::CheckCharacterGT(base::uc16 limit,
                                                   Label* on_greater) {
   PrintablePrinter printable(limit);
   PrintF(" CheckCharacterGT(c=0x%04x%s, label[%08x]);\n",
@@ -213,7 +212,6 @@ void RegExpMacroAssemblerTracer::CheckCharacterGT(uc16 limit,
          LabelToInt(on_greater));
   assembler_->CheckCharacterGT(limit, on_greater);
 }
-
 
 void RegExpMacroAssemblerTracer::CheckCharacter(unsigned c, Label* on_equal) {
   PrintablePrinter printable(c);
@@ -277,12 +275,8 @@ void RegExpMacroAssemblerTracer::CheckNotCharacterAfterAnd(
   assembler_->CheckNotCharacterAfterAnd(c, mask, on_not_equal);
 }
 
-
 void RegExpMacroAssemblerTracer::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   PrintF(" CheckNotCharacterAfterMinusAnd(c=0x%04x, minus=%04x, mask=0x%04x, "
              "label[%08x]);\n",
          c,
@@ -292,11 +286,9 @@ void RegExpMacroAssemblerTracer::CheckNotCharacterAfterMinusAnd(
   assembler_->CheckNotCharacterAfterMinusAnd(c, minus, mask, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+void RegExpMacroAssemblerTracer::CheckCharacterInRange(base::uc16 from,
+                                                       base::uc16 to,
+                                                       Label* on_not_in_range) {
   PrintablePrinter printable_from(from);
   PrintablePrinter printable_to(to);
   PrintF(" CheckCharacterInRange(from=0x%04x%s, to=0x%04x%s, label[%08x]);\n",
@@ -308,11 +300,9 @@ void RegExpMacroAssemblerTracer::CheckCharacterInRange(
   assembler_->CheckCharacterInRange(from, to, on_not_in_range);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerTracer::CheckCharacterNotInRange(base::uc16 from,
+                                                          base::uc16 to,
+                                                          Label* on_in_range) {
   PrintablePrinter printable_from(from);
   PrintablePrinter printable_to(to);
   PrintF(
@@ -324,7 +314,6 @@ void RegExpMacroAssemblerTracer::CheckCharacterNotInRange(
       LabelToInt(on_in_range));
   assembler_->CheckCharacterNotInRange(from, to, on_in_range);
 }
-
 
 void RegExpMacroAssemblerTracer::CheckBitInTable(
     Handle<ByteArray> table, Label* on_bit_set) {
@@ -364,10 +353,8 @@ void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
   assembler_->CheckPosition(cp_offset, on_outside_input);
 }
 
-
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
-    uc16 type,
-    Label* on_no_match) {
+    base::uc16 type, Label* on_no_match) {
   bool supported = assembler_->CheckSpecialCharacterClass(type,
                                                           on_no_match);
   PrintF(" CheckSpecialCharacterClass(type='%c', label[%08x]): %s;\n",
@@ -376,7 +363,6 @@ bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
          supported ? "true" : "false");
   return supported;
 }
-
 
 void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
                                               int comparand, Label* if_lt) {

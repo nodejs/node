@@ -4,7 +4,7 @@
 
 "use strict";
 
-load('bigint-util.js');
+d8.file.execute('bigint-util.js');
 
 let initial_diff = 0n;
 let a = 0n;

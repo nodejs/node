@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 import './timeline/timeline-track.mjs';
+import './timeline/timeline-track-map.mjs';
+import './timeline/timeline-track-tick.mjs';
+import './timeline/timeline-track-timer.mjs';
 
 import {SynchronizeSelectionEvent} from './events.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
@@ -16,16 +19,24 @@ DOM.defineCustomElement(
         this.addEventListener(
             SynchronizeSelectionEvent.name,
             e => this.handleSelectionSyncronization(e));
+        this.$('#zoomIn').onclick = () => this.nofChunks *= 1.5;
+        this.$('#zoomOut').onclick = () => this.nofChunks /= 1.5;
       }
 
       set nofChunks(count) {
+        const time = this.currentTime
         for (const track of this.timelineTracks) {
           track.nofChunks = count;
+          track.currentTime = time;
         }
       }
 
       get nofChunks() {
         return this.timelineTracks[0].nofChunks;
+      }
+
+      get currentTime() {
+        return this.timelineTracks[0].currentTime;
       }
 
       get timelineTracks() {
@@ -34,7 +45,6 @@ DOM.defineCustomElement(
       }
 
       handleTrackScroll(event) {
-        // TODO(zcankara) add forEachTrack  helper method
         for (const track of this.timelineTracks) {
           track.scrollLeft = event.detail;
         }

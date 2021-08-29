@@ -4,12 +4,12 @@
 
 "use strict";
 
-load('../base.js');
-load('common.js');
-load('map.js');
-load('set.js');
-load('weakmap.js');
-load('weakset.js');
+d8.file.execute('../base.js');
+d8.file.execute('common.js');
+d8.file.execute('map.js');
+d8.file.execute('set.js');
+d8.file.execute('weakmap.js');
+d8.file.execute('weakset.js');
 
 
 var success = true;

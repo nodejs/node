@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --experimental-wasm-reftypes --experimental-wasm-return-call
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function IndirectCallToNonZeroTable() {
   print(arguments.callee.name);

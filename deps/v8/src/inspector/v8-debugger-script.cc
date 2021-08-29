@@ -395,12 +395,6 @@ void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
   }
 }
 
-bool V8DebuggerScript::setBreakpoint(const String16& condition,
-                                     v8::debug::Location* loc, int* id) const {
-  v8::HandleScope scope(m_isolate);
-  return script()->SetBreakpoint(toV8String(m_isolate, condition), loc, id);
-}
-
 #if V8_ENABLE_WEBASSEMBLY
 void V8DebuggerScript::removeWasmBreakpoint(int id) {
   v8::HandleScope scope(m_isolate);

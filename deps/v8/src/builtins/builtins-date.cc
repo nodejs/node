@@ -209,7 +209,7 @@ BUILTIN(DateConstructor) {
     double const time_val = JSDate::CurrentTimeValue(isolate);
     DateBuffer buffer = ToDateString(time_val, isolate->date_cache());
     RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+        isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
   }
   // [Construct]
   int const argc = args.length() - 1;
@@ -797,7 +797,7 @@ BUILTIN(DatePrototypeToDateString) {
   DateBuffer buffer =
       ToDateString(date->value().Number(), isolate->date_cache(), kDateOnly);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.36 Date.prototype.toISOString ( )
@@ -815,14 +815,14 @@ BUILTIN(DatePrototypeToISOString) {
                                        &hour, &min, &sec, &ms);
   char buffer[128];
   if (year >= 0 && year <= 9999) {
-    SNPrintF(ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             year, month + 1, day, hour, min, sec, ms);
   } else if (year < 0) {
-    SNPrintF(ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", -year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             -year, month + 1, day, hour, min, sec, ms);
   } else {
-    SNPrintF(ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
-             month + 1, day, hour, min, sec, ms);
+    SNPrintF(base::ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+             year, month + 1, day, hour, min, sec, ms);
   }
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
@@ -834,7 +834,7 @@ BUILTIN(DatePrototypeToString) {
   DateBuffer buffer =
       ToDateString(date->value().Number(), isolate->date_cache());
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.42 Date.prototype.toTimeString ( )
@@ -844,7 +844,7 @@ BUILTIN(DatePrototypeToTimeString) {
   DateBuffer buffer =
       ToDateString(date->value().Number(), isolate->date_cache(), kTimeOnly);
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(VectorOf(buffer)));
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -922,7 +922,7 @@ BUILTIN(DatePrototypeToUTCString) {
   int year, month, day, weekday, hour, min, sec, ms;
   isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
                                        &hour, &min, &sec, &ms);
-  SNPrintF(ArrayVector(buffer),
+  SNPrintF(base::ArrayVector(buffer),
            (year < 0) ? "%s, %02d %s %05d %02d:%02d:%02d GMT"
                       : "%s, %02d %s %04d %02d:%02d:%02d GMT",
            kShortWeekDays[weekday], day, kShortMonths[month], year, hour, min,

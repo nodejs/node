@@ -80,7 +80,7 @@ class CWasmEntryArgTester {
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
   const FunctionSig* sig_;
-  Handle<Code> c_wasm_entry_;
+  Handle<CodeT> c_wasm_entry_;
   WasmCode* wasm_code_;
 };
 
@@ -165,10 +165,13 @@ TEST(TestCWasmEntryArgPassing_AllTypes) {
         return 0. + a + b + c + d;
       });
 
-  Vector<const int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
-  Vector<const int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
-  Vector<const float> test_values_f32 = compiler::ValueHelper::float32_vector();
-  Vector<const double> test_values_f64 =
+  base::Vector<const int32_t> test_values_i32 =
+      compiler::ValueHelper::int32_vector();
+  base::Vector<const int64_t> test_values_i64 =
+      compiler::ValueHelper::int64_vector();
+  base::Vector<const float> test_values_f32 =
+      compiler::ValueHelper::float32_vector();
+  base::Vector<const double> test_values_f64 =
       compiler::ValueHelper::float64_vector();
   size_t max_len =
       std::max(std::max(test_values_i32.size(), test_values_i64.size()),

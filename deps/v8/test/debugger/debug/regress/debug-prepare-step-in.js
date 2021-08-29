@@ -29,7 +29,7 @@
 Debug = debug.Debug
 
 function breakListener(event, exec_state, event_data, data) {
-  exec_state.prepareStep(Debug.StepAction.StepIn);
+  exec_state.prepareStep(Debug.StepAction.StepInto);
 }
 
 Debug.setListener(breakListener);

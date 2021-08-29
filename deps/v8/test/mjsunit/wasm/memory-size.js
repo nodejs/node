@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kV8MaxWasmMemoryPages = 65536;  // 4 GiB
 var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB

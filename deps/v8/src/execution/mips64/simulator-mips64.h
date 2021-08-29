@@ -36,6 +36,7 @@ T Nabs(T a) {
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/execution/simulator-base.h"
@@ -618,7 +619,7 @@ class Simulator : public SimulatorBase {
   bool pc_modified_;
   int64_t icount_;
   int break_count_;
-  EmbeddedVector<char, 128> trace_buf_;
+  base::EmbeddedVector<char, 128> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

@@ -586,6 +586,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return !property->IsPrototype();
   }
 
+  V8_INLINE v8::Extension* extension() const { return info_->extension(); }
+
+  V8_INLINE bool ParsingExtension() const { return extension() != nullptr; }
+
   V8_INLINE bool IsNative(Expression* expr) const {
     DCHECK_NOT_NULL(expr);
     return expr->IsVariableProxy() &&
@@ -772,7 +776,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE const AstRawString* GetNumberAsSymbol() const {
     double double_value = scanner()->DoubleValue();
     char array[100];
-    const char* string = DoubleToCString(double_value, ArrayVector(array));
+    const char* string =
+        DoubleToCString(double_value, base::ArrayVector(array));
     return ast_value_factory()->GetOneByteString(string);
   }
 

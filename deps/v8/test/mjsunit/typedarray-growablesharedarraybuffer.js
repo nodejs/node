@@ -352,3 +352,203 @@ const ctors = [
     assertEquals('012', keys);
   }
 }());
+
+(function IterateTypedArray() {
+  const no_elements = 10;
+  const offset = 2;
+
+  function TestIteration(ta, expected) {
+    let values = [];
+    for (const value of ta) {
+      values.push(value);
+    }
+    assertEquals(expected, values);
+  }
+
+  for (let ctor of ctors) {
+    if (ctor == BigInt64Array || ctor == BigUint64Array) {
+      // This test doesn't work for BigInts.
+      continue;
+    }
+
+    const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
+    // We can use the same GSAB for all the TAs below, since we won't modify it
+    // after writing the initial values.
+    const gsab = new GrowableSharedArrayBuffer(buffer_byte_length,
+                                               2 * buffer_byte_length);
+    const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
+
+    // Write some data into the array.
+    let ta_write = new ctor(gsab);
+    for (let i = 0; i < no_elements; ++i) {
+      ta_write[i] = i % 128;
+    }
+
+    // Create various different styles of TypedArrays with the GSAB as the
+    // backing store and iterate them.
+    const ta = new ctor(gsab, 0, 3);
+    TestIteration(ta, [0, 1, 2]);
+
+    const empty_ta = new ctor(gsab, 0, 0);
+    TestIteration(empty_ta, []);
+
+    const ta_with_offset = new ctor(gsab, byte_offset, 3);
+    TestIteration(ta_with_offset, [2, 3, 4]);
+
+    const empty_ta_with_offset = new ctor(gsab, byte_offset, 0);
+    TestIteration(empty_ta_with_offset, []);
+
+    const length_tracking_ta = new ctor(gsab);
+    {
+      let expected = [];
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      TestIteration(length_tracking_ta, expected);
+    }
+
+    const length_tracking_ta_with_offset = new ctor(gsab, byte_offset);
+    {
+      let expected = [];
+      for (let i = offset; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      TestIteration(length_tracking_ta_with_offset, expected);
+    }
+
+    const empty_length_tracking_ta_with_offset = new ctor(gsab, buffer_byte_length);
+    TestIteration(empty_length_tracking_ta_with_offset, []);
+  }
+}());
+
+// Helpers for iteration tests.
+function CreateGsab(buffer_byte_length, ctor) {
+  const gsab = new GrowableSharedArrayBuffer(buffer_byte_length,
+                                             2 * buffer_byte_length);
+  // Write some data into the array.
+  let ta_write = new ctor(gsab);
+  for (let i = 0; i < buffer_byte_length / ctor.BYTES_PER_ELEMENT; ++i) {
+    ta_write[i] = i % 128;
+  }
+  return gsab;
+}
+
+function TestIterationAndGrow(ta, expected, gsab, grow_after,
+                              new_byte_length) {
+  let values = [];
+  let grown = false;
+  for (const value of ta) {
+    values.push(value);
+    if (!grown && values.length == grow_after) {
+      gsab.grow(new_byte_length);
+      grown = true;
+    }
+  }
+  assertEquals(expected, values);
+  assertTrue(grown);
+}
+
+(function IterateTypedArrayAndGrowMidIteration() {
+  const no_elements = 10;
+  const offset = 2;
+
+  for (let ctor of ctors) {
+    if (ctor == BigInt64Array || ctor == BigUint64Array) {
+      // This test doesn't work for BigInts.
+      continue;
+    }
+    const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
+    const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
+
+    // Create various different styles of TypedArrays with the gsab as the
+    // backing store and iterate them.
+
+    // Fixed-length TAs aren't affected by resizing.
+    let gsab = CreateGsab(buffer_byte_length, ctor);
+    const ta = new ctor(gsab, 0, 3);
+    TestIterationAndGrow(ta, [0, 1, 2], gsab, 2, buffer_byte_length * 2);
+
+    gsab = CreateGsab(buffer_byte_length, ctor);
+    const ta_with_offset = new ctor(gsab, byte_offset, 3);
+    TestIterationAndGrow(ta_with_offset, [2, 3, 4], gsab, 2,
+                         buffer_byte_length * 2);
+
+    gsab = CreateGsab(buffer_byte_length, ctor);
+    const length_tracking_ta = new ctor(gsab);
+    {
+      let expected = [];
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      // After resizing, the new memory contains zeros.
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(0);
+      }
+
+      TestIterationAndGrow(length_tracking_ta, expected, gsab, 2,
+                           buffer_byte_length * 2);
+    }
+
+    gsab = CreateGsab(buffer_byte_length, ctor);
+    const length_tracking_ta_with_offset = new ctor(gsab, byte_offset);
+    {
+      let expected = [];
+      for (let i = offset; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(0);
+      }
+      TestIterationAndGrow(length_tracking_ta_with_offset, expected, gsab, 2,
+                           buffer_byte_length * 2);
+    }
+  }
+}());
+
+(function IterateTypedArrayAndGrowJustBeforeIterationWouldEnd() {
+  const no_elements = 10;
+  const offset = 2;
+
+  // We need to recreate the gsab between all TA tests, since we grow it.
+  for (let ctor of ctors) {
+    if (ctor == BigInt64Array || ctor == BigUint64Array) {
+      // This test doesn't work for BigInts.
+      continue;
+    }
+    const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
+    const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
+
+    // Create various different styles of TypedArrays with the gsab as the
+    // backing store and iterate them.
+
+    let gsab = CreateGsab(buffer_byte_length, ctor);
+    const length_tracking_ta = new ctor(gsab);
+    {
+      let expected = [];
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      // After resizing, the new memory contains zeros.
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(0);
+      }
+
+      TestIterationAndGrow(length_tracking_ta, expected, gsab, no_elements,
+                           buffer_byte_length * 2);
+    }
+
+    gsab = CreateGsab(buffer_byte_length, ctor);
+    const length_tracking_ta_with_offset = new ctor(gsab, byte_offset);
+    {
+      let expected = [];
+      for (let i = offset; i < no_elements; ++i) {
+        expected.push(i % 128);
+      }
+      for (let i = 0; i < no_elements; ++i) {
+        expected.push(0);
+      }
+      TestIterationAndGrow(length_tracking_ta_with_offset, expected, gsab,
+                           no_elements - offset, buffer_byte_length * 2);
+    }
+  }
+}());

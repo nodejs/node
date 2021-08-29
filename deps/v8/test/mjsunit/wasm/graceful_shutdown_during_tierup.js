@@ -4,7 +4,7 @@
 
 // Flags: --no-wait-for-background-tasks --wasm-tier-up
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function ShutdownDuringTierUp() {
   // Create a big module.

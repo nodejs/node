@@ -4,8 +4,8 @@
 
 #include "test/inspector/isolate-data.h"
 
+#include "src/base/vector.h"
 #include "src/inspector/test-interface.h"
-#include "src/utils/vector.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 
@@ -471,6 +471,13 @@ void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
 
 void IsolateData::SetResourceNamePrefix(v8::Local<v8::String> prefix) {
   resource_name_prefix_.Reset(isolate(), prefix);
+}
+
+bool IsolateData::AssociateExceptionData(v8::Local<v8::Value> exception,
+                                         v8::Local<v8::Name> key,
+                                         v8::Local<v8::Value> value) {
+  return inspector_->associateExceptionData(
+      this->isolate()->GetCurrentContext(), exception, key, value);
 }
 
 namespace {

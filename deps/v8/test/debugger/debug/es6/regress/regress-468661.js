@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
       ++break_count;
 
       if (break_count !== expected_breaks) {
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
         print("Next step prepared");
       }
     }

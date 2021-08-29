@@ -136,7 +136,8 @@ SUPPORTED_ARCHS = ['arm',
                    'mips',
                    'mipsel',
                    'x64',
-                   'arm64']
+                   'arm64',
+                   'riscv64']
 
 GENERIC_RESULTS_RE = re.compile(r'^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$')
 RESULT_STDDEV_RE = re.compile(r'^\{([^\}]+)\}$')

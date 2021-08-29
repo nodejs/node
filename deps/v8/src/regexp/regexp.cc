@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp.h"
 
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
@@ -105,10 +106,11 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
                                                  Handle<String> pattern,
                                                  RegExpError error) {
-  Vector<const char> error_data = CStrVector(RegExpErrorString(error));
+  base::Vector<const char> error_data =
+      base::CStrVector(RegExpErrorString(error));
   Handle<String> error_text =
       isolate->factory()
-          ->NewStringFromOneByte(Vector<const uint8_t>::cast(error_data))
+          ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
           .ToHandleChecked();
   THROW_NEW_ERROR(
       isolate,
@@ -218,7 +220,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     RegExpAtom* atom = parse_result.tree->AsAtom();
     // The pattern source might (?) contain escape sequences, but they're
     // resolved in atom_string.
-    Vector<const uc16> atom_pattern = atom->data();
+    base::Vector<const base::uc16> atom_pattern = atom->data();
     Handle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
@@ -408,7 +410,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   }
 
   if (!needs_initial_compilation && !needs_tier_up_compilation) {
-    DCHECK(compiled_code.IsCode());
+    DCHECK(compiled_code.IsCodeT());
     DCHECK_IMPLIES(FLAG_regexp_interpret_all, bytecode.IsByteArray());
     return true;
   }
@@ -441,7 +443,7 @@ bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
     DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
     DCHECK_EQ(JSRegExp::kUninitializedValue, bytecode_value);
   } else {
-    DCHECK(entry.IsSmi() || (entry.IsCode() && bytecode.IsByteArray()));
+    DCHECK(entry.IsSmi() || (entry.IsCodeT() && bytecode.IsByteArray()));
   }
 
   return true;
@@ -493,7 +495,10 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<FixedArray> data =
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
-    data->set(JSRegExp::code_index(is_one_byte), *compile_data.code);
+    // TODO(ishell): avoid roundtrips between cdc and code.
+    Code code = Code::cast(*compile_data.code);
+    data->set(JSRegExp::code_index(is_one_byte), ToCodeT(code));
+
     // Reset bytecode to uninitialized. In case we use tier-up we know that
     // tier-up has happened this way.
     data->set(JSRegExp::bytecode_index(is_one_byte),
@@ -506,7 +511,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
     data->set(JSRegExp::bytecode_index(is_one_byte), *compile_data.code);
     Handle<Code> trampoline =
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
-    data->set(JSRegExp::code_index(is_one_byte), *trampoline);
+    data->set(JSRegExp::code_index(is_one_byte), ToCodeT(*trampoline));
   }
   re->SetCaptureNameMap(compile_data.capture_name_map);
   int register_max = IrregexpMaxRegisterCount(*data);
@@ -608,8 +613,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
       // must restart from scratch.
       // In this case, it means we must make sure we are prepared to handle
       // the, potentially, different subject (the string can switch between
-      // being internal and external, and even between being Latin1 and UC16,
-      // but the characters are always the same).
+      // being internal and external, and even between being Latin1 and
+      // UC16, but the characters are always the same).
       is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
     } while (true);
     UNREACHABLE();

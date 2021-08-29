@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-eh
-load('test/mjsunit/wasm/wasm-module-builder.js')
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js')
 let obj = {};
 let proxy = new Proxy(obj, {});
 let builder = new WasmModuleBuilder();

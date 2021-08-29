@@ -4,8 +4,8 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 // The following method doesn't attempt to catch an raised exception.
 (function TestThrowSimple() {
@@ -79,17 +79,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprCatchAll,
         kExprEnd
       ]).exportFunc();
-  builder.addFunction('unreachable_in_try_unwind', kSig_v_v)
-      .addBody([
-        kExprTry, kWasmVoid,
-          kExprUnreachable,
-        kExprUnwind,
-        kExprEnd
-      ]).exportFunc();
   let instance = builder.instantiate();
 
   assertTraps(kTrapUnreachable, () => instance.exports.unreachable_in_try());
-  assertTraps(kTrapUnreachable, () => instance.exports.unreachable_in_try_unwind());
 })();
 
 (function TestTrapInCalleeNotCaught() {
@@ -110,21 +102,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
-  builder.addFunction('trap_in_callee_unwind', kSig_i_ii)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprLocalGet, 0,
-          kExprLocalGet, 1,
-          kExprCallFunction, func_div.index,
-        kExprUnwind,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
   let instance = builder.instantiate();
 
   assertEquals(3, instance.exports.trap_in_callee(7, 2));
   assertTraps(kTrapDivByZero, () => instance.exports.trap_in_callee(1, 0));
-  assertTraps(kTrapDivByZero, () => instance.exports.trap_in_callee_unwind(1, 0));
 })();
 
 (function TestTrapViaJSNotCaught() {
@@ -142,14 +123,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprTry, kWasmI32,
           kExprCallFunction, imp,
         kExprCatchAll,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('call_import_unwind', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprCallFunction, imp,
-        kExprUnwind,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -175,18 +148,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertSame(exception, caught);
   assertInstanceof(exception, WebAssembly.RuntimeError);
   assertEquals(exception.message, kTrapMsgs[kTrapDivByZero]);
-
-  // Same test with unwind instead of catch_all.
-  caught = undefined;
-  try {
-    let res = instance.exports.call_import_unwind();
-    assertUnreachable('call_import_unwind should trap, but returned with ' + res);
-  } catch (e) {
-    caught = e;
-  }
-  assertSame(exception, caught);
-  assertInstanceof(exception, WebAssembly.RuntimeError);
-  assertEquals(exception.message, kTrapMsgs[kTrapDivByZero]);
 })();
 
 (function TestManuallyThrownRuntimeErrorCaught() {
@@ -201,21 +162,12 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
-  builder.addFunction('call_import_unwind', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprCallFunction, imp,
-        kExprUnwind,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
   function throw_exc() {
     throw new WebAssembly.RuntimeError('My user text');
   }
   let instance = builder.instantiate({imp: {ort: throw_exc}});
 
   assertEquals(11, instance.exports.call_import());
-  assertThrows(instance.exports.call_import_unwind, WebAssembly.RuntimeError, "My user text");
 })();
 
 (function TestExnWithWasmProtoNotCaught() {
@@ -1041,18 +993,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprCatchAll,
         kExprEnd
       ]).exportFunc();
-  builder.addFunction('test_unwind', kSig_v_v)
-      .addBody([
-        kExprTry, kWasmVoid,
-          kExprTry, kWasmVoid,
-            kExprThrow, except,
-          kExprDelegate, 1,
-        kExprUnwind,
-        kExprEnd
-      ]).exportFunc();
   instance = builder.instantiate();
   assertTraps(WebAssembly.RuntimeError, () => instance.exports.test());
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test_unwind());
 })();
 
 (function TestThrowBeforeUnreachable() {
@@ -1111,4 +1053,23 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 
   let instance = builder.instantiate();
   assertEquals(42, instance.exports.throw_with_local());
+})();
+
+(function TestCatchlessTry() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('catchless_try', kSig_v_i)
+    .addBody([
+        kExprTry, kWasmVoid,
+          kExprLocalGet, 0,
+          kExprIf, kWasmVoid,
+            kExprThrow, except,
+          kExprEnd,
+        kExprEnd,
+    ]).exportFunc();
+
+  let instance = builder.instantiate();
+  assertDoesNotThrow(() => instance.exports.catchless_try(0));
+  assertWasmThrows(instance, except, [], () => instance.exports.catchless_try(1));
 })();

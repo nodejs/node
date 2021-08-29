@@ -20,7 +20,7 @@ static void CheckObject(Isolate* isolate, Handle<Object> obj,
   Handle<String> print_string = String::Flatten(
       isolate,
       Handle<String>::cast(Object::NoSideEffectsToString(isolate, obj)));
-  CHECK(print_string->IsOneByteEqualTo(CStrVector(string)));
+  CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {

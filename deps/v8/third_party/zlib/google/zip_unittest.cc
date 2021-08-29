@@ -57,7 +57,7 @@ class VirtualFileSystem : public zip::FileAccessor {
   static constexpr char kBar2Content[] = "This is bar too.";
 
   VirtualFileSystem() {
-    base::FilePath test_dir(FILE_PATH_LITERAL("/test"));
+    base::FilePath test_dir;
     base::FilePath foo_txt_path = test_dir.Append(FILE_PATH_LITERAL("foo.txt"));
 
     base::FilePath file_path;
@@ -79,43 +79,77 @@ class VirtualFileSystem : public zip::FileAccessor {
     DCHECK(success);
     files_[bar2_txt_path] = std::move(file);
 
-    file_tree_[test_dir] = {{foo_txt_path, false}, {bar_dir, true}};
-    file_tree_[bar_dir] = {{bar1_txt_path, false}, {bar2_txt_path, false}};
+    file_tree_[base::FilePath()] = {{foo_txt_path}, {bar_dir}};
+    file_tree_[bar_dir] = {{bar1_txt_path, bar2_txt_path}};
+    file_tree_[foo_txt_path] = {};
+    file_tree_[bar1_txt_path] = {};
+    file_tree_[bar2_txt_path] = {};
   }
 
   ~VirtualFileSystem() override = default;
 
  private:
-  std::vector<base::File> OpenFilesForReading(
-      const std::vector<base::FilePath>& paths) override {
-    std::vector<base::File> files;
-    for (const auto& path : paths) {
-      auto iter = files_.find(path);
-      files.push_back(iter == files_.end() ? base::File()
-                                           : std::move(iter->second));
+  bool Open(const zip::Paths paths,
+            std::vector<base::File>* const files) override {
+    DCHECK(files);
+    files->reserve(files->size() + paths.size());
+
+    for (const base::FilePath& path : paths) {
+      const auto it = files_.find(path);
+      if (it == files_.end()) {
+        files->emplace_back();
+      } else {
+        EXPECT_TRUE(it->second.IsValid());
+        files->push_back(std::move(it->second));
+      }
     }
-    return files;
+
+    return true;
   }
 
-  bool DirectoryExists(const base::FilePath& file) override {
-    return file_tree_.count(file) == 1 && files_.count(file) == 0;
-  }
+  bool List(const base::FilePath& path,
+            std::vector<base::FilePath>* const files,
+            std::vector<base::FilePath>* const subdirs) override {
+    DCHECK(!path.IsAbsolute());
+    DCHECK(files);
+    DCHECK(subdirs);
 
-  std::vector<DirectoryContentEntry> ListDirectoryContent(
-      const base::FilePath& dir) override {
-    auto iter = file_tree_.find(dir);
-    if (iter == file_tree_.end()) {
-      NOTREACHED();
-      return {};
+    const auto it = file_tree_.find(path);
+    if (it == file_tree_.end())
+      return false;
+
+    for (const base::FilePath& file : it->second.files) {
+      DCHECK(!file.empty());
+      files->push_back(file);
     }
-    return iter->second;
+
+    for (const base::FilePath& subdir : it->second.subdirs) {
+      DCHECK(!subdir.empty());
+      subdirs->push_back(subdir);
+    }
+
+    return true;
   }
 
-  base::Time GetLastModifiedTime(const base::FilePath& path) override {
-    return base::Time::FromDoubleT(172097977);  // Some random date.
+  bool GetInfo(const base::FilePath& path, Info* const info) override {
+    DCHECK(!path.IsAbsolute());
+    DCHECK(info);
+
+    if (!file_tree_.count(path))
+      return false;
+
+    info->is_directory = !files_.count(path);
+    info->last_modified =
+        base::Time::FromDoubleT(172097977);  // Some random date.
+
+    return true;
   }
 
-  std::map<base::FilePath, std::vector<DirectoryContentEntry>> file_tree_;
+  struct DirContents {
+    std::vector<base::FilePath> files, subdirs;
+  };
+
+  std::map<base::FilePath, DirContents> file_tree_;
   std::map<base::FilePath, base::File> files_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualFileSystem);
@@ -263,11 +297,11 @@ class ZipTest : public PlatformTest {
     // supports, which is 2 seconds. Note that between this call to Time::Now()
     // and zip::Zip() the clock can advance a bit, hence the use of EXPECT_GE.
     base::Time::Exploded now_parts;
-    base::Time::Now().LocalExplode(&now_parts);
+    base::Time::Now().UTCExplode(&now_parts);
     now_parts.second = now_parts.second & ~1;
     now_parts.millisecond = 0;
     base::Time now_time;
-    EXPECT_TRUE(base::Time::FromLocalExploded(now_parts, &now_time));
+    EXPECT_TRUE(base::Time::FromUTCExploded(now_parts, &now_time));
 
     EXPECT_EQ(1, base::WriteFile(src_file, "1", 1));
     EXPECT_TRUE(base::TouchFile(src_file, base::Time::Now(), test_mtime));
@@ -533,10 +567,8 @@ TEST_F(ZipTest, ZipWithFileAccessor) {
   base::FilePath zip_file;
   ASSERT_TRUE(base::CreateTemporaryFile(&zip_file));
   VirtualFileSystem file_accessor;
-  const zip::ZipParams params{
-      .src_dir = base::FilePath(FILE_PATH_LITERAL("/test")),
-      .dest_file = zip_file,
-      .file_accessor = &file_accessor};
+  const zip::ZipParams params{.file_accessor = &file_accessor,
+                              .dest_file = zip_file};
   ASSERT_TRUE(zip::Zip(params));
 
   base::ScopedTempDir scoped_temp_dir;

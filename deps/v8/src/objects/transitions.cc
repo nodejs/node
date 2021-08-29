@@ -449,7 +449,6 @@ int TransitionsAccessor::NumberOfTransitions() {
       return transitions().number_of_transitions();
   }
   UNREACHABLE();
-  return 0;  // Make GCC happy.
 }
 
 void TransitionsAccessor::SetMigrationTarget(Map migration_target) {

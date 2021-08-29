@@ -168,8 +168,23 @@ static std::vector<PatternItem> BuildPatternItems() {
                               k2DigitNumeric));
   items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("timeZoneName",
-                              {{"zzzz", "long"}, {"z", "short"}}, kLongShort));
+
+  if (FLAG_harmony_intl_more_timezone) {
+    const std::vector<const char*> kTimezone = {"long",        "short",
+                                                "longOffset",  "shortOffset",
+                                                "longGeneric", "shortGeneric"};
+    items.push_back(PatternItem("timeZoneName",
+                                {{"zzzz", "long"},
+                                 {"z", "short"},
+                                 {"OOOO", "longOffset"},
+                                 {"O", "shortOffset"},
+                                 {"vvvv", "longGeneric"},
+                                 {"v", "shortGeneric"}},
+                                kTimezone));
+  } else {
+    items.push_back(PatternItem(
+        "timeZoneName", {{"zzzz", "long"}, {"z", "short"}}, kLongShort));
+  }
   return items;
 }
 
@@ -1946,8 +1961,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       // Other UDAT_*_FIELD's cannot show up because there is no way to specify
       // them via options of Intl.DateTimeFormat.
       UNREACHABLE();
-      // To prevent MSVC from issuing C4715 warning.
-      return Handle<String>();
   }
 }
 

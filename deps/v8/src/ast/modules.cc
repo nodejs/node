@@ -6,6 +6,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
+#include "src/common/globals.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
@@ -130,8 +131,10 @@ Handle<ModuleRequest> SourceTextModuleDescriptor::AstModuleRequest::Serialize(
   // The import assertions will be stored in this array in the form:
   // [key1, value1, location1, key2, value2, location2, ...]
   Handle<FixedArray> import_assertions_array =
-      isolate->factory()->NewFixedArray(static_cast<int>(
-          import_assertions()->size() * ModuleRequest::kAssertionEntrySize));
+      isolate->factory()->NewFixedArray(
+          static_cast<int>(import_assertions()->size() *
+                           ModuleRequest::kAssertionEntrySize),
+          AllocationType::kOld);
 
   int i = 0;
   for (auto iter = import_assertions()->cbegin();
@@ -189,7 +192,8 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
       ++count;
     } while (next != regular_exports_.end() && next->first == it->first);
 
-    Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(count);
+    Handle<FixedArray> export_names =
+        isolate->factory()->NewFixedArray(count, AllocationType::kOld);
     data[index + SourceTextModuleInfo::kRegularExportLocalNameOffset] =
         it->second->local_name->string();
     data[index + SourceTextModuleInfo::kRegularExportCellIndexOffset] =
@@ -213,7 +217,8 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
 
   // We cannot create the FixedArray earlier because we only now know the
   // precise size.
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(index);
+  Handle<FixedArray> result =
+      isolate->factory()->NewFixedArray(index, AllocationType::kOld);
   for (int i = 0; i < index; ++i) {
     result->set(i, *data[i]);
   }

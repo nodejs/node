@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"

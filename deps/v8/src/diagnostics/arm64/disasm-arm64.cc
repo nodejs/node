@@ -13,6 +13,8 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -4318,7 +4320,7 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -4334,7 +4336,7 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.begin();
 }
 
@@ -4358,21 +4360,21 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 class BufferDisassembler : public v8::internal::DisassemblingDecoder {
  public:
-  explicit BufferDisassembler(v8::internal::Vector<char> out_buffer)
+  explicit BufferDisassembler(v8::base::Vector<char> out_buffer)
       : out_buffer_(out_buffer) {}
 
   ~BufferDisassembler() {}
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
-                           instr->InstructionBits(), GetOutput());
+    v8::base::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
+                       instr->InstructionBits(), GetOutput());
   }
 
  private:
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
 };
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;

@@ -40,7 +40,17 @@ void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
   DCHECK_NE(options().code_range_start, 0);
   RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - options().code_range_start));
+  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_start);
+  if (IsOnHeap()) {
+    saved_offsets_for_runtime_entries_.push_back(
+        std::make_pair(pc_offset(), offset));
+    emitl(relative_target_offset(entry, reinterpret_cast<Address>(pc_)));
+    // We must ensure that `emitl` is not growing the assembler buffer
+    // and falling back to off-heap compilation.
+    DCHECK(IsOnHeap());
+  } else {
+    emitl(offset);
+  }
 }
 
 void Assembler::emit(Immediate x) {
@@ -53,6 +63,18 @@ void Assembler::emit(Immediate x) {
 void Assembler::emit(Immediate64 x) {
   if (!RelocInfo::IsNone(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
+    if (x.rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT && IsOnHeap()) {
+      Address handle_address = reinterpret_cast<Address>(&x.value_);
+      Handle<HeapObject> object = Handle<HeapObject>::cast(
+          ReadUnalignedValue<Handle<Object>>(handle_address));
+      saved_handles_for_raw_object_ptr_.push_back(
+          std::make_pair(pc_offset(), x.value_));
+      emitq(static_cast<uint64_t>(object->ptr()));
+      // We must ensure that `emitq` is not growing the assembler buffer
+      // and falling back to off-heap compilation.
+      DCHECK(IsOnHeap());
+      return;
+    }
   }
   emitq(static_cast<uint64_t>(x.value_));
 }
@@ -234,11 +256,16 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK(is_int32(target - pc - 4));
-  WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
+  WriteUnalignedValue(pc, relative_target_offset(target, pc));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
+}
+
+int32_t Assembler::relative_target_offset(Address target, Address pc) {
+  Address offset = target - pc - 4;
+  DCHECK(is_int32(offset));
+  return static_cast<int32_t>(offset);
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(

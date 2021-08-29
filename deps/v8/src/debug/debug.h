@@ -16,6 +16,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
@@ -28,14 +29,14 @@ class JavaScriptFrame;
 class JSGeneratorObject;
 class StackFrame;
 
-// Step actions. NOTE: These values are in macros.py as well.
+// Step actions.
 enum StepAction : int8_t {
   StepNone = -1,  // Stepping not prepared.
   StepOut = 0,    // Step out of the current function.
-  StepNext = 1,   // Step to the next statement in the current function.
-  StepIn = 2,     // Step into new functions invoked or the next statement
+  StepOver = 1,   // Step to the next statement in the current function.
+  StepInto = 2,   // Step into new functions invoked or the next statement
                   // in the current function.
-  LastStepAction = StepIn
+  LastStepAction = StepInto
 };
 
 // Type of exception break. NOTE: These values are in macros.py as well.
@@ -83,6 +84,7 @@ class BreakLocation {
 
   bool HasBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info) const;
 
+  inline int generator_suspend_id() { return generator_suspend_id_; }
   inline int position() const { return position_; }
 
   debug::BreakLocationType type() const;
@@ -92,12 +94,14 @@ class BreakLocation {
 
  private:
   BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
-                int code_offset, int position, int generator_obj_reg_index)
+                int code_offset, int position, int generator_obj_reg_index,
+                int generator_suspend_id)
       : abstract_code_(abstract_code),
         code_offset_(code_offset),
         type_(type),
         position_(position),
-        generator_obj_reg_index_(generator_obj_reg_index) {
+        generator_obj_reg_index_(generator_obj_reg_index),
+        generator_suspend_id_(generator_suspend_id) {
     DCHECK_NE(NOT_DEBUG_BREAK, type_);
   }
 
@@ -105,7 +109,8 @@ class BreakLocation {
       : code_offset_(0),
         type_(type),
         position_(position),
-        generator_obj_reg_index_(0) {}
+        generator_obj_reg_index_(0),
+        generator_suspend_id_(-1) {}
 
   static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
                                       Handle<AbstractCode> abstract_code,
@@ -119,6 +124,7 @@ class BreakLocation {
   DebugBreakType type_;
   int position_;
   int generator_obj_reg_index_;
+  int generator_suspend_id_;
 
   friend class BreakIterator;
 };
@@ -246,6 +252,7 @@ class V8_EXPORT_PRIVATE Debug {
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 #if V8_ENABLE_WEBASSEMBLY
+  void SetOnEntryBreakpointForWasmScript(Handle<Script> script, int* id);
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);

@@ -5,7 +5,11 @@
 // Flags: --allow-natives-syntax --wasm-dynamic-tiering --liftoff
 // Flags: --no-wasm-tier-up --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+// This test busy-waits for tier-up to be complete, hence it does not work in
+// predictable more where we only have a single thread.
+// Flags: --no-predictable
+
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_iterations = 4;
 const num_functions = 2;

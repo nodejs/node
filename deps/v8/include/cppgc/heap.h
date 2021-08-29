@@ -5,6 +5,8 @@
 #ifndef INCLUDE_CPPGC_HEAP_H_
 #define INCLUDE_CPPGC_HEAP_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 

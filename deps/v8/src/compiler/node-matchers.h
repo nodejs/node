@@ -10,13 +10,13 @@
 
 #include "src/base/bounds.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/numbers/double.h"
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/numbers/double.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
@@ -216,7 +216,7 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
     if (!this->HasResolvedValue() || (this->ResolvedValue() == 0.0)) {
       return false;
     }
-    Double value = Double(this->ResolvedValue());
+    base::Double value = base::Double(this->ResolvedValue());
     return !value.IsInfinite() && base::bits::IsPowerOfTwo(value.Significand());
   }
 };

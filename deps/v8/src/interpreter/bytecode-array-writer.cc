@@ -291,7 +291,6 @@ void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
     switch (operand_sizes[i]) {
       case OperandSize::kNone:
         UNREACHABLE();
-        break;
       case OperandSize::kByte:
         bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
         break;

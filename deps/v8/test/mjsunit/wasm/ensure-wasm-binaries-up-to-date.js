@@ -10,7 +10,7 @@
 (function print_incrementer() {
   if (true) return; // remove to regenerate the module
 
-  load('test/mjsunit/wasm/wasm-module-builder.js');
+  d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   var module = new WasmModuleBuilder();
   module.addFunction(undefined, kSig_i_i)

@@ -200,14 +200,16 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     AsmJsScanner::token_t token) {
   const bool is_global = AsmJsScanner::IsGlobal(token);
   DCHECK(is_global || AsmJsScanner::IsLocal(token));
-  Vector<VarInfo>& var_info = is_global ? global_var_info_ : local_var_info_;
+  base::Vector<VarInfo>& var_info =
+      is_global ? global_var_info_ : local_var_info_;
   size_t old_capacity = var_info.size();
   size_t index = is_global ? AsmJsScanner::GlobalIndex(token)
                            : AsmJsScanner::LocalIndex(token);
   if (is_global && index + 1 > num_globals_) num_globals_ = index + 1;
   if (index + 1 > old_capacity) {
     size_t new_size = std::max(2 * old_capacity, index + 1);
-    Vector<VarInfo> new_info{zone_->NewArray<VarInfo>(new_size), new_size};
+    base::Vector<VarInfo> new_info{zone_->NewArray<VarInfo>(new_size),
+                                   new_size};
     std::uninitialized_fill(new_info.begin(), new_info.end(), VarInfo{});
     std::copy(var_info.begin(), var_info.end(), new_info.begin());
     var_info = new_info;
@@ -220,7 +222,7 @@ uint32_t AsmJsParser::VarIndex(VarInfo* info) {
   return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
-void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
+void AsmJsParser::AddGlobalImport(base::Vector<const char> name, AsmType* type,
                                   ValueType vtype, bool mutable_variable,
                                   VarInfo* info) {
   // Allocate a separate variable for the import.
@@ -256,11 +258,11 @@ uint32_t AsmJsParser::TempVariable(int index) {
   return function_temp_locals_offset_ + index;
 }
 
-Vector<const char> AsmJsParser::CopyCurrentIdentifierString() {
+base::Vector<const char> AsmJsParser::CopyCurrentIdentifierString() {
   const std::string& str = scanner_.GetIdentifierString();
   char* buffer = zone()->NewArray<char>(str.size());
   str.copy(buffer, str.size());
-  return Vector<const char>(buffer, static_cast<int>(str.size()));
+  return base::Vector<const char>(buffer, static_cast<int>(str.size()));
 }
 
 void AsmJsParser::SkipSemicolon() {
@@ -539,13 +541,13 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
   if (Check('+')) {
     EXPECT_TOKEN(foreign_name_);
     EXPECT_TOKEN('.');
-    Vector<const char> name = CopyCurrentIdentifierString();
+    base::Vector<const char> name = CopyCurrentIdentifierString();
     AddGlobalImport(name, AsmType::Double(), kWasmF64, mutable_variable, info);
     scanner_.Next();
   } else {
     EXPECT_TOKEN(foreign_name_);
     EXPECT_TOKEN('.');
-    Vector<const char> name = CopyCurrentIdentifierString();
+    base::Vector<const char> name = CopyCurrentIdentifierString();
     scanner_.Next();
     if (Check('|')) {
       if (!CheckForZero()) {
@@ -575,7 +577,6 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #undef V
     default:
       FAIL("Expected ArrayBuffer view");
-      break;
   }
   EXPECT_TOKEN('(');
   EXPECT_TOKEN(heap_name_);
@@ -626,7 +627,7 @@ void AsmJsParser::ValidateExport() {
   // clang-format on
   if (Check('{')) {
     for (;;) {
-      Vector<const char> name = CopyCurrentIdentifierString();
+      base::Vector<const char> name = CopyCurrentIdentifierString();
       if (!scanner_.IsGlobal() && !scanner_.IsLocal()) {
         FAIL("Illegal export name");
       }
@@ -656,7 +657,7 @@ void AsmJsParser::ValidateExport() {
     if (info->kind != VarKind::kFunction) {
       FAIL("Single function export must be a function");
     }
-    module_builder_->AddExport(CStrVector(AsmJs::kSingleFunctionName),
+    module_builder_->AddExport(base::CStrVector(AsmJs::kSingleFunctionName),
                                info->function_builder);
   }
 }
@@ -725,7 +726,7 @@ void AsmJsParser::ValidateFunction() {
     FAIL("Expected function name");
   }
 
-  Vector<const char> function_name_str = CopyCurrentIdentifierString();
+  base::Vector<const char> function_name_str = CopyCurrentIdentifierString();
   AsmJsScanner::token_t function_name = Consume();
   VarInfo* function_info = GetVarInfo(function_name);
   if (function_info->kind == VarKind::kUnused) {

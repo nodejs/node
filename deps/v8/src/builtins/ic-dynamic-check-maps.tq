@@ -84,6 +84,14 @@ macro PerformMonomorphicCheck(
 macro DynamicCheckMaps(
     actualMap: Map, slotIndex: intptr, actualHandler: Smi|DataHandler): int32 {
   const feedbackVector = LoadFeedbackVectorForStubWithTrampoline();
+  return DynamicCheckMapsWithFeedbackVector(
+      actualMap, slotIndex, actualHandler, feedbackVector);
+}
+
+@export
+macro DynamicCheckMapsWithFeedbackVector(
+    actualMap: Map, slotIndex: intptr, actualHandler: Smi|DataHandler,
+    feedbackVector: FeedbackVector): int32 {
   const feedback = feedbackVector[slotIndex];
   try {
     const maybePolymorphicArray =

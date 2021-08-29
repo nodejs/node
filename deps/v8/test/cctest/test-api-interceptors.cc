@@ -1698,6 +1698,37 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   ExpectInt32("child.accessor_age", 10);
 }
 
+THREADED_TEST(EmptyInterceptorVsStoreGlobalICs) {
+  // In sloppy mode storing to global must succeed.
+  CheckInterceptorIC(EmptyInterceptorGetter,
+                     HasICQuery<Local<Name>, v8::internal::ABSENT>,
+                     "globalThis.__proto__ = o;"
+                     "let result = 0;"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  try {"
+                     "    x = i;"
+                     "    result++;"
+                     "  } catch (e) {}"
+                     "}"
+                     "result + x",
+                     20 + 19);
+
+  // In strict mode storing to global must throw.
+  CheckInterceptorIC(EmptyInterceptorGetter,
+                     HasICQuery<Local<Name>, v8::internal::ABSENT>,
+                     "'use strict';"
+                     "globalThis.__proto__ = o;"
+                     "let result = 0;"
+                     "for (var i = 0; i < 20; i++) {"
+                     "  try {"
+                     "    x = i;"
+                     "  } catch (e) {"
+                     "    result++;"
+                     "  }"
+                     "}"
+                     "result + (typeof(x) === 'undefined' ? 100 : 0)",
+                     120);
+}
 
 THREADED_TEST(LegacyInterceptorDoesNotSeeSymbols) {
   LocalContext env;

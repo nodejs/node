@@ -6,7 +6,7 @@
 // A similar test exists as an inspector test already, but inspector tests are
 // not run concurrently in multiple isolates (see `run-tests.py --isolates`).
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const imp_fun = builder.addImport('imp', 'ort', kSig_i_v);
@@ -60,7 +60,7 @@ function onBreak(event, exec_state, data) {
     assertTrue(expected_breaks.length > 0, 'expecting more breaks');
     const expected_pos = expected_breaks.shift();
     assertEquals(expected_pos, pos);
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     if (!error) error = e;
   }

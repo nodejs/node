@@ -102,6 +102,7 @@ void ArrayBufferSweeper::EnsureFinished() {
   }
 
   UpdateCountersForConcurrentlySweptExtensions();
+  DCHECK_LE(heap_->backing_store_bytes(), SIZE_MAX);
   sweeping_in_progress_ = false;
 }
 

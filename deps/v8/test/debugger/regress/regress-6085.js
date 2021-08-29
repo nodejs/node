@@ -28,7 +28,7 @@ function listener(event, exec_state, event_data, data) {
       }
       scopes_checked = true;
     }
-    if (step_count++ < 3) exec_state.prepareStep(Debug.StepAction.StepNext);
+    if (step_count++ < 3) exec_state.prepareStep(Debug.StepAction.StepOver);
   } catch (e) {
     exception = e;
     print(e, e.stack);

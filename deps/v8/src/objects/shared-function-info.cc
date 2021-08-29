@@ -32,7 +32,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // Set the function data to the "illegal" builtin. Ideally we'd use some sort
   // of "uninitialized" marker here, but it's cheaper to use a valid buitin and
   // avoid having to do uninitialized checks elsewhere.
-  set_builtin_id(Builtins::kIllegal);
+  set_builtin_id(Builtin::kIllegal);
 
   // Set the name to the no-name sentinel, this can be updated later.
   set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
@@ -77,12 +77,12 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsSmi()) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
-    return isolate->builtins()->builtin(builtin_id());
+    return isolate->builtins()->code(builtin_id());
   }
   if (data.IsBytecodeArray()) {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
-    return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+    return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
   if (data.IsBaselineData()) {
     // Having BaselineData means we are a compiled, baseline function.
@@ -93,7 +93,7 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
-    return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
+    return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
   }
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
@@ -110,12 +110,12 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.
     DCHECK(HasUncompiledData());
-    return isolate->builtins()->builtin(Builtins::kCompileLazy);
+    return isolate->builtins()->code(Builtin::kCompileLazy);
   }
   if (data.IsFunctionTemplateInfo()) {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
+    return isolate->builtins()->code(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();
@@ -270,7 +270,7 @@ Handle<String> SharedFunctionInfo::DebugName(
   if (shared->HasWasmExportedFunctionData()) {
     return shared->GetIsolate()
         ->factory()
-        ->NewStringFromUtf8(CStrVector(shared->DebugNameCStr().get()))
+        ->NewStringFromUtf8(base::CStrVector(shared->DebugNameCStr().get()))
         .ToHandleChecked();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -281,8 +281,9 @@ Handle<String> SharedFunctionInfo::DebugName(
 }
 
 bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
-  Vector<const char> filter = CStrVector(raw_filter);
-  return v8::internal::PassesFilter(CStrVector(DebugNameCStr().get()), filter);
+  base::Vector<const char> filter = base::CStrVector(raw_filter);
+  return v8::internal::PassesFilter(base::CStrVector(DebugNameCStr().get()),
+                                    filter);
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {
@@ -605,7 +606,7 @@ int SharedFunctionInfo::StartPosition() const {
     return uncompiled_data().start_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
+    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -632,7 +633,7 @@ int SharedFunctionInfo::EndPosition() const {
     return uncompiled_data().end_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
+    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY

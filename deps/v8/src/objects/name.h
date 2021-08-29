@@ -73,7 +73,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   DECL_PRINTER(Name)
   void NameShortPrint();
-  int NameShortPrint(Vector<char> str);
+  int NameShortPrint(base::Vector<char> str);
 
   // Mask constant for checking if a name has a computed hash code
   // and if it is a string that is an integer index.  The least significant bit

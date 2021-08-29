@@ -32,6 +32,7 @@ class ArrayList;
 class WasmFrame;
 class WasmInstanceObject;
 class WasmModuleObject;
+class WasmTableObject;
 
 class WasmValueObject : public JSObject {
  public:
@@ -76,9 +77,13 @@ Handle<String> GetWasmFunctionDebugName(Isolate* isolate,
 Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
     Isolate* isolate, Handle<ArrayList> result,
     Handle<WasmInstanceObject> instance);
+
 Handle<ArrayList> AddWasmModuleObjectInternalProperties(
     Isolate* isolate, Handle<ArrayList> result,
     Handle<WasmModuleObject> module_object);
+
+Handle<ArrayList> AddWasmTableObjectInternalProperties(
+    Isolate* isolate, Handle<ArrayList> result, Handle<WasmTableObject> table);
 
 }  // namespace internal
 }  // namespace v8

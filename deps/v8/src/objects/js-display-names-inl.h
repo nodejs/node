@@ -35,15 +35,23 @@ inline JSDisplayNames::Style JSDisplayNames::style() const {
 
 inline void JSDisplayNames::set_fallback(Fallback fallback) {
   DCHECK_GE(FallbackBit::kMax, fallback);
-  int hints = flags();
-  hints = FallbackBit::update(hints, fallback);
-  set_flags(hints);
+  set_flags(FallbackBit::update(flags(), fallback));
 }
 
 inline JSDisplayNames::Fallback JSDisplayNames::fallback() const {
   return FallbackBit::decode(flags());
 }
 
+inline void JSDisplayNames::set_language_display(
+    LanguageDisplay language_display) {
+  DCHECK_GE(LanguageDisplayBit::kMax, language_display);
+  set_flags(LanguageDisplayBit::update(flags(), language_display));
+}
+
+inline JSDisplayNames::LanguageDisplay JSDisplayNames::language_display()
+    const {
+  return LanguageDisplayBit::decode(flags());
+}
 }  // namespace internal
 }  // namespace v8
 

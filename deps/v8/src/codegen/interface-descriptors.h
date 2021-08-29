@@ -67,7 +67,7 @@ namespace internal {
   V(ContextOnly)                         \
   V(CppBuiltinAdaptor)                   \
   V(DynamicCheckMaps)                    \
-  V(EphemeronKeyBarrier)                 \
+  V(DynamicCheckMapsWithFeedbackVector)  \
   V(FastNewObject)                       \
   V(ForInPrepare)                        \
   V(GetIteratorStackParameter)           \
@@ -78,7 +78,6 @@ namespace internal {
   V(InterpreterCEntry1)                  \
   V(InterpreterCEntry2)                  \
   V(InterpreterDispatch)                 \
-  V(TailCallOptimizedCodeSlot)           \
   V(InterpreterPushArgsThenCall)         \
   V(InterpreterPushArgsThenConstruct)    \
   V(JSTrampoline)                        \
@@ -96,7 +95,6 @@ namespace internal {
   V(LoadWithReceiverBaseline)            \
   V(LookupBaseline)                      \
   V(NoContext)                           \
-  V(RecordWrite)                         \
   V(ResumeGenerator)                     \
   V(SuspendGeneratorBaseline)            \
   V(ResumeGeneratorBaseline)             \
@@ -113,6 +111,8 @@ namespace internal {
   V(StringAt)                            \
   V(StringAtAsString)                    \
   V(StringSubstring)                     \
+  IF_TSAN(V, TSANRelaxedStore)           \
+  IF_TSAN(V, TSANRelaxedLoad)            \
   V(TypeConversion)                      \
   V(TypeConversionNoContext)             \
   V(TypeConversion_Baseline)             \
@@ -124,6 +124,7 @@ namespace internal {
   V(WasmFloat64ToNumber)                 \
   V(WasmI32AtomicWait32)                 \
   V(WasmI64AtomicWait32)                 \
+  V(WriteBarrier)                        \
   BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -149,6 +150,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     // passed on the stack.
     // This does not indicate if arguments adaption is used or not.
     kAllowVarArgs = 1u << 2,
+    // Callee save allocatable_registers.
+    kCalleeSaveRegisters = 1u << 3,
   };
   using Flags = base::Flags<Flag>;
 
@@ -321,6 +324,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
     return flags() & CallInterfaceDescriptorData::kAllowVarArgs;
   }
 
+  bool CalleeSaveRegisters() const {
+    return flags() & CallInterfaceDescriptorData::kCalleeSaveRegisters;
+  }
+
   int GetReturnCount() const { return data()->return_count(); }
 
   MachineType GetReturnType(int index) const {
@@ -431,6 +438,9 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   // the first kParameterCount registers() are the parameters of the builtin.
   static constexpr bool kRestrictAllocatableRegisters = false;
 
+  // If set to true, builtins will callee save the set returned by registers().
+  static constexpr bool kCalleeSaveRegisters = false;
+
   // End of customization points.
   // ===========================================================================
 
@@ -443,6 +453,9 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
                       : 0) |
                  (DerivedDescriptor::kNoStackScan
                       ? CallInterfaceDescriptorData::kNoStackScan
+                      : 0) |
+                 (DerivedDescriptor::kCalleeSaveRegisters
+                      ? CallInterfaceDescriptorData::kCalleeSaveRegisters
                       : 0));
   }
   static constexpr inline bool AllowVarArgs() {
@@ -461,6 +474,15 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
 
   explicit StaticCallInterfaceDescriptor(CallDescriptors::Key key)
       : CallInterfaceDescriptor(key) {}
+
+#if DEBUG
+  // Overwritten in DerivedDescriptor.
+  static void Verify(CallInterfaceDescriptorData* data);
+  // Verify that the CallInterfaceDescriptorData contains the default
+  // argument registers for {argc} arguments.
+  static inline void VerifyArgumentRegisterCount(
+      CallInterfaceDescriptorData* data, int nof_expected_args);
+#endif
 
  private:
   // {CallDescriptors} is allowed to call the private {Initialize} method.
@@ -487,7 +509,7 @@ class StaticJSCallInterfaceDescriptor
       Descriptor>::StaticCallInterfaceDescriptor;
 };
 
-template <Builtins::Name kBuiltin>
+template <Builtin kBuiltin>
 struct CallInterfaceDescriptorFor;
 
 // Stub class replacing std::array<Register, 0>, as a workaround for MSVC's
@@ -498,11 +520,12 @@ struct EmptyRegisterArray {
   Register operator[](size_t i) const { UNREACHABLE(); }
 };
 
-// Helper method for defining an array of registers for the various
+// Helper method for defining an array of unique registers for the various
 // Descriptor::registers() methods.
 template <typename... Registers>
 constexpr std::array<Register, 1 + sizeof...(Registers)> RegisterArray(
     Register first_reg, Registers... regs) {
+  DCHECK(!AreAliased(first_reg, regs...));
   return {first_reg, regs...};
 }
 constexpr EmptyRegisterArray RegisterArray() { return {}; }
@@ -975,6 +998,24 @@ class DynamicCheckMapsDescriptor final
   static constexpr bool kRestrictAllocatableRegisters = true;
 };
 
+class DynamicCheckMapsWithFeedbackVectorDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          DynamicCheckMapsWithFeedbackVectorDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kMap, kFeedbackVector, kSlot, kHandler)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::Int32(),          // return val
+      MachineType::TaggedPointer(),  // kMap
+      MachineType::TaggedPointer(),  // kFeedbackVector
+      MachineType::IntPtr(),         // kSlot
+      MachineType::TaggedSigned())   // kHandler
+
+  DECLARE_DESCRIPTOR(DynamicCheckMapsWithFeedbackVectorDescriptor)
+
+  static constexpr auto registers();
+  static constexpr bool kRestrictAllocatableRegisters = true;
+};
+
 class FastNewObjectDescriptor
     : public StaticCallInterfaceDescriptor<FastNewObjectDescriptor> {
  public:
@@ -989,34 +1030,55 @@ class FastNewObjectDescriptor
   static constexpr auto registers();
 };
 
-class RecordWriteDescriptor final
-    : public StaticCallInterfaceDescriptor<RecordWriteDescriptor> {
+class WriteBarrierDescriptor final
+    : public StaticCallInterfaceDescriptor<WriteBarrierDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlot, kRememberedSet, kFPMode)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
-                         MachineType::Pointer(),        // kSlot
-                         MachineType::TaggedSigned(),   // kRememberedSet
-                         MachineType::TaggedSigned())   // kFPMode
+                         MachineType::Pointer())        // kSlotAddress
 
-  DECLARE_DESCRIPTOR(RecordWriteDescriptor)
+  DECLARE_DESCRIPTOR(WriteBarrierDescriptor)
+  static constexpr auto registers();
+  static constexpr bool kRestrictAllocatableRegisters = true;
+  static constexpr bool kCalleeSaveRegisters = true;
+  static constexpr inline Register ObjectRegister();
+  static constexpr inline Register SlotAddressRegister();
+  // A temporary register used in helpers.
+  static constexpr inline Register ValueRegister();
+  static constexpr inline RegList ComputeSavedRegisters(
+      Register object, Register slot_address = no_reg);
+#if DEBUG
+  static void Verify(CallInterfaceDescriptorData* data);
+#endif
+};
+
+#ifdef V8_IS_TSAN
+class TSANRelaxedStoreDescriptor final
+    : public StaticCallInterfaceDescriptor<TSANRelaxedStoreDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
+                         MachineType::AnyTagged())  // kValue
+
+  DECLARE_DESCRIPTOR(TSANRelaxedStoreDescriptor)
 
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
 };
 
-class EphemeronKeyBarrierDescriptor final
-    : public StaticCallInterfaceDescriptor<EphemeronKeyBarrierDescriptor> {
+class TSANRelaxedLoadDescriptor final
+    : public StaticCallInterfaceDescriptor<TSANRelaxedLoadDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kFPMode)
-  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
-                         MachineType::Pointer(),        // kSlotAddress
-                         MachineType::TaggedSigned())   // kFPMode
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer())  // kAddress
 
-  DECLARE_DESCRIPTOR(EphemeronKeyBarrierDescriptor)
+  DECLARE_DESCRIPTOR(TSANRelaxedLoadDescriptor)
 
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
 };
+
+#endif  // V8_IS_TSAN
 
 class TypeConversionDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversionDescriptor> {
@@ -1515,17 +1577,6 @@ class GrowArrayElementsDescriptor
 
   static constexpr inline Register ObjectRegister();
   static constexpr inline Register KeyRegister();
-
-  static constexpr auto registers();
-};
-
-class V8_EXPORT_PRIVATE TailCallOptimizedCodeSlotDescriptor
-    : public StaticCallInterfaceDescriptor<
-          TailCallOptimizedCodeSlotDescriptor> {
- public:
-  DEFINE_PARAMETERS(kOptimizedCodeEntry)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kAccumulator
-  DECLARE_DESCRIPTOR(TailCallOptimizedCodeSlotDescriptor)
 
   static constexpr auto registers();
 };

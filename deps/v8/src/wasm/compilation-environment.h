@@ -36,7 +36,14 @@ enum RuntimeExceptionSupport : bool {
   kNoRuntimeExceptionSupport = false
 };
 
-enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
+enum BoundsCheckStrategy : int8_t {
+  // Emit protected instructions, use the trap handler for OOB detection.
+  kTrapHandler,
+  // Emit explicit bounds checks.
+  kExplicitBoundsChecks,
+  // Emit no bounds checks at all (for testing only).
+  kNoBoundsChecks
+};
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
@@ -44,9 +51,8 @@ struct CompilationEnv {
   // A pointer to the decoded module's static representation.
   const WasmModule* const module;
 
-  // True if trap handling should be used in compiled code, rather than
-  // compiling in bounds checks for each memory access.
-  const UseTrapHandler use_trap_handler;
+  // The bounds checking strategy to use.
+  const BoundsCheckStrategy bounds_checks;
 
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
@@ -64,29 +70,24 @@ struct CompilationEnv {
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
-  // We assume that memories of size >= half of the virtual address space
-  // cannot be allocated (see https://crbug.com/1201340).
-  static constexpr uint32_t kMaxMemoryPagesAtRuntime = std::min(
-      kV8MaxWasmMemoryPages,
-      (uintptr_t{1} << (kSystemPointerSize == 4 ? 31 : 63)) / kWasmPageSize);
-
   constexpr CompilationEnv(const WasmModule* module,
-                           UseTrapHandler use_trap_handler,
+                           BoundsCheckStrategy bounds_checks,
                            RuntimeExceptionSupport runtime_exception_support,
                            const WasmFeatures& enabled_features)
       : module(module),
-        use_trap_handler(use_trap_handler),
+        bounds_checks(bounds_checks),
         runtime_exception_support(runtime_exception_support),
         // During execution, the memory can never be bigger than what fits in a
         // uintptr_t.
-        min_memory_size(std::min(kMaxMemoryPagesAtRuntime,
-                                 module ? module->initial_pages : 0) *
-                        uint64_t{kWasmPageSize}),
-        max_memory_size(static_cast<uintptr_t>(
-            std::min(kMaxMemoryPagesAtRuntime,
-                     module && module->has_maximum_pages ? module->maximum_pages
-                                                         : max_mem_pages()) *
-            uint64_t{kWasmPageSize})),
+        min_memory_size(
+            std::min(kV8MaxWasmMemoryPages,
+                     uintptr_t{module ? module->initial_pages : 0}) *
+            kWasmPageSize),
+        max_memory_size((module && module->has_maximum_pages
+                             ? std::min(kV8MaxWasmMemoryPages,
+                                        uintptr_t{module->maximum_pages})
+                             : kV8MaxWasmMemoryPages) *
+                        kWasmPageSize),
         enabled_features(enabled_features) {}
 };
 
@@ -95,7 +96,7 @@ struct CompilationEnv {
 class WireBytesStorage {
  public:
   virtual ~WireBytesStorage() = default;
-  virtual Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
+  virtual base::Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
 };
 
 // Callbacks will receive either {kFailedCompilation} or both
@@ -117,7 +118,7 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   ~CompilationState();
 
-  void InitCompileJob(WasmEngine*);
+  void InitCompileJob();
 
   void CancelCompilation();
 

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_DICTIONARY_H_
 
 #include "src/base/export-template.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
@@ -37,9 +38,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
 
  public:
   using Key = typename Shape::Key;
-  // Returns the value at entry.
   inline Object ValueAt(InternalIndex entry);
   inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry);
+  // Returns {} if we would be reading out of the bounds of the object.
+  inline base::Optional<Object> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -240,6 +242,9 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline Name NameAt(InternalIndex entry);
   inline Name NameAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
+
+  base::Optional<PropertyCell> TryFindPropertyCellForConcurrentLookupIterator(
+      Isolate* isolate, Handle<Name> name, RelaxedLoadTag tag);
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,

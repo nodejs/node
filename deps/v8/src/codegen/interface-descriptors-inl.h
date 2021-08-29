@@ -69,6 +69,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
 
   if (DerivedDescriptor::kRestrictAllocatableRegisters) {
     data->RestrictAllocatableRegisters(registers.data(), registers.size());
+  } else {
+    DCHECK(!DerivedDescriptor::kCalleeSaveRegisters);
   }
 
   data->InitializeRegisters(
@@ -82,8 +84,10 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
 
   DCHECK(data->IsInitialized());
   DCHECK(this->CheckFloatingPointParameters(data));
+#if DEBUG
+  DerivedDescriptor::Verify(data);
+#endif
 }
-
 // static
 template <typename DerivedDescriptor>
 constexpr int
@@ -194,6 +198,42 @@ constexpr Register FastNewObjectDescriptor::NewTargetRegister() {
 }
 
 // static
+constexpr Register WriteBarrierDescriptor::ObjectRegister() {
+  return std::get<kObject>(registers());
+}
+// static
+constexpr Register WriteBarrierDescriptor::SlotAddressRegister() {
+  return std::get<kSlotAddress>(registers());
+}
+
+// static
+constexpr Register WriteBarrierDescriptor::ValueRegister() {
+  return std::get<kSlotAddress + 1>(registers());
+}
+
+// static
+constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
+    Register object, Register slot_address) {
+  DCHECK(!AreAliased(object, slot_address));
+  RegList saved_registers = 0;
+#if V8_TARGET_ARCH_X64
+  // Only push clobbered registers.
+  if (object != ObjectRegister()) saved_registers |= ObjectRegister().bit();
+  if (slot_address != no_reg && slot_address != SlotAddressRegister()) {
+    saved_registers |= SlotAddressRegister().bit();
+  }
+#else
+  // TODO(cbruni): Enable callee-saved registers for other platforms.
+  // This is a temporary workaround to prepare code for callee-saved registers.
+  constexpr auto allocated_registers = registers();
+  for (size_t i = 0; i < allocated_registers.size(); ++i) {
+    saved_registers |= allocated_registers[i].bit();
+  }
+#endif
+  return saved_registers;
+}
+
+// static
 constexpr Register ApiGetterDescriptor::ReceiverRegister() {
   return LoadDescriptor::ReceiverRegister();
 }
@@ -278,13 +318,18 @@ constexpr auto LoadWithReceiverBaselineDescriptor::registers() {
 // static
 constexpr auto BaselineOutOfLinePrologueDescriptor::registers() {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 ||  \
-    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM ||  \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390 || \
+    V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_MIPS
   return RegisterArray(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister,
       kInterpreterBytecodeArrayRegister);
+#elif V8_TARGET_ARCH_IA32
+  STATIC_ASSERT(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
+  return RegisterArray(
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister);
 #else
   return DefaultRegisterArray();
 #endif
@@ -293,9 +338,10 @@ constexpr auto BaselineOutOfLinePrologueDescriptor::registers() {
 // static
 constexpr auto BaselineLeaveFrameDescriptor::registers() {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 ||  \
-    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||      \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 ||       \
+    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_MIPS
   return RegisterArray(ParamsSizeRegister(), WeightRegister());
 #else
   return DefaultRegisterArray();
@@ -331,11 +377,6 @@ constexpr auto InterpreterCEntry2Descriptor::registers() {
 // static
 constexpr auto FastNewObjectDescriptor::registers() {
   return RegisterArray(TargetRegister(), NewTargetRegister());
-}
-
-// static
-constexpr auto TailCallOptimizedCodeSlotDescriptor::registers() {
-  return RegisterArray(kJavaScriptCallCodeStartRegister);
 }
 
 // static
@@ -469,7 +510,7 @@ constexpr Register RunMicrotasksDescriptor::MicrotaskQueueRegister() {
 
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \
   template <>                                                         \
-  struct CallInterfaceDescriptorFor<Builtins::k##Name> {              \
+  struct CallInterfaceDescriptorFor<Builtin::k##Name> {               \
     using type = DescriptorName##Descriptor;                          \
   };
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN,
@@ -479,7 +520,7 @@ BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN,
 #undef DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, ...) \
   template <>                                              \
-  struct CallInterfaceDescriptorFor<Builtins::k##Name> {   \
+  struct CallInterfaceDescriptorFor<Builtin::k##Name> {    \
     using type = Name##Descriptor;                         \
   };
 BUILTIN_LIST_TFS(DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER)

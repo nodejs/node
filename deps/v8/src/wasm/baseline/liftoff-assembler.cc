@@ -15,6 +15,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -446,6 +447,10 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
     SetInstanceCacheRegister(source.cached_instance);
   }
 
+  if (source.cached_mem_start != no_reg) {
+    SetMemStartCacheRegister(source.cached_mem_start);
+  }
+
   uint32_t stack_base = stack_depth + num_locals;
   uint32_t target_height = stack_base + arity;
   uint32_t discarded = source.stack_height() - target_height;
@@ -461,10 +466,11 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // multiple times need to be copied to another free register. Compute the list
   // of used registers.
   LiftoffRegList used_regs;
-  for (auto& src : VectorOf(source_begin, num_locals)) {
+  for (auto& src : base::VectorOf(source_begin, num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
-  for (auto& src : VectorOf(source_begin + stack_base + discarded, arity)) {
+  for (auto& src :
+       base::VectorOf(source_begin + stack_base + discarded, arity)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
 
@@ -680,8 +686,9 @@ void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
   // Materialize constants on top of the stack ({arity} many), and locals.
   VarState* stack_base = cache_state_.stack_state.data();
   for (auto slots :
-       {VectorOf(stack_base + cache_state_.stack_state.size() - arity, arity),
-        VectorOf(stack_base, num_locals())}) {
+       {base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
+                       arity),
+        base::VectorOf(stack_base, num_locals())}) {
     for (VarState& slot : slots) {
       if (!slot.is_const()) continue;
       RegClass rc = reg_class_for(slot.kind());
@@ -709,9 +716,12 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target,
   }
 
   // Full stack merging is only done for forward jumps, so we can just clear the
-  // instance cache register at the target in case of mismatch.
+  // cache registers at the target in case of mismatch.
   if (source.cached_instance != target.cached_instance) {
     target.ClearCachedInstanceRegister();
+  }
+  if (source.cached_mem_start != target.cached_mem_start) {
+    target.ClearCachedMemStartRegister();
   }
 }
 
@@ -738,27 +748,34 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
                                 cache_state_.stack_state[stack_base + i]);
   }
 
-  // Check whether the cached instance needs to be moved to another register.
-  // Register moves are executed as part of the {StackTransferRecipe}. Remember
-  // whether the register content has to be reloaded after executing the stack
-  // transfers.
+  // Check whether the cached instance and/or memory start need to be moved to
+  // another register. Register moves are executed as part of the
+  // {StackTransferRecipe}. Remember whether the register content has to be
+  // reloaded after executing the stack transfers.
   bool reload_instance = false;
-  // If the registers match, or the destination has no cache register, nothing
-  // needs to be done.
-  if (cache_state_.cached_instance != target.cached_instance &&
-      target.cached_instance != no_reg) {
+  bool reload_mem_start = false;
+  for (auto tuple :
+       {std::make_tuple(&reload_instance, cache_state_.cached_instance,
+                        &target.cached_instance),
+        std::make_tuple(&reload_mem_start, cache_state_.cached_mem_start,
+                        &target.cached_mem_start)}) {
+    bool* reload = std::get<0>(tuple);
+    Register src_reg = std::get<1>(tuple);
+    Register* dst_reg = std::get<2>(tuple);
+    // If the registers match, or the destination has no cache register, nothing
+    // needs to be done.
+    if (src_reg == *dst_reg || *dst_reg == no_reg) continue;
     // On forward jumps, just reset the cached register in the target state.
     if (jump_direction == kForwardJump) {
-      target.ClearCachedInstanceRegister();
-    } else if (cache_state_.cached_instance != no_reg) {
+      target.ClearCacheRegister(dst_reg);
+    } else if (src_reg != no_reg) {
       // If the source has the content but in the wrong register, execute a
       // register move as part of the stack transfer.
-      transfers.MoveRegister(LiftoffRegister{target.cached_instance},
-                             LiftoffRegister{cache_state_.cached_instance},
-                             kPointerKind);
+      transfers.MoveRegister(LiftoffRegister{*dst_reg},
+                             LiftoffRegister{src_reg}, kPointerKind);
     } else {
       // Otherwise (the source state has no cached content), we reload later.
-      reload_instance = true;
+      *reload = true;
     }
   }
 
@@ -767,6 +784,21 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
 
   if (reload_instance) {
     LoadInstanceFromFrame(target.cached_instance);
+  }
+  if (reload_mem_start) {
+    // {target.cached_instance} already got restored above, so we can use it
+    // if it exists.
+    Register instance = target.cached_instance;
+    if (instance == no_reg) {
+      // We don't have the instance available yet. Store it into the target
+      // mem_start, so that we can load the mem_start from there.
+      instance = target.cached_mem_start;
+      LoadInstanceFromFrame(instance);
+    }
+    LoadFromInstance(
+        target.cached_mem_start, instance,
+        ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
+        sizeof(size_t));
   }
 }
 
@@ -798,7 +830,7 @@ void LiftoffAssembler::SpillAllRegisters() {
     Spill(slot.offset(), slot.reg(), slot.kind());
     slot.MakeStack();
   }
-  cache_state_.ClearCachedInstanceRegister();
+  cache_state_.ClearAllCacheRegisters();
   cache_state_.reset_used_registers();
 }
 
@@ -807,9 +839,21 @@ void LiftoffAssembler::ClearRegister(
     LiftoffRegList pinned) {
   if (reg == cache_state()->cached_instance) {
     cache_state()->ClearCachedInstanceRegister();
+    // We can return immediately. The instance is only used to load information
+    // at the beginning of an instruction when values don't have to be in
+    // specific registers yet. Therefore the instance should never be one of the
+    // {possible_uses}.
+    for (Register* use : possible_uses) {
+      USE(use);
+      DCHECK_NE(reg, *use);
+    }
     return;
-  }
-  if (cache_state()->is_used(LiftoffRegister(reg))) {
+  } else if (reg == cache_state()->cached_mem_start) {
+    cache_state()->ClearCachedMemStartRegister();
+    // The memory start may be among the {possible_uses}, e.g. for an atomic
+    // compare exchange. Therefore it is necessary to iterate over the
+    // {possible_uses} below, and we cannot return early.
+  } else if (cache_state()->is_used(LiftoffRegister(reg))) {
     SpillRegister(LiftoffRegister(reg));
   }
   Register replacement = no_reg;
@@ -905,7 +949,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   constexpr size_t kInputShift = 1;
 
   // Spill all cache slots which are not being used as parameters.
-  cache_state_.ClearCachedInstanceRegister();
+  cache_state_.ClearAllCacheRegisters();
   for (VarState* it = cache_state_.stack_state.end() - 1 - num_params;
        it >= cache_state_.stack_state.begin() &&
        !cache_state_.used_registers.is_empty();
@@ -1039,7 +1083,7 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::ParallelRegisterMove(
-    Vector<const ParallelRegisterMoveTuple> tuples) {
+    base::Vector<const ParallelRegisterMoveTuple> tuples) {
   StackTransferRecipe stack_transfers(this);
   for (auto tuple : tuples) {
     if (tuple.dst == tuple.src) continue;
@@ -1139,13 +1183,15 @@ bool LiftoffAssembler::ValidateCacheState() const {
     }
     used_regs.set(reg);
   }
-  if (cache_state_.cached_instance != no_reg) {
-    DCHECK(!used_regs.has(cache_state_.cached_instance));
-    int liftoff_code =
-        LiftoffRegister{cache_state_.cached_instance}.liftoff_code();
-    used_regs.set(cache_state_.cached_instance);
-    DCHECK_EQ(0, register_use_count[liftoff_code]);
-    register_use_count[liftoff_code] = 1;
+  for (Register cache_reg :
+       {cache_state_.cached_instance, cache_state_.cached_mem_start}) {
+    if (cache_reg != no_reg) {
+      DCHECK(!used_regs.has(cache_reg));
+      int liftoff_code = LiftoffRegister{cache_reg}.liftoff_code();
+      used_regs.set(cache_reg);
+      DCHECK_EQ(0, register_use_count[liftoff_code]);
+      register_use_count[liftoff_code] = 1;
+    }
   }
   bool valid = memcmp(register_use_count, cache_state_.register_use_count,
                       sizeof(register_use_count)) == 0 &&
@@ -1268,8 +1314,11 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
     // edges), we only care that pointer types stay amongst pointer types.
     // It's fine if ref/optref overwrite each other.
     DCHECK(is_object_reference(b));
+  } else if (is_rtt(a)) {
+    // Same for rtt/rtt_with_depth.
+    DCHECK(is_rtt(b));
   } else {
-    // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
+    // All other types (primitive numbers, bottom/stmt) must be equal.
     DCHECK_EQ(a, b);
   }
   return true;  // Dummy so this can be called via DCHECK.

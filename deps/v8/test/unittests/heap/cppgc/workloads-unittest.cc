@@ -200,18 +200,18 @@ class ObjectSizeCounter final : private HeapVisitor<ObjectSizeCounter> {
   friend class HeapVisitor<ObjectSizeCounter>;
 
  public:
-  size_t GetSize(RawHeap* heap) {
+  size_t GetSize(RawHeap& heap) {
     Traverse(heap);
     return accumulated_size_;
   }
 
  private:
-  static size_t ObjectSize(const HeapObjectHeader* header) {
-    return ObjectView(*header).Size();
+  static size_t ObjectSize(const HeapObjectHeader& header) {
+    return ObjectView(header).Size();
   }
 
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree()) return true;
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsFree()) return true;
     accumulated_size_ += ObjectSize(header);
     return true;
   }
@@ -226,7 +226,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
                 "Allocation granularity is expected to be a multiple of 4");
   Heap* heap = internal::Heap::From(GetHeap());
   size_t initial_object_payload_size =
-      ObjectSizeCounter().GetSize(&heap->raw_heap());
+      ObjectSizeCounter().GetSize(heap->raw_heap());
   {
     // When the test starts there may already have been leaked some memory
     // on the heap, so we establish a base line.
@@ -248,7 +248,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
     size_t total = 96;
 
     EXPECT_EQ(base_level + total,
-              ObjectSizeCounter().GetSize(&heap->raw_heap()));
+              ObjectSizeCounter().GetSize(heap->raw_heap()));
     if (test_pages_allocated) {
       EXPECT_EQ(kPageSize * 2,
                 heap->stats_collector()->allocated_memory_size());
@@ -269,7 +269,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
 
   PreciseGC();
   size_t total = 0;
-  size_t base_level = ObjectSizeCounter().GetSize(&heap->raw_heap());
+  size_t base_level = ObjectSizeCounter().GetSize(heap->raw_heap());
   bool test_pages_allocated = !base_level;
   if (test_pages_allocated) {
     EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size());
@@ -292,7 +292,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
     // The allocations in the loop may trigger GC with lazy sweeping.
     heap->sweeper().FinishIfRunning();
     EXPECT_EQ(base_level + total,
-              ObjectSizeCounter().GetSize(&heap->raw_heap()));
+              ObjectSizeCounter().GetSize(heap->raw_heap()));
     if (test_pages_allocated) {
       EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size() &
                          (kPageSize - 1));
@@ -310,7 +310,7 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
 
     total += 96;
     EXPECT_EQ(base_level + total,
-              ObjectSizeCounter().GetSize(&heap->raw_heap()));
+              ObjectSizeCounter().GetSize(heap->raw_heap()));
     if (test_pages_allocated) {
       EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size() &
                          (kPageSize - 1));
@@ -329,13 +329,13 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
   PreciseGC();
 
   total -= big;
-  EXPECT_EQ(base_level + total, ObjectSizeCounter().GetSize(&heap->raw_heap()));
+  EXPECT_EQ(base_level + total, ObjectSizeCounter().GetSize(heap->raw_heap()));
   if (test_pages_allocated) {
     EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size() &
                        (kPageSize - 1));
   }
 
-  EXPECT_EQ(base_level + total, ObjectSizeCounter().GetSize(&heap->raw_heap()));
+  EXPECT_EQ(base_level + total, ObjectSizeCounter().GetSize(heap->raw_heap()));
   if (test_pages_allocated) {
     EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size() &
                        (kPageSize - 1));

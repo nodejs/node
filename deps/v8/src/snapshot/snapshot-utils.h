@@ -5,12 +5,13 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_UTILS_H_
 #define V8_SNAPSHOT_SNAPSHOT_UTILS_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
-V8_EXPORT_PRIVATE uint32_t Checksum(Vector<const byte> payload);
+V8_EXPORT_PRIVATE uint32_t Checksum(base::Vector<const byte> payload);
 
 }  // namespace internal
 }  // namespace v8

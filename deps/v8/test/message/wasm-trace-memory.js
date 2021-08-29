@@ -5,7 +5,7 @@
 // Flags: --no-stress-opt --trace-wasm-memory --no-liftoff
 // Flags: --experimental-wasm-simd
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 builder.addMemory(1);

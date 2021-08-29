@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --turbo-inline-js-wasm-calls
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function getMain() {
   var builder = new WasmModuleBuilder();

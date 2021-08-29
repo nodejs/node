@@ -62,7 +62,7 @@ std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
 // static
 void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+  if (V8_TRAP_HANDLER_SUPPORTED) {
     constexpr bool kUseDefaultTrapHandler = true;
     if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
       FATAL("Could not register trap handler");

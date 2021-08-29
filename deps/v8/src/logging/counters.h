@@ -13,9 +13,10 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/logging/counters-definitions.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/objects/code-kind.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
 
@@ -27,6 +28,7 @@ namespace internal {
 // manipulated by name.
 
 class Counters;
+class Isolate;
 
 class StatsTable {
  public:
@@ -845,15 +847,6 @@ void HistogramTimer::Start() {
 void HistogramTimer::Stop() {
   TimedHistogram::Stop(&timer_, counters()->isolate());
 }
-
-#ifdef V8_RUNTIME_CALL_STATS
-RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
-                                             RuntimeCallCounterId counter_id) {
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  stats_ = isolate->counters()->runtime_call_stats();
-  stats_->Enter(&timer_, counter_id);
-}
-#endif  // defined(V8_RUNTIME_CALL_STATS)
 
 }  // namespace internal
 }  // namespace v8

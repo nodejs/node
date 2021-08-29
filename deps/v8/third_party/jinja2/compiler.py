@@ -466,7 +466,7 @@ class CodeGenerator(NodeVisitor):
             visitor.visit(node)
         for dependency in 'filters', 'tests':
             mapping = getattr(self, dependency)
-            for name in getattr(visitor, dependency):
+            for name in sorted(getattr(visitor, dependency)):
                 if name not in mapping:
                     mapping[name] = self.temporary_identifier()
                 self.writeline('%s = environment.%s[%r]' %
@@ -600,7 +600,7 @@ class CodeGenerator(NodeVisitor):
     def dump_local_context(self, frame):
         return '{%s}' % ', '.join(
             '%r: %s' % (name, target) for name, target
-            in iteritems(frame.symbols.dump_stores()))
+            in sorted(iteritems(frame.symbols.dump_stores())))
 
     def write_commons(self):
         """Writes a common preamble that is used by root and block functions.

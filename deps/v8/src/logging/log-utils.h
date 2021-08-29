@@ -20,11 +20,15 @@
 #include "src/utils/ostreams.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T>
+class Vector;
+}  // namespace base
+
 namespace internal {
 
 class Logger;
-template <typename T>
-class Vector;
 
 enum class LogSeparator { kSeparator };
 
@@ -59,7 +63,7 @@ class Log {
 
     void AppendString(String str,
                       base::Optional<int> length_limit = base::nullopt);
-    void AppendString(Vector<const char> str);
+    void AppendString(base::Vector<const char> str);
     void AppendString(const char* str);
     void AppendString(const char* str, size_t length, bool is_one_byte = true);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);

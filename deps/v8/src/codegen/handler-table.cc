@@ -209,6 +209,8 @@ int HandlerTable::LookupReturn(int pc_offset) {
     bool operator==(const Iterator& other) const {
       return index == other.index;
     }
+    // GLIBCXX_DEBUG checks uses the <= comparator.
+    bool operator<=(const Iterator& other) { return index <= other.index; }
     Iterator& operator++() {
       index++;
       return *this;

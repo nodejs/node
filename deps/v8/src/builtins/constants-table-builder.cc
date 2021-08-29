@@ -120,7 +120,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->builtin(Code::cast(value).builtin_index());
+      value = builtins->code(Code::cast(value).builtin_id());
     }
     DCHECK(value.IsHeapObject());
     table->set(index, value);

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var assertTraps = function(messageId, code) {
   assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[messageId]);

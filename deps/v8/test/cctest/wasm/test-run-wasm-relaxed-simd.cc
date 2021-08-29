@@ -77,8 +77,8 @@ static constexpr FMOperation<T> qfma_array[] = {
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
-static constexpr Vector<const FMOperation<T>> qfma_vector() {
-  return ArrayVector(qfma_array<T>);
+static constexpr base::Vector<const FMOperation<T>> qfma_vector() {
+  return base::ArrayVector(qfma_array<T>);
 }
 
 // Fused Multiply-Subtract performs a - b * c.
@@ -101,8 +101,8 @@ static constexpr FMOperation<T> qfms_array[]{
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
-static constexpr Vector<const FMOperation<T>> qfms_vector() {
-  return ArrayVector(qfms_array<T>);
+static constexpr base::Vector<const FMOperation<T>> qfms_vector() {
+  return base::ArrayVector(qfms_array<T>);
 }
 
 // Fused results only when fma3 feature is enabled, and running on TurboFan or
@@ -140,7 +140,7 @@ WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
     float expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
     for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
     }
   }
@@ -164,7 +164,7 @@ WASM_RELAXED_SIMD_TEST(F32x4Qfms) {
     float expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
     for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
     }
   }
@@ -188,7 +188,7 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfma) {
     double expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
     }
   }
@@ -212,7 +212,7 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
     double expected =
         ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
     }
   }

@@ -10,6 +10,7 @@
 #include <cstring>
 #include <memory>
 
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
@@ -44,10 +45,10 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
-    DCHECK_LT(builtin_index, Builtins::builtin_count);
-    unwind_infos_[builtin_index] = unwinding_info;
+    DCHECK_LT(static_cast<int>(builtin), Builtins::kBuiltinCount);
+    unwind_infos_[static_cast<int>(builtin)] = unwinding_info;
   }
 #endif  // V8_OS_WIN64
 
@@ -125,18 +126,18 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   static constexpr int kTemporaryStringLength = 256;
 
   std::string EmbeddedBlobCodeDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_code_data_symbol;
-    i::SNPrintF(embedded_blob_code_data_symbol,
-                "v8_%s_embedded_blob_code_data_", embedded_variant_);
+    base::SNPrintF(embedded_blob_code_data_symbol,
+                   "v8_%s_embedded_blob_code_data_", embedded_variant_);
     return std::string{embedded_blob_code_data_symbol.begin()};
   }
 
   std::string EmbeddedBlobDataDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_data_data_symbol;
-    i::SNPrintF(embedded_blob_data_data_symbol,
-                "v8_%s_embedded_blob_data_data_", embedded_variant_);
+    base::SNPrintF(embedded_blob_data_data_symbol,
+                   "v8_%s_embedded_blob_data_data_", embedded_variant_);
     return std::string{embedded_blob_data_data_symbol.begin()};
   }
 
@@ -151,7 +152,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
-                    const i::EmbeddedData* blob, const int builtin_id) const;
+                    const i::EmbeddedData* blob, const Builtin builtin) const;
 
   void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
                           std::string name) const;
@@ -180,11 +181,11 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
  private:
-  std::vector<byte> source_positions_[Builtins::builtin_count];
-  std::vector<LabelInfo> label_info_[Builtins::builtin_count];
+  std::vector<byte> source_positions_[Builtins::kBuiltinCount];
+  std::vector<LabelInfo> label_info_[Builtins::kBuiltinCount];
 
 #if defined(V8_OS_WIN64)
-  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];
+  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::kBuiltinCount];
 #endif  // V8_OS_WIN64
 
   std::map<const char*, int> external_filenames_;

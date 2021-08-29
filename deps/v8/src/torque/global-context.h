@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
+#include "src/torque/cpp-builder.h"
 #include "src/torque/declarable.h"
 
 namespace v8 {
@@ -62,10 +63,17 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   }
 
   struct PerFileStreams {
-    PerFileStreams() : file(SourceId::Invalid()) {}
+    PerFileStreams()
+        : file(SourceId::Invalid()),
+          csa_header(csa_headerfile),
+          csa_cc(csa_ccfile),
+          class_definition_cc(class_definition_ccfile) {}
     SourceId file;
     std::stringstream csa_headerfile;
+    cpp::File csa_header;
     std::stringstream csa_ccfile;
+    cpp::File csa_cc;
+
     std::stringstream class_definition_headerfile;
 
     // The beginning of the generated -inl.inc file, which includes declarations
@@ -79,6 +87,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     std::stringstream class_definition_inline_headerfile;
 
     std::stringstream class_definition_ccfile;
+    cpp::File class_definition_cc;
 
     std::set<SourceId> required_builtin_includes;
   };

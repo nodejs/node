@@ -29,7 +29,9 @@
 
 #include <unordered_set>
 #include <vector>
+
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
@@ -42,8 +44,8 @@
 #include "src/utils/version.h"
 #include "test/cctest/cctest.h"
 
+using v8::base::EmbeddedVector;
 using v8::internal::Address;
-using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
 
 namespace {
@@ -276,13 +278,15 @@ namespace {
 class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
   explicit SimpleExternalString(const char* source)
-      : utf_source_(i::OwnedVector<uint16_t>::Of(i::CStrVector(source))) {}
+      : utf_source_(
+            v8::base::OwnedVector<uint16_t>::Of(v8::base::CStrVector(source))) {
+  }
   ~SimpleExternalString() override = default;
   size_t length() const override { return utf_source_.size(); }
   const uint16_t* data() const override { return utf_source_.begin(); }
 
  private:
-  i::OwnedVector<uint16_t> utf_source_;
+  v8::base::OwnedVector<uint16_t> utf_source_;
 };
 
 }  // namespace
@@ -348,8 +352,9 @@ UNINITIALIZED_TEST(LogCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
-    i::EmbeddedVector<char, 100> suffix_buffer;
-    i::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
+    v8::base::EmbeddedVector<char, 100> suffix_buffer;
+    v8::base::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1",
+                       ObjMethod1_entry);
     CHECK(logger.ContainsLine(
         {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
   }
@@ -392,9 +397,9 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     Prop1Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Getter_entry);
 #endif
-    EmbeddedVector<char, 100> prop1_getter_record;
-    i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
-                Prop1Getter_entry);
+    v8::base::EmbeddedVector<char, 100> prop1_getter_record;
+    v8::base::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
+                       Prop1Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop1_getter_record.begin())}));
 
@@ -402,9 +407,9 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     Prop1Setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Setter_entry);
 #endif
-    EmbeddedVector<char, 100> prop1_setter_record;
-    i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
-                Prop1Setter_entry);
+    v8::base::EmbeddedVector<char, 100> prop1_setter_record;
+    v8::base::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
+                       Prop1Setter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop1_setter_record.begin())}));
 
@@ -412,9 +417,9 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     Prop2Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop2Getter_entry);
 #endif
-    EmbeddedVector<char, 100> prop2_getter_record;
-    i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
-                Prop2Getter_entry);
+    v8::base::EmbeddedVector<char, 100> prop2_getter_record;
+    v8::base::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
+                       Prop2Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop2_getter_record.begin())}));
   }
@@ -430,10 +435,10 @@ UNINITIALIZED_TEST(LogVersion) {
     ScopedLoggerInitializer logger(isolate);
     logger.StopLogging();
 
-    i::EmbeddedVector<char, 100> line_buffer;
-    i::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
-                i::Version::GetMinor(), i::Version::GetBuild(),
-                i::Version::GetPatch(), i::Version::IsCandidate());
+    v8::base::EmbeddedVector<char, 100> line_buffer;
+    v8::base::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
+                       i::Version::GetMinor(), i::Version::GetBuild(),
+                       i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(
         logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
   }
@@ -880,7 +885,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
       i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) creation not logged during startup with "
-          "--trace-maps!"
+          "--log-maps!"
           "\n# Expected Log Line: map-create, ... %p",
           reinterpret_cast<void*>(obj.ptr()), i,
           reinterpret_cast<void*>(obj.ptr()));
@@ -890,7 +895,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
       i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) details not logged during startup with "
-          "--trace-maps!"
+          "--log-maps!"
           "\n# Expected Log Line: map-details, ... %p",
           reinterpret_cast<void*>(obj.ptr()), i,
           reinterpret_cast<void*>(obj.ptr()));
@@ -903,7 +908,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 UNINITIALIZED_TEST(LogMapsDetailsStartup) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
@@ -925,7 +930,7 @@ UNINITIALIZED_TEST(LogMapsDetailsStartup) {
 UNINITIALIZED_TEST(LogMapsDetailsCode) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   SETUP_FLAGS();
@@ -1022,7 +1027,7 @@ UNINITIALIZED_TEST(LogMapsDetailsCode) {
 UNINITIALIZED_TEST(LogMapsDetailsContexts) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
@@ -1187,18 +1192,18 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     logger.LogCompiledFunctions();
     logger.StopLogging();
 
-    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->builtin_handle(
-        i::Builtins::kBooleanConstructor);
-    i::EmbeddedVector<char, 100> buffer;
+    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->code_handle(
+        i::Builtin::kBooleanConstructor);
+    v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "LazyCompile".
-    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
-                builtin->InstructionStart(), builtin->InstructionSize());
+    v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
+                       builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
         {"code-creation,Builtin,2,", std::string(buffer.begin())}));
 
-    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
-                builtin->InstructionSize());
+    v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
+                       builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
         {"code-creation,LazyCompile,2,", std::string(buffer.begin())}));
   }

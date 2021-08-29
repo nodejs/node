@@ -171,7 +171,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
                     SmiConstant(JSAsyncGeneratorObject::kGeneratorExecuting)),
            &done);
 
-    CallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+    CallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
 
     Goto(&done);
     BIND(&done);
@@ -180,7 +180,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
 
   BIND(&if_receiverisincompatible);
   {
-    CallBuiltin(Builtins::kRejectPromise, context, promise,
+    CallBuiltin(Builtin::kRejectPromise, context, promise,
                 MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               context, StringConstant(method_name), receiver),
                 TrueConstant());
@@ -225,7 +225,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
   CallStub(CodeFactory::ResumeGenerator(isolate()), context, value, generator);
 
-  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
 }
 
 template <typename Descriptor>
@@ -438,13 +438,12 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     // In all cases, the last step is to call AsyncGeneratorResumeNext.
     TNode<Object> is_caught = CallRuntime(
         Runtime::kAsyncGeneratorHasCatchHandlerForPC, context, generator);
-    TailCallBuiltin(Builtins::kAsyncGeneratorReturn, context, generator,
+    TailCallBuiltin(Builtin::kAsyncGeneratorReturn, context, generator,
                     next_value, is_caught);
 
     BIND(&if_throw);
     GotoIfNot(IsGeneratorStateClosed(var_state.value()), &resume_generator);
-    CallBuiltin(Builtins::kAsyncGeneratorReject, context, generator,
-                next_value);
+    CallBuiltin(Builtin::kAsyncGeneratorReject, context, generator, next_value);
     var_next = LoadFirstAsyncGeneratorRequestFromQueue(generator);
     Goto(&start);
   }
@@ -452,7 +451,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   BIND(&if_normal);
   {
     GotoIfNot(IsGeneratorStateClosed(var_state.value()), &resume_generator);
-    CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator,
+    CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator,
                 UndefinedConstant(), TrueConstant());
     var_state = LoadGeneratorState(generator);
     var_next = LoadFirstAsyncGeneratorRequestFromQueue(generator);
@@ -525,14 +524,14 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   {
     // Skip the "then" on {iter_result} and directly fulfill the {promise}
     // with the {iter_result}.
-    CallBuiltin(Builtins::kFulfillPromise, context, promise, iter_result);
+    CallBuiltin(Builtin::kFulfillPromise, context, promise, iter_result);
     Goto(&return_promise);
   }
 
   BIND(&if_slow);
   {
     // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
-    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+    CallBuiltin(Builtin::kResolvePromise, context, promise, iter_result);
     Goto(&return_promise);
   }
 
@@ -553,7 +552,7 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
       TakeFirstAsyncGeneratorRequestFromQueue(generator);
   TNode<JSPromise> promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
-  Return(CallBuiltin(Builtins::kRejectPromise, context, promise, value,
+  Return(CallBuiltin(Builtin::kRejectPromise, context, promise, value,
                      TrueConstant()));
 }
 
@@ -585,10 +584,10 @@ TF_BUILTIN(AsyncGeneratorYieldResolveClosure, AsyncGeneratorBuiltinsAssembler) {
 
   // Per proposal-async-iteration/#sec-asyncgeneratoryield step 9
   // Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
-  CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
+  CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,
               FalseConstant());
 
-  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
 }
 
 TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
@@ -666,10 +665,10 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
   // https://tc39.github.io/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-fulfilled step 2:
   //  Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *true*).
-  CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
+  CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,
               TrueConstant());
 
-  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
 }
 
 TF_BUILTIN(AsyncGeneratorReturnClosedRejectClosure,
@@ -684,9 +683,9 @@ TF_BUILTIN(AsyncGeneratorReturnClosedRejectClosure,
   // https://tc39.github.io/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-rejected step 2:
   // Return ! AsyncGeneratorReject(_F_.[[Generator]], _reason_).
-  CallBuiltin(Builtins::kAsyncGeneratorReject, context, generator, value);
+  CallBuiltin(Builtin::kAsyncGeneratorReject, context, generator, value);
 
-  TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
+  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
 }
 
 }  // namespace internal

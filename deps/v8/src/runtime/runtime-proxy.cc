@@ -53,7 +53,7 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
 #endif
 
   bool success = false;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
@@ -73,7 +73,7 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
 
   bool success = false;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();

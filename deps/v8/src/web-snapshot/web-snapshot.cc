@@ -10,6 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/script.h"
@@ -40,6 +41,49 @@ void WebSnapshotSerializerDeserializer::Throw(const char* message) {
   }
 }
 
+uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
+    FunctionKind kind) {
+  // TODO(v8:11525): Support more function kinds.
+  switch (kind) {
+    case FunctionKind::kNormalFunction:
+    case FunctionKind::kArrowFunction:
+    case FunctionKind::kGeneratorFunction:
+    case FunctionKind::kAsyncFunction:
+    case FunctionKind::kAsyncArrowFunction:
+    case FunctionKind::kAsyncGeneratorFunction:
+      break;
+    default:
+      Throw("Web Snapshot: Unsupported function kind");
+  }
+  auto thing = ArrowFunctionBitField::encode(IsArrowFunction(kind)) +
+               AsyncFunctionBitField::encode(IsAsyncFunction(kind)) +
+               GeneratorFunctionBitField::encode(IsGeneratorFunction(kind));
+  return thing;
+}
+
+FunctionKind WebSnapshotSerializerDeserializer::FunctionFlagsToFunctionKind(
+    uint32_t flags) {
+  static const FunctionKind kFunctionKinds[] = {
+      // is_generator = false, is_async = false
+      FunctionKind::kNormalFunction,  // is_arrow = false
+      FunctionKind::kArrowFunction,   // is_arrow = true
+      // is_generator = false, is_async = true
+      FunctionKind::kAsyncFunction,       // is_arrow = false
+      FunctionKind::kAsyncArrowFunction,  // is_arrow = true
+      // is_generator = true, is_async = false
+      FunctionKind::kGeneratorFunction,  // is_arrow = false
+      FunctionKind::kInvalid,            // is_arrow = true
+      // is_generator = true, is_async = true
+      FunctionKind::kAsyncGeneratorFunction,  // is_arrow = false
+      FunctionKind::kInvalid};                // is_arrow = true
+
+  FunctionKind kind = kFunctionKinds[flags];
+  if (kind == FunctionKind::kInvalid) {
+    Throw("Web Snapshots: Invalid function flags\n");
+  }
+  return kind;
+}
+
 WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
     : WebSnapshotSerializerDeserializer(
           reinterpret_cast<v8::internal::Isolate*>(isolate)),
@@ -47,30 +91,33 @@ WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
       map_serializer_(isolate_, nullptr),
       context_serializer_(isolate_, nullptr),
       function_serializer_(isolate_, nullptr),
+      array_serializer_(isolate_, nullptr),
       object_serializer_(isolate_, nullptr),
       export_serializer_(isolate_, nullptr),
       string_ids_(isolate_->heap()),
       map_ids_(isolate_->heap()),
       context_ids_(isolate_->heap()),
       function_ids_(isolate_->heap()),
+      array_ids_(isolate_->heap()),
       object_ids_(isolate_->heap()) {}
 
 WebSnapshotSerializer::~WebSnapshotSerializer() {}
 
-bool WebSnapshotSerializer::TakeSnapshot(
-    v8::Local<v8::Context> context, const std::vector<std::string>& exports,
-    WebSnapshotData& data_out) {
+bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
+                                         v8::Local<v8::PrimitiveArray> exports,
+                                         WebSnapshotData& data_out) {
   if (string_ids_.size() > 0) {
     Throw("Web snapshot: Can't reuse WebSnapshotSerializer");
     return false;
   }
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  for (const std::string& export_name : exports) {
-    v8::ScriptCompiler::Source source(
-        v8::String::NewFromUtf8(v8_isolate, export_name.c_str(),
-                                NewStringType::kNormal,
-                                static_cast<int>(export_name.length()))
-            .ToLocalChecked());
+  for (int i = 0, length = exports->Length(); i < length; ++i) {
+    v8::Local<v8::String> str =
+        exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
+    if (str.IsEmpty()) {
+      continue;
+    }
+    v8::ScriptCompiler::Source source(str);
     auto script = ScriptCompiler::Compile(context, &source).ToLocalChecked();
     v8::MaybeLocal<v8::Value> script_result = script->Run(context);
     v8::Local<v8::Object> v8_object;
@@ -82,10 +129,26 @@ bool WebSnapshotSerializer::TakeSnapshot(
     }
 
     auto object = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
-    SerializeExport(object, export_name);
+    SerializeExport(object, Handle<String>::cast(Utils::OpenHandle(*str)));
   }
   WriteSnapshot(data_out.buffer, data_out.buffer_size);
   return !has_error();
+}
+
+void WebSnapshotSerializer::SerializePendingItems() {
+  while (!pending_objects_.empty() || !pending_arrays_.empty()) {
+    while (!pending_objects_.empty()) {
+      const Handle<JSObject>& object = pending_objects_.front();
+      SerializePendingObject(object);
+      pending_objects_.pop();
+    }
+
+    while (!pending_arrays_.empty()) {
+      const Handle<JSArray>& array = pending_arrays_.front();
+      SerializePendingArray(array);
+      pending_arrays_.pop();
+    }
+  }
 }
 
 // Format (full snapshot):
@@ -109,18 +172,14 @@ bool WebSnapshotSerializer::TakeSnapshot(
 //   - Serialized export
 void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
                                           size_t& buffer_size) {
-  while (!pending_objects_.empty()) {
-    const Handle<JSObject>& object = pending_objects_.front();
-    SerializePendingObject(object);
-    pending_objects_.pop();
-  }
+  SerializePendingItems();
 
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
       string_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
       context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
-      object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
-      6 * sizeof(uint32_t);
+      array_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
+      export_serializer_.buffer_size_ + 6 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Web snapshot: Out of memory");
     return;
@@ -138,6 +197,9 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   total_serializer.WriteUint32(static_cast<uint32_t>(function_count()));
   total_serializer.WriteRawBytes(function_serializer_.buffer_,
                                  function_serializer_.buffer_size_);
+  total_serializer.WriteUint32(static_cast<uint32_t>(array_count()));
+  total_serializer.WriteRawBytes(array_serializer_.buffer_,
+                                 array_serializer_.buffer_size_);
   total_serializer.WriteUint32(static_cast<uint32_t>(object_count()));
   total_serializer.WriteRawBytes(object_serializer_.buffer_,
                                  object_serializer_.buffer_size_);
@@ -183,7 +245,7 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
-    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     string_serializer_.WriteUint32(chars.length());
     string_serializer_.WriteRawBytes(chars.begin(),
                                      chars.length() * sizeof(uint8_t));
@@ -242,6 +304,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
 // - String id (source snippet)
 // - Start position in the source snippet
 // - Length in the source snippet
+// - Flags (see FunctionFlags)
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
                                               uint32_t& id) {
@@ -277,8 +340,13 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
   function_serializer_.WriteUint32(start);
   int end = function->shared().EndPosition();
   function_serializer_.WriteUint32(end - start);
+
+  function_serializer_.WriteUint32(
+      FunctionKindToFunctionFlags(function->shared().kind()));
   // TODO(v8:11525): Serialize .prototype.
   // TODO(v8:11525): Support properties in functions.
+  // TODO(v8:11525): Support function referencing a function indirectly (e.g.,
+  // function -> context -> array -> function).
 }
 
 // Format (serialized context):
@@ -325,15 +393,27 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
                          isolate_);
     WriteValue(value, context_serializer_);
   }
+  // TODO(v8:11525): Support context referencing a context indirectly (e.g.,
+  // context -> array -> function -> context).
 }
 
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object,
                                             uint32_t& id) {
+  // TODO(v8:11525): Serialize the leaf objects first.
   DCHECK(!object->IsJSFunction());
   if (InsertIntoIndexMap(object_ids_, object, id)) {
     return;
   }
   pending_objects_.push(object);
+}
+
+void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array,
+                                           uint32_t& id) {
+  // TODO(v8:11525): Serialize the leaf objects first.
+  if (InsertIntoIndexMap(array_ids_, array, id)) {
+    return;
+  }
+  pending_arrays_.push(array);
 }
 
 // Format (serialized object):
@@ -362,26 +442,45 @@ void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
   }
 }
 
+// Format (serialized array):
+// - Length
+// - For each element:
+//   - Serialized value
+void WebSnapshotSerializer::SerializePendingArray(Handle<JSArray> array) {
+  auto elements_kind = array->GetElementsKind();
+  if (elements_kind != PACKED_SMI_ELEMENTS &&
+      elements_kind != PACKED_ELEMENTS) {
+    Throw("Web Snapshot: Unsupported array");
+    return;
+  }
+  // TODO(v8:11525): Support sparse arrays & arrays with holes.
+  uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
+  array_serializer_.WriteUint32(length);
+  Handle<FixedArray> elements =
+      handle(FixedArray::cast(array->elements()), isolate_);
+  for (uint32_t i = 0; i < length; ++i) {
+    WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+  }
+}
+
 // Format (serialized export):
 // - String id (export name)
-// - Object id (exported object)
+// - Serialized value (export value)
 void WebSnapshotSerializer::SerializeExport(Handle<JSObject> object,
-                                            const std::string& export_name) {
-  // TODO(v8:11525): Support exporting functions.
+                                            Handle<String> export_name) {
   ++export_count_;
-  // TODO(v8:11525): How to avoid creating the String but still de-dupe?
-  Handle<String> export_name_string =
-      isolate_->factory()
-          ->NewStringFromOneByte(Vector<const uint8_t>(
-              reinterpret_cast<const uint8_t*>(export_name.c_str()),
-              static_cast<int>(export_name.length())))
-          .ToHandleChecked();
   uint32_t string_id = 0;
-  SerializeString(export_name_string, string_id);
-  uint32_t object_id = 0;
-  SerializeObject(object, object_id);
+  SerializeString(export_name, string_id);
   export_serializer_.WriteUint32(string_id);
-  export_serializer_.WriteUint32(object_id);
+  if (object->IsJSPrimitiveWrapper()) {
+    Handle<JSPrimitiveWrapper> wrapper =
+        Handle<JSPrimitiveWrapper>::cast(object);
+    Handle<Object> export_value =
+        handle(JSPrimitiveWrapper::cast(*wrapper).value(), isolate_);
+    WriteValue(export_value, export_serializer_);
+  } else {
+    WriteValue(object, export_serializer_);
+  }
 }
 
 // Format (serialized value):
@@ -428,6 +527,11 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
     case JS_OBJECT_TYPE:
       SerializeObject(Handle<JSObject>::cast(object), id);
       serializer.WriteUint32(ValueType::OBJECT_ID);
+      serializer.WriteUint32(id);
+      break;
+    case JS_ARRAY_TYPE:
+      SerializeArray(Handle<JSArray>::cast(object), id);
+      serializer.WriteUint32(ValueType::ARRAY_ID);
       serializer.WriteUint32(id);
       break;
     case JS_REG_EXP_TYPE: {
@@ -479,23 +583,25 @@ void WebSnapshotDeserializer::Throw(const char* message) {
 
 bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
                                              size_t buffer_size) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize);
   if (deserialized_) {
     Throw("Web snapshot: Can't reuse WebSnapshotDeserializer");
     return false;
   }
   deserialized_ = true;
 
-  // TODO(v8:11525): Add RuntimeCallStats.
   base::ElapsedTimer timer;
   if (FLAG_trace_web_snapshot) {
     timer.Start();
   }
 
   deserializer_.reset(new ValueDeserializer(isolate_, data, buffer_size));
+  deferred_references_ = ArrayList::New(isolate_, 30);
   DeserializeStrings();
   DeserializeMaps();
   DeserializeContexts();
   DeserializeFunctions();
+  DeserializeArrays();
   DeserializeObjects();
   DeserializeExports();
   if (deserializer_->position_ != deserializer_->end_) {
@@ -514,6 +620,7 @@ bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
 }
 
 void WebSnapshotDeserializer::DeserializeStrings() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Strings);
   if (!deserializer_->ReadUint32(&string_count_) ||
       string_count_ > kMaxItemCount) {
     Throw("Web snapshot: Malformed string table");
@@ -550,6 +657,7 @@ Handle<String> WebSnapshotDeserializer::ReadString(bool internalize) {
 }
 
 void WebSnapshotDeserializer::DeserializeMaps() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Maps);
   if (!deserializer_->ReadUint32(&map_count_) || map_count_ > kMaxItemCount) {
     Throw("Web snapshot: Malformed shape table");
     return;
@@ -569,6 +677,14 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       return;
     }
 
+    if (property_count == 0) {
+      DisallowGarbageCollection no_gc;
+      Map empty_map =
+          isolate_->native_context()->object_function().initial_map();
+      maps_->set(i, empty_map);
+      return;
+    }
+
     Handle<DescriptorArray> descriptors =
         isolate_->factory()->NewDescriptorArray(0, property_count);
     for (uint32_t p = 0; p < property_count; ++p) {
@@ -585,12 +701,14 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     Handle<Map> map = isolate_->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize * kTaggedSize, HOLEY_ELEMENTS, 0);
     map->InitializeDescriptors(isolate_, *descriptors);
+    // TODO(v8:11525): Set 'constructor'.
 
     maps_->set(i, *map);
   }
 }
 
 void WebSnapshotDeserializer::DeserializeContexts() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Contexts);
   if (!deserializer_->ReadUint32(&context_count_) ||
       context_count_ > kMaxItemCount) {
     Throw("Web snapshot: Malformed context table");
@@ -626,10 +744,6 @@ void WebSnapshotDeserializer::DeserializeContexts() {
       parent_context = handle(isolate_->context(), isolate_);
     }
 
-    Handle<Context> context =
-        isolate_->factory()->NewFunctionContext(parent_context, scope_info);
-    contexts_->set(i, *context);
-
     const int context_local_base = ScopeInfo::kVariablePartIndex;
     const int context_local_info_base = context_local_base + variable_count;
     for (int variable_index = 0;
@@ -649,12 +763,21 @@ void WebSnapshotDeserializer::DeserializeContexts() {
           ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
       scope_info->set(context_local_info_base + variable_index,
                       Smi::FromInt(info));
+    }
 
+    // Allocate the FunctionContext after setting up the ScopeInfo to avoid
+    // pointing to a ScopeInfo which is not set up yet.
+    Handle<Context> context =
+        isolate_->factory()->NewFunctionContext(parent_context, scope_info);
+    for (int variable_index = 0;
+         variable_index < static_cast<int>(variable_count); ++variable_index) {
       Handle<Object> value;
       Representation representation;
-      ReadValue(value, representation);
+      ReadValue(value, representation, context,
+                scope_info->ContextHeaderLength() + variable_index);
       context->set(scope_info->ContextHeaderLength() + variable_index, *value);
     }
+    contexts_->set(i, *context);
   }
 }
 
@@ -702,6 +825,7 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
 }
 
 void WebSnapshotDeserializer::DeserializeFunctions() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Functions);
   if (!deserializer_->ReadUint32(&function_count_) ||
       function_count_ > kMaxItemCount) {
     Throw("Web snapshot: Malformed function table");
@@ -710,19 +834,20 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
   STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
   functions_ = isolate_->factory()->NewFixedArray(function_count_);
 
-  Handle<Script> script =
-      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
-  script->set_type(Script::TYPE_WEB_SNAPSHOT);
   // Overallocate the array for SharedFunctionInfos; functions which we
   // deserialize soon will create more SharedFunctionInfos when called.
   Handle<WeakFixedArray> infos(isolate_->factory()->NewWeakFixedArray(
       WeakArrayList::CapacityForLength(function_count_ + 1),
       AllocationType::kOld));
-  script->set_shared_function_infos(*infos);
   Handle<ObjectHashTable> shared_function_info_table =
       ObjectHashTable::New(isolate_, function_count_);
+  Handle<Script> script =
+      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  script->set_shared_function_infos(*infos);
+  script->set_shared_function_info_table(*shared_function_info_table);
 
-  for (uint32_t i = 0; i < function_count_; ++i) {
+  for (; current_function_count_ < function_count_; ++current_function_count_) {
     uint32_t context_id;
     // Note: > (not >= on purpose, we will subtract 1).
     if (!deserializer_->ReadUint32(&context_id) ||
@@ -732,7 +857,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     }
 
     Handle<String> source = ReadString(false);
-    if (i == 0) {
+    if (current_function_count_ == 0) {
       script->set_source(*source);
     } else {
       // TODO(v8:11525): Support multiple source snippets.
@@ -741,13 +866,14 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
 
     uint32_t start_position;
     uint32_t length;
+    uint32_t flags;
     if (!deserializer_->ReadUint32(&start_position) ||
-        !deserializer_->ReadUint32(&length)) {
+        !deserializer_->ReadUint32(&length) ||
+        !deserializer_->ReadUint32(&flags)) {
       Throw("Web snapshot: Malformed function");
       return;
     }
 
-    // TODO(v8:11525): Support other function kinds.
     // TODO(v8:11525): Support (exported) top level functions.
 
     // TODO(v8:11525): Deduplicate the SFIs for inner functions the user creates
@@ -756,11 +882,11 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Handle<SharedFunctionInfo> shared =
         isolate_->factory()->NewSharedFunctionInfo(
             isolate_->factory()->empty_string(), MaybeHandle<Code>(),
-            Builtins::kCompileLazy, FunctionKind::kNormalFunction);
+            Builtin::kCompileLazy, FunctionFlagsToFunctionKind(flags));
     shared->set_script(*script);
     // Index 0 is reserved for top-level shared function info (which web
     // snapshot scripts don't have).
-    const int shared_function_info_index = i + 1;
+    const int shared_function_info_index = current_function_count_ + 1;
     shared->set_function_literal_id(shared_function_info_index);
     // TODO(v8:11525): Decide how to handle language modes.
     shared->set_language_mode(LanguageMode::kStrict);
@@ -787,12 +913,12 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
       function->set_context(context);
       shared->set_outer_scope_info(context.scope_info());
     }
-    functions_->set(i, *function);
+    functions_->set(current_function_count_, *function);
   }
-  script->set_shared_function_info_table(*shared_function_info_table);
 }
 
 void WebSnapshotDeserializer::DeserializeObjects() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Objects);
   if (!deserializer_->ReadUint32(&object_count_) ||
       object_count_ > kMaxItemCount) {
     Throw("Web snapshot: Malformed objects table");
@@ -800,7 +926,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
   objects_ = isolate_->factory()->NewFixedArray(object_count_);
-  for (size_t object_ix = 0; object_ix < object_count_; ++object_ix) {
+  for (; current_object_count_ < object_count_; ++current_object_count_) {
     uint32_t map_id;
     if (!deserializer_->ReadUint32(&map_id) || map_id >= map_count_) {
       Throw("Web snapshot: Malformed object");
@@ -810,12 +936,13 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     Handle<DescriptorArray> descriptors =
         handle(map->instance_descriptors(kRelaxedLoad), isolate_);
     int no_properties = map->NumberOfOwnDescriptors();
+    // TODO(v8:11525): In-object properties.
     Handle<PropertyArray> property_array =
         isolate_->factory()->NewPropertyArray(no_properties);
     for (int i = 0; i < no_properties; ++i) {
       Handle<Object> value;
       Representation wanted_representation = Representation::None();
-      ReadValue(value, wanted_representation);
+      ReadValue(value, wanted_representation, property_array, i);
       // Read the representation from the map.
       PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
       CHECK_EQ(details.location(), kField);
@@ -832,12 +959,47 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       property_array->set(i, *value);
     }
     Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(map);
-    object->set_raw_properties_or_hash(*property_array);
-    objects_->set(static_cast<int>(object_ix), *object);
+    object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
+    objects_->set(static_cast<int>(current_object_count_), *object);
+  }
+  ProcessDeferredReferences();
+}
+
+void WebSnapshotDeserializer::DeserializeArrays() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Arrays);
+  if (!deserializer_->ReadUint32(&array_count_) ||
+      object_count_ > kMaxItemCount) {
+    Throw("Web snapshot: Malformed array table");
+    return;
+  }
+  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  arrays_ = isolate_->factory()->NewFixedArray(array_count_);
+  for (; current_array_count_ < array_count_; ++current_array_count_) {
+    uint32_t length;
+    if (!deserializer_->ReadUint32(&length) || length > kMaxItemCount) {
+      Throw("Web snapshot: Malformed array");
+      return;
+    }
+    Handle<FixedArray> elements = isolate_->factory()->NewFixedArray(length);
+    ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
+    for (uint32_t i = 0; i < length; ++i) {
+      Handle<Object> value;
+      Representation wanted_representation = Representation::None();
+      ReadValue(value, wanted_representation, elements, i);
+      if (!wanted_representation.IsSmi()) {
+        elements_kind = PACKED_ELEMENTS;
+      }
+      DCHECK(!value.is_null());
+      elements->set(static_cast<int>(i), *value);
+    }
+    Handle<JSArray> array = isolate_->factory()->NewJSArrayWithElements(
+        elements, elements_kind, length);
+    arrays_->set(static_cast<int>(current_array_count_), *array);
   }
 }
 
 void WebSnapshotDeserializer::DeserializeExports() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Exports);
   uint32_t count;
   if (!deserializer_->ReadUint32(&count) || count > kMaxItemCount) {
     Throw("Web snapshot: Malformed export table");
@@ -845,12 +1007,11 @@ void WebSnapshotDeserializer::DeserializeExports() {
   }
   for (uint32_t i = 0; i < count; ++i) {
     Handle<String> export_name = ReadString(true);
-    uint32_t object_id = 0;
-    if (!deserializer_->ReadUint32(&object_id) || object_id >= object_count_) {
-      Throw("Web snapshot: Malformed export");
-      return;
-    }
-    Handle<Object> exported_object = handle(objects_->get(object_id), isolate_);
+    Handle<Object> export_value;
+    Representation representation;
+    // No deferred references should occur at this point, since all objects have
+    // been deserialized.
+    ReadValue(export_value, representation);
 
     // Check for the correctness of the snapshot (thus far) before producing
     // something observable. TODO(v8:11525): Strictly speaking, we should
@@ -861,7 +1022,7 @@ void WebSnapshotDeserializer::DeserializeExports() {
     }
 
     auto result = Object::SetProperty(isolate_, isolate_->global_object(),
-                                      export_name, exported_object);
+                                      export_name, export_value);
     if (result.is_null()) {
       Throw("Web snapshot: Setting global property failed");
       return;
@@ -869,12 +1030,18 @@ void WebSnapshotDeserializer::DeserializeExports() {
   }
 }
 
-void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
-                                        Representation& representation) {
+void WebSnapshotDeserializer::ReadValue(
+    Handle<Object>& value, Representation& representation,
+    Handle<Object> object_for_deferred_reference,
+    uint32_t index_for_deferred_reference) {
   uint32_t value_type;
   // TODO(v8:11525): Consider adding a ReadByte.
   if (!deserializer_->ReadUint32(&value_type)) {
     Throw("Web snapshot: Malformed variable");
+    // Set "value" here so that the "keep on trucking" error handling won't fail
+    // when dereferencing the handle.
+    value = isolate_->factory()->undefined_value();
+    representation = Representation::None();
     return;
   }
   switch (value_type) {
@@ -923,27 +1090,67 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
       representation = Representation::Tagged();
       break;
     }
-    case ValueType::OBJECT_ID:
-      uint32_t object_id;
-      if (!deserializer_->ReadUint32(&object_id) ||
-          object_id >= object_count_) {
-        // TODO(v8:11525): Handle circular references + contexts referencing
-        // objects.
+    case ValueType::ARRAY_ID:
+      uint32_t array_id;
+      if (!deserializer_->ReadUint32(&array_id) || array_id >= kMaxItemCount) {
         Throw("Web snapshot: Malformed variable");
         return;
       }
-      value = handle(objects_->get(object_id), isolate_);
+      if (array_id < current_array_count_) {
+        value = handle(arrays_->get(array_id), isolate_);
+      } else {
+        // The array hasn't been deserialized yet.
+        value = isolate_->factory()->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Web snapshot: Invalid array reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, ARRAY_ID, array_id);
+      }
+      representation = Representation::Tagged();
+      break;
+    case ValueType::OBJECT_ID:
+      uint32_t object_id;
+      if (!deserializer_->ReadUint32(&object_id) || object_id > kMaxItemCount) {
+        Throw("Web snapshot: Malformed variable");
+        return;
+      }
+      if (object_id < current_object_count_) {
+        value = handle(objects_->get(object_id), isolate_);
+      } else {
+        // The object hasn't been deserialized yet.
+        value = isolate_->factory()->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Web snapshot: Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, OBJECT_ID,
+                             object_id);
+      }
       representation = Representation::Tagged();
       break;
     case ValueType::FUNCTION_ID:
-      // TODO(v8:11525): Handle contexts referencing functions.
       uint32_t function_id;
       if (!deserializer_->ReadUint32(&function_id) ||
           function_id >= function_count_) {
         Throw("Web snapshot: Malformed object property");
         return;
       }
-      value = handle(functions_->get(function_id), isolate_);
+      if (function_id < current_function_count_) {
+        value = handle(functions_->get(function_id), isolate_);
+      } else {
+        // The function hasn't been deserialized yet.
+        value = isolate_->factory()->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Web snapshot: Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, FUNCTION_ID,
+                             function_id);
+      }
       representation = Representation::Tagged();
       break;
     case ValueType::REGEXP: {
@@ -969,6 +1176,75 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
       // TODO(v8:11525): Handle other value types.
       Throw("Web snapshot: Unsupported value type");
       return;
+  }
+}
+
+void WebSnapshotDeserializer::AddDeferredReference(Handle<Object> container,
+                                                   uint32_t index,
+                                                   ValueType target_type,
+                                                   uint32_t target_index) {
+  DCHECK(container->IsPropertyArray() || container->IsContext() ||
+         container->IsFixedArray());
+  deferred_references_ = ArrayList::Add(
+      isolate_, deferred_references_, container, Smi::FromInt(index),
+      Smi::FromInt(target_type), Smi::FromInt(target_index));
+}
+
+void WebSnapshotDeserializer::ProcessDeferredReferences() {
+  DisallowGarbageCollection no_gc;
+  ArrayList raw_deferred_references = *deferred_references_;
+  FixedArray raw_functions = *functions_;
+  FixedArray raw_arrays = *arrays_;
+  FixedArray raw_objects = *objects_;
+
+  // Deferred references is a list of (object, index, target type, target index)
+  // tuples.
+  for (int i = 0; i < raw_deferred_references.Length() - 3; i += 4) {
+    Object container = raw_deferred_references.Get(i);
+    int index = raw_deferred_references.Get(i + 1).ToSmi().value();
+    ValueType target_type =
+        ValueType(raw_deferred_references.Get(i + 2).ToSmi().value());
+    int target_index = raw_deferred_references.Get(i + 3).ToSmi().value();
+    Object target;
+    switch (target_type) {
+      case FUNCTION_ID:
+        if (static_cast<uint32_t>(target_index) >= function_count_) {
+          // Throw can allocate, but it's ok, since we're not using the raw
+          // pointers after that.
+          AllowGarbageCollection allow_gc;
+          Throw("Web Snapshots: Invalid function reference");
+          return;
+        }
+        target = raw_functions.get(target_index);
+        break;
+      case ARRAY_ID:
+        if (static_cast<uint32_t>(target_index) >= array_count_) {
+          AllowGarbageCollection allow_gc;
+          Throw("Web Snapshots: Invalid array reference");
+          return;
+        }
+        target = raw_arrays.get(target_index);
+        break;
+      case OBJECT_ID:
+        if (static_cast<uint32_t>(target_index) >= object_count_) {
+          AllowGarbageCollection allow_gc;
+          Throw("Web Snapshots: Invalid object reference");
+          return;
+        }
+        target = raw_objects.get(target_index);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    if (container.IsPropertyArray()) {
+      PropertyArray::cast(container).set(index, target);
+    } else if (container.IsContext()) {
+      Context::cast(container).set(index, target);
+    } else if (container.IsFixedArray()) {
+      FixedArray::cast(container).set(index, target);
+    } else {
+      UNREACHABLE();
+    }
   }
 }
 

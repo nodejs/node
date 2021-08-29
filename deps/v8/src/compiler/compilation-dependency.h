@@ -18,7 +18,7 @@ class CompilationDependency : public ZoneObject {
  public:
   virtual bool IsValid() const = 0;
   virtual void PrepareInstall() const {}
-  virtual void Install(const MaybeObjectHandle& code) const = 0;
+  virtual void Install(Handle<Code> code) const = 0;
 
 #ifdef DEBUG
   virtual bool IsPretenureModeDependency() const { return false; }

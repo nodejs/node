@@ -432,11 +432,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 
-  // Checks if the visited expression is one shot, i.e executed only once. Any
-  // expression either in a top level code or an IIFE that is not within a loop
-  // is eligible for one shot optimizations.
-  inline bool ShouldOptimizeAsOneShot() const;
-
   static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {
     return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean
                                            : ToBooleanMode::kConvertToBoolean;

@@ -14,18 +14,19 @@ namespace baseline {
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
+  ASM_CODE_COMMENT(&masm_);
   // Enter the frame here, since CallBuiltin will override lr.
   __ masm()->EnterFrame(StackFrame::BASELINE);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   int max_frame_size = bytecode_->frame_size() + max_call_args_;
-  CallBuiltin<Builtins::kBaselineOutOfLinePrologue>(
+  CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
   PrologueFillFrame();
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
@@ -88,13 +89,12 @@ void BaselineCompiler::PrologueFillFrame() {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
-    __ masm()->Sub64(scratch, scratch, 1);
-    __ JumpIf(Condition::kGreaterThan, &loop);
+    __ masm()->Branch(&loop, gt, scratch, Operand(1));
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {
+  ASM_CODE_COMMENT(&masm_);
   __ masm()->Add64(kScratchReg, sp,
                    RoundUp(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                                bytecode_->frame_size(),

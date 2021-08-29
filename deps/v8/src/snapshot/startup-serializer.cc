@@ -97,11 +97,28 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
   // trampoline copy stored on the root list and transitively called builtins.
   // See Heap::interpreter_entry_trampoline_for_profiling.
 
-  switch (code.builtin_index()) {
-    case Builtins::kAbort:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kInterpreterEntryTrampoline:
-    case Builtins::kRecordWrite:
+  switch (code.builtin_id()) {
+    case Builtin::kAbort:
+    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kInterpreterEntryTrampoline:
+    case Builtin::kRecordWriteEmitRememberedSetSaveFP:
+    case Builtin::kRecordWriteOmitRememberedSetSaveFP:
+    case Builtin::kRecordWriteEmitRememberedSetIgnoreFP:
+    case Builtin::kRecordWriteOmitRememberedSetIgnoreFP:
+#ifdef V8_IS_TSAN
+    case Builtin::kTSANRelaxedStore8IgnoreFP:
+    case Builtin::kTSANRelaxedStore8SaveFP:
+    case Builtin::kTSANRelaxedStore16IgnoreFP:
+    case Builtin::kTSANRelaxedStore16SaveFP:
+    case Builtin::kTSANRelaxedStore32IgnoreFP:
+    case Builtin::kTSANRelaxedStore32SaveFP:
+    case Builtin::kTSANRelaxedStore64IgnoreFP:
+    case Builtin::kTSANRelaxedStore64SaveFP:
+    case Builtin::kTSANRelaxedLoad32IgnoreFP:
+    case Builtin::kTSANRelaxedLoad32SaveFP:
+    case Builtin::kTSANRelaxedLoad64IgnoreFP:
+    case Builtin::kTSANRelaxedLoad64SaveFP:
+#endif  // V8_IS_TSAN
       return false;
     default:
       return true;

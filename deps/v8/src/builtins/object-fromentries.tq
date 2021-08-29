@@ -18,11 +18,25 @@ transitioning macro ObjectFromEntriesFastCase(implicit context: Context)(
         const pair: KeyValuePair =
             collections::LoadKeyValuePairNoSideEffects(value)
             otherwise IfSlow;
-        // Bail out if ToPropertyKey will attempt to load and call
-        // Symbol.toPrimitive, toString, and valueOf, which could
-        // invalidate assumptions about the iterable.
-        if (Is<JSReceiver>(pair.key)) goto IfSlow;
-        FastCreateDataProperty(result, pair.key, pair.value);
+        // StorePropertyInLiteral only handles Names and Numbers. Bail out if
+        // the key is not one of those types. Note that JSReceivers should
+        // always bail to the slow path, as calling Symbol.toPrimitive,
+        // toString, or valueOf could invalidate assumptions about the
+        // iterable.
+        typeswitch (pair.key) {
+          case (Name): {
+            SetPropertyInLiteral(result, pair.key, pair.value);
+          }
+          case (Number): {
+            SetPropertyInLiteral(result, pair.key, pair.value);
+          }
+          case (oddball: Oddball): {
+            SetPropertyInLiteral(result, oddball.to_string, pair.value);
+          }
+          case (JSAny): {
+            goto IfSlow;
+          }
+        }
       }
       return result;
     }
@@ -52,7 +66,7 @@ ObjectFromEntries(
         const iteratorValue: JSAny =
             iterator::IteratorValue(step, fastIteratorResultMap);
         const pair: KeyValuePair = collections::LoadKeyValuePair(iteratorValue);
-        FastCreateDataProperty(result, pair.key, pair.value);
+        CreateDataProperty(result, pair.key, pair.value);
       }
       return result;
     } catch (e) deferred {

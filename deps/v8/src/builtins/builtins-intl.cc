@@ -222,8 +222,8 @@ BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
 namespace {
 
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
-                                       Handle<JSObject> object,
-                                       Builtins::Name builtin_id, int len) {
+                                       Handle<JSObject> object, Builtin builtin,
+                                       int len) {
   Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
@@ -235,7 +235,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin_id, kNormalFunction);
+          isolate->factory()->empty_string(), builtin, kNormalFunction);
   info->set_internal_formal_parameter_count(len);
   info->set_length(len);
 
@@ -469,7 +469,7 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
   }
 
   Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
-      isolate, number_format, Builtins::kNumberFormatInternalFormatNumber, 1);
+      isolate, number_format, Builtin::kNumberFormatInternalFormatNumber, 1);
 
   // 4. c. Set nf.[[BoundFormat]] to F.
   number_format->set_bound_format(*new_bound_format_function);
@@ -541,7 +541,7 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
   }
 
   Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
-      isolate, format, Builtins::kDateTimeFormatInternalFormat, 1);
+      isolate, format, Builtin::kDateTimeFormatInternalFormat, 1);
 
   // 4.c. Set dtf.[[BoundFormat]] to F.
   format->set_bound_format(*new_bound_format_function);
@@ -964,7 +964,7 @@ BUILTIN(CollatorPrototypeCompare) {
   }
 
   Handle<JSFunction> new_bound_compare_function = CreateBoundFunction(
-      isolate, collator, Builtins::kCollatorInternalCompare, 2);
+      isolate, collator, Builtin::kCollatorInternalCompare, 2);
 
   // 4.c. Set collator.[[BoundCompare]] to F.
   collator->set_bound_compare(*new_bound_compare_function);
@@ -1113,7 +1113,7 @@ BUILTIN(V8BreakIteratorPrototypeAdoptText) {
   }
 
   Handle<JSFunction> new_bound_adopt_text_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kV8BreakIteratorInternalAdoptText, 1);
+      isolate, break_iterator, Builtin::kV8BreakIteratorInternalAdoptText, 1);
   break_iterator->set_bound_adopt_text(*new_bound_adopt_text_function);
   return *new_bound_adopt_text_function;
 }
@@ -1149,7 +1149,7 @@ BUILTIN(V8BreakIteratorPrototypeFirst) {
   }
 
   Handle<JSFunction> new_bound_first_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kV8BreakIteratorInternalFirst, 0);
+      isolate, break_iterator, Builtin::kV8BreakIteratorInternalFirst, 0);
   break_iterator->set_bound_first(*new_bound_first_function);
   return *new_bound_first_function;
 }
@@ -1179,7 +1179,7 @@ BUILTIN(V8BreakIteratorPrototypeNext) {
   }
 
   Handle<JSFunction> new_bound_next_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kV8BreakIteratorInternalNext, 0);
+      isolate, break_iterator, Builtin::kV8BreakIteratorInternalNext, 0);
   break_iterator->set_bound_next(*new_bound_next_function);
   return *new_bound_next_function;
 }
@@ -1208,7 +1208,7 @@ BUILTIN(V8BreakIteratorPrototypeCurrent) {
   }
 
   Handle<JSFunction> new_bound_current_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kV8BreakIteratorInternalCurrent, 0);
+      isolate, break_iterator, Builtin::kV8BreakIteratorInternalCurrent, 0);
   break_iterator->set_bound_current(*new_bound_current_function);
   return *new_bound_current_function;
 }
@@ -1237,7 +1237,7 @@ BUILTIN(V8BreakIteratorPrototypeBreakType) {
   }
 
   Handle<JSFunction> new_bound_break_type_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kV8BreakIteratorInternalBreakType, 0);
+      isolate, break_iterator, Builtin::kV8BreakIteratorInternalBreakType, 0);
   break_iterator->set_bound_break_type(*new_bound_break_type_function);
   return *new_bound_break_type_function;
 }

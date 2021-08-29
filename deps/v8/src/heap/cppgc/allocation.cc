@@ -4,8 +4,9 @@
 
 #include "include/cppgc/allocation.h"
 
-#include "src/base/logging.h"
+#include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/object-allocator.h"
 
 namespace cppgc {

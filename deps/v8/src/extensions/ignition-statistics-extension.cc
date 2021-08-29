@@ -27,7 +27,6 @@ const char* const IgnitionStatisticsExtension::kSource =
 
 void IgnitionStatisticsExtension::GetIgnitionDispatchCounters(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK(FLAG_trace_ignition_dispatches);
   args.GetReturnValue().Set(reinterpret_cast<Isolate*>(args.GetIsolate())
                                 ->interpreter()
                                 ->GetDispatchCountersObject());

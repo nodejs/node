@@ -27,18 +27,17 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "src/base/numbers/diy-fp.h"
+#include "src/base/numbers/double.h"
+#include "src/base/numbers/fast-dtoa.h"
 #include "src/base/platform/platform.h"
-#include "src/numbers/diy-fp.h"
-#include "src/numbers/double.h"
-#include "src/numbers/fast-dtoa.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/gay-precision.h"
 #include "test/cctest/gay-shortest.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 namespace test_fast_dtoa {
 
 static const int kBufferSize = 100;
@@ -291,5 +290,5 @@ TEST(FastDtoaGayPrecision) {
 }
 
 }  // namespace test_fast_dtoa
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

@@ -13,8 +13,8 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/vector.h"
 #include "src/utils/locked-queue-inl.h"
-#include "src/utils/vector.h"
 #include "test/inspector/isolate-data.h"
 
 namespace v8 {

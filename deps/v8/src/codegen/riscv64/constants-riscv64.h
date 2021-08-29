@@ -210,12 +210,14 @@ const int kRvcRs1sBits = 3;
 const int kRvcRs2sShift = 2;
 const int kRvcRs2sBits = 3;
 const int kRvcFunct2Shift = 5;
+const int kRvcFunct2BShift = 10;
 const int kRvcFunct2Bits = 2;
 const int kRvcFunct6Shift = 10;
 const int kRvcFunct6Bits = 6;
 
 // RISCV Instruction bit masks
-const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
+const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1)
+                                 << kBaseOpcodeShift;
 const uint32_t kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
 const uint32_t kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
 const uint32_t kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
@@ -241,13 +243,20 @@ const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
 const uint32_t kImm19_0Mask = ((1 << 20) - 1);
 const uint32_t kRvcOpcodeMask =
     0b11 | (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const uint32_t kRvcFunct3Mask = (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const uint32_t kRvcFunct4Mask = (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
-const uint32_t kRvcFunct6Mask = (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
-const uint32_t kRvcFunct2Mask = (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
+const uint32_t kRvcFunct3Mask =
+    (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
+const uint32_t kRvcFunct4Mask =
+    (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
+const uint32_t kRvcFunct6Mask =
+    (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
+const uint32_t kRvcFunct2Mask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
+const uint32_t kRvcFunct2BMask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2BShift);
 const uint32_t kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
 const uint32_t kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
 const uint32_t kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+const uint32_t kRvcBImm8Mask = (((1 << 5) - 1) << 2) | (((1 << 3) - 1) << 10);
 
 // RISCV CSR related bit mask and shift
 const int kFcsrFlagsBits = 5;
@@ -258,6 +267,7 @@ const uint32_t kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
 const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
 const uint32_t kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
+const int kNopByte = 0x00000013;
 // Original MIPS constants
 // TODO(RISCV): to be cleaned up
 const int kImm16Shift = 0;
@@ -728,7 +738,7 @@ class InstructionBase {
   };
 
   inline bool IsIllegalInstruction() const {
-    uint8_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
+    uint16_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
     return FirstHalfWord == 0;
   }
 
@@ -915,6 +925,11 @@ class InstructionGetters : public T {
   inline int RvcFunct2Value() const {
     DCHECK(this->IsShortInstruction());
     return this->Bits(kRvcFunct2Shift + kRvcFunct2Bits - 1, kRvcFunct2Shift);
+  }
+
+  inline int RvcFunct2BValue() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct2BShift + kRvcFunct2Bits - 1, kRvcFunct2BShift);
   }
 
   inline int CsrValue() const {
@@ -1125,6 +1140,17 @@ class InstructionGetters : public T {
     return imm12 << 20 >> 20;
   }
 
+  inline int RvcImm8BValue() const {
+    DCHECK(this->IsShortInstruction());
+    // | funct3 | imm[8|4:3] | rs1` | imm[7:6|2:1|5]  | opcode |
+    //  15       12        10       7                 2
+    uint32_t Bits = this->InstructionBits();
+    int32_t imm9 = ((Bits & 0x4) << 3) | ((Bits & 0x18) >> 2) |
+                   ((Bits & 0x60) << 1) | ((Bits & 0xc00) >> 7) |
+                   ((Bits & 0x1000) >> 4);
+    return imm9 << 23 >> 23;
+  }
+
   inline bool AqValue() const { return this->Bits(kAqShift, kAqShift); }
 
   inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
@@ -1154,7 +1180,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 0;
 
-// TODO(plind): below should be based on kPointerSize
+// TODO(plind): below should be based on kSystemPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
 

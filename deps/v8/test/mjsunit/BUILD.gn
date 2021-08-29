@@ -17,6 +17,7 @@ group("v8_mjsunit") {
     "../../tools/clusterfuzz/v8_mock_archs.js",
     "../../tools/clusterfuzz/v8_mock_webassembly.js",
     "../../tools/codemap.mjs",
+    "../../tools/sourcemap.mjs",
     "../../tools/consarray.mjs",
     "../../tools/csvparser.mjs",
     "../../tools/dumpcpp.mjs",

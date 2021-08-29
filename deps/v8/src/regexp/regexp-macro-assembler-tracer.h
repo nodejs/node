@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 
+#include "src/base/strings.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -25,8 +26,8 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void CheckCharacter(unsigned c, Label* on_equal) override;
   void CheckCharacterAfterAnd(unsigned c, unsigned and_with,
                               Label* on_equal) override;
-  void CheckCharacterGT(uc16 limit, Label* on_greater) override;
-  void CheckCharacterLT(uc16 limit, Label* on_less) override;
+  void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
   void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
@@ -38,14 +39,16 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
   void CheckNotCharacterAfterAnd(unsigned c, unsigned and_with,
                                  Label* on_not_equal) override;
-  void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 and_with,
+  void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                      base::uc16 and_with,
                                       Label* on_not_equal) override;
-  void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range) override;
-  void CheckCharacterNotInRange(uc16 from, uc16 to,
+  void CheckCharacterInRange(base::uc16 from, base::uc16 to,
+                             Label* on_in_range) override;
+  void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) override;
+  bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match) override;
   void Fail() override;
   Handle<HeapObject> GetCode(Handle<String> source) override;
   void GoTo(Label* label) override;

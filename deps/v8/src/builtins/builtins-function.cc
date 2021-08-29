@@ -195,7 +195,7 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // Allocate the bound function with the given {this_arg} and {args}.
   Handle<JSReceiver> target = args.at<JSReceiver>(0);
   Handle<Object> this_arg = isolate->factory()->undefined_value();
-  ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
+  base::ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at(1);
     for (int i = 2; i < args.length(); ++i) {

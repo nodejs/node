@@ -87,6 +87,7 @@ async function getScopeValues(name, value) {
       return value.description;
     if (name === 'instance') return dumpInstanceProperties(value);
     if (name === 'module') return value.description;
+    if (name === 'tables') return dumpTables(value);
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
@@ -136,4 +137,27 @@ async function dumpInstanceProperties(instanceObj) {
   }
   const formattedExports = exports.result.result.map(printExports).join(', ');
   return `${exportsName}: ${formattedExports}`
+}
+
+async function dumpTables(tablesObj) {
+  let msg =
+      await Protocol.Runtime.getProperties({objectId: tablesObj.objectId});
+  let tables_str = [];
+  for (let table of msg.result.result) {
+    let table_content =
+        await Protocol.Runtime.getProperties({objectId: table.value.objectId});
+
+    let entries_object = table_content.result.internalProperties.filter(
+        p => p.name === '[[Entries]]')[0];
+    entries = await Protocol.Runtime.getProperties(
+        {objectId: entries_object.value.objectId});
+    let functions = [];
+    for (let entry of entries.result.result) {
+      if (entry.name === 'length') continue;
+      functions.push(`${entry.name}: ${entry.value.description}`);
+    }
+    const functions_str = functions.join(', ');
+    tables_str.push(`      ${table.name}: ${functions_str}`);
+  }
+  return '\n' + tables_str.join('\n');
 }

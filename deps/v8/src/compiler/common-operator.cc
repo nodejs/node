@@ -461,6 +461,7 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
 }
 
 #define COMMON_CACHED_OP_LIST(V)                          \
+  V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \
   V(Unreachable, Operator::kFoldable, 0, 1, 1, 1, 1, 0)   \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
@@ -562,6 +563,10 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(Eager, OutOfBounds, SafetyCheck)          \
   V(Eager, WrongInstanceType, SafetyCheck)    \
   V(Eager, WrongMap, SafetyCheck)
+
+#define CACHED_DYNAMIC_CHECK_MAPS_LIST(V) \
+  V(DynamicCheckMaps)                     \
+  V(DynamicCheckMapsInlined)
 
 #define CACHED_TRAP_IF_LIST(V) \
   V(TrapDivUnrepresentable)    \
@@ -801,19 +806,22 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
+  template <DeoptimizeReason kReason>
   struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
     DynamicMapCheckOperator()
         : Operator1<DeoptimizeParameters>(                 // --
               IrOpcode::kDynamicCheckMapsWithDeoptUnless,  // opcode
               Operator::kFoldable | Operator::kNoThrow,    // properties
               "DynamicCheckMapsWithDeoptUnless",           // name
-              5, 1, 1, 0, 1, 1,                            // counts
-              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume,
-                                   DeoptimizeReason::kDynamicCheckMaps,
+              6, 1, 1, 0, 1, 1,                            // counts
+              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume, kReason,
                                    FeedbackSource(),
                                    IsSafetyCheck::kCriticalSafetyCheck)) {}
   };
-  DynamicMapCheckOperator kDynamicCheckMapsWithDeoptUnless;
+#define CACHED_DYNAMIC_CHECK_MAPS(Reason) \
+  DynamicMapCheckOperator<DeoptimizeReason::k##Reason> k##Reason##Operator;
+  CACHED_DYNAMIC_CHECK_MAPS_LIST(CACHED_DYNAMIC_CHECK_MAPS)
+#undef CACHED_DYNAMIC_CHECK_MAPS
 
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
@@ -1052,8 +1060,13 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless() {
-  return &cache_.kDynamicCheckMapsWithDeoptUnless;
+const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless(
+    bool is_inlined_frame_state) {
+  if (is_inlined_frame_state) {
+    return &cache_.kDynamicCheckMapsInlinedOperator;
+  } else {
+    return &cache_.kDynamicCheckMapsOperator;
+  }
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {

@@ -76,10 +76,10 @@ export class ToolTipEvent extends AppEvent {
 
   constructor(content, positionOrTargetNode) {
     super(ToolTipEvent.name);
-    this._content = content;
-    if (!positionOrTargetNode && !node) {
+    if (!positionOrTargetNode) {
       throw Error('Either provide a valid position or targetNode');
     }
+    this._content = content;
     this._positionOrTargetNode = positionOrTargetNode;
   }
 

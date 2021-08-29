@@ -342,7 +342,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
           isolate, Object::SetElement(isolate, receiver, length, element,
                                       ShouldThrow::kThrowOnError));
     } else {
-      LookupIterator::Key key(isolate, length);
+      PropertyKey key(isolate, length);
       LookupIterator it(isolate, receiver, key);
       MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
                                        Just(ShouldThrow::kThrowOnError)),
@@ -902,6 +902,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
+    case WASM_ARRAY_ELEMENTS:
       UNREACHABLE();
   }
   // As an estimate, we assume that the prototype doesn't contain any
@@ -1025,6 +1026,9 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       }
       break;
     }
+    case WASM_ARRAY_ELEMENTS:
+      // TODO(ishell): implement
+      UNIMPLEMENTED();
     case NO_ELEMENTS:
       break;
   }
@@ -1211,6 +1215,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           });
       break;
     }
+    case WASM_ARRAY_ELEMENTS:
+      // TODO(ishell): implement
+      UNIMPLEMENTED();
     case NO_ELEMENTS:
       break;
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:

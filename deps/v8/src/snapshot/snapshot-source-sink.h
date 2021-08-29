@@ -30,7 +30,7 @@ class SnapshotByteSource final {
         length_(length),
         position_(0) {}
 
-  explicit SnapshotByteSource(Vector<const byte> payload)
+  explicit SnapshotByteSource(base::Vector<const byte> payload)
       : data_(payload.begin()), length_(payload.length()), position_(0) {}
 
   ~SnapshotByteSource() = default;
@@ -52,7 +52,7 @@ class SnapshotByteSource final {
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(void* to, int number_of_bytes) {
-    base::Memcpy(to, data_ + position_, number_of_bytes);
+    memcpy(to, data_ + position_, number_of_bytes);
     position_ += number_of_bytes;
   }
 
@@ -62,7 +62,7 @@ class SnapshotByteSource final {
     for (base::AtomicWord* p = start; p < end;
          ++p, position_ += sizeof(base::AtomicWord)) {
       base::AtomicWord val;
-      base::Memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
+      memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
       base::Relaxed_Store(p, val);
     }
   }
@@ -74,7 +74,7 @@ class SnapshotByteSource final {
     for (AtomicTagged_t* p = start; p < end;
          ++p, position_ += sizeof(AtomicTagged_t)) {
       AtomicTagged_t val;
-      base::Memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
+      memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
       base::Relaxed_Store(p, val);
     }
   }
@@ -104,7 +104,7 @@ class SnapshotByteSource final {
   void set_position(int position) { position_ = position; }
 
   uint32_t GetChecksum() const {
-    return Checksum(Vector<const byte>(data_, length_));
+    return Checksum(base::Vector<const byte>(data_, length_));
   }
 
  private:

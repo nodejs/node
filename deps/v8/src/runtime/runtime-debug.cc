@@ -331,7 +331,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                          isolate->factory()->NewNumberFromSize(byte_length));
 
       // Use the backing store pointer as a unique ID
-      EmbeddedVector<char, 32> buffer_data_vec;
+      base::EmbeddedVector<char, 32> buffer_data_vec;
       int len =
           SNPrintF(buffer_data_vec, V8PRIxPTR_FMT,
                    reinterpret_cast<Address>(js_array_buffer->backing_store()));
@@ -359,6 +359,9 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
   } else if (object->IsWasmModuleObject()) {
     result = AddWasmModuleObjectInternalProperties(
         isolate, result, Handle<WasmModuleObject>::cast(object));
+  } else if (object->IsWasmTableObject()) {
+    result = AddWasmTableObjectInternalProperties(
+        isolate, result, Handle<WasmTableObject>::cast(object));
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return isolate->factory()->NewJSArrayWithElements(
@@ -677,8 +680,9 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
-    Deoptimizer::DeoptimizeFunction(*fun);
-    if (isolate->debug()->last_step_action() >= StepIn ||
+    Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
+    isolate->debug()->DeoptimizeFunction(shared);
+    if (isolate->debug()->last_step_action() >= StepInto ||
         isolate->debug()->break_on_next_function_call()) {
       DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
       isolate->debug()->PrepareStepIn(fun);

@@ -85,7 +85,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
+  size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal).Size();
   obj =
       heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
           .ToObjectChecked();
@@ -139,7 +139,7 @@ TEST(StressJS) {
 
   Handle<NativeContext> context(isolate->native_context());
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtins::kEmptyFunction);
+      factory->function_string(), Builtin::kEmptyFunction);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();

@@ -87,7 +87,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
     StoreObjectFieldNoWriteBarrier(
         receiver, JSGeneratorObject::kContinuationOffset, closed);
     // Return the wrapped result.
-    args->PopAndReturn(CallBuiltin(Builtins::kCreateIterResultObject, context,
+    args->PopAndReturn(CallBuiltin(Builtin::kCreateIterResultObject, context,
                                    result, TrueConstant()));
   }
 
@@ -97,11 +97,11 @@ void GeneratorBuiltinsAssembler::InnerResume(
     TNode<Object> result;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = CallBuiltin(Builtins::kCreateIterResultObject, context,
+        result = CallBuiltin(Builtin::kCreateIterResultObject, context,
                              UndefinedConstant(), TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result = CallBuiltin(Builtins::kCreateIterResultObject, context, value,
+        result = CallBuiltin(Builtin::kCreateIterResultObject, context, value,
                              TrueConstant());
         break;
       case JSGeneratorObject::kThrow:

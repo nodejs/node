@@ -179,7 +179,7 @@ namespace {
 base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     Handle<JSReceiver> object, Handle<Name> name) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   if (key.is_element()) return debug::NativeAccessorType::None;
   LookupIterator it(isolate, object, key, LookupIterator::OWN);
   if (!it.IsFound()) return debug::NativeAccessorType::None;

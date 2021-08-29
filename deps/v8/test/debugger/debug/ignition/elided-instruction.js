@@ -15,7 +15,7 @@ function listener(event, exec_state, event_data, data) {
     var column = event_data.sourceColumn();
     assertTrue(event_data.sourceLineText().indexOf(
         `Break ${break_count++}. ${column}.`) > 0);
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     print(e + e.stack);
     exception = e;

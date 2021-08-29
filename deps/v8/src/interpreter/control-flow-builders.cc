@@ -98,13 +98,45 @@ SwitchBuilder::~SwitchBuilder() {
 #endif
 }
 
-void SwitchBuilder::SetCaseTarget(int index, CaseClause* clause) {
-  BytecodeLabel& site = case_sites_.at(index);
-  builder()->Bind(&site);
-  if (block_coverage_builder_) {
-    block_coverage_builder_->IncrementBlockCounter(clause,
-                                                   SourceRangeKind::kBody);
+void SwitchBuilder::BindCaseTargetForJumpTable(int case_value,
+                                               CaseClause* clause) {
+  builder()->Bind(jump_table_, case_value);
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::BindCaseTargetForCompareJump(int index,
+                                                 CaseClause* clause) {
+  builder()->Bind(&case_sites_.at(index));
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::JumpToCaseIfTrue(BytecodeArrayBuilder::ToBooleanMode mode,
+                                     int index) {
+  builder()->JumpIfTrue(mode, &case_sites_.at(index));
+}
+
+// Precondition: tag is in the accumulator
+void SwitchBuilder::EmitJumpTableIfExists(
+    int min_case, int max_case, std::map<int, CaseClause*>& covered_cases) {
+  builder()->SwitchOnSmiNoFeedback(jump_table_);
+  fall_through_.Bind(builder());
+  for (int j = min_case; j <= max_case; ++j) {
+    if (covered_cases.find(j) == covered_cases.end()) {
+      this->BindCaseTargetForJumpTable(j, nullptr);
+    }
   }
+}
+
+void SwitchBuilder::BindDefault(CaseClause* clause) {
+  default_.Bind(builder());
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::JumpToDefault() { this->EmitJump(&default_); }
+
+void SwitchBuilder::JumpToFallThroughIfFalse() {
+  this->EmitJumpIfFalse(BytecodeArrayBuilder::ToBooleanMode::kAlreadyBoolean,
+                        &fall_through_);
 }
 
 TryCatchBuilder::~TryCatchBuilder() {

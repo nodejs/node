@@ -22,7 +22,7 @@ extern class JSFinalizationRegistry extends JSObject {
 extern class WeakCell extends HeapObject {
   finalization_registry: Undefined|JSFinalizationRegistry;
   target: Undefined|JSReceiver;
-  unregister_token: JSAny;
+  unregister_token: Undefined|JSReceiver;
   holdings: JSAny;
 
   // For storing doubly linked lists of WeakCells in JSFinalizationRegistry's

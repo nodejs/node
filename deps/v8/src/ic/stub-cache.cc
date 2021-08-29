@@ -89,7 +89,7 @@ void StubCache::Set(Name name, Map map, MaybeObject handler) {
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
   if (old_handler != MaybeObject::FromObject(
-                         isolate()->builtins()->builtin(Builtins::kIllegal)) &&
+                         isolate()->builtins()->code(Builtin::kIllegal)) &&
       !primary->map.IsSmi()) {
     Map old_map =
         Map::cast(StrongTaggedValue::ToObject(isolate(), primary->map));
@@ -125,8 +125,8 @@ MaybeObject StubCache::Get(Name name, Map map) {
 }
 
 void StubCache::Clear() {
-  MaybeObject empty = MaybeObject::FromObject(
-      isolate_->builtins()->builtin(Builtins::kIllegal));
+  MaybeObject empty =
+      MaybeObject::FromObject(isolate_->builtins()->code(Builtin::kIllegal));
   Name empty_string = ReadOnlyRoots(isolate()).empty_string();
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = StrongTaggedValue(empty_string);

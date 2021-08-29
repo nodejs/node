@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('string-iterator.js');
+d8.file.execute('../base.js');
+d8.file.execute('string-iterator.js');
 
 
 var success = true;

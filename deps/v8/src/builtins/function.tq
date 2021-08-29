@@ -16,10 +16,10 @@ extern transitioning builtin
 FunctionPrototypeBind(implicit context: Context)(
     JSFunction, JSAny, int32): JSAny;
 
-const kLengthDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kLengthDescriptorIndex';
-const kNameDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kNameDescriptorIndex';
+const kLengthDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunction::kLengthDescriptorIndex';
+const kNameDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunction::kNameDescriptorIndex';
 const kMinDescriptorsForFastBind:
     constexpr int31 generates 'JSFunction::kMinDescriptorsForFastBind';
 

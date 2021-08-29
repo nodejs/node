@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-threads --expose-gc
 
-load("test/mjsunit/worker-ping-test.js");
+d8.file.execute("test/mjsunit/worker-ping-test.js");
 
 let kDisabledAbort = false; // TODO(9380): enable abort for this test
 

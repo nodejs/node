@@ -35,15 +35,14 @@
 #include "src/strings/string-search.h"
 #include "test/cctest/cctest.h"
 
-
-using ::v8::internal::CStrVector;
+using ::v8::base::CStrVector;
+using ::v8::base::Vector;
 using ::v8::internal::Factory;
 using ::v8::internal::Handle;
 using ::v8::internal::Heap;
 using ::v8::internal::JSFunction;
 using ::v8::internal::Runtime;
 using ::v8::internal::SharedFunctionInfo;
-using ::v8::internal::Vector;
 
 
 static void CheckFunctionName(v8::Local<v8::Script> script,
@@ -70,7 +69,8 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
   int func_pos;
   {
     i::DisallowGarbageCollection no_gc;
-    Vector<const uint8_t> func_pos_str = i::OneByteVector(func_pos_src);
+    v8::base::Vector<const uint8_t> func_pos_str =
+        v8::base::OneByteVector(func_pos_src);
     i::String::FlatContent script_content = script_src->GetFlatContent(no_gc);
     func_pos = SearchString(isolate, script_content.ToOneByteVector(),
                             func_pos_str, 0);

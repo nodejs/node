@@ -66,9 +66,6 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
-  # TODO(ulan): Renable after fixing the test's brittleness.
-  'test-heap/OutOfMemory': [SKIP],
-
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
@@ -92,17 +89,11 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # BUG(3742).
-  'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
-
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
-
-  # BUG(v8:8296). Flaky OOM test.
-  'test-heap/OutOfMemorySmallObjects': [SKIP],
 
   # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
   'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
@@ -118,7 +109,6 @@
   'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
   'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
-############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
@@ -126,12 +116,38 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+
+  # pthread_rwlock_t combined with signals is broken on Mac (https://crbug.com/v8/11399).
+  'signals-and-mutexes/SignalsPlusSharedMutexes': [PASS, ['system == macos', SKIP]],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'test-accessors/HandleScopePop': [PASS, HEAVY],
+  'test-api/FastApiCalls': [PASS, HEAVY],
+  'test-api/NewStringRangeError': [PASS, HEAVY],
+  'test-api/Threading8': [PASS, HEAVY],
+  'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
+  'test-run-machops/RunInt32AddWithOverflowImm': [PASS, HEAVY],
+  'test-run-machops/RunInt32MulAndInt32AddP': [PASS, HEAVY],
+  'test-run-machops/RunInt64SubWithOverflowImm': [PASS, HEAVY],
+  'test-serialize/ContextSerializerContext': [PASS, HEAVY],
+  'test-serialize/ContextSerializerCustomContext': [PASS, HEAVY],
+  'test-serialize/SnapshotCompression': [PASS, HEAVY],
+  'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
+  'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
+  'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
+  'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
+  'test-strings/Traverse': [PASS, HEAVY],
+  'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
+  'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################
 ['mode == debug', {
   'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
   'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+
+  # BUG(v8:10996): Flaky on Linux64 - debug
+  'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
 }],
 
 ##############################################################################
@@ -162,6 +178,9 @@
 
   # BUG(v8:3434).
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -195,7 +214,8 @@
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
 
-  # %ObserveNode tests relies on TurboFan.
+  # %ObserveNode tests rely on TurboFan.
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-sloppy-equality/*' : [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-verify-type/*': [SKIP],
@@ -211,6 +231,32 @@
 }],  # 'asan == True'
 
 ##############################################################################
+['asan or tsan', {
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'regress/regress-crbug-9161': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Add': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_DivS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_DivU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Eq': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GeS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GtS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Ior': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_LeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_LtU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Add': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_DivS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_DivU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Eq': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GeS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GtS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Ior': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_LeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_LtU': [PASS, HEAVY],
+}],  # 'asan or tsan'
+
+##############################################################################
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
@@ -224,6 +270,10 @@
 ['tsan == True', {
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
+  # BUG(v8:8296). The tests allocate a lot of objects and timeout in
+  # the --stress-concurrent-allocation variant.
+  'test-heap/OutOfMemorySmallObjects': [PASS, NO_VARIANTS],
+  'test-heap/OutOfMemory': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -289,13 +339,13 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm'
 
 ##############################################################################
 ['arch == arm and not simulator_run', {
-  # crbug.com/v8/7605
-  'test-heap/OutOfMemorySmallObjects': [SKIP],
-
   # crbug.com/v8/11134
   'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
 }],  # 'arch == arm and not simulator_run'
@@ -379,30 +429,26 @@
 
 ##############################################################################
 ['arch == riscv64', {
-  # this test is unstable, sometimes fail when running w/ other tests
+  # this test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
-  # https://github.com/v8-riscv/v8/issues/297
+  # SIMD not fully implemented yet.
   'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
   'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
-
-  # https://github.com/v8-riscv/v8/issues/290
-  'test-orderedhashtable/SmallOrderedNameDictionaryInsertionMax': [SKIP],
-  'test-orderedhashtable/SmallOrderedNameDictionarySetAndMigrateHash': [SKIP],
-
-  # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*':[SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
-  # Some wasm functionality is not implemented yet
+  # Some wasm functionality is not implemented yet.
   'test-run-wasm-atomics64/*': [SKIP],
   'test-run-wasm-atomics/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
-  'test-run-wasm/*': [SKIP],
-
-
+  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################
@@ -462,7 +508,10 @@
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP]
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
@@ -542,6 +591,7 @@
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
+  'test-liftoff-for-fuzzing/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],
   'test-run-wasm*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
@@ -569,6 +619,7 @@
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-code-assembler/*': [SKIP],
   'test-code-generator/*': [SKIP],
   'test-code-pages/*': [SKIP],
@@ -696,6 +747,7 @@
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
   'serializer-tester/BoundFunctionArguments': [SKIP],
   'serializer-tester/BoundFunctionTarget': [SKIP],
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
 }],  # variant == turboprop or variant == turboprop_as_toptier
 
@@ -717,6 +769,8 @@
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
 }],  # no_simd_hardware == True
 
 ################################################################################
@@ -1181,6 +1235,9 @@
   'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
   'test-code-pages/Sorted': [SKIP],
   'test-code-pages/CodeRangeCorrectContents': [SKIP],
+  # Timeout (too many GCs)
+  'test-heap/Regress8014': [SKIP],
+  'test-accessors/HandleScopePop': [SKIP],
 }], # third_party_heap
 
 ################################################################################
@@ -1188,6 +1245,14 @@
   # SFI deduplication tests check compilation state, which always_sparkplug
   # can break.
   'test-web-snapshots/SFIDeduplication*': [SKIP],
+
+  # %ObserveNode tests rely on TurboFan.
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
+}],
+
+################################################################################
+['variant == no_lfa', {
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
 
 ]

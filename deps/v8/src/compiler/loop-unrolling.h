@@ -18,7 +18,7 @@ namespace internal {
 namespace compiler {
 
 static constexpr uint32_t kMaximumUnnestedSize = 50;
-static constexpr uint32_t kMaximumUnrollingCount = 7;
+static constexpr uint32_t kMaximumUnrollingCount = 5;
 
 // A simple heuristic to decide how many times to unroll a loop. Favors small
 // and deeply nested loops.

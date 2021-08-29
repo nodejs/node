@@ -28,6 +28,7 @@
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \
+  V(_, dialect_string, "dialect")                                   \
   V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
@@ -62,6 +63,7 @@
   V(_, isWordLike_string, "isWordLike")                             \
   V(_, kana_string, "kana")                                         \
   V(_, language_string, "language")                                 \
+  V(_, languageDisplay_string, "languageDisplay")                   \
   V(_, letter_string, "letter")                                     \
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \

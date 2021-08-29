@@ -117,7 +117,7 @@ class SerializedCodeData : public SerializedData {
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();
 
-  Vector<const byte> Payload() const;
+  base::Vector<const byte> Payload() const;
 
   static uint32_t SourceHash(Handle<String> source,
                              ScriptOriginOptions origin_options);
@@ -127,8 +127,8 @@ class SerializedCodeData : public SerializedData {
   SerializedCodeData(const byte* data, int size)
       : SerializedData(const_cast<byte*>(data), size) {}
 
-  Vector<const byte> ChecksummedContent() const {
-    return Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
+  base::Vector<const byte> ChecksummedContent() const {
+    return base::Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
   }
 
   SanityCheckResult SanityCheck(uint32_t expected_source_hash) const;

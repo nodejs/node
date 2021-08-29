@@ -8,7 +8,7 @@
 // particular, if the index input to v128.load32_splat was a extract_lane, the
 // input wasn't correctly lowered. This caused the extract_lane node to stick
 // around until code-generator, where we hit a mismatch in the register types.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function() {
   const builder = new WasmModuleBuilder();
   builder.addMemory(1, 1);

@@ -126,6 +126,16 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_DICT_PROPERTY_CONST_TRACKING_BOOL false
 #endif
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+#define V8_EXTERNAL_CODE_SPACE_BOOL true
+class CodeDataContainer;
+using CodeT = CodeDataContainer;
+#else
+#define V8_EXTERNAL_CODE_SPACE_BOOL false
+class Code;
+using CodeT = Code;
+#endif
+
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
 // choosing where to insert padding).
 #if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
@@ -183,10 +193,12 @@ constexpr int kMinInt31 = kMinInt / 2;
 constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 constexpr int kMinUInt32 = 0;
 
+constexpr int kInt8Size = sizeof(int8_t);
 constexpr int kUInt8Size = sizeof(uint8_t);
 constexpr int kByteSize = sizeof(byte);
 constexpr int kCharSize = sizeof(char);
 constexpr int kShortSize = sizeof(short);  // NOLINT
+constexpr int kInt16Size = sizeof(int16_t);
 constexpr int kUInt16Size = sizeof(uint16_t);
 constexpr int kIntSize = sizeof(int);
 constexpr int kInt32Size = sizeof(int32_t);
@@ -211,7 +223,7 @@ constexpr int kElidedFrameSlots = 0;
 constexpr int kDoubleSizeLog2 = 3;
 // The maximal length of the string representation for a double value
 // (e.g. "-2.2250738585072020E-308"). It is composed as follows:
-// - 17 decimal digits, see kBase10MaximalLength (dtoa.h)
+// - 17 decimal digits, see base::kBase10MaximalLength (dtoa.h)
 // - 1 sign
 // - 1 decimal point
 // - 1 E or e
@@ -367,13 +379,7 @@ constexpr int kBinary32ExponentShift = 23;
 // other bits set.
 constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 
-// Latin1/UTF-16 constants
-// Code-point values in Unicode 4.0 are 21 bits wide.
-// Code units in UTF-16 are 16 bits wide.
-using uc16 = uint16_t;
-using uc32 = uint32_t;
 constexpr int kOneByteSize = kCharSize;
-constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
@@ -468,6 +474,8 @@ enum class StoreOrigin { kMaybeKeyed, kNamed };
 
 enum class TypeofMode { kInside, kNotInside };
 
+// Use by RecordWrite stubs.
+enum class RememberedSetAction { kOmit, kEmit };
 // Enums used by CEntry.
 enum class SaveFPRegsMode { kIgnore, kSave };
 enum class ArgvMode { kStack, kRegister };
@@ -658,6 +666,7 @@ using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class Code;
+class CodeDataContainer;
 class CodeSpace;
 class Context;
 class DeclarationScope;
@@ -832,6 +841,11 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
   UNREACHABLE();
 }
 
+inline constexpr bool IsSharedAllocationType(AllocationType kind) {
+  return kind == AllocationType::kSharedOld ||
+         kind == AllocationType::kSharedMap;
+}
+
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
@@ -846,14 +860,11 @@ enum MinimumCapacity {
 
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
-enum class LocalSpaceKind {
+enum class CompactionSpaceKind {
   kNone,
   kCompactionSpaceForScavenge,
   kCompactionSpaceForMarkCompact,
   kCompactionSpaceForMinorMarkCompact,
-
-  kFirstCompactionSpace = kCompactionSpaceForScavenge,
-  kLastCompactionSpace = kCompactionSpaceForMinorMarkCompact,
 };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
@@ -1130,6 +1141,8 @@ constexpr uint64_t kHoleNanInt64 =
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
 constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1
 constexpr double kMaxSafeInteger = static_cast<double>(kMaxSafeIntegerUint64);
+// ES6 section 21.1.2.8 Number.MIN_SAFE_INTEGER
+constexpr double kMinSafeInteger = -kMaxSafeInteger;
 
 constexpr double kMaxUInt32Double = double{kMaxUInt32};
 
@@ -1691,7 +1704,10 @@ enum class LoadSensitivity {
   V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
-  V(TrapArrayOutOfBounds)
+  V(TrapArrayOutOfBounds)          \
+  V(TrapArrayTooLarge)
+
+enum WasmRttSubMode { kCanonicalize, kFresh };
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,

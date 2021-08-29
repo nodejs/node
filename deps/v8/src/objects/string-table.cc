@@ -373,21 +373,20 @@ class InternalizedStringKey final : public StringTableKey {
       DCHECK(string_->IsInternalizedString());
       return string_;
     }
-    if (FLAG_thin_strings) {
-      // External strings get special treatment, to avoid copying their
-      // contents as long as they are not uncached.
-      StringShape shape(*string_);
-      if (shape.IsExternalOneByte() && !shape.IsUncachedExternal()) {
-        return isolate->factory()
-            ->InternalizeExternalString<ExternalOneByteString>(string_);
-      } else if (shape.IsExternalTwoByte() && !shape.IsUncachedExternal()) {
-        return isolate->factory()
-            ->InternalizeExternalString<ExternalTwoByteString>(string_);
-      }
+    // External strings get special treatment, to avoid copying their
+    // contents as long as they are not uncached.
+    StringShape shape(*string_);
+    if (shape.IsExternalOneByte() && !shape.IsUncachedExternal()) {
+      return isolate->factory()
+          ->InternalizeExternalString<ExternalOneByteString>(string_);
+    } else if (shape.IsExternalTwoByte() && !shape.IsUncachedExternal()) {
+      return isolate->factory()
+          ->InternalizeExternalString<ExternalTwoByteString>(string_);
+    } else {
+      // Otherwise allocate a new internalized string.
+      return isolate->factory()->NewInternalizedStringImpl(
+          string_, string_->length(), string_->raw_hash_field());
     }
-    // Otherwise allocate a new internalized string.
-    return isolate->factory()->NewInternalizedStringImpl(
-        string_, string_->length(), string_->raw_hash_field());
   }
 
  private:
@@ -402,28 +401,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   InternalizedStringKey key(string);
   Handle<String> result = LookupKey(isolate, &key);
 
-  if (FLAG_thin_strings) {
-    if (!string->IsInternalizedString()) {
-      string->MakeThin(isolate, *result);
-    }
-  } else {  // !FLAG_thin_strings
-    if (string->IsConsString()) {
-      Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(*result);
-      cons->set_second(ReadOnlyRoots(isolate).empty_string());
-    } else if (string->IsSlicedString()) {
-      STATIC_ASSERT(static_cast<int>(ConsString::kSize) ==
-                    static_cast<int>(SlicedString::kSize));
-      DisallowGarbageCollection no_gc;
-      bool one_byte = result->IsOneByteRepresentation();
-      Handle<Map> map = one_byte
-                            ? isolate->factory()->cons_one_byte_string_map()
-                            : isolate->factory()->cons_string_map();
-      string->set_map(*map);
-      Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(*result);
-      cons->set_second(ReadOnlyRoots(isolate).empty_string());
-    }
+  if (!string->IsInternalizedString()) {
+    string->MakeThin(isolate, *result);
   }
   return result;
 }
@@ -602,7 +581,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     chars = source.GetChars<Char>(no_gc) + start;
   }
   // TODO(verwaest): Internalize to one-byte when possible.
-  SequentialStringKey<Char> key(Vector<const Char>(chars, length), seed);
+  SequentialStringKey<Char> key(base::Vector<const Char>(chars, length), seed);
 
   // String could be an array index.
   uint32_t raw_hash_field = key.raw_hash_field();
@@ -628,9 +607,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   }
 
   String internalized = String::cast(string_table_data->Get(isolate, entry));
-  if (FLAG_thin_strings) {
-    string.MakeThin(isolate, internalized);
-  }
+  string.MakeThin(isolate, internalized);
   return internalized.ptr();
 }
 

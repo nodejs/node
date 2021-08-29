@@ -39,7 +39,7 @@ function listener(event, exec_state, event_data, data) {
                    "should not break on unexpected lines")
       assertEquals('BREAK ' + breaks, line.substr(-7));
       breaks++;
-      if (breaks < 4) exec_state.prepareStep(Debug.StepAction.StepNext);
+      if (breaks < 4) exec_state.prepareStep(Debug.StepAction.StepOver);
     }
   } catch (e) {
     print(e);

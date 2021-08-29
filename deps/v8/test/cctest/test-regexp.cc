@@ -32,6 +32,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
@@ -486,30 +487,32 @@ TEST(Errors) {
   ExpectError("\\ka", kInvalidNamedReference, true);
 }
 
-static bool IsDigit(uc32 c) { return ('0' <= c && c <= '9'); }
+static bool IsDigit(base::uc32 c) { return ('0' <= c && c <= '9'); }
 
-static bool NotDigit(uc32 c) { return !IsDigit(c); }
+static bool NotDigit(base::uc32 c) { return !IsDigit(c); }
 
-static bool IsWhiteSpaceOrLineTerminator(uc32 c) {
+static bool IsWhiteSpaceOrLineTerminator(base::uc32 c) {
   // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
   // WhiteSpace (7.2) and LineTerminator (7.3) values.
   return v8::internal::IsWhiteSpaceOrLineTerminator(c);
 }
 
-static bool NotWhiteSpaceNorLineTermiantor(uc32 c) {
+static bool NotWhiteSpaceNorLineTermiantor(base::uc32 c) {
   return !IsWhiteSpaceOrLineTerminator(c);
 }
 
-static bool NotWord(uc32 c) { return !IsRegExpWord(c); }
+static bool NotWord(base::uc32 c) { return !IsRegExpWord(c); }
 
-static bool NotLineTerminator(uc32 c) { return !unibrow::IsLineTerminator(c); }
+static bool NotLineTerminator(base::uc32 c) {
+  return !unibrow::IsLineTerminator(c);
+}
 
-static void TestCharacterClassEscapes(uc32 c, bool(pred)(uc32 c)) {
+static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
-  for (uc32 i = 0; i < (1 << 16); i++) {
+  for (base::uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
     for (int j = 0; !in_class && j < ranges->length(); j++) {
       CharacterRange& range = ranges->at(j);
@@ -543,10 +546,11 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                                                &compile_data))
     return nullptr;
   Handle<String> pattern = isolate->factory()
-                               ->NewStringFromUtf8(CStrVector(input))
+                               ->NewStringFromUtf8(base::CStrVector(input))
                                .ToHandleChecked();
-  Handle<String> sample_subject =
-      isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
+  Handle<String> sample_subject = isolate->factory()
+                                      ->NewStringFromUtf8(base::CStrVector(""))
+                                      .ToHandleChecked();
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
                             sample_subject, is_one_byte);
   return compile_data.node;
@@ -643,7 +647,7 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
                                  JSRegExp::kNoBacktrackLimit);
   regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
                                : JSRegExp::kIrregexpLatin1CodeIndex,
-                    *code);
+                    ToCodeT(*code));
 
   return regexp;
 }
@@ -785,10 +789,11 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   int captures[4] = {42, 37, 87, 117};
-  const uc16 input_data[6] = {'f', 'o', 'o',
-                              'f', 'o', static_cast<uc16>(0x2603)};
+  const base::uc16 input_data[6] = {'f', 'o', 'o',
+                                    'f', 'o', static_cast<base::uc16>(0x2603)};
   Handle<String> input =
-      factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6))
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
           .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
@@ -802,10 +807,12 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   CHECK_EQ(-1, captures[2]);
   CHECK_EQ(-1, captures[3]);
 
-  const uc16 input_data2[9] = {
-      'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', static_cast<uc16>(0x2603)};
-  input = factory->NewStringFromTwoByte(Vector<const uc16>(input_data2, 9))
-              .ToHandleChecked();
+  const base::uc16 input_data2[9] = {
+      'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', static_cast<base::uc16>(0x2603)};
+  input =
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data2, 9))
+          .ToHandleChecked();
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -926,9 +933,10 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Handle<Code> code = Handle<Code>::cast(code_object);
   Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
-  const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
+  const base::uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
   Handle<String> input =
-      factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6))
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
           .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
@@ -1058,8 +1066,8 @@ TEST(MacroAssemblerNativeRegisters) {
   ArchRegExpMacroAssembler m(isolate, &zone, NativeRegExpMacroAssembler::LATIN1,
                              6);
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
+  base::uc16 foo_chars[3] = {'f', 'o', 'o'};
+  base::Vector<const base::uc16> foo(foo_chars, 3);
 
   enum registers { out1, out2, out3, out4, out5, out6, sp, loop_cnt };
   Label fail;
@@ -1267,9 +1275,9 @@ TEST(MacroAssembler) {
   int captures[5];
   std::memset(captures, 0, sizeof(captures));
 
-  const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
+  const base::uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
   Handle<String> f1_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str1, 6))
+      factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str1, 6))
           .ToHandleChecked();
 
   CHECK_EQ(IrregexpInterpreter::SUCCESS,
@@ -1282,9 +1290,9 @@ TEST(MacroAssembler) {
   CHECK_EQ(2, captures[3]);
   CHECK_EQ(84, captures[4]);
 
-  const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
+  const base::uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
   Handle<String> f2_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str2, 6))
+      factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str2, 6))
           .ToHandleChecked();
 
   std::memset(captures, 0, sizeof(captures));
@@ -1301,7 +1309,7 @@ TEST(MacroAssembler) {
 }
 
 #ifndef V8_INTL_SUPPORT
-static uc32 canonicalize(uc32 c) {
+static base::uc32 canonicalize(base::uc32 c) {
   unibrow::uchar canon[unibrow::Ecma262Canonicalize::kMaxWidth];
   int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
@@ -1323,23 +1331,23 @@ TEST(LatinCanonicalize) {
     CHECK_EQ(upper, uncanon[0]);
     CHECK_EQ(lower, uncanon[1]);
   }
-  for (uc32 c = 128; c < (1 << 21); c++) CHECK_GE(canonicalize(c), 128);
+  for (base::uc32 c = 128; c < (1 << 21); c++) CHECK_GE(canonicalize(c), 128);
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   // Canonicalization is only defined for the Basic Multilingual Plane.
-  for (uc32 c = 0; c < (1 << 16); c++) {
+  for (base::uc32 c = 0; c < (1 << 16); c++) {
     unibrow::uchar upper[unibrow::ToUppercase::kMaxWidth];
     int length = to_upper.get(c, '\0', upper);
     if (length == 0) {
       length = 1;
       upper[0] = c;
     }
-    uc32 u = upper[0];
+    base::uc32 u = upper[0];
     if (length > 1 || (c >= 128 && u < 128)) u = c;
     CHECK_EQ(u, canonicalize(c));
   }
 }
 
-static uc32 CanonRangeEnd(uc32 c) {
+static base::uc32 CanonRangeEnd(base::uc32 c) {
   unibrow::uchar canon[unibrow::CanonicalizationRange::kMaxWidth];
   int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
@@ -1357,7 +1365,7 @@ TEST(RangeCanonicalization) {
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
   int block_start = 0;
   while (block_start <= 0xFFFF) {
-    uc32 block_end = CanonRangeEnd(block_start);
+    base::uc32 block_end = CanonRangeEnd(block_start);
     unsigned block_length = block_end - block_start + 1;
     if (block_length > 1) {
       unibrow::uchar first[unibrow::Ecma262UnCanonicalize::kMaxWidth];
@@ -1395,7 +1403,7 @@ TEST(UncanonicalizeEquivalence) {
 #endif
 
 static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
-                                      Vector<CharacterRange> expected) {
+                                      base::Vector<CharacterRange> expected) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   int count = expected.length();
   ZoneList<CharacterRange>* list =
@@ -1413,7 +1421,7 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             CharacterRange input,
                                             CharacterRange expected) {
-  EmbeddedVector<CharacterRange, 1> vector;
+  base::EmbeddedVector<CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }
@@ -1455,7 +1463,7 @@ TEST(CharacterRangeCaseIndependence) {
 #endif  // !V8_INTL_SUPPORT
 }
 
-static bool InClass(uc32 c,
+static bool InClass(base::uc32 c,
                     const UnicodeRangeSplitter::CharacterRangeVector* ranges) {
   if (ranges == nullptr) return false;
   for (size_t i = 0; i < ranges->size(); i++) {
@@ -1471,35 +1479,35 @@ TEST(UnicodeRangeSplitter) {
   base->Add(CharacterRange::Everything(), &zone);
   UnicodeRangeSplitter splitter(base);
   // BMP
-  for (uc32 c = 0; c < 0xD800; c++) {
+  for (base::uc32 c = 0; c < 0xD800; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Lead surrogates
-  for (uc32 c = 0xD800; c < 0xDBFF; c++) {
+  for (base::uc32 c = 0xD800; c < 0xDBFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Trail surrogates
-  for (uc32 c = 0xDC00; c < 0xDFFF; c++) {
+  for (base::uc32 c = 0xDC00; c < 0xDFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // BMP
-  for (uc32 c = 0xE000; c < 0xFFFF; c++) {
+  for (base::uc32 c = 0xE000; c < 0xFFFF; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Non-BMP
-  for (uc32 c = 0x10000; c < 0x10FFFF; c++) {
+  for (base::uc32 c = 0x10000; c < 0x10FFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
@@ -2331,10 +2339,10 @@ TEST(UnicodePropertyEscapeCodeSize) {
   if (maybe_bytecode.IsByteArray()) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
+  } else if (maybe_code.IsCodeT()) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
+    CHECK_LT(FromCodeT(CodeT::cast(maybe_code)).Size(), kMaxSize);
+    CHECK_EQ(FromCodeT(CodeT::cast(maybe_code)).kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }

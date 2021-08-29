@@ -42,8 +42,8 @@ class MaybeUtf8 {
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
         DisallowGarbageCollection no_gc;
-        base::Memcpy(
-            buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc), len);
+        memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc),
+               len);
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);
@@ -123,7 +123,7 @@ BUILTIN(IsTraceCategoryEnabled) {
   return isolate->heap()->ToBoolean(enabled);
 }
 
-// Builtins::kTrace(phase, category, name, id, data) : bool
+// Builtin::kTrace(phase, category, name, id, data) : bool
 BUILTIN(Trace) {
   HandleScope handle_scope(isolate);
 

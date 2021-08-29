@@ -14,7 +14,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -341,7 +341,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                    GetStackFrames(isolate, elems), Object);
 
         const int argc = 2;
-        ScopedVector<Handle<Object>> argv(argc);
+        base::ScopedVector<Handle<Object>> argv(argc);
         argv[0] = error;
         argv[1] = sites;
 
@@ -422,7 +422,7 @@ Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    return factory->InternalizeString(StaticCharVector("<error>"));
+    return factory->InternalizeString(base::StaticCharVector("<error>"));
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it
@@ -896,6 +896,9 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
   if (key.ToHandle(&key_handle)) {
     if (key_handle->IsString()) {
       maybe_property_name = Handle<String>::cast(key_handle);
+    } else {
+      maybe_property_name =
+          Object::NoSideEffectsToMaybeString(isolate, key_handle);
     }
   }
 
@@ -969,14 +972,16 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     }
   } else {
     Handle<Object> key_handle;
-    if (!key.ToHandle(&key_handle)) {
-      key_handle = ReadOnlyRoots(isolate).undefined_value_handle();
-    }
-    if (*key_handle == ReadOnlyRoots(isolate).iterator_symbol()) {
+    if (!key.ToHandle(&key_handle) ||
+        !maybe_property_name.ToHandle(&property_name)) {
+      error = isolate->factory()->NewTypeError(
+          MessageTemplate::kNonObjectPropertyLoad, object);
+    } else if (*key_handle == ReadOnlyRoots(isolate).iterator_symbol()) {
       error = NewIteratorError(isolate, object);
     } else {
       error = isolate->factory()->NewTypeError(
-          MessageTemplate::kNonObjectPropertyLoad, key_handle, object);
+          MessageTemplate::kNonObjectPropertyLoadWithProperty, object,
+          property_name);
     }
   }
 

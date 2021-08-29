@@ -5,4 +5,4 @@
 // Flags: --experimental-wasm-reftypes --liftoff
 // Flags: --no-wasm-tier-up --liftoff-extern-ref
 
-load("test/mjsunit/wasm/table-access.js");
+d8.file.execute("test/mjsunit/wasm/table-access.js");

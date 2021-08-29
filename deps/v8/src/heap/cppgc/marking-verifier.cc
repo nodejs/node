@@ -24,7 +24,7 @@ MarkingVerifierBase::MarkingVerifierBase(
 void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
                               uintptr_t stack_end,
                               size_t expected_marked_bytes) {
-  Traverse(&heap_.raw_heap());
+  Traverse(heap_.raw_heap());
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
     heap_.stack()->IteratePointersUnsafe(this, stack_end);
@@ -87,22 +87,22 @@ void MarkingVerifierBase::VisitPointer(const void* address) {
   TraceConservativelyIfNeeded(address);
 }
 
-bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader* header) {
+bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   // Verify only non-free marked objects.
-  if (!header->IsMarked()) return true;
+  if (!header.IsMarked()) return true;
 
-  DCHECK(!header->IsFree());
+  DCHECK(!header.IsFree());
 
-  verification_state_.SetCurrentParent(header);
+  verification_state_.SetCurrentParent(&header);
 
-  if (!header->IsInConstruction()) {
-    header->Trace(visitor_.get());
+  if (!header.IsInConstruction()) {
+    header.Trace(visitor_.get());
   } else {
     // Dispatches to conservative tracing implementation.
-    TraceConservativelyIfNeeded(*header);
+    TraceConservativelyIfNeeded(header);
   }
 
-  found_marked_bytes_ += ObjectView(*header).Size() + sizeof(HeapObjectHeader);
+  found_marked_bytes_ += ObjectView(header).Size() + sizeof(HeapObjectHeader);
 
   verification_state_.SetCurrentParent(nullptr);
 

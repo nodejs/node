@@ -76,6 +76,7 @@ class CodeEntry {
     // No alive handles should be associated with the CodeEntry at time of
     // destruction.
     DCHECK(!heap_object_location_);
+    DCHECK_EQ(ref_count_, 0UL);
   }
 
   const char* name() const { return name_; }
@@ -107,8 +108,6 @@ class CodeEntry {
     rare_data_->deopt_reason_ = kNoDeoptReason;
     rare_data_->deopt_id_ = kNoDeoptimizationId;
   }
-  void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
-  bool used() const { return UsedField::decode(bit_field_); }
 
   const char* code_type_string() const {
     switch (CodeTypeField::decode(bit_field_)) {
@@ -130,14 +129,16 @@ class CodeEntry {
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
-  void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const {
-    return BuiltinIdField::decode(bit_field_);
-  }
+  void SetBuiltinId(Builtin id);
+  Builtin builtin() const { return BuiltinField::decode(bit_field_); }
 
   bool is_shared_cross_origin() const {
     return SharedCrossOriginField::decode(bit_field_);
   }
+
+  // Returns whether or not the lifetime of this CodeEntry is reference
+  // counted, and managed by a CodeMap.
+  bool is_ref_counted() const { return RefCountedField::decode(bit_field_); }
 
   uint32_t GetHash() const;
   bool IsSameFunctionAs(const CodeEntry* entry) const;
@@ -145,20 +146,16 @@ class CodeEntry {
   int GetSourceLine(int pc_offset) const;
 
   struct Equals {
-    bool operator()(const std::unique_ptr<CodeEntry>& lhs,
-                    const std::unique_ptr<CodeEntry>& rhs) const {
-      return lhs.get()->IsSameFunctionAs(rhs.get());
+    bool operator()(const CodeEntry* lhs, const CodeEntry* rhs) const {
+      return lhs->IsSameFunctionAs(rhs);
     }
   };
   struct Hasher {
-    std::size_t operator()(const std::unique_ptr<CodeEntry>& e) const {
-      return e->GetHash();
-    }
+    std::size_t operator()(CodeEntry* e) const { return e->GetHash(); }
   };
 
   void SetInlineStacks(
-      std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-          inline_entries,
+      std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries,
       std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
           inline_stacks);
   const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
@@ -195,29 +192,48 @@ class CodeEntry {
   void print() const;
 
  private:
+  friend class CodeEntryStorage;
+
   struct RareData {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
     std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks_;
-    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-        inline_entries_;
+    std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
   RareData* EnsureRareData();
 
+  void mark_ref_counted() {
+    bit_field_ = RefCountedField::update(bit_field_, true);
+    ref_count_ = 1;
+  }
+
+  size_t AddRef() {
+    DCHECK(is_ref_counted());
+    DCHECK_LT(ref_count_, std::numeric_limits<size_t>::max());
+    ref_count_++;
+    return ref_count_;
+  }
+
+  size_t DecRef() {
+    DCHECK(is_ref_counted());
+    DCHECK_GT(ref_count_, 0UL);
+    ref_count_--;
+    return ref_count_;
+  }
+
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = base::BitField<Builtins::Name, 8, 20>;
-  static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
+  using BuiltinField = base::BitField<Builtin, 8, 20>;
+  static_assert(Builtins::kBuiltinCount <= BuiltinField::kNumValues,
                 "builtin_count exceeds size of bitfield");
-  using CodeTypeField = base::BitField<CodeType, 28, 2>;
-  using UsedField = base::BitField<bool, 30, 1>;
+  using RefCountedField = base::BitField<bool, 28, 1>;
+  using CodeTypeField = base::BitField<CodeType, 29, 2>;
   using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
-  // Atomic because Used is written from the profiler thread while CodeType is
-  // read from the main thread.
-  std::atomic<std::uint32_t> bit_field_;
+  std::uint32_t bit_field_;
+  std::atomic<std::size_t> ref_count_ = {0};
   const char* name_;
   const char* resource_name_;
   int line_number_;
@@ -268,6 +284,7 @@ class V8_EXPORT_PRIVATE ProfileNode {
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent,
                      int line_number = 0);
+  ~ProfileNode();
   ProfileNode(const ProfileNode&) = delete;
   ProfileNode& operator=(const ProfileNode&) = delete;
 
@@ -331,9 +348,11 @@ class V8_EXPORT_PRIVATE ProfileNode {
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 };
 
+class CodeEntryStorage;
+
 class V8_EXPORT_PRIVATE ProfileTree {
  public:
-  explicit ProfileTree(Isolate* isolate);
+  explicit ProfileTree(Isolate* isolate, CodeEntryStorage* storage = nullptr);
   ~ProfileTree();
   ProfileTree(const ProfileTree&) = delete;
   ProfileTree& operator=(const ProfileTree&) = delete;
@@ -362,6 +381,8 @@ class V8_EXPORT_PRIVATE ProfileTree {
     return std::move(pending_nodes_);
   }
 
+  CodeEntryStorage* code_entries() { return code_entries_; }
+
  private:
   template <typename Callback>
   void TraverseDepthFirst(Callback* callback);
@@ -369,8 +390,9 @@ class V8_EXPORT_PRIVATE ProfileTree {
   std::vector<const ProfileNode*> pending_nodes_;
 
   unsigned next_node_id_;
-  ProfileNode* root_;
   Isolate* isolate_;
+  CodeEntryStorage* const code_entries_;
+  ProfileNode* root_;
 };
 
 class CpuProfiler;
@@ -452,13 +474,13 @@ class CpuProfileMaxSamplesCallbackTask : public v8::Task {
 
 class V8_EXPORT_PRIVATE CodeMap {
  public:
-  // Creates a new CodeMap with an associated StringsStorage to store the
-  // strings of CodeEntry objects within.
-  explicit CodeMap(StringsStorage& function_and_resource_names);
+  explicit CodeMap(CodeEntryStorage& storage);
   ~CodeMap();
   CodeMap(const CodeMap&) = delete;
   CodeMap& operator=(const CodeMap&) = delete;
 
+  // Adds the given CodeEntry to the CodeMap. The CodeMap takes ownership of
+  // the CodeEntry.
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
   // Attempts to remove the given CodeEntry from the CodeMap.
@@ -469,6 +491,8 @@ class V8_EXPORT_PRIVATE CodeMap {
   void Print();
   size_t size() const { return code_map_.size(); }
 
+  CodeEntryStorage& code_entries() { return code_entries_; }
+
   void Clear();
 
  private:
@@ -477,12 +501,28 @@ class V8_EXPORT_PRIVATE CodeMap {
     unsigned size;
   };
 
-  void DeleteCodeEntry(CodeEntry*);
-
   std::multimap<Address, CodeEntryMapInfo> code_map_;
-  std::deque<CodeEntry*> used_entries_;  // Entries that are no longer in the
-                                         // map, but used by a profile.
-  StringsStorage& function_and_resource_names_;
+  CodeEntryStorage& code_entries_;
+};
+
+// Manages the lifetime of CodeEntry objects, and stores shared resources
+// between them.
+class V8_EXPORT_PRIVATE CodeEntryStorage {
+ public:
+  template <typename... Args>
+  static CodeEntry* Create(Args&&... args) {
+    CodeEntry* const entry = new CodeEntry(std::forward<Args>(args)...);
+    entry->mark_ref_counted();
+    return entry;
+  }
+
+  void AddRef(CodeEntry*);
+  void DecRef(CodeEntry*);
+
+  StringsStorage& strings() { return function_and_resource_names_; }
+
+ private:
+  StringsStorage function_and_resource_names_;
 };
 
 class V8_EXPORT_PRIVATE CpuProfilesCollection {

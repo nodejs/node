@@ -30,12 +30,78 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
   if (X.len() == 0 || Y.len() == 0) return Z.Clear();
   if (X.len() < Y.len()) std::swap(X, Y);
   if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
-  return MultiplySchoolbook(Z, X, Y);
+  if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
+#if !V8_ADVANCED_BIGINT_ALGORITHMS
+  return MultiplyKaratsuba(Z, X, Y);
+#else
+  if (Y.len() < kToomThreshold) return MultiplyKaratsuba(Z, X, Y);
+  if (Y.len() < kFftThreshold) return MultiplyToomCook(Z, X, Y);
+  return MultiplyFFT(Z, X, Y);
+#endif
+}
+
+void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
+  A.Normalize();
+  B.Normalize();
+  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  int cmp = Compare(A, B);
+  if (cmp < 0) return Q.Clear();
+  if (cmp == 0) {
+    Q[0] = 1;
+    for (int i = 1; i < Q.len(); i++) Q[i] = 0;
+    return;
+  }
+  if (B.len() == 1) {
+    digit_t remainder;
+    return DivideSingle(Q, &remainder, A, B[0]);
+  }
+  if (B.len() < kBurnikelThreshold) {
+    return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
+  }
+  return DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
+}
+
+void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
+  A.Normalize();
+  B.Normalize();
+  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  int cmp = Compare(A, B);
+  if (cmp < 0) {
+    for (int i = 0; i < B.len(); i++) R[i] = B[i];
+    for (int i = B.len(); i < R.len(); i++) R[i] = 0;
+    return;
+  }
+  if (cmp == 0) return R.Clear();
+  if (B.len() == 1) {
+    digit_t remainder;
+    DivideSingle(RWDigits(nullptr, 0), &remainder, A, B[0]);
+    R[0] = remainder;
+    for (int i = 1; i < R.len(); i++) R[i] = 0;
+    return;
+  }
+  if (B.len() < kBurnikelThreshold) {
+    return DivideSchoolbook(RWDigits(nullptr, 0), R, A, B);
+  }
+  int q_len = DivideResultLength(A, B);
+  ScratchDigits Q(q_len);
+  return DivideBurnikelZiegler(Q, R, A, B);
 }
 
 Status Processor::Multiply(RWDigits Z, Digits X, Digits Y) {
   ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
   impl->Multiply(Z, X, Y);
+  return impl->get_and_clear_status();
+}
+
+Status Processor::Divide(RWDigits Q, Digits A, Digits B) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  impl->Divide(Q, A, B);
+  return impl->get_and_clear_status();
+}
+
+Status Processor::Modulo(RWDigits R, Digits A, Digits B) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  impl->Modulo(R, A, B);
   return impl->get_and_clear_status();
 }
 

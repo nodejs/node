@@ -4,6 +4,7 @@
 
 #include "src/objects/stack-frame-info.h"
 
+#include "src/base/strings.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/strings/string-builder-inl.h"
@@ -378,14 +379,14 @@ Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
 
   // The static initializer function is not a method, so don't add a
   // class name, just return the function name.
-  if (name->HasOneBytePrefix(CStrVector("<static_fields_initializer>"))) {
+  if (name->HasOneBytePrefix(base::CStrVector("<static_fields_initializer>"))) {
     return name;
   }
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
-  if (name->HasOneBytePrefix(CStrVector("get ")) ||
-      name->HasOneBytePrefix(CStrVector("set "))) {
+  if (name->HasOneBytePrefix(base::CStrVector("get ")) ||
+      name->HasOneBytePrefix(base::CStrVector("set "))) {
     name = isolate->factory()->NewProperSubString(name, 4, name->length());
   } else if (name->length() == 0) {
     // The function doesn't have a meaningful "name" property, however
@@ -403,7 +404,7 @@ Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
   }
 
   if (name->length() != 0) {
-    LookupIterator::Key key(isolate, Handle<Name>::cast(name));
+    PropertyKey key(isolate, Handle<Name>::cast(name));
     LookupIterator it(isolate, receiver, key,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {
@@ -618,7 +619,7 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
       return false;
     }
 
-    const uc32 subject_char = subject_reader.Get(subject_index);
+    const base::uc32 subject_char = subject_reader.Get(subject_index);
     if (i == pattern_reader.length()) {
       if (subject_char != '.') return false;
     } else if (subject_char != pattern_reader.Get(pattern_index)) {
@@ -745,7 +746,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
   builder->AppendCString("]:");
 
   char buffer[16];
-  SNPrintF(ArrayVector(buffer), "0x%x",
+  SNPrintF(base::ArrayVector(buffer), "0x%x",
            StackFrameInfo::GetColumnNumber(frame) - 1);
   builder->AppendCString(buffer);
 

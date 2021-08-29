@@ -16,11 +16,11 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
+#include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
 #include "src/libplatform/default-platform.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
@@ -541,7 +541,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
   }
 };
 
-using CharVector = v8::internal::Vector<const char>;
+using CharVector = v8::base::Vector<const char>;
 
 constexpr auto kMaxExecutionSeconds = v8::base::TimeDelta::FromSeconds(2);
 

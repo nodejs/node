@@ -4,4 +4,4 @@
 
 // Flags: --trace-wasm --no-liftoff --no-stress-opt
 
-load('test/message/wasm-trace-liftoff.js')
+d8.file.execute('test/message/wasm-trace-liftoff.js')

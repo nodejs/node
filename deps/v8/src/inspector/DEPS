@@ -19,7 +19,7 @@ include_rules = [
   "+src/tracing",
   "+src/debug/debug-interface.h",
   "+src/debug/interface-types.h",
-  "+src/utils/vector.h",
+  "+src/base/vector.h",
   "+third_party/inspector_protocol/crdtp",
   "+../../third_party/inspector_protocol/crdtp",
 ]

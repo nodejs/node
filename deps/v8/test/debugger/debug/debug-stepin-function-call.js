@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       if (state < 2) {
         // Step into f2.call:
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
         state++;
       } else {
         assertEquals('g', event_data.func().name());

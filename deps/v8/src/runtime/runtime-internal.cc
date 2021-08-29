@@ -7,7 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
-#include "src/baseline/baseline-osr-inl.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
@@ -334,6 +334,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->SetInterruptBudget();
+  bool should_mark_for_optimization = function->has_feedback_vector();
   if (!function->has_feedback_vector()) {
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate));
@@ -343,24 +344,24 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
-    if (FLAG_sparkplug) {
-      if (V8_LIKELY(FLAG_use_osr)) {
-        JavaScriptFrameIterator it(isolate);
-        DCHECK(it.frame()->is_unoptimized());
-        UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-        OSRInterpreterFrameToBaseline(isolate, function, frame);
-      } else {
-        OSRInterpreterFrameToBaseline(isolate, function, nullptr);
-      }
-    }
-    return ReadOnlyRoots(isolate).undefined_value();
   }
-  {
+  if (CanCompileWithBaseline(isolate, function->shared()) &&
+      !function->ActiveTierIsBaseline()) {
+    if (FLAG_baseline_batch_compilation) {
+      isolate->baseline_batch_compiler()->EnqueueFunction(function);
+    } else {
+      IsCompiledScope is_compiled_scope(
+          function->shared().is_compiled_scope(isolate));
+      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope);
+    }
+  }
+  if (should_mark_for_optimization) {
     SealHandleScope shs(isolate);
     isolate->counters()->runtime_profiler_ticks()->Increment();
     isolate->runtime_profiler()->MarkCandidatesForOptimizationFromBytecode();
-    return ReadOnlyRoots(isolate).undefined_value();
   }
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromCode) {

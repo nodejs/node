@@ -34,8 +34,12 @@
 
   # Slow tests.
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
-  'octane/typescript': [PASS, SLOW],
   'octane/box2d': [PASS, SLOW],
+  'octane/regexp': [PASS, SLOW],
+  'octane/typescript': [PASS, SLOW],
+
+  # https://crbug.com/v8/11905
+  'kraken/stanford-crypto-pbkdf2': [PASS, SLOW, ['tsan', SKIP]],
 
   # https://crbug.com/v8/11222
   'octane/raytrace': [PASS, SLOW],
@@ -53,7 +57,6 @@
   'octane/gbemu-part1': [PASS, SLOW],
   'octane/navier-stokes': [PASS, SLOW],
   'octane/pdfjs': [PASS, SLOW],
-  'octane/regexp': [PASS, SLOW],
 }],
 
 ['variant == stress', {
@@ -74,6 +77,12 @@
   'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/zlib': [SKIP],
 }],
+
+['variant in [jitless, stress] and tsan', {
+  # Very slow tests.
+  'kraken/imaging-gaussian-blur': [SKIP],
+  'octane/mandreel': [SKIP],
+}],  # 'variant in [jitless, stress] and tsan'
 
 ['variant == nooptimization and mode == debug', {
   # Too slow for nooptimization mode and debug.
@@ -98,9 +107,16 @@
   'octane/typescript': [SKIP],
 }],  # 'predictable'
 
-################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+['tsan', {
+  # Slow tests.
+  'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [SLOW],
+  'kraken/audio-fft': [SLOW],
+  'kraken/audio-oscillator': [SLOW],
+}],  # 'tsan'
 
 ]

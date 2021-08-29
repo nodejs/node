@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {FocusEvent} from '../events.mjs';
+import {ExpandableText} from '../helper.mjs';
 import {DOM, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement(
@@ -11,15 +12,14 @@ DOM.defineCustomElement(
 
       constructor() {
         super(templateText);
-        this._filePositionNode.onclick = e => this._handleFilePositionClick(e);
       }
 
       get _mapDetails() {
         return this.$('#mapDetails');
       }
 
-      get _filePositionNode() {
-        return this.$('#filePositionNode');
+      get _mapProperties() {
+        return this.$('#mapProperties');
       }
 
       set map(map) {
@@ -29,19 +29,32 @@ DOM.defineCustomElement(
       }
 
       _update() {
-        let details = '';
-        let clickableDetails = '';
+        this._mapProperties.innerText = '';
         if (this._map) {
-          clickableDetails = `ID: ${this._map.id}`;
-          clickableDetails += `\nSource location: ${this._map.filePosition}`;
-          details = this._map.description;
+          let clickableDetailsTable = DOM.table('properties');
+
+          {
+            const row = clickableDetailsTable.insertRow();
+            row.insertCell().innerText = 'ID';
+            row.insertCell().innerText = `${this._map.id}`;
+          }
+          {
+            const row = clickableDetailsTable.insertRow();
+            row.insertCell().innerText = 'Source location';
+            const sourceLocation = row.insertCell();
+            new ExpandableText(sourceLocation, `${this._map.sourcePosition}`);
+            sourceLocation.className = 'clickable';
+            sourceLocation.onclick = e => this._handleSourcePositionClick(e);
+          }
+
+          this._mapProperties.appendChild(clickableDetailsTable);
+          this._mapDetails.innerText = this._map.description;
+        } else {
+          this._mapDetails.innerText = '';
         }
-        this._filePositionNode.innerText = clickableDetails;
-        this._filePositionNode.classList.add('clickable');
-        this._mapDetails.innerText = details;
       }
 
-      _handleFilePositionClick(event) {
+      _handleSourcePositionClick(event) {
         this.dispatchEvent(new FocusEvent(this._map.sourcePosition));
       }
     });

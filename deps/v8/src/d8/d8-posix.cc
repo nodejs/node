@@ -318,7 +318,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
               .ToLocalChecked();
       accumulator = String::Concat(isolate, accumulator, addition);
       fullness = bytes_read + fullness - length;
-      base::Memcpy(buffer, buffer + length, fullness);
+      memcpy(buffer, buffer + length, fullness);
     }
   } while (bytes_read != 0);
   return accumulator;
@@ -343,7 +343,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
 
 // Get exit status of child.
 static bool WaitForChild(Isolate* isolate, int pid,
-                         ZombieProtector& child_waiter,  // NOLINT
+                         ZombieProtector& child_waiter,
                          const struct timeval& start_time, int read_timeout,
                          int total_timeout) {
 #ifdef HAS_WAITID

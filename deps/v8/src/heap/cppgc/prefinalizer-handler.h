@@ -25,6 +25,8 @@ class PreFinalizerHandler final {
 
   void InvokePreFinalizers();
 
+  bool IsInvokingPreFinalizers() const { return is_invoking_; }
+
  private:
   // Checks that the current thread is the thread that created the heap.
   bool CurrentThreadIsCreationThread();
@@ -36,6 +38,7 @@ class PreFinalizerHandler final {
   std::vector<PreFinalizer> ordered_pre_finalizers_;
 
   HeapBase& heap_;
+  bool is_invoking_ = false;
 #ifdef DEBUG
   int creation_thread_id_;
 #endif

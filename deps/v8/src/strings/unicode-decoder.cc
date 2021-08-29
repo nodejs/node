@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-Utf8Decoder::Utf8Decoder(const Vector<const uint8_t>& chars)
+Utf8Decoder::Utf8Decoder(const base::Vector<const uint8_t>& chars)
     : encoding_(Encoding::kAscii),
       non_ascii_start_(NonAsciiStart(chars.begin(), chars.length())),
       utf16_length_(non_ascii_start_) {
@@ -43,7 +43,7 @@ Utf8Decoder::Utf8Decoder(const Vector<const uint8_t>& chars)
 }
 
 template <typename Char>
-void Utf8Decoder::Decode(Char* out, const Vector<const uint8_t>& data) {
+void Utf8Decoder::Decode(Char* out, const base::Vector<const uint8_t>& data) {
   CopyChars(out, data.begin(), non_ascii_start_);
 
   out += non_ascii_start_;
@@ -72,10 +72,10 @@ void Utf8Decoder::Decode(Char* out, const Vector<const uint8_t>& data) {
 }
 
 template V8_EXPORT_PRIVATE void Utf8Decoder::Decode(
-    uint8_t* out, const Vector<const uint8_t>& data);
+    uint8_t* out, const base::Vector<const uint8_t>& data);
 
 template V8_EXPORT_PRIVATE void Utf8Decoder::Decode(
-    uint16_t* out, const Vector<const uint8_t>& data);
+    uint16_t* out, const base::Vector<const uint8_t>& data);
 
 }  // namespace internal
 }  // namespace v8

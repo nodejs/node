@@ -27,7 +27,7 @@ class A { constructor () { this.a = 239; } }
 class B extends A {
   constructor () {
     debugger;
-    assertTrue(result.indexOf("Cannot read property 'a' of undefined") >= 0);
+    assertTrue(result.indexOf("Cannot read properties of undefined (reading 'a')") >= 0);
     super();
     debugger;
     assertEquals(239, result);

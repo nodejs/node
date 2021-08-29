@@ -12,6 +12,7 @@ namespace v8 {
 namespace internal {
 
 struct AssemblerOptions;
+enum class Builtin;
 
 namespace interpreter {
 
@@ -19,11 +20,11 @@ extern Handle<Code> GenerateBytecodeHandler(Isolate* isolate,
                                             const char* debug_name,
                                             Bytecode bytecode,
                                             OperandScale operand_scale,
-                                            int builtin_index,
+                                            Builtin builtin,
                                             const AssemblerOptions& options);
 
 extern Handle<Code> GenerateDeserializeLazyHandler(
-    Isolate* isolate, OperandScale operand_scale, int builtin_index,
+    Isolate* isolate, OperandScale operand_scale, Builtin builtin,
     const AssemblerOptions& options);
 
 }  // namespace interpreter

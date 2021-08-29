@@ -419,6 +419,48 @@ executable("zlib_bench") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
 
+if (!is_win || target_os != "winuwp") {
+  executable("minizip_bin") {
+    include_dirs = [ "." ]
+
+    sources = [ "contrib/minizip/minizip.c" ]
+
+    if (is_clang) {
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+    }
+
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
+    deps = [ ":minizip" ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+  }
+
+  executable("miniunz_bin") {
+    include_dirs = [ "." ]
+
+    sources = [ "contrib/minizip/miniunz.c" ]
+
+    if (is_clang) {
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+    }
+
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
+    deps = [ ":minizip" ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+  }
+}
+
 if (build_with_chromium) {
   test("zlib_unittests") {
     testonly = true

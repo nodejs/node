@@ -9,7 +9,7 @@ var exception = null;
 function breakListener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
     // Assert that the break happens at an intended location.
     assertTrue(exec_state.frame(0).sourceLineText().indexOf("// break") > 0);
   } catch (e) {

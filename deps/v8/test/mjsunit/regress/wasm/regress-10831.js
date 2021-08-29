@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // This test is shrunk from a test case provided at https://crbug.com/v8/10831.
 // This exercises a aligned-load bug in ia32. Some SIMD operations were using

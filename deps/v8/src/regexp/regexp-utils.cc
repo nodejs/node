@@ -84,7 +84,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
 
   if (exec->IsCallable()) {
     const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
+    base::ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
     Handle<Object> result;
@@ -113,7 +113,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
 
     const int argc = 1;
-    ScopedVector<Handle<Object>> argv(argc);
+    base::ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
     return Execution::Call(isolate, regexp_exec, regexp, argc, argv.begin());

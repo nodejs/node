@@ -143,21 +143,22 @@ FinalizationRegistryRegister(
     ThrowTypeError(
         MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame);
   }
-  const unregisterToken = arguments[2];
   // 5. If Type(unregisterToken) is not Object,
   //   a. If unregisterToken is not undefined, throw a TypeError exception.
   //   b. Set unregisterToken to empty.
-  let hasUnregisterToken: bool = false;
-  typeswitch (unregisterToken) {
+  const unregisterTokenRaw = arguments[2];
+  let unregisterToken: JSReceiver|Undefined;
+  typeswitch (unregisterTokenRaw) {
     case (Undefined): {
+      unregisterToken = Undefined;
     }
-    case (JSReceiver): {
-      hasUnregisterToken = true;
+    case (unregisterTokenObj: JSReceiver): {
+      unregisterToken = unregisterTokenObj;
     }
     case (JSAny): deferred {
       ThrowTypeError(
           MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
-          unregisterToken);
+          unregisterTokenRaw);
     }
   }
   // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
@@ -178,7 +179,7 @@ FinalizationRegistryRegister(
   };
   // 7. Append cell to finalizationRegistry.[[Cells]].
   PushCell(finalizationRegistry, cell);
-  if (hasUnregisterToken) {
+  if (unregisterToken != Undefined) {
     // If an unregister token is provided, a runtime call is needed to
     // do some OrderedHashTable operations and register the mapping.
     // See v8:10705.

@@ -61,14 +61,14 @@ TEST_F(WasmCapiTest, Threads) {
   ValueType i32_type[] = {kWasmI32};
   FunctionSig param_i32(0, 1, i32_type);
   uint32_t callback_index =
-      builder()->AddImport(CStrVector("callback"), &param_i32);
+      builder()->AddImport(base::CStrVector("callback"), &param_i32);
   uint32_t global_index =
-      builder()->AddGlobalImport(CStrVector("id"), kWasmI32, false);
+      builder()->AddGlobalImport(base::CStrVector("id"), kWasmI32, false);
 
   byte code[] = {
       WASM_CALL_FUNCTION(callback_index, WASM_GLOBAL_GET(global_index))};
   FunctionSig empty_sig(0, 0, nullptr);
-  AddExportedFunction(CStrVector("run"), code, sizeof(code), &empty_sig);
+  AddExportedFunction(base::CStrVector("run"), code, sizeof(code), &empty_sig);
   Compile();
   own<Shared<Module>> shared = module()->share();
 

@@ -10,6 +10,8 @@
 #elif V8_OS_FREEBSD
 #include <machine/sysarch.h>  // for cache flushing
 #include <sys/types.h>
+#elif V8_OS_STARBOARD
+#define __ARM_NR_cacheflush 0x0f0002
 #else
 #include <sys/syscall.h>  // for cache flushing.
 #endif

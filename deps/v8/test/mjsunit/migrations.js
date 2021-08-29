@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-ayle license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --track-fields --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 
 var global = Function('return this')();
 var verbose = 0;

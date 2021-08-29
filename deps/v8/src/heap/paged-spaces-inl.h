@@ -9,7 +9,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/paged-spaces.h"
-#include "src/objects/code-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 

@@ -23,6 +23,8 @@ namespace internal {
 
 // Defined in heap.cc.
 V8_EXPORT_PRIVATE bool Heap_PageFlagsAreConsistent(HeapObject object);
+V8_EXPORT_PRIVATE bool Heap_ValueMightRequireGenerationalWriteBarrier(
+    HeapObject value);
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierSlow(HeapObject object,
                                                     Address slot,
                                                     HeapObject value);
@@ -135,11 +137,16 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
 }
 
 inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
+                                Code value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  DCHECK(!Heap_ValueMightRequireGenerationalWriteBarrier(value));
+}
+
+inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
                                 HeapObject value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   DCHECK(!HasWeakHeapObjectTag(*slot));
-  heap_internals::GenerationalBarrierInternal(object, slot.address(),
-                                              HeapObject::cast(value));
+  heap_internals::GenerationalBarrierInternal(object, slot.address(), value);
 }
 
 inline void GenerationalEphemeronKeyBarrier(EphemeronHashTable table,

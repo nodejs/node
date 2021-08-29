@@ -34,12 +34,16 @@ extern runtime WasmI32AtomicWait(
     Context, WasmInstanceObject, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
-extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
+extern runtime WasmAllocateRtt(Context, Smi, Map, Smi): Map;
+extern runtime WasmArrayCopy(
+    Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
 }
 
 namespace unsafe {
 extern macro TimesTaggedSize(intptr): intptr;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
+extern macro AllocateWasmArray(
+    intptr, constexpr InitializationMode): HeapObject;
 }
 
 namespace wasm {
@@ -47,6 +51,10 @@ const kExternTableType: constexpr int31
     generates 'wasm::kWasmExternRef.raw_bit_field()';
 const kExternNonNullTableType: constexpr int31
     generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
+
+const kRttSubCanonicalize: constexpr int31
+    generates 'WasmRttSubMode::kCanonicalize';
+const kRttSubFresh: constexpr int31 generates 'WasmRttSubMode::kFresh';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -283,7 +291,14 @@ builtin WasmAllocatePair(first: Object, second: Object): Tuple2 {
 
 builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
   tail runtime::WasmAllocateRtt(
-      LoadContextFromFrame(), SmiTag(typeIndex), parent);
+      LoadContextFromFrame(), SmiTag(typeIndex), parent,
+      SmiConstant(kRttSubCanonicalize));
+}
+
+builtin WasmAllocateFreshRtt(typeIndex: intptr, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(
+      LoadContextFromFrame(), SmiTag(typeIndex), parent,
+      SmiConstant(kRttSubFresh));
 }
 
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
@@ -293,22 +308,75 @@ builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const result: HeapObject = unsafe::Allocate(
       instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
   return result;
 }
 
-builtin WasmAllocateArrayWithRtt(
-    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+macro WasmAllocateArray(
+    rtt: Map, length: uint32, elementSize: uint32,
+    initializationMode: constexpr InitializationMode): HeapObject {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
   //              + WasmArray::kHeaderSize
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
       Convert<intptr>(kWasmArrayHeaderSize);
-  const result: HeapObject = unsafe::Allocate(
-      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  const result: HeapObject =
+      unsafe::AllocateWasmArray(instanceSize, initializationMode);
   *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
   %RawDownCast<WasmArray>(result).length = length;
   return result;
+}
+
+builtin WasmAllocateArray_Uninitialized(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kUninitialized);
+}
+
+builtin WasmAllocateArray_InitZero(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kInitializeToZero);
+}
+
+builtin WasmAllocateArray_InitNull(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kInitializeToNull);
+}
+
+// We put all uint32 parameters at the beginning so that they are assigned to
+// registers.
+builtin WasmArrayCopyWithChecks(
+    dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
+    srcObject: Object): JSAny {
+  if (dstObject == Null) tail ThrowWasmTrapNullDereference();
+  if (srcObject == Null) tail ThrowWasmTrapNullDereference();
+  const dstArray = %RawDownCast<WasmArray>(dstObject);
+  const srcArray = %RawDownCast<WasmArray>(srcObject);
+  // Check that the end of the copying range is in-bounds and that the range
+  // does not overflow.
+  if (dstIndex + length > dstArray.length || dstIndex + length < dstIndex ||
+      srcIndex + length > srcArray.length || srcIndex + length < srcIndex) {
+    tail ThrowWasmTrapArrayOutOfBounds();
+  }
+  tail runtime::WasmArrayCopy(
+      LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
+      SmiFromUint32(srcIndex), SmiFromUint32(length));
+}
+
+// We put all uint32 parameters at the beginning so that they are assigned to
+// registers.
+builtin WasmArrayCopy(
+    dstIndex: uint32, srcIndex: uint32, length: uint32, dstArray: WasmArray,
+    srcArray: WasmArray): JSAny {
+  tail runtime::WasmArrayCopy(
+      LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
+      SmiFromUint32(srcIndex), SmiFromUint32(length));
 }
 
 // Redeclaration with different typing (value is an Object, not JSAny).
@@ -487,5 +555,9 @@ builtin ThrowWasmTrapIllegalCast(): JSAny {
 
 builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
+}
+
+builtin ThrowWasmTrapArrayTooLarge(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayTooLarge));
 }
 }

@@ -207,7 +207,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
+      CallBuiltin(Builtin::kPromiseResolveThenableJob, native_context,
                   promise_to_resolve, thenable, then);
     }
 
@@ -251,7 +251,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
+      CallBuiltin(Builtin::kPromiseFulfillReactionJob, microtask_context,
                   argument, job_handler, promise_or_capability);
     }
 
@@ -304,7 +304,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
+      CallBuiltin(Builtin::kPromiseRejectReactionJob, microtask_context,
                   argument, job_handler, promise_or_capability);
     }
 

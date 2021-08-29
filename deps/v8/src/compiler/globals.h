@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -73,6 +74,14 @@ inline std::ostream& operator<<(std::ostream& os,
   UNREACHABLE();
   return os;
 }
+
+// Maximum depth and total number of elements and properties for literal
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
+const int kMaxFastLiteralDepth = 3;
+const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
 }  // namespace compiler
 }  // namespace internal

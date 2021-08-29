@@ -33,11 +33,9 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  HeapBase* heap() const { return heap_; }
+  HeapBase& heap() const { return heap_; }
 
-  BaseSpace* space() { return space_; }
-  const BaseSpace* space() const { return space_; }
-  void set_space(BaseSpace* space) { space_ = space; }
+  BaseSpace& space() const { return space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
@@ -80,14 +78,22 @@ class V8_EXPORT_PRIVATE BasePage {
 #endif
   }
 
+  void IncrementDiscardedMemory(size_t value) {
+    DCHECK_GE(discarded_memory_ + value, discarded_memory_);
+    discarded_memory_ += value;
+  }
+  void ResetDiscardedMemory() { discarded_memory_ = 0; }
+  size_t discarded_memory() const { return discarded_memory_; }
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
-  BasePage(HeapBase*, BaseSpace*, PageType);
+  BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
-  HeapBase* heap_;
-  BaseSpace* space_;
+  HeapBase& heap_;
+  BaseSpace& space_;
   PageType type_;
+  size_t discarded_memory_ = 0;
 };
 
 class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
@@ -138,7 +144,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
   // Allocates a new page in the detached state.
-  static NormalPage* Create(PageBackend*, NormalPageSpace*);
+  static NormalPage* Create(PageBackend&, NormalPageSpace&);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -187,7 +193,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   }
 
  private:
-  NormalPage(HeapBase* heap, BaseSpace* space);
+  NormalPage(HeapBase& heap, BaseSpace& space);
   ~NormalPage();
 
   size_t allocated_bytes_at_last_gc_ = 0;
@@ -199,7 +205,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   // Returns the allocation size required for a payload of size |size|.
   static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
-  static LargePage* Create(PageBackend*, LargePageSpace*, size_t);
+  static LargePage* Create(PageBackend&, LargePageSpace&, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
@@ -233,7 +239,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   }
 
  private:
-  LargePage(HeapBase* heap, BaseSpace* space, size_t);
+  LargePage(HeapBase& heap, BaseSpace& space, size_t);
   ~LargePage();
 
   size_t payload_size_;
@@ -286,7 +292,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   SynchronizedLoad();
   const HeapObjectHeader* header =
       ObjectHeaderFromInnerAddressImpl<mode>(this, address);
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
 

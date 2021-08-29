@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 let q_table = builder.addImportedTable("q", "table")

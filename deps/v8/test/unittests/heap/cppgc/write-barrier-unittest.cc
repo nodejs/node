@@ -50,6 +50,9 @@ class V8_NODISCARD ExpectWriteBarrierFires final
             marker->MutatorMarkingStateForTesting().marking_worklist()),
         write_barrier_worklist_(
             marker->MutatorMarkingStateForTesting().write_barrier_worklist()),
+        retrace_marked_objects_worklist_(
+            marker->MutatorMarkingStateForTesting()
+                .retrace_marked_objects_worklist()),
         objects_(objects) {
     EXPECT_TRUE(marking_worklist_.IsGlobalEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalEmpty());
@@ -76,6 +79,14 @@ class V8_NODISCARD ExpectWriteBarrierFires final
         if (pos != objects_.end()) objects_.erase(pos);
       }
     }
+    {
+      HeapObjectHeader* item;
+      while (retrace_marked_objects_worklist_.Pop(&item)) {
+        auto pos =
+            std::find(objects_.begin(), objects_.end(), item->ObjectStart());
+        if (pos != objects_.end()) objects_.erase(pos);
+      }
+    }
     EXPECT_TRUE(objects_.empty());
     for (auto* header : headers_) {
       EXPECT_TRUE(header->IsMarked());
@@ -88,6 +99,8 @@ class V8_NODISCARD ExpectWriteBarrierFires final
  private:
   MarkingWorklists::MarkingWorklist::Local& marking_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist_;
+  MarkingWorklists::RetraceMarkedObjectsWorklist::Local&
+      retrace_marked_objects_worklist_;
   std::vector<void*> objects_;
   std::vector<HeapObjectHeader*> headers_;
 };

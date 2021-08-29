@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 // Test that pre-allocation of the errors array works even if it needs to be
 // allocated in large object space.

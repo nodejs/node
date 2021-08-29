@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 
 // This test checks for accidental sign extension. The Wasm spec says we do

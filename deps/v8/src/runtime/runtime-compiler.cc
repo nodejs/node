@@ -171,9 +171,8 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   shared->set_is_asm_wasm_broken(true);
 #endif
-  DCHECK(function->code() ==
-         isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
-  function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
+  DCHECK_EQ(function->code(), *BUILTIN_CODE(isolate, InstantiateAsmJs));
+  function->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   DCHECK(!isolate->has_pending_exception());
   return Smi::zero();
 }
@@ -241,6 +240,8 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
 
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
+  // Don't OSR during serialization.
+  if (isolate->serializer_enabled()) return false;
   // Keep track of whether we've succeeded in optimizing.
   if (function->shared().optimization_disabled()) return false;
   // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the

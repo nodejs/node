@@ -506,8 +506,45 @@ int Sweeper::ParallelSweepPage(
   {
     base::MutexGuard guard(&mutex_);
     swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
+    cv_page_swept_.NotifyAll();
   }
   return max_freed;
+}
+
+void Sweeper::EnsurePageIsSwept(Page* page) {
+  if (!sweeping_in_progress() || page->SweepingDone()) return;
+  AllocationSpace space = page->owner_identity();
+
+  if (IsValidSweepingSpace(space)) {
+    if (TryRemoveSweepingPageSafe(space, page)) {
+      // Page was successfully removed and can now be swept.
+      ParallelSweepPage(page, space);
+    } else {
+      // Some sweeper task already took ownership of that page, wait until
+      // sweeping is finished.
+      base::MutexGuard guard(&mutex_);
+      while (!page->SweepingDone()) {
+        cv_page_swept_.Wait(&mutex_);
+      }
+    }
+  } else {
+    DCHECK(page->InNewSpace());
+    EnsureIterabilityCompleted();
+  }
+
+  CHECK(page->SweepingDone());
+}
+
+bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
+  base::MutexGuard guard(&mutex_);
+  DCHECK(IsValidSweepingSpace(space));
+  int space_index = GetSweepSpaceIndex(space);
+  SweepingList& sweeping_list = sweeping_list_[space_index];
+  SweepingList::iterator position =
+      std::find(sweeping_list.begin(), sweeping_list.end(), page);
+  if (position == sweeping_list.end()) return false;
+  sweeping_list.erase(position);
+  return true;
 }
 
 void Sweeper::ScheduleIncrementalSweepingTask() {

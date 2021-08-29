@@ -185,8 +185,8 @@ void RegExpMacroAssemblerX64::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(equal, on_equal);
 }
 
-
-void RegExpMacroAssemblerX64::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerX64::CheckCharacterGT(base::uc16 limit,
+                                               Label* on_greater) {
   __ cmpl(current_character(), Immediate(limit));
   BranchOrBacktrack(greater, on_greater);
 }
@@ -204,12 +204,11 @@ void RegExpMacroAssemblerX64::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
 
-
-void RegExpMacroAssemblerX64::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerX64::CheckCharacterLT(base::uc16 limit,
+                                               Label* on_less) {
   __ cmpl(current_character(), Immediate(limit));
   BranchOrBacktrack(less, on_less);
 }
-
 
 void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   Label fallthrough;
@@ -476,7 +475,7 @@ void RegExpMacroAssemblerX64::CheckCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ testl(current_character(), Immediate(mask));
   } else {
-    __ movl(rax, Immediate(mask));
+    __ Move(rax, mask);
     __ andq(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
@@ -490,19 +489,15 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ testl(current_character(), Immediate(mask));
   } else {
-    __ movl(rax, Immediate(mask));
+    __ Move(rax, mask);
     __ andq(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
-
 void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ leal(rax, Operand(current_character(), -minus));
   __ andl(rax, Immediate(mask));
@@ -510,26 +505,21 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerX64::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerX64::CheckCharacterInRange(base::uc16 from,
+                                                    base::uc16 to,
+                                                    Label* on_in_range) {
   __ leal(rax, Operand(current_character(), -from));
   __ cmpl(rax, Immediate(to - from));
   BranchOrBacktrack(below_equal, on_in_range);
 }
 
-
-void RegExpMacroAssemblerX64::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+void RegExpMacroAssemblerX64::CheckCharacterNotInRange(base::uc16 from,
+                                                       base::uc16 to,
+                                                       Label* on_not_in_range) {
   __ leal(rax, Operand(current_character(), -from));
   __ cmpl(rax, Immediate(to - from));
   BranchOrBacktrack(above, on_not_in_range);
 }
-
 
 void RegExpMacroAssemblerX64::CheckBitInTable(
     Handle<ByteArray> table,
@@ -546,8 +536,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
   BranchOrBacktrack(not_equal, on_bit_set);
 }
 
-
-bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(base::uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check, using the sequence:
@@ -666,7 +655,6 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
     return false;
   }
 }
-
 
 void RegExpMacroAssemblerX64::Fail() {
   STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
@@ -895,7 +883,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
       __ jmp(&load_char_start_regexp);
     } else {
-      __ movq(rax, Immediate(SUCCESS));
+      __ Move(rax, SUCCESS);
     }
   }
 
@@ -1108,7 +1096,7 @@ void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
   __ cmpq(rdi, Immediate(-by * char_size()));
   __ j(greater_equal, &after_position, Label::kNear);
-  __ movq(rdi, Immediate(-by * char_size()));
+  __ Move(rdi, -by * char_size());
   // On RegExp code entry (where this operation is used), the character before
   // the current position is expected to be already loaded.
   // We have advanced the position, so it's safe to read backwards.
@@ -1366,11 +1354,11 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
     DCHECK(mode_ == UC16);
     if (characters == 2) {
       __ movl(current_character(),
-              Operand(rsi, rdi, times_1, cp_offset * sizeof(uc16)));
+              Operand(rsi, rdi, times_1, cp_offset * sizeof(base::uc16)));
     } else {
       DCHECK_EQ(1, characters);
       __ movzxwl(current_character(),
-                 Operand(rsi, rdi, times_1, cp_offset * sizeof(uc16)));
+                 Operand(rsi, rdi, times_1, cp_offset * sizeof(base::uc16)));
     }
   }
 }

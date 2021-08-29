@@ -7,12 +7,13 @@
 
 #include "src/base/optional.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -26,12 +27,13 @@ class CodeTracer final : public Malloced {
     }
 
     if (FLAG_redirect_code_traces_to != nullptr) {
-      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
+      base::StrNCpy(filename_, FLAG_redirect_code_traces_to,
+                    filename_.length());
     } else if (isolate_id >= 0) {
-      SNPrintF(filename_, "code-%d-%d.asm", base::OS::GetCurrentProcessId(),
-               isolate_id);
+      base::SNPrintF(filename_, "code-%d-%d.asm",
+                     base::OS::GetCurrentProcessId(), isolate_id);
     } else {
-      SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
+      base::SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
     }
 
     WriteChars(filename_.begin(), "", 0, false);
@@ -102,7 +104,7 @@ class CodeTracer final : public Malloced {
  private:
   static bool ShouldRedirect() { return FLAG_redirect_code_traces; }
 
-  EmbeddedVector<char, 128> filename_;
+  base::EmbeddedVector<char, 128> filename_;
   FILE* file_;
   int scope_depth_;
 };

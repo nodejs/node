@@ -276,10 +276,13 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
                        existing_value.IsAccessorInfo());
         DCHECK_IMPLIES(!existing_value.IsSmi(),
                        AccessorInfo::cast(existing_value).name() ==
-                           *isolate->factory()->length_string());
+                               *isolate->factory()->length_string() ||
+                           AccessorInfo::cast(existing_value).name() ==
+                               *isolate->factory()->name_string());
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
-          // one (AccessorInfo "length" property is always defined before).
+          // one (AccessorInfo "length" and "name" properties are always defined
+          // before).
           PropertyDetails details(
               kData, DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking,
               enum_order_existing);
@@ -626,6 +629,14 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
                             factory->function_length_accessor(), attribs);
   }
   {
+    // Add name_accessor.
+    // All classes, even anonymous ones, have a name accessor.
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    static_desc.AddConstant(isolate, factory->name_string(),
+                            factory->function_name_accessor(), attribs);
+  }
+  {
     // Add prototype_accessor.
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -696,18 +707,6 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       DCHECK(name->IsInternalizedString());
       desc.AddNamedProperty(isolate, name, value_kind, value_index);
     }
-  }
-
-  // All classes, even anonymous ones, have a name accessor. If static_desc is
-  // in dictionary mode, the name accessor is installed at runtime in
-  // DefineClass.
-  if (!expr->has_name_static_property() &&
-      !static_desc.HasDictionaryProperties()) {
-    // Set class name accessor if the "name" method was not added yet.
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    static_desc.AddConstant(isolate, factory->name_string(),
-                            factory->function_name_accessor(), attribs);
   }
 
   static_desc.Finalize(isolate);

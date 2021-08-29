@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "src/base/export-template.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
@@ -101,6 +102,8 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline Object KeyAt(InternalIndex entry);
   inline Name NameAt(InternalIndex entry);
   inline Object ValueAt(InternalIndex entry);
+  // Returns {} if we would be reading out of the bounds of the object.
+  inline base::Optional<Object> TryValueAt(InternalIndex entry);
   inline PropertyDetails DetailsAt(InternalIndex entry);
 
   inline void ValueAtPut(InternalIndex entry, Object value);

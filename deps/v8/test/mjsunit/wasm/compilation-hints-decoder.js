@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-compilation-hints
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testDecodeCompilationHintsSectionNoDowngrade() {
   print(arguments.callee.name);

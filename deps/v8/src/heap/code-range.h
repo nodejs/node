@@ -120,7 +120,7 @@ class CodeRange final : public VirtualMemoryCage {
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
 
-  static void InitializeProcessWideCodeRangeOnce(
+  static std::shared_ptr<CodeRange> EnsureProcessWideCodeRange(
       v8::PageAllocator* page_allocator, size_t requested_size);
 
   // If InitializeProcessWideCodeRangeOnce has been called, returns the

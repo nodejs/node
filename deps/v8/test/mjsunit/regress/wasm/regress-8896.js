@@ -6,7 +6,7 @@
 // Disable Liftoff so we can serialize the module.
 // Flags: --no-liftoff
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestSerializeDeserializeRuntimeCall() {
   var builder = new WasmModuleBuilder();

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('load1.js');
+d8.file.execute('load1.js');
 loadRelativeToScript('load2.js');
 console.log('load.js');
 

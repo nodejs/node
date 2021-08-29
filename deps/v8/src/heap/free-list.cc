@@ -58,7 +58,8 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
       if (!prev_non_evac_node.is_null()) {
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(prev_non_evac_node);
         if (chunk->owner_identity() == CODE_SPACE) {
-          chunk->heap()->UnprotectAndRegisterMemoryChunk(chunk);
+          chunk->heap()->UnprotectAndRegisterMemoryChunk(
+              chunk, UnprotectMemoryOrigin::kMaybeOffMainThread);
         }
         prev_non_evac_node.set_next(cur_node.next());
       }

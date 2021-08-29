@@ -163,6 +163,10 @@ HeapObject WeakCell::relaxed_target() const {
   return TaggedField<HeapObject>::Relaxed_Load(*this, kTargetOffset);
 }
 
+HeapObject WeakCell::relaxed_unregister_token() const {
+  return TaggedField<HeapObject>::Relaxed_Load(*this, kUnregisterTokenOffset);
+}
+
 template <typename GCNotifyUpdatedSlotCallback>
 void WeakCell::Nullify(Isolate* isolate,
                        GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {

@@ -370,7 +370,7 @@ void ReadOnlySpace::RepairFreeSpacesAfterDeserialization() {
 
 void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    // TODO(ulan): Revisit this once third-party heap supports iteration.
+    // TODO(v8:11641): Revisit this once third-party heap supports iteration.
     return;
   }
   if (is_string_padding_cleared_) return;

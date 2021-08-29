@@ -22,16 +22,16 @@
   # CRASH is also a reasonable outcome).
   'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
-  # Slow tests
-  'debug/debug-scopes': [PASS, SLOW],
-  'debug/debug-stepout-scope-part*': [PASS, SLOW],
-  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW, ['mode == debug', SKIP]],
-
   # Too slow in debug mode and on slow platforms.
-  'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+  'regress/regress-2318': [PASS, HEAVY, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 
   # forcing weak callback in asan build change break order
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'debug/debug-scopes': [PASS, HEAVY],
+  'debug/debug-stepout-scope-part*': [PASS, HEAVY],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -152,7 +152,7 @@
 
 ##############################################################################
 # Tests requiring Sparkplug.
-['arch not in (x64, arm64, ia32, arm)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel)', {
   'regress/regress-crbug-1199681': [SKIP],
 }],
 

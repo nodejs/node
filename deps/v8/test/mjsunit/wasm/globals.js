@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestMultipleInstances() {
   print("TestMultipleInstances");
@@ -205,4 +205,21 @@ TestGlobalIndexSpace(kWasmF64, 12345.678);
   assertEquals(7, get(0));
   assertEquals(9, get(1));
 
+})();
+
+(function testAssignUndefinedToGlobal() {
+  print(arguments.callee.name);
+  let i32_global = new WebAssembly.Global({mutable: true, value: 'i32'});
+  i32_global.value = undefined;
+  assertSame(0, i32_global.value);
+  let i64_global = new WebAssembly.Global({mutable: true, value: 'i64'});
+  assertThrows(() => {
+    i64_global.value = undefined;
+  }, TypeError);
+  let f32_global = new WebAssembly.Global({mutable: true, value: 'f32'});
+  f32_global.value = undefined;
+  assertSame(NaN, f32_global.value);
+  let f64_global = new WebAssembly.Global({mutable: true, value: 'f64'});
+  f64_global.value = undefined;
+  assertSame(NaN, f64_global.value);
 })();

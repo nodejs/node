@@ -16,7 +16,7 @@ namespace internal {
 
 RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
     : RegExpMacroAssembler(isolate, zone),
-      buffer_(Vector<byte>::New(1024)),
+      buffer_(base::Vector<byte>::New(1024)),
       pc_(0),
       advance_current_end_(kInvalidPC),
       jump_edges_(zone),
@@ -220,12 +220,14 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
   if (check_bounds) EmitOrLink(on_failure);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpBytecodeGenerator::CheckCharacterLT(base::uc16 limit,
+                                               Label* on_less) {
   Emit(BC_CHECK_LT, limit);
   EmitOrLink(on_less);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpBytecodeGenerator::CheckCharacterGT(base::uc16 limit,
+                                               Label* on_greater) {
   Emit(BC_CHECK_GT, limit);
   EmitOrLink(on_greater);
 }
@@ -288,14 +290,15 @@ void RegExpBytecodeGenerator::CheckNotCharacterAfterAnd(uint32_t c,
 }
 
 void RegExpBytecodeGenerator::CheckNotCharacterAfterMinusAnd(
-    uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   Emit(BC_MINUS_AND_CHECK_NOT_CHAR, c);
   Emit16(minus);
   Emit16(mask);
   EmitOrLink(on_not_equal);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterInRange(uc16 from, uc16 to,
+void RegExpBytecodeGenerator::CheckCharacterInRange(base::uc16 from,
+                                                    base::uc16 to,
                                                     Label* on_in_range) {
   Emit(BC_CHECK_CHAR_IN_RANGE, 0);
   Emit16(from);
@@ -303,7 +306,8 @@ void RegExpBytecodeGenerator::CheckCharacterInRange(uc16 from, uc16 to,
   EmitOrLink(on_in_range);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterNotInRange(uc16 from, uc16 to,
+void RegExpBytecodeGenerator::CheckCharacterNotInRange(base::uc16 from,
+                                                       base::uc16 to,
                                                        Label* on_not_in_range) {
   Emit(BC_CHECK_CHAR_NOT_IN_RANGE, 0);
   Emit16(from);
@@ -395,8 +399,8 @@ void RegExpBytecodeGenerator::Copy(byte* a) {
 }
 
 void RegExpBytecodeGenerator::Expand() {
-  Vector<byte> old_buffer = buffer_;
-  buffer_ = Vector<byte>::New(old_buffer.length() * 2);
+  base::Vector<byte> old_buffer = buffer_;
+  buffer_ = base::Vector<byte>::New(old_buffer.length() * 2);
   MemCopy(buffer_.begin(), old_buffer.begin(), old_buffer.length());
   old_buffer.Dispose();
 }

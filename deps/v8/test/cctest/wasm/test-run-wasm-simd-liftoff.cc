@@ -45,11 +45,11 @@ WASM_SIMD_LIFTOFF_TEST(S128Global) {
 
   int32_t expected = 0x1234;
   for (int i = 0; i < 4; i++) {
-    WriteLittleEndianValue<int32_t>(&g0[i], expected);
+    LANE(g0, i) = expected;
   }
   r.Call();
   for (int i = 0; i < 4; i++) {
-    int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
+    int32_t actual = LANE(g1, i);
     CHECK_EQ(actual, expected);
   }
 }
@@ -120,8 +120,8 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
   byte* g0 = r.builder().AddGlobal<byte>(kWasmS128);
   byte* g1 = r.builder().AddGlobal<byte>(kWasmS128);
   for (int i = 0; i < 16; i++) {
-    WriteLittleEndianValue<byte>(&g0[i], i);
-    WriteLittleEndianValue<byte>(&g1[i], i + 16);
+    LANE(g0, i) = i;
+    LANE(g1, i) = i + 16;
   }
 
   // Output global holding a kWasmS128.
@@ -145,10 +145,10 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
 
   // The shuffle pattern only changes the last element.
   for (int i = 0; i < 15; i++) {
-    byte actual = ReadLittleEndianValue<byte>(&output[i]);
+    byte actual = LANE(output, i);
     CHECK_EQ(i, actual);
   }
-  CHECK_EQ(31, ReadLittleEndianValue<byte>(&output[15]));
+  CHECK_EQ(31, LANE(output, 15));
 }
 
 // Exercise logic in Liftoff's implementation of shuffle when inputs to the
@@ -159,7 +159,7 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
 
   byte* g0 = r.builder().AddGlobal<byte>(kWasmS128);
   for (int i = 0; i < 16; i++) {
-    WriteLittleEndianValue<byte>(&g0[i], i);
+    LANE(g0, i) = i;
   }
 
   byte* output = r.builder().AddGlobal<byte>(kWasmS128);
@@ -181,7 +181,7 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
 
   for (int i = 0; i < 16; i++) {
     // Check that the output is the reverse of input.
-    byte actual = ReadLittleEndianValue<byte>(&output[i]);
+    byte actual = LANE(output, i);
     CHECK_EQ(15 - i, actual);
   }
 }

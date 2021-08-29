@@ -1,0 +1,76 @@
+# Copyright 2021 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+filegroup(
+    name = "icudata",
+    srcs = [ "common/icudtl.dat" ]
+)
+
+cc_library(
+    name = "icuuc",
+    srcs =  glob([
+        "source/common/**/*.h",
+        "source/common/**/*.cpp"
+    ]),
+    defines = [
+        "U_COMMON_IMPLEMENTATION",
+        "U_ICUDATAENTRY_IN_COMMON",
+        "HAVE_DLOPEN=0",
+        "UCONFIG_ONLY_HTML_CONVERSION=1",
+        "U_CHARSET_IS_UTF8=1",
+        "U_USING_ICU_NAMESPACE=0",
+        "U_ENABLE_DYLOAD=0",
+        "USE_CHROMIUM_ICU=1",
+        "U_ENABLE_TRACING=1",
+        "U_ENABLE_RESOURCE_TRACING=0",
+        "UNISTR_FROM_STRING_EXPLICIT=",
+        "UNISTR_FROM_CHAR_EXPLICIT=",
+        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE",
+    ],
+    copts = [
+        "-Wno-unused-function",
+        "-Wno-parentheses",
+        "-Wno-unused-function",
+        "-Wno-unused-variable",
+        "-Wno-deprecated-declarations",
+    ],
+    includes = [
+        "source/common",
+        "source/i18n",
+    ],
+    tags = ["requires-rtti"],
+    data = [ ":icudata" ],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "icui18n",
+    srcs =  glob([
+        "source/i18n/**/*.h",
+        "source/i18n/**/*.cpp"
+    ]),
+    defines = [
+        "U_I18N_IMPLEMENTATION",
+    ],
+    deps = [ ":icuuc" ],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "icu",
+    hdrs = glob([
+        "source/common/unicode/*.h",
+        "source/i18n/unicode/*.h",
+    ]),
+    srcs = [
+        "source/stubdata/stubdata.cpp",
+    ],
+    include_prefix = "third_party/icu",
+    deps = [
+        ":icuuc",
+        ":icui18n"
+    ],
+    visibility = ["//visibility:public"],
+    alwayslink = 1,
+)

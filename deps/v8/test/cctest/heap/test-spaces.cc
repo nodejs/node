@@ -310,6 +310,7 @@ TEST(OldLargeObjectSpace) {
   // This test does not initialize allocated objects, which confuses the
   // incremental marker.
   FLAG_incremental_marking = false;
+  FLAG_max_heap_size = 20;
   v8::V8::Initialize();
 
   OldLargeObjectSpace* lo = CcTest::heap()->lo_space();
@@ -335,16 +336,18 @@ TEST(OldLargeObjectSpace) {
              ho.address(),
              HeapObject::RequiredAlignment(
                  ReadOnlyRoots(CcTest::i_isolate()).fixed_double_array_map())));
-
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
   while (true) {
     {
       AllocationResult allocation = lo->AllocateRaw(lo_size);
       if (allocation.IsRetry()) break;
+      HeapObject ho = HeapObject::cast(allocation.ToObjectChecked());
+      Handle<HeapObject> keep_alive(ho, isolate);
     }
   }
 
   CHECK(!lo->IsEmpty());
-
   CHECK(lo->AllocateRaw(lo_size).IsRetry());
 }
 

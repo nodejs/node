@@ -13,13 +13,13 @@
 
 #include "base/bind.h"
 #include "base/check.h"
+#include "base/cxx17_backports.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/hash/md5.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/stl_util.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -288,7 +288,7 @@ TEST_F(ZipReaderTest, current_entry_info_RegularFile) {
 
   // The expected time stamp: 2009-05-29 06:22:20
   base::Time::Exploded exploded = {};  // Zero-clear.
-  current_entry_info->last_modified().LocalExplode(&exploded);
+  current_entry_info->last_modified().UTCExplode(&exploded);
   EXPECT_EQ(2009, exploded.year);
   EXPECT_EQ(5, exploded.month);
   EXPECT_EQ(29, exploded.day_of_month);
@@ -357,7 +357,7 @@ TEST_F(ZipReaderTest, current_entry_info_Directory) {
 
   // The expected time stamp: 2009-05-31 15:49:52
   base::Time::Exploded exploded = {};  // Zero-clear.
-  current_entry_info->last_modified().LocalExplode(&exploded);
+  current_entry_info->last_modified().UTCExplode(&exploded);
   EXPECT_EQ(2009, exploded.year);
   EXPECT_EQ(5, exploded.month);
   EXPECT_EQ(31, exploded.day_of_month);

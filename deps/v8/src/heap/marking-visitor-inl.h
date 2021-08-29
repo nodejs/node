@@ -10,7 +10,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects.h"
-#include "src/snapshot/deserializer.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -330,7 +330,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
   HeapObject target = weak_cell.relaxed_target();
-  HeapObject unregister_token = HeapObject::cast(weak_cell.unregister_token());
+  HeapObject unregister_token = weak_cell.relaxed_unregister_token();
   concrete_visitor()->SynchronizePageAccess(target);
   concrete_visitor()->SynchronizePageAccess(unregister_token);
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
@@ -413,7 +413,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.
   if (maybe_descriptors.IsSmi()) {
-    DCHECK_EQ(maybe_descriptors, Deserializer::uninitialized_field_value());
+    DCHECK_EQ(maybe_descriptors, Smi::uninitialized_deserialization_value());
     return 0;
   }
 

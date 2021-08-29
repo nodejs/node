@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(V8_OS_STARBOARD)
+#include "starboard/system.h"
+#define __builtin_abort SbSystemBreakIntoDebugger
+#endif
+
 #include "src/inspector/v8-stack-trace-impl.h"
 
 #include <algorithm>

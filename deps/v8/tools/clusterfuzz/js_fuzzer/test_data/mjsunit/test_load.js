@@ -3,5 +3,5 @@
 // found in the LICENSE file.
 
 var testLoad = 'test_load';
-load('test_data/mjsunit/test_load_1.js');
-load('test_load_0.js');
+d8.file.execute('test_data/mjsunit/test_load_1.js');
+d8.file.execute('test_load_0.js');

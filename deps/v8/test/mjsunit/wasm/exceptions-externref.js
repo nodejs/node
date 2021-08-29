@@ -4,8 +4,8 @@
 
 // Flags: --experimental-wasm-eh --experimental-wasm-reftypes --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 // Test the encoding of a thrown exception with a null-ref value.
 (function TestThrowRefNull() {

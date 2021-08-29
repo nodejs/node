@@ -4,7 +4,7 @@
 
 // Flags: --wasm-staging --wasm-dynamic-tiering
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(1, 10);

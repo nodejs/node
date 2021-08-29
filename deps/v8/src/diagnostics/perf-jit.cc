@@ -130,7 +130,7 @@ void PerfJitLogger::OpenJitDumpFile() {
   perf_output_handle_ = nullptr;
 
   int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  ScopedVector<char> perf_dump_name(bufferSize);
+  base::ScopedVector<char> perf_dump_name(bufferSize);
   int size = SNPrintF(perf_dump_name, kFilenameFormatString,
                       base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
@@ -308,9 +308,9 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
   return kUnknownScriptNameStringLen;
 }
 
-Vector<const char> GetScriptName(const SourcePositionInfo& info,
-                                 std::unique_ptr<char[]>* storage,
-                                 const DisallowGarbageCollection& no_gc) {
+base::Vector<const char> GetScriptName(const SourcePositionInfo& info,
+                                       std::unique_ptr<char[]>* storage,
+                                       const DisallowGarbageCollection& no_gc) {
   if (!info.script.is_null()) {
     Object name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url.IsSeqOneByteString()) {
@@ -396,7 +396,8 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
     // The extracted name may point into heap-objects, thus disallow GC.
     DisallowGarbageCollection no_gc;
     std::unique_ptr<char[]> name_storage;
-    Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
+    base::Vector<const char> name_string =
+        GetScriptName(info, &name_storage, no_gc);
     LogWriteBytes(name_string.begin(),
                   static_cast<uint32_t>(name_string.size()));
     LogWriteBytes(kStringTerminator, 1);

@@ -6,11 +6,11 @@
 #define V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 
 #include "src/base/export-template.h"
+#include "src/base/vector.h"
 #include "src/codegen/source-position.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
-#include "src/utils/vector.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
-  OwnedVector<byte> ToSourcePositionTableVector();
+  base::OwnedVector<byte> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
   inline bool Lazy() const { return mode_ == LAZY_SOURCE_POSITIONS; }
@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // Handle-safe iterator based on an a vector located outside the garbage
   // collected heap, allows allocation during its lifetime.
   explicit SourcePositionTableIterator(
-      Vector<const byte> bytes,
+      base::Vector<const byte> bytes,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -152,7 +152,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
 
   static const int kDone = -1;
 
-  Vector<const byte> raw_table_;
+  base::Vector<const byte> raw_table_;
   Handle<ByteArray> table_;
   int index_ = 0;
   PositionTableEntry current_;

@@ -7,7 +7,7 @@
 // This test case is simplified slightly from a fuzzer-generated test case. It
 // causes spills for one of the inputs to kExprI64x2ExtMulHighI32x4U, which the
 // codegen incorrectly assumes will always be a register.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(16, 32, false, true);

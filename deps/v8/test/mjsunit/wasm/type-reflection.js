@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-type-reflection --expose-gc
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestInvalidArgumentToType() {
   ["abc", 123, {}, _ => 0].forEach(function(invalidInput) {

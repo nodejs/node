@@ -323,72 +323,6 @@ TEST(VectorCallFeedbackForArray) {
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 }
 
-size_t GetFeedbackVectorLength(Isolate* isolate, const char* src,
-                               bool with_oneshot_opt) {
-  i::FLAG_enable_one_shot_optimization = with_oneshot_opt;
-  i::Handle<i::Object> i_object = v8::Utils::OpenHandle(*CompileRun(src));
-  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(i_object);
-  Handle<FeedbackVector> feedback_vector =
-      Handle<FeedbackVector>(f->feedback_vector(), isolate);
-  return feedback_vector->length();
-}
-
-TEST(OneShotCallICSlotCount) {
-  if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
-  if (i::FLAG_lazy_feedback_allocation) return;
-  FLAG_allow_natives_syntax = true;
-
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  i::FLAG_compilation_cache = false;
-
-  const char* no_call = R"(
-    function f1() {};
-    function f2() {};
-    (function() {
-      return arguments.callee;
-    })();
-  )";
-  // len = 2 * 1 ldaNamed property
-  CHECK_EQ(GetFeedbackVectorLength(isolate, no_call, false), 2);
-  // no slots of named property loads/stores in one shot
-  CHECK_EQ(GetFeedbackVectorLength(isolate, no_call, true), 0);
-
-  const char* single_call = R"(
-    function f1() {};
-    function f2() {};
-    (function() {
-      f1();
-      return arguments.callee;
-    })();
-  )";
-  // len = 2 * 1 ldaNamed Slot + 2 * 1 CachedGlobalSlot + 2 * 1 CallICSlot
-  CHECK_EQ(GetFeedbackVectorLength(isolate, single_call, false), 6);
-  // len = 2 * 1 CachedGlobalSlot
-  CHECK_EQ(GetFeedbackVectorLength(isolate, single_call, true), 2);
-
-  const char* multiple_calls = R"(
-    function f1() {};
-    function f2() {};
-    (function() {
-      f1();
-      f2();
-      f1();
-      f2();
-      return arguments.callee;
-    })();
-  )";
-  // len = 2 * 1 ldaNamedSlot + 2 *  2 CachedGlobalSlot (one for each unique
-  // function) + 2 * 4 CallICSlot (one for each function call)
-  CHECK_EQ(GetFeedbackVectorLength(isolate, multiple_calls, false), 14);
-  // CachedGlobalSlot (one for each unique function)
-  // len = 2 * 2 CachedGlobalSlot (one for each unique function)
-  CHECK_EQ(GetFeedbackVectorLength(isolate, multiple_calls, true), 4);
-}
-
 TEST(VectorCallCounts) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
@@ -491,6 +425,44 @@ TEST(VectorSpeculationMode) {
   nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
   CHECK_EQ(3, nexus.GetCallCount());
+}
+
+TEST(VectorCallSpeculationModeAndFeedbackContent) {
+  if (!i::FLAG_use_ic) return;
+  if (!i::FLAG_opt) return;
+  if (i::FLAG_always_opt) return;
+  if (i::FLAG_jitless) return;
+  if (i::FLAG_turboprop) return;
+  FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  CompileRun(
+      "function min() { return Math.min.apply(null, arguments); }"
+      "function f(x) { return min(x, 0); }"
+      "%PrepareFunctionForOptimization(min);"
+      "%PrepareFunctionForOptimization(f);"
+      "f(1);");
+  Handle<JSFunction> min = GetFunction("min");
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(min->feedback_vector(), isolate);
+  FeedbackSlot slot(6);
+  FeedbackNexus nexus(feedback_vector, slot);
+
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+  CompileRun("%OptimizeFunctionOnNextCall(f); f(1);");
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+  CompileRun("f({});");  // Deoptimizes.
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
 }
 
 TEST(VectorLoadICStates) {

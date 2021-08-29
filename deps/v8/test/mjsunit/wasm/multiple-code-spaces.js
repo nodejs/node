@@ -9,7 +9,7 @@
 // much bigger code, thus reaches the four code spaces much faster).
 // Flags: --no-wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Instantiate bigger modules, until at least four separate code spaces have
 // been allocated.

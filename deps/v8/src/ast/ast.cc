@@ -11,13 +11,13 @@
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/numbers/double.h"
 #include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/numbers/double.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
@@ -259,7 +259,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     }
   }
   std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
-  base::Memcpy(result.get(), result_vec.data(), result_vec.size());
+  memcpy(result.get(), result_vec.data(), result_vec.size());
   result[result_vec.size()] = '\0';
   return result;
 }
@@ -482,9 +482,9 @@ void ObjectLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
       m_literal->BuildConstants(isolate);
     }
 
-    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
-    // value for COMPUTED properties, the real value is filled in at
-    // runtime. The enumeration order is maintained.
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use the
+    // 'uninitialized' Oddball for COMPUTED properties, the real value is filled
+    // in at runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
     Handle<Object> key =
@@ -493,10 +493,7 @@ void ObjectLiteral::BuildBoilerplateDescription(IsolateT* isolate) {
                   ->template NewNumberFromUint<AllocationType::kOld>(
                       element_index)
             : Handle<Object>::cast(key_literal->AsRawPropertyName()->string());
-
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
-
-    // Add name, value pair to the fixed array.
     boilerplate_description->set_key_value(position++, *key, *value);
   }
 
@@ -1040,14 +1037,25 @@ bool Literal::ToBooleanIsTrue() const {
 }
 
 uint32_t Literal::Hash() {
+  uint32_t index;
+  if (AsArrayIndex(&index)) {
+    // Treat array indices as numbers, so that array indices are de-duped
+    // correctly even if one of them is a string and the other is a number.
+    return ComputeLongHash(index);
+  }
   return IsString() ? AsRawString()->Hash()
-                    : ComputeLongHash(double_to_uint64(AsNumber()));
+                    : ComputeLongHash(base::double_to_uint64(AsNumber()));
 }
 
 // static
 bool Literal::Match(void* a, void* b) {
   Literal* x = static_cast<Literal*>(a);
   Literal* y = static_cast<Literal*>(b);
+  uint32_t index_x;
+  uint32_t index_y;
+  if (x->AsArrayIndex(&index_x)) {
+    return y->AsArrayIndex(&index_y) && index_x == index_y;
+  }
   return (x->IsString() && y->IsString() &&
           x->AsRawString() == y->AsRawString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());

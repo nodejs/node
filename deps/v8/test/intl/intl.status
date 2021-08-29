@@ -31,6 +31,11 @@
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
+['gc_stress', {
+  # Push limit of stack, too flaky with machine with more memory.
+  'regress-1130489': [SKIP],
+}],  # gc_stress
+
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -58,6 +63,8 @@
   'default_locale': [SKIP],
   # Unable to change locale and TZ on Android:
   'regress-7770': [SKIP],
+  # Bug(v8:11922)
+  'localematcher/bestfit-supplemental-files': [SKIP],
 }],  # 'system == android'
 
 ################################################################################

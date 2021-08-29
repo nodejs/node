@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/base/numbers/double.h"
 #include "src/base/platform/mutex.h"
-#include "src/baseline/baseline-osr-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
@@ -42,9 +42,12 @@ V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// Returns |value| unless fuzzing is enabled, otherwise returns undefined_value.
+// Returns |value| unless correctness-fuzzer-supressions is enabled,
+// otherwise returns undefined_value.
 V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
-  return FLAG_fuzzing ? ReadOnlyRoots(isolate).undefined_value() : value;
+  return FLAG_correctness_fuzzer_suppressions
+             ? ReadOnlyRoots(isolate).undefined_value()
+             : value;
 }
 
 // Assert that the given argument is a number within the Int32 range
@@ -78,7 +81,7 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
-  return *isolate->factory()->NewNumber(uint64_to_double(result));
+  return *isolate->factory()->NewNumber(base::uint64_to_double(result));
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
@@ -199,6 +202,12 @@ RUNTIME_FUNCTION(Runtime_IsMidTierTurboprop) {
                                     !FLAG_turboprop_as_toptier);
 }
 
+RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->allow_atomics_wait());
+}
+
 namespace {
 
 enum class TierupKind { kTierupBytecode, kTierupBytecodeOrMidTier };
@@ -262,7 +271,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
     CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
     if (!type->IsString()) return CrashUnlessFuzzing(isolate);
     if (Handle<String>::cast(type)->IsOneByteEqualTo(
-            StaticCharVector("concurrent")) &&
+            base::StaticCharVector("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -380,7 +389,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
     if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
     Handle<String> sync = Handle<String>::cast(sync_object);
     if (sync->IsOneByteEqualTo(
-            StaticCharVector("allow heuristic optimization"))) {
+            base::StaticCharVector("allow heuristic optimization"))) {
       allow_heuristic_optimization = true;
     }
   }
@@ -478,21 +487,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
 RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0 || args.length() == 1);
-
-  Handle<JSFunction> function;
-
-  // The optional parameter determines the frame being targeted.
-  int stack_depth = 0;
-  if (args.length() == 1) {
-    if (!args[0].IsSmi()) return CrashUnlessFuzzing(isolate);
-    stack_depth = args.smi_at(0);
-  }
+  DCHECK_EQ(0, args.length());
 
   // Find the JavaScript function on the top of the stack.
   JavaScriptFrameIterator it(isolate);
-  while (!it.done() && stack_depth--) it.Advance();
-  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  Handle<JSFunction> function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
   if (!FLAG_sparkplug || !FLAG_use_osr) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -501,8 +500,10 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-  OSRInterpreterFrameToBaseline(isolate, function, frame);
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
+  Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
+                            &is_compiled_scope);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -553,9 +554,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
     if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
     Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(StaticCharVector("no sync"))) {
+    if (sync->IsOneByteEqualTo(base::StaticCharVector("no sync"))) {
       sync_with_compiler_thread = false;
-    } else if (sync->IsOneByteEqualTo(StaticCharVector("sync")) ||
+    } else if (sync->IsOneByteEqualTo(base::StaticCharVector("sync")) ||
                sync->length() == 0) {
       DCHECK(sync_with_compiler_thread);
     } else {
@@ -581,12 +582,13 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
 
   if (function->HasAttachedOptimizedCode()) {
-    if (function->code().marked_for_deoptimization()) {
+    Code code = function->code();
+    if (code.marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
       status |= static_cast<int>(OptimizationStatus::kOptimized);
     }
-    if (function->code().is_turbofanned()) {
+    if (code.is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
@@ -859,7 +861,7 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(String, str, 1);
     const char track_ephemeron_path[] = "track-ephemeron-path";
-    if (str->IsOneByteEqualTo(StaticCharVector(track_ephemeron_path))) {
+    if (str->IsOneByteEqualTo(base::StaticCharVector(track_ephemeron_path))) {
       option = RetainingPathOption::kTrackEphemeronPath;
     } else {
       CHECK_EQ(str->length(), 0);
@@ -1093,7 +1095,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
   bool result;
   if (regexp.TypeTag() == JSRegExp::IRREGEXP) {
-    result = regexp.Code(is_latin1).IsCode();
+    result = regexp.Code(is_latin1).IsCodeT();
   } else {
     result = false;
   }
@@ -1334,7 +1336,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   };
   static base::LeakyObject<NoopListener> noop_listener;
 #if V8_ENABLE_WEBASSEMBLY
-  isolate->wasm_engine()->EnableCodeLogging(isolate);
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
   isolate->code_event_dispatcher()->AddListener(noop_listener.get());
   return ReadOnlyRoots(isolate).undefined_value();

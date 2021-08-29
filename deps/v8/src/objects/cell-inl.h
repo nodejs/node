@@ -20,10 +20,6 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
 
-Cell Cell::FromValueAddress(Address value) {
-  return Cell::cast(HeapObject::FromAddress(value - kValueOffset));
-}
-
 }  // namespace internal
 }  // namespace v8
 

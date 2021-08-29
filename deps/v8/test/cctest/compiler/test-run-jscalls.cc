@@ -148,21 +148,6 @@ TEST(RuntimeCall) {
 }
 
 
-TEST(RuntimeCallInline) {
-  FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsJSReceiver(a); })");
-
-  T.CheckCall(T.false_value(), T.Val(23), T.undefined());
-  T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());
-  T.CheckCall(T.false_value(), T.Val("str"), T.undefined());
-  T.CheckCall(T.false_value(), T.true_value(), T.undefined());
-  T.CheckCall(T.false_value(), T.false_value(), T.undefined());
-  T.CheckCall(T.false_value(), T.undefined(), T.undefined());
-  T.CheckCall(T.true_value(), T.NewObject("({})"), T.undefined());
-  T.CheckCall(T.true_value(), T.NewObject("([])"), T.undefined());
-}
-
-
 TEST(EvalCall) {
   FunctionTester T("(function(a,b) { return eval(a); })");
   Handle<JSObject> g(T.function->context().global_object().global_proxy(),

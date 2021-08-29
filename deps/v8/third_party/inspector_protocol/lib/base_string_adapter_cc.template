@@ -33,51 +33,32 @@ std::unique_ptr<protocol::Value> toProtocolValue(
     return nullptr;
   if (value->is_none())
     return protocol::Value::null();
-  if (value->is_bool()) {
-    bool inner;
-    value->GetAsBoolean(&inner);
-    return protocol::FundamentalValue::create(inner);
-  }
-  if (value->is_int()) {
-    int inner;
-    value->GetAsInteger(&inner);
-    return protocol::FundamentalValue::create(inner);
-  }
-  if (value->is_double()) {
-    double inner;
-    value->GetAsDouble(&inner);
-    return protocol::FundamentalValue::create(inner);
-  }
-  if (value->is_string()) {
-    std::string inner;
-    value->GetAsString(&inner);
-    return protocol::StringValue::create(inner);
-  }
+  if (value->is_bool())
+    return protocol::FundamentalValue::create(value->GetBool());
+  if (value->is_int())
+    return protocol::FundamentalValue::create(value->GetInt());
+  if (value->is_double())
+    return protocol::FundamentalValue::create(value->GetDouble());
+  if (value->is_string())
+    return protocol::StringValue::create(value->GetString());
   if (value->is_list()) {
-    const base::ListValue* list = nullptr;
-    value->GetAsList(&list);
     std::unique_ptr<protocol::ListValue> result = protocol::ListValue::create();
-    for (size_t i = 0; i < list->GetSize(); i++) {
-      const base::Value* item = nullptr;
-      list->Get(i, &item);
+    for (const base::Value& item : value->GetList()) {
       std::unique_ptr<protocol::Value> converted =
-          toProtocolValue(item, depth - 1);
+          toProtocolValue(&item, depth - 1);
       if (converted)
         result->pushValue(std::move(converted));
     }
     return result;
   }
   if (value->is_dict()) {
-    const base::DictionaryValue* dictionary = nullptr;
-    value->GetAsDictionary(&dictionary);
     std::unique_ptr<protocol::DictionaryValue> result =
         protocol::DictionaryValue::create();
-    for (base::DictionaryValue::Iterator it(*dictionary);
-        !it.IsAtEnd(); it.Advance()) {
+    for (const auto& it : value->DictItems()) {
       std::unique_ptr<protocol::Value> converted =
-          toProtocolValue(&it.value(), depth - 1);
+          toProtocolValue(&it.second, depth - 1);
       if (converted)
-        result->setValue(it.key(), std::move(converted));
+        result->setValue(it.first, std::move(converted));
     }
     return result;
   }
@@ -111,24 +92,26 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
   }
   if (value->type() == Value::TypeArray) {
     ListValue* list = ListValue::cast(value);
-    std::unique_ptr<base::ListValue> result(new base::ListValue());
+    std::unique_ptr<base::Value> result(new base::Value(
+        base::Value::Type::LIST));
     for (size_t i = 0; i < list->size(); i++) {
       std::unique_ptr<base::Value> converted =
           toBaseValue(list->at(i), depth - 1);
       if (converted)
-        result->Append(std::move(converted));
+        result->Append(std::move(*converted));
     }
     return result;
   }
   if (value->type() == Value::TypeObject) {
     DictionaryValue* dict = DictionaryValue::cast(value);
-    std::unique_ptr<base::DictionaryValue> result(new base::DictionaryValue());
+    std::unique_ptr<base::Value> result(new base::Value(
+        base::Value::Type::DICTIONARY));
     for (size_t i = 0; i < dict->size(); i++) {
       DictionaryValue::Entry entry = dict->at(i);
       std::unique_ptr<base::Value> converted =
           toBaseValue(entry.second, depth - 1);
       if (converted)
-        result->SetWithoutPathExpansion(entry.first, std::move(converted));
+        result->SetKey(entry.first, std::move(*converted));
     }
     return result;
   }

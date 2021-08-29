@@ -55,14 +55,14 @@ Handle<WasmInstanceObject> WasmModuleDebug::GetFirstWasmInstance() {
   return Handle<WasmInstanceObject>::null();
 }
 
-int GetLEB128Size(Vector<const uint8_t> module_bytes, int offset) {
+int GetLEB128Size(base::Vector<const uint8_t> module_bytes, int offset) {
   int index = offset;
   while (module_bytes[index] & 0x80) index++;
   return index + 1 - offset;
 }
 
 int ReturnPc(const NativeModule* native_module, int pc) {
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   uint8_t opcode = wire_bytes[pc];
   switch (opcode) {
     case kExprCallFunction: {
@@ -295,11 +295,11 @@ uint32_t WasmModuleDebug::GetWasmMemory(Isolate* isolate, uint32_t offset,
     uint8_t* mem_start = instance->memory_start();
     size_t mem_size = instance->memory_size();
     if (static_cast<uint64_t>(offset) + size <= mem_size) {
-      base::Memcpy(buffer, mem_start + offset, size);
+      memcpy(buffer, mem_start + offset, size);
       bytes_read = size;
     } else if (offset < mem_size) {
       bytes_read = static_cast<uint32_t>(mem_size) - offset;
-      base::Memcpy(buffer, mem_start + offset, bytes_read);
+      memcpy(buffer, mem_start + offset, bytes_read);
     }
   }
   return bytes_read;
@@ -347,7 +347,7 @@ uint32_t WasmModuleDebug::GetWasmModuleBytes(wasm_addr_t wasm_addr,
     if (offset < wire_bytes.length()) {
       uint32_t module_size = static_cast<uint32_t>(wire_bytes.length());
       bytes_read = module_size - offset >= size ? size : module_size - offset;
-      base::Memcpy(buffer, wire_bytes.start() + offset, bytes_read);
+      memcpy(buffer, wire_bytes.start() + offset, bytes_read);
     }
   }
   return bytes_read;
@@ -372,7 +372,7 @@ void WasmModuleDebug::PrepareStep() {
   i::Isolate* isolate = GetIsolate();
   DebugScope debug_scope(isolate->debug());
   debug::PrepareStep(reinterpret_cast<v8::Isolate*>(isolate),
-                     debug::StepAction::StepIn);
+                     debug::StepAction::StepInto);
 }
 
 template <typename T>
@@ -380,7 +380,7 @@ bool StoreValue(const T& value, uint8_t* buffer, uint32_t buffer_size,
                 uint32_t* size) {
   *size = sizeof(value);
   if (*size > buffer_size) return false;
-  base::Memcpy(buffer, &value, *size);
+  memcpy(buffer, &value, *size);
   return true;
 }
 

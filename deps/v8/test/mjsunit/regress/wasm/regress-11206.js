@@ -5,7 +5,7 @@
 // Flags: --experimental-wasm-mv --expose-gc --stress-compaction
 // Flags: --stress-scavenge=16
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestReturnOddNumberOfReturns() {
   let builder = new WasmModuleBuilder();

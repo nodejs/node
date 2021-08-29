@@ -1,6 +1,8 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {formatBytes} from '../helper.mjs';
+
 import {LogEntry} from './log.mjs';
 
 export class DeoptLogEntry extends LogEntry {
@@ -30,35 +32,41 @@ export class DeoptLogEntry extends LogEntry {
     return this._entry;
   }
 
+  get code() {
+    return this._entry?.logEntry;
+  }
+
   get functionName() {
     return this._entry.functionName;
-  }
-
-  toString() {
-    return `Deopt(${this.type})`;
-  }
-
-  toStringLong() {
-    return `Deopt(${this.type})${this._reason}: ${this._location}`;
   }
 
   static get propertyNames() {
     return [
       'type', 'reason', 'functionName', 'sourcePosition',
-      'functionSourcePosition', 'script'
+      'functionSourcePosition', 'script', 'code'
     ];
   }
 }
 
 export class CodeLogEntry extends LogEntry {
-  constructor(type, time, kind, entry) {
+  constructor(type, time, kindName, kind, entry) {
     super(type, time);
     this._kind = kind;
+    this._kindName = kindName;
     this._entry = entry;
+    entry.logEntry = this;
   }
 
   get kind() {
     return this._kind;
+  }
+
+  get isBuiltinKind() {
+    return this._kindName === 'Builtin';
+  }
+
+  get kindName() {
+    return this._kindName;
   }
 
   get entry() {
@@ -66,7 +74,7 @@ export class CodeLogEntry extends LogEntry {
   }
 
   get functionName() {
-    return this._entry.functionName;
+    return this._entry.functionName ?? this._entry.getRawName();
   }
 
   get size() {
@@ -77,19 +85,52 @@ export class CodeLogEntry extends LogEntry {
     return this._entry?.getSourceCode() ?? '';
   }
 
-  get disassemble() {
+  get code() {
     return this._entry?.source?.disassemble;
+  }
+
+  get variants() {
+    const entries = Array.from(this.entry?.func?.codeEntries ?? []);
+    return entries.map(each => each.logEntry);
   }
 
   toString() {
     return `Code(${this.type})`;
   }
 
-  toStringLong() {
-    return `Code(${this.type}): ${this._entry.toString()}`;
+  get toolTipDict() {
+    const dict = super.toolTipDict;
+    dict.size = formatBytes(dict.size);
+    return dict;
   }
 
   static get propertyNames() {
-    return ['type', 'kind', 'functionName', 'sourcePosition', 'script'];
+    return [
+      'functionName', 'sourcePosition', 'kindName', 'size', 'type', 'kind',
+      'script', 'source', 'code', 'variants'
+    ];
+  }
+}
+
+export class SharedLibLogEntry extends LogEntry {
+  constructor(entry) {
+    super('SHARED_LIB', 0);
+    this._entry = entry;
+  }
+
+  get name() {
+    return this._entry.name;
+  }
+
+  get entry() {
+    return this._entry;
+  }
+
+  toString() {
+    return `SharedLib`;
+  }
+
+  static get propertyNames() {
+    return ['name'];
   }
 }

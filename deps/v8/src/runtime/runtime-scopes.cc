@@ -52,7 +52,7 @@ Object DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
                      RedeclarationType redeclaration_type) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context().script_context_table(), isolate);
-  ScriptContextTable::LookupResult lookup;
+  VariableLookupResult lookup;
   if (ScriptContextTable::Lookup(isolate, *script_contexts, *name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
     // ES#sec-globaldeclarationinstantiation 6.a:
@@ -869,7 +869,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   Handle<ScriptContextTable> script_contexts(
       native_context->script_context_table(), isolate);
 
-  ScriptContextTable::LookupResult lookup_result;
+  VariableLookupResult lookup_result;
   bool found = ScriptContextTable::Lookup(isolate, *script_contexts, *name,
                                           &lookup_result);
   CHECK(found);

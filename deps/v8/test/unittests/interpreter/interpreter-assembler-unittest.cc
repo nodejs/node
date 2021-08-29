@@ -385,7 +385,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             break;
           case interpreter::OperandType::kNone:
             UNREACHABLE();
-            break;
         }
       }
     }

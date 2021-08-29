@@ -19,19 +19,38 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+#if DEBUG
+template <typename DerivedDescriptor>
+void StaticCallInterfaceDescriptor<DerivedDescriptor>::
+    VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
+  RegList allocatable_regs = data->allocatable_registers();
+  if (argc >= 1) DCHECK(allocatable_regs | a0.bit());
+  if (argc >= 2) DCHECK(allocatable_regs | a1.bit());
+  if (argc >= 3) DCHECK(allocatable_regs | a2.bit());
+  if (argc >= 4) DCHECK(allocatable_regs | a3.bit());
+  if (argc >= 5) DCHECK(allocatable_regs | a4.bit());
+  if (argc >= 6) DCHECK(allocatable_regs | a5.bit());
+  if (argc >= 7) DCHECK(allocatable_regs | a6.bit());
+  if (argc >= 8) DCHECK(allocatable_regs | a7.bit());
+  // Additional arguments are passed on the stack.
+}
+#endif  // DEBUG
+
 // static
-constexpr auto RecordWriteDescriptor::registers() {
-  return RegisterArray(a0, a1, a2, a3, kReturnRegister0);
+constexpr auto WriteBarrierDescriptor::registers() {
+  return RegisterArray(a1, a5, a4, a0, a2, v0, a3);
 }
 
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
+  STATIC_ASSERT(kReturnRegister0 == v0);
   return RegisterArray(kReturnRegister0, a0, a1, a2, cp);
 }
 
 // static
-constexpr auto EphemeronKeyBarrierDescriptor::registers() {
-  return RegisterArray(a0, a1, a2, a3, kReturnRegister0);
+constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
+  STATIC_ASSERT(kReturnRegister0 == v0);
+  return RegisterArray(kReturnRegister0, a0, a1, a2, cp);
 }
 
 // static
@@ -77,15 +96,11 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return a3; }
 
 // static
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  return a3;
+  return a2;
 }
 
 // static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  return a4;
-}
+constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return a3; }
 
 // static
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return a0; }
@@ -192,7 +207,9 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(a1, a0); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
+  // a1: left operand
+  // a0: right operand
+  // a2: feedback slot
   return RegisterArray(a1, a0, a2);
 }
 
@@ -201,6 +218,9 @@ constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(a1, a0); }
 
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
+  // a1: left operand
+  // a0: right operand
+  // a2: feedback slot
   return RegisterArray(a1, a0, a2);
 }
 

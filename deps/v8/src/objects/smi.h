@@ -95,6 +95,21 @@ class Smi : public Object {
   static inline constexpr Smi zero() { return Smi::FromInt(0); }
   static constexpr int kMinValue = kSmiMinValue;
   static constexpr int kMaxValue = kSmiMaxValue;
+
+  // Smi value for filling in not-yet initialized tagged field values with a
+  // valid tagged pointer. A field value equal to this doesn't necessarily
+  // indicate that a field is uninitialized, but an uninitialized field should
+  // definitely equal this value.
+  //
+  // This _has_ to be kNullAddress, so that an uninitialized field value read as
+  // an embedded pointer field is interpreted as nullptr. This is so that
+  // uninitialised embedded pointers are not forwarded to the embedder as part
+  // of embedder tracing (and similar mechanisms), as nullptrs are skipped for
+  // those cases and otherwise the embedder would try to dereference the
+  // uninitialized pointer value.
+  static constexpr Smi uninitialized_deserialization_value() {
+    return Smi(kNullAddress);
+  }
 };
 
 CAST_ACCESSOR(Smi)

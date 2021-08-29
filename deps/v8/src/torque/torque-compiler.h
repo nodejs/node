@@ -33,6 +33,9 @@ struct TorqueCompilerOptions {
 
   // Adds extra comments in output that show Torque intermediate representation.
   bool annotate_ir = false;
+
+  // Strips the v8-root in case the source path contains it as a prefix.
+  bool strip_v8_root = false;
 };
 
 struct TorqueCompilerResult {

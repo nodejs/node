@@ -438,6 +438,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline void set_target_address_at(
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  static inline int32_t relative_target_offset(Address target, Address pc);
 
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.

@@ -31,7 +31,7 @@ class Recorder::Task : public v8::Task {
   std::shared_ptr<Recorder> recorder_;
 };
 
-void Recorder::SetRecorder(
+void Recorder::SetEmbedderRecorder(
     Isolate* isolate,
     const std::shared_ptr<v8::metrics::Recorder>& embedder_recorder) {
   foreground_task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
@@ -39,6 +39,8 @@ void Recorder::SetRecorder(
   CHECK_NULL(embedder_recorder_);
   embedder_recorder_ = embedder_recorder;
 }
+
+bool Recorder::HasEmbedderRecorder() const { return embedder_recorder_.get(); }
 
 void Recorder::NotifyIsolateDisposal() {
   if (embedder_recorder_) {

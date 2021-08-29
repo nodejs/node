@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
                                          TraceConservativelyCallback) final;
   void VisitPointer(const void*) final;
 
-  bool VisitHeapObjectHeader(HeapObjectHeader*);
+  bool VisitHeapObjectHeader(HeapObjectHeader&);
 
   VerificationState& verification_state_;
   std::unique_ptr<cppgc::Visitor> visitor_;

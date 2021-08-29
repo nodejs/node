@@ -7,11 +7,11 @@
 namespace typed_array {
 const kBuiltinNameFrom: constexpr string = '%TypedArray%.from';
 
-type BuiltinsName extends int31 constexpr 'Builtins::Name';
+type BuiltinsName extends int31 constexpr 'Builtin';
 const kTypedArrayPrototypeValues: constexpr BuiltinsName
-    generates 'Builtins::kTypedArrayPrototypeValues';
+    generates 'Builtin::kTypedArrayPrototypeValues';
 const kArrayPrototypeValues: constexpr BuiltinsName
-    generates 'Builtins::kArrayPrototypeValues';
+    generates 'Builtin::kArrayPrototypeValues';
 
 extern builtin IterableToList(implicit context: Context)(JSAny, JSAny): JSArray;
 
@@ -90,7 +90,7 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
         typeswitch (source) {
           case (sourceArray: JSArray): {
             // Check that the iterator function is exactly
-            // Builtins::kArrayPrototypeValues.
+            // Builtin::kArrayPrototypeValues.
             if (!TaggedEqual(
                     iteratorFn.shared_function_info.function_data,
                     SmiConstant(kArrayPrototypeValues))) {
@@ -108,7 +108,7 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
             if (IsDetachedBuffer(sourceBuffer)) goto UseUserProvidedIterator;
 
             // Check that the iterator function is exactly
-            // Builtins::kTypedArrayPrototypeValues.
+            // Builtin::kTypedArrayPrototypeValues.
             if (!TaggedEqual(
                     iteratorFn.shared_function_info.function_data,
                     SmiConstant(kTypedArrayPrototypeValues)))

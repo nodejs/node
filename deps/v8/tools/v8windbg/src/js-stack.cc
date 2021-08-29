@@ -94,22 +94,32 @@ HRESULT StackFrameIterator::PopulateFrameData() {
                                          nullptr);
     if (FAILED(hr)) continue;
 
+    // At this point, it is safe to add frame entry even though some fields
+    // might not be available.
     WRL::ComPtr<IModelObject> sp_function_name, sp_script_name,
         sp_script_source, sp_function_character_offset;
-    RETURN_IF_FAIL(sp_local_variables->GetKeyValue(L"script_name",
-                                                   &sp_script_name, nullptr));
-    RETURN_IF_FAIL(sp_local_variables->GetKeyValue(L"script_source",
-                                                   &sp_script_source, nullptr));
-    RETURN_IF_FAIL(sp_local_variables->GetKeyValue(L"function_name",
-                                                   &sp_function_name, nullptr));
-    RETURN_IF_FAIL(sp_local_variables->GetKeyValue(
-        L"function_character_offset", &sp_function_character_offset, nullptr));
-
     FrameData frame_entry;
-    frame_entry.script_name = sp_script_name;
-    frame_entry.script_source = sp_script_source;
-    frame_entry.function_name = sp_function_name;
-    frame_entry.function_character_offset = sp_function_character_offset;
+    hr = sp_local_variables->GetKeyValue(L"script_name", &sp_script_name,
+                                         nullptr);
+    if (SUCCEEDED(hr)) {
+      frame_entry.script_name = sp_script_name;
+    }
+    hr = sp_local_variables->GetKeyValue(L"script_source", &sp_script_source,
+                                         nullptr);
+    if (SUCCEEDED(hr)) {
+      frame_entry.script_source = sp_script_source;
+    }
+    hr = sp_local_variables->GetKeyValue(L"function_name", &sp_function_name,
+                                         nullptr);
+    if (SUCCEEDED(hr)) {
+      frame_entry.function_name = sp_function_name;
+    }
+    hr = sp_local_variables->GetKeyValue(
+        L"function_character_offset", &sp_function_character_offset, nullptr);
+    if (SUCCEEDED(hr)) {
+      frame_entry.function_character_offset = sp_function_character_offset;
+    }
+
     frames_.push_back(frame_entry);
   }
 
@@ -160,7 +170,8 @@ HRESULT StackFrameIterator::GetAt(uint64_t index, IModelObject** result) const {
   RETURN_IF_FAIL(
       sp_data_model_manager->CreateSyntheticObject(sp_ctx_.Get(), &sp_value));
   RETURN_IF_FAIL(
-      sp_value->SetKey(L"script_name", curr_frame.script_name.Get(), nullptr));
+      sp_value->SetKey(L"script_name", curr_frame.script_name.Get(),
+      nullptr));
   RETURN_IF_FAIL(sp_value->SetKey(L"script_source",
                                   curr_frame.script_source.Get(), nullptr));
   RETURN_IF_FAIL(sp_value->SetKey(L"function_name",

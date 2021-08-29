@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 
@@ -45,6 +46,8 @@ void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
   internal::Heap::From(this)->CollectGarbage(
       {internal::GarbageCollector::Config::CollectionType::kMajor, stack_state,
        MarkingType::kAtomic, SweepingType::kAtomic,
+       internal::GarbageCollector::Config::FreeMemoryHandling::
+           kDiscardWherePossible,
        internal::GarbageCollector::Config::IsForcedGC::kForced});
 }
 
@@ -62,11 +65,11 @@ class Unmarker final : private HeapVisitor<Unmarker> {
   friend class HeapVisitor<Unmarker>;
 
  public:
-  explicit Unmarker(RawHeap* heap) { Traverse(heap); }
+  explicit Unmarker(RawHeap& heap) { Traverse(heap); }
 
  private:
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsMarked()) header->Unmark();
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsMarked()) header.Unmark();
     return true;
   }
 };
@@ -87,8 +90,7 @@ void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces, options.stack_support,
-               nullptr /* metric_recorder */),
+    : HeapBase(platform, options.custom_spaces, options.stack_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
@@ -158,7 +160,7 @@ void Heap::StartGarbageCollection(Config config) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (config.collection_type == Config::CollectionType::kMajor)
-    Unmarker unmarker(&raw_heap());
+    Unmarker unmarker(raw_heap());
 #endif
 
   const Marker::MarkingConfig marking_config{
@@ -196,7 +198,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   subtle::NoGarbageCollectionScope no_gc(*this);
   const Sweeper::SweepingConfig sweeping_config{
       config_.sweeping_type,
-      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep,
+      config_.free_memory_handling};
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();

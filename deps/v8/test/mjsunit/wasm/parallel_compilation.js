@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --wasm-num-compilation-tasks=10
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertModule(module, memsize) {
   // Check the module exists.

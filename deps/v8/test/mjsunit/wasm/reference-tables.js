@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-typed-funcref
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTables() {
   var exporting_instance = (function() {

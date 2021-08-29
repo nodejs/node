@@ -268,7 +268,7 @@ class BigInt : public BigIntBase {
   void SerializeDigits(uint8_t* storage);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
-      Vector<const uint8_t> digits_storage);
+      base::Vector<const uint8_t> digits_storage);
 
   OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };

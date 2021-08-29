@@ -7,8 +7,9 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_MIPS
 
 #include "src/codegen/macro-assembler.h"
 #include "src/objects/tagged-index.h"
@@ -46,8 +47,6 @@ class BaselineAssembler {
   // Marks the current position as a valid jump target on CFI enabled
   // architectures.
   inline void JumpTarget();
-  inline void JumpIf(Condition cc, Label* target,
-                     Label::Distance distance = Label::kFar);
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIfRoot(Register value, RootIndex index, Label* target,
                          Label::Distance distance = Label::kFar);
@@ -58,18 +57,35 @@ class BaselineAssembler {
   inline void JumpIfNotSmi(Register value, Label* target,
                            Label::Distance distance = Label::kFar);
 
-  inline void Test(Register value, int mask);
+  inline void TestAndBranch(Register value, int mask, Condition cc,
+                            Label* target,
+                            Label::Distance distance = Label::kFar);
 
-  inline void CmpObjectType(Register object, InstanceType instance_type,
-                            Register map);
-  inline void CmpInstanceType(Register map, InstanceType instance_type);
-  inline void Cmp(Register value, Smi smi);
-  inline void ComparePointer(Register value, MemOperand operand);
+  inline void JumpIf(Condition cc, Register lhs, const Operand& rhs,
+                     Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIfObjectType(Condition cc, Register object,
+                               InstanceType instance_type, Register map,
+                               Label* target,
+                               Label::Distance distance = Label::kFar);
+  inline void JumpIfInstanceType(Condition cc, Register map,
+                                 InstanceType instance_type, Label* target,
+                                 Label::Distance distance = Label::kFar);
+  inline void JumpIfPointer(Condition cc, Register value, MemOperand operand,
+                            Label* target,
+                            Label::Distance distance = Label::kFar);
   inline Condition CheckSmi(Register value);
-  inline void SmiCompare(Register lhs, Register rhs);
-  inline void CompareTagged(Register value, MemOperand operand);
-  inline void CompareTagged(MemOperand operand, Register value);
-  inline void CompareByte(Register value, int32_t byte);
+  inline void JumpIfSmi(Condition cc, Register value, Smi smi, Label* target,
+                        Label::Distance distance = Label::kFar);
+  inline void JumpIfSmi(Condition cc, Register lhs, Register rhs, Label* target,
+                        Label::Distance distance = Label::kFar);
+  inline void JumpIfTagged(Condition cc, Register value, MemOperand operand,
+                           Label* target,
+                           Label::Distance distance = Label::kFar);
+  inline void JumpIfTagged(Condition cc, MemOperand operand, Register value,
+                           Label* target,
+                           Label::Distance distance = Label::kFar);
+  inline void JumpIfByte(Condition cc, Register value, int32_t byte,
+                         Label* target, Label::Distance distance = Label::kFar);
 
   inline void LoadMap(Register output, Register value);
   inline void LoadRoot(Register output, RootIndex index);
@@ -126,8 +142,8 @@ class BaselineAssembler {
   template <typename... T>
   inline void Pop(T... registers);
 
-  inline void CallBuiltin(Builtins::Name builtin);
-  inline void TailCallBuiltin(Builtins::Name builtin);
+  inline void CallBuiltin(Builtin builtin);
+  inline void TailCallBuiltin(Builtin builtin);
   inline void CallRuntime(Runtime::FunctionId function, int nargs);
 
   inline void LoadTaggedPointerField(Register output, Register source,
@@ -147,8 +163,10 @@ class BaselineAssembler {
 
   // Loads the feedback cell from the function, and sets flags on add so that
   // we can compare afterward.
-  inline void AddToInterruptBudget(int32_t weight);
-  inline void AddToInterruptBudget(Register weight);
+  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
+      int32_t weight, Label* skip_interrupt_label);
+  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
+      Register weight, Label* skip_interrupt_label);
 
   inline void AddSmi(Register lhs, Smi rhs);
   inline void SmiUntag(Register value);

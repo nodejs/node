@@ -5,7 +5,7 @@
 #ifndef V8_DIAGNOSTICS_DISASM_H_
 #define V8_DIAGNOSTICS_DISASM_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace disasm {
 
@@ -31,7 +31,7 @@ class V8_EXPORT_PRIVATE NameConverter {
   virtual const char* RootRelativeName(int offset) const { UNREACHABLE(); }
 
  protected:
-  v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
+  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
 };
 
 // A generic Disassembler interface
@@ -55,7 +55,7 @@ class Disassembler {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  V8_EXPORT_PRIVATE int InstructionDecode(v8::internal::Vector<char> buffer,
+  V8_EXPORT_PRIVATE int InstructionDecode(v8::base::Vector<char> buffer,
                                           byte* instruction);
 
   // Returns -1 if instruction does not mark the beginning of a constant pool,

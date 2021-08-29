@@ -29,3 +29,10 @@ export interface InstructionSelectionHandler {
   select(instructionIds: any, selected: any): void;
   brokeredInstructionSelect(instructionIds: any, selected: any): void;
 }
+
+export interface RegisterAllocationSelectionHandler {
+  clear(): void;
+  // These are called instructionIds since the class of the divs is "instruction-id"
+  select(instructionIds: any, selected: any): void;
+  brokeredRegisterAllocationSelect(instructionIds: any, selected: any): void;
+}

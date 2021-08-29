@@ -111,6 +111,7 @@ class Symbol;
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
+  IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
@@ -189,9 +190,9 @@ class Symbol;
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
-  V(CodeDataContainer, trampoline_trivial_code_data_container,                 \
+  V(HeapObject, trampoline_trivial_code_data_container,                        \
     TrampolineTrivialCodeDataContainer)                                        \
-  V(CodeDataContainer, trampoline_promise_rejection_code_data_container,       \
+  V(HeapObject, trampoline_promise_rejection_code_data_container,              \
     TrampolinePromiseRejectionCodeDataContainer)                               \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \

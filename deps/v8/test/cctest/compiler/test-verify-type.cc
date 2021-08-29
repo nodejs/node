@@ -55,7 +55,6 @@ TEST(TestVerifyType) {
           // Every other lowering would be wrong, so fail the test.
           UNREACHABLE();
         }
-        return NodeObserver::Observation::kContinue;
       });
 
   compiler::ObserveNodeScope scope(isolate, &observer);

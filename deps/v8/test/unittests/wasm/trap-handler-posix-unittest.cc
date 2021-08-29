@@ -52,9 +52,8 @@ sigjmp_buf SignalHandlerFallbackTest::continuation_;
 TEST_F(SignalHandlerFallbackTest, DoTest) {
   const int save_sigs = 1;
   if (!sigsetjmp(continuation_, save_sigs)) {
-    constexpr bool use_default_signal_handler = true;
-    EXPECT_TRUE(
-        v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
+    constexpr bool kUseDefaultTrapHandler = true;
+    EXPECT_TRUE(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
     CrashOnPurpose();
     FAIL();
   } else {

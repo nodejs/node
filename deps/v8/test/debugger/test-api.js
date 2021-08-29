@@ -37,8 +37,8 @@ class DebugWrapper {
 
     // The different types of steps.
     this.StepAction = { StepOut: 0,
-                        StepNext: 1,
-                        StepIn: 2,
+                        StepOver: 1,
+                        StepInto: 2,
                       };
 
     // A copy of the scope types from runtime-debug.cc.
@@ -307,8 +307,8 @@ class DebugWrapper {
   execStatePrepareStep(action) {
     switch(action) {
       case this.StepAction.StepOut: this.stepOut(); break;
-      case this.StepAction.StepNext: this.stepOver(); break;
-      case this.StepAction.StepIn: this.stepInto(); break;
+      case this.StepAction.StepOver: this.stepOver(); break;
+      case this.StepAction.StepInto: this.stepInto(); break;
       default: %AbortJS("Unsupported StepAction"); break;
     }
   }

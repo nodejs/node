@@ -45,8 +45,10 @@ namespace internal {
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
   HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
-  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)    \
-  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51)  \
+  HR(wasm_asm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.asm,      \
+     100 * KB, GB, 51)                                                         \
+  HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
+     100 * KB, GB, 51)                                                         \
   HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
   HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
   HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
@@ -86,10 +88,8 @@ namespace internal {
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
   /* support for PKEYs/PKU by testing result of pkey_alloc() */                \
-  /* TODO(chromium:1207318): Only values 0 and 1 are actually used, but 3 */   \
-  /* buckets needed until {BooleanHistogram} is supported in Chromium UMA. */  \
   HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
-     0, 2, 3)                                                                  \
+     0, 1, 2)                                                                  \
   /* number of thrown exceptions per isolate */                                \
   HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
   /* number of rethrown exceptions per isolate */                              \
@@ -125,7 +125,10 @@ namespace internal {
   /* Total compilation time incl. caching/parsing */                           \
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
-  HT(execute, V8.Execute, 1000000, MICROSECOND)
+  HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
+  /* Time for lazily compiling Wasm functions. */                              \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
+     MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
@@ -188,6 +191,8 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
+  HT(wasm_deserialization_time, V8.WasmDeserializationTimeMilliSeconds, 10000, \
+     MILLISECOND)                                                              \
   HT(wasm_tier_up_module_time, V8.WasmTierUpModuleMicroSeconds, 100000000,     \
      MICROSECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \

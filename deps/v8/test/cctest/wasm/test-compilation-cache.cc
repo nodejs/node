@@ -52,19 +52,19 @@ class StreamTester {
 
     Handle<Context> context = i_isolate->native_context();
 
-    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmFeatures::All(), context,
         "WebAssembly.compileStreaming()", test_resolver_);
   }
 
   void OnBytesReceived(const uint8_t* start, size_t length) {
-    stream_->OnBytesReceived(Vector<const uint8_t>(start, length));
+    stream_->OnBytesReceived(base::Vector<const uint8_t>(start, length));
   }
 
   void FinishStream() { stream_->Finish(); }
 
   void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(Vector<const uint8_t>(start, length));
+    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
   }
 
  private:
@@ -74,7 +74,7 @@ class StreamTester {
 };
 
 // Create a valid module such that the bytes depend on {n}.
-ZoneBuffer GetValidModuleBytes(Zone* zone, int n) {
+ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   ZoneBuffer buffer(zone);
   TestSignatures sigs;
   WasmModuleBuilder builder(zone);
@@ -87,13 +87,12 @@ ZoneBuffer GetValidModuleBytes(Zone* zone, int n) {
   return buffer;
 }
 
-std::shared_ptr<NativeModule> SyncCompile(Vector<const uint8_t> bytes) {
+std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
   ErrorThrower thrower(CcTest::i_isolate(), "Test");
   auto enabled_features = WasmFeatures::FromIsolate(CcTest::i_isolate());
   auto wire_bytes = ModuleWireBytes(bytes.begin(), bytes.end());
   Handle<WasmModuleObject> module =
-      CcTest::i_isolate()
-          ->wasm_engine()
+      GetWasmEngine()
           ->SyncCompile(CcTest::i_isolate(), enabled_features, &thrower,
                         wire_bytes)
           .ToHandleChecked();
@@ -143,18 +142,18 @@ TEST(TestAsyncCache) {
   auto resolverA2 = std::make_shared<TestResolver>(&pending);
   auto resolverB = std::make_shared<TestResolver>(&pending);
 
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverA1,
-      ModuleWireBytes(bufferA.begin(), bufferA.end()), true,
-      "WebAssembly.compile");
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverA2,
-      ModuleWireBytes(bufferA.begin(), bufferA.end()), true,
-      "WebAssembly.compile");
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverB,
-      ModuleWireBytes(bufferB.begin(), bufferB.end()), true,
-      "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverA1,
+                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
+                                true, "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverA2,
+                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
+                                true, "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverB,
+                                ModuleWireBytes(bufferB.begin(), bufferB.end()),
+                                true, "WebAssembly.compile");
 
   while (pending > 0) {
     v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
@@ -213,7 +212,8 @@ TEST(TestStreamingAndSyncCache) {
 
   // Compile the same module synchronously to make sure we don't deadlock
   // waiting for streaming compilation to finish.
-  auto full_bytes = OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
+  auto full_bytes =
+      base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
   memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
   memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
   auto native_module_sync = SyncCompile(full_bytes.as_vector());

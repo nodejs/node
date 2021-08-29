@@ -11,6 +11,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/log.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
@@ -327,9 +328,6 @@ VisitorId Map::GetVisitorId(Map map) {
         return kVisitPrototypeInfo;
       }
 #if V8_ENABLE_WEBASSEMBLY
-      if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
-        return kVisitWasmCapiFunctionData;
-      }
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;
       }
@@ -358,6 +356,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmJSFunctionData;
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return kVisitWasmExportedFunctionData;
+    case WASM_CAPI_FUNCTION_DATA_TYPE:
+      return kVisitWasmCapiFunctionData;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \
@@ -933,24 +933,6 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   }
 
   return Map::TransitionToPrototype(isolate, map, prototype);
-}
-
-// static
-MaybeHandle<Map> Map::TryGetObjectCreateMap(Isolate* isolate,
-                                            Handle<HeapObject> prototype) {
-  Handle<Map> map(isolate->native_context()->object_function().initial_map(),
-                  isolate);
-  if (map->prototype() == *prototype) return map;
-  if (prototype->IsNull(isolate)) {
-    return isolate->slow_object_with_null_prototype_map();
-  }
-  if (!prototype->IsJSObject()) return MaybeHandle<Map>();
-  Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
-  if (!js_prototype->map().is_prototype_map()) return MaybeHandle<Map>();
-  Handle<PrototypeInfo> info =
-      Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
-  if (!info->HasObjectCreateMap()) return MaybeHandle<Map>();
-  return handle(info->ObjectCreateMap(), isolate);
 }
 
 static bool ContainsMap(MapHandles const& maps, Map map) {
@@ -1909,11 +1891,11 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    std::unique_ptr<ScopedVector<char>> buffer;
+    std::unique_ptr<base::ScopedVector<char>> buffer;
     if (FLAG_log_maps) {
-      ScopedVector<char> name_buffer(100);
+      base::ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
-      buffer.reset(new ScopedVector<char>(128));
+      buffer.reset(new base::ScopedVector<char>(128));
       SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.begin());
       reason = buffer->begin();
     }
@@ -2257,7 +2239,7 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
     return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
-  prototype->map().set_prototype_info(*proto_info);
+  prototype->map().set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }
 
@@ -2269,7 +2251,7 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
     return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
-  prototype_map->set_prototype_info(*proto_info);
+  prototype_map->set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }
 

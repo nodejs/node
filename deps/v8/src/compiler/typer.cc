@@ -392,6 +392,8 @@ Type Typer::Visitor::BinaryNumberOpTyper(Type lhs, Type rhs, Typer* t,
                                          BinaryTyperFun f) {
   lhs = ToNumeric(lhs, t);
   rhs = ToNumeric(rhs, t);
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+
   bool lhs_is_number = lhs.Is(Type::Number());
   bool rhs_is_number = rhs.Is(Type::Number());
   if (lhs_is_number && rhs_is_number) {
@@ -1020,11 +1022,10 @@ Type Typer::Visitor::TypeTypeGuard(Node* node) {
 Type Typer::Visitor::TypeFoldConstant(Node* node) { return Operand(node, 0); }
 
 Type Typer::Visitor::TypeDead(Node* node) { return Type::None(); }
-
 Type Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
-
 Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 
+Type Typer::Visitor::TypePlug(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
 
 // JS comparison operators.
@@ -1517,287 +1518,288 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   switch (function.shared().builtin_id()) {
-    case Builtins::kMathRandom:
+    case Builtin::kMathRandom:
       return Type::PlainNumber();
-    case Builtins::kMathFloor:
-    case Builtins::kMathCeil:
-    case Builtins::kMathRound:
-    case Builtins::kMathTrunc:
+    case Builtin::kMathFloor:
+    case Builtin::kMathCeil:
+    case Builtin::kMathRound:
+    case Builtin::kMathTrunc:
       return t->cache_->kIntegerOrMinusZeroOrNaN;
     // Unary math functions.
-    case Builtins::kMathAbs:
-    case Builtins::kMathExp:
+    case Builtin::kMathAbs:
+    case Builtin::kMathExp:
       return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
-    case Builtins::kMathAcos:
-    case Builtins::kMathAcosh:
-    case Builtins::kMathAsin:
-    case Builtins::kMathAsinh:
-    case Builtins::kMathAtan:
-    case Builtins::kMathAtanh:
-    case Builtins::kMathCbrt:
-    case Builtins::kMathCos:
-    case Builtins::kMathExpm1:
-    case Builtins::kMathFround:
-    case Builtins::kMathLog:
-    case Builtins::kMathLog1p:
-    case Builtins::kMathLog10:
-    case Builtins::kMathLog2:
-    case Builtins::kMathSin:
-    case Builtins::kMathSqrt:
-    case Builtins::kMathTan:
+    case Builtin::kMathAcos:
+    case Builtin::kMathAcosh:
+    case Builtin::kMathAsin:
+    case Builtin::kMathAsinh:
+    case Builtin::kMathAtan:
+    case Builtin::kMathAtanh:
+    case Builtin::kMathCbrt:
+    case Builtin::kMathCos:
+    case Builtin::kMathExpm1:
+    case Builtin::kMathFround:
+    case Builtin::kMathLog:
+    case Builtin::kMathLog1p:
+    case Builtin::kMathLog10:
+    case Builtin::kMathLog2:
+    case Builtin::kMathSin:
+    case Builtin::kMathSqrt:
+    case Builtin::kMathTan:
       return Type::Number();
-    case Builtins::kMathSign:
+    case Builtin::kMathSign:
       return t->cache_->kMinusOneToOneOrMinusZeroOrNaN;
     // Binary math functions.
-    case Builtins::kMathAtan2:
-    case Builtins::kMathPow:
-    case Builtins::kMathMax:
-    case Builtins::kMathMin:
-    case Builtins::kMathHypot:
+    case Builtin::kMathAtan2:
+    case Builtin::kMathPow:
+    case Builtin::kMathMax:
+    case Builtin::kMathMin:
+    case Builtin::kMathHypot:
       return Type::Number();
-    case Builtins::kMathImul:
+    case Builtin::kMathImul:
       return Type::Signed32();
-    case Builtins::kMathClz32:
+    case Builtin::kMathClz32:
       return t->cache_->kZeroToThirtyTwo;
     // Date functions.
-    case Builtins::kDateNow:
+    case Builtin::kDateNow:
       return t->cache_->kTimeValueType;
-    case Builtins::kDatePrototypeGetDate:
+    case Builtin::kDatePrototypeGetDate:
       return t->cache_->kJSDateDayType;
-    case Builtins::kDatePrototypeGetDay:
+    case Builtin::kDatePrototypeGetDay:
       return t->cache_->kJSDateWeekdayType;
-    case Builtins::kDatePrototypeGetFullYear:
+    case Builtin::kDatePrototypeGetFullYear:
       return t->cache_->kJSDateYearType;
-    case Builtins::kDatePrototypeGetHours:
+    case Builtin::kDatePrototypeGetHours:
       return t->cache_->kJSDateHourType;
-    case Builtins::kDatePrototypeGetMilliseconds:
+    case Builtin::kDatePrototypeGetMilliseconds:
       return Type::Union(Type::Range(0.0, 999.0, t->zone()), Type::NaN(),
                          t->zone());
-    case Builtins::kDatePrototypeGetMinutes:
+    case Builtin::kDatePrototypeGetMinutes:
       return t->cache_->kJSDateMinuteType;
-    case Builtins::kDatePrototypeGetMonth:
+    case Builtin::kDatePrototypeGetMonth:
       return t->cache_->kJSDateMonthType;
-    case Builtins::kDatePrototypeGetSeconds:
+    case Builtin::kDatePrototypeGetSeconds:
       return t->cache_->kJSDateSecondType;
-    case Builtins::kDatePrototypeGetTime:
+    case Builtin::kDatePrototypeGetTime:
       return t->cache_->kJSDateValueType;
 
     // Symbol functions.
-    case Builtins::kSymbolConstructor:
+    case Builtin::kSymbolConstructor:
       return Type::Symbol();
-    case Builtins::kSymbolPrototypeToString:
+    case Builtin::kSymbolPrototypeToString:
       return Type::String();
-    case Builtins::kSymbolPrototypeValueOf:
+    case Builtin::kSymbolPrototypeValueOf:
       return Type::Symbol();
 
     // BigInt functions.
-    case Builtins::kBigIntConstructor:
+    case Builtin::kBigIntConstructor:
       return Type::BigInt();
 
     // Number functions.
-    case Builtins::kNumberConstructor:
+    case Builtin::kNumberConstructor:
       return Type::Number();
-    case Builtins::kNumberIsFinite:
-    case Builtins::kNumberIsInteger:
-    case Builtins::kNumberIsNaN:
-    case Builtins::kNumberIsSafeInteger:
+    case Builtin::kNumberIsFinite:
+    case Builtin::kNumberIsInteger:
+    case Builtin::kNumberIsNaN:
+    case Builtin::kNumberIsSafeInteger:
       return Type::Boolean();
-    case Builtins::kNumberParseFloat:
+    case Builtin::kNumberParseFloat:
       return Type::Number();
-    case Builtins::kNumberParseInt:
+    case Builtin::kNumberParseInt:
       return t->cache_->kIntegerOrMinusZeroOrNaN;
-    case Builtins::kNumberToString:
+    case Builtin::kNumberToString:
       return Type::String();
 
     // String functions.
-    case Builtins::kStringConstructor:
+    case Builtin::kStringConstructor:
       return Type::String();
-    case Builtins::kStringPrototypeCharCodeAt:
+    case Builtin::kStringPrototypeCharCodeAt:
       return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
                          t->zone());
-    case Builtins::kStringCharAt:
+    case Builtin::kStringCharAt:
       return Type::String();
-    case Builtins::kStringPrototypeCodePointAt:
+    case Builtin::kStringPrototypeCodePointAt:
       return Type::Union(Type::Range(0.0, String::kMaxCodePoint, t->zone()),
                          Type::Undefined(), t->zone());
-    case Builtins::kStringPrototypeConcat:
-    case Builtins::kStringFromCharCode:
-    case Builtins::kStringFromCodePoint:
+    case Builtin::kStringPrototypeConcat:
+    case Builtin::kStringFromCharCode:
+    case Builtin::kStringFromCodePoint:
       return Type::String();
-    case Builtins::kStringPrototypeIndexOf:
-    case Builtins::kStringPrototypeLastIndexOf:
+    case Builtin::kStringPrototypeIndexOf:
+    case Builtin::kStringPrototypeLastIndexOf:
       return Type::Range(-1.0, String::kMaxLength, t->zone());
-    case Builtins::kStringPrototypeEndsWith:
-    case Builtins::kStringPrototypeIncludes:
+    case Builtin::kStringPrototypeEndsWith:
+    case Builtin::kStringPrototypeIncludes:
       return Type::Boolean();
-    case Builtins::kStringRaw:
-    case Builtins::kStringRepeat:
-    case Builtins::kStringPrototypeSlice:
+    case Builtin::kStringRaw:
+    case Builtin::kStringRepeat:
+    case Builtin::kStringPrototypeSlice:
       return Type::String();
-    case Builtins::kStringPrototypeStartsWith:
+    case Builtin::kStringPrototypeStartsWith:
       return Type::Boolean();
-    case Builtins::kStringPrototypeSubstr:
-    case Builtins::kStringSubstring:
-    case Builtins::kStringPrototypeToString:
+    case Builtin::kStringPrototypeSubstr:
+    case Builtin::kStringSubstring:
+    case Builtin::kStringPrototypeToString:
 #ifdef V8_INTL_SUPPORT
-    case Builtins::kStringPrototypeToLowerCaseIntl:
-    case Builtins::kStringPrototypeToUpperCaseIntl:
+    case Builtin::kStringPrototypeToLowerCaseIntl:
+    case Builtin::kStringPrototypeToUpperCaseIntl:
 #else
-    case Builtins::kStringPrototypeToLowerCase:
-    case Builtins::kStringPrototypeToUpperCase:
+    case Builtin::kStringPrototypeToLowerCase:
+    case Builtin::kStringPrototypeToUpperCase:
 #endif
-    case Builtins::kStringPrototypeTrim:
-    case Builtins::kStringPrototypeTrimEnd:
-    case Builtins::kStringPrototypeTrimStart:
-    case Builtins::kStringPrototypeValueOf:
+    case Builtin::kStringPrototypeTrim:
+    case Builtin::kStringPrototypeTrimEnd:
+    case Builtin::kStringPrototypeTrimStart:
+    case Builtin::kStringPrototypeValueOf:
       return Type::String();
 
-    case Builtins::kStringPrototypeIterator:
-    case Builtins::kStringIteratorPrototypeNext:
+    case Builtin::kStringPrototypeIterator:
+    case Builtin::kStringIteratorPrototypeNext:
       return Type::OtherObject();
 
-    case Builtins::kArrayPrototypeEntries:
-    case Builtins::kArrayPrototypeKeys:
-    case Builtins::kArrayPrototypeValues:
-    case Builtins::kTypedArrayPrototypeEntries:
-    case Builtins::kTypedArrayPrototypeKeys:
-    case Builtins::kTypedArrayPrototypeValues:
-    case Builtins::kArrayIteratorPrototypeNext:
-    case Builtins::kMapIteratorPrototypeNext:
-    case Builtins::kSetIteratorPrototypeNext:
+    case Builtin::kArrayPrototypeEntries:
+    case Builtin::kArrayPrototypeKeys:
+    case Builtin::kArrayPrototypeValues:
+    case Builtin::kTypedArrayPrototypeEntries:
+    case Builtin::kTypedArrayPrototypeKeys:
+    case Builtin::kTypedArrayPrototypeValues:
+    case Builtin::kArrayIteratorPrototypeNext:
+    case Builtin::kMapIteratorPrototypeNext:
+    case Builtin::kSetIteratorPrototypeNext:
       return Type::OtherObject();
-    case Builtins::kTypedArrayPrototypeToStringTag:
+    case Builtin::kTypedArrayPrototypeToStringTag:
       return Type::Union(Type::InternalizedString(), Type::Undefined(),
                          t->zone());
 
     // Array functions.
-    case Builtins::kArrayIsArray:
+    case Builtin::kArrayIsArray:
       return Type::Boolean();
-    case Builtins::kArrayConcat:
+    case Builtin::kArrayConcat:
       return Type::Receiver();
-    case Builtins::kArrayEvery:
+    case Builtin::kArrayEvery:
       return Type::Boolean();
-    case Builtins::kArrayPrototypeFill:
-    case Builtins::kArrayFilter:
+    case Builtin::kArrayPrototypeFill:
+    case Builtin::kArrayFilter:
       return Type::Receiver();
-    case Builtins::kArrayPrototypeFindIndex:
+    case Builtin::kArrayPrototypeFindIndex:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case Builtins::kArrayForEach:
+    case Builtin::kArrayForEach:
       return Type::Undefined();
-    case Builtins::kArrayIncludes:
+    case Builtin::kArrayIncludes:
       return Type::Boolean();
-    case Builtins::kArrayIndexOf:
+    case Builtin::kArrayIndexOf:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case Builtins::kArrayPrototypeJoin:
+    case Builtin::kArrayPrototypeJoin:
       return Type::String();
-    case Builtins::kArrayPrototypeLastIndexOf:
+    case Builtin::kArrayPrototypeLastIndexOf:
       return Type::Range(-1, kMaxSafeInteger, t->zone());
-    case Builtins::kArrayMap:
+    case Builtin::kArrayMap:
       return Type::Receiver();
-    case Builtins::kArrayPush:
+    case Builtin::kArrayPush:
       return t->cache_->kPositiveSafeInteger;
-    case Builtins::kArrayPrototypeReverse:
-    case Builtins::kArrayPrototypeSlice:
+    case Builtin::kArrayPrototypeReverse:
+    case Builtin::kArrayPrototypeSlice:
       return Type::Receiver();
-    case Builtins::kArraySome:
+    case Builtin::kArraySome:
       return Type::Boolean();
-    case Builtins::kArrayPrototypeSplice:
+    case Builtin::kArrayPrototypeSplice:
       return Type::Receiver();
-    case Builtins::kArrayUnshift:
+    case Builtin::kArrayUnshift:
       return t->cache_->kPositiveSafeInteger;
 
     // ArrayBuffer functions.
-    case Builtins::kArrayBufferIsView:
+    case Builtin::kArrayBufferIsView:
       return Type::Boolean();
 
     // Object functions.
-    case Builtins::kObjectAssign:
+    case Builtin::kObjectAssign:
       return Type::Receiver();
-    case Builtins::kObjectCreate:
+    case Builtin::kObjectCreate:
       return Type::OtherObject();
-    case Builtins::kObjectIs:
-    case Builtins::kObjectPrototypeHasOwnProperty:
-    case Builtins::kObjectPrototypeIsPrototypeOf:
+    case Builtin::kObjectIs:
+    case Builtin::kObjectHasOwn:
+    case Builtin::kObjectPrototypeHasOwnProperty:
+    case Builtin::kObjectPrototypeIsPrototypeOf:
       return Type::Boolean();
-    case Builtins::kObjectToString:
+    case Builtin::kObjectToString:
       return Type::String();
 
-    case Builtins::kPromiseAll:
+    case Builtin::kPromiseAll:
       return Type::Receiver();
-    case Builtins::kPromisePrototypeThen:
+    case Builtin::kPromisePrototypeThen:
       return Type::Receiver();
-    case Builtins::kPromiseRace:
+    case Builtin::kPromiseRace:
       return Type::Receiver();
-    case Builtins::kPromiseReject:
+    case Builtin::kPromiseReject:
       return Type::Receiver();
-    case Builtins::kPromiseResolveTrampoline:
+    case Builtin::kPromiseResolveTrampoline:
       return Type::Receiver();
 
     // RegExp functions.
-    case Builtins::kRegExpPrototypeCompile:
+    case Builtin::kRegExpPrototypeCompile:
       return Type::OtherObject();
-    case Builtins::kRegExpPrototypeExec:
+    case Builtin::kRegExpPrototypeExec:
       return Type::Union(Type::Array(), Type::Null(), t->zone());
-    case Builtins::kRegExpPrototypeTest:
+    case Builtin::kRegExpPrototypeTest:
       return Type::Boolean();
-    case Builtins::kRegExpPrototypeToString:
+    case Builtin::kRegExpPrototypeToString:
       return Type::String();
 
     // Function functions.
-    case Builtins::kFunctionPrototypeBind:
+    case Builtin::kFunctionPrototypeBind:
       return Type::BoundFunction();
-    case Builtins::kFunctionPrototypeHasInstance:
+    case Builtin::kFunctionPrototypeHasInstance:
       return Type::Boolean();
 
     // Global functions.
-    case Builtins::kGlobalDecodeURI:
-    case Builtins::kGlobalDecodeURIComponent:
-    case Builtins::kGlobalEncodeURI:
-    case Builtins::kGlobalEncodeURIComponent:
-    case Builtins::kGlobalEscape:
-    case Builtins::kGlobalUnescape:
+    case Builtin::kGlobalDecodeURI:
+    case Builtin::kGlobalDecodeURIComponent:
+    case Builtin::kGlobalEncodeURI:
+    case Builtin::kGlobalEncodeURIComponent:
+    case Builtin::kGlobalEscape:
+    case Builtin::kGlobalUnescape:
       return Type::String();
-    case Builtins::kGlobalIsFinite:
-    case Builtins::kGlobalIsNaN:
+    case Builtin::kGlobalIsFinite:
+    case Builtin::kGlobalIsNaN:
       return Type::Boolean();
 
     // Map functions.
-    case Builtins::kMapPrototypeClear:
-    case Builtins::kMapPrototypeForEach:
+    case Builtin::kMapPrototypeClear:
+    case Builtin::kMapPrototypeForEach:
       return Type::Undefined();
-    case Builtins::kMapPrototypeDelete:
-    case Builtins::kMapPrototypeHas:
+    case Builtin::kMapPrototypeDelete:
+    case Builtin::kMapPrototypeHas:
       return Type::Boolean();
-    case Builtins::kMapPrototypeEntries:
-    case Builtins::kMapPrototypeKeys:
-    case Builtins::kMapPrototypeSet:
-    case Builtins::kMapPrototypeValues:
+    case Builtin::kMapPrototypeEntries:
+    case Builtin::kMapPrototypeKeys:
+    case Builtin::kMapPrototypeSet:
+    case Builtin::kMapPrototypeValues:
       return Type::OtherObject();
 
     // Set functions.
-    case Builtins::kSetPrototypeAdd:
-    case Builtins::kSetPrototypeEntries:
-    case Builtins::kSetPrototypeValues:
+    case Builtin::kSetPrototypeAdd:
+    case Builtin::kSetPrototypeEntries:
+    case Builtin::kSetPrototypeValues:
       return Type::OtherObject();
-    case Builtins::kSetPrototypeClear:
-    case Builtins::kSetPrototypeForEach:
+    case Builtin::kSetPrototypeClear:
+    case Builtin::kSetPrototypeForEach:
       return Type::Undefined();
-    case Builtins::kSetPrototypeDelete:
-    case Builtins::kSetPrototypeHas:
+    case Builtin::kSetPrototypeDelete:
+    case Builtin::kSetPrototypeHas:
       return Type::Boolean();
 
     // WeakMap functions.
-    case Builtins::kWeakMapPrototypeDelete:
-    case Builtins::kWeakMapPrototypeHas:
+    case Builtin::kWeakMapPrototypeDelete:
+    case Builtin::kWeakMapPrototypeHas:
       return Type::Boolean();
-    case Builtins::kWeakMapPrototypeSet:
+    case Builtin::kWeakMapPrototypeSet:
       return Type::OtherObject();
 
     // WeakSet functions.
-    case Builtins::kWeakSetPrototypeAdd:
+    case Builtin::kWeakSetPrototypeAdd:
       return Type::OtherObject();
-    case Builtins::kWeakSetPrototypeDelete:
-    case Builtins::kWeakSetPrototypeHas:
+    case Builtin::kWeakSetPrototypeDelete:
+    case Builtin::kWeakSetPrototypeHas:
       return Type::Boolean();
     default:
       return Type::NonInternal();
@@ -1824,21 +1826,8 @@ Type Typer::Visitor::TypeJSCallWithSpread(Node* node) {
 
 Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {
-    case Runtime::kInlineIsJSReceiver:
-      return TypeUnaryOp(node, ObjectIsReceiver);
-    case Runtime::kInlineIsSmi:
-      return TypeUnaryOp(node, ObjectIsSmi);
-    case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsRegExp:
-      return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
       return Type::OtherObject();
-    case Runtime::kInlineToLength:
-      return TypeUnaryOp(node, ToLength);
-    case Runtime::kInlineToNumber:
-      return TypeUnaryOp(node, ToNumber);
-    case Runtime::kInlineToObject:
-      return TypeUnaryOp(node, ToObject);
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:

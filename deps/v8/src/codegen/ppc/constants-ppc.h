@@ -86,6 +86,9 @@ const int kLoadDoubleMaxReachBits = 15;
 // TODO(sigurds): Choose best value.
 constexpr int kRootRegisterBias = 128;
 
+// sign-extend the least significant 5-bits of value <imm>
+#define SIGN_EXT_IMM5(imm) ((static_cast<int>(imm) << 27) >> 27)
+
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
 
@@ -1237,6 +1240,12 @@ using Instr = uint32_t;
   V(stfsux, STFSUX, 0x7C00056E)                         \
   /* Store Floating-Point Single Indexed */             \
   V(stfsx, STFSX, 0x7C00052E)                           \
+  /* Store Doubleword Byte-Reverse Indexed */           \
+  V(stdbrx, STDBRX, 0x7C000528)                         \
+  /* Store Word Byte-Reverse Indexed */                 \
+  V(stwbrx, STWBRX, 0x7C00052C)                         \
+  /* Store Halfword Byte-Reverse Indexed */             \
+  V(sthbrx, STHBRX, 0x7C00072C)                         \
   /* Load Vector Indexed */                             \
   V(lvx, LVX, 0x7C0000CE)                               \
   /* Store Vector Indexed */                            \
@@ -1283,8 +1292,6 @@ using Instr = uint32_t;
   V(lwax, LWAX, 0x7C0002AA)                                                   \
   /* Parity Doubleword */                                                     \
   V(prtyd, PRTYD, 0x7C000174)                                                 \
-  /* Store Doubleword Byte-Reverse Indexed */                                 \
-  V(stdbrx, STDBRX, 0x7C000528)                                               \
   /* Trap Doubleword */                                                       \
   V(td, TD, 0x7C000088)                                                       \
   /* Branch Conditional to Branch Target Address Register */                  \
@@ -1309,10 +1316,6 @@ using Instr = uint32_t;
   V(nand, NAND, 0x7C0003B8)                                                   \
   /* Parity Word */                                                           \
   V(prtyw, PRTYW, 0x7C000134)                                                 \
-  /* Store Halfword Byte-Reverse Indexed */                                   \
-  V(sthbrx, STHBRX, 0x7C00072C)                                               \
-  /* Store Word Byte-Reverse Indexed */                                       \
-  V(stwbrx, STWBRX, 0x7C00052C)                                               \
   /* Synchronize */                                                           \
   V(sync, SYNC, 0x7C0004AC)                                                   \
   /* Trap Word */                                                             \
@@ -2443,6 +2446,14 @@ using Instr = uint32_t;
   /* Vector Negate Doubleword */     \
   V(vnegd, VNEGD, 0x10070602)
 
+#define PPC_VX_OPCODE_E_FORM_LIST(V)           \
+  /* Vector Splat Immediate Signed Byte */     \
+  V(vspltisb, VSPLTISB, 0x1000030C)            \
+  /* Vector Splat Immediate Signed Halfword */ \
+  V(vspltish, VSPLTISH, 0x1000034C)            \
+  /* Vector Splat Immediate Signed Word */     \
+  V(vspltisw, VSPLTISW, 0x1000038C)
+
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
   V(bcdadd, BCDADD, 0xF0000400)                                           \
@@ -2548,12 +2559,6 @@ using Instr = uint32_t;
   V(vrsqrtefp, VRSQRTEFP, 0x1000014A)                                     \
   /* Vector Shift Left */                                                 \
   V(vsl, VSL, 0x100001C4)                                                 \
-  /* Vector Splat Immediate Signed Byte */                                \
-  V(vspltisb, VSPLTISB, 0x1000030C)                                       \
-  /* Vector Splat Immediate Signed Halfword */                            \
-  V(vspltish, VSPLTISH, 0x1000034C)                                       \
-  /* Vector Splat Immediate Signed Word */                                \
-  V(vspltisw, VSPLTISW, 0x1000038C)                                       \
   /* Vector Shift Right */                                                \
   V(vsr, VSR, 0x100002C4)                                                 \
   /* Vector Subtract & write Carry Unsigned Quadword */                   \
@@ -2600,6 +2605,7 @@ using Instr = uint32_t;
   PPC_VX_OPCODE_B_FORM_LIST(V) \
   PPC_VX_OPCODE_C_FORM_LIST(V) \
   PPC_VX_OPCODE_D_FORM_LIST(V) \
+  PPC_VX_OPCODE_E_FORM_LIST(V) \
   PPC_VX_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XS_OPCODE_LIST(V)                      \
@@ -2945,6 +2951,7 @@ class Instruction {
       PPC_VX_OPCODE_A_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_B_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_C_FORM_LIST(OPCODE_CASES)
+      PPC_VX_OPCODE_E_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_UNUSED_LIST(OPCODE_CASES)
       PPC_X_OPCODE_EH_S_FORM_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);

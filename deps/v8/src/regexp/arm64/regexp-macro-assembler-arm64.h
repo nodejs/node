@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 #define V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 
+#include "src/base/strings.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -29,11 +30,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   virtual void CheckCharacterAfterAnd(unsigned c,
                                       unsigned mask,
                                       Label* on_equal);
-  virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
-  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
-  virtual void CheckCharacters(Vector<const uc16> str,
-                               int cp_offset,
-                               Label* on_failure,
+  virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater);
+  virtual void CheckCharacterLT(base::uc16 limit, Label* on_less);
+  virtual void CheckCharacters(base::Vector<const base::uc16> str,
+                               int cp_offset, Label* on_failure,
                                bool check_end_of_string);
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
@@ -48,23 +48,19 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   virtual void CheckNotCharacterAfterAnd(unsigned c,
                                          unsigned mask,
                                          Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
-                                              uc16 minus,
-                                              uc16 mask,
+  virtual void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                              base::uc16 mask,
                                               Label* on_not_equal);
-  virtual void CheckCharacterInRange(uc16 from,
-                                     uc16 to,
+  virtual void CheckCharacterInRange(base::uc16 from, base::uc16 to,
                                      Label* on_in_range);
-  virtual void CheckCharacterNotInRange(uc16 from,
-                                        uc16 to,
+  virtual void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
-  virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          Label* on_no_match);
+  virtual bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match);
   virtual void BindJumpTarget(Label* label = nullptr);
   virtual void Fail();
   virtual Handle<HeapObject> GetCode(Handle<String> source);

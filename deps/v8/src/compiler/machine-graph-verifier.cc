@@ -871,7 +871,6 @@ class MachineRepresentationChecker {
             << " is untyped.";
         PrintDebugHelp(str, node);
         FATAL("%s", str.str().c_str());
-        break;
       }
       default:
         break;
@@ -920,7 +919,6 @@ class MachineRepresentationChecker {
             << " is untyped.";
         PrintDebugHelp(str, node);
         FATAL("%s", str.str().c_str());
-        break;
       }
 
       default:
@@ -1018,7 +1016,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord64:
         return expected == actual;
-        break;
       case MachineRepresentation::kWord32:
         return (actual == MachineRepresentation::kBit ||
                 actual == MachineRepresentation::kWord8 ||

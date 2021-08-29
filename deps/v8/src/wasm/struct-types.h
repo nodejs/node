@@ -114,6 +114,9 @@ class StructType : public ZoneObject {
     bool* const mutabilities_;
   };
 
+  static const size_t kMaxFieldOffset =
+      (kV8MaxWasmStructFields - 1) * kMaxValueTypeSize;
+
  private:
   const uint32_t field_count_;
   uint32_t* const field_offsets_;

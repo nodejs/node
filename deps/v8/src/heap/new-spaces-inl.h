@@ -10,6 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/spaces-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/tagged-impl.h"
 
 namespace v8 {

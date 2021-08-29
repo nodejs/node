@@ -37,7 +37,7 @@ function f(x, y) {
     %DeoptimizeFunction(f);
     return 1;
   }
-  a[0] = %_Call(f, null, x - 1);
+  a[0] = %Call(f, null, x - 1);
   return x >> a[0];
 }
 

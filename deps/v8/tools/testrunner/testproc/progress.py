@@ -15,18 +15,15 @@ import time
 
 from . import base
 from . import util
-from ..local import junit_output
 
 
-def print_failure_header(test):
+def print_failure_header(test, is_flaky=False):
+  text = [str(test)]
   if test.output_proc.negative:
-    negative_marker = '[negative] '
-  else:
-    negative_marker = ''
-  print("=== %(label)s %(negative)s===" % {
-    'label': test,
-    'negative': negative_marker,
-  })
+    text.append('[negative]')
+  if is_flaky:
+    text.append('(flaky)')
+  print('=== %s ===' % ' '.join(text))
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -75,13 +72,18 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
-      self._failed.append((test, result))
+      self._failed.append((test, result, False))
+    elif result.is_rerun:
+      # Print only the first result of a flaky failure that was rerun.
+      self._failed.append((test, result.results[0], True))
 
   def finished(self):
     crashed = 0
+    flaky = 0
     print()
-    for test, result in self._failed:
-      print_failure_header(test)
+    for test, result, is_flaky in self._failed:
+      flaky += int(is_flaky)
+      print_failure_header(test, is_flaky=is_flaky)
       if result.output.stderr:
         print("--- stderr ---")
         print(result.output.stderr.strip())
@@ -102,9 +104,11 @@ class SimpleProgressIndicator(ProgressIndicator):
     else:
       print()
       print("===")
-      print("=== %i tests failed" % len(self._failed))
+      print("=== %d tests failed" % len(self._failed))
+      if flaky > 0:
+        print("=== %d tests were flaky" % flaky)
       if crashed > 0:
-        print("=== %i tests CRASHED" % crashed)
+        print("=== %d tests CRASHED" % crashed)
       print("===")
 
 
@@ -130,6 +134,17 @@ class StreamProgressIndicator(ProgressIndicator):
     print('%s: %ss' % (prefix, test))
     sys.stdout.flush()
 
+
+def format_result_status(result):
+  if result.has_unexpected_output:
+    if result.output.HasCrashed():
+      return 'CRASH'
+    else:
+      return 'FAIL'
+  else:
+    return 'PASS'
+
+
 class VerboseProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
     super(VerboseProgressIndicator, self).__init__()
@@ -142,13 +157,10 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def _message(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
-    if result.has_unexpected_output:
-      if result.output.HasCrashed():
-        outcome = 'CRASH'
-      else:
-        outcome = 'FAIL'
+    if result.is_rerun:
+      outcome = ' '.join(format_result_status(r) for r in result.results)
     else:
-      outcome = 'pass'
+      outcome = format_result_status(result)
     return '%s %s: %s' % (
       test, test.variant or 'default', outcome)
 
@@ -347,45 +359,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def _clear_line(self, last_length):
     print(("\r" + (" " * last_length) + "\r"), end='')
-
-
-class JUnitTestProgressIndicator(ProgressIndicator):
-  def __init__(self, junitout, junittestsuite):
-    super(JUnitTestProgressIndicator, self).__init__()
-    self._requirement = base.DROP_PASS_STDOUT
-
-    self.outputter = junit_output.JUnitTestOutput(junittestsuite)
-    if junitout:
-      self.outfile = open(junitout, "w")
-    else:
-      self.outfile = sys.stdout
-
-  def _on_result_for(self, test, result):
-    # TODO(majeski): Support for dummy/grouped results
-    fail_text = ""
-    output = result.output
-    if result.has_unexpected_output:
-      stdout = output.stdout.strip()
-      if len(stdout):
-        fail_text += "stdout:\n%s\n" % stdout
-      stderr = output.stderr.strip()
-      if len(stderr):
-        fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % result.cmd.to_string()
-      if output.HasCrashed():
-        fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
-      if output.HasTimedOut():
-        fail_text += "--- TIMEOUT ---"
-    self.outputter.HasRunTest(
-        test_name=str(test),
-        test_cmd=result.cmd.to_string(relative=True),
-        test_duration=output.duration,
-        test_failure=fail_text)
-
-  def finished(self):
-    self.outputter.FinishAndWrite(self.outfile)
-    if self.outfile != sys.stdout:
-      self.outfile.close()
 
 
 class JsonTestProgressIndicator(ProgressIndicator):

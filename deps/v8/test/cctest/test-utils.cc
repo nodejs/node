@@ -102,7 +102,8 @@ TEST(BitSetComputer) {
   const int words = 750;
   CHECK_EQ(words, TwoBits::word_count(3000));
   const int offset = 10;
-  Vector<unsigned char> buffer = Vector<unsigned char>::New(offset + words);
+  base::Vector<unsigned char> buffer =
+      base::Vector<unsigned char>::New(offset + words);
   memset(buffer.begin(), 0, sizeof(unsigned char) * buffer.length());
   for (int i = 0; i < words; i++) {
     const int index = TwoBits::index(offset, i);
@@ -127,9 +128,9 @@ TEST(SNPrintF) {
   int length = static_cast<int>(strlen(s));
   for (int i = 1; i < length * 2; i++) {
     static const char kMarker = static_cast<char>(42);
-    Vector<char> buffer = Vector<char>::New(i + 1);
+    base::Vector<char> buffer = base::Vector<char>::New(i + 1);
     buffer[i] = kMarker;
-    int n = SNPrintF(Vector<char>(buffer.begin(), i), "%s", s);
+    int n = SNPrintF(base::Vector<char>(buffer.begin(), i), "%s", s);
     CHECK(n <= i);
     CHECK(n == length || n == -1);
     CHECK_EQ(0, strncmp(buffer.begin(), s, i - 1));
@@ -199,7 +200,7 @@ TEST(Collector) {
   const int kSequentialSize = 1000;
   const int kBlockSize = 7;
   for (int loop = 0; loop < kLoops; loop++) {
-    Vector<int> block = collector.AddBlock(7, 0xBADCAFE);
+    base::Vector<int> block = collector.AddBlock(7, 0xBADCAFE);
     for (int i = 0; i < kSequentialSize; i++) {
       collector.Add(i);
     }
@@ -207,7 +208,7 @@ TEST(Collector) {
       block[i] = i * 7;
     }
   }
-  Vector<int> result = collector.ToVector();
+  base::Vector<int> result = collector.ToVector();
   CHECK_EQ(kLoops * (kBlockSize + kSequentialSize), result.length());
   for (int i = 0; i < kLoops; i++) {
     int offset = i * (kSequentialSize + kBlockSize);
@@ -234,13 +235,13 @@ TEST(SequenceCollector) {
     for (int j = 0; j < seq_length; j++) {
       collector.Add(j);
     }
-    Vector<int> sequence = collector.EndSequence();
+    base::Vector<int> sequence = collector.EndSequence();
     for (int j = 0; j < seq_length; j++) {
       CHECK_EQ(j, sequence[j]);
     }
     total_length += seq_length;
   }
-  Vector<int> result = collector.ToVector();
+  base::Vector<int> result = collector.ToVector();
   CHECK_EQ(total_length, result.length());
   int offset = 0;
   for (int loop = 0; loop < kLoops; loop++) {
@@ -259,8 +260,8 @@ TEST(SequenceCollectorRegression) {
   collector.StartSequence();
   collector.Add('0');
   collector.AddBlock(
-      i::Vector<const char>("12345678901234567890123456789012", 32));
-  i::Vector<char> seq = collector.EndSequence();
+      base::Vector<const char>("12345678901234567890123456789012", 32));
+  base::Vector<char> seq = collector.EndSequence();
   CHECK_EQ(0, strncmp("0123456789012345678901234567890123", seq.begin(),
                       seq.length()));
 }

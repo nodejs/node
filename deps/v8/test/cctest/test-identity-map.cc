@@ -804,7 +804,7 @@ TEST(GCShortCutting) {
         factory->NewStringFromAsciiChecked("thin_string");
     Handle<String> internalized_string =
         factory->InternalizeString(thin_string);
-    DCHECK_IMPLIES(FLAG_thin_strings, thin_string->IsThinString());
+    DCHECK(thin_string->IsThinString());
     DCHECK_NE(*thin_string, *internalized_string);
 
     // Insert both keys into the map.
@@ -815,7 +815,7 @@ TEST(GCShortCutting) {
     // to the internalized string.
     t.heap()->CollectGarbage(i::NEW_SPACE,
                              i::GarbageCollectionReason::kTesting);
-    DCHECK_IMPLIES(FLAG_thin_strings && !FLAG_optimize_for_size,
+    DCHECK_IMPLIES(!FLAG_optimize_for_size,
                    *thin_string == *internalized_string);
 
     // Check that getting the object points to one of the handles.

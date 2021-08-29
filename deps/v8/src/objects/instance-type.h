@@ -172,20 +172,26 @@ TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_NONSTRING_RANGE)
 //   correspond to the union type JSProxy | JSCustomElementsObject.
 // Note in particular that these ranges include all subclasses of JSReceiver
 // that are not also subclasses of JSObject (currently only JSProxy).
+// clang-format off
 #define CHECK_INSTANCE_TYPE(TYPE)                                          \
   STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
                  TYPE <= LAST_SPECIAL_RECEIVER_TYPE) ==                    \
-                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                (IF_WASM(EXPAND, TYPE == WASM_STRUCT_TYPE ||               \
+                                 TYPE == WASM_ARRAY_TYPE ||)               \
+                 TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE));                     \
   STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
                  TYPE <= LAST_CUSTOM_ELEMENTS_RECEIVER) ==                 \
-                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                (IF_WASM(EXPAND, TYPE == WASM_STRUCT_TYPE ||               \
+                                 TYPE == WASM_ARRAY_TYPE ||)               \
+                 TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE ||                     \
                  TYPE == JS_PRIMITIVE_WRAPPER_TYPE));
+// clang-format on
 TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_INSTANCE_TYPE)
 #undef CHECK_INSTANCE_TYPE
 
@@ -245,6 +251,7 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, CellMap, cell_map, Cell)                                                \
   V(_, WeakCellMap, weak_cell_map, WeakCell)                                   \
   V(_, CodeMap, code_map, Code)                                                \
+  V(_, CodeDataContainerMap, code_data_container_map, CodeDataContainer)       \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
   V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)                 \

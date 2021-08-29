@@ -4,7 +4,8 @@
 
 @abstract
 extern class DataHandler extends Struct {
-  smi_handler: Smi|Code;
+  @if(V8_EXTERNAL_CODE_SPACE) smi_handler: Smi|CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) smi_handler: Smi|Code;
   validity_cell: Smi|Cell;
 
   // Space for the following fields may or may not be allocated.

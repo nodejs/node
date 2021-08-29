@@ -4,5 +4,5 @@
 
 var nativeJSON = this.JSON;
 this.JSON = null;
-load("test/webkit/resources/json2-es5-compat.js");
-load("test/webkit/resources/JSON-stringify.js");
+d8.file.execute("test/webkit/resources/json2-es5-compat.js");
+d8.file.execute("test/webkit/resources/JSON-stringify.js");

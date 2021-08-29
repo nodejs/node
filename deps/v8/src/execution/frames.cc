@@ -225,13 +225,13 @@ namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc,
                           StackFrame::State* state) {
-  Builtins::Name builtin_index = InstructionStream::TryLookupCode(isolate, pc);
-  if (builtin_index != Builtins::kNoBuiltinId &&
-      (builtin_index == Builtins::kInterpreterEntryTrampoline ||
-       builtin_index == Builtins::kInterpreterEnterAtBytecode ||
-       builtin_index == Builtins::kInterpreterEnterAtNextBytecode ||
-       builtin_index == Builtins::kBaselineEnterAtBytecode ||
-       builtin_index == Builtins::kBaselineEnterAtNextBytecode)) {
+  Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
+  if (builtin != Builtin::kNoBuiltinId &&
+      (builtin == Builtin::kInterpreterEntryTrampoline ||
+       builtin == Builtin::kInterpreterEnterAtBytecode ||
+       builtin == Builtin::kInterpreterEnterAtNextBytecode ||
+       builtin == Builtin::kBaselineEnterAtBytecode ||
+       builtin == Builtin::kBaselineEnterAtNextBytecode)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -571,8 +571,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // returned {wasm_code} to be null and fall back to {GetContainingCode}.
     wasm::WasmCodeRefScope code_ref_scope;
     if (wasm::WasmCode* wasm_code =
-            iterator->isolate()->wasm_engine()->code_manager()->LookupCode(
-                pc)) {
+            wasm::GetWasmCodeManager()->LookupCode(pc)) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kFunction:
           return WASM;
@@ -694,7 +693,7 @@ void NativeFrame::ComputeCallerState(State* state) const {
 }
 
 Code EntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtins::kJSEntry);
+  return isolate()->heap()->builtin(Builtin::kJSEntry);
 }
 
 void EntryFrame::ComputeCallerState(State* state) const {
@@ -716,7 +715,7 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Code ConstructEntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
+  return isolate()->heap()->builtin(Builtin::kJSConstructEntry);
 }
 
 void ExitFrame::ComputeCallerState(State* state) const {
@@ -940,12 +939,12 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   uint32_t stack_slots = 0;
   Code code;
   bool has_tagged_outgoing_params = false;
-  uint32_t tagged_parameter_slots = 0;
+  uint16_t first_tagged_parameter_slot = 0;
+  uint16_t num_tagged_parameter_slots = 0;
   bool is_wasm = false;
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (auto* wasm_code =
-          isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer)) {
+  if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(inner_pointer)) {
     is_wasm = true;
     SafepointTable table(wasm_code);
     safepoint_entry = table.FindEntry(inner_pointer);
@@ -953,7 +952,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     has_tagged_outgoing_params =
         wasm_code->kind() != wasm::WasmCode::kFunction &&
         wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
-    tagged_parameter_slots = wasm_code->tagged_parameter_slots();
+    first_tagged_parameter_slot = wasm_code->first_tagged_parameter_slot();
+    num_tagged_parameter_slots = wasm_code->num_tagged_parameter_slots();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -980,7 +980,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     // directly call a Wasm function from JavaScript. In this case the
     // parameters we pass to the callee are not tagged.
     wasm::WasmCode* wasm_callee =
-        isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc());
+        wasm::GetWasmCodeManager()->LookupCode(callee_pc());
     bool is_wasm_call = (wasm_callee != nullptr);
     if (is_wasm_call) has_tagged_outgoing_params = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1034,13 +1034,11 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
         UNREACHABLE();
-        break;
       case NATIVE:
       case NONE:
       case NUMBER_OF_TYPES:
       case MANUAL:
         UNREACHABLE();
-        break;
     }
   }
   slot_space -=
@@ -1091,10 +1089,11 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // frame. Conceptionally these parameters belong to the parent frame. However,
   // the exact count is only known by this frame (in the presence of tail calls,
   // this information cannot be derived from the call site).
-  if (tagged_parameter_slots > 0) {
+  if (num_tagged_parameter_slots > 0) {
     FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+    tagged_parameter_base += first_tagged_parameter_slot;
     FullObjectSlot tagged_parameter_limit =
-        tagged_parameter_base + tagged_parameter_slots;
+        tagged_parameter_base + num_tagged_parameter_slots;
 
     v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
                          tagged_parameter_limit);
@@ -1614,7 +1613,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
         abstract_code = handle(
-            AbstractCode::cast(isolate()->builtins()->builtin(
+            AbstractCode::cast(isolate()->builtins()->code(
                 Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset()))),
             isolate());
       } else {
@@ -1859,17 +1858,13 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   wasm::WasmCodeRefScope code_ref_scope;
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());
-  Address instruction_start = isolate()
-                                  ->wasm_engine()
-                                  ->code_manager()
-                                  ->LookupCode(pc())
-                                  ->instruction_start();
-  Vector<const uint8_t> raw_func_name =
+  Address instruction_start = wasm_code()->instruction_start();
+  base::Vector<const uint8_t> raw_func_name =
       module_object().GetRawFunctionName(function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
-  base::Memcpy(func_name, raw_func_name.begin(), func_name_len);
+  memcpy(func_name, raw_func_name.begin(), func_name_len);
   func_name[func_name_len] = '\0';
   int pos = position();
   const wasm::WasmModule* module = wasm_instance().module_object().module();
@@ -1883,7 +1878,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
-  return isolate()->wasm_engine()->code_manager()->LookupCode(pc());
+  return wasm::GetWasmCodeManager()->LookupCode(pc());
 }
 
 WasmInstanceObject WasmFrame::wasm_instance() const {
@@ -1945,7 +1940,7 @@ bool WasmFrame::at_to_number_conversion() const {
   // ToNumber conversion call.
   wasm::WasmCode* code =
       callee_pc() != kNullAddress
-          ? isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc())
+          ? wasm::GetWasmCodeManager()->LookupCode(callee_pc())
           : nullptr;
   if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
   int offset = static_cast<int>(callee_pc() - code->instruction_start());
@@ -1957,8 +1952,7 @@ bool WasmFrame::at_to_number_conversion() const {
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
-  wasm::WasmCode* code =
-      isolate()->wasm_engine()->code_manager()->LookupCode(pc());
+  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
     HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
@@ -1969,8 +1963,7 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
-  wasm::WasmCode* code =
-      isolate()->wasm_engine()->code_manager()->LookupCode(caller_pc());
+  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(caller_pc());
   DCHECK(code);
   SafepointTable table(code);
   SafepointEntry safepoint_entry = table.FindEntry(caller_pc());
@@ -2012,7 +2005,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   //        |      ....       | <- spill_slot_base--|
   //        |- - - - - - - - -|                     |
   if (code.is_null() || !code.is_builtin() ||
-      code.builtin_index() != Builtins::kGenericJSToWasmWrapper) {
+      code.builtin_id() != Builtin::kGenericJSToWasmWrapper) {
     // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
     // specific wrapper. So we have to call IterateCompiledFrame.
     IterateCompiledFrame(v);
@@ -2332,7 +2325,7 @@ ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the constructor function to
   // the top of the reconstructed stack and popping it in
-  // {Builtins::kNotifyDeoptimized}.
+  // {Builtin::kNotifyDeoptimized}.
 
   static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
   static constexpr int kTheResult = 1;
@@ -2388,7 +2381,7 @@ BuiltinContinuationFrameInfo::BuiltinContinuationFrameInfo(
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of callback function to the
   // top of the reconstructed stack and popping it in
-  // {Builtins::kNotifyDeoptimized}.
+  // {Builtin::kNotifyDeoptimized}.
   static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
   static constexpr int kTheResult = 1;
   const int push_result_count =

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_DICTIONARY_INL_H_
 #define V8_OBJECTS_DICTIONARY_INL_H_
 
+#include "src/base/optional.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/dictionary.h"
@@ -39,6 +40,24 @@ Object Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
                                            InternalIndex entry) {
   return this->get(cage_base, DerivedHashTable::EntryToIndex(entry) +
                                   Derived::kEntryValueIndex);
+}
+
+template <typename Derived, typename Shape>
+base::Optional<Object> Dictionary<Derived, Shape>::TryValueAt(
+    InternalIndex entry) {
+#if DEBUG
+  Isolate* isolate;
+  GetIsolateFromHeapObject(*this, &isolate);
+  DCHECK_NE(isolate, nullptr);
+  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(*this));
+#endif  // DEBUG
+  // We can read length() in a non-atomic way since we are reading an
+  // initialized object which is not pending allocation.
+  if (DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex >=
+      this->length()) {
+    return {};
+  }
+  return ValueAt(entry);
 }
 
 template <typename Derived, typename Shape>

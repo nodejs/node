@@ -20,7 +20,6 @@ const char* RootVisitor::RootName(Root root) {
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {

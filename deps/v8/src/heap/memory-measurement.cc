@@ -13,6 +13,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/smi.h"
 #include "src/tasks/task-utils.h"
 
 namespace v8 {
@@ -355,7 +356,7 @@ bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
                                                                     function);
   // The context may be a smi during deserialization.
   if (maybe_context.IsSmi()) {
-    DCHECK_EQ(maybe_context, Deserializer::uninitialized_field_value());
+    DCHECK_EQ(maybe_context, Smi::uninitialized_deserialization_value());
     return false;
   }
   if (!maybe_context.IsContext()) {

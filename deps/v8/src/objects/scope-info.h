@@ -31,6 +31,18 @@ class Scope;
 class StringSet;
 class Zone;
 
+struct VariableLookupResult {
+  int context_index;
+  int slot_index;
+  // repl_mode flag is needed to disable inlining of 'const' variables in REPL
+  // mode.
+  bool is_repl_mode;
+  IsStaticFlag is_static_flag;
+  VariableMode mode;
+  InitializationFlag init_flag;
+  MaybeAssignedFlag maybe_assigned_flag;
+};
+
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
 // is stored in a compressed form in ScopeInfo objects and is used
@@ -154,9 +166,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
   static int ContextSlotIndex(ScopeInfo scope_info, String name,
-                              VariableMode* mode, InitializationFlag* init_flag,
-                              MaybeAssignedFlag* maybe_assigned_flag,
-                              IsStaticFlag* is_static_flag);
+                              VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable

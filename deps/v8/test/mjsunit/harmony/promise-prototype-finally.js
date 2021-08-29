@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --ignore-unhandled-promises
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 assertThrows(() => Promise.prototype.finally.call(5), TypeError);
 

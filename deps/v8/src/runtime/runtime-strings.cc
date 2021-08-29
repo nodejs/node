@@ -320,7 +320,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
-      Vector<const uint8_t> chars = content.ToOneByteVector();
+      base::Vector<const uint8_t> chars = content.ToOneByteVector();
       // Note, this will initialize all elements (not only the prefix)
       // to prevent GC from seeing partially initialized array.
       position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),

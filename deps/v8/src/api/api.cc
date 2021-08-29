@@ -25,6 +25,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compiler.h"
@@ -58,6 +59,7 @@
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -107,11 +109,11 @@
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
@@ -409,6 +411,8 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
     internal_isolate->InitWithoutSnapshot();
   }
   data_ = data;
+  // Disable batch compilation during snapshot creation.
+  internal_isolate->baseline_batch_compiler()->set_enabled(false);
 }
 
 SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
@@ -1218,7 +1222,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const MemorySpan<const CFunction>& c_function_overloads = {}) {
+    const MemorySpan<const CFunction>& c_function_overloads = {},
+    uint8_t instance_type = 0, uint8_t allowed_receiver_range_start = 0,
+    uint8_t allowed_receiver_range_end = 0) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1240,6 +1246,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
             ? i::ReadOnlyRoots(isolate).the_hole_value()
             : *Utils::OpenHandle(*cached_property_name));
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
+    raw.SetInstanceType(instance_type);
+    raw.set_allowed_receiver_range_start(allowed_receiver_range_start);
+    raw.set_allowed_receiver_range_end(allowed_receiver_range_end);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1251,7 +1260,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
-    SideEffectType side_effect_type, const CFunction* c_function) {
+    SideEffectType side_effect_type, const CFunction* c_function,
+    uint8_t instance_type, uint8_t allowed_receiver_range_start,
+    uint8_t allowed_receiver_range_end) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1261,7 +1272,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
       i_isolate, callback, data, signature, length, behavior, false,
       Local<Private>(), side_effect_type,
       c_function ? MemorySpan<const CFunction>{c_function, 1}
-                 : MemorySpan<const CFunction>{});
+                 : MemorySpan<const CFunction>{},
+      instance_type, allowed_receiver_range_start, allowed_receiver_range_end);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
@@ -1269,6 +1281,15 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type,
     const MemorySpan<const CFunction>& c_function_overloads) {
+  // TODO(mslekova): Once runtime overload resolution between sequences is
+  // supported, check that if (c_function_overloads.size() == 2), then
+  // c_function_overloads.data()[0].
+  //   CanResolveOverload(c_function_overloads.data()[1]). We won't support
+  // the case where the size is greater than 2 for runtime resolution, until
+  // we've added support for ArrayBuffers and ArrayBufferViews. OTOH the
+  // overloads list might contain more than 2 functions with different arity,
+  // the resolution between which is available at compile time.
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -3234,7 +3255,8 @@ ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
 }
 
 struct ValueDeserializer::PrivateData {
-  PrivateData(i::Isolate* i, i::Vector<const uint8_t> data, Delegate* delegate)
+  PrivateData(i::Isolate* i, base::Vector<const uint8_t> data,
+              Delegate* delegate)
       : isolate(i), deserializer(i, data, delegate) {}
   i::Isolate* isolate;
   i::ValueDeserializer deserializer;
@@ -3251,10 +3273,11 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
   if (base::IsValueInRangeForNumericType<int>(size)) {
     private_ = new PrivateData(
         reinterpret_cast<i::Isolate*>(isolate),
-        i::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
+        base::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
   } else {
-    private_ = new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
-                               i::Vector<const uint8_t>(nullptr, 0), nullptr);
+    private_ =
+        new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
+                        base::Vector<const uint8_t>(nullptr, 0), nullptr);
     private_->has_aborted = true;
   }
 }
@@ -4099,7 +4122,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
-  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::PropertyKey lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, i::LookupIterator::OWN);
   if (self->IsJSProxy()) {
     ENTER_V8(isolate, context, Object, CreateDataProperty, Nothing<bool>(),
@@ -4775,7 +4798,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   if (iter.IsAtEnd()) return MaybeLocal<Value>();
   i::Handle<i::JSReceiver> proto =
       i::PrototypeIterator::GetCurrent<i::JSReceiver>(iter);
-  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::PropertyKey lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, proto,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
@@ -4799,7 +4822,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
   if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
   i::Handle<i::JSReceiver> proto =
       i::PrototypeIterator::GetCurrent<i::JSReceiver>(iter);
-  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::PropertyKey lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, proto,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Maybe<i::PropertyAttributes> result =
@@ -4816,7 +4839,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   PREPARE_FOR_EXECUTION(context, Object, GetRealNamedProperty, Value);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::PropertyKey lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
@@ -4833,7 +4856,7 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
            Nothing<PropertyAttribute>(), i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::PropertyKey lookup_key(isolate, key_obj);
   i::LookupIterator it(isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
@@ -5330,7 +5353,7 @@ namespace {
 // units until the buffer capacity is reached, would be exceeded by the next
 // unit, or all code units have been written out.
 template <typename Char>
-static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
+static int WriteUtf8Impl(base::Vector<const Char> string, char* write_start,
                          int write_capacity, int options,
                          int* utf16_chars_read_out) {
   bool write_null = !(options & v8::String::NO_NULL_TERMINATION);
@@ -5362,7 +5385,7 @@ static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
       for (int i = read_index; i < up_to; i++) char_mask |= read_start[i];
       if ((char_mask & 0x80) == 0) {
         int copy_length = up_to - read_index;
-        base::Memcpy(current_write, read_start + read_index, copy_length);
+        memcpy(current_write, read_start + read_index, copy_length);
         current_write += copy_length;
         read_index = up_to;
       } else {
@@ -5841,8 +5864,9 @@ bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
   // code rather than the wasm code, so the trap handler cannot find the landing
   // pad and lets the process crash. Therefore, only enable trap handlers if
   // the host and target arch are the same.
-#if (V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
-    (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX)
+#if V8_ENABLE_WEBASSEMBLY &&                   \
+    ((V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
+     (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX))
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;
@@ -5857,15 +5881,20 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_TARGET_ARCH_X64
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
   return i::trap_handler::TryHandleWasmTrap(exception);
-#endif
+#else
   return false;
+#endif
 }
 #endif
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
+#if V8_ENABLE_WEBASSEMBLY
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
+#else
+  return false;
+#endif
 }
 
 #if defined(V8_OS_WIN)
@@ -6104,7 +6133,7 @@ Local<Context> NewContext(
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
   // fail.
   // Sanity-check that the isolate is initialized and usable.
-  CHECK(isolate->builtins()->builtin(i::Builtins::kIllegal).IsCode());
+  CHECK(isolate->builtins()->code(i::Builtin::kIllegal).IsCode());
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
   LOG_API(isolate, Context, New);
@@ -6210,7 +6239,7 @@ v8::Local<v8::Object> Context::Global() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::Object> global(context->global_proxy(), isolate);
-  // TODO(dcarney): This should always return the global proxy
+  // TODO(chromium:324812): This should always return the global proxy
   // but can't presently as calls to GetProtoype will return the wrong result.
   if (i::Handle<i::JSGlobalProxy>::cast(global)->IsDetachedFrom(
           context->global_object())) {
@@ -6506,7 +6535,7 @@ inline int StringLength(const uint16_t* string) {
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           i::Vector<const char> string) {
+                                           base::Vector<const char> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
@@ -6516,7 +6545,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           i::Vector<const uint8_t> string) {
+                                           base::Vector<const uint8_t> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
@@ -6524,9 +6553,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 }
 
 V8_WARN_UNUSED_RESULT
-inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           NewStringType type,
-                                           i::Vector<const uint16_t> string) {
+inline i::MaybeHandle<i::String> NewString(
+    i::Factory* factory, NewStringType type,
+    base::Vector<const uint16_t> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
@@ -6552,7 +6581,7 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     if (length < 0) length = StringLength(data);                           \
     i::Handle<i::String> handle_result =                                   \
         NewString(i_isolate->factory(), type,                              \
-                  i::Vector<const Char>(data, length))                     \
+                  base::Vector<const Char>(data, length))                  \
             .ToHandleChecked();                                            \
     result = Utils::ToLocal(handle_result);                                \
   }
@@ -6565,7 +6594,7 @@ Local<String> String::NewFromUtf8Literal(Isolate* isolate, const char* literal,
   LOG_API(i_isolate, String, NewFromUtf8Literal);
   i::Handle<i::String> handle_result =
       NewString(i_isolate->factory(), type,
-                i::Vector<const char>(literal, length))
+                base::Vector<const char>(literal, length))
           .ToHandleChecked();
   return Utils::ToLocal(handle_result);
 }
@@ -7003,7 +7032,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
 Local<v8::String> v8::RegExp::GetSource() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return Utils::ToLocal(
-      i::Handle<i::String>(obj->Pattern(), obj->GetIsolate()));
+      i::Handle<i::String>(obj->EscapedPattern(), obj->GetIsolate()));
 }
 
 // Assert that the static flags cast in GetFlags is valid.
@@ -7453,6 +7482,11 @@ void Promise::MarkAsHandled() {
   js_promise->set_has_handler(true);
 }
 
+void Promise::MarkAsSilent() {
+  i::Handle<i::JSPromise> js_promise = Utils::OpenHandle(this);
+  js_promise->set_is_silent(true);
+}
+
 Local<Value> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);
   i::Handle<i::Object> target(self->target(), self->GetIsolate());
@@ -7511,7 +7545,7 @@ OwnedBuffer CompiledWasmModule::Serialize() {
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 #if V8_ENABLE_WEBASSEMBLY
-  i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
+  base::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.begin(), bytes_vec.size()};
 #else
   UNREACHABLE();
@@ -7548,9 +7582,9 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 #if V8_ENABLE_WEBASSEMBLY
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmModuleObject> module_object =
-      i_isolate->wasm_engine()->ImportNativeModule(
+      i::wasm::GetWasmEngine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
-          i::VectorOf(compiled_module.source_url()));
+          base::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 #else
@@ -7579,7 +7613,7 @@ void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
       reinterpret_cast<uint8_t*>(AllocateUninitialized(new_length));
   if (new_data == nullptr) return nullptr;
   size_t bytes_to_copy = std::min(old_length, new_length);
-  base::Memcpy(new_data, data, bytes_to_copy);
+  memcpy(new_data, data, bytes_to_copy);
   if (new_length > bytes_to_copy) {
     memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
   }
@@ -7713,7 +7747,7 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
                                              isolate);
       source = reinterpret_cast<char*>(typed_array->DataPtr());
     }
-    base::Memcpy(dest, source + byte_offset, bytes_to_copy);
+    memcpy(dest, source + byte_offset, bytes_to_copy);
   }
   return bytes_to_copy;
 }
@@ -8209,7 +8243,7 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 bool Isolate::HasPendingBackgroundTasks() {
 #if V8_ENABLE_WEBASSEMBLY
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->wasm_engine()->HasRunningCompileJob(isolate);
+  return i::wasm::GetWasmEngine()->HasRunningCompileJob(isolate);
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8233,6 +8267,11 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
 
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::Current();
+  return reinterpret_cast<Isolate*>(isolate);
+}
+
+Isolate* Isolate::TryGetCurrent() {
+  i::Isolate* isolate = i::Isolate::TryGetCurrent();
   return reinterpret_cast<Isolate*>(isolate);
 }
 
@@ -8264,23 +8303,6 @@ void Isolate::Initialize(Isolate* isolate,
   } else {
     i_isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
-  auto code_event_handler = params.code_event_handler;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (code_event_handler == nullptr && i::FLAG_gdbjit) {
-    code_event_handler = i::GDBJITInterface::EventHandler;
-  }
-#endif  // ENABLE_GDB_JIT_INTERFACE
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (code_event_handler == nullptr && i::FLAG_enable_system_instrumentation) {
-    code_event_handler = i::ETWJITInterface::EventHandler;
-  }
-#endif  // defined(V8_OS_WIN)
-
-  if (code_event_handler) {
-    i_isolate->InitializeLoggingAndCounters();
-    i_isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
-                                             code_event_handler);
-  }
   if (params.counter_lookup_callback) {
     isolate->SetCounterFunction(params.counter_lookup_callback);
   }
@@ -8305,22 +8327,40 @@ void Isolate::Initialize(Isolate* isolate,
   }
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(isolate);
+  if (i_isolate->snapshot_blob() == nullptr) {
+    FATAL(
+        "V8 snapshot blob was not set during initialization. This can mean "
+        "that the snapshot blob file is corrupted or missing.");
+  }
   if (!i::Snapshot::Initialize(i_isolate)) {
     // If snapshot data was provided and we failed to deserialize it must
     // have been corrupted.
-    if (i_isolate->snapshot_blob() != nullptr) {
-      FATAL(
-          "Failed to deserialize the V8 snapshot blob. This can mean that the "
-          "snapshot blob file is corrupted or missing.");
+    FATAL(
+        "Failed to deserialize the V8 snapshot blob. This can mean that the "
+        "snapshot blob file is corrupted or missing.");
+  }
+
+  {
+    // Set up code event handlers. Needs to be after i::Snapshot::Initialize
+    // because that is where we add the isolate to WasmEngine.
+    auto code_event_handler = params.code_event_handler;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    if (code_event_handler == nullptr && i::FLAG_gdbjit) {
+      code_event_handler = i::GDBJITInterface::EventHandler;
     }
-    base::ElapsedTimer timer;
-    if (i::FLAG_profile_deserialization) timer.Start();
-    i_isolate->InitWithoutSnapshot();
-    if (i::FLAG_profile_deserialization) {
-      double ms = timer.Elapsed().InMillisecondsF();
-      i::PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
+#endif  // ENABLE_GDB_JIT_INTERFACE
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    if (code_event_handler == nullptr &&
+        i::FLAG_enable_system_instrumentation) {
+      code_event_handler = i::ETWJITInterface::EventHandler;
+    }
+#endif  // defined(V8_OS_WIN)
+
+    if (code_event_handler) {
+      isolate->SetJitCodeEventHandler(kJitCodeEventDefault, code_event_handler);
     }
   }
+
   i_isolate->set_only_terminate_in_safe_scope(
       params.only_terminate_in_safe_scope);
   i_isolate->set_embedder_wrapper_type_index(
@@ -8534,7 +8574,12 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage() +
       isolate->string_table()->GetCurrentMemoryUsage();
-  heap_statistics->external_memory_ = isolate->heap()->backing_store_bytes();
+  // On 32-bit systems backing_store_bytes() might overflow size_t temporarily
+  // due to concurrent array buffer sweeping.
+  heap_statistics->external_memory_ =
+      isolate->heap()->backing_store_bytes() < SIZE_MAX
+          ? static_cast<size_t>(isolate->heap()->backing_store_bytes())
+          : SIZE_MAX;
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
@@ -8544,9 +8589,9 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 
 #if V8_ENABLE_WEBASSEMBLY
   heap_statistics->malloced_memory_ +=
-      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
+      i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->peak_malloced_memory_ +=
-      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
+      i::wasm::GetWasmEngine()->allocator()->GetMaxMemoryUsage();
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -8824,7 +8869,7 @@ void Isolate::SetAddHistogramSampleFunction(
 void Isolate::SetMetricsRecorder(
     const std::shared_ptr<metrics::Recorder>& metrics_recorder) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->metrics_recorder()->SetRecorder(isolate, metrics_recorder);
+  isolate->metrics_recorder()->SetEmbedderRecorder(isolate, metrics_recorder);
 }
 
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
@@ -8860,7 +8905,7 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
       // of that context.
       // A handle scope for the native context.
       i::HandleScope handle_scope(isolate);
-      isolate->wasm_engine()->DeleteCompileJobsOnContext(
+      i::wasm::GetWasmEngine()->DeleteCompileJobsOnContext(
           isolate->native_context());
     }
   }
@@ -8886,6 +8931,12 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
           ? isolate->thread_manager()->IsLockedByCurrentThread()
           : i::ThreadId::Current() == isolate->thread_id();
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
+}
+
+void Isolate::ClearCachesForTesting() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);
+  isolate->ClearSerializerData();
 }
 
 void Isolate::EnableMemorySavingsMode() {
@@ -8951,10 +9002,10 @@ JSEntryStubs Isolate::GetJSEntryStubs() {
   JSEntryStubs entry_stubs;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> stubs = {
-      {{i::Builtins::kJSEntry, &entry_stubs.js_entry_stub},
-       {i::Builtins::kJSConstructEntry, &entry_stubs.js_construct_entry_stub},
-       {i::Builtins::kJSRunMicrotasksEntry,
+  std::array<std::pair<i::Builtin, JSEntryStub*>, 3> stubs = {
+      {{i::Builtin::kJSEntry, &entry_stubs.js_entry_stub},
+       {i::Builtin::kJSConstructEntry, &entry_stubs.js_construct_entry_stub},
+       {i::Builtin::kJSRunMicrotasksEntry,
         &entry_stubs.js_run_microtasks_entry_stub}}};
   for (auto& pair : stubs) {
     i::Code js_entry = isolate->heap()->builtin(pair.first);
@@ -9633,8 +9684,6 @@ const char* CodeEvent::GetCodeEventTypeName(CodeEventType code_event_type) {
   }
   // The execution should never pass here
   UNREACHABLE();
-  // NOTE(mmarchini): Workaround to fix a compiler failure on GCC 4.9
-  return "Unknown";
 }
 
 CodeEventHandler::CodeEventHandler(Isolate* isolate) {
@@ -9683,7 +9732,6 @@ Local<Value> HeapGraphEdge::GetName() const {
     default:
       UNREACHABLE();
   }
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
 
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
@@ -9957,6 +10005,14 @@ void EmbedderHeapTracer::ResetHandleInNonTracingGC(
   UNREACHABLE();
 }
 
+void TracedReferenceBase::CheckValue() const {
+#ifdef V8_HOST_ARCH_64_BIT
+  if (!val_) return;
+
+  CHECK_NE(internal::kGlobalHandleZapValue, *reinterpret_cast<uint64_t*>(val_));
+#endif  // V8_HOST_ARCH_64_BIT
+}
+
 CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
     : address_(address), type_info_(type_info) {
   CHECK_NOT_NULL(address_);
@@ -10215,6 +10271,49 @@ void InvokeFinalizationRegistryCleanupFromTask(
           .is_null()) {
     call_depth_scope.Escape();
   }
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+int32_t ConvertDouble(double d) {
+  return internal::DoubleToInt32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+uint32_t ConvertDouble(double d) {
+  return internal::DoubleToUint32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+float ConvertDouble(double d) {
+  return internal::DoubleToFloat32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+double ConvertDouble(double d) {
+  return d;
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+int64_t ConvertDouble(double d) {
+  return internal::DoubleToWebIDLInt64(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+uint64_t ConvertDouble(double d) {
+  return internal::DoubleToWebIDLUint64(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+bool ConvertDouble(double d) {
+  // Implements https://tc39.es/ecma262/#sec-toboolean.
+  return !std::isnan(d) && d != 0;
 }
 
 // Undefine macros for jumbo build.
