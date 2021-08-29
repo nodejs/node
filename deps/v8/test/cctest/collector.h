@@ -7,8 +7,8 @@
 
 #include <vector>
 
+#include "src/base/vector.h"
 #include "src/common/checks.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +27,7 @@ class Collector {
  public:
   explicit Collector(int initial_capacity = kMinCapacity)
       : index_(0), size_(0) {
-    current_chunk_ = Vector<T>::New(initial_capacity);
+    current_chunk_ = base::Vector<T>::New(initial_capacity);
   }
 
   virtual ~Collector() {
@@ -52,7 +52,7 @@ class Collector {
   // memory area.
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
-  inline Vector<T> AddBlock(int size, T initial_value) {
+  inline base::Vector<T> AddBlock(int size, T initial_value) {
     DCHECK_GT(size, 0);
     if (size > current_chunk_.length() - index_) {
       Grow(size);
@@ -63,14 +63,14 @@ class Collector {
     for (int i = 0; i < size; i++) {
       position[i] = initial_value;
     }
-    return Vector<T>(position, size);
+    return base::Vector<T>(position, size);
   }
 
   // Add a contiguous block of elements and return a vector backed
   // by the added block.
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
-  inline Vector<T> AddBlock(Vector<const T> source) {
+  inline base::Vector<T> AddBlock(base::Vector<const T> source) {
     if (source.length() > current_chunk_.length() - index_) {
       Grow(source.length());
     }
@@ -80,14 +80,14 @@ class Collector {
     for (int i = 0; i < source.length(); i++) {
       position[i] = source[i];
     }
-    return Vector<T>(position, source.length());
+    return base::Vector<T>(position, source.length());
   }
 
   // Write the contents of the collector into the provided vector.
-  void WriteTo(Vector<T> destination) {
+  void WriteTo(base::Vector<T> destination) {
     DCHECK(size_ <= destination.length());
     int position = 0;
-    for (const Vector<T>& chunk : chunks_) {
+    for (const base::Vector<T>& chunk : chunks_) {
       for (int j = 0; j < chunk.length(); j++) {
         destination[position] = chunk[j];
         position++;
@@ -103,8 +103,8 @@ class Collector {
   // elements to the vector, and return it.
   // The caller is responsible for freeing the memory of the returned
   // vector (e.g., using Vector::Dispose).
-  Vector<T> ToVector() {
-    Vector<T> new_store = Vector<T>::New(size_);
+  base::Vector<T> ToVector() {
+    base::Vector<T> new_store = base::Vector<T>::New(size_);
     WriteTo(new_store);
     return new_store;
   }
@@ -124,8 +124,9 @@ class Collector {
 
  protected:
   static const int kMinCapacity = 16;
-  std::vector<Vector<T>> chunks_;
-  Vector<T> current_chunk_;  // Block of memory currently being written into.
+  std::vector<base::Vector<T>> chunks_;
+  base::Vector<T>
+      current_chunk_;        // Block of memory currently being written into.
   int index_;                // Current index in current chunk.
   int size_;                 // Total number of elements in collector.
 
@@ -157,7 +158,7 @@ class Collector {
   // the current index_ value to represent data no longer in the current chunk.
   // Returns the initial index of the new chunk (after copied data).
   virtual void NewChunk(int new_capacity) {
-    Vector<T> new_chunk = Vector<T>::New(new_capacity);
+    base::Vector<T> new_chunk = base::Vector<T>::New(new_capacity);
     if (index_ > 0) {
       chunks_.push_back(current_chunk_.SubVector(0, index_));
     } else {
@@ -191,11 +192,11 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     sequence_start_ = this->index_;
   }
 
-  Vector<T> EndSequence() {
+  base::Vector<T> EndSequence() {
     DCHECK_NE(sequence_start_, kNoSequence);
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
-    if (sequence_start == this->index_) return Vector<T>();
+    if (sequence_start == this->index_) return base::Vector<T>();
     return this->current_chunk_.SubVector(sequence_start, this->index_);
   }
 
@@ -225,7 +226,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
       return;
     }
     int sequence_length = this->index_ - sequence_start_;
-    Vector<T> new_chunk = Vector<T>::New(sequence_length + new_capacity);
+    base::Vector<T> new_chunk =
+        base::Vector<T>::New(sequence_length + new_capacity);
     DCHECK(sequence_length < new_chunk.length());
     for (int i = 0; i < sequence_length; i++) {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];

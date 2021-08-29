@@ -71,6 +71,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Compile(Isolate* isolate, Handle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
+  static bool CompileSharedWithBaseline(Isolate* isolate,
+                                        Handle<SharedFunctionInfo> shared,
+                                        ClearExceptionFlag flag,
+                                        IsCompiledScope* is_compiled_scope);
   static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);

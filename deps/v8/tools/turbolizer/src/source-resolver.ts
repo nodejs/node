@@ -165,7 +165,7 @@ export class SourceResolver {
   phases: Array<Phase>;
   phaseNames: Map<string, number>;
   disassemblyPhase: Phase;
-  lineToSourcePositions: Map<string, Array<AnyPosition>>;
+  linePositionMap: Map<string, Array<AnyPosition>>;
   nodeIdToInstructionRange: Array<[number, number]>;
   blockIdToInstructionRange: Array<[number, number]>;
   instructionToPCOffset: Array<TurbolizerInstructionStartInfo>;
@@ -193,7 +193,7 @@ export class SourceResolver {
     // The disassembly phase is stored separately.
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
-    this.lineToSourcePositions = new Map();
+    this.linePositionMap = new Map();
     // Maps node ids to instruction ranges.
     this.nodeIdToInstructionRange = [];
     // Maps block ids to instruction ranges.
@@ -276,7 +276,7 @@ export class SourceResolver {
   }
 
   sourcePositionsToNodeIds(sourcePositions) {
-    const nodeIds = new Set();
+    const nodeIds = new Set<string>();
     for (const sp of sourcePositions) {
       const key = sourcePositionToStringKey(sp);
       const nodeIdsForPosition = this.positionToNodes.get(key);
@@ -526,7 +526,8 @@ export class SourceResolver {
   instructionsToKeyPcOffsets(instructionIds: Iterable<number>): Array<number> {
     const keyPcOffsets = [];
     for (const instructionId of instructionIds) {
-      keyPcOffsets.push(this.instructionToPCOffset[instructionId].gap);
+      const pcOffset = this.instructionToPCOffset[instructionId];
+      if (pcOffset !== undefined) keyPcOffsets.push(pcOffset.gap);
     }
     return keyPcOffsets;
   }
@@ -652,10 +653,10 @@ export class SourceResolver {
 
   addAnyPositionToLine(lineNumber: number | string, sourcePosition: AnyPosition) {
     const lineNumberString = anyToString(lineNumber);
-    if (!this.lineToSourcePositions.has(lineNumberString)) {
-      this.lineToSourcePositions.set(lineNumberString, []);
+    if (!this.linePositionMap.has(lineNumberString)) {
+      this.linePositionMap.set(lineNumberString, []);
     }
-    const A = this.lineToSourcePositions.get(lineNumberString);
+    const A = this.linePositionMap.get(lineNumberString);
     if (!A.includes(sourcePosition)) A.push(sourcePosition);
   }
 
@@ -666,8 +667,8 @@ export class SourceResolver {
     });
   }
 
-  linetoSourcePositions(lineNumber: number | string) {
-    const positions = this.lineToSourcePositions.get(anyToString(lineNumber));
+  lineToSourcePositions(lineNumber: number | string) {
+    const positions = this.linePositionMap.get(anyToString(lineNumber));
     if (positions === undefined) return [];
     return positions;
   }

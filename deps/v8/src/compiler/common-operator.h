@@ -177,8 +177,12 @@ PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 // function. This class bundles the index and a debug name for such operators.
 class ParameterInfo final {
  public:
+  static constexpr int kMinIndex = Linkage::kJSCallClosureParamIndex;
+
   ParameterInfo(int index, const char* debug_name)
-      : index_(index), debug_name_(debug_name) {}
+      : index_(index), debug_name_(debug_name) {
+    DCHECK_LE(kMinIndex, index);
+  }
 
   int index() const { return index_; }
   const char* debug_name() const { return debug_name_; }
@@ -465,6 +469,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
   CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
 
+  // A dummy value node temporarily used as input when the actual value doesn't
+  // matter. This operator is inserted only in SimplifiedLowering and is
+  // expected to not survive dead code elimination.
+  const Operator* Plug();
+
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
@@ -494,7 +503,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
   // the condition is false, which may then either deoptimize or resume
   // execution.
-  const Operator* DynamicCheckMapsWithDeoptUnless();
+  const Operator* DynamicCheckMapsWithDeoptUnless(bool is_inlined_frame_state);
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -613,12 +622,7 @@ class CommonNodeWrapperBase : public NodeWrapper {
 class FrameState : public CommonNodeWrapperBase {
  public:
   explicit constexpr FrameState(Node* node) : CommonNodeWrapperBase(node) {
-    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
-    // test, among others). Also, outer_frame_state points at the start node
-    // for non-inlined functions. This could be avoided by checking
-    // has_outer_frame_state() before casting to FrameState.
-    DCHECK(node->opcode() == IrOpcode::kFrameState ||
-           node->opcode() == IrOpcode::kStart);
+    DCHECK_EQ(node->opcode(), IrOpcode::kFrameState);
   }
 
   FrameStateInfo frame_state_info() const {
@@ -653,15 +657,13 @@ class FrameState : public CommonNodeWrapperBase {
   Node* function() const { return node()->InputAt(kFrameStateFunctionInput); }
 
   // An outer frame state exists for inlined functions; otherwise it points at
-  // the start node.
-  bool has_outer_frame_state() const {
-    Node* maybe_outer_frame_state = node()->InputAt(kFrameStateOuterStateInput);
-    DCHECK(maybe_outer_frame_state->opcode() == IrOpcode::kFrameState ||
-           maybe_outer_frame_state->opcode() == IrOpcode::kStart);
-    return maybe_outer_frame_state->opcode() == IrOpcode::kFrameState;
-  }
-  FrameState outer_frame_state() const {
-    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  // the start node. Could also be dead.
+  Node* outer_frame_state() const {
+    Node* result = node()->InputAt(kFrameStateOuterStateInput);
+    DCHECK(result->opcode() == IrOpcode::kFrameState ||
+           result->opcode() == IrOpcode::kStart ||
+           result->opcode() == IrOpcode::kDeadValue);
+    return result;
   }
 };
 
@@ -780,12 +782,13 @@ class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
   V(Condition, condition, 0, BoolT) \
   V(Slot, slot, 1, IntPtrT)         \
   V(Map, map, 2, Map)               \
-  V(Handler, handler, 3, Object)
+  V(Handler, handler, 3, Object)    \
+  V(FeedbackVector, feedback_vector, 4, FeedbackVector)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 
   FrameState frame_state() {
-    return FrameState{NodeProperties::GetValueInput(node(), 4)};
+    return FrameState{NodeProperties::GetValueInput(node(), 5)};
   }
 };
 

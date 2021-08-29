@@ -141,6 +141,15 @@ function assertNotNull(value, user_message = '') {
   }
 }
 
+/**
+ * Throws if value is undefined.
+ */
+function assertNotUndefined(value, user_message = '') {
+  if (value === undefined) {
+    fail("not undefined", value, user_message);
+  }
+}
+
 
 /**
  * Runs code() and asserts that it throws the specified exception.

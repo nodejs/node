@@ -174,7 +174,7 @@ enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 class FrameState;
 
 FrameState CreateStubBuiltinContinuationFrameState(
-    JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
+    JSGraph* graph, Builtin name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode,
     const wasm::FunctionSig* signature = nullptr);
@@ -186,7 +186,7 @@ FrameState CreateJSWasmCallBuiltinContinuationFrameState(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtin name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);

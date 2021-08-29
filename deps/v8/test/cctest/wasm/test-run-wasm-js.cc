@@ -57,7 +57,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
   CHECK_LT(which, static_cast<int>(sig->parameter_count()));
   CHECK_LT(static_cast<int>(sig->parameter_count()), kMaxParams);
 
-  i::EmbeddedVector<char, 256> source;
+  base::EmbeddedVector<char, 256> source;
   char param = 'a' + which;
   SNPrintF(source, "(function(%s) { return %c; })",
            formals[sig->parameter_count()], param);

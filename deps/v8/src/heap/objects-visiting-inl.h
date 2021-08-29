@@ -9,6 +9,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/module-inl.h"

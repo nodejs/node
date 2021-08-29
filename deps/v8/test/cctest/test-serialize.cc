@@ -75,8 +75,8 @@ void DisableAlwaysOpt() {
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
-  Vector<const byte> startup;
-  Vector<const byte> read_only;
+  base::Vector<const byte> startup;
+  base::Vector<const byte> read_only;
 
   void Dispose() {
     startup.Dispose();
@@ -135,11 +135,12 @@ class TestSerializer {
   }
 };
 
-static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
+static base::Vector<const byte> WritePayload(
+    const base::Vector<const byte>& payload) {
   int length = payload.length();
   byte* blob = NewArray<byte>(length);
   memcpy(blob, payload.begin(), length);
-  return Vector<const byte>(const_cast<const byte*>(blob), length);
+  return base::Vector<const byte>(const_cast<const byte*>(blob), length);
 }
 
 namespace {
@@ -189,9 +190,10 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
           WritePayload(read_only_snapshot.RawData())};
 }
 
-Vector<const char> ConstructSource(Vector<const char> head,
-                                   Vector<const char> body,
-                                   Vector<const char> tail, int repeats) {
+base::Vector<const char> ConstructSource(base::Vector<const char> head,
+                                         base::Vector<const char> body,
+                                         base::Vector<const char> tail,
+                                         int repeats) {
   size_t source_length = head.size() + body.size() * repeats + tail.size();
   char* source = NewArray<char>(source_length);
   CopyChars(source, head.begin(), head.length());
@@ -201,7 +203,7 @@ Vector<const char> ConstructSource(Vector<const char> head,
   }
   CopyChars(source + head.length() + repeats * body.length(), tail.begin(),
             tail.length());
-  return VectorOf(source, source_length);
+  return base::VectorOf(source, source_length);
 }
 
 static v8::Isolate* Deserialize(const StartupBlobs& blobs) {
@@ -218,7 +220,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 #endif
   CHECK(isolate->global_object()->IsJSObject());
   CHECK(isolate->native_context()->IsContext());
-  isolate->factory()->InternalizeString(StaticCharVector("Empty"));
+  isolate->factory()->InternalizeString(base::StaticCharVector("Empty"));
 }
 
 void TestStartupSerializerOnceImpl() {
@@ -319,9 +321,9 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   FreeCurrentEmbeddedBlob();
 }
 
-static void SerializeContext(Vector<const byte>* startup_blob_out,
-                             Vector<const byte>* read_only_blob_out,
-                             Vector<const byte>* context_blob_out) {
+static void SerializeContext(base::Vector<const byte>* startup_blob_out,
+                             base::Vector<const byte>* read_only_blob_out,
+                             base::Vector<const byte>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -389,9 +391,9 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
 
 UNINITIALIZED_TEST(SnapshotCompression) {
   DisableAlwaysOpt();
-  Vector<const byte> startup_blob;
-  Vector<const byte> read_only_blob;
-  Vector<const byte> context_blob;
+  base::Vector<const byte> startup_blob;
+  base::Vector<const byte> read_only_blob;
+  base::Vector<const byte> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &context_blob);
   SnapshotData original_snapshot_data(context_blob);
   SnapshotData compressed =
@@ -407,9 +409,9 @@ UNINITIALIZED_TEST(SnapshotCompression) {
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
   DisableAlwaysOpt();
-  Vector<const byte> startup_blob;
-  Vector<const byte> read_only_blob;
-  Vector<const byte> context_blob;
+  base::Vector<const byte> startup_blob;
+  base::Vector<const byte> read_only_blob;
+  base::Vector<const byte> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &context_blob);
 
   StartupBlobs blobs = {startup_blob, read_only_blob};
@@ -451,9 +453,9 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
   FreeCurrentEmbeddedBlob();
 }
 
-static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
-                                   Vector<const byte>* read_only_blob_out,
-                                   Vector<const byte>* context_blob_out) {
+static void SerializeCustomContext(base::Vector<const byte>* startup_blob_out,
+                                   base::Vector<const byte>* read_only_blob_out,
+                                   base::Vector<const byte>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   {
@@ -482,9 +484,10 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
           "var p = 0;"
           "(async ()=>{ p = await 42; })();");
 
-      Vector<const char> source = ConstructSource(
-          StaticCharVector("function g() { return [,"), StaticCharVector("1,"),
-          StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
+      base::Vector<const char> source = ConstructSource(
+          base::StaticCharVector("function g() { return [,"),
+          base::StaticCharVector("1,"),
+          base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
       v8::MaybeLocal<v8::String> source_str =
           v8::String::NewFromUtf8(v8_isolate, source.begin(),
                                   v8::NewStringType::kNormal, source.length());
@@ -542,9 +545,9 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
   DisableAlwaysOpt();
-  Vector<const byte> startup_blob;
-  Vector<const byte> read_only_blob;
-  Vector<const byte> context_blob;
+  base::Vector<const byte> startup_blob;
+  base::Vector<const byte> read_only_blob;
+  base::Vector<const byte> context_blob;
   SerializeCustomContext(&startup_blob, &read_only_blob, &context_blob);
 
   StartupBlobs blobs = {startup_blob, read_only_blob};
@@ -1520,10 +1523,10 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
-  Vector<const char> source =
-      ConstructSource(StaticCharVector("var a = [];"),
-                      StaticCharVector("a.push(function() {return 7});"),
-                      StaticCharVector("\0"), 10000);
+  base::Vector<const char> source =
+      ConstructSource(base::StaticCharVector("var a = [];"),
+                      base::StaticCharVector("a.push(function() {return 7});"),
+                      base::StaticCharVector("\0"), 10000);
 
   DisableEmbeddedBlobRefcounting();
   v8::StartupData data = CreateSnapshotDataBlob(source.begin());
@@ -1608,10 +1611,10 @@ TEST(CodeSerializerWithProfiler) {
   const char* source = "1 + 1";
 
   Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
@@ -1650,10 +1653,10 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   const char* source = "1 + 1";
 
   Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
@@ -1717,7 +1720,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   const char* source = "1 + 1";
 
   Handle<String> src = isolate->factory()
-                           ->NewStringFromUtf8(CStrVector(source))
+                           ->NewStringFromUtf8(base::CStrVector(source))
                            .ToHandleChecked();
   ScriptData* cache = nullptr;
 
@@ -1748,10 +1751,10 @@ TEST(CodeSerializerInternalizedString) {
   const char* source = "'string1'";
 
   Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
@@ -1808,11 +1811,11 @@ TEST(CodeSerializerLargeCodeObject) {
   // code. Don't even bother generating optimized code to avoid timeouts.
   FLAG_always_opt = false;
 
-  Vector<const char> source = ConstructSource(
-      StaticCharVector("var j=1; if (j == 0) {"),
-      StaticCharVector(
+  base::Vector<const char> source = ConstructSource(
+      base::StaticCharVector("var j=1; if (j == 0) {"),
+      base::StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      StaticCharVector("} j=7; j"), 2000);
+      base::StaticCharVector("} j=7; j"), 2000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
@@ -1865,10 +1868,10 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  Vector<const char> source = ConstructSource(
-      StaticCharVector("var j=1; if (j == 0) {"),
-      StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
-      StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
+  base::Vector<const char> source = ConstructSource(
+      base::StaticCharVector("var j=1; if (j == 0) {"),
+      base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
+      base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
@@ -1937,12 +1940,12 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  Vector<const char> source_s = ConstructSource(
-      StaticCharVector("var s = \""), StaticCharVector("abcdef"),
-      StaticCharVector("\";"), 1000000);
-  Vector<const char> source_t = ConstructSource(
-      StaticCharVector("var t = \""), StaticCharVector("uvwxyz"),
-      StaticCharVector("\"; s + t"), 999999);
+  base::Vector<const char> source_s = ConstructSource(
+      base::StaticCharVector("var s = \""), base::StaticCharVector("abcdef"),
+      base::StaticCharVector("\";"), 1000000);
+  base::Vector<const char> source_t = ConstructSource(
+      base::StaticCharVector("var t = \""), base::StaticCharVector("uvwxyz"),
+      base::StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
       f->NewConsString(f->NewStringFromUtf8(source_s).ToHandleChecked(),
                        f->NewStringFromUtf8(source_t).ToHandleChecked())
@@ -1998,21 +2001,21 @@ TEST(CodeSerializerThreeBigStrings) {
   const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
   const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
 
-  Vector<const char> source_a =
-      ConstructSource(StaticCharVector("var a = \""), StaticCharVector("a"),
-                      StaticCharVector("\";"), length_of_a);
+  base::Vector<const char> source_a = ConstructSource(
+      base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
+      base::StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
       f->NewStringFromUtf8(source_a).ToHandleChecked();
 
-  Vector<const char> source_b =
-      ConstructSource(StaticCharVector("var b = \""), StaticCharVector("b"),
-                      StaticCharVector("\";"), length_of_b);
+  base::Vector<const char> source_b = ConstructSource(
+      base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
+      base::StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
       f->NewStringFromUtf8(source_b).ToHandleChecked();
 
-  Vector<const char> source_c =
-      ConstructSource(StaticCharVector("var c = \""), StaticCharVector("c"),
-                      StaticCharVector("\";"), length_of_c);
+  base::Vector<const char> source_c = ConstructSource(
+      base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
+      base::StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
       f->NewStringFromUtf8(source_c).ToHandleChecked();
 
@@ -2136,9 +2139,10 @@ TEST(CodeSerializerExternalString) {
       "o.one_byte = 7;          \n"
       "o.two_byte = 8;          \n"
       "o.one_byte + o.two_byte; \n";
-  Handle<String> source_string = isolate->factory()
-                                     ->NewStringFromUtf8(CStrVector(source))
-                                     .ToHandleChecked();
+  Handle<String> source_string =
+      isolate->factory()
+          ->NewStringFromUtf8(base::CStrVector(source))
+          .ToHandleChecked();
 
   Handle<JSObject> global(isolate->context().global_object(), isolate);
   ScriptData* cache = nullptr;
@@ -2183,9 +2187,9 @@ TEST(CodeSerializerLargeExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Create a huge external internalized string to use as variable name.
-  Vector<const char> string =
-      ConstructSource(StaticCharVector(""), StaticCharVector("abcdef"),
-                      StaticCharVector(""), 999999);
+  base::Vector<const char> string = ConstructSource(
+      base::StaticCharVector(""), base::StaticCharVector("abcdef"),
+      base::StaticCharVector(""), 999999);
   Handle<String> name = f->NewStringFromUtf8(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.begin()), string.length());
@@ -2250,7 +2254,7 @@ TEST(CodeSerializerExternalScriptName) {
       "a.reduce(function(x, y) { return x + y }, 0)";
 
   Handle<String> source_string =
-      f->NewStringFromUtf8(CStrVector(source)).ToHandleChecked();
+      f->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
 
   const SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> name =
@@ -4014,7 +4018,7 @@ TEST(WeakArraySerializationInCodeCache) {
   const char* source = "function foo() { }";
 
   Handle<String> src = isolate->factory()
-                           ->NewStringFromUtf8(CStrVector(source))
+                           ->NewStringFromUtf8(base::CStrVector(source))
                            .ToHandleChecked();
   ScriptData* cache = nullptr;
 

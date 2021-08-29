@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
+#include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
 namespace internal {
@@ -19,11 +20,24 @@ namespace internal {
 V8_NOINLINE DISABLE_ASAN void NoSanitizeMemset(void* address, char c,
                                                size_t bytes);
 
-inline void ZapMemory(void* address, size_t size) {
+static constexpr uint8_t kZappedValue = 0xdc;
+
+V8_INLINE void ZapMemory(void* address, size_t size) {
   // The lowest bit of the zapped value should be 0 so that zapped object are
   // never viewed as fully constructed objects.
-  static constexpr uint8_t kZappedValue = 0xdc;
   memset(address, kZappedValue, size);
+}
+
+V8_INLINE void CheckMemoryIsZapped(const void* address, size_t size) {
+  for (size_t i = 0; i < size; i++) {
+    CHECK_EQ(kZappedValue, reinterpret_cast<ConstAddress>(address)[i]);
+  }
+}
+
+V8_INLINE void CheckMemoryIsZero(const void* address, size_t size) {
+  for (size_t i = 0; i < size; i++) {
+    CHECK_EQ(0, reinterpret_cast<ConstAddress>(address)[i]);
+  }
 }
 
 // Together `SetMemoryAccessible()` and `SetMemoryInaccessible()` form the
@@ -66,6 +80,61 @@ V8_INLINE void SetMemoryInaccessible(void* address, size_t size) {
 #else  // Release builds.
 
   memset(address, 0, size);
+
+#endif  // Release builds.
+}
+
+constexpr bool CheckMemoryIsInaccessibleIsNoop() {
+#if defined(V8_USE_MEMORY_SANITIZER)
+
+  return true;
+
+#elif defined(V8_USE_ADDRESS_SANITIZER)
+
+  return false;
+
+#elif DEBUG
+
+  return false;
+
+#else  // Release builds.
+
+  return true;
+
+#endif  // Release builds.
+}
+
+V8_INLINE void CheckMemoryIsInaccessible(const void* address, size_t size) {
+#if defined(V8_USE_MEMORY_SANITIZER)
+
+  static_assert(CheckMemoryIsInaccessibleIsNoop(),
+                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
+                "CheckMemoryIsInaccessible().");
+  // Unable to check that memory is marked as uninitialized by MSAN.
+
+#elif defined(V8_USE_ADDRESS_SANITIZER)
+
+  static_assert(!CheckMemoryIsInaccessibleIsNoop(),
+                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
+                "CheckMemoryIsInaccessible().");
+  ASAN_CHECK_MEMORY_REGION_IS_POISONED(address, size);
+  ASAN_UNPOISON_MEMORY_REGION(address, size);
+  CheckMemoryIsZero(address, size);
+  ASAN_POISON_MEMORY_REGION(address, size);
+
+#elif DEBUG
+
+  static_assert(!CheckMemoryIsInaccessibleIsNoop(),
+                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
+                "CheckMemoryIsInaccessible().");
+  CheckMemoryIsZapped(address, size);
+
+#else  // Release builds.
+
+  static_assert(CheckMemoryIsInaccessibleIsNoop(),
+                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
+                "CheckMemoryIsInaccessible().");
+  // No check in release builds.
 
 #endif  // Release builds.
 }

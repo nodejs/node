@@ -1287,7 +1287,7 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, Handle<Code> code,
+    Handle<SharedFunctionInfo> shared_info, Handle<CodeT> code,
     AllocationType allocation) {
   static constexpr int kFeedbackCell = 1;
   static constexpr int kArity = kFeedbackCell;

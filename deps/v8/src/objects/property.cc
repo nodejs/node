@@ -15,6 +15,27 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& os,
+                         const Representation& representation) {
+  switch (representation.kind()) {
+    case Representation::kNone:
+      return os << "none";
+    case Representation::kSmi:
+      return os << "smi";
+    case Representation::kDouble:
+      return os << "double";
+    case Representation::kHeapObject:
+      return os << "heap-object";
+    case Representation::kTagged:
+      return os << "tagged";
+    case Representation::kWasmValue:
+      return os << "wasm-value";
+    case Representation::kNumRepresentations:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes) {
   os << "[";
   os << (((attributes & READ_ONLY) == 0) ? "W" : "_");    // writable

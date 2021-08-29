@@ -135,3 +135,16 @@ Debugger paused in $main.
 > Object.keys(stack) = Array(2)
 > stack[0] = i32 {5}
 > stack[1] = i32 {42}
+
+Running test: testCustomFormatters
+Compile module.
+Set breakpoint in main.
+Install custom formatter.
+Instantiate module.
+Call main.
+Debugger paused in $main.
+> locals = {"header":"[\"div\",{},\"{\\\"$x\\\":{\\\"type\\\":\\\"i32\\\",\\\"value\\\":5}}\"]"}
+> Object.keys(locals) = {"header":"[\"div\",{},\"[\\\"$x\\\"]\"]"}
+> locals[0] = {"header":"[\"div\",{},\"{\\\"type\\\":\\\"i32\\\",\\\"value\\\":5}\"]"}
+> locals["$x"] = {"header":"[\"div\",{},\"{\\\"type\\\":\\\"i32\\\",\\\"value\\\":5}\"]"}
+> $x = {"header":"[\"div\",{},\"{\\\"type\\\":\\\"i32\\\",\\\"value\\\":5}\"]"}

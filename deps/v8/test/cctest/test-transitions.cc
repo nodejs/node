@@ -149,7 +149,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   CHECK(map0->raw_transitions()->IsSmi());
 
   for (int i = 0; i < PROPS_COUNT; i++) {
-    EmbeddedVector<char, 64> buffer;
+    base::EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
     Handle<Map> map =
@@ -241,7 +241,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
 
   // Some number of fields.
   for (int i = 0; i < PROPS_COUNT; i++) {
-    EmbeddedVector<char, 64> buffer;
+    base::EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
     Handle<Map> map =

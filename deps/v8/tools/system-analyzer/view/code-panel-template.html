@@ -1,15 +1,27 @@
 <!-- Copyright 2020 the V8 project authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
-
 <head>
   <link href="./index.css" rel="stylesheet">
 </head>
+
 <style>
   #sourceCode {
     white-space: pre-line;
   }
+  .register {
+    border-bottom: 1px dashed;
+    border-radius: 2px;
+  }
+  .register:hover {
+    background-color: var(--border-color);
+  }
+  .register.selected {
+    color: var(--default-color);
+    background-color: var(--border-color);
+  }
 </style>
+
 <div class="panel">
   <input type="checkbox" id="closer" class="panelCloserInput" checked>
   <label class="panelCloserLabel" for="closer">▼</label>
@@ -19,6 +31,8 @@ found in the LICENSE file. -->
     <button id="selectedRelatedButton">Select Related Events</button>
   </div>
   <div class="panelBody">
+    <h3>Properties</h3>
+    <property-link-table id="properties"></property-link-table>
     <h3>Disassembly</h3>
     <pre id="disassembly"></pre>
     <h3>Source Code</h3>

@@ -7,7 +7,7 @@
 // No reason to stress-opt this; save some time.
 // Flags: --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Without trap handlers, we are able to allocate basically arbitrarily many
 // memories, because we don't need to reserve a huge amount of virtual address

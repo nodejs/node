@@ -75,6 +75,9 @@ class WasmImportWrapperCache {
   V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
                                   const FunctionSig* sig,
                                   int expected_arity) const;
+  // Thread-safe. Returns nullptr if the key doesn't exist in the map.
+  WasmCode* MaybeGet(compiler::WasmImportCallKind kind, const FunctionSig* sig,
+                     int expected_arity) const;
 
   ~WasmImportWrapperCache();
 

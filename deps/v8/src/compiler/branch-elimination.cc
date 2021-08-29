@@ -170,7 +170,6 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
     return NoChange();
   }
   ControlPathConditions from_input = node_conditions_.Get(control_input);
-
   Node* branch;
   bool condition_value;
 
@@ -190,7 +189,7 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
     }
   }
   return UpdateConditions(node, from_input, condition, node,
-                          !trapping_condition);
+                          !trapping_condition, false);
 }
 
 Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
@@ -229,7 +228,8 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
     }
     return Replace(dead());
   }
-  return UpdateConditions(node, conditions, condition, node, condition_is_true);
+  return UpdateConditions(node, conditions, condition, node, condition_is_true,
+                          false);
 }
 
 Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
@@ -243,7 +243,8 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
     return NoChange();
   }
   Node* condition = branch->InputAt(0);
-  return UpdateConditions(node, from_branch, condition, branch, is_true_branch);
+  return UpdateConditions(node, from_branch, condition, branch, is_true_branch,
+                          true);
 }
 
 Reduction BranchElimination::ReduceLoop(Node* node) {
@@ -273,9 +274,9 @@ Reduction BranchElimination::ReduceMerge(Node* node) {
   // inputs.
   auto input_end = inputs.end();
   for (; input_it != input_end; ++input_it) {
-    // Change the current condition list to a longest common tail
-    // of this condition list and the other list. (The common tail
-    // should correspond to the list from the common dominator.)
+    // Change the current condition block list to a longest common tail of this
+    // condition list and the other list. (The common tail should correspond to
+    // the list from the common dominator.)
     conditions.ResetToCommonAncestor(node_conditions_.Get(*input_it));
   }
   return UpdateConditions(node, conditions);
@@ -310,13 +311,18 @@ Reduction BranchElimination::UpdateConditions(
 
 Reduction BranchElimination::UpdateConditions(
     Node* node, ControlPathConditions prev_conditions, Node* current_condition,
-    Node* current_branch, bool is_true_branch) {
-  ControlPathConditions original = node_conditions_.Get(node);
+    Node* current_branch, bool is_true_branch, bool in_new_block) {
   // The control path for the node is the path obtained by appending the
   // current_condition to the prev_conditions. Use the original control path as
   // a hint to avoid allocations.
-  prev_conditions.AddCondition(zone_, current_condition, current_branch,
-                               is_true_branch, original);
+  if (in_new_block || prev_conditions.Size() == 0) {
+    prev_conditions.AddConditionInNewBlock(zone_, current_condition,
+                                           current_branch, is_true_branch);
+  } else {
+    ControlPathConditions original = node_conditions_.Get(node);
+    prev_conditions.AddCondition(zone_, current_condition, current_branch,
+                                 is_true_branch, original);
+  }
   return UpdateConditions(node, prev_conditions);
 }
 
@@ -324,25 +330,45 @@ void BranchElimination::ControlPathConditions::AddCondition(
     Zone* zone, Node* condition, Node* branch, bool is_true,
     ControlPathConditions hint) {
   if (!LookupCondition(condition)) {
-    PushFront({condition, branch, is_true}, zone, hint);
+    FunctionalList<BranchCondition> prev_front = Front();
+    if (hint.Size() > 0) {
+      prev_front.PushFront({condition, branch, is_true}, zone, hint.Front());
+    } else {
+      prev_front.PushFront({condition, branch, is_true}, zone);
+    }
+    DropFront();
+    PushFront(prev_front, zone);
   }
+}
+
+void BranchElimination::ControlPathConditions::AddConditionInNewBlock(
+    Zone* zone, Node* condition, Node* branch, bool is_true) {
+  FunctionalList<BranchCondition> new_block;
+  if (!LookupCondition(condition)) {
+    new_block.PushFront({condition, branch, is_true}, zone);
+  }
+  PushFront(new_block, zone);
 }
 
 bool BranchElimination::ControlPathConditions::LookupCondition(
     Node* condition) const {
-  for (BranchCondition element : *this) {
-    if (element.condition == condition) return true;
+  for (auto block : *this) {
+    for (BranchCondition element : block) {
+      if (element.condition == condition) return true;
+    }
   }
   return false;
 }
 
 bool BranchElimination::ControlPathConditions::LookupCondition(
     Node* condition, Node** branch, bool* is_true) const {
-  for (BranchCondition element : *this) {
-    if (element.condition == condition) {
-      *is_true = element.is_true;
-      *branch = element.branch;
-      return true;
+  for (auto block : *this) {
+    for (BranchCondition element : block) {
+      if (element.condition == condition) {
+        *is_true = element.is_true;
+        *branch = element.branch;
+        return true;
+      }
     }
   }
   return false;

@@ -223,6 +223,12 @@ constexpr int kReturnAddressStackSlotCount =
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
 // PPC has large (64KB) physical pages.
 const int kPageSizeBits = 19;
+#elif defined(ENABLE_HUGEPAGE)
+// When enabling huge pages, adjust V8 page size to take up exactly one huge
+// page. This avoids huge-page-internal fragmentation for unused address ranges.
+const int kHugePageBits = 21;
+const int kHugePageSize = (1U) << kHugePageBits;
+const int kPageSizeBits = kHugePageBits;
 #else
 // Arm64 supports up to 64k OS pages on Linux, however 4k pages are more common
 // so we keep the V8 page size at 256k. Nonetheless, we need to make sure we

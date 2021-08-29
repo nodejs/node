@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "test/cctest/test-api.h"
 
@@ -103,7 +104,7 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "sum;");
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
-  i::ScopedVector<char> test_buf(1024);
+  v8::base::ScopedVector<char> test_buf(1024);
 
   // Check legal boundary conditions.
   // The repeated loads and stores ensure the ICs are exercised.
@@ -116,11 +117,11 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "  }"
       "}"
       "res;";
-  i::SNPrintF(test_buf, boundary_program, low);
+  v8::base::SNPrintF(test_buf, boundary_program, low);
   result = CompileRun(test_buf.begin());
   CHECK_EQ(low, result->IntegerValue(context).FromJust());
 
-  i::SNPrintF(test_buf, boundary_program, high);
+  v8::base::SNPrintF(test_buf, boundary_program, high);
   result = CompileRun(test_buf.begin());
   CHECK_EQ(high, result->IntegerValue(context).FromJust());
 
@@ -141,28 +142,28 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
   // Make sure out-of-range loads do not throw.
-  i::SNPrintF(test_buf,
-              "var caught_exception = false;"
-              "try {"
-              "  ext_array[%d];"
-              "} catch (e) {"
-              "  caught_exception = true;"
-              "}"
-              "caught_exception;",
-              element_count);
+  v8::base::SNPrintF(test_buf,
+                     "var caught_exception = false;"
+                     "try {"
+                     "  ext_array[%d];"
+                     "} catch (e) {"
+                     "  caught_exception = true;"
+                     "}"
+                     "caught_exception;",
+                     element_count);
   result = CompileRun(test_buf.begin());
   CHECK(!result->BooleanValue(v8_isolate));
 
   // Make sure out-of-range stores do not throw.
-  i::SNPrintF(test_buf,
-              "var caught_exception = false;"
-              "try {"
-              "  ext_array[%d] = 1;"
-              "} catch (e) {"
-              "  caught_exception = true;"
-              "}"
-              "caught_exception;",
-              element_count);
+  v8::base::SNPrintF(test_buf,
+                     "var caught_exception = false;"
+                     "try {"
+                     "  ext_array[%d] = 1;"
+                     "} catch (e) {"
+                     "  caught_exception = true;"
+                     "}"
+                     "caught_exception;",
+                     element_count);
   result = CompileRun(test_buf.begin());
   CHECK(!result->BooleanValue(v8_isolate));
 
@@ -245,19 +246,20 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
                         array_type == i::kExternalUint32Array);
     bool is_pixel_data = array_type == i::kExternalUint8ClampedArray;
 
-    i::SNPrintF(test_buf,
-                "%s"
-                "var all_passed = true;"
-                "for (var i = 0; i < source_data.length; i++) {"
-                "  for (var j = 0; j < 8; j++) {"
-                "    ext_array[j] = source_data[i];"
-                "  }"
-                "  all_passed = all_passed &&"
-                "               (ext_array[5] == expected_results[i]);"
-                "}"
-                "all_passed;",
-                (is_unsigned ? unsigned_data
-                             : (is_pixel_data ? pixel_data : signed_data)));
+    v8::base::SNPrintF(
+        test_buf,
+        "%s"
+        "var all_passed = true;"
+        "for (var i = 0; i < source_data.length; i++) {"
+        "  for (var j = 0; j < 8; j++) {"
+        "    ext_array[j] = source_data[i];"
+        "  }"
+        "  all_passed = all_passed &&"
+        "               (ext_array[5] == expected_results[i]);"
+        "}"
+        "all_passed;",
+        (is_unsigned ? unsigned_data
+                     : (is_pixel_data ? pixel_data : signed_data)));
     result = CompileRun(test_buf.begin());
     CHECK(result->BooleanValue(v8_isolate));
   }
@@ -577,12 +579,12 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  i::ScopedVector<char> source(128);
+  v8::base::ScopedVector<char> source(128);
   // Test on-heap sizes.
   for (size_t size = 0; size <= i::JSTypedArray::kMaxSizeInHeap;
        size += elem_size) {
     size_t length = size / elem_size;
-    i::SNPrintF(source, "new %sArray(%zu)", array_name, length);
+    v8::base::SNPrintF(source, "new %sArray(%zu)", array_name, length);
     auto typed_array =
         v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
 
@@ -609,12 +611,12 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  i::ScopedVector<char> source(128);
+  v8::base::ScopedVector<char> source(128);
   // Test off-heap sizes.
   size_t size = i::JSTypedArray::kMaxSizeInHeap;
   for (int i = 0; i < 3; i++) {
     size_t length = 1 + (size / elem_size);
-    i::SNPrintF(source, "new %sArray(%zu)", array_name, length);
+    v8::base::SNPrintF(source, "new %sArray(%zu)", array_name, length);
     auto typed_array =
         v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
     CHECK_EQ(length, typed_array->Length());

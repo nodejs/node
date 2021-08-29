@@ -4,7 +4,7 @@
 
 // Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync
 
-load("test/mjsunit/harmony/atomics-waitasync-helpers.js");
+d8.file.execute("test/mjsunit/harmony/atomics-waitasync-helpers.js");
 
 function workerCode() {
   const sab = new SharedArrayBuffer(16);

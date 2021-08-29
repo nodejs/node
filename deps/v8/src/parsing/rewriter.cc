@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

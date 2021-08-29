@@ -167,6 +167,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   v8::Isolate* isolate() { return m_isolate; }
 
+  // Returns the intersection of `ids` and the current instrumentation
+  // breakpoint ids.
+  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIdsMatching(
+      const std::vector<v8::debug::BreakpointId>& ids);
+
  private:
   void enableImpl();
 

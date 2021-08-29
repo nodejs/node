@@ -5,11 +5,11 @@
 #ifndef V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_INTERPRETER_H_
 #define V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_INTERPRETER_H_
 
+#include "src/base/vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/string.h"
 #include "src/regexp/experimental/experimental-bytecode.h"
 #include "src/regexp/regexp.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

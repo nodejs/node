@@ -11,7 +11,7 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (byte* pc = begin; pc < end;) {
-//     v8::internal::EmbeddedVector<char, 256> buffer;
+//     v8::base::EmbeddedVector<char, 256> buffer;
 //     byte* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
@@ -30,6 +30,8 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/s390/constants-s390.h"
@@ -45,7 +47,7 @@ namespace internal {
 // more informative description.
 class Decoder {
  public:
-  Decoder(const disasm::NameConverter& converter, Vector<char> out_buffer)
+  Decoder(const disasm::NameConverter& converter, base::Vector<char> out_buffer)
       : converter_(converter), out_buffer_(out_buffer), out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -84,7 +86,7 @@ class Decoder {
   bool DecodeGeneric(Instruction* instr);
 
   const disasm::NameConverter& converter_;
-  Vector<char> out_buffer_;
+  base::Vector<char> out_buffer_;
   int out_buffer_pos_;
 };
 
@@ -127,10 +129,12 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
       return;
     default:
       if (svc >= kStopCode) {
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d - 0x%x",
-                                    svc & kStopCodeMask, svc & kStopCodeMask);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d - 0x%x",
+                           svc & kStopCodeMask, svc & kStopCodeMask);
       } else {
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", svc);
+        out_buffer_pos_ +=
+            base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", svc);
       }
       return;
   }
@@ -252,7 +256,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'u': {  // uint16
       int32_t value = instr->Bits(15, 0);
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      out_buffer_pos_ +=
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 6;
     }
     case 'l': {
@@ -274,13 +279,13 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "target"));
       if ((format[6] == '2') && (format[7] == '6')) {
         int off = ((instr->Bits(25, 2)) << 8) >> 6;
-        out_buffer_pos_ += SNPrintF(
+        out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
       } else if ((format[6] == '1') && (format[7] == '6')) {
         int off = ((instr->Bits(15, 2)) << 18) >> 16;
-        out_buffer_pos_ += SNPrintF(
+        out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
@@ -306,30 +311,36 @@ int Decoder::FormatMask(Instruction* instr, const char* format) {
   int32_t value = 0;
   if ((format[1] == '1')) {  // prints the mask format in bits 8-12
     value = reinterpret_cast<RRInstruction*>(instr)->R1Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   } else if (format[1] == '2') {  // mask format in bits 16-19
     value = reinterpret_cast<RXInstruction*>(instr)->B2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   } else if (format[1] == '3') {  // mask format in bits 20-23
     value = reinterpret_cast<RRFInstruction*>(instr)->M4Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   } else if (format[1] == '4') {  // mask format in bits 32-35
     value = reinterpret_cast<VRR_C_Instruction*>(instr)->M4Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   } else if (format[1] == '5') {  // mask format in bits 28-31
     value = reinterpret_cast<VRR_C_Instruction*>(instr)->M5Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   } else if (format[1] == '6') {  // mask format in bits 24-27
     value = reinterpret_cast<VRR_C_Instruction*>(instr)->M6Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   }
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
   return 2;
 }
 
@@ -339,27 +350,32 @@ int Decoder::FormatDisplacement(Instruction* instr, const char* format) {
   if (format[1] == '1') {  // displacement in 20-31
     RSInstruction* rsinstr = reinterpret_cast<RSInstruction*>(instr);
     uint16_t value = rsinstr->D2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
 
     return 2;
   } else if (format[1] == '2') {  // displacement in 20-39
     RXYInstruction* rxyinstr = reinterpret_cast<RXYInstruction*>(instr);
     int32_t value = rxyinstr->D2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '4') {  // SS displacement 2 36-47
     SSInstruction* ssInstr = reinterpret_cast<SSInstruction*>(instr);
     uint16_t value = ssInstr->D2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '3') {  // SS displacement 1 20 - 32
     SSInstruction* ssInstr = reinterpret_cast<SSInstruction*>(instr);
     uint16_t value = ssInstr->D1Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else {  // s390 specific
     int32_t value = SIGN_EXT_IMM16(instr->Bits(15, 0) & ~3);
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 1;
   }
 }
@@ -370,27 +386,30 @@ int Decoder::FormatImmediate(Instruction* instr, const char* format) {
   if (format[1] == '1') {  // immediate in 16-31
     RIInstruction* riinstr = reinterpret_cast<RIInstruction*>(instr);
     int16_t value = riinstr->I2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '2') {  // immediate in 16-48
     RILInstruction* rilinstr = reinterpret_cast<RILInstruction*>(instr);
     int32_t value = rilinstr->I2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '3') {  // immediate in I format
     IInstruction* iinstr = reinterpret_cast<IInstruction*>(instr);
     int8_t value = iinstr->IValue();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '4') {  // immediate in 16-31, but outputs as offset
     RIInstruction* riinstr = reinterpret_cast<RIInstruction*>(instr);
     int16_t value = riinstr->I2Value() * 2;
     if (value >= 0)
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
     else
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*");
 
-    out_buffer_pos_ += SNPrintF(
+    out_buffer_pos_ += base::SNPrintF(
         out_buffer_ + out_buffer_pos_, "%d -> %s", value,
         converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + value));
     return 2;
@@ -398,63 +417,71 @@ int Decoder::FormatImmediate(Instruction* instr, const char* format) {
     RILInstruction* rilinstr = reinterpret_cast<RILInstruction*>(instr);
     int32_t value = rilinstr->I2Value() * 2;
     if (value >= 0)
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
     else
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*");
 
-    out_buffer_pos_ += SNPrintF(
+    out_buffer_pos_ += base::SNPrintF(
         out_buffer_ + out_buffer_pos_, "%d -> %s", value,
         converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + value));
     return 2;
   } else if (format[1] == '6') {  // unsigned immediate in 16-31
     RIInstruction* riinstr = reinterpret_cast<RIInstruction*>(instr);
     uint16_t value = riinstr->I2UnsignedValue();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '7') {  // unsigned immediate in 16-47
     RILInstruction* rilinstr = reinterpret_cast<RILInstruction*>(instr);
     uint32_t value = rilinstr->I2UnsignedValue();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '8') {  // unsigned immediate in 8-15
     SSInstruction* ssinstr = reinterpret_cast<SSInstruction*>(instr);
     uint8_t value = ssinstr->Length();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == '9') {  // unsigned immediate in 16-23
     RIEInstruction* rie_instr = reinterpret_cast<RIEInstruction*>(instr);
     uint8_t value = rie_instr->I3Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == 'a') {  // unsigned immediate in 24-31
     RIEInstruction* rie_instr = reinterpret_cast<RIEInstruction*>(instr);
     uint8_t value = rie_instr->I4Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == 'b') {  // unsigned immediate in 32-39
     RIEInstruction* rie_instr = reinterpret_cast<RIEInstruction*>(instr);
     uint8_t value = rie_instr->I5Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == 'c') {  // signed immediate in 8-15
     SSInstruction* ssinstr = reinterpret_cast<SSInstruction*>(instr);
     int8_t value = ssinstr->Length();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == 'd') {  // signed immediate in 32-47
     SILInstruction* silinstr = reinterpret_cast<SILInstruction*>(instr);
     int16_t value = silinstr->I2Value();
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
     return 2;
   } else if (format[1] == 'e') {  // immediate in 16-47, but outputs as offset
     RILInstruction* rilinstr = reinterpret_cast<RILInstruction*>(instr);
     int32_t value = rilinstr->I2Value() * 2;
     if (value >= 0)
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*+");
     else
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "*");
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "*");
 
-    out_buffer_pos_ += SNPrintF(
+    out_buffer_pos_ += base::SNPrintF(
         out_buffer_ + out_buffer_pos_, "%d -> %s", value,
         converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + value));
     return 2;
@@ -989,15 +1016,16 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   // Print the Instruction bits.
   if (instrLength == 2) {
     out_buffer_pos_ +=
-        SNPrintF(out_buffer_ + out_buffer_pos_, "%04x           ",
-                 instr->InstructionBits<TwoByteInstr>());
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%04x           ",
+                       instr->InstructionBits<TwoByteInstr>());
   } else if (instrLength == 4) {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
-                                instr->InstructionBits<FourByteInstr>());
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
+                       instr->InstructionBits<FourByteInstr>());
   } else {
     out_buffer_pos_ +=
-        SNPrintF(out_buffer_ + out_buffer_pos_, "%012" PRIx64 "   ",
-                 instr->InstructionBits<SixByteInstr>());
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%012" PRIx64 "   ",
+                       instr->InstructionBits<SixByteInstr>());
   }
 
   bool decoded = DecodeSpecial(instr);
@@ -1014,7 +1042,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -1044,7 +1072,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
@@ -1058,7 +1086,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

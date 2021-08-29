@@ -5,6 +5,9 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_WRITE_BARRIER_H_
 #define INCLUDE_CPPGC_INTERNAL_WRITE_BARRIER_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/atomic-entry-flag.h"
@@ -22,8 +25,11 @@ class HeapHandle;
 
 namespace internal {
 
+#if defined(CPPGC_CAGED_HEAP)
 class WriteBarrierTypeForCagedHeapPolicy;
+#else   // !CPPGC_CAGED_HEAP
 class WriteBarrierTypeForNonCagedHeapPolicy;
+#endif  // !CPPGC_CAGED_HEAP
 
 class V8_EXPORT WriteBarrier final {
  public:

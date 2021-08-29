@@ -265,8 +265,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatParameter(DwVfpRegister dst);
   void MovFromFloatResult(DwVfpRegister dst);
 
-  void Trap() override;
-  void DebugBreak() override;
+  void Trap();
+  void DebugBreak();
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug-code to enable.
@@ -295,10 +295,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
 
-  void LoadFromConstantsTable(Register destination,
-                              int constant_index) override;
-  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
-  void LoadRootRelative(Register destination, int32_t offset) override;
+  void LoadFromConstantsTable(Register destination, int constant_index) final;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
+  void LoadRootRelative(Register destination, int32_t offset) final;
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Call(Register target, Condition cond = al);
@@ -311,26 +310,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             bool check_constant_pool = true);
   void Call(Label* target);
 
-  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
-  void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
-                                 Register destination);
-  // Load the builtin given by the Smi in |builtin_index| into the same
+  MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
+  void LoadEntryFromBuiltin(Builtin builtin, Register destination);
+  // Load the builtin given by the Smi in |builtin| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void CallBuiltinByIndex(Register builtin_index) override;
-  void CallBuiltin(int builtin_index, Condition cond = al);
+  void CallBuiltinByIndex(Register builtin_index);
+  void CallBuiltin(Builtin builtin, Condition cond = al);
 
-  void LoadCodeObjectEntry(Register destination, Register code_object) override;
-  void CallCodeObject(Register code_object) override;
+  void LoadCodeObjectEntry(Register destination, Register code_object);
+  void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
-                      JumpMode jump_mode = JumpMode::kJump) override;
+                      JumpMode jump_mode = JumpMode::kJump);
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+  void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
@@ -374,17 +372,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
   void CheckFor32DRegs(Register scratch);
 
-  void SaveRegisters(RegList registers);
-  void RestoreRegisters(RegList registers);
+  void MaybeSaveRegisters(RegList registers);
+  void MaybeRestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStubSaveRegisters(
+      Register object, Operand offset,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+  void CallRecordWriteStub(
+      Register object, Register slot_address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -430,7 +431,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(const ExternalReference& reference) override;
+  void Jump(const ExternalReference& reference);
 
   // Perform a floating-point min or max operation with the
   // (IEEE-754-compatible) semantics of ARM64's fmin/fmax. Some cases, typically
@@ -519,7 +520,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   // Load an object from the root table.
-  void LoadRoot(Register destination, RootIndex index) override {
+  void LoadRoot(Register destination, RootIndex index) final {
     LoadRoot(destination, index, al);
   }
   void LoadRoot(Register destination, RootIndex index, Condition cond);
@@ -622,11 +623,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
-
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -812,9 +808,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // StatsCounter support
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
-                        Register scratch2);
+                        Register scratch2) {
+    if (!FLAG_native_code_counters) return;
+    EmitIncrementCounter(counter, value, scratch1, scratch2);
+  }
+  void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch1,
+                            Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
-                        Register scratch2);
+                        Register scratch2) {
+    if (!FLAG_native_code_counters) return;
+    EmitDecrementCounter(counter, value, scratch1, scratch2);
+  }
+  void EmitDecrementCounter(StatsCounter* counter, int value, Register scratch1,
+                            Register scratch2);
 
   // ---------------------------------------------------------------------------
   // Stack limit utilities

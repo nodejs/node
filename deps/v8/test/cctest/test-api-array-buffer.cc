@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "test/cctest/test-api.h"
 
@@ -25,10 +26,10 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  i::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
-              name, name, name);
+  v8::base::ScopedVector<char> source(1024);
+  v8::base::SNPrintF(
+      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
+      name, name, name);
   CHECK(CompileRun(source.begin())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);

@@ -101,7 +101,7 @@ class Digits {
   const digit_t* digits() const { return digits_; }
 
  protected:
-  friend class TemporaryLeftShift;
+  friend class ShiftedDigits;
   digit_t* digits_;
   int len_;
 
@@ -201,12 +201,35 @@ class Platform {
 //
 // The operations are divided into two groups: "fast" (O(n) with small
 // coefficient) operations are exposed directly as free functions, "slow"
-// operations are methods on a {BigIntProcessor} object, which provides
+// operations are methods on a {Processor} object, which provides
 // support for interrupting execution via the {Platform}'s {InterruptRequested}
 // mechanism when it takes too long. These functions return a {Status} value.
 
 // Returns r such that r < 0 if A < B; r > 0 if A > B; r == 0 if A == B.
-int Compare(Digits A, Digits B);
+// Defined here to be inlineable, which helps ia32 a lot (64-bit platforms
+// don't care).
+inline int Compare(Digits A, Digits B) {
+  A.Normalize();
+  B.Normalize();
+  int diff = A.len() - B.len();
+  if (diff != 0) return diff;
+  int i = A.len() - 1;
+  while (i >= 0 && A[i] == B[i]) i--;
+  if (i < 0) return 0;
+  return A[i] > B[i] ? 1 : -1;
+}
+
+// Z := X + Y
+void Add(RWDigits Z, Digits X, Digits Y);
+// Addition of signed integers. Returns true if the result is negative.
+bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+               bool y_negative);
+
+// Z := X - Y. Requires X >= Y.
+void Subtract(RWDigits Z, Digits X, Digits Y);
+// Subtraction of signed integers. Returns true if the result is negative.
+bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+                    bool y_negative);
 
 enum class Status { kOk, kInterrupted };
 
@@ -215,7 +238,7 @@ class Processor {
   // Takes ownership of {platform}.
   static Processor* New(Platform* platform);
 
-  // Use this for any std::unique_ptr holding an instance of BigIntProcessor.
+  // Use this for any std::unique_ptr holding an instance of {Processor}.
   class Destroyer {
    public:
     void operator()(Processor* proc) { proc->Destroy(); }
@@ -225,11 +248,40 @@ class Processor {
 
   // Z := X * Y
   Status Multiply(RWDigits Z, Digits X, Digits Y);
+  // Q := A / B
+  Status Divide(RWDigits Q, Digits A, Digits B);
+  // R := A % B
+  Status Modulo(RWDigits R, Digits A, Digits B);
+
+  // {out_length} initially contains the allocated capacity of {out}, and
+  // upon return will be set to the actual length of the result string.
+  Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
 };
 
+inline int AddResultLength(int x_length, int y_length) {
+  return std::max(x_length, y_length) + 1;
+}
+inline int AddSignedResultLength(int x_length, int y_length, bool same_sign) {
+  return same_sign ? AddResultLength(x_length, y_length)
+                   : std::max(x_length, y_length);
+}
+inline int SubtractResultLength(int x_length, int y_length) { return x_length; }
+inline int SubtractSignedResultLength(int x_length, int y_length,
+                                      bool same_sign) {
+  return same_sign ? std::max(x_length, y_length)
+                   : AddResultLength(x_length, y_length);
+}
 inline int MultiplyResultLength(Digits X, Digits Y) {
   return X.len() + Y.len();
 }
+inline int DivideResultLength(Digits A, Digits B) {
+  return A.len() - B.len() + 1;
+}
+inline int ModuloResultLength(Digits B) { return B.len(); }
+
+int ToStringResultLength(Digits X, int radix, bool sign);
+// In DEBUG builds, the result of {ToString} will be initialized to this value.
+constexpr char kStringZapValue = '?';
 
 }  // namespace bigint
 }  // namespace v8

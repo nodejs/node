@@ -21,7 +21,7 @@ void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
   byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
-    base::Memcpy(buffer + pos, *start, size);
+    memcpy(buffer + pos, *start, size);
   }
   pos += size;
   *start = buffer;

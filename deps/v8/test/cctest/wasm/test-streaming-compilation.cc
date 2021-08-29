@@ -4,10 +4,10 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
+#include "src/base/vector.h"
 #include "src/init/v8.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
-#include "src/utils/vector.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -189,7 +189,7 @@ class StreamTester {
     Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmFeatures::All(), v8::Utils::OpenHandle(*context),
         "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
@@ -213,13 +213,13 @@ class StreamTester {
   bool IsPromisePending() { return state_ == CompilationState::kPending; }
 
   void OnBytesReceived(const uint8_t* start, size_t length) {
-    stream_->OnBytesReceived(Vector<const uint8_t>(start, length));
+    stream_->OnBytesReceived(base::Vector<const uint8_t>(start, length));
   }
 
   void FinishStream() { stream_->Finish(); }
 
   void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(Vector<const uint8_t>(start, length));
+    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
   }
 
   Zone* zone() { return &zone_; }
@@ -302,7 +302,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   i::wasm::WasmSerializer serializer(native_module.get());
   size_t size = serializer.GetSerializedNativeModuleSize();
   std::vector<byte> buffer(size);
-  CHECK(serializer.SerializeNativeModule(VectorOf(buffer)));
+  CHECK(serializer.SerializeNativeModule(base::VectorOf(buffer)));
   ZoneBuffer result(zone, size);
   result.write(buffer.data(), size);
   return result;
@@ -343,7 +343,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
       WasmFeatures::All(), buffer, buffer + size, false,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSyncStream, isolate->wasm_engine()->allocator());
+      DecodingMethod::kSyncStream, GetWasmEngine()->allocator());
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
@@ -1092,7 +1092,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   ZoneBuffer buffer(tester.zone());
   TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
-  builder.AddImport(ArrayVector("Test"), sigs.i_iii());
+  builder.AddImport(base::ArrayVector("Test"), sigs.i_iii());
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
     uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
@@ -1345,7 +1345,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
     uint8_t code[] = {kExprEnd};
     f->EmitCode(code, arraysize(code));
-    builder.AddExport(VectorOf("foo", 3), f);
+    builder.AddExport(base::VectorOf("foo", 3), f);
     builder.WriteTo(&buffer);
   }
 
@@ -1360,7 +1360,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
 
   // Trigger code logging explicitly like the profiler would do.
   CHECK(WasmCode::ShouldBeLogged(i_isolate));
-  i_isolate->wasm_engine()->LogOutstandingCodesForIsolate(i_isolate);
+  GetWasmEngine()->LogOutstandingCodesForIsolate(i_isolate);
   CHECK(tester.IsPromisePending());
 
   // Finalize stream, stop profiler and clean up.
@@ -1387,7 +1387,7 @@ STREAM_TEST(TierDownWithError) {
     builder.WriteTo(&buffer);
   }
 
-  i_isolate->wasm_engine()->TierDownAllModulesPerIsolate(i_isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(i_isolate);
 
   tester.OnBytesReceived(buffer.begin(), buffer.size());
   tester.FinishStream();

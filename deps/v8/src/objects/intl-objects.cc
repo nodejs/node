@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
@@ -96,7 +97,7 @@ inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
 }
 
 template <typename Char>
-bool ToUpperFastASCII(const Vector<const Char>& src,
+bool ToUpperFastASCII(const base::Vector<const Char>& src,
                       Handle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
@@ -112,7 +113,7 @@ bool ToUpperFastASCII(const Vector<const Char>& src,
 const uint16_t sharp_s = 0xDF;
 
 template <typename Char>
-bool ToUpperOneByte(const Vector<const Char>& src, uint8_t* dest,
+bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
                     int* sharp_s_count) {
   // Still pretty-fast path for the input with non-ASCII Latin-1 characters.
 
@@ -138,7 +139,7 @@ bool ToUpperOneByte(const Vector<const Char>& src, uint8_t* dest,
 }
 
 template <typename Char>
-void ToUpperWithSharpS(const Vector<const Char>& src,
+void ToUpperWithSharpS(const base::Vector<const Char>& src,
                        Handle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
@@ -163,12 +164,12 @@ inline int FindFirstUpperOrNonAscii(String s, int length) {
 }
 
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
-                                    std::unique_ptr<uc16[]>* dest,
+                                    std::unique_ptr<base::uc16[]>* dest,
                                     int32_t length) {
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
     if (!*dest) {
-      dest->reset(NewArray<uc16>(length));
+      dest->reset(NewArray<base::uc16>(length));
       CopyChars(dest->get(), flat.ToOneByteVector().begin(), length);
     }
     return reinterpret_cast<const UChar*>(dest->get());
@@ -195,7 +196,7 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
   // Short one-byte strings can be expanded on the stack to avoid allocating a
   // temporary buffer.
   constexpr int kShortStringSize = 80;
@@ -237,7 +238,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
   int32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
 
   if (dest_length == 0) return ReadOnlyRoots(isolate).empty_string_handle();
 
@@ -369,7 +370,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
       String::FlatContent flat = s->GetFlatContent(no_gc);
       uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
-        Vector<const uint8_t> src = flat.ToOneByteVector();
+        base::Vector<const uint8_t> src = flat.ToOneByteVector();
         bool has_changed_character = false;
         int index_to_first_unprocessed = FastAsciiConvert<false>(
             reinterpret_cast<char*>(result->GetChars(no_gc)),
@@ -385,7 +386,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
                            dest + index_to_first_unprocessed, &sharp_s_count);
       } else {
         DCHECK(flat.IsTwoByte());
-        Vector<const uint16_t> src = flat.ToUC16Vector();
+        base::Vector<const uint16_t> src = flat.ToUC16Vector();
         if (ToUpperFastASCII(src, result)) return result;
         is_result_single_byte = ToUpperOneByte(src, dest, &sharp_s_count);
       }
@@ -453,7 +454,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
 
 MaybeHandle<String> Intl::ToString(Isolate* isolate,
                                    const icu::UnicodeString& string) {
-  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+  return isolate->factory()->NewStringFromTwoByte(base::Vector<const uint16_t>(
       reinterpret_cast<const uint16_t*>(string.getBuffer()), string.length()));
 }
 
@@ -482,7 +483,7 @@ Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
   // TODO(victorgomes): Temporarily forcing a fatal error here in case of
   // overflow, until Intl::AddElement can handle exceptions.
   if (JSObject::AddDataElement(array, index, element, NONE).IsNothing()) {
-    FATAL("Fatal JavaScript invalid array size when adding element");
+    FATAL("Fatal JavaScript invalid size error when adding element");
     UNREACHABLE();
   }
   return element;
@@ -573,7 +574,14 @@ std::set<std::string> Intl::BuildLocaleSet(
   for (const std::string& locale : icu_available_locales) {
     if (path != nullptr || validate_key != nullptr) {
       if (!ValidateResource(icu::Locale(locale.c_str()), path, validate_key)) {
-        continue;
+        // FIXME(chromium:1215606) Find a beter fix for nb->no fallback
+        if (locale != "nb") {
+          continue;
+        }
+        // Try no for nb
+        if (!ValidateResource(icu::Locale("no"), path, validate_key)) {
+          continue;
+        }
       }
     }
     locales.insert(locale);
@@ -1564,8 +1572,13 @@ std::vector<std::string> BestFitSupportedLocales(
           matcher.getBestMatchResult(desired, status);
       if (U_FAILURE(status)) continue;
       if (matched.getSupportedIndex() < 0) continue;
-      std::string bestfit =
-          matched.makeResolvedLocale(status).toLanguageTag<std::string>(status);
+
+      // The BestFitSupportedLocales abstract operation returns the *SUBSET* of
+      // the provided BCP 47 language priority list requestedLocales for which
+      // availableLocales has a matching locale when using the Best Fit Matcher
+      // algorithm. Locales appear in the same order in the returned list as in
+      // requestedLocales. The steps taken are implementation dependent.
+      std::string bestfit = desired.toLanguageTag<std::string>(status);
       if (U_FAILURE(status)) continue;
       result.push_back(bestfit);
     }
@@ -1588,7 +1601,8 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
     Handle<String> value =
-        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
+            .ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(array, i, value, attr),
                  MaybeHandle<JSArray>());
   }
@@ -1954,7 +1968,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
   int length = string->length();
   string = String::Flatten(isolate, string);
   icu::UnicodeString result;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString input = ToICUUnicodeString(isolate, string);
   // Getting a singleton. Should not free it.
@@ -2176,7 +2190,6 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       // We're not creating any permill formatter, and it's not even clear how
       // that would be possible with the ICU API.
       UNREACHABLE();
-      return Handle<String>();
 
     case UNUM_COMPACT_FIELD:
       return isolate->factory()->compact_string();
@@ -2185,7 +2198,6 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
 
     default:
       UNREACHABLE();
-      return Handle<String>();
   }
 }
 

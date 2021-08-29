@@ -54,10 +54,11 @@ enum LiftoffBailoutReason : int8_t {
 };
 
 V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
-    ForDebugging, Counters*, WasmFeatures* detected_features,
-    Vector<const int> breakpoints = {},
-    std::unique_ptr<DebugSideTable>* = nullptr, int dead_breakpoint = 0);
+    CompilationEnv*, const FunctionBody&, int func_index, ForDebugging,
+    Counters*, WasmFeatures* detected_features,
+    base::Vector<const int> breakpoints = {},
+    std::unique_ptr<DebugSideTable>* = nullptr, int dead_breakpoint = 0,
+    int32_t* max_steps = nullptr, int32_t* nondeterminism = nullptr);
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
     const WasmCode*);

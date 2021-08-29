@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-memory64
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We use standard JavaScript doubles to represent bytes and offsets. They offer
 // enough precision (53 bits) for every allowed memory size.

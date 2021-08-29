@@ -50,6 +50,7 @@ class CFunction;
 class CallHandlerHelper;
 class Context;
 class CppHeap;
+class CTypeInfo;
 class Data;
 class Date;
 class EscapableHandleScope;
@@ -885,6 +886,8 @@ class TracedReferenceBase {
         std::memory_order_relaxed);
   }
 
+  V8_EXPORT void CheckValue() const;
+
   // val_ points to a GlobalHandles node.
   internal::Address* val_ = nullptr;
 
@@ -926,8 +929,18 @@ class BasicTracedReference : public TracedReferenceBase {
         const_cast<BasicTracedReference<T>&>(*this));
   }
 
-  T* operator->() const { return reinterpret_cast<T*>(val_); }
-  T* operator*() const { return reinterpret_cast<T*>(val_); }
+  T* operator->() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
+  T* operator*() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
 
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };
@@ -1427,9 +1440,7 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
-#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -1440,9 +1451,7 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor that takes an isolate")
-#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
@@ -1653,7 +1662,7 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback =
+  using ResolveCallback V8_DEPRECATE_SOON("Use ResolveModuleCallback") =
       MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
                              Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
@@ -1944,11 +1953,9 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
     V8_DEPRECATED(
         "This class takes ownership of source_stream, so use the constructor "
         "taking a unique_ptr to make these semantics clearer")
-#endif
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
@@ -4425,6 +4432,7 @@ class V8_EXPORT Array : public Object {
   static Local<Array> New(Isolate* isolate, Local<Value>* elements,
                           size_t length);
   V8_INLINE static Array* Cast(Value* obj);
+
  private:
   Array();
   static void CheckCast(Value* obj);
@@ -4899,6 +4907,12 @@ class V8_EXPORT Promise : public Object {
    * Marks this promise as handled to avoid reporting unhandled rejections.
    */
   void MarkAsHandled();
+
+  /**
+   * Marks this promise as silent to prevent pausing the debugger when the
+   * promise is rejected.
+   */
+  void MarkAsSilent();
 
   V8_INLINE static Promise* Cast(Value* obj);
 
@@ -6073,7 +6087,8 @@ class V8_EXPORT Template : public Data {
            PropertyAttribute attributes = None);
   void SetPrivate(Local<Private> name, Local<Data> value,
                   PropertyAttribute attributes = None);
-  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
+                     PropertyAttribute attributes = None);
 
   void SetAccessorProperty(
      Local<Name> name,
@@ -6503,7 +6518,9 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr);
+      const CFunction* c_function = nullptr, uint8_t instance_type = 0,
+      uint8_t allowed_receiver_range_start = 0,
+      uint8_t allowed_receiver_range_end = 0);
 
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
@@ -7299,7 +7316,8 @@ using CallCompletedCallback = void (*)(Isolate*);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback =
+using HostImportModuleDynamicallyCallback V8_DEPRECATE_SOON(
+    "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier);
@@ -8547,7 +8565,7 @@ class V8_EXPORT Isolate {
     kDateToLocaleTimeString = 68,
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
-    kOptimizedFunctionWithOneShotBytecode = 71,
+    kOptimizedFunctionWithOneShotBytecode = 71,  // Unused.
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
     kDateGetTimezoneOffset = 74,  // Unused.
@@ -8650,6 +8668,14 @@ class V8_EXPORT Isolate {
   static Isolate* GetCurrent();
 
   /**
+   * Returns the entered isolate for the current thread or NULL in
+   * case there is no current isolate.
+   *
+   * No checks are performed by this method.
+   */
+  static Isolate* TryGetCurrent();
+
+  /**
    * Clears the set of objects held strongly by the heap. This set of
    * objects are originally built when a WeakRef is created or
    * successfully dereferenced.
@@ -8714,6 +8740,13 @@ class V8_EXPORT Isolate {
    * the isolate is executing long running JavaScript code.
    */
   void MemoryPressureNotification(MemoryPressureLevel level);
+
+  /**
+   * Drop non-essential caches. Should only be called from testing code.
+   * The method can potentially block for a long time and does not necessarily
+   * trigger GC.
+   */
+  void ClearCachesForTesting();
 
   /**
    * Methods below this point require holding a lock (using Locker) in
@@ -11585,10 +11618,11 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
-void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
+void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+                   PropertyAttribute attributes) {
   Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
-      value);
+      value, attributes);
 }
 
 FunctionTemplate* FunctionTemplate::Cast(Data* data) {

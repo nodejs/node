@@ -10,7 +10,7 @@ var exception = null;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
       print(event_data.sourceLineText());
       assertTrue(
           event_data.sourceLineText().indexOf(`B${breaks++}`) > 0);

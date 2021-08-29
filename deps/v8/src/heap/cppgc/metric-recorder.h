@@ -20,19 +20,19 @@ class StatsCollector;
  */
 class MetricRecorder {
  public:
-  struct CppGCFullCycle {
+  struct FullCycle {
     struct IncrementalPhases {
-      int64_t mark_duration_us;
-      int64_t sweep_duration_us;
+      int64_t mark_duration_us = -1;
+      int64_t sweep_duration_us = -1;
     };
     struct Phases : public IncrementalPhases {
-      int64_t weak_duration_us;
-      int64_t compact_duration_us;
+      int64_t weak_duration_us = -1;
+      int64_t compact_duration_us = -1;
     };
     struct Sizes {
-      int64_t before_bytes;
-      int64_t after_bytes;
-      int64_t freed_bytes;
+      int64_t before_bytes = -1;
+      int64_t after_bytes = -1;
+      int64_t freed_bytes = -1;
     };
 
     Phases total;
@@ -46,21 +46,19 @@ class MetricRecorder {
     double main_thread_efficiency_in_bytes_per_us;
   };
 
-  struct CppGCMainThreadIncrementalMark {
-    int64_t duration_us;
+  struct MainThreadIncrementalMark {
+    int64_t duration_us = -1;
   };
 
-  struct CppGCMainThreadIncrementalSweep {
-    int64_t duration_us;
+  struct MainThreadIncrementalSweep {
+    int64_t duration_us = -1;
   };
 
   virtual ~MetricRecorder() = default;
 
-  virtual void AddMainThreadEvent(const CppGCFullCycle& event) {}
-  virtual void AddMainThreadEvent(const CppGCMainThreadIncrementalMark& event) {
-  }
-  virtual void AddMainThreadEvent(
-      const CppGCMainThreadIncrementalSweep& event) {}
+  virtual void AddMainThreadEvent(const FullCycle& event) {}
+  virtual void AddMainThreadEvent(const MainThreadIncrementalMark& event) {}
+  virtual void AddMainThreadEvent(const MainThreadIncrementalSweep& event) {}
 };
 
 }  // namespace internal

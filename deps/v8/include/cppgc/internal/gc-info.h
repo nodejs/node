@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <type_traits>
 
 #include "cppgc/internal/finalizer-trait.h"
 #include "cppgc/internal/name-trait.h"

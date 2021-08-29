@@ -198,7 +198,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
   impl_.capacity_ = original->capacity();
   impl_.occupancy_ = original->occupancy();
   impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity());
-  base::Memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
+  memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
 }
 
 template <typename Key, typename Value, typename MatchFun,

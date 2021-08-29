@@ -7,6 +7,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/time.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
@@ -183,7 +184,7 @@ class TestCompileResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       *native_module_ = module->shared_native_module();
-      isolate_->wasm_engine()->AsyncInstantiate(
+      GetWasmEngine()->AsyncInstantiate(
           isolate_,
           std::make_unique<TestInstantiateResolver>(isolate_, status_,
                                                     error_message_),
@@ -271,6 +272,9 @@ COMPILE_TEST(TestEventMetrics) {
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
   reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);
+  if (v8::base::ThreadTicks::IsSupported()) {
+    v8::base::ThreadTicks::WaitUntilInitialized();
+  }
 
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
@@ -278,7 +282,7 @@ COMPILE_TEST(TestEventMetrics) {
 
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-  f->builder()->AddExport(CStrVector("main"), f);
+  f->builder()->AddExport(base::CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(0)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);
@@ -289,7 +293,7 @@ COMPILE_TEST(TestEventMetrics) {
   CompilationStatus status = CompilationStatus::kPending;
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
-  isolate->wasm_engine()->AsyncCompile(
+  GetWasmEngine()->AsyncCompile(
       isolate, enabled_features,
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),
@@ -313,6 +317,9 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_decoded_.back().module_size_in_bytes);
   CHECK_EQ(1, recorder->module_decoded_.back().function_count);
   CHECK_LE(0, recorder->module_decoded_.back().wall_clock_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      recorder->module_decoded_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
@@ -331,8 +338,12 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_compiled_.back().code_size_in_bytes);
   CHECK_GE(native_module->generated_code_size(),
            recorder->module_compiled_.back().code_size_in_bytes);
-  CHECK_EQ(0, recorder->module_compiled_.back().liftoff_bailout_count);
   CHECK_LE(0, recorder->module_compiled_.back().wall_clock_duration_in_us);
+  CHECK_EQ(native_module->baseline_compilation_cpu_duration(),
+           recorder->module_compiled_.back().cpu_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      recorder->module_compiled_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_instantiated_.size());
   CHECK(recorder->module_instantiated_.back().success);
@@ -351,6 +362,13 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_GE(native_module->committed_code_space(),
            recorder->module_tiered_up_.back().code_size_in_bytes);
   CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_duration_in_us);
+  CHECK_EQ(native_module->tier_up_cpu_duration(),
+           recorder->module_tiered_up_.back().cpu_duration_in_us);
+  CHECK_IMPLIES(
+      v8::base::ThreadTicks::IsSupported() && i::FLAG_wasm_tier_up &&
+          i::FLAG_liftoff &&
+          recorder->module_compiled_.back().liftoff_bailout_count == 0,
+      recorder->module_tiered_up_.back().cpu_duration_in_us > 0);
 }
 
 }  // namespace wasm

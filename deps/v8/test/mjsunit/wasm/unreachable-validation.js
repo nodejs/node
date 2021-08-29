@@ -4,13 +4,17 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Set unittest to false to run this test and just print results, without failing.
 let unittest = true;
 
 function run(expected, name, code) {
   let builder = new WasmModuleBuilder();
+  // Index 0
+  builder.addType(kSig_i_i);
+  // Index 1
+  builder.addType(kSig_i_ii);
   builder.addFunction("main", kSig_v_v).
     addBody(code);
   let buffer = builder.toBuffer();
@@ -36,6 +40,8 @@ let X = undefined;
 
 let nop = kExprNop;
 let iadd = kExprI32Add;
+let ieqz = kExprI32Eqz;
+let leqz = kExprI64Eqz;
 let unr = kExprUnreachable;
 let ret = kExprReturn;
 let br0 = [kExprBr, 0];
@@ -45,14 +51,19 @@ let brt1 = [kExprBrTable, 0, 1];
 let brt01 = [kExprBrTable, 1, 0, 1];
 let f32 = [kExprF32Const, 0, 0, 0, 0];
 let zero = [kExprI32Const, 0];
+let zero64 = [kExprI64Const, 0];
 let if_else_empty = [kExprIf, kWasmVoid, kExprElse, kExprEnd];
 let if_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprEnd];
 let if_else_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprElse, kExprUnreachable, kExprEnd];
 let block_unr = [kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd];
 let loop_unr = [kExprLoop, kWasmVoid, kExprUnreachable, kExprEnd];
+// An i32-typed loop returning a polymorphic stack.
+let iloop_poly = [kExprLoop, kWasmI32, kExprUnreachable, kExprI32Const, 0, kExprSelect, kExprEnd];
 let block_block_unr = [kExprBlock, kWasmVoid, kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd, kExprEnd];
 let block = [kExprBlock, kWasmVoid]
 let iblock = [kExprBlock, kWasmI32]
+let i_iblock = [kExprBlock, 0]
+let i_iiblock = [kExprBlock, 1]
 let fblock = [kExprBlock, kWasmF32]
 let end = kExprEnd;
 let drop = kExprDrop;
@@ -91,7 +102,12 @@ run(I, '0 0 ret iadd', [...zero, ...zero, ret, iadd]);
 run(I, '(block U) iadd drop', [...block_unr, iadd, drop]);
 run(I, '(block (block U)) iadd drop', [...block_block_unr, iadd, drop]);
 run(I, '(loop U) iadd drop', [...loop_unr, iadd]);
+run(V, '(iloop (iloop U 0 select)) drop', [kExprLoop, kWasmI32, ...iloop_poly, kExprEnd, drop]);
 run(I, '(if 0 U U) iadd drop', [...zero, ...if_else_unr, iadd, drop]);
+run(I, 'U (i_iblock leqz)', [unr, ...i_iblock, leqz, end, drop]);
+run(V, 'U (i_iblock ieqz)', [unr, ...i_iblock, ieqz, end, drop]);
+run(I, 'U (iblock iadd)', [unr, ...iblock, iadd, end, drop]);
+run(I, 'U zero64 (i_iiblock iadd) drop', [unr, ...zero64, ...i_iiblock, iadd, end, drop])
 
 run(V, 'U 0 0 iadd drop', [unr, ...zero, ...zero, iadd, drop]);
 run(V, "(block U) 0 0 iadd drop", [...block_unr, ...zero, ...zero, iadd, drop]);

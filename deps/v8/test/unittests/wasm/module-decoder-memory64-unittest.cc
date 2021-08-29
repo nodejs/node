@@ -36,7 +36,7 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
         module_bytes.data() + module_bytes.size(), false, kWasmOrigin,
         isolate()->counters(), isolate()->metrics_recorder(),
         v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
-        isolate()->wasm_engine()->allocator());
+        wasm::GetWasmEngine()->allocator());
   }
 };
 

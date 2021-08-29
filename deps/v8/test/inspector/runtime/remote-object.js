@@ -231,6 +231,11 @@ InspectorTest.runAsyncTestSuite([
       expression: `new RegExp('foo/bar')`
     })).result);
     InspectorTest.logMessage((await evaluate({
+      expression: `var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
       expression: `var re = new RegExp('\\w+', 'g');
         re.prop = 32;
         re`,

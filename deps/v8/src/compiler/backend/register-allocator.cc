@@ -8,12 +8,12 @@
 
 #include "src/base/iterator.h"
 #include "src/base/small-vector.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/spill-placer.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -135,6 +135,7 @@ LiveRangeBoundArray* LiveRangeFinder::ArrayFor(int operand_index) {
   DCHECK(operand_index < bounds_length_);
   TopLevelLiveRange* range = data_->live_ranges()[operand_index];
   DCHECK(range != nullptr && !range->IsEmpty());
+  DCHECK_EQ(range->vreg(), operand_index);
   LiveRangeBoundArray* array = &bounds_[operand_index];
   if (array->ShouldInitialize()) {
     array->Initialize(zone_, range);
@@ -1365,6 +1366,7 @@ TopLevelLiveRange* TopTierRegisterAllocationData::GetOrCreateLiveRangeFor(
     result = NewLiveRange(index, RepresentationFor(index));
     live_ranges()[index] = result;
   }
+  DCHECK_EQ(live_ranges()[index]->vreg(), index);
   return result;
 }
 
@@ -1503,29 +1505,26 @@ bool TopTierRegisterAllocationData::HasFixedUse(MachineRepresentation rep,
                                                 int index) {
   switch (rep) {
     case MachineRepresentation::kFloat32:
-    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd128: {
       if (kSimpleFPAliasing) {
         return fixed_fp_register_use_->Contains(index);
-      } else {
-        int alias_base_index = -1;
-        int aliases = config()->GetAliases(
-            rep, index, MachineRepresentation::kFloat64, &alias_base_index);
-        DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
-        bool result = false;
-        while (aliases-- && !result) {
-          int aliased_reg = alias_base_index + aliases;
-          result |= fixed_fp_register_use_->Contains(aliased_reg);
-        }
-        return result;
       }
-      break;
+      int alias_base_index = -1;
+      int aliases = config()->GetAliases(
+          rep, index, MachineRepresentation::kFloat64, &alias_base_index);
+      DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
+      bool result = false;
+      while (aliases-- && !result) {
+        int aliased_reg = alias_base_index + aliases;
+        result |= fixed_fp_register_use_->Contains(aliased_reg);
+      }
+      return result;
+    }
     case MachineRepresentation::kFloat64:
       return fixed_fp_register_use_->Contains(index);
-      break;
     default:
       DCHECK(!IsFloatingPoint(rep));
       return fixed_register_use_->Contains(index);
-      break;
   }
 }
 
@@ -3424,6 +3423,7 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
           continue;
         }
         for (auto inactive : inactive_live_ranges(reg)) {
+          if (inactive->NextStart() > max) break;
           split_conflicting(range, inactive, [this](LiveRange* updated) {
             next_inactive_ranges_change_ =
                 std::min(updated->End(), next_inactive_ranges_change_);
@@ -3915,7 +3915,7 @@ void LinearScanAllocator::GetFPRegisterSet(MachineRepresentation rep,
 }
 
 void LinearScanAllocator::FindFreeRegistersForRange(
-    LiveRange* range, Vector<LifetimePosition> positions) {
+    LiveRange* range, base::Vector<LifetimePosition> positions) {
   int num_regs = num_registers();
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -3992,7 +3992,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 // which are expensive.
 void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
                                               SpillMode spill_mode) {
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       free_until_pos;
   FindFreeRegistersForRange(current, free_until_pos);
   if (!TryAllocatePreferredReg(current, free_until_pos)) {
@@ -4006,7 +4006,7 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
 }
 
 bool LinearScanAllocator::TryAllocatePreferredReg(
-    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
       current->FirstHintPosition(&hint_register) != nullptr ||
@@ -4031,7 +4031,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
 
 int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
     LiveRange* current, int hint_reg,
-    const Vector<LifetimePosition>& free_until_pos) {
+    const base::Vector<LifetimePosition>& free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -4073,7 +4073,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
 }
 
 bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
@@ -4135,9 +4135,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   // use_pos keeps track of positions a register/alias is used at.
   // block_pos keeps track of positions where a register/alias is blocked
   // from.
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       use_pos(LifetimePosition::MaxPosition());
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       block_pos(LifetimePosition::MaxPosition());
 
   for (LiveRange* range : active_live_ranges()) {
@@ -4627,6 +4627,15 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
   const ReferenceMapDeque* reference_maps = data()->code()->reference_maps();
   ReferenceMapDeque::const_iterator first_it = reference_maps->begin();
   const size_t live_ranges_size = data()->live_ranges().size();
+  // We break the invariant that live ranges are indexed by their vregs here.
+  // This is ok because we don't use that invariant here, and this is the last
+  // phase.
+  std::sort(data()->live_ranges().begin(), data()->live_ranges().end(),
+            [](TopLevelLiveRange* a, TopLevelLiveRange* b) {
+              if (!a || a->IsEmpty()) return false;
+              if (!b || b->IsEmpty()) return true;
+              return a->Start() < b->Start();
+            });
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
@@ -4647,10 +4656,11 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
       DCHECK(cur->Start().ToInstructionIndex() >= start);
     }
 
-    // Most of the ranges are in order, but not all.  Keep an eye on when they
-    // step backwards and reset the first_it so we don't miss any safe points.
-    if (start < last_range_start) first_it = reference_maps->begin();
+    // Ranges should be sorted, so that the first reference map in the current
+    // live range has to be after {first_it}.
+    DCHECK_LE(last_range_start, start);
     last_range_start = start;
+    USE(last_range_start);
 
     // Step across all the safe points that are before the start of this range,
     // recording how far we step in order to save doing this for the next range.

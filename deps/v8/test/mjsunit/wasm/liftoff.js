@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --liftoff --no-wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testLiftoffFlag() {
   print(arguments.callee.name);

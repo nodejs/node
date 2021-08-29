@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-threads
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kMemtypeSize32 = 4;
 const kMemtypeSize16 = 2;

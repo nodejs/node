@@ -4,6 +4,7 @@
 
 #include <bitset>
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"

@@ -41,7 +41,7 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (int i = 0; i < script_context_table_->synchronized_used(); ++i) {
+    for (int i = 0; i < script_context_table_->used(kAcquireLoad); ++i) {
       Context context = script_context_table_->get_context(i);
       CHECK(context.IsScriptContext());
     }

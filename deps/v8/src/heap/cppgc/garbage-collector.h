@@ -20,6 +20,7 @@ class GarbageCollector {
     using StackState = cppgc::Heap::StackState;
     using MarkingType = Marker::MarkingConfig::MarkingType;
     using SweepingType = Sweeper::SweepingConfig::SweepingType;
+    using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
     using IsForcedGC = Marker::MarkingConfig::IsForcedGC;
 
     static constexpr Config ConservativeAtomicConfig() {
@@ -58,6 +59,7 @@ class GarbageCollector {
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kAtomic;
     SweepingType sweeping_type = SweepingType::kAtomic;
+    FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
     IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
   };
 

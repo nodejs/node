@@ -34,7 +34,6 @@ class V8_EXPORT_PRIVATE TypeNarrowingReducer final
   Zone* zone() const;
 
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const broker_;
   OperationTyper op_typer_;
 };
 

@@ -133,8 +133,6 @@ namespace interpreter {
   /* Property loads (LoadIC) operations */                                     \
   V(LdaNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(LdaNamedPropertyNoFeedback, ImplicitRegisterUse::kWriteAccumulator,        \
-    OperandType::kReg, OperandType::kIdx)                                      \
   V(LdaNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,     \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
   V(LdaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
@@ -149,8 +147,6 @@ namespace interpreter {
   /* Propery stores (StoreIC) operations */                                    \
   V(StaNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(StaNamedPropertyNoFeedback, ImplicitRegisterUse::kReadWriteAccumulator,    \
-    OperandType::kReg, OperandType::kIdx, OperandType::kFlag8)                 \
   V(StaNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,           \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
   V(StaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
@@ -255,8 +251,6 @@ namespace interpreter {
   V(CallUndefinedReceiver2, ImplicitRegisterUse::kWriteAccumulator,            \
     OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
     OperandType::kIdx)                                                         \
-  V(CallNoFeedback, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
-    OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallWithSpread, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, ImplicitRegisterUse::kWriteAccumulator,                       \
@@ -779,7 +773,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kCallUndefinedReceiver0 ||
            bytecode == Bytecode::kCallUndefinedReceiver1 ||
            bytecode == Bytecode::kCallUndefinedReceiver2 ||
-           bytecode == Bytecode::kCallNoFeedback ||
            bytecode == Bytecode::kConstruct ||
            bytecode == Bytecode::kCallWithSpread ||
            bytecode == Bytecode::kConstructWithSpread ||
@@ -791,15 +784,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     return bytecode == Bytecode::kCallRuntime ||
            bytecode == Bytecode::kCallRuntimeForPair ||
            bytecode == Bytecode::kInvokeIntrinsic;
-  }
-
-  // Returns true if the bytecode is an one-shot bytecode.  One-shot bytecodes
-  // don`t collect feedback and are intended for code that runs only once and
-  // shouldn`t be optimized.
-  static constexpr bool IsOneShotBytecode(Bytecode bytecode) {
-    return bytecode == Bytecode::kCallNoFeedback ||
-           bytecode == Bytecode::kLdaNamedPropertyNoFeedback ||
-           bytecode == Bytecode::kStaNamedPropertyNoFeedback;
   }
 
   // Returns true if the bytecode is a scaling prefix bytecode.
@@ -920,7 +904,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
       case Bytecode::kCallJSRuntime:
         return ConvertReceiverMode::kNullOrUndefined;
       case Bytecode::kCallAnyReceiver:
-      case Bytecode::kCallNoFeedback:
       case Bytecode::kConstruct:
       case Bytecode::kCallWithSpread:
       case Bytecode::kConstructWithSpread:

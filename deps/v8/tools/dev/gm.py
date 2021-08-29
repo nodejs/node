@@ -36,8 +36,8 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "cctest", "inspector-test", "unittests",
-                      "wasm_api_tests"]
+BUILD_TARGETS_TEST = ["d8", "bigint_shell", "cctest", "inspector-test",
+                      "unittests", "wasm_api_tests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
@@ -51,7 +51,8 @@ MODES = ["release", "debug", "optdebug"]
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-           "mkgrokdump", "generate-bytecode-expectations", "inspector-test"]
+           "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
+           "bigint_shell"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -62,10 +63,31 @@ DEFAULT_TESTS = ["cctest", "debugger", "intl", "message", "mjsunit",
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
 ACTIONS = {
-  "all": {"targets": BUILD_TARGETS_ALL, "tests": []},
-  "tests": {"targets": BUILD_TARGETS_TEST, "tests": []},
-  "check": {"targets": BUILD_TARGETS_TEST, "tests": DEFAULT_TESTS},
-  "checkall": {"targets": BUILD_TARGETS_ALL, "tests": ["ALL"]},
+    "all": {
+        "targets": BUILD_TARGETS_ALL,
+        "tests": [],
+        "clean": False
+    },
+    "tests": {
+        "targets": BUILD_TARGETS_TEST,
+        "tests": [],
+        "clean": False
+    },
+    "check": {
+        "targets": BUILD_TARGETS_TEST,
+        "tests": DEFAULT_TESTS,
+        "clean": False
+    },
+    "checkall": {
+        "targets": BUILD_TARGETS_ALL,
+        "tests": ["ALL"],
+        "clean": False
+    },
+    "clean": {
+        "targets": [],
+        "tests": [],
+        "clean": True
+    },
 }
 
 HELP = """<arch> can be any of: %(arches)s
@@ -81,6 +103,7 @@ HELP = """<arch> can be any of: %(arches)s
        "targets": ", ".join(TARGETS)}
 
 TESTSUITES_TARGETS = {"benchmarks": "d8",
+              "bigint": "bigint_shell",
               "cctest": "cctest",
               "debugger": "d8",
               "fuzzer": "v8_fuzzers",
@@ -245,16 +268,24 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
   return result
 
 class Config(object):
-  def __init__(self, arch, mode, targets, tests=[], testrunner_args=[]):
+  def __init__(self,
+               arch,
+               mode,
+               targets,
+               tests=[],
+               clean=False,
+               testrunner_args=[]):
     self.arch = arch
     self.mode = mode
     self.targets = set(targets)
     self.tests = set(tests)
     self.testrunner_args = testrunner_args
+    self.clean = clean
 
-  def Extend(self, targets, tests=[]):
+  def Extend(self, targets, tests=[], clean=False):
     self.targets.update(targets)
     self.tests.update(tests)
+    self.clean |= clean
 
   def GetTargetCpu(self):
     cpu = "x86"
@@ -316,6 +347,9 @@ class Config(object):
     if not os.path.exists(build_ninja):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
+    elif self.clean:
+      code = _Call("gn clean %s" % path)
+      if code != 0: return code
     targets = " ".join(self.targets)
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
@@ -366,12 +400,12 @@ class ArgumentParser(object):
     self.configs = {}
     self.testrunner_args = []
 
-  def PopulateConfigs(self, arches, modes, targets, tests):
+  def PopulateConfigs(self, arches, modes, targets, tests, clean):
     for a in arches:
       for m in modes:
         path = GetPath(a, m)
         if path not in self.configs:
-          self.configs[path] = Config(a, m, targets, tests,
+          self.configs[path] = Config(a, m, targets, tests, clean,
                   self.testrunner_args)
         else:
           self.configs[path].Extend(targets, tests)
@@ -396,9 +430,10 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
+    clean = False
     # Special handling for "mkgrokdump": build it for x64.release.
     if argstring == "mkgrokdump":
-      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [])
+      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [], False)
       return
     # Specifying a single unit test looks like "unittests/Foo.Bar", test262
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
@@ -443,12 +478,13 @@ class ArgumentParser(object):
       impact = ACTIONS[action]
       targets += impact["targets"]
       tests += impact["tests"]
+      clean |= impact["clean"]
     # Fill in defaults for things that weren't specified.
     arches = arches or DEFAULT_ARCHES
     modes = modes or DEFAULT_MODES
     targets = targets or DEFAULT_TARGETS
     # Produce configs.
-    self.PopulateConfigs(arches, modes, targets, tests)
+    self.PopulateConfigs(arches, modes, targets, tests, clean)
 
   def ParseArguments(self, argv):
     if len(argv) == 0:

@@ -8,7 +8,6 @@
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
-#include "src/objects/source-text-module-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module.h"

@@ -170,6 +170,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
+  if (length == 0) return impl()->empty_byte_array();
   int size = ByteArray::SizeFor(length);
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().byte_array_map());
@@ -263,7 +264,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
-                            Builtins::kCompileLazy, kind);
+                            Builtin::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
@@ -308,7 +309,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    int maybe_builtin_index, FunctionKind kind) {
+    Builtin builtin, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw = *shared;
@@ -327,15 +328,15 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   if (maybe_function_data.ToHandle(&function_data)) {
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
-    DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
+    DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK_IMPLIES(function_data->IsCode(),
                    !Code::cast(*function_data).is_builtin());
     raw.set_function_data(*function_data, kReleaseStore);
-  } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-    raw.set_builtin_id(maybe_builtin_index);
+  } else if (Builtins::IsBuiltinId(builtin)) {
+    raw.set_builtin_id(builtin);
   } else {
     DCHECK(raw.HasBuiltinId());
-    DCHECK_EQ(Builtins::kIllegal, raw.builtin_id());
+    DCHECK_EQ(Builtin::kIllegal, raw.builtin_id());
   }
 
   raw.CalculateConstructAsBuiltin();
@@ -468,10 +469,10 @@ Handle<String> FactoryBase<Impl>::MakeOrFindTwoCharacterString(uint16_t c1,
                                                                uint16_t c2) {
   if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
     uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
-    return InternalizeString(Vector<const uint8_t>(buffer, 2));
+    return InternalizeString(base::Vector<const uint8_t>(buffer, 2));
   }
   uint16_t buffer[] = {c1, c2};
-  return InternalizeString(Vector<const uint16_t>(buffer, 2));
+  return InternalizeString(base::Vector<const uint16_t>(buffer, 2));
 }
 
 template <typename Impl>
@@ -503,7 +504,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::InternalizeString(
-    const Vector<const uint8_t>& string, bool convert_encoding) {
+    const base::Vector<const uint8_t>& string, bool convert_encoding) {
   SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
                                    convert_encoding);
   return InternalizeStringWithKey(&key);
@@ -511,7 +512,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::InternalizeString(
-    const Vector<const uint16_t>& string, bool convert_encoding) {
+    const base::Vector<const uint16_t>& string, bool convert_encoding) {
   SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
                                     convert_encoding);
   return InternalizeStringWithKey(&key);
@@ -519,7 +520,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
-    const Vector<const uint8_t>& str, uint32_t raw_hash_field) {
+    const base::Vector<const uint8_t>& str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
   DisallowGarbageCollection no_gc;
@@ -530,12 +531,12 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
 
 template <typename Impl>
 Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
-    const Vector<const uc16>& str, uint32_t raw_hash_field) {
+    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
-          str.begin(), str.length() * kUC16Size);
+          str.begin(), str.length() * base::kUC16Size);
   return result;
 }
 
@@ -643,7 +644,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
 
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(isolate());
-    uc16* sink = result->GetChars(no_gc, access_guard);
+    base::uc16* sink = result->GetChars(no_gc, access_guard);
     String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
     String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
                         access_guard);
@@ -805,7 +806,8 @@ HeapObject FactoryBase<Impl>::AllocateRawArray(int size,
                                                AllocationType allocation) {
   HeapObject result = AllocateRaw(size, allocation);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      (size > Heap::MaxRegularHeapObjectSize(allocation)) &&
+      (size >
+       isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       FLAG_use_marking_progress_bar) {
     BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);

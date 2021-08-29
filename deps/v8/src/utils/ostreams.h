@@ -14,6 +14,7 @@
 #include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -98,7 +99,7 @@ class StdoutStream : public OFStream {
 };
 #endif
 
-// Wrappers to disambiguate uint16_t and uc16.
+// Wrappers to disambiguate uint16_t and base::uc16.
 struct AsUC16 {
   explicit AsUC16(uint16_t v) : value(v) {}
   uint16_t value;

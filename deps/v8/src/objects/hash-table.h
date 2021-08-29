@@ -20,6 +20,10 @@
 namespace v8 {
 namespace internal {
 
+namespace third_party_heap {
+class Impl;
+}
+
 // HashTable is a subclass of FixedArray that implements a hash table
 // that uses open addressing and quadratic probing.
 //
@@ -157,6 +161,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Returns the key at entry.
   inline Object KeyAt(InternalIndex entry);
   inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry);
+  inline Object KeyAt(InternalIndex entry, RelaxedLoadTag tag);
+  inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry,
+                      RelaxedLoadTag tag);
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
@@ -396,6 +403,7 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
  protected:
   friend class MarkCompactCollector;
   friend class ScavengerCollector;
+  friend class third_party_heap::Impl;
   friend class HashTable<EphemeronHashTable, ObjectHashTableShape>;
   friend class ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>;
   inline void set_key(int index, Object value);

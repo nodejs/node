@@ -234,5 +234,15 @@ TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {
   Return(status);
 }
 
+TF_BUILTIN(DynamicCheckMapsWithFeedbackVector, CodeStubAssembler) {
+  auto map = Parameter<Map>(Descriptor::kMap);
+  auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
+  auto handler = Parameter<Object>(Descriptor::kHandler);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  TNode<Int32T> status =
+      DynamicCheckMapsWithFeedbackVector(map, slot, handler, feedback_vector);
+  Return(status);
+}
+
 }  // namespace internal
 }  // namespace v8

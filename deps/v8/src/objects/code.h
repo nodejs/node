@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CODE_H_
 
 #include "src/base/bit-field.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/handler-table.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/objects/code-kind.h"
@@ -46,6 +47,27 @@ class CodeDataContainer : public HeapObject {
   // is deterministic.
   inline void clear_padding();
 
+  // Back-reference to the Code object.
+  // Available only when V8_EXTERNAL_CODE_SPACE is defined.
+  DECL_GETTER(code, Code)
+  DECL_RELAXED_GETTER(code, Code)
+
+  // Cached value of code().InstructionStart().
+  // Available only when V8_EXTERNAL_CODE_SPACE is defined.
+  DECL_GETTER(code_entry_point, Address)
+
+  inline void SetCodeAndEntryPoint(
+      Isolate* isolate_for_sandbox, Code code,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // Updates the value of the code entry point. The code must be equal to
+  // the code() value.
+  inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox, Code code);
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
+  // Alias for code_entry_point to make it API compatible with Code.
+  inline Address InstructionStart() const;
+
   DECL_CAST(CodeDataContainer)
 
   // Dispatched behavior.
@@ -53,21 +75,32 @@ class CodeDataContainer : public HeapObject {
   DECL_VERIFIER(CodeDataContainer)
 
 // Layout description.
-#define CODE_DATA_FIELDS(V)                                 \
-  /* Weak pointer fields. */                                \
-  V(kPointerFieldsStrongEndOffset, 0)                       \
-  V(kNextCodeLinkOffset, kTaggedSize)                       \
-  V(kPointerFieldsWeakEndOffset, 0)                         \
-  /* Raw data fields. */                                    \
-  V(kKindSpecificFlagsOffset, kInt32Size)                   \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
-  /* Total size. */                                         \
+#define CODE_DATA_FIELDS(V)                                     \
+  /* Strong pointer fields. */                                  \
+  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0) \
+  V(kPointerFieldsStrongEndOffset, 0)                           \
+  /* Weak pointer fields. */                                    \
+  V(kNextCodeLinkOffset, kTaggedSize)                           \
+  V(kPointerFieldsWeakEndOffset, 0)                             \
+  /* Raw data fields. */                                        \
+  V(kCodeEntryPointOffset,                                      \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kExternalPointerSize : 0)     \
+  V(kKindSpecificFlagsOffset, kInt32Size)                       \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))     \
+  /* Total size. */                                             \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
 #undef CODE_DATA_FIELDS
 
   class BodyDescriptor;
+
+ private:
+  DECL_ACCESSORS(raw_code, Object)
+  DECL_RELAXED_ACCESSORS(raw_code, Object)
+  inline void set_code_entry_point(Isolate* isolate, Address value);
+
+  friend Factory;
 
   OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };
@@ -236,6 +269,8 @@ class Code : public HeapObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(relocation_info, ByteArray)
+  DECL_ACCESSORS(relocation_info_or_undefined, HeapObject)
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -264,6 +299,7 @@ class Code : public HeapObject {
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
+  inline HeapObject synchronized_unchecked_relocation_info_or_undefined() const;
 
   inline int relocation_size() const;
 
@@ -296,11 +332,11 @@ class Code : public HeapObject {
   inline bool can_have_weak_objects() const;
   inline void set_can_have_weak_objects(bool value);
 
-  // [builtin_index]: For builtins, tells which builtin index the code object
+  // [builtin]: For builtins, tells which builtin index the code object
   // has. The builtin index is a non-negative integer for builtins, and
-  // Builtins::kNoBuiltinId (-1) otherwise.
-  inline int builtin_index() const;
-  inline void set_builtin_index(int id);
+  // Builtin::kNoBuiltinId (-1) otherwise.
+  inline Builtin builtin_id() const;
+  inline void set_builtin_id(Builtin builtin);
   inline bool is_builtin() const;
 
   inline unsigned inlined_bytecode_size() const;
@@ -399,7 +435,12 @@ class Code : public HeapObject {
   void Relocate(intptr_t delta);
 
   // Migrate code from desc without flushing the instruction cache.
-  void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
+  void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
+  void RelocateFromDesc(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
+
+#ifdef VERIFY_HEAP
+  void VerifyRelocInfo(Isolate* isolate, ByteArray reloc_info);
+#endif
 
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.
@@ -514,7 +555,7 @@ class Code : public HeapObject {
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #elif V8_TARGET_ARCH_RISCV64
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 12 : 24);
 #else
 #error Unknown architecture.
 #endif
@@ -561,6 +602,9 @@ class Code : public HeapObject {
 
  private:
   friend class RelocIterator;
+  friend class EvacuateVisitorBase;
+
+  inline CodeDataContainer GCSafeCodeDataContainer(AcquireLoadTag) const;
 
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
@@ -593,6 +637,13 @@ class Code::OptimizedCodeIterator {
 
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
+
+// Helper functions for converting Code objects to CodeDataContainer and back
+// when V8_EXTERNAL_CODE_SPACE is enabled.
+inline CodeT ToCodeT(Code code);
+inline Code FromCodeT(CodeT code);
+inline Code FromCodeT(CodeT code, RelaxedLoadTag);
+inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 class AbstractCode : public HeapObject {
  public:
@@ -713,7 +764,7 @@ class DependentCode : public WeakFixedArray {
 
   // Register a dependency of {code} on {object}, of the kind given by {group}.
   V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
-                                                  const MaybeObjectHandle& code,
+                                                  Handle<Code> code,
                                                   Handle<HeapObject> object,
                                                   DependencyGroup group);
 
@@ -736,14 +787,14 @@ class DependentCode : public WeakFixedArray {
                                Handle<DependentCode> dep);
 
   static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
-                                   const MaybeObjectHandle& object,
+                                   Handle<Code> code,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Isolate* isolate,
                                            Handle<DependentCode> entries);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
                                               DependencyGroup group,
-                                              const MaybeObjectHandle& code);
+                                              Handle<Code> code);
 
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.

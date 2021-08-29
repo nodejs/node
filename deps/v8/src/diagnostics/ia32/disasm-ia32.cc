@@ -9,9 +9,9 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/base/compiler-specific.h"
+#include "src/base/strings.h"
 #include "src/codegen/ia32/sse-instr.h"
 #include "src/diagnostics/disasm.h"
-#include "src/utils/utils.h"
 
 namespace disasm {
 
@@ -222,7 +222,7 @@ class DisassemblerIA32 {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
+  int InstructionDecode(v8::base::Vector<char> buffer, byte* instruction);
 
  private:
   const NameConverter& converter_;
@@ -230,7 +230,7 @@ class DisassemblerIA32 {
   byte vex_byte1_;
   byte vex_byte2_;  // only for 3 bytes vex prefix
   InstructionTable* instruction_table_;
-  v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
+  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   Disassembler::UnimplementedOpcodeAction unimplemented_opcode_action_;
 
@@ -374,10 +374,10 @@ class DisassemblerIA32 {
 };
 
 void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
-  v8::internal::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
+  v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
-  int result = v8::internal::VSNPrintF(buf, format, args);
+  int result = v8::base::VSNPrintF(buf, format, args);
   va_end(args);
   tmp_buffer_pos_ += result;
 }
@@ -1762,7 +1762,7 @@ static const char* F0Mnem(byte f0byte) {
 }
 
 // Disassembled instruction '*instr' and writes it into 'out_buffer'.
-int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
+int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
                                         byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
   byte* data = instr;
@@ -2707,6 +2707,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           }
         } else {
           UnimplementedInstruction();
+          data++;
         }
         break;
 
@@ -2882,13 +2883,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   int outp = 0;
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
-    outp += v8::internal::SNPrintF(out_buffer + outp, "%02x", *bp);
+    outp += v8::base::SNPrintF(out_buffer + outp, "%02x", *bp);
   }
-  for (int i = 6 - instr_len; i >= 0; i--) {
-    outp += v8::internal::SNPrintF(out_buffer + outp, "  ");
+  // Indent instruction, leaving space for 6 bytes, i.e. 12 characters in hex.
+  while (outp < 12) {
+    outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::internal::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
+  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
   return instr_len;
 }
 
@@ -2904,7 +2906,7 @@ static const char* const xmm_regs[8] = {"xmm0", "xmm1", "xmm2", "xmm3",
                                         "xmm4", "xmm5", "xmm6", "xmm7"};
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -2934,7 +2936,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   DisassemblerIA32 d(converter_, unimplemented_opcode_action());
   return d.InstructionDecode(buffer, instruction);
@@ -2949,7 +2951,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

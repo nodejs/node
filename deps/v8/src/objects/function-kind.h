@@ -60,6 +60,7 @@ enum FunctionKind : uint8_t {
   kClassMembersInitializerFunction,
   kClassStaticInitializerFunction,
   // END concise methods 2
+  kInvalid,
 
   kLastFunctionKind = kClassStaticInitializerFunction,
 };
@@ -243,6 +244,8 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "StaticAsyncConciseGeneratorMethod";
     case FunctionKind::kAsyncGeneratorFunction:
       return "AsyncGeneratorFunction";
+    case FunctionKind::kInvalid:
+      return "Invalid";
   }
   UNREACHABLE();
 }

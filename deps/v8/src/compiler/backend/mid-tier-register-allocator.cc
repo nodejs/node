@@ -241,7 +241,9 @@ class Range {
 class DeferredBlocksRegion final {
  public:
   explicit DeferredBlocksRegion(Zone* zone, int number_of_blocks)
-      : spilled_vregs_(zone), blocks_covered_(number_of_blocks, zone) {}
+      : spilled_vregs_(zone),
+        blocks_covered_(number_of_blocks, zone),
+        is_frozen_(false) {}
 
   void AddBlock(RpoNumber block, MidTierRegisterAllocationData* data) {
     DCHECK(data->GetBlock(block)->IsDeferred());
@@ -249,9 +251,17 @@ class DeferredBlocksRegion final {
     data->block_state(block).set_deferred_blocks_region(this);
   }
 
-  // Adds |vreg| to the list of variables to potentially defer their output to
-  // a spill slot until we enter this deferred block region.
-  void DeferSpillOutputUntilEntry(int vreg) { spilled_vregs_.insert(vreg); }
+  // Trys to adds |vreg| to the list of variables to potentially defer their
+  // output to a spill slot until we enter this deferred block region. Returns
+  // true if successful.
+  bool TryDeferSpillOutputUntilEntry(int vreg) {
+    if (spilled_vregs_.count(vreg) != 0) return true;
+    if (is_frozen_) return false;
+    spilled_vregs_.insert(vreg);
+    return true;
+  }
+
+  void FreezeDeferredSpills() { is_frozen_ = true; }
 
   ZoneSet<int>::const_iterator begin() const { return spilled_vregs_.begin(); }
   ZoneSet<int>::const_iterator end() const { return spilled_vregs_.end(); }
@@ -261,6 +271,7 @@ class DeferredBlocksRegion final {
  private:
   ZoneSet<int> spilled_vregs_;
   BitVector blocks_covered_;
+  bool is_frozen_;
 };
 
 // VirtualRegisterData stores data specific to a particular virtual register,
@@ -477,7 +488,8 @@ class VirtualRegisterData final {
   void AddSpillUse(int instr_index, MidTierRegisterAllocationData* data);
   void AddPendingSpillOperand(PendingOperand* pending_operand);
   void EnsureSpillRange(MidTierRegisterAllocationData* data);
-  bool CouldSpillOnEntryToDeferred(const InstructionBlock* block);
+  bool TrySpillOnEntryToDeferred(MidTierRegisterAllocationData* data,
+                                 const InstructionBlock* block);
 
   InstructionOperand* spill_operand_;
   SpillRange* spill_range_;
@@ -586,12 +598,7 @@ void VirtualRegisterData::AddSpillUse(int instr_index,
   spill_range_->ExtendRangeTo(instr_index);
 
   const InstructionBlock* block = data->GetBlock(instr_index);
-  if (CouldSpillOnEntryToDeferred(block)) {
-    DCHECK(HasSpillRange());
-    data->block_state(block->rpo_number())
-        .deferred_blocks_region()
-        ->DeferSpillOutputUntilEntry(vreg());
-  } else {
+  if (!TrySpillOnEntryToDeferred(data, block)) {
     MarkAsNeedsSpillAtOutput();
   }
 }
@@ -603,10 +610,15 @@ void VirtualRegisterData::AddDeferredSpillUse(
   AddSpillUse(instr_index, data);
 }
 
-bool VirtualRegisterData::CouldSpillOnEntryToDeferred(
-    const InstructionBlock* block) {
-  return !NeedsSpillAtOutput() && block->IsDeferred() &&
-         !is_defined_in_deferred_block() && !is_constant();
+bool VirtualRegisterData::TrySpillOnEntryToDeferred(
+    MidTierRegisterAllocationData* data, const InstructionBlock* block) {
+  BlockState& block_state = data->block_state(block->rpo_number());
+  if (!NeedsSpillAtOutput() && block->IsDeferred() &&
+      !is_defined_in_deferred_block() && !is_constant()) {
+    return block_state.deferred_blocks_region()->TryDeferSpillOutputUntilEntry(
+        vreg());
+  }
+  return false;
 }
 
 void VirtualRegisterData::AddDeferredSpillOutput(
@@ -2818,8 +2830,13 @@ void MidTierRegisterAllocator::AllocateRegisters(
     for (RpoNumber successor : block->successors()) {
       if (!data()->GetBlock(successor)->IsDeferred()) continue;
       DCHECK_GT(successor, block_rpo);
-      for (const int virtual_register :
-           *data()->block_state(successor).deferred_blocks_region()) {
+      DeferredBlocksRegion* deferred_region =
+          data()->block_state(successor).deferred_blocks_region();
+      // Freeze the deferred spills on the region to ensure no more are added to
+      // this region after the spills for this entry point have already been
+      // emitted.
+      deferred_region->FreezeDeferredSpills();
+      for (const int virtual_register : *deferred_region) {
         VirtualRegisterData& vreg_data =
             VirtualRegisterDataFor(virtual_register);
         AllocatorFor(vreg_data.rep())

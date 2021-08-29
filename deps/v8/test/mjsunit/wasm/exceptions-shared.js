@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Helper function to return a new exported exception with the {kSig_v_v} type
 // signature from an anonymous module. The underlying module is thrown away.

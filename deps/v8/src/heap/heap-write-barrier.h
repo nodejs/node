@@ -34,6 +34,7 @@ void WriteBarrierForCode(Code host);
 
 // Generational write barrier.
 void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
+void GenerationalBarrier(HeapObject object, ObjectSlot slot, Code value);
 void GenerationalBarrier(HeapObject object, ObjectSlot slot, HeapObject value);
 void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                          MaybeObject value);

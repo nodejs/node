@@ -6,7 +6,6 @@
 #define V8_EXECUTION_ISOLATE_INL_H_
 
 #include "src/execution/isolate.h"
-#include "src/objects/cell-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
