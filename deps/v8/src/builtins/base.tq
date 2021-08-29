@@ -332,6 +332,13 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
   ...
 }
 
+extern enum InitializationMode
+constexpr 'CodeStubAssembler::InitializationMode' {
+  kUninitialized,
+  kInitializeToZero,
+  kInitializeToNull
+}
+
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 
 extern enum MessageTemplate {
@@ -405,6 +412,7 @@ extern enum MessageTemplate {
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
+  kWasmTrapArrayTooLarge,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,

@@ -94,7 +94,6 @@ bool CallOptimization::IsCompatibleReceiverMap(
           object = JSObject::cast(prototype);
         }
       }
-      break;
   }
   UNREACHABLE();
 }

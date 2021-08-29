@@ -443,7 +443,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
       [=](TNode<Object> next_source) {
-        CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
+        CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
   Goto(&done);
@@ -541,6 +541,36 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
         AllocateJSArray(array_map, var_elements.value(), var_length.value());
     Return(array);
   }
+}
+
+// https://github.com/tc39/proposal-accessible-object-hasownproperty
+TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
+  // Object.prototype.hasOwnProperty()
+  // 1. Let obj be ? ToObject(O).
+  // 2. Let key be ? ToPropertyKey(P).
+  // 3. Return ? HasOwnProperty(obj, key).
+  //
+  // ObjectPrototypeHasOwnProperty has similar semantics with steps 1 and 2
+  // swapped. We check if ToObject can fail and delegate the rest of the
+  // execution to ObjectPrototypeHasOwnProperty.
+
+  auto target = Parameter<Object>(Descriptor::kJSTarget);
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  // ToObject can only fail when object is undefined or null.
+  Label undefined_or_null(this), not_undefined_nor_null(this);
+  Branch(IsNullOrUndefined(object), &undefined_or_null,
+         &not_undefined_nor_null);
+
+  BIND(&undefined_or_null);
+  ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject);
+
+  BIND(&not_undefined_nor_null);
+  Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
+                     new_target, Int32Constant(2), object, key));
 }
 
 // ES #sec-object.getOwnPropertyNames
@@ -1273,7 +1303,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   TNode<JSReceiver> object = ToObject_Inline(context, object_input);
 
   // 2. Let key be ? ToPropertyKey(P).
-  key = CallBuiltin(Builtins::kToName, context, key);
+  key = CallBuiltin(Builtin::kToName, context, key);
 
   // 3. Let desc be ? obj.[[GetOwnProperty]](key).
   Label if_keyisindex(this), if_iskeyunique(this),

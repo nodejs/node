@@ -11,10 +11,14 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/handles/handles-inl.h"
-#include "src/ic/handler-configuration.h"
+#include "src/heap/heap-inl.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/allocation-site-inl.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
@@ -98,12 +102,6 @@ void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
   DCHECK_NOT_NULL(local_isolate_);
   local_isolate_->heap()->AttachPersistentHandles(
       info->DetachPersistentHandles());
-
-  if (is_concurrent_inlining()) {
-    // Ensure any serialization that happens on the background has been
-    // performed.
-    target_native_context().SerializeOnBackground();
-  }
 }
 
 void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
@@ -136,8 +134,7 @@ void JSHeapBroker::SetTargetNativeContextRef(
     Handle<NativeContext> native_context) {
   DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
          (mode() == kSerializing &&
-          target_native_context_->object().is_identical_to(native_context) &&
-          target_native_context_->is_unserialized_heap_object()));
+          target_native_context_->object().is_identical_to(native_context)));
   target_native_context_ = MakeRef(this, *native_context);
 }
 
@@ -249,8 +246,12 @@ bool JSHeapBroker::StackHasOverflowed() const {
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
-  if (!object->IsHeapObject()) return false;
-  return ObjectMayBeUninitialized(HeapObject::cast(*object));
+  return ObjectMayBeUninitialized(*object);
+}
+
+bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
+  if (!object.IsHeapObject()) return false;
+  return ObjectMayBeUninitialized(HeapObject::cast(object));
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
@@ -526,7 +527,7 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
 
 namespace {
 
-// Remove unupdatable and abandoned prototype maps in-place.
+// Update deprecated maps, drop unupdatable ones and abandoned prototype maps.
 void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
   auto in = maps->begin();
   auto out = in;
@@ -537,7 +538,7 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
     if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
         !map->is_abandoned_prototype_map()) {
       DCHECK(!map->is_deprecated());
-      *out = *in;
+      *out = map;
       ++out;
     }
   }
@@ -692,8 +693,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     }
     ContextRef context_ref = MakeRef(this, context);
     if (immutable) {
-      context_ref.get(context_slot_index,
-                      SerializationPolicy::kSerializeIfNeeded);
+      context_ref.get(context_slot_index);
     }
     return *zone()->New<GlobalAccessFeedback>(context_ref, context_slot_index,
                                               immutable, nexus.kind());
@@ -762,12 +762,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  AllocationSiteRef site =
-      MakeRef(this, handle(AllocationSite::cast(object), isolate()));
-  if (site.IsFastLiteral()) {
-    site.SerializeBoilerplate();
-  }
-
+  AllocationSiteRef site = MakeRef(this, AllocationSite::cast(object));
+  if (site.PointsToLiteral()) site.SerializeRecursive();
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
@@ -808,16 +804,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   base::Optional<HeapObjectRef> target_ref;
   {
-    // TODO(mvstanton): this read has a special danger when done on the
-    // background thread, because the CallIC has a site in generated code
-    // where a JSFunction is installed in this slot without store ordering.
-    // Therefore, we will need to check {maybe_target} to ensure that it
-    // has been store ordered by the heap's mechanism for store-ordering
-    // batches of new objects.
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      target_ref = MakeRef(this, handle(target_object, isolate()));
+      // TryMakeRef is used because the GC predicate may fail if the
+      // JSFunction was allocated too recently to be store-ordered.
+      target_ref = TryMakeRef(this, handle(target_object, isolate()));
     }
   }
   float frequency = nexus.ComputeCallFrequency();
@@ -1001,9 +993,12 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   }
 
   using TransitionGroup = ElementAccessFeedback::TransitionGroup;
-  ZoneUnorderedMap<Handle<Map>, TransitionGroup, Handle<Map>::hash,
-                   Handle<Map>::equal_to>
-      transition_groups(zone());
+  struct HandleLess {
+    bool operator()(Handle<Map> x, Handle<Map> y) const {
+      return x.address() < y.address();
+    }
+  };
+  ZoneMap<Handle<Map>, TransitionGroup, HandleLess> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
   for (Handle<Map> map : maps) {
@@ -1099,7 +1094,7 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_BROKER_MISSING(this, "MinimorphicLoadPropertyAccessInfo for slot "
                                    << source.index() << "  "
-                                   << ObjectRef(this, source.vector));
+                                   << MakeRef<Object>(this, source.vector));
     return MinimorphicLoadPropertyAccessInfo::Invalid();
   }
 
@@ -1109,7 +1104,7 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   if (is_concurrent_inlining_) {
     TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
                     << source.index() << "  "
-                    << ObjectRef(this, source.vector));
+                    << MakeRef<Object>(this, source.vector));
     minimorphic_property_access_infos_.insert({source, access_info});
   }
   return access_info;

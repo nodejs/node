@@ -32,6 +32,26 @@ BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
 BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(StackFrameInfo, flags, IsAsync, IsAsyncBit::kShift)
 
+DEF_GETTER(StackFrameInfo, code_object, HeapObject) {
+  HeapObject value = TorqueGeneratedClass::code_object(cage_base);
+  // The |code_object| field can contain many types of objects, but only CodeT
+  // values have to be converted to Code.
+  if (V8_EXTERNAL_CODE_SPACE_BOOL && value.IsCodeT()) {
+    return FromCodeT(CodeT::cast(value));
+  }
+  return value;
+}
+
+void StackFrameInfo::set_code_object(HeapObject code, WriteBarrierMode mode) {
+  // The |code_object| field can contain many types of objects, but only Code
+  // values have to be converted to CodeT.
+  if (V8_EXTERNAL_CODE_SPACE_BOOL && code.IsCode()) {
+    TorqueGeneratedClass::set_code_object(ToCodeT(Code::cast(code)), mode);
+  } else {
+    TorqueGeneratedClass::set_code_object(code, mode);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

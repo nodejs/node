@@ -11,7 +11,7 @@
 // stack, and trying to access past that area, even into memory that was
 // intentionally reserved for this thread's stack, will crash the program.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 

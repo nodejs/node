@@ -4,4 +4,4 @@
 
 // Flags: --expose-wasm --wasm-test-streaming --no-stress-opt
 
-load("test/message/wasm-module-and-function-name-async.js");
+d8.file.execute("test/message/wasm-module-and-function-name-async.js");

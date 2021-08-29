@@ -6,6 +6,7 @@
 // from turboprop.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt --turboprop
+// Flags: --turbo-dynamic-map-checks
 
 var global = this;
 var unique_id = 0;

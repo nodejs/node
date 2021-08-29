@@ -21,6 +21,14 @@ namespace v8 {
 namespace internal {
 class Assembler;
 
+// For WebAssembly we care about the full floating point register. If we are not
+// running Wasm, we can get away with saving half of those registers.
+#if V8_ENABLE_WEBASSEMBLY
+constexpr int kStackSavedSavedFPSize = 2 * kDoubleSize;
+#else
+constexpr int kStackSavedSavedFPSize = kDoubleSize;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;

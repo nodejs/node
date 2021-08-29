@@ -298,7 +298,6 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kDec:
       case Bytecode::kTypeOf:
       case Bytecode::kCallAnyReceiver:
-      case Bytecode::kCallNoFeedback:
       case Bytecode::kCallProperty:
       case Bytecode::kCallProperty0:
       case Bytecode::kCallProperty1:

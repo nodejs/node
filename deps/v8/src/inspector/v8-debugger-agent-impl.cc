@@ -271,7 +271,6 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
       return Scope::TypeEnum::WasmExpressionStack;
   }
   UNREACHABLE();
-  return String16();
 }
 
 Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
@@ -579,7 +578,8 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
     std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
         breakpointId, script.first, condition, lineNumber, columnNumber);
     if (location && type != BreakpointType::kByUrlRegex) {
-      hint = breakpointHint(*script.second, lineNumber, columnNumber);
+      hint = breakpointHint(*script.second, location->getLineNumber(),
+                            location->getColumnNumber(columnNumber));
     }
     if (location) (*locations)->emplace_back(std::move(location));
   }
@@ -1912,6 +1912,17 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
     m_scripts.erase(scriptId);
     m_cachedScriptIds.pop_front();
   }
+}
+
+std::vector<v8::debug::BreakpointId>
+V8DebuggerAgentImpl::instrumentationBreakpointIdsMatching(
+    const std::vector<v8::debug::BreakpointId>& ids) {
+  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIds;
+  for (const v8::debug::BreakpointId& id : ids) {
+    if (m_breakpointsOnScriptRun.count(id) > 0)
+      instrumentationBreakpointIds.push_back(id);
+  }
+  return instrumentationBreakpointIds;
 }
 
 Response V8DebuggerAgentImpl::processSkipList(

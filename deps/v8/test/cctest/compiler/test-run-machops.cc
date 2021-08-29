@@ -1776,7 +1776,7 @@ TEST(RunInt32AddInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Int32Add(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -1786,14 +1786,14 @@ TEST(RunInt32AddInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i + j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i + j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32NotEqual(m.Int32Add(m.Int32Constant(i), m.Parameter(0)),
                                 m.Int32Constant(0)),
@@ -1803,7 +1803,7 @@ TEST(RunInt32AddInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i + j) != 0 ? constant : 0 - constant;
+        int32_t expected = (i + j) != 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -2121,7 +2121,7 @@ TEST(RunInt32SubInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Int32Sub(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -2131,7 +2131,7 @@ TEST(RunInt32SubInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i - j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i - j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -3251,7 +3251,7 @@ TEST(RunWord32XorInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Word32Xor(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -3261,14 +3261,14 @@ TEST(RunWord32XorInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i ^ j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i ^ j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32NotEqual(m.Word32Xor(m.Int32Constant(i), m.Parameter(0)),
                                 m.Int32Constant(0)),
@@ -3278,7 +3278,7 @@ TEST(RunWord32XorInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i ^ j) != 0 ? constant : 0 - constant;
+        int32_t expected = (i ^ j) != 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -3433,7 +3433,7 @@ TEST(RunWord32ShrP) {
 TEST(RunWordShiftInBranch) {
   static const uint32_t constant = 987654321;
   FOR_UINT32_SHIFTS(shift) {
-    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
     RawMachineLabel blocka, blockb;
     m.Branch(m.Word32Equal(m.Word32Shl(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(0)),
@@ -3443,12 +3443,12 @@ TEST(RunWordShiftInBranch) {
     m.Bind(&blockb);
     m.Return(m.Int32Constant(0 - constant));
     FOR_UINT32_INPUTS(i) {
-      uint32_t expected = ((i << shift) == 0) ? constant : 0 - constant;
+      int32_t expected = ((i << shift) == 0) ? constant : 0 - constant;
       CHECK_EQ(expected, m.Call(i));
     }
   }
   FOR_UINT32_SHIFTS(shift) {
-    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
     RawMachineLabel blocka, blockb;
     m.Branch(m.Word32Equal(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(0)),
@@ -3458,7 +3458,7 @@ TEST(RunWordShiftInBranch) {
     m.Bind(&blockb);
     m.Return(m.Int32Constant(0 - constant));
     FOR_UINT32_INPUTS(i) {
-      uint32_t expected = ((i >> shift) == 0) ? constant : 0 - constant;
+      int32_t expected = ((i >> shift) == 0) ? constant : 0 - constant;
       CHECK_EQ(expected, m.Call(i));
     }
   }
@@ -4424,29 +4424,29 @@ TEST(RunTruncateFloat32ToInt32) {
                                       TruncateKind::kArchitectureDefault));
     FOR_FLOAT32_INPUTS(i) {
       if (i < upper_bound && i >= lower_bound) {
-        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+        CHECK_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (i < lower_bound) {
 #if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
     !_MIPS_ARCH_MIPS64R6
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #else
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #endif
       } else if (i >= upper_bound) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #else
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       } else {
         DCHECK(std::isnan(i));
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-        CHECK_FLOAT_EQ(0, m.Call(i));
+        CHECK_EQ(0, m.Call(i));
 #elif V8_TARGET_ARCH_RISCV64
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       }
     }
@@ -4457,16 +4457,16 @@ TEST(RunTruncateFloat32ToInt32) {
                                       TruncateKind::kSetOverflowToMin));
     FOR_FLOAT32_INPUTS(i) {
       if (i < upper_bound && i >= lower_bound) {
-        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+        CHECK_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (!std::isnan(i)) {
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
       } else {
         DCHECK(std::isnan(i));
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-        CHECK_FLOAT_EQ(0, m.Call(i));
+        CHECK_EQ(0, m.Call(i));
 #endif
       }
     }
@@ -4501,7 +4501,7 @@ TEST(RunTruncateFloat32ToUint32) {
     }
     FOR_FLOAT32_INPUTS(j) {
       if ((j < upper_bound) && (j > lower_bound)) {
-        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+        CHECK_EQ(static_cast<uint32_t>(j), m.Call(j));
       }
     }
   }
@@ -4517,7 +4517,7 @@ TEST(RunTruncateFloat32ToUint32) {
     }
     FOR_FLOAT32_INPUTS(j) {
       if ((j < upper_bound) && (j > lower_bound)) {
-        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+        CHECK_EQ(static_cast<uint32_t>(j), m.Call(j));
       }
     }
   }
@@ -5564,7 +5564,6 @@ static void IntPtrCompare(intptr_t left, intptr_t right) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
     m.Return(res);
     CHECK_EQ(expected, m.Call(reinterpret_cast<int32_t*>(left),
@@ -7207,34 +7206,6 @@ TEST(ParentFramePointer) {
   r.Return(phi);
   CHECK_EQ(1, r.Call(1));
 }
-
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
-
-TEST(StackSlotAlignment) {
-  RawMachineAssemblerTester<int32_t> r;
-  RawMachineLabel tlabel;
-  RawMachineLabel flabel;
-  RawMachineLabel merge;
-
-  int alignments[] = {4, 8, 16};
-  int alignment_count = arraysize(alignments);
-
-  Node* alignment_counter = r.Int32Constant(0);
-  for (int i = 0; i < alignment_count; i++) {
-    for (int j = 0; j < 5; j++) {
-      Node* stack_slot =
-          r.StackSlot(MachineRepresentation::kWord32, alignments[i]);
-      alignment_counter = r.Int32Add(
-          alignment_counter,
-          r.Word32And(stack_slot, r.Int32Constant(alignments[i] - 1)));
-    }
-  }
-
-  r.Return(alignment_counter);
-  CHECK_EQ(0, r.Call());
-}
-
-#endif  // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_64_BIT
 

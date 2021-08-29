@@ -40,10 +40,6 @@ class V8_EXPORT_PRIVATE HandlerTable {
     UNCAUGHT,     // The handler will (likely) rethrow the exception.
     CAUGHT,       // The exception will be caught by the handler.
     PROMISE,      // The exception will be caught and cause a promise rejection.
-    DESUGARING,   // The exception will be caught, but both the exception and
-                  // the catching are part of a desugaring and should therefore
-                  // not be visible to the user (we won't notify the debugger of
-                  // such exceptions).
     ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
                   // in the desugaring of an async function, so special
                   // async/await handling in the debugger can take place.

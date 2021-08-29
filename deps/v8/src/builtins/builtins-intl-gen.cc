@@ -142,7 +142,7 @@ TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   TNode<String> string =
       ToThisString(context, maybe_string, "String.prototype.toLowerCase");
 
-  Return(CallBuiltin(Builtins::kStringToLowerCaseIntl, context, string));
+  Return(CallBuiltin(Builtin::kStringToLowerCaseIntl, context, string));
 }
 
 void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
@@ -165,7 +165,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
   {
     // 4. Let stringList be ? StringListFromIterable(list).
     TNode<Object> string_list =
-        CallBuiltin(Builtins::kStringListFromIterable, context, list);
+        CallBuiltin(Builtin::kStringListFromIterable, context, list);
 
     // 6. Return ? FormatList(lf, stringList).
     args.PopAndReturn(

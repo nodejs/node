@@ -536,6 +536,10 @@ void InvokeFinalizationRegistryCleanupFromTask(
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback);
 
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+T ConvertDouble(double d);
+
 }  // namespace internal
 }  // namespace v8
 

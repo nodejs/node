@@ -11,6 +11,7 @@
 
 #include "src/asmjs/asm-names.h"
 #include "src/base/logging.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -135,7 +136,8 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   };
   // clang-format on
 
-  static constexpr uc32 kEndOfInputU = static_cast<uc32>(kEndOfInput);
+  static constexpr base::uc32 kEndOfInputU =
+      static_cast<base::uc32>(kEndOfInput);
 
  private:
   Utf16CharacterStream* stream_;
@@ -157,17 +159,17 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   bool preceded_by_newline_;
 
   // Consume multiple characters.
-  void ConsumeIdentifier(uc32 ch);
-  void ConsumeNumber(uc32 ch);
+  void ConsumeIdentifier(base::uc32 ch);
+  void ConsumeNumber(base::uc32 ch);
   bool ConsumeCComment();
   void ConsumeCPPComment();
-  void ConsumeString(uc32 quote);
-  void ConsumeCompareOrShift(uc32 ch);
+  void ConsumeString(base::uc32 quote);
+  void ConsumeCompareOrShift(base::uc32 ch);
 
   // Classify character categories.
-  bool IsIdentifierStart(uc32 ch);
-  bool IsIdentifierPart(uc32 ch);
-  bool IsNumberStart(uc32 ch);
+  bool IsIdentifierStart(base::uc32 ch);
+  bool IsIdentifierPart(base::uc32 ch);
+  bool IsNumberStart(base::uc32 ch);
 };
 
 }  // namespace internal

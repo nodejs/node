@@ -534,7 +534,6 @@ TEST(SetAccessorSetSideEffectReceiverCheck2) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  i::FLAG_enable_one_shot_optimization = false;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   NoopDelegate delegate;

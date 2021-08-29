@@ -108,6 +108,7 @@ SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
     TNode<JSTypedArray> array, TNode<Object> index, TNode<Context> context) {
   Label done(this), range_error(this);
+  // TODO(v8:11111): Support RAB / GSAB.
 
   // 1. Assert: typedArray is an Object that has a [[ViewedArrayBuffer]]
   // internal slot.

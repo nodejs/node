@@ -6,7 +6,7 @@
 // Liftoff code.
 // Flags: --expose-wasm --allow-natives-syntax --expose-gc --wasm-tier-up
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function SerializeAndDeserializeModule() {
   print(arguments.callee.name);

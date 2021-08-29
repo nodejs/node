@@ -15,14 +15,11 @@ TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
                                            JSHeapBroker* broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      broker_(broker),
       op_typer_(broker, zone()) {}
 
 TypeNarrowingReducer::~TypeNarrowingReducer() = default;
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!broker_->is_concurrent_inlining());
-
   Type new_type = Type::Any();
 
   switch (node->opcode()) {

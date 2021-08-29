@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-bytecode.h"
 
+#include <cctype>
 #include <iomanip>
 
 namespace v8 {
@@ -11,7 +12,7 @@ namespace internal {
 
 namespace {
 
-std::ostream& PrintAsciiOrHex(std::ostream& os, uc16 c) {
+std::ostream& PrintAsciiOrHex(std::ostream& os, base::uc16 c) {
   if (c < 128 && std::isprint(c)) {
     os << static_cast<char>(c);
   } else {
@@ -91,7 +92,7 @@ int DigitsRequiredBelow(int n) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os,
-                         Vector<const RegExpInstruction> insts) {
+                         base::Vector<const RegExpInstruction> insts) {
   int inst_num = insts.length();
   int line_digit_num = DigitsRequiredBelow(inst_num);
 

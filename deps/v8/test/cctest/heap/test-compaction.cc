@@ -466,7 +466,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       // object.
       Address broken_address = holder->address() + 2 * kTaggedSize + 1;
       // Convert it to a vector to create a string from it.
-      Vector<const uint8_t> string_to_broken_addresss(
+      base::Vector<const uint8_t> string_to_broken_addresss(
           reinterpret_cast<const uint8_t*>(&broken_address), kTaggedSize);
 
       Handle<String> string;

@@ -146,6 +146,7 @@ enum ExternalPointerTag : uint64_t {
   kForeignForeignAddressTag = 0x01f7000000000000,        // 0b000000111110111
   kNativeContextMicrotaskQueueTag = 0x01fb000000000000,  // 0b000000111111011
   kEmbedderDataSlotPayloadTag = 0x01fd000000000000,      // 0b000000111111101
+  kCodeEntryPointTag = 0x01fe000000000000,               // 0b000000111111110
 };
 
 constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;

@@ -9,10 +9,11 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -648,9 +649,8 @@ void AstPrinter::Print(const char* format, ...) {
   for (;;) {
     va_list arguments;
     va_start(arguments, format);
-    int n = VSNPrintF(Vector<char>(output_, size_) + pos_,
-                      format,
-                      arguments);
+    int n = base::VSNPrintF(base::Vector<char>(output_, size_) + pos_, format,
+                            arguments);
     va_end(arguments);
 
     if (n >= 0) {
@@ -802,7 +802,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
   if (var == nullptr) {
     PrintLiteralIndented(info, value, true);
   } else {
-    EmbeddedVector<char, 256> buf;
+    base::EmbeddedVector<char, 256> buf;
     int pos =
         SNPrintF(buf, "%s (%p) (mode = %s, assigned = %s", info,
                  reinterpret_cast<void*>(var), VariableMode2String(var->mode()),
@@ -1038,9 +1038,6 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
     case HandlerTable::CAUGHT:
       prediction = "CAUGHT";
       break;
-    case HandlerTable::DESUGARING:
-      prediction = "DESUGARING";
-      break;
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;
@@ -1138,7 +1135,7 @@ void AstPrinter::PrintClassProperty(ClassLiteral::Property* property) {
       prop_kind = "FIELD";
       break;
   }
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
            property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
   IndentedScope prop(this, buf.begin());
@@ -1191,7 +1188,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent(this, "REGEXP LITERAL", node->position());
   PrintLiteralIndented("PATTERN", node->raw_pattern(), false);
   int i = 0;
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   if (node->flags() & RegExp::kHasIndices) buf[i++] = 'd';
   if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
   if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
@@ -1239,7 +1236,7 @@ void AstPrinter::PrintObjectProperties(
         prop_kind = "SPREAD";
         break;
     }
-    EmbeddedVector<char, 128> buf;
+    base::EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY - %s", prop_kind);
     IndentedScope prop(this, buf.begin());
     PrintIndentedVisit("KEY", properties->at(i)->key());
@@ -1260,7 +1257,7 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   int pos = SNPrintF(buf, "VAR PROXY");
 
   if (!node->is_resolved()) {
@@ -1307,21 +1304,21 @@ void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
 }
 
 void AstPrinter::VisitYield(Yield* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitYieldStar(YieldStar* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "YIELD_STAR");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
 }
 
 void AstPrinter::VisitAwait(Await* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "AWAIT");
   IndentedScope indent(this, buf.begin(), node->position());
   Visit(node->expression());
@@ -1338,7 +1335,7 @@ void AstPrinter::VisitOptionalChain(OptionalChain* node) {
 }
 
 void AstPrinter::VisitProperty(Property* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "PROPERTY");
   IndentedScope indent(this, buf.begin(), node->position());
 
@@ -1377,7 +1374,7 @@ void AstPrinter::VisitProperty(Property* node) {
 }
 
 void AstPrinter::VisitCall(Call* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL");
   IndentedScope indent(this, buf.begin());
 
@@ -1394,7 +1391,7 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "CALL RUNTIME %s%s", node->debug_name(),
            node->is_jsruntime() ? " (JS function)" : "");
   IndentedScope indent(this, buf.begin(), node->position());
@@ -1409,7 +1406,7 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 
 
 void AstPrinter::VisitCountOperation(CountOperation* node) {
-  EmbeddedVector<char, 128> buf;
+  base::EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
            Token::Name(node->op()));
   IndentedScope indent(this, buf.begin(), node->position());

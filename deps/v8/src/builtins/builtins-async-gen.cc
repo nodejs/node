@@ -30,17 +30,10 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
-  static const int kWrappedPromiseOffset =
+  static const int kClosureContextSize =
       FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  static const int kResolveClosureOffset =
-      kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
-  static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
-  static const int kTotalSize =
-      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
-
-  TNode<HeapObject> base = AllocateInNewSpace(kTotalSize);
-  TNode<Context> closure_context = UncheckedCast<Context>(base);
+  TNode<Context> closure_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
   {
     // Initialize the await context, storing the {generator} as extension.
     TNode<Map> map = CAST(
@@ -73,9 +66,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
                                         kTaggedSize)));
   TNode<JSPromise> promise;
   {
-    // Initialize Promise
+    // Allocate and initialize Promise
     TNode<HeapObject> wrapped_value =
-        InnerAllocate(base, kWrappedPromiseOffset);
+        AllocateInNewSpace(JSPromise::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(wrapped_value, promise_map);
     StoreObjectFieldRoot(wrapped_value, JSPromise::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
@@ -85,13 +78,15 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     PromiseInit(promise);
   }
 
-  // Initialize resolve handler
-  TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  // Allocate and initialize resolve handler
+  TNode<HeapObject> on_resolve =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_sfi);
 
-  // Initialize reject handler
-  TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
+  // Allocate and initialize reject handler
+  TNode<HeapObject> on_reject =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_sfi);
 
@@ -104,10 +99,10 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
                    &var_throwaway);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtins::kResolvePromise, context, promise, value);
+  CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
-  return CallBuiltin(Builtins::kPerformPromiseThen, context, promise,
-                     on_resolve, on_reject, var_throwaway.value());
+  return CallBuiltin(Builtin::kPerformPromiseThen, context, promise, on_resolve,
+                     on_reject, var_throwaway.value());
 }
 
 TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
@@ -118,19 +113,14 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
-  static const int kResolveClosureOffset =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
-  static const int kTotalSize =
-      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
-
   // 2. Let promise be ? PromiseResolve(« promise »).
   // We skip this step, because promise is already guaranteed to be a
   // JSPRomise at this point.
 
-  TNode<HeapObject> base = AllocateInNewSpace(kTotalSize);
-  TNode<Context> closure_context = UncheckedCast<Context>(base);
+  static const int kClosureContextSize =
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  TNode<Context> closure_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
   {
     // Initialize the await context, storing the {generator} as extension.
     TNode<Map> map = CAST(
@@ -149,13 +139,15 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
                                       generator);
   }
 
-  // Initialize resolve handler
-  TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  // Allocate and initialize resolve handler
+  TNode<HeapObject> on_resolve =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_sfi);
 
-  // Initialize reject handler
-  TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
+  // Allocate and initialize reject handler
+  TNode<HeapObject> on_reject =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_sfi);
 
@@ -165,7 +157,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
                    outer_promise, on_reject, is_predicted_as_caught,
                    &var_throwaway);
 
-  return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
+  return CallBuiltin(Builtin::kPerformPromiseThen, native_context, promise,
                      on_resolve, on_reject, var_throwaway.value());
 }
 
@@ -194,7 +186,7 @@ void AsyncBuiltinsAssembler::InitAwaitPromise(
   // This call to NewJSPromise is to keep behaviour parity with what happens
   // in Runtime::kAwaitPromisesInit above if native hooks are set. It will
   // create a throwaway promise that will trigger an init event and will get
-  // passed into Builtins::kPerformPromiseThen below.
+  // passed into Builtin::kPerformPromiseThen below.
   Branch(IsContextPromiseHookEnabled(promiseHookFlags), &if_promise_hook,
          &do_nothing);
   BIND(&if_promise_hook);
@@ -292,7 +284,8 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   TNode<Smi> builtin_id = LoadObjectField<Smi>(
       shared_info, SharedFunctionInfo::kFunctionDataOffset);
   TNode<Code> code = LoadBuiltin(builtin_id);
-  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
+  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset,
+                                 ToCodeT(code));
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
@@ -327,7 +320,7 @@ TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
   CSA_ASSERT(this, IsBoolean(CAST(done)));
 
   const TNode<Object> unwrapped_value =
-      CallBuiltin(Builtins::kCreateIterResultObject, context, value, done);
+      CallBuiltin(Builtin::kCreateIterResultObject, context, value, done);
 
   Return(unwrapped_value);
 }

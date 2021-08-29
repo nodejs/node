@@ -8,8 +8,8 @@
 // resolved later, i.e. the message queue gets empty in-between.
 // The important part here is that d8 exits with a non-zero exit code.
 
-load('test/mjsunit/mjsunit.js');
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/mjsunit.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 assertPromiseResult((async function test() {
   let ok_buffer = (() => {

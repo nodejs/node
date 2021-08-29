@@ -26,10 +26,10 @@ class SourceCodeCache final {
 
   void Iterate(RootVisitor* v);
 
-  bool Lookup(Isolate* isolate, Vector<const char> name,
+  bool Lookup(Isolate* isolate, base::Vector<const char> name,
               Handle<SharedFunctionInfo>* handle);
 
-  void Add(Isolate* isolate, Vector<const char> name,
+  void Add(Isolate* isolate, base::Vector<const char> name,
            Handle<SharedFunctionInfo> shared);
 
  private:

@@ -180,6 +180,8 @@
 #define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
   cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
+#define WASM_TRY_T(t, trystmt) \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprEnd
 #define WASM_TRY_CATCH_T(t, trystmt, catchstmt, except)                    \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
       except, catchstmt, kExprEnd
@@ -197,9 +199,6 @@
 #define WASM_TRY_DELEGATE_T(t, trystmt, depth)                                \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprDelegate, \
       depth
-#define WASM_TRY_UNWIND_T(t, trystmt, unwindstmt)                           \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprUnwind, \
-      unwindstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \
@@ -522,18 +521,23 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_BR_ON_CAST_FAIL(depth, rtt) \
   rtt, WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth)
 
-#define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
-#define WASM_REF_AS_DATA(ref) ref, WASM_GC_OP(kExprRefAsData)
-#define WASM_BR_ON_DATA(depth, ref) \
-  ref, WASM_GC_OP(kExprBrOnData), static_cast<byte>(depth)
 #define WASM_REF_IS_FUNC(ref) ref, WASM_GC_OP(kExprRefIsFunc)
-#define WASM_REF_AS_FUNC(ref) ref, WASM_GC_OP(kExprRefAsFunc)
-#define WASM_BR_ON_FUNC(depth, ref) \
-  ref, WASM_GC_OP(kExprBrOnFunc), static_cast<byte>(depth)
+#define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
 #define WASM_REF_IS_I31(ref) ref, WASM_GC_OP(kExprRefIsI31)
+#define WASM_REF_AS_FUNC(ref) ref, WASM_GC_OP(kExprRefAsFunc)
+#define WASM_REF_AS_DATA(ref) ref, WASM_GC_OP(kExprRefAsData)
 #define WASM_REF_AS_I31(ref) ref, WASM_GC_OP(kExprRefAsI31)
-#define WASM_BR_ON_I31(depth, ref) \
-  ref, WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
+#define WASM_BR_ON_FUNC(depth) \
+  WASM_GC_OP(kExprBrOnFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_DATA(depth) \
+  WASM_GC_OP(kExprBrOnData), static_cast<byte>(depth)
+#define WASM_BR_ON_I31(depth) WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
+#define WASM_BR_ON_NON_FUNC(depth) \
+  WASM_GC_OP(kExprBrOnNonFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_NON_DATA(depth) \
+  WASM_GC_OP(kExprBrOnNonData), static_cast<byte>(depth)
+#define WASM_BR_ON_NON_I31(depth) \
+  WASM_GC_OP(kExprBrOnNonI31), static_cast<byte>(depth)
 
 #define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
   default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
@@ -550,6 +554,14 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_LEN(typeidx, array) \
   array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
+#define WASM_ARRAY_COPY(dst_idx, src_idx, dst_array, dst_index, src_array, \
+                        src_index, length)                                 \
+  dst_array, dst_index, src_array, src_index, length,                      \
+      WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
+      static_cast<byte>(src_idx)
+#define WASM_ARRAY_INIT(index, length, ...)                          \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayInit), static_cast<byte>(index), \
+      static_cast<byte>(length)
 
 #define WASM_RTT_WITH_DEPTH(depth, typeidx) \
   kRttWithDepthCode, U32V_1(depth), U32V_1(typeidx)
@@ -558,6 +570,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
 #define WASM_RTT_SUB(typeidx, supertype) \
   supertype, WASM_GC_OP(kExprRttSub), static_cast<byte>(typeidx)
+#define WASM_RTT_FRESH_SUB(typeidx, supertype) \
+  supertype, WASM_GC_OP(kExprRttFreshSub), static_cast<byte>(typeidx)
 
 #define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
 #define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)
@@ -962,6 +976,15 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_LOAD_OP_ALIGNMENT(opcode, index, alignment) \
   index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
+
+// Load a Simd lane from a numeric pointer. We need this because lanes are
+// reversed in big endian. Note: a Simd value has {kSimd128Size / sizeof(*ptr)}
+// lanes.
+#ifdef V8_TARGET_BIG_ENDIAN
+#define LANE(ptr, index) ptr[kSimd128Size / sizeof(*ptr) - (index)-1]
+#else
+#define LANE(ptr, index) ptr[index]
+#endif
 
 //------------------------------------------------------------------------------
 // Compilation Hints.

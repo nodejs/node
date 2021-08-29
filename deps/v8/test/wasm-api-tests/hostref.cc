@@ -32,28 +32,28 @@ TEST_F(WasmCapiTest, HostRef) {
   FunctionSig r_v_sig(1, 0, rr_reps);
   FunctionSig v_ir_sig(0, 2, ir_reps);
   FunctionSig r_i_sig(1, 1, ri_reps);
-  uint32_t func_index = builder()->AddImport(CStrVector("f"), &r_r_sig);
+  uint32_t func_index = builder()->AddImport(base::CStrVector("f"), &r_r_sig);
   const bool kMutable = true;
   uint32_t global_index = builder()->AddExportedGlobal(
       kWasmExternRef, kMutable, WasmInitExpr::RefNullConst(HeapType::kExtern),
-      CStrVector("global"));
+      base::CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmExternRef, 10);
-  builder()->AddExport(CStrVector("table"), kExternalTable, table_index);
+  builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);
   byte global_set_code[] = {WASM_GLOBAL_SET(global_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(CStrVector("global.set"), global_set_code,
+  AddExportedFunction(base::CStrVector("global.set"), global_set_code,
                       sizeof(global_set_code), &v_r_sig);
   byte global_get_code[] = {WASM_GLOBAL_GET(global_index)};
-  AddExportedFunction(CStrVector("global.get"), global_get_code,
+  AddExportedFunction(base::CStrVector("global.get"), global_get_code,
                       sizeof(global_get_code), &r_v_sig);
   byte table_set_code[] = {
       WASM_TABLE_SET(table_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
-  AddExportedFunction(CStrVector("table.set"), table_set_code,
+  AddExportedFunction(base::CStrVector("table.set"), table_set_code,
                       sizeof(table_set_code), &v_ir_sig);
   byte table_get_code[] = {WASM_TABLE_GET(table_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(CStrVector("table.get"), table_get_code,
+  AddExportedFunction(base::CStrVector("table.get"), table_get_code,
                       sizeof(table_get_code), &r_i_sig);
   byte func_call_code[] = {WASM_CALL_FUNCTION(func_index, WASM_LOCAL_GET(0))};
-  AddExportedFunction(CStrVector("func.call"), func_call_code,
+  AddExportedFunction(base::CStrVector("func.call"), func_call_code,
                       sizeof(func_call_code), &r_r_sig);
 
   own<FuncType> func_type =

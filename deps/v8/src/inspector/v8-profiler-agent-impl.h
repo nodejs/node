@@ -75,7 +75,7 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   void consoleProfile(const String16& title);
   void consoleProfileEnd(const String16& title);
 
-  void triggerPreciseCoverageDeltaUpdate(const String16& occassion);
+  void triggerPreciseCoverageDeltaUpdate(const String16& occasion);
 
  private:
   String16 nextProfileId();

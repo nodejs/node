@@ -42,8 +42,10 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   Clear();
   isolate_ = isolate;
   thread_id_ = ThreadId::Current();
+#if V8_ENABLE_WEBASSEMBLY
   thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
       trap_handler::GetThreadInWasmThreadLocalAddress());
+#endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef USE_SIMULATOR
   simulator_ = Simulator::current(isolate);
 #endif

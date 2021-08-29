@@ -315,6 +315,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
 
   if (FLAG_debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
+#ifndef V8_COMPRESS_POINTERS
     ASSERT_EQ(6U, s.size());
 
     EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
@@ -340,6 +341,21 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
     EXPECT_EQ(cmp.mi.arch_opcode, s[5]->arch_opcode());
     EXPECT_EQ(2U, s[5]->InputCount());
     EXPECT_EQ(1U, s[5]->OutputCount());
+#else
+    ASSERT_EQ(3U, s.size());
+
+    EXPECT_EQ(kRiscvShl64, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+
+    EXPECT_EQ(kRiscvShl64, s[1]->arch_opcode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+
+    EXPECT_EQ(cmp.mi.arch_opcode, s[2]->arch_opcode());
+    EXPECT_EQ(2U, s[2]->InputCount());
+    EXPECT_EQ(1U, s[2]->OutputCount());
+#endif
   } else {
     ASSERT_EQ(cmp.expected_size, s.size());
     EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());

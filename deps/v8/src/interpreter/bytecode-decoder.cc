@@ -208,7 +208,6 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
       case interpreter::OperandType::kNone:
       case interpreter::OperandType::kRegCount:  // Dealt with in kRegList.
         UNREACHABLE();
-        break;
     }
     if (i != number_of_operands - 1) {
       os << ", ";

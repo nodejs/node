@@ -7,4 +7,4 @@
 
 // Force enable sse3 and sse4-1, since that will determine which execution tier
 // we use, and thus the expected output message will differ.
-load("test/message/wasm-trace-memory.js");
+d8.file.execute("test/message/wasm-trace-memory.js");

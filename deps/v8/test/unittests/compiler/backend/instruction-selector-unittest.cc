@@ -408,7 +408,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
   ZoneVector<MachineType> tagged_type(1, MachineType::AnyTagged(), zone());
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kToObject);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
       Operator::kNoProperties);
@@ -501,7 +501,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kToObject);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), 1, CallDescriptor::kNeedsFrameState,
       Operator::kNoProperties);

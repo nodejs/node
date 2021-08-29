@@ -28,7 +28,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
-                          LocalSpaceKind::kCompactionSpaceForMarkCompact);
+                          CompactionSpaceKind::kCompactionSpaceForMarkCompact);
   EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {
@@ -54,7 +54,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   int pages_in_old_space = old_space->CountTotalPages();
   int pages_in_compaction_space = compaction_space->CountTotalPages();
   EXPECT_EQ(kExpectedPages, pages_in_compaction_space);
-  old_space->MergeLocalSpace(compaction_space);
+  old_space->MergeCompactionSpace(compaction_space);
   EXPECT_EQ(pages_in_old_space + pages_in_compaction_space,
             old_space->CountTotalPages());
 

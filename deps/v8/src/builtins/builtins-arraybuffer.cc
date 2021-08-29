@@ -252,7 +252,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   {
     const int argc = 1;
 
-    ScopedVector<Handle<Object>> argv(argc);
+    base::ScopedVector<Handle<Object>> argv(argc);
     argv[0] = new_len_obj;
 
     Handle<Object> new_obj;

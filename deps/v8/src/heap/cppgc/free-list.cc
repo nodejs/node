@@ -60,7 +60,7 @@ FreeList& FreeList::operator=(FreeList&& other) V8_NOEXCEPT {
   return *this;
 }
 
-void FreeList::Add(FreeList::Block block) {
+Address FreeList::Add(FreeList::Block block) {
   const size_t size = block.size;
   DCHECK_GT(kPageSize, size);
   DCHECK_LE(sizeof(HeapObjectHeader), size);
@@ -73,7 +73,7 @@ void FreeList::Add(FreeList::Block block) {
     // zeroing it out.
     ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(HeapObjectHeader));
     new (block.address) HeapObjectHeader(size, kFreeListGCInfoIndex);
-    return;
+    return reinterpret_cast<Address>(block.address) + block.size;
   }
 
   // Make sure the freelist header is writable. SET_MEMORY_ACCESSIBLE is not
@@ -86,6 +86,7 @@ void FreeList::Add(FreeList::Block block) {
   if (!entry->Next()) {
     free_list_tails_[index] = entry;
   }
+  return reinterpret_cast<Address>(block.address) + sizeof(Entry);
 }
 
 void FreeList::Append(FreeList&& other) {

@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // This test case tries to exercise SIMD stack to stack movements by creating
 // a function that has many parameters.

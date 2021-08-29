@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-mv --wasm-loop-unrolling
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function MultiBlockResultTest() {
   print("MultiBlockResultTest");

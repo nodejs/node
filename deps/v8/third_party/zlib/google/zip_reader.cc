@@ -129,7 +129,7 @@ ZipReader::EntryInfo::EntryInfo(const std::string& file_name_in_zip,
   exploded_time.second = raw_file_info.tmu_date.tm_sec;
   exploded_time.millisecond = 0;
 
-  if (!base::Time::FromLocalExploded(exploded_time, &last_modified_))
+  if (!base::Time::FromUTCExploded(exploded_time, &last_modified_))
     last_modified_ = base::Time::UnixEpoch();
 }
 

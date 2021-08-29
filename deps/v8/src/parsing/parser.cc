@@ -20,6 +20,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
@@ -344,7 +345,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    const ScopedPtrList<Expression>& args,
                                    int pos) {
-  if (extension_ != nullptr) {
+  if (ParsingExtension()) {
     // The extension structures are only accessible while parsing the
     // very first time, not when reparsing because of lazy compilation.
     GetClosureScope()->ForceEagerCompilation();
@@ -420,7 +421,7 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
 
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(
-          info->zone(), &scanner_, info->stack_limit(), info->extension(),
+          info->zone(), &scanner_, info->stack_limit(),
           info->GetOrCreateAstValueFactory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       info_(info),
@@ -1022,9 +1023,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         flags().class_scope_has_private_brand());
     result->set_has_static_private_methods_or_accessors(
         flags().has_static_private_methods_or_accessors());
-    if (flags().is_oneshot_iife()) {
-      result->mark_as_oneshot_iife();
-    }
   }
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
@@ -1787,7 +1785,7 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
   // other functions are set up when entering the surrounding scope.
   VariableProxy* proxy = DeclareBoundVariable(name, VariableMode::kVar, pos);
   NativeFunctionLiteral* lit =
-      factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
+      factory()->NewNativeFunctionLiteral(name, extension(), kNoSourcePosition);
   return factory()->NewExpressionStatement(
       factory()->NewAssignment(Token::INIT, proxy, lit, kNoSourcePosition),
       pos);
@@ -2561,7 +2559,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // that tracks unresolved variables.
   DCHECK_IMPLIES(parse_lazily(), info()->flags().allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
-  DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
+  DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
@@ -3134,7 +3132,6 @@ FunctionLiteral* Parser::CreateInitializerFunction(
 //   - proxy
 //   - extends
 //   - properties
-//   - has_name_static_property
 //   - has_static_computed_names
 Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
                                         const AstRawString* name,
@@ -3185,7 +3182,6 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
       block_scope, class_info->extends, class_info->constructor,
       class_info->public_members, class_info->private_members,
       static_initializer, instance_members_initializer_function, pos, end_pos,
-      class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous,
       class_info->has_private_methods, class_info->home_object_variable,
       class_info->static_home_object_variable);
@@ -3468,6 +3464,8 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
                                               Expression* identifier) {
   if (!identifier->IsVariableProxy()) return;
+  // IsIdentifierRef of parenthesized expressions is false.
+  if (identifier->is_parenthesized()) return;
   SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 

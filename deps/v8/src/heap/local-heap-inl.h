@@ -34,7 +34,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   // Each allocation is supposed to be a safepoint.
   Safepoint();
 
-  bool large_object = size_in_bytes > Heap::MaxRegularHeapObjectSize(type);
+  bool large_object = size_in_bytes > heap_->MaxRegularHeapObjectSize(type);
   CHECK_EQ(type, AllocationType::kOld);
 
   if (large_object)

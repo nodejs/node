@@ -228,11 +228,10 @@ void RegExpMacroAssemblerMIPS::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_character(), Operand(c));
 }
 
-
-void RegExpMacroAssemblerMIPS::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerMIPS::CheckCharacterGT(base::uc16 limit,
+                                                Label* on_greater) {
   BranchOrBacktrack(on_greater, gt, current_character(), Operand(limit));
 }
-
 
 void RegExpMacroAssemblerMIPS::CheckAtStart(int cp_offset, Label* on_at_start) {
   __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
@@ -250,11 +249,10 @@ void RegExpMacroAssemblerMIPS::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(on_not_at_start, ne, a0, Operand(a1));
 }
 
-
-void RegExpMacroAssemblerMIPS::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerMIPS::CheckCharacterLT(base::uc16 limit,
+                                                Label* on_less) {
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
-
 
 void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
   Label backtrack_non_equal;
@@ -492,38 +490,28 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterAnd(uint32_t c,
   BranchOrBacktrack(on_not_equal, ne, a0, rhs);
 }
 
-
 void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Dsubu(a0, current_character(), Operand(minus));
   __ And(a0, a0, Operand(mask));
   BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
 }
 
-
-void RegExpMacroAssemblerMIPS::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerMIPS::CheckCharacterInRange(base::uc16 from,
+                                                     base::uc16 to,
+                                                     Label* on_in_range) {
   __ Dsubu(a0, current_character(), Operand(from));
   // Unsigned lower-or-same condition.
   BranchOrBacktrack(on_in_range, ls, a0, Operand(to - from));
 }
 
-
 void RegExpMacroAssemblerMIPS::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+    base::uc16 from, base::uc16 to, Label* on_not_in_range) {
   __ Dsubu(a0, current_character(), Operand(from));
   // Unsigned higher condition.
   BranchOrBacktrack(on_not_in_range, hi, a0, Operand(to - from));
 }
-
 
 void RegExpMacroAssemblerMIPS::CheckBitInTable(
     Handle<ByteArray> table,
@@ -540,8 +528,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-
-bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(base::uc16 type,
                                                           Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
@@ -644,7 +631,6 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     return false;
   }
 }
-
 
 void RegExpMacroAssemblerMIPS::Fail() {
   __ li(v0, Operand(FAILURE));
@@ -863,9 +849,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           // Advance current position after a zero-length match.
           Label advance;
           __ bind(&advance);
-          __ Daddu(current_input_offset(),
-                  current_input_offset(),
-                  Operand((mode_ == UC16) ? 2 : 1));
+          __ Daddu(current_input_offset(), current_input_offset(),
+                   Operand((mode_ == UC16) ? 2 : 1));
           if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
 
@@ -1173,8 +1158,8 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   __ li(t9, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
-  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  CHECK(Builtins::IsIsolateIndependent(Builtin::kDirectCEntry));
+  Address entry = d.InstructionStartOfBuiltin(Builtin::kDirectCEntry);
   __ li(kScratchReg, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(kScratchReg);
 

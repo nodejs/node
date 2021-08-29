@@ -15,11 +15,6 @@
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
 
-  # https://crbug.com/v8/10356
-  # This test worked in the wasm interpreter, but fails when using Liftoff for
-  # debugging.
-  'debugger/wasm-externref-global': [FAIL],
-
   # https://crbug.com/1080638
   # The initial CL only fixed the crash. The test still causes an endless
   # loop instead of properly reporting a RangeError for a stack overflow.
@@ -27,6 +22,10 @@
 
   # https://crbug.com/v8/11338
   'runtime-call-stats/enable-disable': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'runtime/console-messages-limits': [PASS, HEAVY],
+  'runtime/regression-732717': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################
@@ -86,6 +85,7 @@
   # https://crbug.com/v8/7777
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
+  'regress/regress-crbug-1233401': [SKIP],
 }], # variant == jitless
 
 ##############################################################################
@@ -166,7 +166,7 @@
   'cpu-profiler/coverage-block': [SKIP],
   'debugger/get-possible-breakpoints': [SKIP],
   'debugger/get-possible-breakpoints-array-literal': [SKIP],
-  'debugger/get-possible-breakpoints-master': [SKIP],
+  'debugger/get-possible-breakpoints-main': [SKIP],
   'debugger/limit-size-of-collected-scripts': [SKIP],
   'debugger/not-hold-promises': [SKIP],
   'debugger/regression-424142': [SKIP],
@@ -214,6 +214,14 @@
 ################################################################################
 ['third_party_heap', {
   # Requires a second isolate
+  'debugger/stepping-generator-parameters': [SKIP],
+  'debugger/wasm-externref-global': [SKIP],
+  'debugger/stepping-async-generator': [SKIP],
+  'regress/regress-crbug-1222065': [SKIP],
+  'debugger/stepping-generator': [SKIP],
+  'runtime/exception-thrown-metadata': [SKIP],
+  'debugger/wasm-side-effect-free-debug-evaluate': [SKIP],
+  'regress/regress-crbug-1081162': [SKIP],
   'regress/regress-crbug-1207867': [SKIP],
   'regress/regress-crbug-1197392': [SKIP],
   'debugger/command-line-api-with-arrow-function': [SKIP],
@@ -298,7 +306,7 @@
   'debugger/get-possible-breakpoints-array-literal': [SKIP],
   'debugger/get-possible-breakpoints-class-fields': [SKIP],
   'debugger/get-possible-breakpoints-lazy-error': [SKIP],
-  'debugger/get-possible-breakpoints-master': [SKIP],
+  'debugger/get-possible-breakpoints-main': [SKIP],
   'debugger/get-possible-breakpoints-restrict-to-function': [SKIP],
   'debugger/get-properties-paused': [SKIP],
   'debugger/inspector-break-api': [SKIP],
