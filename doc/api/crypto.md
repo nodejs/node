@@ -5317,6 +5317,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL options
 
+See the [list of SSL OP Flags][] for details.
+
 <table>
   <tr>
     <th>Constant</th>
@@ -5550,8 +5552,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 </table>
 
 ### Other OpenSSL constants
-
-See the [list of SSL OP Flags][] for details.
 
 <table>
   <tr>
