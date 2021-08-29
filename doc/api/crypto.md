@@ -1916,8 +1916,8 @@ changes:
 -->
 
 * {Object}
-  * `modulusLength`: {number} Key size in bits (RSA, RSA-PSS, DSA).
-  * `publicExponent`: {bigint} Public exponent (RSA, RSA-PSS).
+  * `modulusLength`: {number} Key size in bits (RSA, DSA).
+  * `publicExponent`: {bigint} Public exponent (RSA).
   * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
   * `mgf1HashAlgorithm`: {string} Name of the message digest used by
     MGF1 (RSA-PSS).
