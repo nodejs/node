@@ -19,7 +19,7 @@ server.listen(0, () => {
   // header, which is a violation of the HTTP spec.
   const req = http.get({ port: server.address().port }, common.mustNotCall());
   req.on('error', common.mustCall((err) => {
-    assert(/^Parse Error/.test(err.message));
+    assert.match(err.message, /^Parse Error/);
     assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
     server.close();
   }));

@@ -9,7 +9,7 @@ const assert = require('assert');
 // Content-Length header is received.
 const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err, socket) => {
-  assert(/^Parse Error/.test(err.message));
+  assert.match(err.message, /^Parse Error/);
   assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
   socket.destroy();
 }));

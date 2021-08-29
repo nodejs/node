@@ -37,5 +37,5 @@ const cmd =
   `"${process.execPath}" "${fixturesDir}/test-fs-stat-sync-overflow.js"`;
 
 exec(cmd, function(err, stdout, stderr) {
-  assert(/RangeError: Maximum call stack size exceeded/.test(stderr));
+  assert.match(stderr, /RangeError: Maximum call stack size exceeded/);
 });

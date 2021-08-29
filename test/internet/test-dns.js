@@ -527,7 +527,7 @@ TEST(function test_lookup_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, dns.NOTFOUND);
     assert.strictEqual(err.code, 'ENOTFOUND');
-    assert.ok(!/ENOENT/.test(err.message));
+    assert.doesNotMatch(err.message, !/ENOENT/);
     assert.ok(err.message.includes(addresses.NOT_FOUND));
 
     done();
@@ -640,7 +640,7 @@ TEST(function test_lookupservice_invalid(done) {
   const req = dns.lookupService('1.2.3.4', 80, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
-    assert.ok(/1\.2\.3\.4/.test(err.message));
+    assert.match(err.message, /1\.2\.3\.4/);
 
     done();
   });
@@ -662,7 +662,7 @@ TEST(function test_reverse_failure(done) {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
     assert.strictEqual(err.hostname, '203.0.113.0');
-    assert.ok(/203\.0\.113\.0/.test(err.message));
+    assert.match(err.message, /203\.0\.113\.0/);
 
     done();
   });

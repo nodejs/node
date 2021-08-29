@@ -58,7 +58,7 @@ function makeRequest() {
   const child = spawn(process.execPath, args);
 
   child.on('exit', function(code) {
-    assert.ok(/DONE/.test(stderrBuffer));
+    assert.match(stderrBuffer, /DONE/);
     assert.strictEqual(code, 0);
   });
 

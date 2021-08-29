@@ -52,8 +52,8 @@ function runPolyfill(content) {
     [
       '--prof-process', LOG_FILE,
     ]);
-  assert(WARN_REG_EXP.test(child.stderr.toString()));
-  assert(WARN_DETAIL_REG_EXP.test(child.stderr.toString()));
+  assert.match(child.stderr.toString(), WARN_REG_EXP);
+  assert.match(child.stderr.toString(), WARN_DETAIL_REG_EXP);
   assert.strictEqual(child.status, 0);
 }
 

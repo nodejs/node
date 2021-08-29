@@ -12,7 +12,7 @@ const testType = 'CustomWarning';
 
 process.on('warning', common.mustCall((warning) => {
   assert(warning);
-  assert(/^(?:Warning|CustomWarning)/.test(warning.name));
+  assert.match(warning.name, /^(?:Warning|CustomWarning)/);
   assert.strictEqual(warning.message, testMsg);
   if (warning.code) assert.strictEqual(warning.code, testCode);
   if (warning.detail) assert.strictEqual(warning.detail, testDetail);

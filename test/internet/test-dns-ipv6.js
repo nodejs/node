@@ -142,7 +142,7 @@ TEST(function test_lookup_ipv6_hint(done) {
         assert(err instanceof Error);
         assert.strictEqual(err.code, 'EAI_BADFLAGS');
         assert.strictEqual(err.hostname, addresses.INET_HOST);
-        assert.ok(/getaddrinfo EAI_BADFLAGS/.test(err.message));
+        assert.match(err.message, /getaddrinfo EAI_BADFLAGS/);
         done();
         return;
       }

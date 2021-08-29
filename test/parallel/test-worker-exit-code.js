@@ -36,8 +36,7 @@ function parent() {
     if (error) {
       w.on('error', common.mustCall((err) => {
         console.log(err);
-        assert(error.test(err),
-               `wrong error for ${arg}\nexpected:${error} but got:${err}`);
+        assert.match(String(err), error);
       }));
     }
     w.postMessage(arg);

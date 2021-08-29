@@ -33,4 +33,4 @@ try {
       getHiddenValue(err, kArrowMessagePrivateSymbolIndex);
 }
 
-assert(/bad_syntax\.js:1/.test(arrowMessage));
+assert.match(arrowMessage, /bad_syntax\.js:1/);

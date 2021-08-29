@@ -136,7 +136,7 @@ promises.push(assert.rejects(
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.actual, actual);
     assert.strictEqual(err.operator, 'rejects');
-    assert(/rejects/.test(err.stack));
+    assert.match(err.stack, /rejects/);
     return true;
   };
   const err = new Error();

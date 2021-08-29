@@ -28,7 +28,7 @@ function check(url, cb) {
     });
 
     res.on('end', common.mustCall(() => {
-      assert(/>Debugging Guide</.test(result));
+      assert.match(result, />Debugging Guide</);
       cb();
     }));
   })).on('error', common.mustNotCall);
