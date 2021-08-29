@@ -25,10 +25,11 @@ struct RsaKeyPairParams final : public MemoryRetainer {
   unsigned int modulus_bits;
   unsigned int exponent;
 
-  // The following used for RSA-PSS
+  // The following options are used for RSA-PSS. If any of them are set, a
+  // RSASSA-PSS-params sequence will be added to the key.
   const EVP_MD* md = nullptr;
   const EVP_MD* mgf1_md = nullptr;
-  int saltlen = 0;
+  int saltlen = -1;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RsaKeyPairParams)
