@@ -90,7 +90,7 @@ if (process.argv[2] === 'child') {
 
     switch (state) {
       case 'initial':
-        assert(/^uv loop at \[.+\] has open handles:$/.test(line), line);
+        assert.match(line, /^uv loop at \[.+\] has open handles:$/);
         state = 'handle-start';
         break;
       case 'handle-start':
@@ -98,15 +98,15 @@ if (process.argv[2] === 'child') {
           state = 'assertion-failure';
           break;
         }
-        assert(/^\[.+\] timer( \(active\))?$/.test(line), line);
+        assert.match(line, /^\[.+\] timer( \(active\))?$/);
         state = 'close-callback';
         break;
       case 'close-callback':
-        assert(/^Close callback:/.test(line), line);
+        assert.match(line, /^Close callback:/);
         state = 'data';
         break;
       case 'data':
-        assert(/^Data: .+$/.test(line), line);
+        assert.match(line, /^Data: .+$/);
         state = 'maybe-first-field';
         break;
       case 'maybe-first-field':
@@ -116,7 +116,7 @@ if (process.argv[2] === 'child') {
         state = 'handle-start';
         break;
       case 'assertion-failure':
-        assert(/Assertion .+ failed/.test(line), line);
+        assert.match(line, /Assertion .+ failed/);
         state = 'done';
         break;
       case 'done':

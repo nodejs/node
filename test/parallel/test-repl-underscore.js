@@ -199,7 +199,7 @@ function testError() {
       if (typeof expected === 'string')
         assert.strictEqual(line, expected);
       else
-        assert(expected.test(line), `${line} should match ${expected}`);
+        assert.match(line, expected);
     }
     assert.strictEqual(expectedLines.length, 0);
 

@@ -38,16 +38,18 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
-assert(commonTemplate.test(process.versions.ares));
-assert(commonTemplate.test(process.versions.brotli));
-assert(commonTemplate.test(process.versions.llhttp));
-assert(commonTemplate.test(process.versions.node));
-assert(commonTemplate.test(process.versions.uv));
-assert(commonTemplate.test(process.versions.zlib));
+assert.match(process.versions.ares, commonTemplate);
+assert.match(process.versions.brotli, commonTemplate);
+assert.match(process.versions.llhttp, commonTemplate);
+assert.match(process.versions.node, commonTemplate);
+assert.match(process.versions.uv, commonTemplate);
+assert.match(process.versions.zlib, commonTemplate);
 
-assert(/^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
-  .test(process.versions.v8));
-assert(/^\d+$/.test(process.versions.modules));
+assert.match(
+  process.versions.v8,
+  /^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
+);
+assert.match(process.versions.modules, /^\d+$/);
 
 if (common.hasCrypto) {
   const versionRegex = common.hasOpenSSL3 ?
@@ -56,7 +58,7 @@ if (common.hasCrypto) {
     // and linking against the main development branch of OpenSSL.
     /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
     /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
-  assert(versionRegex.test(process.versions.openssl));
+  assert.match(process.versions.openssl, versionRegex);
 }
 
 for (let i = 0; i < expected_keys.length; i++) {

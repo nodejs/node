@@ -146,7 +146,7 @@ function _validateContent(report, fields = []) {
   header.networkInterfaces.forEach((iface) => {
     assert.strictEqual(typeof iface.name, 'string');
     assert.strictEqual(typeof iface.internal, 'boolean');
-    assert(/^([0-9A-F][0-9A-F]:){5}[0-9A-F]{2}$/i.test(iface.mac));
+    assert.match(iface.mac, /^([0-9A-F][0-9A-F]:){5}[0-9A-F]{2}$/i);
 
     if (iface.family === 'IPv4') {
       assert.strictEqual(net.isIPv4(iface.address), true);
@@ -171,7 +171,7 @@ function _validateContent(report, fields = []) {
     assert(typeof frame === 'object' && frame !== null);
     checkForUnknownFields(frame, ['pc', 'symbol']);
     assert.strictEqual(typeof frame.pc, 'string');
-    assert(/^0x[0-9a-f]+$/.test(frame.pc));
+    assert.match(frame.pc, /^0x[0-9a-f]+$/);
     assert.strictEqual(typeof frame.symbol, 'string');
   });
 
@@ -250,7 +250,7 @@ function _validateContent(report, fields = []) {
   report.libuv.forEach((resource) => {
     assert.strictEqual(typeof resource.type, 'string');
     assert.strictEqual(typeof resource.address, 'string');
-    assert(/^0x[0-9a-f]+$/.test(resource.address));
+    assert.match(resource.address, /^0x[0-9a-f]+$/);
     assert.strictEqual(typeof resource.is_active, 'boolean');
     assert.strictEqual(typeof resource.is_referenced,
                        resource.type === 'loop' ? 'undefined' : 'boolean');

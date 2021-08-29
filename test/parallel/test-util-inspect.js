@@ -156,12 +156,14 @@ assert.match(util.inspect((new JSStream())._externalStream),
   assert.strictEqual(util.inspect({ a: regexp }, false, 0), '{ a: /regexp/ }');
 }
 
-assert(/Object/.test(
-  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, undefined, true)
-));
-assert(!/Object/.test(
-  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true)
-));
+assert.match(
+  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, undefined, true),
+  /Object/
+);
+assert.doesNotMatch(
+  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true),
+  /Object/
+);
 
 {
   const showHidden = true;
@@ -1467,13 +1469,13 @@ if (typeof Symbol !== 'undefined') {
 
   // Set single option through property assignment.
   util.inspect.defaultOptions.maxArrayLength = null;
-  assert(!/1 more item/.test(util.inspect(arr)));
+  assert.doesNotMatch(util.inspect(arr), /1 more item/);
   util.inspect.defaultOptions.maxArrayLength = oldOptions.maxArrayLength;
-  assert(/1 more item/.test(util.inspect(arr)));
+  assert.match(util.inspect(arr), /1 more item/);
   util.inspect.defaultOptions.depth = null;
-  assert(!/Object/.test(util.inspect(obj)));
+  assert.doesNotMatch(util.inspect(obj), /Object/);
   util.inspect.defaultOptions.depth = oldOptions.depth;
-  assert(/Object/.test(util.inspect(obj)));
+  assert.match(util.inspect(obj), /Object/);
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
@@ -1481,11 +1483,11 @@ if (typeof Symbol !== 'undefined') {
 
   // Set multiple options through object assignment.
   util.inspect.defaultOptions = { maxArrayLength: null, depth: 2 };
-  assert(!/1 more item/.test(util.inspect(arr)));
-  assert(/Object/.test(util.inspect(obj)));
+  assert.doesNotMatch(util.inspect(arr), /1 more item/);
+  assert.match(util.inspect(obj), /Object/);
   util.inspect.defaultOptions = oldOptions;
-  assert(/1 more item/.test(util.inspect(arr)));
-  assert(/Object/.test(util.inspect(obj)));
+  assert.match(util.inspect(arr), /1 more item/);
+  assert.match(util.inspect(obj), /Object/);
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
@@ -2183,12 +2185,12 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value.foo = 'bar';
   let res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert(/foo: 'bar'/.test(res), res);
+  assert.match(res, /foo: 'bar'/);
   delete value.foo;
   value[Symbol('foo')] = 'yeah';
   res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert(/\[Symbol\(foo\)]: 'yeah'/.test(res), res);
+  assert.match(res, /\[Symbol\(foo\)]: 'yeah'/);
 });
 
 assert.strictEqual(inspect(1n), '1n');
