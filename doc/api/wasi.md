@@ -40,7 +40,7 @@ wasi.start(instance);
 const { readFile } = require('fs/promises');
 const { WASI } = require('wasi');
 const { argv, env } = require('process');
-const { resolve } = require('path');
+const { join } = require('path');
 
 const wasi = new WASI({
   args: argv,
