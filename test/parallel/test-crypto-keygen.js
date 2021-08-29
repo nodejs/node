@@ -311,7 +311,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       modulusLength: 512,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
-      mgf1Hash: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
       saltLength: 16
     });
 
@@ -321,7 +321,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       modulusLength: 512,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
-      mgf1Hash: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
       saltLength: 16
     });
 
