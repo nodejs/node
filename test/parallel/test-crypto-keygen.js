@@ -302,8 +302,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   generateKeyPair('rsa-pss', {
     modulusLength: 512,
     saltLength: 16,
-    hash: 'sha256',
-    mgf1Hash: 'sha256'
+    hashAlgorithm: 'sha256',
+    mgf1HashAlgorithm: 'sha256'
   }, common.mustSucceed((publicKey, privateKey) => {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
@@ -1324,12 +1324,12 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.throws(() => {
       generateKeyPairSync('rsa-pss', {
         modulusLength: 4096,
-        hash: hashValue
+        hashAlgorithm: hashValue
       });
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.hash' is invalid. " +
+      message: "The property 'options.hashAlgorithm' is invalid. " +
         `Received ${inspect(hashValue)}`
     });
   }
@@ -1339,8 +1339,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     generateKeyPair('rsa-pss', {
       modulusLength: 512,
       saltLength: 2147483648,
-      hash: 'sha256',
-      mgf1Hash: 'sha256'
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256'
     }, common.mustNotCall());
   }, {
     name: 'TypeError',
@@ -1353,8 +1353,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     generateKeyPair('rsa-pss', {
       modulusLength: 512,
       saltLength: -1,
-      hash: 'sha256',
-      mgf1Hash: 'sha256'
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256'
     }, common.mustNotCall());
   }, {
     name: 'TypeError',
@@ -1451,8 +1451,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       generateKeyPair('rsa-pss', {
         modulusLength: 512,
         saltLength: 16,
-        hash: 'sha256',
-        mgf1Hash: undefined
+        hashAlgorithm: 'sha256',
+        mgf1HashAlgorithm: undefined
       });
     },
     {
@@ -1462,21 +1462,21 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   );
 
-  for (const mgf1Hash of [null, 0, false, {}, []]) {
+  for (const mgf1HashAlgorithm of [null, 0, false, {}, []]) {
     assert.throws(
       () => {
         generateKeyPair('rsa-pss', {
           modulusLength: 512,
           saltLength: 16,
-          hash: 'sha256',
-          mgf1Hash
+          hashAlgorithm: 'sha256',
+          mgf1HashAlgorithm
         }, common.mustNotCall());
       },
       {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.mgf1Hash' is invalid. " +
-          `Received ${inspect(mgf1Hash)}`
+        message: "The property 'options.mgf1HashAlgorithm' is invalid. " +
+          `Received ${inspect(mgf1HashAlgorithm)}`
 
       }
     );
@@ -1567,4 +1567,57 @@ if (!common.hasOpenSSL3) {
       }));
     }
   }
+}
+
+{
+  // This test makes sure deprecated and new options may be used
+  // simultaneously so long as they're identical values.
+
+  generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    hash: 'sha256',
+    hashAlgorithm: 'sha256',
+    mgf1Hash: 'sha256',
+    mgf1HashAlgorithm: 'sha256'
+  }, common.mustSucceed((publicKey, privateKey) => {
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
+      modulusLength: 512,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
+    });
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
+      modulusLength: 512,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
+    });
+  }));
+}
+
+{
+  // This test makes sure deprecated and new options must
+  // be the same value.
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    mgf1Hash: 'sha256',
+    mgf1HashAlgorithm: 'sha1'
+  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    hash: 'sha256',
+    hashAlgorithm: 'sha1'
+  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
 }

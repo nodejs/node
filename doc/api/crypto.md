@@ -3375,6 +3375,10 @@ generateKey('hmac', { length: 64 }, (err, key) => {
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39927
+    description: Add ability to define `RSASSA-PSS-params` sequence parameters
+                 for RSA-PSS keys pairs.
   - version:
      - v13.9.0
      - v12.17.0
@@ -3400,6 +3404,10 @@ changes:
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
+  * `mgf1HashAlgorithm`: {string} Name of the message digest used by
+    MGF1 (RSA-PSS).
+  * `saltLength`: {number} Minimal salt length in bytes (RSA-PSS).
   * `divisorLength`: {number} Size of `q` in bits (DSA).
   * `namedCurve`: {string} Name of the curve to use (EC).
   * `prime`: {Buffer} The prime parameter (DH).
@@ -3478,6 +3486,10 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39927
+    description: Add ability to define `RSASSA-PSS-params` sequence parameters
+                 for RSA-PSS keys pairs.
   - version:
      - v13.9.0
      - v12.17.0
@@ -3503,6 +3515,10 @@ changes:
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
+  * `mgf1HashAlgorithm`: {string} Name of the message digest used by
+    MGF1 (RSA-PSS).
+  * `saltLength`: {number} Minimal salt length in bytes (RSA-PSS).
   * `divisorLength`: {number} Size of `q` in bits (DSA).
   * `namedCurve`: {string} Name of the curve to use (EC).
   * `prime`: {Buffer} The prime parameter (DH).
