@@ -47,6 +47,6 @@ const server = tls.createServer({
 
 process.on('exit', function() {
   assert(clientError);
-  assert(/socket hang up/.test(clientError.message));
-  assert(/ECONNRESET/.test(clientError.code));
+  assert.match(clientError.message, /socket hang up/);
+  assert.match(clientError.code, /ECONNRESET/);
 });

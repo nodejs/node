@@ -32,8 +32,8 @@ function checkVersion(response) {
 
 function checkBadPath(err) {
   assert(err instanceof SyntaxError);
-  assert(/Unexpected token/.test(err.message), err.message);
-  assert(/WebSockets request was expected/.test(err.body), err.body);
+  assert.match(err.message, /Unexpected token/);
+  assert.match(err.body, /WebSockets request was expected/);
 }
 
 function checkException(message) {

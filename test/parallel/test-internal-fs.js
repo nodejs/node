@@ -26,7 +26,7 @@ assert.throws(
   );
 
   if (process.platform === 'win32') {
-    assert.strictEqual(/^\\\\\?\\/.test(preprocessSymlinkDestination), true);
+    assert.match(preprocessSymlinkDestination, /^\\\\\?\\/);
   } else {
     assert.strictEqual(preprocessSymlinkDestination, pathString);
   }

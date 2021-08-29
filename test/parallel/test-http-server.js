@@ -131,10 +131,10 @@ process.on('exit', function() {
   assert.strictEqual(requests_sent, 4);
 
   const hello = new RegExp('/hello');
-  assert.ok(hello.test(server_response));
+  assert.match(server_response, hello);
 
   const quit = new RegExp('/quit');
-  assert.ok(quit.test(server_response));
+  assert.match(server_response, quit);
 
   assert.strictEqual(client_got_eof, true);
 });

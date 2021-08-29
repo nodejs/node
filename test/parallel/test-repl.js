@@ -90,8 +90,7 @@ async function runReplTests(socket, prompt, tests) {
       if (typeof expectedLine === 'string') {
         assert.strictEqual(actualLine, expectedLine);
       } else {
-        assert(expectedLine.test(actualLine),
-               `${actualLine} match ${expectedLine}`);
+        assert.match(actualLine, expectedLine);
       }
     }
   }
