@@ -34,7 +34,7 @@ const { join } = require('path');
   const p = fixtures.path('leakedGlobal.js');
   execFile(process.execPath, [p], common.mustCall((err, stdout, stderr) => {
     assert.notStrictEqual(err.code, 0);
-    assert.ok(/\bAssertionError\b.*\bUnexpected global\b.*\bgc\b/.test(stderr));
+    assert.match(stderr, /\bAssertionError\b.*\bUnexpected global\b.*\bgc\b/);
   }));
 }
 
@@ -130,7 +130,7 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
 // Test `tmpdir`.
 {
   tmpdir.refresh();
-  assert.ok(/\.tmp\.\d+/.test(tmpdir.path));
+  assert.match(tmpdir.path, /\.tmp\.\d+/);
   const sentinelPath = join(tmpdir.path, 'gaga');
   writeFileSync(sentinelPath, 'googoo');
   tmpdir.refresh();

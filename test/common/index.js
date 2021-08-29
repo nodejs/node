@@ -554,7 +554,7 @@ function _expectWarning(name, expected, code) {
     if (typeof message === 'string') {
       assert.strictEqual(warning.message, message);
     } else {
-      assert(message.test(warning.message));
+      assert.match(warning.message, message);
     }
     assert.strictEqual(warning.code, code);
   }, expected.length);

@@ -38,7 +38,7 @@ fork(__filename, opts)
     // encoding-wise
     if (!common.isWindows) {
       const re = /Warning: Ignoring extra certs from.*no-such-file-exists-🐢.* load failed:.*No such file or directory/;
-      assert(re.test(stderr), stderr);
+      assert.match(stderr, re);
     }
   }))
   .stderr.setEncoding('utf8').on('data', function(str) {

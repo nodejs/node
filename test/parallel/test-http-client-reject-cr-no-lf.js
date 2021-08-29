@@ -18,7 +18,7 @@ server.listen(0, () => {
   // header field that ends only in \r with no following \n
   const req = http.get({ port: server.address().port }, common.mustNotCall());
   req.on('error', common.mustCall((err) => {
-    assert(/^Parse Error/.test(err.message));
+    assert.match(err.message, /^Parse Error/);
     assert.strictEqual(err.code, 'HPE_LF_EXPECTED');
     server.close();
   }));
