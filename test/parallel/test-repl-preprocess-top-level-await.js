@@ -9,7 +9,9 @@ const { processTopLevelAwait } = require('internal/repl/await');
 // This test was created based on
 // https://cs.chromium.org/chromium/src/third_party/WebKit/LayoutTests/http/tests/inspector-unit/preprocess-top-level-awaits.js?rcl=358caaba5e763e71c4abb9ada2d9cd8b1188cac9
 
-const surrogate = '"\u{1F601}\u{1f468}\u200d\u{1f469}\u200d\u{1f467}\u200d\u{1f466}"';
+const surrogate = (
+  '"\u{1F601}\u{1f468}\u200d\u{1f469}\u200d\u{1f467}\u200d\u{1f466}"'
+);
 
 const testCases = [
   [ '0',
