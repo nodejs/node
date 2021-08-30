@@ -1473,6 +1473,10 @@ MaybeLocal<Object> X509ToObject(
                   GetFingerprintDigest(env, EVP_sha256(), cert)) ||
       !Set<Value>(context,
                   info,
+                  env->fingerprint512_string(),
+                  GetFingerprintDigest(env, EVP_sha512(), cert)) ||
+      !Set<Value>(context,
+                  info,
                   env->ext_key_usage_string(),
                   GetKeyUsage(env, cert)) ||
       !Set<Value>(context,
