@@ -103,6 +103,12 @@ const der = Buffer.from(
     'B0:BE:46:49:B8:29:63:E0:6F:63:C8:8A:57:9C:3F:9B:72:C6:F5:89:E3:0D:' +
     '84:AC:5B:08:9A:20:89:B6:8F:D6'
   );
+  assert.strictEqual(
+    x509.fingerprint512,
+    'D0:05:01:82:2C:D8:09:BE:27:94:E7:83:F1:88:BC:7A:8B:D0:39:97:54:B6:' +
+    'D0:B4:46:5B:DE:13:5B:68:86:B6:F2:A8:95:22:D5:6E:8B:35:DA:89:29:CA:' +
+    'A3:06:C5:CE:43:C1:7F:2D:7E:5F:44:A5:EE:A3:CB:97:05:A3:E3:68'
+  );
   assert.strictEqual(x509.keyUsage, undefined);
   assert.strictEqual(x509.serialNumber, 'ECC9B856270DA9A8');
 
@@ -226,6 +232,11 @@ const der = Buffer.from(
     fingerprint256:
       'B0:BE:46:49:B8:29:63:E0:6F:63:C8:8A:57:9C:3F:9B:72:' +
       'C6:F5:89:E3:0D:84:AC:5B:08:9A:20:89:B6:8F:D6',
+    fingerprint512:
+      'D0:05:01:82:2C:D8:09:BE:27:94:E7:83:F1:88:BC:7A:8B:' +
+      'D0:39:97:54:B6:D0:B4:46:5B:DE:13:5B:68:86:B6:F2:A8:' +
+      '95:22:D5:6E:8B:35:DA:89:29:CA:A3:06:C5:CE:43:C1:7F:' +
+      '2D:7E:5F:44:A5:EE:A3:CB:97:05:A3:E3:68',
     serialNumber: 'ECC9B856270DA9A8'
   };
 
