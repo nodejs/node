@@ -64,10 +64,18 @@ out a better way, forward the email you receive to
   (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
   nodejs/nodejs.org)
 
-* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
-  asking that the social team tweet/retweet the pre-announcement.
-  If you are on Twitter, you can just direct message the `@nodejs` handle.
+* [ ] Create a new issue in [nodejs/tweet][]
+  ```text
+  Security release pre-alert:
 
+  We will release new versions of <add versions> release lines on or shortly
+  after Day Month Date, Year in order to address:
+
+  - # high severity issues
+  - # moderate severity issues
+
+  https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
 * [ ] Request releaser(s) to start integrating the PRs to be released.
 
 * [ ] Notify [docker-node][] of upcoming security release date: ***LINK***
@@ -106,10 +114,14 @@ out a better way, forward the email you receive to
   * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
     nodejs/nodejs.org)
 
-* [ ] Post in the #nodejs-social channel in the OpenJS Foundation Slack
-  asking that the social team tweet/retweet the announcement.
-  If you are on Twitter, you can just direct message the `@nodejs` handle.
+* [ ] Create a new issue in [nodejs/tweet][]
+  ```text
+  Security release:
 
+  New security releases are now available for versions <add versions> of Node.js.
+
+  https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
+  ```
 * [ ] Comment in [docker-node][] issue that release is ready for integration.
   The docker-node team will build and release docker image updates.
 
@@ -136,3 +148,4 @@ out a better way, forward the email you receive to
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
 [nodejs/build]: https://github.com/nodejs/build/issues
+[nodejs/tweet]: https://github.com/nodejs/tweet/issues
