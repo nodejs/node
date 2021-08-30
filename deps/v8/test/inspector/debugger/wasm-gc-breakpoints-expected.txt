@@ -3,10 +3,10 @@ Tests GC object inspection.
 Running test: test
 Instantiating.
 Waiting for wasm script (ignoring first non-wasm script).
-Setting breakpoint at offset 107 on script wasm://wasm/22e4830a
+Setting breakpoint at offset 107 on script wasm://wasm/151aafd6
 Calling main()
 Paused:
-Script wasm://wasm/22e4830a byte offset 107: Wasm opcode 0x21 (kExprLocalSet)
+Script wasm://wasm/151aafd6 byte offset 107: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at $main (0:107):
  - scope (wasm-expression-stack):
@@ -20,7 +20,7 @@ at $main (0:107):
      object details:
    $byte: 127 (i8)
    $word: 32767 (i16)
-   $pointer: Struct ((ref $StrB))
+   $pointer: Struct ((ref $veryLongNameWithMoreThanOneHundredAndTwentyEightCharactersToTestThatWeAreHandlingStringBufferOverflowWithoutCrashing_ThisWontGetTruncated))
  - scope (module):
    instance: exports: "main" (Function)
    module: Module

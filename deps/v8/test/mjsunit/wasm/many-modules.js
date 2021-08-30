@@ -5,7 +5,7 @@
 // No reason to stress-opt this; save some time.
 // Flags: --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We generate the module bytes once to make this test more efficient,
 // especially on simulator builds. The bytes contain a sentinel which is later

@@ -34,6 +34,7 @@ from ..outproc import base as outproc
 from ..local import command
 from ..local import statusfile
 from ..local import utils
+from ..local.variants import ALL_VARIANT_FLAGS
 from ..local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
 from ..local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
 from ..local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
@@ -46,8 +47,9 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 # Pattern to auto-detect files to push on Android for statements like:
 # load("path/to/file.js")
+# d8.file.execute("path/to/file.js")
 LOAD_PATTERN = re.compile(
-    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
+    r"(?:execute|load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
 # import {foo, bar} from "path/to/file.js"
@@ -166,8 +168,29 @@ class TestCase(object):
 
   @property
   def expected_outcomes(self):
+    def is_flag(maybe_flag):
+      return maybe_flag.startswith("--")  # Best-effort heuristic.
+
+    # Filter to flags, e.g.: ["--foo", "3", "--bar"] -> ["--foo", "--bar"].
+    def filter_flags(normalized_flags):
+      return [f for f in normalized_flags if is_flag(f)];
+
     def normalize_flag(flag):
       return flag.replace("_", "-").replace("--no-", "--no")
+
+    def normalize_flags(flags):
+      return [normalize_flag(flag) for flag in filter_flags(flags)]
+
+    # Note this can get it wrong if the flag name starts with the characters
+    # "--no" where "no" is part of the flag name, e.g. "--nobodys-perfect".
+    # In that case the negation "--bodys-perfect" would be returned. This is
+    # a weakness we accept and hope to never run into.
+    def negate_flag(normalized_flag):
+      return ("--" + normalized_flag[4:] if normalized_flag.startswith("--no")
+              else "--no" + normalized_flag[2:])
+
+    def negate_flags(normalized_flags):
+      return [negate_flag(flag) for flag in normalized_flags]
 
     def has_flag(conflicting_flag, flags):
       conflicting_flag = normalize_flag(conflicting_flag)
@@ -191,18 +214,31 @@ class TestCase(object):
 
       file_specific_flags = (self._get_source_flags() + self._get_suite_flags()
                              + self._get_statusfile_flags())
-      file_specific_flags = [normalize_flag(flag) for flag in file_specific_flags]
-      extra_flags = [normalize_flag(flag) for flag in self._get_extra_flags()]
+      file_specific_flags = normalize_flags(file_specific_flags)
+      extra_flags = normalize_flags(self._get_extra_flags())
 
+      # Contradiction: flags contains both a flag --foo and its negation
+      # --no-foo.
+      if self.variant in ALL_VARIANT_FLAGS:
+        for flags in ALL_VARIANT_FLAGS[self.variant]:
+          all_flags = (file_specific_flags + extra_flags
+                       + normalize_flags(flags))
+          check_flags(negate_flags(all_flags), all_flags, "Flag negations")
+
+      # Contradiction: flags specified through the "Flags:" annotation are
+      # incompatible with the variant.
       if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
         check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], file_specific_flags,
                     "INCOMPATIBLE_FLAGS_PER_VARIANT[\""+self.variant+"\"]")
 
+      # Contradiction: flags specified through the "Flags:" annotation are
+      # incompatible with the build.
       for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
         if self.suite.statusfile.variables[variable]:
             check_flags(incompatible_flags, file_specific_flags,
               "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\""+variable+"\"]")
 
+      # Contradiction: flags passed through --extra-flags are incompatible.
       for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
         if has_flag(extra_flag, extra_flags):
             check_flags(incompatible_flags, file_specific_flags,
@@ -215,8 +251,12 @@ class TestCase(object):
             not self.suite.test_config.run_skipped)
 
   @property
+  def is_heavy(self):
+    return statusfile.HEAVY in self._statusfile_outcomes
+
+  @property
   def is_slow(self):
-    return statusfile.SLOW in self._statusfile_outcomes
+    return self.is_heavy or statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):

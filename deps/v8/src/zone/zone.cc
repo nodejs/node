@@ -126,7 +126,6 @@ Address Zone::NewExpand(size_t size) {
   // Guard against integer overflow.
   if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
-    return kNullAddress;
   }
   if (new_size < kMinimumSegmentSize) {
     new_size = kMinimumSegmentSize;
@@ -139,13 +138,11 @@ Address Zone::NewExpand(size_t size) {
   }
   if (new_size > INT_MAX) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
-    return kNullAddress;
   }
   Segment* segment =
       allocator_->AllocateSegment(new_size, supports_compression());
   if (segment == nullptr) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
-    return kNullAddress;
   }
 
   DCHECK_GE(segment->total_size(), new_size);

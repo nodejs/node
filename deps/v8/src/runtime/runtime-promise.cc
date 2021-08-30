@@ -112,15 +112,6 @@ RUNTIME_FUNCTION(Runtime_PromiseStatus) {
   return Smi::FromInt(promise->status());
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSPromise, promise, 0);
-
-  promise.set_has_handler(true);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

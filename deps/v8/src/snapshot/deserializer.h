@@ -15,6 +15,7 @@
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
+#include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -40,19 +41,6 @@ class Object;
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
  public:
-  // Smi value for filling in not-yet initialized tagged field values with a
-  // valid tagged pointer. A field value equal to this doesn't necessarily
-  // indicate that a field is uninitialized, but an uninitialized field should
-  // definitely equal this value.
-  //
-  // This _has_ to be kNullAddress, so that an uninitialized_field_value read as
-  // an embedded pointer field is interpreted as nullptr. This is so that
-  // uninitialised embedded pointers are not forwarded to the embedded as part
-  // of embedder tracing (and similar mechanisms), as nullptrs are skipped for
-  // those cases and otherwise the embedder would try to dereference the
-  // uninitialized pointer value.
-  static constexpr Smi uninitialized_field_value() { return Smi(kNullAddress); }
-
   ~Deserializer() override;
   Deserializer(const Deserializer&) = delete;
   Deserializer& operator=(const Deserializer&) = delete;
@@ -61,7 +49,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(Isolate* isolate, Vector<const byte> payload,
+  Deserializer(Isolate* isolate, base::Vector<const byte> payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 

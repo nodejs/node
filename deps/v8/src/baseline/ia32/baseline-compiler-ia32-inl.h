@@ -18,7 +18,7 @@ namespace baseline {
 void BaselineCompiler::Prologue() {
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   int max_frame_size = bytecode_->frame_size() + max_call_args_;
-  CallBuiltin<Builtins::kBaselineOutOfLinePrologue>(
+  CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
 
@@ -26,11 +26,15 @@ void BaselineCompiler::Prologue() {
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  if (FLAG_debug_code) {
+    __ masm()->CompareRoot(kInterpreterAccumulatorRegister,
+                           RootIndex::kUndefinedValue);
+    __ masm()->Assert(equal, AbortReason::kUnexpectedValue);
+  }
   int register_count = bytecode_->register_count();
   // Magic value
   const int kLoopUnrollSize = 8;
@@ -68,9 +72,8 @@ void BaselineCompiler::PrologueFillFrame() {
       __ Push(kInterpreterAccumulatorRegister);
     }
     __ masm()->dec(scratch);
-    __ JumpIf(Condition::kGreaterThan, &loop);
+    __ masm()->j(greater, &loop);
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {

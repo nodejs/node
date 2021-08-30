@@ -12,6 +12,7 @@
 
 #include "include/v8.h"
 #include "src/base/logging.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/parsing/literal-buffer.h"
@@ -39,7 +40,7 @@ class Zone;
 // or one part of a surrogate pair that make a single 21 bit code point.
 class Utf16CharacterStream {
  public:
-  static constexpr uc32 kEndOfInput = static_cast<uc32>(-1);
+  static constexpr base::uc32 kEndOfInput = static_cast<base::uc32>(-1);
 
   virtual ~Utf16CharacterStream() = default;
 
@@ -50,11 +51,11 @@ class Utf16CharacterStream {
   V8_INLINE void reset_parser_error_flag() { has_parser_error_ = false; }
   V8_INLINE bool has_parser_error() const { return has_parser_error_; }
 
-  inline uc32 Peek() {
+  inline base::uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
-      return static_cast<uc32>(*buffer_cursor_);
+      return static_cast<base::uc32>(*buffer_cursor_);
     } else if (ReadBlockChecked()) {
-      return static_cast<uc32>(*buffer_cursor_);
+      return static_cast<base::uc32>(*buffer_cursor_);
     } else {
       return kEndOfInput;
     }
@@ -62,8 +63,8 @@ class Utf16CharacterStream {
 
   // Returns and advances past the next UTF-16 code unit in the input
   // stream. If there are no more code units it returns kEndOfInput.
-  inline uc32 Advance() {
-    uc32 result = Peek();
+  inline base::uc32 Advance() {
+    base::uc32 result = Peek();
     buffer_cursor_++;
     return result;
   }
@@ -72,11 +73,11 @@ class Utf16CharacterStream {
   // that meets the checks requirement. If there are no more code units it
   // returns kEndOfInput.
   template <typename FunctionType>
-  V8_INLINE uc32 AdvanceUntil(FunctionType check) {
+  V8_INLINE base::uc32 AdvanceUntil(FunctionType check) {
     while (true) {
       auto next_cursor_pos =
           std::find_if(buffer_cursor_, buffer_end_, [&check](uint16_t raw_c0_) {
-            uc32 c0_ = static_cast<uc32>(raw_c0_);
+            base::uc32 c0_ = static_cast<base::uc32>(raw_c0_);
             return check(c0_);
           });
 
@@ -88,7 +89,7 @@ class Utf16CharacterStream {
         }
       } else {
         buffer_cursor_ = next_cursor_pos + 1;
-        return static_cast<uc32>(*next_cursor_pos);
+        return static_cast<base::uc32>(*next_cursor_pos);
       }
     }
   }
@@ -267,11 +268,11 @@ class V8_EXPORT_PRIVATE Scanner {
   };
 
   // -1 is outside of the range of any real source code.
-  static constexpr uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
-  static constexpr uc32 kInvalidSequence = static_cast<uc32>(-1);
+  static constexpr base::uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
+  static constexpr base::uc32 kInvalidSequence = static_cast<base::uc32>(-1);
 
-  static constexpr uc32 Invalid() { return Scanner::kInvalidSequence; }
-  static bool IsInvalid(uc32 c);
+  static constexpr base::uc32 Invalid() { return Scanner::kInvalidSequence; }
+  static bool IsInvalid(base::uc32 c);
 
   explicit Scanner(Utf16CharacterStream* source, UnoptimizedCompileFlags flags);
 
@@ -350,7 +351,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (!is_next_literal_one_byte()) return false;
     if (peek_location().length() != N + 1) return false;
 
-    Vector<const uint8_t> next = next_literal_one_byte_string();
+    base::Vector<const uint8_t> next = next_literal_one_byte_string();
     const char* chars = reinterpret_cast<const char*>(next.begin());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
@@ -360,7 +361,7 @@ class V8_EXPORT_PRIVATE Scanner {
     DCHECK(current().CanAccessLiteral());
     if (!is_literal_one_byte()) return false;
 
-    Vector<const uint8_t> current = literal_one_byte_string();
+    base::Vector<const uint8_t> current = literal_one_byte_string();
     const char* chars = reinterpret_cast<const char*>(current.begin());
     return current.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
@@ -471,7 +472,7 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   template <bool capture_raw>
-  uc32 ScanOctalEscape(uc32 c, int length);
+  base::uc32 ScanOctalEscape(base::uc32 c, int length);
 
   // Call this after setting source_ to the input.
   void Init() {
@@ -502,11 +503,13 @@ class V8_EXPORT_PRIVATE Scanner {
   // Seek to the next_ token at the given position.
   void SeekNext(size_t position);
 
-  V8_INLINE void AddLiteralChar(uc32 c) { next().literal_chars.AddChar(c); }
+  V8_INLINE void AddLiteralChar(base::uc32 c) {
+    next().literal_chars.AddChar(c);
+  }
 
   V8_INLINE void AddLiteralChar(char c) { next().literal_chars.AddChar(c); }
 
-  V8_INLINE void AddRawLiteralChar(uc32 c) {
+  V8_INLINE void AddRawLiteralChar(base::uc32 c) {
     next().raw_literal_chars.AddChar(c);
   }
 
@@ -532,7 +535,7 @@ class V8_EXPORT_PRIVATE Scanner {
   bool CombineSurrogatePair() {
     DCHECK(!unibrow::Utf16::IsLeadSurrogate(kEndOfInput));
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
-      uc32 c1 = source_->Advance();
+      base::uc32 c1 = source_->Advance();
       DCHECK(!unibrow::Utf16::IsTrailSurrogate(kEndOfInput));
       if (unibrow::Utf16::IsTrailSurrogate(c1)) {
         c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
@@ -543,21 +546,22 @@ class V8_EXPORT_PRIVATE Scanner {
     return false;
   }
 
-  void PushBack(uc32 ch) {
+  void PushBack(base::uc32 ch) {
     DCHECK(IsInvalid(c0_) ||
            base::IsInRange(c0_, 0u, unibrow::Utf16::kMaxNonSurrogateCharCode));
     source_->Back();
     c0_ = ch;
   }
 
-  uc32 Peek() const { return source_->Peek(); }
+  base::uc32 Peek() const { return source_->Peek(); }
 
   inline Token::Value Select(Token::Value tok) {
     Advance();
     return tok;
   }
 
-  inline Token::Value Select(uc32 next, Token::Value then, Token::Value else_) {
+  inline Token::Value Select(base::uc32 next, Token::Value then,
+                             Token::Value else_) {
     Advance();
     if (c0_ == next) {
       Advance();
@@ -579,12 +583,12 @@ class V8_EXPORT_PRIVATE Scanner {
   // requested for tokens that do not have a literal. Hence, we treat any
   // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
   // literal "function".
-  Vector<const uint8_t> literal_one_byte_string() const {
+  base::Vector<const uint8_t> literal_one_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
            current().token == Token::ESCAPED_KEYWORD);
     return current().literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> literal_two_byte_string() const {
+  base::Vector<const uint16_t> literal_two_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
            current().token == Token::ESCAPED_KEYWORD);
     return current().literal_chars.two_byte_literal();
@@ -596,11 +600,11 @@ class V8_EXPORT_PRIVATE Scanner {
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  Vector<const uint8_t> next_literal_one_byte_string() const {
+  base::Vector<const uint8_t> next_literal_one_byte_string() const {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> next_literal_two_byte_string() const {
+  base::Vector<const uint16_t> next_literal_two_byte_string() const {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.two_byte_literal();
   }
@@ -608,11 +612,11 @@ class V8_EXPORT_PRIVATE Scanner {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.is_one_byte();
   }
-  Vector<const uint8_t> raw_literal_one_byte_string() const {
+  base::Vector<const uint8_t> raw_literal_one_byte_string() const {
     DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> raw_literal_two_byte_string() const {
+  base::Vector<const uint16_t> raw_literal_two_byte_string() const {
     DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.two_byte_literal();
   }
@@ -622,12 +626,12 @@ class V8_EXPORT_PRIVATE Scanner {
   }
 
   template <bool capture_raw, bool unicode = false>
-  uc32 ScanHexNumber(int expected_length);
+  base::uc32 ScanHexNumber(int expected_length);
   // Scan a number of any length but not bigger than max_value. For example, the
   // number can be 000000001, so it's very long in characters but its value is
   // small.
   template <bool capture_raw>
-  uc32 ScanUnlimitedLengthHexNumber(uc32 max_value, int beg_pos);
+  base::uc32 ScanUnlimitedLengthHexNumber(base::uc32 max_value, int beg_pos);
 
   // Scans a single JavaScript token.
   V8_INLINE Token::Value ScanSingleToken();
@@ -647,7 +651,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
 
-  bool ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
+  bool ScanDigitsWithNumericSeparators(bool (*predicate)(base::uc32 ch),
                                        bool is_check_first_digit);
   bool ScanDecimalDigits(bool allow_numeric_separator);
   // Optimized function to scan decimal number as Smi.
@@ -676,10 +680,10 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
-  uc32 ScanIdentifierUnicodeEscape();
+  base::uc32 ScanIdentifierUnicodeEscape();
   // Helper for the above functions.
   template <bool capture_raw>
-  uc32 ScanUnicodeEscape();
+  base::uc32 ScanUnicodeEscape();
 
   Token::Value ScanTemplateSpan();
 
@@ -718,7 +722,7 @@ class V8_EXPORT_PRIVATE Scanner {
   Utf16CharacterStream* const source_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
-  uc32 c0_;
+  base::uc32 c0_;
 
   TokenDesc token_storage_[3];
 

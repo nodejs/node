@@ -61,7 +61,7 @@ Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgumentString(
       return isolate->factory()->undefined_string();
     case kConstCharString:
       return isolate->factory()
-          ->NewStringFromUtf8(CStrVector(char_arg_), AllocationType::kOld)
+          ->NewStringFromUtf8(base::CStrVector(char_arg_), AllocationType::kOld)
           .ToHandleChecked();
     case kAstRawString:
       UNREACHABLE();

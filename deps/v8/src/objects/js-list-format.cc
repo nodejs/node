@@ -247,8 +247,6 @@ Handle<String> IcuFieldIdToType(Isolate* isolate, int32_t field_id) {
       return isolate->factory()->element_string();
     default:
       UNREACHABLE();
-      // To prevent MSVC from issuing C4715 warning.
-      return Handle<String>();
   }
 }
 

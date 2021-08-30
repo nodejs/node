@@ -57,7 +57,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
-  Reduction ReduceIsSmi(Node* node);
   Reduction ReduceIsBeingInterpreted(Node* node);
   Reduction ReduceTurbofanStaticAssert(Node* node);
   Reduction ReduceVerifyType(Node* node);

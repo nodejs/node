@@ -94,6 +94,8 @@ class UnobservablesSet final {
   // can probably be optimized to use a global singleton.
   static UnobservablesSet VisitedEmpty(Zone* zone);
   UnobservablesSet(const UnobservablesSet& other) V8_NOEXCEPT = default;
+  UnobservablesSet& operator=(const UnobservablesSet& other)
+      V8_NOEXCEPT = default;
 
   // Computes the intersection of two UnobservablesSets. If one of the sets is
   // empty, will return empty.
@@ -448,7 +450,7 @@ UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
   if (IsEmpty() || other.IsEmpty()) return empty;
 
   UnobservablesSet::SetT* intersection = NewSet(zone);
-  for (const auto& triple : set()->Zip(*other.set())) {
+  for (auto triple : set()->Zip(*other.set())) {
     if (std::get<1>(triple) && std::get<2>(triple)) {
       intersection->Set(std::get<0>(triple), kPresent);
     }
@@ -474,7 +476,7 @@ UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
   *new_set = *set();
 
   // Remove elements with the given offset.
-  for (const auto& entry : *new_set) {
+  for (auto entry : *new_set) {
     const UnobservableStore& obs = entry.first;
     if (obs.offset_ == offset) SetErase(new_set, obs);
   }

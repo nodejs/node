@@ -52,7 +52,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
                                           Handle<Object> key) {
   bool success = false;
   Maybe<PropertyAttributes> result = Just(ABSENT);
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return isolate->factory()->undefined_value();
   LookupIterator it(isolate, receiver, lookup_key);
   for (; it.IsFound(); it.Next()) {

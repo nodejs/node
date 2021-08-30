@@ -11,7 +11,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     var source_line = exec_state.frame(0).sourceLineText();
     print(source_line);
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
     break_count++;
   } catch (e) {
     exception = e;

@@ -6,7 +6,7 @@
 // Liftoff code.
 // Flags: --allow-natives-syntax --wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // The number of locals must be greater than the constant defined here:
 // https://cs.chromium.org/chromium/src/v8/src/compiler/x64/code-generator-x64.cc?l=3146

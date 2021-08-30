@@ -188,6 +188,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 #endif
 
  protected:
+  int allocation_observers_paused_depth_ = 0;
+
   AllocationCounter allocation_counter_;
 
   // The List manages the pages that belong to the given space.
@@ -227,6 +229,11 @@ class Page : public MemoryChunk {
   static Page* FromHeapObject(HeapObject o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
+  }
+
+  static Page* cast(MemoryChunk* chunk) {
+    DCHECK(!chunk->IsLargePage());
+    return static_cast<Page*>(chunk);
   }
 
   // Returns the page containing the address provided. The address can

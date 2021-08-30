@@ -32,7 +32,7 @@ Object PropertyArray::get(int index) const {
 
 Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
+            static_cast<unsigned>(this->length(kAcquireLoad)));
   return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
@@ -40,7 +40,7 @@ Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
 void PropertyArray::set(int index, Object value) {
   DCHECK(IsPropertyArray());
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
+            static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   WRITE_BARRIER(*this, offset, value);
@@ -48,7 +48,7 @@ void PropertyArray::set(int index, Object value) {
 
 void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
+            static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
@@ -74,7 +74,7 @@ int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }
 void PropertyArray::SetHash(int hash) {
   int value = length_and_hash();
   value = HashField::update(value, hash);
-  set_length_and_hash(value);
+  set_length_and_hash(value, kReleaseStore);
 }
 
 void PropertyArray::CopyElements(Isolate* isolate, int dst_index,

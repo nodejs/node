@@ -223,6 +223,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   PagePermissionsMap page_permissions_;
 };
 
+#if !V8_OS_FUCHSIA
 class SequentialUnmapperTest : public TestWithIsolate {
  public:
   SequentialUnmapperTest() = default;
@@ -339,6 +340,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
+#endif  // !V8_OS_FUCHSIA
 
 }  // namespace internal
 }  // namespace v8

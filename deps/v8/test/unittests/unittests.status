@@ -49,6 +49,14 @@
 }],  # system == aix
 
 ##############################################################################
+['arch == ppc64', {
+  # PPC Page size is too large for these tests.
+  'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'HeapStatisticsCollectorTest.DetailedStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'SweeperTest.DiscardingNormalPageMemory': [SKIP],
+}],  # arch == ppc64
+
+##############################################################################
 ['system == windows and asan', {
   # BUG(893437).
   'Torque*': [SKIP],
@@ -67,6 +75,10 @@
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
+  'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
 }],  # tsan == True
 
 ##############################################################################
@@ -74,6 +86,13 @@
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
 }],  # not pointer_compression
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(v8:11820): the test adjusts GC flags, which does not work
+  # if GC starts before the test.
+  'RuntimeCallStatsTest.GarbageCollection': [SKIP],
+}],  # variant == stress_incremental_marking
 
 ################################################################################
 ['variant == stress_snapshot', {

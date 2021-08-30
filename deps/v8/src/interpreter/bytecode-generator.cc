@@ -4,6 +4,10 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
@@ -20,6 +24,7 @@
 #include "src/interpreter/control-flow-builders.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1792,53 +1797,320 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   VisitInScope(stmt->statement(), stmt->scope());
 }
 
+namespace {
+
+bool IsSmiLiteralSwitchCaseValue(Expression* expr) {
+  if (expr->IsSmiLiteral() ||
+      (expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
+       expr->AsLiteral()->AsNumber() == 0.0)) {
+    return true;
+#ifdef DEBUG
+  } else if (expr->IsLiteral() && expr->AsLiteral()->IsNumber()) {
+    DCHECK(!IsSmiDouble(expr->AsLiteral()->AsNumber()));
+#endif
+  }
+  return false;
+}
+
+// Precondition: we called IsSmiLiteral to check this.
+inline int ReduceToSmiSwitchCaseValue(Expression* expr) {
+  if (V8_LIKELY(expr->IsSmiLiteral())) {
+    return expr->AsLiteral()->AsSmiLiteral().value();
+  } else {
+    // Only the zero case is possible otherwise.
+    DCHECK(expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
+           expr->AsLiteral()->AsNumber() == -0.0);
+    return 0;
+  }
+}
+
+// Is the range of Smi's small enough relative to number of cases?
+inline bool IsSpreadAcceptable(int spread, int ncases) {
+  return spread < FLAG_switch_table_spread_threshold * ncases;
+}
+
+struct SwitchInfo {
+  static const int kDefaultNotFound = -1;
+
+  std::map<int, CaseClause*> covered_cases;
+  int default_case;
+
+  SwitchInfo() { default_case = kDefaultNotFound; }
+
+  bool DefaultExists() { return default_case != kDefaultNotFound; }
+  bool CaseExists(int j) {
+    return covered_cases.find(j) != covered_cases.end();
+  }
+  bool CaseExists(Expression* expr) {
+    return IsSmiLiteralSwitchCaseValue(expr)
+               ? CaseExists(ReduceToSmiSwitchCaseValue(expr))
+               : false;
+  }
+  CaseClause* GetClause(int j) { return covered_cases[j]; }
+
+  bool IsDuplicate(CaseClause* clause) {
+    return IsSmiLiteralSwitchCaseValue(clause->label()) &&
+           CaseExists(clause->label()) &&
+           clause != GetClause(ReduceToSmiSwitchCaseValue(clause->label()));
+  }
+  int MinCase() {
+    return covered_cases.size() == 0 ? INT_MAX : covered_cases.begin()->first;
+  }
+  int MaxCase() {
+    return covered_cases.size() == 0 ? INT_MIN : covered_cases.rbegin()->first;
+  }
+  void Print() {
+    std::cout << "Covered_cases: " << '\n';
+    for (auto iter = covered_cases.begin(); iter != covered_cases.end();
+         ++iter) {
+      std::cout << iter->first << "->" << iter->second << '\n';
+    }
+    std::cout << "Default_case: " << default_case << '\n';
+  }
+};
+
+// Checks whether we should use a jump table to implement a switch operation.
+bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
+  ZonePtrList<CaseClause>* cases = stmt->cases();
+
+  for (int i = 0; i < cases->length(); ++i) {
+    CaseClause* clause = cases->at(i);
+    if (clause->is_default()) {
+      continue;
+    } else if (!(clause->label()->IsLiteral())) {
+      // Don't consider Smi cases after a non-literal, because we
+      // need to evaluate the non-literal.
+      break;
+    } else if (IsSmiLiteralSwitchCaseValue(clause->label())) {
+      int value = ReduceToSmiSwitchCaseValue(clause->label());
+      info->covered_cases.insert({value, clause});
+    }
+  }
+
+  // GCC also jump-table optimizes switch statements with 6 cases or more.
+  if (!(static_cast<int>(info->covered_cases.size()) >=
+            FLAG_switch_table_min_cases &&
+        IsSpreadAcceptable(info->MaxCase() - info->MinCase(),
+                           cases->length()))) {
+    // Invariant- covered_cases has all cases and only cases that will go in the
+    // jump table.
+    info->covered_cases.clear();
+    return false;
+  } else {
+    return true;
+  }
+}
+
+}  // namespace
+
+// This adds a jump table optimization for switch statements with Smi cases.
+// If there are 5+ non-duplicate Smi clauses, and they are sufficiently compact,
+// we generate a jump table. In the fall-through path, we put the compare-jumps
+// for the non-Smi cases.
+
+// e.g.
+//
+// switch(x){
+//   case -0: out = 10;
+//   case 1: out = 11; break;
+//   case 0: out = 12; break;
+//   case 2: out = 13;
+//   case 3: out = 14; break;
+//   case 0.5: out = 15; break;
+//   case 4: out = 16;
+//   case y: out = 17;
+//   case 5: out = 18;
+//   default: out = 19; break;
+// }
+
+// becomes this pseudo-bytecode:
+
+//   lda x
+//   star r1
+//   test_type number
+//   jump_if_false @fallthrough
+//   ldar r1
+//   test_greater_than_or_equal_to smi_min
+//   jump_if_false @fallthrough
+//   ldar r1
+//   test_less_than_or_equal_to smi_max
+//   jump_if_false @fallthrough
+//   ldar r1
+//   bitwise_or 0
+//   star r2
+//   test_strict_equal r1
+//   jump_if_false @fallthrough
+//   ldar r2
+//   switch_on_smi {1: @case_1, 2: @case_2, 3: @case_3, 4: @case_4}
+// @fallthrough:
+//   jump_if_strict_equal -0.0 @case_minus_0.0
+//   jump_if_strict_equal 0.5  @case_0.5
+//   jump_if_strict_equal y    @case_y
+//   jump_if_strict_equal 5    @case_5
+//   jump @default
+// @case_minus_0.0:
+//   <out = 10>
+// @case_1
+//   <out = 11, break>
+// @case_0:
+//   <out = 12, break>
+// @case_2:
+//   <out = 13>
+// @case_3:
+//   <out = 14, break>
+// @case_0.5:
+//   <out = 15, break>
+// @case_4:
+//   <out = 16>
+// @case_y:
+//   <out = 17>
+// @case_5:
+//   <out = 18>
+// @default:
+//   <out = 19, break>
+
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // We need this scope because we visit for register values. We have to
   // maintain a execution result scope where registers can be allocated.
   ZonePtrList<CaseClause>* clauses = stmt->cases();
-  SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
-                               clauses->length());
-  ControlScopeForBreakable scope(this, stmt, &switch_builder);
-  int default_index = -1;
 
-  builder()->SetStatementPosition(stmt);
+  SwitchInfo info;
+  BytecodeJumpTable* jump_table = nullptr;
+  bool use_jump_table = IsSwitchOptimizable(stmt, &info);
 
-  // Keep the switch value in a register until a case matches.
-  Register tag = VisitForRegisterValue(stmt->tag());
-  FeedbackSlot slot = clauses->length() > 0
-                          ? feedback_spec()->AddCompareICSlot()
-                          : FeedbackSlot::Invalid();
+  // N_comp_cases is number of cases we will generate comparison jumps for.
+  // Note we ignore duplicate cases, since they are very unlikely.
 
-  // Iterate over all cases and create nodes for label comparison.
-  for (int i = 0; i < clauses->length(); i++) {
-    CaseClause* clause = clauses->at(i);
-
-    // The default is not a test, remember index.
-    if (clause->is_default()) {
-      default_index = i;
-      continue;
-    }
-
-    // Perform label comparison as if via '===' with tag.
-    VisitForAccumulatorValue(clause->label());
-    builder()->CompareOperation(Token::Value::EQ_STRICT, tag,
-                                feedback_index(slot));
-    switch_builder.Case(ToBooleanMode::kAlreadyBoolean, i);
+  int n_comp_cases = clauses->length();
+  if (use_jump_table) {
+    n_comp_cases -= static_cast<int>(info.covered_cases.size());
+    jump_table = builder()->AllocateJumpTable(
+        info.MaxCase() - info.MinCase() + 1, info.MinCase());
   }
 
-  if (default_index >= 0) {
-    // Emit default jump if there is a default case.
-    switch_builder.DefaultAt(default_index);
+  // Are we still using any if-else bytecodes to evaluate the switch?
+  bool use_jumps = n_comp_cases != 0;
+
+  SwitchBuilder switch_builder(builder(), block_coverage_builder_, stmt,
+                               n_comp_cases, jump_table);
+  ControlScopeForBreakable scope(this, stmt, &switch_builder);
+  builder()->SetStatementPosition(stmt);
+
+  VisitForAccumulatorValue(stmt->tag());
+
+  if (use_jump_table) {
+    // This also fills empty slots in jump table.
+    Register r2 = register_allocator()->NewRegister();
+
+    Register r1 = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(r1);
+
+    builder()->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber);
+    switch_builder.JumpToFallThroughIfFalse();
+    builder()->LoadAccumulatorWithRegister(r1);
+
+    // TODO(leszeks): Note these are duplicated range checks with the
+    // SwitchOnSmi handler for the most part.
+
+    builder()->LoadLiteral(Smi::kMinValue);
+    builder()->StoreAccumulatorInRegister(r2);
+    builder()->CompareOperation(
+        Token::Value::GTE, r1,
+        feedback_index(feedback_spec()->AddCompareICSlot()));
+
+    switch_builder.JumpToFallThroughIfFalse();
+    builder()->LoadAccumulatorWithRegister(r1);
+
+    builder()->LoadLiteral(Smi::kMaxValue);
+    builder()->StoreAccumulatorInRegister(r2);
+    builder()->CompareOperation(
+        Token::Value::LTE, r1,
+        feedback_index(feedback_spec()->AddCompareICSlot()));
+
+    switch_builder.JumpToFallThroughIfFalse();
+    builder()->LoadAccumulatorWithRegister(r1);
+
+    builder()->BinaryOperationSmiLiteral(
+        Token::Value::BIT_OR, Smi::FromInt(0),
+        feedback_index(feedback_spec()->AddBinaryOpICSlot()));
+
+    builder()->StoreAccumulatorInRegister(r2);
+    builder()->CompareOperation(
+        Token::Value::EQ_STRICT, r1,
+        feedback_index(feedback_spec()->AddCompareICSlot()));
+
+    switch_builder.JumpToFallThroughIfFalse();
+    builder()->LoadAccumulatorWithRegister(r2);
+
+    switch_builder.EmitJumpTableIfExists(info.MinCase(), info.MaxCase(),
+                                         info.covered_cases);
+
+    if (use_jumps) {
+      builder()->LoadAccumulatorWithRegister(r1);
+    }
+  }
+
+  int case_compare_ctr = 0;
+#ifdef DEBUG
+  std::unordered_map<int, int> case_ctr_checker;
+#endif
+
+  if (use_jumps) {
+    Register tag_holder = register_allocator()->NewRegister();
+    FeedbackSlot slot = clauses->length() > 0
+                            ? feedback_spec()->AddCompareICSlot()
+                            : FeedbackSlot::Invalid();
+    builder()->StoreAccumulatorInRegister(tag_holder);
+
+    for (int i = 0; i < clauses->length(); ++i) {
+      CaseClause* clause = clauses->at(i);
+      if (clause->is_default()) {
+        info.default_case = i;
+      } else if (!info.CaseExists(clause->label())) {
+        // Perform label comparison as if via '===' with tag.
+        VisitForAccumulatorValue(clause->label());
+        builder()->CompareOperation(Token::Value::EQ_STRICT, tag_holder,
+                                    feedback_index(slot));
+#ifdef DEBUG
+        case_ctr_checker[i] = case_compare_ctr;
+#endif
+        switch_builder.JumpToCaseIfTrue(ToBooleanMode::kAlreadyBoolean,
+                                        case_compare_ctr++);
+      }
+    }
+  }
+
+  // For fall-throughs after comparisons (or out-of-range/non-Smi's for jump
+  // tables).
+  if (info.DefaultExists()) {
+    switch_builder.JumpToDefault();
   } else {
-    // Otherwise if we have reached here none of the cases matched, so jump to
-    // the end.
     switch_builder.Break();
   }
 
-  // Iterate over all cases and create the case bodies.
-  for (int i = 0; i < clauses->length(); i++) {
+  case_compare_ctr = 0;
+  for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
-    switch_builder.SetCaseTarget(i, clause);
+    if (i != info.default_case) {
+      if (!info.IsDuplicate(clause)) {
+        bool use_table = use_jump_table && info.CaseExists(clause->label());
+        if (!use_table) {
+// Guarantee that we should generate compare/jump if no table.
+#ifdef DEBUG
+          DCHECK(case_ctr_checker[i] == case_compare_ctr);
+#endif
+          switch_builder.BindCaseTargetForCompareJump(case_compare_ctr++,
+                                                      clause);
+        } else {
+          // Use jump table if this is not a duplicate label.
+          switch_builder.BindCaseTargetForJumpTable(
+              ReduceToSmiSwitchCaseValue(clause->label()), clause);
+        }
+      }
+    } else {
+      switch_builder.BindDefault(clause);
+    }
+    // Regardless, generate code (in case of fall throughs).
     VisitStatements(clause->statements());
   }
 }
@@ -2234,15 +2506,6 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));
     eager_inner_literals_->push_back(literal);
   }
-}
-
-bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
-  if (!FLAG_enable_one_shot_optimization) return false;
-
-  if (loop_depth_ > 0) return false;
-
-  return info()->literal()->is_toplevel() ||
-         info()->literal()->is_oneshot_iife();
 }
 
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
@@ -2678,25 +2941,13 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void BytecodeGenerator::BuildCreateObjectLiteral(Register literal,
                                                  uint8_t flags, size_t entry) {
-  if (ShouldOptimizeAsOneShot()) {
-    RegisterList args = register_allocator()->NewRegisterList(2);
-    builder()
-        ->LoadConstantPoolEntry(entry)
-        .StoreAccumulatorInRegister(args[0])
-        .LoadLiteral(Smi::FromInt(flags))
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kCreateObjectLiteralWithoutAllocationSite, args)
-        .StoreAccumulatorInRegister(literal);
-
-  } else {
-    // TODO(cbruni): Directly generate runtime call for literals we cannot
-    // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
-    // optimizations.
-    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-    builder()
-        ->CreateObjectLiteral(entry, literal_index, flags)
-        .StoreAccumulatorInRegister(literal);
-  }
+  // TODO(cbruni): Directly generate runtime call for literals we cannot
+  // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
+  // optimizations.
+  int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+  builder()
+      ->CreateObjectLiteral(entry, literal_index, flags)
+      .StoreAccumulatorInRegister(literal);
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
@@ -2958,7 +3209,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       }
       case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();  // Handled specially above.
-        break;
     }
   }
 
@@ -3053,30 +3303,15 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // and one-shot optimization.
     uint8_t flags = CreateArrayLiteralFlags::Encode(
         expr->IsFastCloningSupported(), expr->ComputeFlags());
-    bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
-    size_t entry;
-    if (is_empty && optimize_as_one_shot) {
-      entry = builder()->EmptyArrayBoilerplateDescriptionConstantPoolEntry();
-    } else if (!is_empty) {
-      entry = builder()->AllocateDeferredConstantPoolEntry();
-      array_literals_.push_back(std::make_pair(expr, entry));
-    }
-
-    if (optimize_as_one_shot) {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->LoadConstantPoolEntry(entry)
-          .StoreAccumulatorInRegister(args[0])
-          .LoadLiteral(Smi::FromInt(flags))
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kCreateArrayLiteralWithoutAllocationSite, args);
-    } else if (is_empty) {
+    if (is_empty) {
       // Empty array literal fast-path.
       int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
       DCHECK(expr->IsFastCloningSupported());
       builder()->CreateEmptyArrayLiteral(literal_index);
     } else {
       // Create array literal from boilerplate.
+      size_t entry = builder()->AllocateDeferredConstantPoolEntry();
+      array_literals_.push_back(std::make_pair(expr, entry));
       int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
       builder()->CreateArrayLiteral(entry, literal_index, flags);
     }
@@ -3515,12 +3750,8 @@ void BytecodeGenerator::BuildVariableAssignment(
 void BytecodeGenerator::BuildLoadNamedProperty(const Expression* object_expr,
                                                Register object,
                                                const AstRawString* name) {
-  if (ShouldOptimizeAsOneShot()) {
-    builder()->LoadNamedPropertyNoFeedback(object, name);
-  } else {
-    FeedbackSlot slot = GetCachedLoadICSlot(object_expr, name);
-    builder()->LoadNamedProperty(object, name, feedback_index(slot));
-  }
+  FeedbackSlot slot = GetCachedLoadICSlot(object_expr, name);
+  builder()->LoadNamedProperty(object, name, feedback_index(slot));
 }
 
 void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
@@ -3532,13 +3763,9 @@ void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
     builder()->StoreAccumulatorInRegister(value);
   }
 
-  if (ShouldOptimizeAsOneShot()) {
-    builder()->StoreNamedPropertyNoFeedback(object, name, language_mode());
-  } else {
-    FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
-    builder()->StoreNamedProperty(object, name, feedback_index(slot),
-                                  language_mode());
-  }
+  FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
+  builder()->StoreNamedProperty(object, name, feedback_index(slot),
+                                language_mode());
 
   if (!execution_result()->IsEffect()) {
     builder()->LoadAccumulatorWithRegister(value);
@@ -5059,7 +5286,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   Register callee = register_allocator()->GrowRegisterList(&args);
 
   bool implicit_undefined_receiver = false;
-  bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
 
   // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
   // see if we can reduce the number by adding a separate argument which
@@ -5078,7 +5304,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      if (spread_position == Call::kNoSpread && !optimize_as_one_shot) {
+      if (spread_position == Call::kNoSpread) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -5114,7 +5340,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::OTHER_CALL: {
       // Receiver is undefined for other calls.
-      if (spread_position == Call::kNoSpread && !optimize_as_one_shot) {
+      if (spread_position == Call::kNoSpread) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -5230,9 +5456,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
                               feedback_index(feedback_spec()->AddCallICSlot()));
   } else if (spread_position == Call::kHasNonFinalSpread) {
     builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
-  } else if (optimize_as_one_shot) {
-    DCHECK(!implicit_undefined_receiver);
-    builder()->CallNoFeedback(callee, args);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);

@@ -76,11 +76,10 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
                            &if_construct_array, &allocation_site);
 
   BIND(&if_construct_generic);
-  TailCallBuiltin(Builtins::kConstruct, eager_context, target, new_target,
-                  argc);
+  TailCallBuiltin(Builtin::kConstruct, eager_context, target, new_target, argc);
 
   BIND(&if_construct_array);
-  TailCallBuiltin(Builtins::kArrayConstructorImpl, eager_context, target,
+  TailCallBuiltin(Builtin::kArrayConstructorImpl, eager_context, target,
                   new_target, argc, allocation_site.value());
 }
 
@@ -255,10 +254,11 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle =
-      isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
+  Handle<Code> lazy_builtin_handle = BUILTIN_CODE(isolate(), CompileLazy);
+  // TODO(v8:11880): support embedding of CodeDataContainers.
   TNode<Code> lazy_builtin = HeapConstant(lazy_builtin_handle);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset,
+                                 ToCodeT(lazy_builtin));
   Return(result);
 }
 
@@ -474,7 +474,8 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
+  if (allocation_site_mode == TRACK_ALLOCATION_SITE &&
+      V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return CloneFastJSArray(context, boilerplate, allocation_site);
   } else {
     return CloneFastJSArray(context, boilerplate);
@@ -515,9 +516,12 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateEmptyArrayLiteral(
   TNode<IntPtrT> zero_intptr = IntPtrConstant(0);
   TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  TNode<JSArray> result =
-      AllocateJSArray(GetInitialFastElementsKind(), array_map, zero_intptr,
-                      zero, allocation_site.value());
+  base::Optional<TNode<AllocationSite>> site =
+      V8_ALLOCATION_SITE_TRACKING_BOOL
+          ? base::make_optional(allocation_site.value())
+          : base::nullopt;
+  TNode<JSArray> result = AllocateJSArray(GetInitialFastElementsKind(),
+                                          array_map, zero_intptr, zero, site);
 
   Goto(&done);
   BIND(&done);
@@ -602,6 +606,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<IntPtrT> allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {
+    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     // Prepare for inner-allocating the AllocationMemento.
     allocation_size =
         IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));

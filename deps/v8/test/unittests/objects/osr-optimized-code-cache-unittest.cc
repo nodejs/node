@@ -26,9 +26,9 @@ const char* code_template_string =
     "%%OptimizeFunctionOnNextCall(f%d);"
     "f%d(); f%d;";
 
-void GetSource(i::ScopedVector<char>* source, int index) {
-  i::SNPrintF(*source, code_template_string, index, index, index, index, index,
-              index, index);
+void GetSource(base::ScopedVector<char>* source, int index) {
+  base::SNPrintF(*source, code_template_string, index, index, index, index,
+                 index, index, index);
 }
 
 const int kInitialLength = OSROptimizedCodeCache::kInitialLength;
@@ -44,7 +44,7 @@ TEST_F(TestWithNativeContext, AddCodeToEmptyCache) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -66,7 +66,7 @@ TEST_F(TestWithNativeContext, AddCodeToEmptyCache) {
   HeapObject code_entry;
   osr_cache->Get(OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  EXPECT_EQ(code_entry, *code);
+  EXPECT_EQ(code_entry, ToCodeT(*code));
   Smi osr_offset_entry;
   osr_cache->Get(OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&osr_offset_entry);
   EXPECT_EQ(osr_offset_entry.value(), bailout_id.ToInt());
@@ -77,7 +77,7 @@ TEST_F(TestWithNativeContext, GrowCodeCache) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -108,7 +108,7 @@ TEST_F(TestWithNativeContext, GrowCodeCache) {
   HeapObject code_entry;
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  EXPECT_EQ(code_entry, *code);
+  EXPECT_EQ(code_entry, ToCodeT(*code));
   Smi osr_offset_entry;
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)
       ->ToSmi(&osr_offset_entry);
@@ -120,7 +120,7 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -134,7 +134,7 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
                                             BytecodeOffset(bailout_id));
   }
 
-  i::ScopedVector<char> source1(1024);
+  base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
@@ -166,7 +166,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -185,7 +185,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   EXPECT_EQ(osr_cache->length(), kMaxLength);
 
   // Add an entry to reach max capacity.
-  i::ScopedVector<char> source1(1024);
+  base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
@@ -204,12 +204,12 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   EXPECT_EQ(object, *shared1);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code1);
+  EXPECT_EQ(object, ToCodeT(*code1));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
   // Add an entry beyond max capacity.
-  i::ScopedVector<char> source2(1024);
+  base::ScopedVector<char> source2(1024);
   GetSource(&source2, 2);
   Handle<JSFunction> function2 = RunJS<JSFunction>(source2.begin());
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
@@ -227,7 +227,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   EXPECT_EQ(object, *shared2);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code2);
+  EXPECT_EQ(object, ToCodeT(*code2));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }
@@ -237,7 +237,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -263,7 +263,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   osr_cache->Set(clear_index2 + OSROptimizedCodeCache::kCachedCodeOffset,
                  HeapObjectReference::ClearedValue(isolate));
 
-  i::ScopedVector<char> source1(1024);
+  base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
@@ -282,11 +282,11 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   EXPECT_EQ(object, *shared1);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code1);
+  EXPECT_EQ(object, ToCodeT(*code1));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
-  i::ScopedVector<char> source2(1024);
+  base::ScopedVector<char> source2(1024);
   GetSource(&source2, 2);
   Handle<JSFunction> function2 = RunJS<JSFunction>(source2.begin());
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
@@ -304,7 +304,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   EXPECT_EQ(object, *shared2);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code2);
+  EXPECT_EQ(object, ToCodeT(*code2));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }
@@ -314,7 +314,7 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesNoCompact) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -322,7 +322,7 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesNoCompact) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Handle<Code> code(function->code(), isolate);
 
-  i::ScopedVector<char> source1(1024);
+  base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> deopt_function = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> deopt_shared(deopt_function->shared(), isolate);
@@ -373,7 +373,7 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesCompact) {
 
   i::FLAG_allow_natives_syntax = true;
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   GetSource(&source, 0);
   Handle<JSFunction> function = RunJS<JSFunction>(source.begin());
   Isolate* isolate = function->GetIsolate();
@@ -381,7 +381,7 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesCompact) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Handle<Code> code(function->code(), isolate);
 
-  i::ScopedVector<char> source1(1024);
+  base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> deopt_function = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> deopt_shared(deopt_function->shared(), isolate);

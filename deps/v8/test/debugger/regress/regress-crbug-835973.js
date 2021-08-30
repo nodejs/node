@@ -276,7 +276,7 @@ let break_count = 0;
 function listener(event, exec_state, event_data, data) {
   if (event != debug.Debug.DebugEvent.Break) return;
   try {
-    exec_state.prepareStep(debug.Debug.StepAction.StepNext);
+    exec_state.prepareStep(debug.Debug.StepAction.StepOver);
     break_count++;
   } catch {
     %AbortJS("unexpected exception");

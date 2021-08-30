@@ -67,8 +67,9 @@ static void SetGlobalProperty(const char* name, Object value) {
 
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<String> source_code = isolate->factory()->NewStringFromUtf8(
-      CStrVector(source)).ToHandleChecked();
+  Handle<String> source_code = isolate->factory()
+                                   ->NewStringFromUtf8(base::CStrVector(source))
+                                   .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, source_code, Compiler::ScriptDetails(),
@@ -83,7 +84,7 @@ static Handle<JSFunction> Compile(const char* source) {
 
 static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
-  EmbeddedVector<char, 512> buffer;
+  base::EmbeddedVector<char, 512> buffer;
   SNPrintF(buffer, source, x);
 
   Handle<JSFunction> fun = Compile(buffer.begin());
@@ -247,7 +248,7 @@ TEST(C2JSFrames) {
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = {
-      isolate->factory()->InternalizeString(StaticCharVector("hello"))};
+      isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
   Execution::Call(isolate,
                   Handle<JSFunction>::cast(fun1),
                   global,
@@ -280,7 +281,7 @@ TEST(GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  ScopedVector<char> buffer(buffer_size);
+  base::ScopedVector<char> buffer(buffer_size);
   memset(buffer.begin(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('../base.js');
+d8.file.execute('../base.js');
 
 let array;
 // Initialize func variable to ensure the first test doesn't benefit from
@@ -110,23 +110,23 @@ function DefineHigherOrderTests(tests) {
 }
 
 // Higher-order Array builtins.
-load('filter.js');
-load('map.js');
-load('every.js');
-load('some.js');
-load('for-each.js');
-load('reduce.js');
-load('reduce-right.js');
-load('find.js');
-load('find-index.js');
+d8.file.execute('filter.js');
+d8.file.execute('map.js');
+d8.file.execute('every.js');
+d8.file.execute('some.js');
+d8.file.execute('for-each.js');
+d8.file.execute('reduce.js');
+d8.file.execute('reduce-right.js');
+d8.file.execute('find.js');
+d8.file.execute('find-index.js');
 
 // Other Array builtins.
-load('from.js');
-load('of.js');
-load('join.js');
-load('to-string.js');
-load('slice.js');
-load('copy-within.js');
+d8.file.execute('from.js');
+d8.file.execute('of.js');
+d8.file.execute('join.js');
+d8.file.execute('to-string.js');
+d8.file.execute('slice.js');
+d8.file.execute('copy-within.js');
 
 var success = true;
 

@@ -513,6 +513,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted();
 
+  void EnsurePageIsSwept(Page* page);
+
   void DrainSweepingWorklists();
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
@@ -624,7 +626,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // If the call-site of the top optimized code was not prepared for
   // deoptimization, then treat embedded pointers in the code as strong as
   // otherwise they can die and try to deoptimize the underlying code.
-  void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
+  void ProcessTopOptimizedFrame(ObjectVisitor* visitor, Isolate* isolate);
 
   // Drains the main thread marking work list. Will mark all pending objects
   // if no concurrent threads are running.

@@ -69,12 +69,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_FloorFloat:
     case kS390_CeilFloat:
     case kS390_TruncateFloat:
+    case kS390_FloatNearestInt:
     case kS390_AbsFloat:
     case kS390_SqrtDouble:
     case kS390_FloorDouble:
     case kS390_CeilDouble:
     case kS390_TruncateDouble:
     case kS390_RoundDouble:
+    case kS390_DoubleNearestInt:
     case kS390_MaxFloat:
     case kS390_MaxDouble:
     case kS390_MinFloat:

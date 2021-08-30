@@ -80,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
   int const argc = args.length() - 2;
   CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  ScopedVector<Handle<Object>> argv(argc);
+  base::ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at(2 + i);
   }

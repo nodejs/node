@@ -4,7 +4,7 @@
 //
 // Flags: --wasm-test-streaming --wasm-lazy-compilation --wasm-lazy-validation
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 
 (function f1() {

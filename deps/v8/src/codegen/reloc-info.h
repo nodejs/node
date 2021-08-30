@@ -432,9 +432,9 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
                          int mode_mask = -1);
-  explicit RelocIterator(Vector<byte> instructions,
-                         Vector<const byte> reloc_info, Address const_pool,
-                         int mode_mask = -1);
+  explicit RelocIterator(base::Vector<byte> instructions,
+                         base::Vector<const byte> reloc_info,
+                         Address const_pool, int mode_mask = -1);
   RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
 
   RelocIterator(const RelocIterator&) = delete;

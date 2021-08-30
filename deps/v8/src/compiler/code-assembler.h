@@ -30,6 +30,7 @@
 #include "src/objects/js-proxy.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/object-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/smi.h"
@@ -85,20 +86,6 @@ TORQUE_DEFINED_CLASS_LIST(MAKE_FORWARD_DECLARATION)
 
 template <typename T>
 class Signature;
-
-#define ENUM_ELEMENT(Name) k##Name,
-#define ENUM_STRUCT_ELEMENT(NAME, Name, name) k##Name,
-enum class ObjectType {
-  ENUM_ELEMENT(Object)                 //
-  ENUM_ELEMENT(Smi)                    //
-  ENUM_ELEMENT(TaggedIndex)            //
-  ENUM_ELEMENT(HeapObject)             //
-  OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
-  HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //
-  STRUCT_LIST(ENUM_STRUCT_ELEMENT)     //
-};
-#undef ENUM_ELEMENT
-#undef ENUM_STRUCT_ELEMENT
 
 enum class CheckBounds { kAlways, kDebugOnly };
 inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
@@ -192,13 +179,6 @@ using AtomicUint64 = UintPtrT;
 #else
 #error Unknown architecture.
 #endif
-
-// {raw_value} must be a tagged Object.
-// {raw_type} must be a tagged Smi.
-// {raw_location} must be a tagged String.
-// Returns a tagged Smi.
-Address CheckObjectType(Address raw_value, Address raw_type,
-                        Address raw_location);
 
 namespace compiler {
 
@@ -1616,13 +1596,13 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, CodeKind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index = Builtins::kNoBuiltinId);
+                     Builtin builtin = Builtin::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      CodeKind kind, const char* name,
                      PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index = Builtins::kNoBuiltinId);
+                     Builtin builtin = Builtin::kNoBuiltinId);
 
   ~CodeAssemblerState();
 
@@ -1649,7 +1629,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, CodeKind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index);
+                     Builtin builtin);
 
   void PushExceptionHandler(CodeAssemblerExceptionHandlerLabel* label);
   void PopExceptionHandler();
@@ -1657,7 +1637,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   CodeKind kind_;
   const char* name_;
-  int32_t builtin_index_;
+  Builtin builtin_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*, CodeAssemblerVariable::ImplComparator>
       variables_;

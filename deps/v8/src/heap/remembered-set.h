@@ -84,7 +84,6 @@ class RememberedSetOperations {
   }
 };
 
-// TODO(ulan): Investigate performance of de-templatizing this class.
 template <RememberedSetType type>
 class RememberedSet : public AllStatic {
  public:

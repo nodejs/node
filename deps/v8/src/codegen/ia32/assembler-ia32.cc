@@ -3345,6 +3345,8 @@ void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
   DCHECK_EQ(buffer_start_, buffer_->start());
 
+  bool previously_on_heap = buffer_->IsOnHeap();
+
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = 2 * old_size;
@@ -3384,11 +3386,20 @@ void Assembler::GrowBuffer() {
   // Relocate pc-relative references.
   int mode_mask = RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
   DCHECK_EQ(mode_mask, RelocInfo::kApplyMask & mode_mask);
-  Vector<byte> instructions{buffer_start_, static_cast<size_t>(pc_offset())};
-  Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+  base::Vector<byte> instructions{buffer_start_,
+                                  static_cast<size_t>(pc_offset())};
+  base::Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
   for (RelocIterator it(instructions, reloc_info, 0, mode_mask); !it.done();
        it.next()) {
     it.rinfo()->apply(pc_delta);
+  }
+
+  // Patch on-heap references to handles.
+  if (previously_on_heap && !buffer_->IsOnHeap()) {
+    Address base = reinterpret_cast<Address>(buffer_->start());
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+    }
   }
 
   DCHECK(!buffer_overflow());

@@ -26,7 +26,8 @@ at $C (interpreted) (0:169):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
@@ -43,7 +44,8 @@ at $B (liftoff) (0:158):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -55,7 +57,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -76,7 +79,8 @@ at $C (interpreted) (0:171):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
@@ -93,7 +97,8 @@ at $B (liftoff) (0:158):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -105,7 +110,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 0 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -126,7 +132,8 @@ at $C (interpreted) (0:173):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
@@ -143,7 +150,8 @@ at $B (liftoff) (0:158):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -155,7 +163,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -176,7 +185,8 @@ at $C (interpreted) (0:175):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
@@ -193,7 +203,8 @@ at $B (liftoff) (0:158):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -205,7 +216,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -226,7 +238,8 @@ at $C (interpreted) (0:177):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    stack: "0": 42 (i32), "1": 3 (i32)
@@ -243,7 +256,8 @@ at $B (liftoff) (0:158):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -255,7 +269,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -279,7 +294,8 @@ at $B (liftoff) (0:160):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -291,7 +307,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -315,7 +332,8 @@ at $B (liftoff) (0:161):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -327,7 +345,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -351,7 +370,8 @@ at $B (liftoff) (0:162):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at $A (liftoff) (0:128):
  - scope (wasm-expression-stack):
    stack: 
@@ -363,7 +383,8 @@ at $A (liftoff) (0:128):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -382,7 +403,8 @@ at $A (liftoff) (0:130):
    functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
    globals: "$exported_global": 42 (i32)
    memories: "$exported_memory": (Memory)
-   tables: "$exported_table": (Table)
+   tables: 
+      $exported_table: 0: function js_func() { [native code] }, 1: function () { [native code] }, 2: undefined, 3: function $A (liftoff)() { [native code] }
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

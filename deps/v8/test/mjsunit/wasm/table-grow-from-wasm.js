@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --experimental-wasm-reftypes
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function dummy_func(val) {
   let builder = new WasmModuleBuilder();

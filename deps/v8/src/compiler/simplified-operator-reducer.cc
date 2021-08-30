@@ -42,7 +42,6 @@ SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));

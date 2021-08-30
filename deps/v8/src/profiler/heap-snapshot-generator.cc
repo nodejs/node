@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -37,7 +38,6 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -126,7 +126,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
   for (auto i = children_begin(); i != children_end(); ++i) {
     HeapGraphEdge& edge = **i;
     const char* edge_prefix = "";
-    EmbeddedVector<char, 64> index;
+    base::EmbeddedVector<char, 64> index;
     const char* edge_name = index.begin();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
@@ -1053,13 +1053,13 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                            FixedArray::OffsetOfElementAt(index));
     }
 
-    SetWeakReference(
-        entry, "optimized_code_list", context.get(Context::OPTIMIZED_CODE_LIST),
-        FixedArray::OffsetOfElementAt(Context::OPTIMIZED_CODE_LIST));
+    SetWeakReference(entry, "optimized_code_list",
+                     context.get(Context::OPTIMIZED_CODE_LIST),
+                     Context::OffsetOfElementAt(Context::OPTIMIZED_CODE_LIST));
     SetWeakReference(
         entry, "deoptimized_code_list",
         context.get(Context::DEOPTIMIZED_CODE_LIST),
-        FixedArray::OffsetOfElementAt(Context::DEOPTIMIZED_CODE_LIST));
+        Context::OffsetOfElementAt(Context::DEOPTIMIZED_CODE_LIST));
     STATIC_ASSERT(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
     STATIC_ASSERT(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
@@ -1323,7 +1323,7 @@ void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry, Object number) {
 
   // Must be large enough to fit any double, int, or size_t.
   char arr[32];
-  Vector<char> buffer(arr, arraysize(arr));
+  base::Vector<char> buffer(arr, arraysize(arr));
 
   const char* string;
   if (number.IsSmi()) {
@@ -1596,7 +1596,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   RootsReferencesExtractor extractor(this);
   ReadOnlyRoots(heap_).Iterate(&extractor);
   heap_->IterateRoots(&extractor, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
-  // TODO(ulan): The heap snapshot generator incorrectly considers the weak
+  // TODO(v8:11800): The heap snapshot generator incorrectly considers the weak
   // string tables as strong retainers. Move IterateWeakRoots after
   // SetVisitingWeakRoots.
   heap_->IterateWeakRoots(&extractor, {});
@@ -1967,12 +1967,10 @@ class EmbedderGraphImpl : public EmbedderGraph {
     const char* Name() override {
       // The name should be retrieved via GetObject().
       UNREACHABLE();
-      return "";
     }
     size_t SizeInBytes() override {
       // The size should be retrieved via GetObject().
       UNREACHABLE();
-      return 0;
     }
 
    private:
@@ -2339,7 +2337,7 @@ class OutputStreamWriter {
       chunk_pos_ += result;
       MaybeWriteChunk();
     } else {
-      EmbeddedVector<char, kMaxNumberSize> buffer;
+      base::EmbeddedVector<char, kMaxNumberSize> buffer;
       int result = SNPrintF(buffer, format, n);
       USE(result);
       DCHECK_NE(result, -1);
@@ -2362,7 +2360,7 @@ class OutputStreamWriter {
 
   v8::OutputStream* stream_;
   int chunk_size_;
-  ScopedVector<char> chunk_;
+  base::ScopedVector<char> chunk_;
   int chunk_pos_;
   bool aborted_;
 };
@@ -2459,9 +2457,9 @@ template<> struct ToUnsigned<8> {
 
 }  // namespace
 
-
-template<typename T>
-static int utoa_impl(T value, const Vector<char>& buffer, int buffer_pos) {
+template <typename T>
+static int utoa_impl(T value, const base::Vector<char>& buffer,
+                     int buffer_pos) {
   STATIC_ASSERT(static_cast<T>(-1) > 0);  // Check that T is unsigned
   int number_of_digits = 0;
   T t = value;
@@ -2479,21 +2477,19 @@ static int utoa_impl(T value, const Vector<char>& buffer, int buffer_pos) {
   return result;
 }
 
-
-template<typename T>
-static int utoa(T value, const Vector<char>& buffer, int buffer_pos) {
+template <typename T>
+static int utoa(T value, const base::Vector<char>& buffer, int buffer_pos) {
   typename ToUnsigned<sizeof(value)>::Type unsigned_value = value;
   STATIC_ASSERT(sizeof(value) == sizeof(unsigned_value));
   return utoa_impl(unsigned_value, buffer, buffer_pos);
 }
 
-
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
                                                bool first_edge) {
   // The buffer needs space for 3 unsigned ints, 3 commas, \n and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;  // NOLINT
-  EmbeddedVector<char, kBufferSize> buffer;
+      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
       ? edge->index() : GetStringId(edge->name());
@@ -2525,10 +2521,10 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   // The buffer needs space for 5 unsigned ints, 1 size_t, 1 uint8_t, 7 commas,
   // \n and \0
   static const int kBufferSize =
-      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned      // NOLINT
-      + MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
+      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned +
+      MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned +
+      MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   if (to_node_index(entry) != 0) {
     buffer[buffer_pos++] = ',';
@@ -2674,9 +2670,8 @@ void HeapSnapshotJSONSerializer::SerializeTraceTree() {
 void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
   const int kBufferSize =
-      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 4 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
+      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 4 + 1 + 1;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   buffer_pos = utoa(node->id(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
@@ -2702,7 +2697,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
 
 
 // 0-based position is converted to 1-based during the serialization.
-static int SerializePosition(int position, const Vector<char>& buffer,
+static int SerializePosition(int position, const base::Vector<char>& buffer,
                              int buffer_pos) {
   if (position == -1) {
     buffer[buffer_pos++] = '0';
@@ -2713,15 +2708,13 @@ static int SerializePosition(int position, const Vector<char>& buffer,
   return buffer_pos;
 }
 
-
 void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
   if (!tracker) return;
   // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
   const int kBufferSize =
-      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 6 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
+      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 6 + 1 + 1;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int i = 0;
   for (AllocationTracker::FunctionInfo* info : tracker->function_info_list()) {
     int buffer_pos = 0;
@@ -2758,7 +2751,7 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
                               base::TimeDelta().InMicroseconds())>::kUnsigned +
                           MaxDecimalDigitsIn<sizeof(samples[0].id)>::kUnsigned +
                           2 + 1 + 1;
-  EmbeddedVector<char, kBufferSize> buffer;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int i = 0;
   for (const HeapObjectsMap::TimeInterval& sample : samples) {
     int buffer_pos = 0;
@@ -2827,8 +2820,8 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
-  ScopedVector<const unsigned char*> sorted_strings(
-      strings_.occupancy() + 1);
+  base::ScopedVector<const unsigned char*> sorted_strings(strings_.occupancy() +
+                                                          1);
   for (base::HashMap::Entry* entry = strings_.Start(); entry != nullptr;
        entry = strings_.Next(entry)) {
     int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
@@ -2847,7 +2840,7 @@ void HeapSnapshotJSONSerializer::SerializeLocation(
   // The buffer needs space for 4 unsigned ints, 3 commas, \n and \0
   static const int kBufferSize =
       MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 4 + 3 + 2;
-  EmbeddedVector<char, kBufferSize> buffer;
+  base::EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   buffer_pos = utoa(to_node_index(location.entry_index), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';

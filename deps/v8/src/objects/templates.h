@@ -122,10 +122,16 @@ class FunctionTemplateInfo
   // SharedFunctionInfo or an accessor), because TF relies on immutability to
   // safely read concurrently.
   DECL_BOOLEAN_ACCESSORS(published)
+
+  DECL_INT_ACCESSORS(allowed_receiver_range_start)
+  DECL_INT_ACCESSORS(allowed_receiver_range_end)
   // End flag bits ---------------------
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateInfo)
+
+  inline int InstanceType() const;
+  inline void SetInstanceType(int instance_type);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -150,7 +156,7 @@ class FunctionTemplateInfo
   bool IsLeafTemplateForApiObject(Object object) const;
   inline bool instantiated();
 
-  inline bool BreakAtEntry();
+  bool BreakAtEntry();
 
   // Helper function for cached accessors.
   static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,

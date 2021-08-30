@@ -696,19 +696,33 @@ std::ostream& operator<<(std::ostream&, const NewArgumentsElementsParameters&);
 const NewArgumentsElementsParameters& NewArgumentsElementsParametersOf(
     const Operator*) V8_WARN_UNUSED_RESULT;
 
+struct FastApiCallFunction {
+  Address address;
+  const CFunctionInfo* signature;
+
+  bool operator==(const FastApiCallFunction& rhs) const {
+    return address == rhs.address && signature == rhs.signature;
+  }
+};
+typedef ZoneVector<FastApiCallFunction> FastApiCallFunctionVector;
+
 class FastApiCallParameters {
  public:
-  explicit FastApiCallParameters(const CFunctionInfo* signature,
+  explicit FastApiCallParameters(const FastApiCallFunctionVector& c_functions,
                                  FeedbackSource const& feedback,
                                  CallDescriptor* descriptor)
-      : signature_(signature), feedback_(feedback), descriptor_(descriptor) {}
+      : c_functions_(c_functions),
+        feedback_(feedback),
+        descriptor_(descriptor) {}
 
-  const CFunctionInfo* signature() const { return signature_; }
+  const FastApiCallFunctionVector& c_functions() const { return c_functions_; }
   FeedbackSource const& feedback() const { return feedback_; }
   CallDescriptor* descriptor() const { return descriptor_; }
 
  private:
-  const CFunctionInfo* signature_;
+  // A single FastApiCall node can represent multiple overloaded functions.
+  const FastApiCallFunctionVector c_functions_;
+
   const FeedbackSource feedback_;
   CallDescriptor* descriptor_;
 };
@@ -829,6 +843,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberBitwiseAnd(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseOr(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseXor(NumberOperationHint hint);
+  const Operator* SpeculativeNumberPow(NumberOperationHint hint);
 
   const Operator* SpeculativeNumberLessThan(NumberOperationHint hint);
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
@@ -1093,9 +1108,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* DateNow();
 
   // Represents the inputs necessary to construct a fast and a slow API call.
-  const Operator* FastApiCall(const CFunctionInfo* signature,
-                              FeedbackSource const& feedback,
-                              CallDescriptor* descriptor);
+  const Operator* FastApiCall(
+      const FastApiCallFunctionVector& c_candidate_functions,
+      FeedbackSource const& feedback, CallDescriptor* descriptor);
 
  private:
   Zone* zone() const { return zone_; }
@@ -1155,19 +1170,15 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
     return FastApiCallParametersOf(node()->op());
   }
 
-#define INPUTS(V)              \
-  V(Target, target, 0, Object) \
-  V(Receiver, receiver, 1, Object)
+#define INPUTS(V) V(Receiver, receiver, 0, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 
   // Besides actual arguments, FastApiCall nodes also take:
-  static constexpr int kFastTargetInputCount = 1;
   static constexpr int kSlowTargetInputCount = 1;
   static constexpr int kFastReceiverInputCount = 1;
   static constexpr int kSlowReceiverInputCount = 1;
-  static constexpr int kExtraInputCount =
-      kFastTargetInputCount + kFastReceiverInputCount;
+  static constexpr int kExtraInputCount = kFastReceiverInputCount;
 
   static constexpr int kArityInputCount = 1;
   static constexpr int kNewTargetInputCount = 1;
@@ -1184,8 +1195,7 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
 
   // This is the arity fed into FastApiCallArguments.
   static constexpr int ArityForArgc(int c_arg_count, int js_arg_count) {
-    return c_arg_count + kFastTargetInputCount + js_arg_count +
-           kEffectAndControlInputCount;
+    return c_arg_count + js_arg_count + kEffectAndControlInputCount;
   }
 
   int FastCallArgumentCount() const;
@@ -1203,9 +1213,7 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
         NodeProperties::GetValueInput(node(), FastCallArgumentIndex(i)));
   }
 
-  int FirstSlowCallArgumentIndex() const {
-    return FastCallArgumentCount() + FastApiCallNode::kFastTargetInputCount;
-  }
+  int FirstSlowCallArgumentIndex() const { return FastCallArgumentCount(); }
   int SlowCallArgumentIndex(int i) const {
     return FirstSlowCallArgumentIndex() + i;
   }

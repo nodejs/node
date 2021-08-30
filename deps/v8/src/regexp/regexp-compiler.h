@@ -8,6 +8,7 @@
 #include <bitset>
 
 #include "src/base/small-vector.h"
+#include "src/base/strings.h"
 #include "src/regexp/regexp-nodes.h"
 
 namespace v8 {
@@ -21,7 +22,7 @@ namespace regexp_compiler_constants {
 // The '2' variant is has inclusive from and exclusive to.
 // This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
 // which include WhiteSpace (7.2) or LineTerminator (7.3) values.
-constexpr uc32 kRangeEndMarker = 0x110000;
+constexpr base::uc32 kRangeEndMarker = 0x110000;
 constexpr int kSpaceRanges[] = {
     '\t',   '\r' + 1, ' ',    ' ' + 1, 0x00A0, 0x00A1, 0x1680,
     0x1681, 0x2000,   0x200B, 0x2028,  0x202A, 0x202F, 0x2030,
@@ -96,8 +97,8 @@ class QuickCheckDetails {
   void set_cannot_match() { cannot_match_ = true; }
   struct Position {
     Position() : mask(0), value(0), determines_perfectly(false) {}
-    uc32 mask;
-    uc32 value;
+    base::uc32 mask;
+    base::uc32 value;
     bool determines_perfectly;
   };
   int characters() { return characters_; }

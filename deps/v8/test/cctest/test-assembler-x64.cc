@@ -28,16 +28,15 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "src/init/v8.h"
-
+#include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/numbers/double.h"
-#include "src/utils/ostreams.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -874,9 +873,9 @@ TEST(AssemblerX64Extractps) {
 
   auto f = GeneratedCode<F3>::FromCode(*code);
   uint64_t value1 = 0x1234'5678'8765'4321;
-  CHECK_EQ(0x12345678u, f.Call(uint64_to_double(value1)));
+  CHECK_EQ(0x12345678u, f.Call(base::uint64_to_double(value1)));
   uint64_t value2 = 0x8765'4321'1234'5678;
-  CHECK_EQ(0x87654321u, f.Call(uint64_to_double(value2)));
+  CHECK_EQ(0x87654321u, f.Call(base::uint64_to_double(value2)));
 }
 
 using F6 = int(float x, float y);

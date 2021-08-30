@@ -355,6 +355,18 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        TVariable<Float64T>* var_double_value,
                        Label* rebox_double, Label* miss, ExitPoint* exit_point);
 
+#if V8_ENABLE_WEBASSEMBLY
+  void HandleLoadWasmField(TNode<WasmObject> holder,
+                           TNode<Int32T> wasm_value_type,
+                           TNode<IntPtrT> field_offset,
+                           TVariable<Float64T>* var_double_value,
+                           Label* rebox_double, ExitPoint* exit_point);
+
+  void HandleLoadWasmField(TNode<WasmObject> holder, TNode<WordT> handler_word,
+                           TVariable<Float64T>* var_double_value,
+                           Label* rebox_double, ExitPoint* exit_point);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   void EmitAccessCheck(TNode<Context> expected_native_context,
                        TNode<Context> context, TNode<Object> receiver,
                        Label* can_access, Label* miss);

@@ -457,12 +457,17 @@ class V8_EXPORT_PRIVATE NewSpace
   SemiSpace& to_space() { return to_space_; }
 
   void MoveOriginalTopForward() {
+    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
     DCHECK_GE(top(), original_top_);
     DCHECK_LE(top(), original_limit_);
     original_top_.store(top(), std::memory_order_release);
   }
 
   void MaybeFreeUnusedLab(LinearAllocationArea info);
+
+  base::SharedMutex* pending_allocation_mutex() {
+    return &pending_allocation_mutex_;
+  }
 
  private:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
@@ -473,9 +478,13 @@ class V8_EXPORT_PRIVATE NewSpace
   base::Mutex mutex_;
 
   // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks.
+  // These values can be accessed by background tasks. Protected by
+  // pending_allocation_mutex_.
   std::atomic<Address> original_top_;
   std::atomic<Address> original_limit_;
+
+  // Protects original_top_ and original_limit_.
+  base::SharedMutex pending_allocation_mutex_;
 
   // The semispaces.
   SemiSpace to_space_;

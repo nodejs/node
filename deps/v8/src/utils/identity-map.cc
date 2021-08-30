@@ -205,8 +205,9 @@ IdentityMapBase::RawEntry IdentityMapBase::InsertEntry(Address key) {
     values_ = NewPointerArray(capacity_);
     memset(values_, 0, sizeof(uintptr_t) * capacity_);
 
-    strong_roots_entry_ = heap_->RegisterStrongRoots(
-        FullObjectSlot(keys_), FullObjectSlot(keys_ + capacity_));
+    strong_roots_entry_ =
+        heap_->RegisterStrongRoots("IdentityMapBase", FullObjectSlot(keys_),
+                                   FullObjectSlot(keys_ + capacity_));
   } else {
     // Rehash if there was a GC, then insert.
     if (gc_counter_ != heap_->gc_count()) Rehash();

@@ -50,6 +50,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -120,7 +121,8 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
 };
 
 void MarkingVerifier::VerifyRoots() {
-  heap_->IterateRoots(this, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  heap_->IterateRootsIncludingClients(this,
+                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
 void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
@@ -244,9 +246,10 @@ class FullMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    if (!heap_->IsShared() &&
+    if (heap_->IsShared() !=
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
+
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
   }
 
@@ -304,7 +307,8 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
 };
 
 void EvacuationVerifier::VerifyRoots() {
-  heap_->IterateRoots(this, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  heap_->IterateRootsIncludingClients(this,
+                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
 void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
@@ -355,6 +359,10 @@ class FullEvacuationVerifier : public EvacuationVerifier {
 
  protected:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
+    if (heap_->IsShared() !=
+        BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
+      return;
+
     CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
                   Heap::InToPage(heap_object));
     CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
@@ -614,6 +622,10 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
     verifier.Run();
   }
 #endif
+}
+
+void MarkCompactCollector::EnsurePageIsSwept(Page* page) {
+  sweeper()->EnsurePageIsSwept(page);
 }
 
 void MarkCompactCollector::DrainSweepingWorklists() {
@@ -996,7 +1008,7 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     HeapObject heap_object = HeapObject::cast(object);
     BasicMemoryChunk* target_page =
         BasicMemoryChunk::FromHeapObject(heap_object);
-    if (!is_shared_heap_ && target_page->InSharedHeap()) return;
+    if (is_shared_heap_ != target_page->InSharedHeap()) return;
     collector_->MarkRootObject(root, heap_object);
   }
 
@@ -1336,10 +1348,19 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       base->heap_->CopyBlock(dst_addr, src_addr, size);
-      Code::cast(dst).Relocate(dst_addr - src_addr);
+      Code code = Code::cast(dst);
+      code.Relocate(dst_addr - src_addr);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
       dst.IterateBodyFast(dst.map(), size, base->record_visitor_);
+      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+        CodeDataContainer code_data_container =
+            code.GCSafeCodeDataContainer(kAcquireLoad);
+        Isolate* isolate_for_sandbox = base->heap_->isolate();
+        // Update the |code_entry_point| which is a raw interiour or off-heap
+        // pointer and thus not handled by the regular updating mechanism.
+        code_data_container.SetCodeAndEntryPoint(isolate_for_sandbox, code);
+      }
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1615,10 +1636,16 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
                                      ObjectVisitor* custom_root_body_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
-  heap()->IterateRoots(root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  heap()->IterateRootsIncludingClients(
+      root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 
   // Custom marking for top optimized frame.
-  ProcessTopOptimizedFrame(custom_root_body_visitor);
+  ProcessTopOptimizedFrame(custom_root_body_visitor, isolate());
+
+  isolate()->IterateClientIsolates(
+      [this, custom_root_body_visitor](Isolate* client) {
+        ProcessTopOptimizedFrame(custom_root_body_visitor, client);
+      });
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {
@@ -1907,13 +1934,14 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
   CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 }
 
-void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
-  for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
-       !it.done(); it.Advance()) {
+void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
+                                                    Isolate* isolate) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
-      if (!code.CanDeoptAt(isolate(), it.frame()->pc())) {
+      if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code.map(), code, visitor);
       }
       return;
@@ -2298,7 +2326,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         if (constructor_or_back_pointer.IsSmi()) {
           DCHECK(isolate()->has_active_deserializer());
           DCHECK_EQ(constructor_or_back_pointer,
-                    Deserializer::uninitialized_field_value());
+                    Smi::uninitialized_deserialization_value());
           continue;
         }
         Map parent = Map::cast(map.constructor_or_back_pointer());
@@ -2326,7 +2354,7 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
     if (raw_target.IsSmi()) {
       // This target is still being deserialized,
       DCHECK(isolate()->has_active_deserializer());
-      DCHECK_EQ(raw_target.ToSmi(), Deserializer::uninitialized_field_value());
+      DCHECK_EQ(raw_target.ToSmi(), Smi::uninitialized_deserialization_value());
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
       for (int i = 0; i < num_transitions; ++i) {
@@ -2429,7 +2457,6 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
     DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
-  // TODO(ulan): Trim only if slack is greater than some percentage threshold.
   int to_trim =
       descriptors.number_of_all_descriptors() - number_of_own_descriptors;
   if (to_trim > 0) {
@@ -2562,8 +2589,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
 
-    HeapObject unregister_token =
-        HeapObject::cast(weak_cell.unregister_token());
+    HeapObject unregister_token = weak_cell.unregister_token();
     if (!non_atomic_marking_state()->IsBlackOrGrey(unregister_token)) {
       // The unregister token is dead. Remove any corresponding entries in the
       // key map. Multiple WeakCell with the same token will have all their
@@ -2579,11 +2605,6 @@ void MarkCompactCollector::ClearJSWeakRefs() {
             matched_cell.set_unregister_token(undefined);
           },
           gc_notify_updated_slot);
-      // The following is necessary because in the case that weak_cell has
-      // already been popped and removed from the FinalizationRegistry, the call
-      // to JSFinalizationRegistry::RemoveUnregisterToken above will not find
-      // weak_cell itself to clear its unregister token.
-      weak_cell.set_unregister_token(undefined);
     } else {
       // The unregister_token is alive.
       ObjectSlot slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
@@ -3092,7 +3113,8 @@ class FullEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   FLAG_always_promote_young_mc),
         record_visitor_(collector, &ephemeron_remembered_set_),
-        local_allocator_(heap_, LocalSpaceKind::kCompactionSpaceForMarkCompact),
+        local_allocator_(heap_,
+                         CompactionSpaceKind::kCompactionSpaceForMarkCompact),
         collector_(collector) {}
 
   GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {
@@ -3216,7 +3238,7 @@ class PageEvacuationJob : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    const size_t kItemsPerWorker = MB / Page::kPageSize;
+    const size_t kItemsPerWorker = std::max(1, MB / Page::kPageSize);
     // Ceiling division to ensure enough workers for all
     // |remaining_evacuation_items_|
     const size_t wanted_num_workers =
@@ -3976,8 +3998,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS);
     // The external string table is updated at the end.
-    heap_->IterateRoots(&updating_visitor, base::EnumSet<SkipRoot>{
-                                               SkipRoot::kExternalStringTable});
+    heap_->IterateRootsIncludingClients(
+        &updating_visitor,
+        base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable});
   }
 
   {
@@ -5164,8 +5187,8 @@ class YoungGenerationEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   false),
         record_visitor_(collector->heap()->mark_compact_collector()),
-        local_allocator_(heap_,
-                         LocalSpaceKind::kCompactionSpaceForMinorMarkCompact),
+        local_allocator_(
+            heap_, CompactionSpaceKind::kCompactionSpaceForMinorMarkCompact),
         collector_(collector) {}
 
   GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {

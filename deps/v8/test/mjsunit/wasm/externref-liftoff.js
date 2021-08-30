@@ -6,4 +6,4 @@
 // Flags: --no-wasm-tier-up --experimental-liftoff-extern-ref
 // Flags: --allow-natives-syntax
 
-load("test/mjsunit/wasm/externref.js");
+d8.file.execute("test/mjsunit/wasm/externref.js");

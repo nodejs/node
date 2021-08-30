@@ -75,8 +75,8 @@ class BreakHandler : public debug::DebugDelegate {
  public:
   enum Action {
     Continue = StepAction::LastStepAction + 1,
-    StepNext = StepAction::StepNext,
-    StepIn = StepAction::StepIn,
+    StepOver = StepAction::StepOver,
+    StepInto = StepAction::StepInto,
     StepOut = StepAction::StepOut
   };
   struct BreakPoint {
@@ -124,8 +124,8 @@ class BreakHandler : public debug::DebugDelegate {
     switch (next_action) {
       case Continue:
         break;
-      case StepNext:
-      case StepIn:
+      case StepOver:
+      case StepInto:
       case StepOut:
         isolate_->debug()->PrepareStep(static_cast<StepAction>(next_action));
         break;
@@ -249,7 +249,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
       CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 
-    isolate_->debug()->PrepareStep(StepAction::StepIn);
+    isolate_->debug()->PrepareStep(StepAction::StepInto);
   }
 };
 
@@ -355,8 +355,8 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 
   BreakHandler count_breaks(isolate,
                             {
-                                {1, BreakHandler::StepNext},  // I32Const
-                                {3, BreakHandler::StepNext},  // I32Const
+                                {1, BreakHandler::StepOver},  // I32Const
+                                {3, BreakHandler::StepOver},  // I32Const
                                 {5, BreakHandler::Continue}   // I32Add
                             });
 
@@ -396,10 +396,10 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
 
   BreakHandler count_breaks(isolate,
                             {
-                                {19, BreakHandler::StepIn},   // LocalGet
-                                {21, BreakHandler::StepIn},   // Call
-                                {1, BreakHandler::StepOut},   // in f2
-                                {23, BreakHandler::Continue}  // After Call
+                                {19, BreakHandler::StepInto},  // LocalGet
+                                {21, BreakHandler::StepInto},  // Call
+                                {1, BreakHandler::StepOut},    // in f2
+                                {23, BreakHandler::Continue}   // After Call
                             });
 
   Handle<Object> global(isolate->context().global_object(), isolate);

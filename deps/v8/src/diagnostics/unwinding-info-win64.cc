@@ -17,37 +17,6 @@
 #error "Unsupported OS"
 #endif  // V8_OS_WIN_X64
 
-// Forward declaration to keep this independent of Win8
-NTSYSAPI
-DWORD
-NTAPI
-RtlAddGrowableFunctionTable(
-    _Out_ PVOID* DynamicTable,
-    _In_reads_(MaximumEntryCount) PRUNTIME_FUNCTION FunctionTable,
-    _In_ DWORD EntryCount,
-    _In_ DWORD MaximumEntryCount,
-    _In_ ULONG_PTR RangeBase,
-    _In_ ULONG_PTR RangeEnd
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlGrowFunctionTable(
-    _Inout_ PVOID DynamicTable,
-    _In_ DWORD NewEntryCount
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlDeleteGrowableFunctionTable(
-    _In_ PVOID DynamicTable
-    );
-
-
 namespace v8 {
 namespace internal {
 namespace win64_unwindinfo {
@@ -202,8 +171,8 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  base::Memcpy(&record->exception_thunk[0], masm.buffer_start(),
-               masm.instruction_size());
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
 }
 
 #elif defined(V8_OS_WIN_ARM64)
@@ -480,8 +449,8 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
            Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));
   masm.Br(x16);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  base::Memcpy(&record->exception_thunk[0], masm.buffer_start(),
-               masm.instruction_size());
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
 }
 
 #endif  // V8_OS_WIN_X64

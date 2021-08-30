@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>
-
 #include "src/compiler/access-info.h"
+
+#include <ostream>
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -12,6 +12,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-configuration.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/field-index-inl.h"
@@ -501,11 +502,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
-  } else if (broker()->is_turboprop() && !map->is_prototype_map() &&
-             !IsAnyStore(access_mode)) {
-    // The constness feedback is too unstable for the aggresive compilation
-    // of turboprop.
-    constness = PropertyConstness::kMutable;
   } else {
     constness = dependencies()->DependOnFieldConstness(*map_ref, descriptor);
   }
@@ -649,7 +645,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
   }
 
   auto get_accessors = [&]() {
-    return JSObject::DictionaryPropertyAt(holder, dictionary_index);
+    return JSObject::DictionaryPropertyAt(isolate(), holder, dictionary_index);
   };
   Handle<Map> holder_map = broker()->CanonicalPersistentHandle(holder->map());
   return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
@@ -719,8 +715,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
   CHECK(name->IsUniqueName());
 
-  JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(
-      broker(), isolate()->map_updater_access());
+  JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
   if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) {
     return Invalid();

@@ -111,26 +111,37 @@ TYPED_TEST(UtilsTest, SaturateAdd) {
 }
 
 TYPED_TEST(UtilsTest, PassesFilterTest) {
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("abcdefg")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("abcdefg*")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("abc*")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("*")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("-~")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abcdefg"), CStrVector("-abcdefgh")));
-  EXPECT_TRUE(PassesFilter(CStrVector("abdefg"), CStrVector("-")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("-abcdefg")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("-abcdefg*")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("-abc*")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("-*")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("~")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("")));
-  EXPECT_FALSE(PassesFilter(CStrVector("abcdefg"), CStrVector("abcdefgh")));
+  EXPECT_TRUE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefg")));
+  EXPECT_TRUE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefg*")));
+  EXPECT_TRUE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abc*")));
+  EXPECT_TRUE(PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("*")));
+  EXPECT_TRUE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-~")));
+  EXPECT_TRUE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefgh")));
+  EXPECT_TRUE(PassesFilter(base::CStrVector("abdefg"), base::CStrVector("-")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefg")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abcdefg*")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-abc*")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("-*")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("~")));
+  EXPECT_FALSE(PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("")));
+  EXPECT_FALSE(
+      PassesFilter(base::CStrVector("abcdefg"), base::CStrVector("abcdefgh")));
 
-  EXPECT_TRUE(PassesFilter(CStrVector(""), CStrVector("")));
-  EXPECT_TRUE(PassesFilter(CStrVector(""), CStrVector("*")));
-  EXPECT_FALSE(PassesFilter(CStrVector(""), CStrVector("-")));
-  EXPECT_FALSE(PassesFilter(CStrVector(""), CStrVector("-*")));
-  EXPECT_FALSE(PassesFilter(CStrVector(""), CStrVector("a")));
+  EXPECT_TRUE(PassesFilter(base::CStrVector(""), base::CStrVector("")));
+  EXPECT_TRUE(PassesFilter(base::CStrVector(""), base::CStrVector("*")));
+  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-")));
+  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("-*")));
+  EXPECT_FALSE(PassesFilter(base::CStrVector(""), base::CStrVector("a")));
 }
 
 TEST(UtilsTest, IsInBounds) {

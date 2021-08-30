@@ -954,8 +954,6 @@
 ['arch ==  arm64', {
   # BUG(v8:3503): Times out in debug mode.
   'js1_5/Regress/regress-280769-2': [PASS, FAIL, ['mode == debug', SKIP]],
-  # BUG(v8:3716): Flaky failure.
-  'ecma/Date/15.9.5.26-1': [PASS, FAIL],
 }],  # 'arch ==  arm64'
 
 

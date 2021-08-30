@@ -176,8 +176,8 @@ void RegExpMacroAssemblerIA32::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(equal, on_equal);
 }
 
-
-void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerIA32::CheckCharacterGT(base::uc16 limit,
+                                                Label* on_greater) {
   __ cmp(current_character(), limit);
   BranchOrBacktrack(greater, on_greater);
 }
@@ -195,12 +195,11 @@ void RegExpMacroAssemblerIA32::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
 
-
-void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerIA32::CheckCharacterLT(base::uc16 limit,
+                                                Label* on_less) {
   __ cmp(current_character(), limit);
   BranchOrBacktrack(less, on_less);
 }
-
 
 void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
   Label fallthrough;
@@ -481,12 +480,8 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterAnd(uint32_t c,
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
-
 void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
-    uc16 c,
-    uc16 minus,
-    uc16 mask,
-    Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ lea(eax, Operand(current_character(), -minus));
   if (c == 0) {
@@ -498,26 +493,20 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerIA32::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
+void RegExpMacroAssemblerIA32::CheckCharacterInRange(base::uc16 from,
+                                                     base::uc16 to,
+                                                     Label* on_in_range) {
   __ lea(eax, Operand(current_character(), -from));
   __ cmp(eax, to - from);
   BranchOrBacktrack(below_equal, on_in_range);
 }
 
-
 void RegExpMacroAssemblerIA32::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
+    base::uc16 from, base::uc16 to, Label* on_not_in_range) {
   __ lea(eax, Operand(current_character(), -from));
   __ cmp(eax, to - from);
   BranchOrBacktrack(above, on_not_in_range);
 }
-
 
 void RegExpMacroAssemblerIA32::CheckBitInTable(
     Handle<ByteArray> table,
@@ -534,8 +523,7 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
   BranchOrBacktrack(not_equal, on_bit_set);
 }
 
-
-bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(base::uc16 type,
                                                           Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
@@ -658,7 +646,6 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     return false;
   }
 }
-
 
 void RegExpMacroAssemblerIA32::Fail() {
   STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
@@ -1263,11 +1250,11 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
     DCHECK(mode_ == UC16);
     if (characters == 2) {
       __ mov(current_character(),
-             Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+             Operand(esi, edi, times_1, cp_offset * sizeof(base::uc16)));
     } else {
       DCHECK_EQ(1, characters);
       __ movzx_w(current_character(),
-                 Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+                 Operand(esi, edi, times_1, cp_offset * sizeof(base::uc16)));
     }
   }
 }

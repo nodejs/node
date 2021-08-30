@@ -179,6 +179,16 @@ class OperandGenerator {
                                         GetVReg(node)));
   }
 
+  enum class RegisterUseKind { kUseRegister, kUseUniqueRegister };
+  InstructionOperand UseRegister(Node* node, RegisterUseKind unique_reg) {
+    if (V8_LIKELY(unique_reg == RegisterUseKind::kUseRegister)) {
+      return UseRegister(node);
+    } else {
+      DCHECK_EQ(unique_reg, RegisterUseKind::kUseUniqueRegister);
+      return UseUniqueRegister(node);
+    }
+  }
+
   InstructionOperand UseFixed(Node* node, Register reg) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                                         reg.code(), GetVReg(node)));

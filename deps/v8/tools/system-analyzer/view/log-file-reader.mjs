@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {delay} from '../helper.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/log-file-reader',
@@ -65,20 +66,45 @@ DOM.defineCustomElement('view/log-file-reader',
     }
     this.fileReader.blur();
     this.root.className = 'loading';
-    const reader = new FileReader();
-    reader.onload = (e) => this.handleFileLoad(e, file);
     // Delay the loading a bit to allow for CSS animations to happen.
-    setTimeout(() => reader.readAsText(file), 0);
+    window.requestAnimationFrame(() => this.asyncReadFile(file));
   }
 
-  handleFileLoad(e, file) {
-    const chunk = e.target.result;
+  async asyncReadFile(file) {
+    const decoder = globalThis.TextDecoderStream;
+    if (decoder) {
+      await this._streamFile(file, decoder);
+    } else {
+      await this._readFullFile(file);
+    }
     this._updateLabel(`Finished loading '${file.name}'.`);
-    this.dispatchEvent(new CustomEvent('fileuploadend', {
+    this.dispatchEvent(
+        new CustomEvent('fileuploadend', {bubbles: true, composed: true}));
+    this.root.className = 'done';
+  }
+
+  async _readFullFile(file) {
+    const text = await file.text();
+    this._handleFileChunk(text)
+  }
+
+  async _streamFile(file, decoder) {
+    const stream = file.stream().pipeThrough(new decoder());
+    const reader = stream.getReader();
+    let chunk, readerDone;
+    do {
+      const readResult = await reader.read();
+      chunk = readResult.value;
+      readerDone = readResult.done;
+      if (chunk) this._handleFileChunk(chunk);
+    } while (!readerDone);
+  }
+
+  _handleFileChunk(chunk) {
+    this.dispatchEvent(new CustomEvent('fileuploadchunk', {
       bubbles: true,
       composed: true,
       detail: chunk,
     }));
-    this.root.className = 'done';
   }
 });

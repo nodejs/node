@@ -11,10 +11,13 @@
 #include "src/base/logging.h"
 
 namespace v8 {
-namespace internal {
 
+namespace base {
 template <typename T>
 class Vector;
+}  // namespace base
+
+namespace internal {
 
 template <typename T>
 class ZoneList;
@@ -67,9 +70,9 @@ class V8_NODISCARD ScopedList final {
     return *reinterpret_cast<T*>(&buffer_[index]);
   }
 
-  Vector<const T> ToConstVector() const {
+  base::Vector<const T> ToConstVector() const {
     T* data = reinterpret_cast<T*>(buffer_.data() + start_);
-    return Vector<const T>(data, length());
+    return base::Vector<const T>(data, length());
   }
 
   void Add(const T& value) {
@@ -78,7 +81,7 @@ class V8_NODISCARD ScopedList final {
     ++end_;
   }
 
-  void AddAll(const Vector<const T>& list) {
+  void AddAll(const base::Vector<const T>& list) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.reserve(buffer_.size() + list.length());
     for (int i = 0; i < list.length(); i++) {

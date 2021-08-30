@@ -44,7 +44,7 @@ bool prev_instr_compact_branch = false;
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> disasm_buffer;
+  base::EmbeddedVector<char, 128> disasm_buffer;
 
   if (prev_instr_compact_branch) {
     disasm.InstructionDecode(disasm_buffer, pc);
@@ -410,7 +410,7 @@ TEST(PSEUDO) {
   COMPARE(RV_li(t6, -12), "ff400f93       li        t6, -12");
   COMPARE(mv(t0, a4), "00070293       mv        t0, a4");
   COMPARE(not_(t0, a5), "fff7c293       not       t0, a5");
-  COMPARE(neg(ra, a6), "410000b3       neg       ra, rs2");
+  COMPARE(neg(ra, a6), "410000b3       neg       ra, a6");
   COMPARE(negw(t2, fp), "408003bb       negw      t2, fp");
   COMPARE(sext_w(t0, s1), "0004829b       sext.w    t0, s1");
   COMPARE(seqz(sp, s2), "00193113       seqz      sp, s2");
@@ -505,6 +505,13 @@ TEST(RV64C) {
   COMPARE(c_fsd(fa1, s1, 24), "0000ac8c       fsd       fa1, 24(s1)");
 
   COMPARE(c_j(-12), "0000bfd5       j       -12");
+
+  COMPARE(c_beqz(a0, -12), "0000d975       beqz       a0, x0, -12");
+  COMPARE(c_bnez(a0, -12), "0000f975       bnez       a0, x0, -12");
+  COMPARE(c_srli(a1, 24), "000081e1       srli       a1, a1, 24");
+  COMPARE(c_andi(a1, 24), "000089e1       andi       a1, a1, 24");
+  COMPARE(c_srai(a1, 24), "000085e1       srai       a1, a1, 24");
+
   VERIFY_RUN();
 }
 

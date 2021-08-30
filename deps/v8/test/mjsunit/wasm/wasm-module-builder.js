@@ -228,7 +228,6 @@ const kWasmOpcodes = {
   'Throw': 0x08,
   'Rethrow': 0x09,
   'CatchAll': 0x19,
-  'Unwind': 0x0a,
   'End': 0x0b,
   'Br': 0x0c,
   'BrIf': 0x0d,
@@ -458,11 +457,14 @@ let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;
 let kExprArraySet = 0x16;
 let kExprArrayLen = 0x17;
+let kExprArrayCopy = 0x18;
+let kExprArrayInit = 0x19;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
 let kExprRttCanon = 0x30;
 let kExprRttSub = 0x31;
+let kExprRttFreshSub = 0x32;
 let kExprRefTest = 0x40;
 let kExprRefCast = 0x41;
 let kExprBrOnCast = 0x42;
@@ -944,7 +946,7 @@ class Binary {
     }
   }
 
-  emit_init_expr(expr) {
+  emit_init_expr_recursive(expr) {
     switch (expr.kind) {
       case kExprGlobalGet:
         this.emit_u8(kExprGlobalGet);
@@ -973,8 +975,46 @@ class Binary {
         this.emit_u8(kExprRefNull);
         this.emit_u32v(expr.value);
         break;
+      case kExprStructNewWithRtt:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprStructNewWithRtt);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprArrayInit:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprArrayInit);
+        this.emit_u32v(expr.value);
+        this.emit_u32v(expr.operands.length - 1);
+        break;
+      case kExprRttCanon:
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprRttCanon);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprRttSub:
+        this.emit_init_expr_recursive(expr.parent);
+        this.emit_u8(kGcPrefix);
+        this.emit_u8(kExprRttSub);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprRttFreshSub:
+        this.emit_init_expr_recursive(expr.parent);
+        this.emit_u8(kGcPrefix);
+        this.emit_u8(kExprRttFreshSub);
+        this.emit_u32v(expr.value);
+        break;
     }
-    this.emit_u8(kExprEnd);  // end of init expression
+  }
+
+  emit_init_expr(expr) {
+    this.emit_init_expr_recursive(expr);
+    this.emit_u8(kExprEnd);
   }
 
   emit_header() {
@@ -1098,6 +1138,21 @@ class WasmInitExpr {
   static RefNull(type) {
     return {kind: kExprRefNull, value: type};
   }
+  static StructNewWithRtt(type, args) {
+    return {kind: kExprStructNewWithRtt, value: type, operands: args};
+  }
+  static ArrayInit(type, args) {
+    return {kind: kExprArrayInit, value: type, operands: args};
+  }
+  static RttCanon(type) {
+    return {kind: kExprRttCanon, value: type};
+  }
+  static RttSub(type, parent) {
+    return {kind: kExprRttSub, value: type, parent: parent};
+  }
+  static RttFreshSub(type, parent) {
+    return {kind: kExprRttFreshSub, value: type, parent: parent};
+  }
 
   static defaultFor(type) {
     switch (type) {
@@ -1112,6 +1167,9 @@ class WasmInitExpr {
       case kWasmS128:
         return this.S128Const(new Array(16).fill(0));
       default:
+        if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
+          throw new Error("Non-defaultable type");
+        }
         let heap_type = (typeof type) == 'number' ? type : type.index;
         return this.RefNull(heap_type);
     }
@@ -1169,8 +1227,10 @@ class WasmStruct {
 }
 
 class WasmArray {
-  constructor(type) {
+  constructor(type, mutability) {
     this.type = type;
+    if (!mutability) throw new Error("Immutable arrays are not supported yet");
+    this.mutability = mutability;
   }
 }
 
@@ -1296,8 +1356,8 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addArray(type) {
-    this.types.push(new WasmArray(type));
+  addArray(type, mutability) {
+    this.types.push(new WasmArray(type, mutability));
     return this.types.length - 1;
   }
 
@@ -1538,7 +1598,7 @@ class WasmModuleBuilder {
           } else if (type instanceof WasmArray) {
             section.emit_u8(kWasmArrayTypeForm);
             section.emit_type(type.type);
-            section.emit_u8(1);  // Only mutable arrays supported currently.
+            section.emit_u8(type.mutability ? 1 : 0);
           } else {
             section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);
@@ -1957,6 +2017,21 @@ function wasmSignedLeb(val, max_len = 5) {
     }
     res.push(v | 0x80);
     val = val >> 7;
+  }
+  throw new Error(
+      'Leb value <' + val + '> exceeds maximum length of ' + max_len);
+}
+
+function wasmUnsignedLeb(val, max_len = 5) {
+  let res = [];
+  for (let i = 0; i < max_len; ++i) {
+    let v = val & 0x7f;
+    if (v == val) {
+      res.push(v);
+      return res;
+    }
+    res.push(v | 0x80);
+    val = val >>> 7;
   }
   throw new Error(
       'Leb value <' + val + '> exceeds maximum length of ' + max_len);

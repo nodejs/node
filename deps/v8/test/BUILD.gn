@@ -19,6 +19,7 @@ group("gn_all") {
   ]
 
   deps = [
+    "bigint:bigint_shell",
     "inspector:inspector-test",
     "mkgrokdump:mkgrokdump",
   ]
