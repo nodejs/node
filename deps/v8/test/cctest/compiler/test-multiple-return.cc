@@ -125,7 +125,7 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
+  auto native_module = wasm::GetWasmEngine()->NewNativeModule(
       isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
@@ -160,7 +160,8 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
       m.Return(count, returns.get());
 
-      OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+      OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                    handles.main_zone(),
                                     CodeKind::WASM_FUNCTION);
       Handle<Code> code = Pipeline::GenerateCodeForTesting(
                               &info, handles.main_isolate(), desc, m.graph(),
@@ -272,8 +273,8 @@ void ReturnLastValue(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  CodeKind::WASM_FUNCTION);
+    OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                  handles.main_zone(), CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),
@@ -335,8 +336,8 @@ void ReturnSumOfReturns(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  CodeKind::WASM_FUNCTION);
+    OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                  handles.main_zone(), CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),

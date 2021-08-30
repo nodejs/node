@@ -2452,27 +2452,6 @@ TEST(InterpreterCallRuntime) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
 }
 
-TEST(InterpreterInvokeIntrinsic) {
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Zone* zone = handles.main_zone();
-
-  BytecodeArrayBuilder builder(zone, 1, 2);
-
-  builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
-      .CallRuntime(Runtime::kInlineIsArray, Register(0))
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-
-  InterpreterTester tester(isolate, bytecode_array);
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK(return_val->IsBoolean());
-  CHECK_EQ(return_val->BooleanValue(isolate), false);
-}
-
 TEST(InterpreterFunctionLiteral) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
@@ -5087,24 +5066,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Code wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
-  CHECK_EQ(wide_handler.builtin_index(), Builtins::kWideHandler);
+  CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
   Code add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
-  CHECK_EQ(add_handler.builtin_index(), Builtins::kAddHandler);
+  CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
   Code wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
-  CHECK_EQ(wide_wide_handler.builtin_index(), Builtins::kIllegalHandler);
+  CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
   Code add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
-  CHECK_EQ(add_wide_handler.builtin_index(), Builtins::kAddWideHandler);
+  CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
 }
 
 TEST(InterpreterCollectSourcePositions) {

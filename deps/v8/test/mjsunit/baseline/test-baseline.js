@@ -194,9 +194,6 @@ assertEquals(run(()=>{return new Array(1, 2, 39);}).reduce((a,x)=>a+x), 42);
 assertMatches(run(() => { return %NewRegExpWithBacktrackLimit("ax", "", 50); }), "ax");
 run(() => { %CompileBaseline(()=>{}); });
 
-// Call Intrinsics
-assertEquals(run(()=>{return %_IsSmi(42)}), true);
-
 // CallRuntimeForPair
 assertEquals(run(()=>{with (f0) return f0();}), 42);
 

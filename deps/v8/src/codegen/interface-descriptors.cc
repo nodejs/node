@@ -125,5 +125,31 @@ bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
 #endif
 }
 
+#if DEBUG
+template <typename DerivedDescriptor>
+void StaticCallInterfaceDescriptor<DerivedDescriptor>::Verify(
+    CallInterfaceDescriptorData* data) {}
+// static
+void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
+  DCHECK(!AreAliased(ObjectRegister(), SlotAddressRegister(), ValueRegister()));
+  // The default parameters should not clobber vital registers in order to
+  // reduce code size:
+  DCHECK(!AreAliased(ObjectRegister(), kContextRegister,
+                     kInterpreterAccumulatorRegister));
+  DCHECK(!AreAliased(SlotAddressRegister(), kContextRegister,
+                     kInterpreterAccumulatorRegister));
+  DCHECK(!AreAliased(ValueRegister(), kContextRegister,
+                     kInterpreterAccumulatorRegister));
+  DCHECK(!AreAliased(SlotAddressRegister(), kJavaScriptCallNewTargetRegister));
+  // Coincidental: to make calling from various builtins easier.
+  DCHECK_EQ(ObjectRegister(), kJSFunctionRegister);
+  // We need a certain set of registers by default:
+  RegList allocatable_regs = data->allocatable_registers();
+  DCHECK(allocatable_regs | kContextRegister.bit());
+  DCHECK(allocatable_regs | kReturnRegister0.bit());
+  VerifyArgumentRegisterCount(data, 4);
+}
+#endif  // DEBUG
+
 }  // namespace internal
 }  // namespace v8

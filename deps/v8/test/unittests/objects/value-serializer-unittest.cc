@@ -2601,9 +2601,9 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     i::MaybeHandle<i::JSObject> compiled =
-        i_isolate()->wasm_engine()->SyncCompile(
+        i::wasm::GetWasmEngine()->SyncCompile(
             i_isolate(), enabled_features, &thrower,
-            i::wasm::ModuleWireBytes(i::ArrayVector(kIncrementerWasm)));
+            i::wasm::ModuleWireBytes(base::ArrayVector(kIncrementerWasm)));
     CHECK(!thrower.error());
     return Local<WasmModuleObject>::Cast(
         Utils::ToLocal(compiled.ToHandleChecked()));

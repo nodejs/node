@@ -24,6 +24,13 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo)
 
+DEF_GETTER(PrototypeInfo, object_create_map, MaybeObject) {
+  return TaggedField<MaybeObject, kObjectCreateMapOffset>::load(cage_base,
+                                                                *this);
+}
+RELEASE_ACQUIRE_WEAK_ACCESSORS(PrototypeInfo, object_create_map,
+                               kObjectCreateMapOffset)
+
 Map PrototypeInfo::ObjectCreateMap() {
   return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
 }
@@ -31,7 +38,7 @@ Map PrototypeInfo::ObjectCreateMap() {
 // static
 void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
                                        Handle<Map> map) {
-  info->set_object_create_map(HeapObjectReference::Weak(*map));
+  info->set_object_create_map(HeapObjectReference::Weak(*map), kReleaseStore);
 }
 
 bool PrototypeInfo::HasObjectCreateMap() {

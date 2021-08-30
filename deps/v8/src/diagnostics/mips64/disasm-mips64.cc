@@ -11,7 +11,7 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (byte* pc = begin; pc < end;) {
-//     v8::internal::EmbeddedVector<char, 256> buffer;
+//     v8::base::EmbeddedVector<char, 256> buffer;
 //     byte* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
@@ -30,6 +30,8 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/diagnostics/disasm.h"
@@ -45,7 +47,7 @@ namespace internal {
 class Decoder {
  public:
   Decoder(const disasm::NameConverter& converter,
-          v8::internal::Vector<char> out_buffer)
+          v8::base::Vector<char> out_buffer)
       : converter_(converter), out_buffer_(out_buffer), out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -163,7 +165,7 @@ class Decoder {
   void DecodeTypeMsa2RF(Instruction* instr);
 
   const disasm::NameConverter& converter_;
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
   int out_buffer_pos_;
 };
 
@@ -252,25 +254,26 @@ void Decoder::PrintFd(Instruction* instr) {
 // Print the integer value of the sa field.
 void Decoder::PrintSa(Instruction* instr) {
   int sa = instr->SaValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
 }
 
 // Print the integer value of the sa field of a lsa instruction.
 void Decoder::PrintLsaSa(Instruction* instr) {
   int sa = instr->LsaSaValue() + 1;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
 }
 
 // Print the integer value of the rd field, when it is not used as reg.
 void Decoder::PrintSd(Instruction* instr) {
   int sd = instr->RdValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sd);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sd);
 }
 
 // Print the integer value of ext/dext/dextu size from the msbd field.
 void Decoder::PrintSs1(Instruction* instr) {
   int msbd = instr->RdValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbd + 1);
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbd + 1);
 }
 
 // Print the integer value of ins/dins/dinsu size from the msb and lsb fields
@@ -279,72 +282,73 @@ void Decoder::PrintSs2(Instruction* instr) {
   int msb = instr->RdValue();
   int lsb = instr->SaValue();
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msb - lsb + 1);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msb - lsb + 1);
 }
 
 // Print the integer value of dextm size from the msbdminus32 field.
 void Decoder::PrintSs3(Instruction* instr) {
   int msbdminus32 = instr->RdValue();
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbdminus32 + 32 + 1);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbdminus32 + 32 + 1);
 }
 
 // Print the integer value of dinsm size from the msbminus32 and lsb fields.
 void Decoder::PrintSs4(Instruction* instr) {
   int msbminus32 = instr->RdValue();
   int lsb = instr->SaValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbminus32 + 32 - lsb + 1);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d",
+                                    msbminus32 + 32 - lsb + 1);
 }
 
 // Print the integer value of dextu/dinsu pos from the lsbminus32 field.
 void Decoder::PrintSs5(Instruction* instr) {
   int lsbminus32 = instr->SaValue();
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", lsbminus32 + 32);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", lsbminus32 + 32);
 }
 
 // Print the integer value of the cc field for the bc1t/f instructions.
 void Decoder::PrintBc(Instruction* instr) {
   int cc = instr->FBccValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", cc);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", cc);
 }
 
 // Print the integer value of the cc field for the FP compare instructions.
 void Decoder::PrintCc(Instruction* instr) {
   int cc = instr->FCccValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "cc(%d)", cc);
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "cc(%d)", cc);
 }
 
 // Print 9-bit unsigned immediate value.
 void Decoder::PrintUImm9(Instruction* instr) {
   int32_t imm = instr->Imm9Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
 }
 
 // Print 9-bit signed immediate value.
 void Decoder::PrintSImm9(Instruction* instr) {
   int32_t imm = ((instr->Imm9Value()) << 23) >> 23;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 // Print 16-bit unsigned immediate value.
 void Decoder::PrintUImm16(Instruction* instr) {
   int32_t imm = instr->Imm16Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
 }
 
 // Print 16-bit signed immediate value.
 void Decoder::PrintSImm16(Instruction* instr) {
   int32_t imm =
       ((instr->Imm16Value()) << (32 - kImm16Bits)) >> (32 - kImm16Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 // Print 16-bit hexa immediate value.
 void Decoder::PrintXImm16(Instruction* instr) {
   int32_t imm = instr->Imm16Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 // Print absoulte address for 16-bit offset or immediate value.
@@ -353,28 +357,28 @@ void Decoder::PrintXImm16(Instruction* instr) {
 void Decoder::PrintPCImm16(Instruction* instr, int delta_pc, int n_bits) {
   int16_t offset = instr->Imm16Value();
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (offset << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (offset << n_bits)));
 }
 
 // Print 18-bit signed immediate value.
 void Decoder::PrintSImm18(Instruction* instr) {
   int32_t imm =
       ((instr->Imm18Value()) << (32 - kImm18Bits)) >> (32 - kImm18Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 // Print 18-bit hexa immediate value.
 void Decoder::PrintXImm18(Instruction* instr) {
   int32_t imm = instr->Imm18Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 // Print 19-bit hexa immediate value.
 void Decoder::PrintXImm19(Instruction* instr) {
   int32_t imm = instr->Imm19Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 // Print 19-bit signed immediate value.
@@ -383,13 +387,13 @@ void Decoder::PrintSImm19(Instruction* instr) {
   // set sign
   imm19 <<= (32 - kImm19Bits);
   imm19 >>= (32 - kImm19Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm19);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm19);
 }
 
 // Print 21-bit immediate value.
 void Decoder::PrintXImm21(Instruction* instr) {
   uint32_t imm = instr->Imm21Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 // Print 21-bit signed immediate value.
@@ -398,7 +402,7 @@ void Decoder::PrintSImm21(Instruction* instr) {
   // set sign
   imm21 <<= (32 - kImm21Bits);
   imm21 >>= (32 - kImm21Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
 }
 
 // Print absoulte address for 21-bit offset or immediate value.
@@ -410,9 +414,9 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
   imm21 <<= (32 - kImm21Bits);
   imm21 >>= (32 - kImm21Bits);
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (imm21 << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (imm21 << n_bits)));
 }
 
 // Print 26-bit hex immediate value.
@@ -421,7 +425,7 @@ void Decoder::PrintXImm26(Instruction* instr) {
                     << kImmFieldShift;
   target = (reinterpret_cast<uint64_t>(instr) & ~0xFFFFFFF) | target;
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "0x%" PRIx64, target);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%" PRIx64, target);
 }
 
 // Print 26-bit signed immediate value.
@@ -430,7 +434,7 @@ void Decoder::PrintSImm26(Instruction* instr) {
   // set sign
   imm26 <<= (32 - kImm26Bits);
   imm26 >>= (32 - kImm26Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm26);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm26);
 }
 
 // Print absoulte address for 26-bit offset or immediate value.
@@ -442,9 +446,9 @@ void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
   imm26 <<= (32 - kImm26Bits);
   imm26 >>= (32 - kImm26Bits);
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (imm26 << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (imm26 << n_bits)));
 }
 
 // Print absoulte address for 26-bit offset or immediate value.
@@ -455,18 +459,18 @@ void Decoder::PrintPCImm26(Instruction* instr) {
   uint64_t pc_mask = ~0xFFFFFFF;
   uint64_t pc = ((uint64_t)(instr + 1) & pc_mask) | (imm26 << 2);
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
 }
 
 void Decoder::PrintBp2(Instruction* instr) {
   int bp2 = instr->Bp2Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp2);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp2);
 }
 
 void Decoder::PrintBp3(Instruction* instr) {
   int bp3 = instr->Bp3Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp3);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp3);
 }
 
 // Print 26-bit immediate value.
@@ -476,8 +480,8 @@ void Decoder::PrintCode(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
     case BREAK: {
       int32_t code = instr->Bits(25, 6);
-      out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "0x%05x (%d)", code, code);
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "0x%05x (%d)", code, code);
       break;
     }
     case TGE:
@@ -488,7 +492,7 @@ void Decoder::PrintCode(Instruction* instr) {
     case TNE: {
       int32_t code = instr->Bits(15, 6);
       out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "0x%03x", code);
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%03x", code);
       break;
     }
     default:  // Not a break or trap instruction.
@@ -498,50 +502,50 @@ void Decoder::PrintCode(Instruction* instr) {
 
 void Decoder::PrintMsaXImm8(Instruction* instr) {
   int32_t imm = instr->MsaImm8Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 void Decoder::PrintMsaImm8(Instruction* instr) {
   int32_t imm = instr->MsaImm8Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
 }
 
 void Decoder::PrintMsaImm5(Instruction* instr) {
   int32_t imm = instr->MsaImm5Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
 }
 
 void Decoder::PrintMsaSImm5(Instruction* instr) {
   int32_t imm = instr->MsaImm5Value();
   imm <<= (32 - kMsaImm5Bits);
   imm >>= (32 - kMsaImm5Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintMsaSImm10(Instruction* instr, bool is_mi10) {
   int32_t imm = is_mi10 ? instr->MsaImmMI10Value() : instr->MsaImm10Value();
   imm <<= (32 - kMsaImm10Bits);
   imm >>= (32 - kMsaImm10Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintMsaImmBit(Instruction* instr) {
   int32_t m = instr->MsaBitMValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", m);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", m);
 }
 
 void Decoder::PrintMsaImmElm(Instruction* instr) {
   int32_t n = instr->MsaElmNValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", n);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", n);
 }
 
 void Decoder::PrintMsaCopy(Instruction* instr) {
   int32_t rd = instr->WdValue();
   int32_t ws = instr->WsValue();
   int32_t n = instr->MsaElmNValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s, %s[%u]",
-               converter_.NameOfCPURegister(rd), MSARegisters::Name(ws), n);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s, %s[%u]",
+                                    converter_.NameOfCPURegister(rd),
+                                    MSARegisters::Name(ws), n);
 }
 
 void Decoder::PrintFormat(Instruction* instr) {
@@ -1032,7 +1036,7 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
   if (instr->Bits(25, 6) == static_cast<int>(kMaxStopCode)) {
     // This is stop(msg).
     Format(instr, "break, code: 'code");
-    out_buffer_pos_ += SNPrintF(
+    out_buffer_pos_ += base::SNPrintF(
         out_buffer_ + out_buffer_pos_, "\n%p       %08" PRIx64,
         static_cast<void*>(reinterpret_cast<int32_t*>(instr + kInstrSize)),
         reinterpret_cast<uint64_t>(
@@ -2941,8 +2945,8 @@ void Decoder::DecodeTypeMsa2RF(Instruction* instr) {
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
-                              instr->InstructionBits());
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%08x       ", instr->InstructionBits());
   switch (instr->InstructionType()) {
     case Instruction::kRegisterType: {
       return DecodeTypeRegister(instr);
@@ -2971,7 +2975,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -3000,7 +3004,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
@@ -3014,7 +3018,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

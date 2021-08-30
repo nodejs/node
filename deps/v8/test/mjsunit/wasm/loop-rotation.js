@@ -4,7 +4,7 @@
 
 // Flags: --turbo-loop-rotation --noliftoff --nowasm-tier-up
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestTrivialLoop1() {
   print(arguments.callee.name);

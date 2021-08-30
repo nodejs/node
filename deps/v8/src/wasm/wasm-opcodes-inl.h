@@ -187,6 +187,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_INT_OP(StoreMem16, "store16")
     CASE_I64_OP(StoreMem32, "store32")
     CASE_S128_OP(StoreMem, "store128")
+    CASE_OP(RefEq, "ref.eq")
+    CASE_OP(Let, "let")
 
     // Exception handling opcodes.
     CASE_OP(Try, "try")
@@ -195,7 +197,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(Throw, "throw")
     CASE_OP(Rethrow, "rethrow")
     CASE_OP(CatchAll, "catch-all")
-    CASE_OP(Unwind, "unwind")
 
     // asm.js-only opcodes.
     CASE_F64_OP(Acos, "acos")
@@ -391,13 +392,16 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(ArrayGet, "array.get")
     CASE_OP(ArrayGetS, "array.get_s")
     CASE_OP(ArrayGetU, "array.get_u")
-    CASE_OP(ArrayLen, "array.len")
     CASE_OP(ArraySet, "array.set")
+    CASE_OP(ArrayLen, "array.len")
+    CASE_OP(ArrayCopy, "array.copy")
+    CASE_OP(ArrayInit, "array.init")
     CASE_OP(I31New, "i31.new")
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")
     CASE_OP(RttCanon, "rtt.canon")
     CASE_OP(RttSub, "rtt.sub")
+    CASE_OP(RttFreshSub, "rtt.fresh_sub")
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefCast, "ref.cast")
     CASE_OP(BrOnCast, "br_on_cast")
@@ -411,8 +415,9 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(BrOnFunc, "br_on_func")
     CASE_OP(BrOnData, "br_on_data")
     CASE_OP(BrOnI31, "br_on_i31")
-    CASE_OP(RefEq, "ref.eq")
-    CASE_OP(Let, "let")
+    CASE_OP(BrOnNonFunc, "br_on_non_func")
+    CASE_OP(BrOnNonData, "br_on_non_data")
+    CASE_OP(BrOnNonI31, "br_on_non_i31")
 
     case kNumericPrefix:
     case kSimdPrefix:

@@ -2137,10 +2137,6 @@ class FunctionLiteral final : public Expression {
     return syntax_kind() == FunctionSyntaxKind::kAnonymousExpression;
   }
 
-  void mark_as_oneshot_iife() {
-    bit_field_ = OneshotIIFEBit::update(bit_field_, true);
-  }
-  bool is_oneshot_iife() const { return OneshotIIFEBit::decode(bit_field_); }
   bool is_toplevel() const {
     return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
@@ -2296,8 +2292,7 @@ class FunctionLiteral final : public Expression {
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceMembersInitializer::encode(false) |
-                  HasBracesField::encode(has_braces) |
-                  OneshotIIFEBit::encode(false);
+                  HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
@@ -2314,7 +2309,6 @@ class FunctionLiteral final : public Expression {
   using HasStaticPrivateMethodsOrAccessorsField =
       ClassScopeHasPrivateBrandField::Next<bool, 1>;
   using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
-  using OneshotIIFEBit = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.
   // It can vary depending on whether a function is lazily or eagerly parsed.
@@ -2459,9 +2453,6 @@ class ClassLiteral final : public Expression {
   ZonePtrList<Property>* private_members() const { return private_members_; }
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
-  bool has_name_static_property() const {
-    return HasNameStaticProperty::decode(bit_field_);
-  }
   bool has_static_computed_names() const {
     return HasStaticComputedNames::decode(bit_field_);
   }
@@ -2497,9 +2488,9 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* static_initializer,
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
-               bool has_name_static_property, bool has_static_computed_names,
-               bool is_anonymous, bool has_private_methods,
-               Variable* home_object, Variable* static_home_object)
+               bool has_static_computed_names, bool is_anonymous,
+               bool has_private_methods, Variable* home_object,
+               Variable* static_home_object)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
@@ -2512,8 +2503,7 @@ class ClassLiteral final : public Expression {
             instance_members_initializer_function),
         home_object_(home_object),
         static_home_object_(static_home_object) {
-    bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
-                  HasStaticComputedNames::encode(has_static_computed_names) |
+    bit_field_ |= HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous) |
                   HasPrivateMethods::encode(has_private_methods);
   }
@@ -2526,8 +2516,7 @@ class ClassLiteral final : public Expression {
   ZonePtrList<Property>* private_members_;
   FunctionLiteral* static_initializer_;
   FunctionLiteral* instance_members_initializer_function_;
-  using HasNameStaticProperty = Expression::NextBitField<bool, 1>;
-  using HasStaticComputedNames = HasNameStaticProperty::Next<bool, 1>;
+  using HasStaticComputedNames = Expression::NextBitField<bool, 1>;
   using IsAnonymousExpression = HasStaticComputedNames::Next<bool, 1>;
   using HasPrivateMethods = IsAnonymousExpression::Next<bool, 1>;
   Variable* home_object_;
@@ -2909,14 +2898,6 @@ class AstNodeFactory final {
                                          HandlerTable::UNCAUGHT, pos);
   }
 
-  TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
-                                                       Scope* scope,
-                                                       Block* catch_block,
-                                                       int pos) {
-    return zone_->New<TryCatchStatement>(try_block, scope, catch_block,
-                                         HandlerTable::DESUGARING, pos);
-  }
-
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
                                                        Scope* scope,
                                                        Block* catch_block,
@@ -3257,16 +3238,14 @@ class AstNodeFactory final {
       ZonePtrList<ClassLiteral::Property>* private_members,
       FunctionLiteral* static_initializer,
       FunctionLiteral* instance_members_initializer_function,
-      int start_position, int end_position, bool has_name_static_property,
-      bool has_static_computed_names, bool is_anonymous,
-      bool has_private_methods, Variable* home_object,
+      int start_position, int end_position, bool has_static_computed_names,
+      bool is_anonymous, bool has_private_methods, Variable* home_object,
       Variable* static_home_object) {
     return zone_->New<ClassLiteral>(
         scope, extends, constructor, public_members, private_members,
         static_initializer, instance_members_initializer_function,
-        start_position, end_position, has_name_static_property,
-        has_static_computed_names, is_anonymous, has_private_methods,
-        home_object, static_home_object);
+        start_position, end_position, has_static_computed_names, is_anonymous,
+        has_private_methods, home_object, static_home_object);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

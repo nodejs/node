@@ -14,6 +14,7 @@
 #include "src/base/sanitizer/asan.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"

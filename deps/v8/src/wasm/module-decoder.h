@@ -171,8 +171,9 @@ V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
     const WasmModule* module, const byte* function_start,
     const byte* function_end, Counters* counters);
 
-V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(
-    const WasmFeatures& enabled, const byte* start, const byte* end);
+V8_EXPORT_PRIVATE WireBytesRef
+DecodeWasmInitExprForTesting(const WasmFeatures& enabled, const byte* start,
+                             const byte* end, ValueType expected);
 
 struct CustomSectionOffset {
   WireBytesRef section;
@@ -185,7 +186,8 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
-AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
+AsmJsOffsetsResult DecodeAsmJsOffsets(
+    base::Vector<const uint8_t> encoded_offsets);
 
 // Decode the function names from the name section. Returns the result as an
 // unordered map. Only names with valid utf8 encoding are stored and conflicts
@@ -197,9 +199,9 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
 // The result will be empty if no name section is present. On encountering an
 // error in the name section, returns all information decoded up to the first
 // error.
-NameMap DecodeNameMap(Vector<const uint8_t> module_bytes,
+NameMap DecodeNameMap(base::Vector<const uint8_t> module_bytes,
                       uint8_t name_section_kind);
-IndirectNameMap DecodeIndirectNameMap(Vector<const uint8_t> module_bytes,
+IndirectNameMap DecodeIndirectNameMap(base::Vector<const uint8_t> module_bytes,
                                       uint8_t name_section_kind);
 
 class ModuleDecoderImpl;
@@ -215,10 +217,11 @@ class ModuleDecoder {
                      AccountingAllocator* allocator,
                      ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
-  void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
 
-  void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
-                     uint32_t offset, bool verify_functions = true);
+  void DecodeSection(SectionCode section_code,
+                     base::Vector<const uint8_t> bytes, uint32_t offset,
+                     bool verify_functions = true);
 
   void StartCodeSection();
 
@@ -243,7 +246,7 @@ class ModuleDecoder {
   // the identifier string of the unknown section.
   // The return value is the number of bytes that were consumed.
   static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
-                                       Vector<const uint8_t> bytes,
+                                       base::Vector<const uint8_t> bytes,
                                        uint32_t offset, SectionCode* result);
 
  private:

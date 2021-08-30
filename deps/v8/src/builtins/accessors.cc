@@ -12,7 +12,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
@@ -92,8 +92,8 @@ Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
                                            Handle<JSObject> holder,
                                            Handle<Name> name,
                                            Handle<Object> value) {
-  LookupIterator it(isolate, receiver, LookupIterator::Key(isolate, name),
-                    holder, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(isolate, receiver, PropertyKey(isolate, name), holder,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.
   if (it.state() == LookupIterator::ACCESS_CHECK) {
@@ -512,7 +512,6 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
     return GetFrameArguments(isolate, &it, inlined_jsframe_index);
   }
   UNREACHABLE();  // Requested frame not found.
-  return Handle<JSObject>();
 }
 
 void Accessors::FunctionArgumentsGetter(

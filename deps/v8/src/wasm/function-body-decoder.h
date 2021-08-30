@@ -98,15 +98,15 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   // Base class for both iterators defined below.
   class iterator_base {
    public:
-    inline iterator_base& operator++() {
+    iterator_base& operator++() {
       DCHECK_LT(ptr_, end_);
       ptr_ += OpcodeLength(ptr_, end_);
       return *this;
     }
-    inline bool operator==(const iterator_base& that) {
+    bool operator==(const iterator_base& that) {
       return this->ptr_ == that.ptr_;
     }
-    inline bool operator!=(const iterator_base& that) {
+    bool operator!=(const iterator_base& that) {
       return this->ptr_ != that.ptr_;
     }
 
@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
       : public iterator_base,
         public base::iterator<std::input_iterator_tag, WasmOpcode> {
    public:
-    inline WasmOpcode operator*() {
+    WasmOpcode operator*() {
       DCHECK_LT(ptr_, end_);
       return static_cast<WasmOpcode>(*ptr_);
     }
@@ -138,7 +138,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
       : public iterator_base,
         public base::iterator<std::input_iterator_tag, uint32_t> {
    public:
-    inline uint32_t operator*() {
+    uint32_t operator*() {
       DCHECK_LT(ptr_, end_);
       return static_cast<uint32_t>(ptr_ - start_);
     }

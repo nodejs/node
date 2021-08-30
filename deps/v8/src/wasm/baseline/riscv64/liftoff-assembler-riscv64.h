@@ -401,7 +401,8 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
-  LoadFromInstance(dst, instance, offset, kTaggedSize);
+  DCHECK_LE(0, offset);
+  LoadTaggedPointerField(dst, MemOperand{instance, offset});
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -418,9 +419,8 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
                                          LiftoffRegList pinned) {
-  STATIC_ASSERT(kTaggedSize == kInt64Size);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
-  Ld(dst, src_op);
+  LoadTaggedPointerField(dst, src_op);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -435,10 +435,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
-  STATIC_ASSERT(kTaggedSize == kInt64Size);
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
-  Sd(src.gp(), dst_op);
+  StoreTaggedField(src.gp(), dst_op);
 
   if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
@@ -453,8 +452,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CheckPageFlag(src.gp(), scratch,
                 MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
   Add64(scratch, dst_op.rm(), dst_op.offset());
-  CallRecordWriteStub(dst_addr, scratch, RememberedSetAction::kEmit,
-                      SaveFPRegsMode::kSave, wasm::WasmCode::kRecordWrite);
+  CallRecordWriteStubSaveRegisters(
+      dst_addr, scratch, RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
+      StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
 
@@ -1250,7 +1250,7 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  bailout(kComplexOperation, "f32_copysign");
+  fsgnj_s(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
@@ -1265,7 +1265,7 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  bailout(kComplexOperation, "f64_copysign");
+  fsgnj_d(dst, lhs, rhs);
 }
 
 #define FP_BINOP(name, instruction)                                          \
@@ -1362,7 +1362,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       }
 
       // Checking if trap.
-      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
+      if (trap != nullptr) {
+        TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
+      }
 
       return true;
     }
@@ -1401,30 +1403,46 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64ReinterpretI64:
       fmv_d_x(dst.fp(), src.gp());
       return true;
-    case kExprI32SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
+    case kExprI32SConvertSatF32: {
+      fcvt_w_s(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_s(dst.gp(), src.fp());
       return true;
-    case kExprI32UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF32");
+    }
+    case kExprI32UConvertSatF32: {
+      fcvt_wu_s(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_s(dst.gp(), src.fp());
       return true;
-    case kExprI32SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF64");
+    }
+    case kExprI32SConvertSatF64: {
+      fcvt_w_d(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_d(dst.gp(), src.fp());
       return true;
-    case kExprI32UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
+    }
+    case kExprI32UConvertSatF64: {
+      fcvt_wu_d(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_d(dst.gp(), src.fp());
       return true;
-    case kExprI64SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF32");
+    }
+    case kExprI64SConvertSatF32: {
+      fcvt_l_s(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_s(dst.gp(), src.fp());
       return true;
-    case kExprI64UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI64UConvertSatF32");
+    }
+    case kExprI64UConvertSatF32: {
+      fcvt_lu_s(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_s(dst.gp(), src.fp());
       return true;
-    case kExprI64SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF64");
+    }
+    case kExprI64SConvertSatF64: {
+      fcvt_l_d(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_d(dst.gp(), src.fp());
       return true;
-    case kExprI64UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI64UConvertSatF64");
+    }
+    case kExprI64UConvertSatF64: {
+      fcvt_lu_d(dst.gp(), src.fp(), RTZ);
+      Clear_if_nan_d(dst.gp(), src.fp());
       return true;
+    }
     default:
       return false;
   }
@@ -2654,6 +2672,13 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   bailout(kSimd, "emit_f64x2_replace_lane");
 }
 
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+                                            Register tmp_gp,
+                                            DoubleRegister tmp_fp,
+                                            ValueKind lane_kind) {
+  bailout(kSimd, "emit_s128_set_if_nan");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   TurboAssembler::Uld(limit_address, MemOperand(limit_address));
   TurboAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
@@ -2827,6 +2852,21 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 }
 
 void LiftoffAssembler::MaybeOSR() {}
+
+void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
+                                       ValueKind kind) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, 1);
+  if (kind == kF32) {
+    feq_s(scratch, src, src);  // rd <- !isNan(src)
+  } else {
+    DCHECK_EQ(kind, kF64);
+    feq_d(scratch, src, src);  // rd <- !isNan(src)
+  }
+  not_(scratch, scratch);
+  Sd(scratch, MemOperand(dst));
+}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

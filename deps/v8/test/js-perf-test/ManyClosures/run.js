@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('create-many-closures.js');
+d8.file.execute('../base.js');
+d8.file.execute('create-many-closures.js');
 
 var success = true;
 

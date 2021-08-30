@@ -40,6 +40,14 @@ void AccessorPair::set(AccessorComponent component, Object value) {
   }
 }
 
+DEF_GETTER(AccessorPair, getter, Object) {
+  return TorqueGeneratedClass::getter(cage_base);
+}
+
+DEF_RELAXED_GETTER(AccessorPair, getter, Object) {
+  return TaggedField<Object, kGetterOffset>::Relaxed_Load(cage_base, *this);
+}
+
 void AccessorPair::SetComponents(Object getter, Object setter) {
   if (!getter.IsNull()) set_getter(getter);
   if (!setter.IsNull()) set_setter(setter);

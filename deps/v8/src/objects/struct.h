@@ -48,6 +48,9 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
   inline Object get(AccessorComponent component);
   inline void set(AccessorComponent component, Object value);
 
+  DECL_GETTER(getter, Object)
+  DECL_RELAXED_GETTER(getter, Object)
+
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
                                      Handle<NativeContext> native_context,

@@ -13,7 +13,7 @@
 #include "src/common/message-template.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -241,15 +241,11 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
   if (scope_type == BLOCK_SCOPE) {
     // Set is_block_scope_for_object_literal_ based on the existince of the home
     // object variable (we don't store it explicitly).
-    VariableMode mode;
-    InitializationFlag init_flag;
-    MaybeAssignedFlag maybe_assigned_flag;
-    IsStaticFlag is_static_flag;
-
+    VariableLookupResult lookup_result;
     DCHECK_NOT_NULL(ast_value_factory);
     int home_object_index = ScopeInfo::ContextSlotIndex(
         *scope_info, *(ast_value_factory->dot_home_object_string()->string()),
-        &mode, &init_flag, &maybe_assigned_flag, &is_static_flag);
+        &lookup_result);
     DCHECK_IMPLIES(home_object_index >= 0,
                    scope_type == CLASS_SCOPE || scope_type == BLOCK_SCOPE);
     if (home_object_index >= 0) {
@@ -903,23 +899,20 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   VariableLocation location;
   int index;
-  VariableMode mode;
-  InitializationFlag init_flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-  IsStaticFlag is_static_flag;
+  VariableLookupResult lookup_result;
 
   {
     location = VariableLocation::CONTEXT;
     index =
-        ScopeInfo::ContextSlotIndex(scope_info, name_handle, &mode, &init_flag,
-                                    &maybe_assigned_flag, &is_static_flag);
+        ScopeInfo::ContextSlotIndex(scope_info, name_handle, &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info.ModuleIndex(name_handle, &mode, &init_flag,
-                                   &maybe_assigned_flag);
+    index = scope_info.ModuleIndex(name_handle, &lookup_result.mode,
+                                   &lookup_result.init_flag,
+                                   &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
@@ -938,7 +931,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   bool was_added;
   Variable* var = cache->variables_.Declare(
-      zone(), this, name, mode, NORMAL_VARIABLE, init_flag, maybe_assigned_flag,
+      zone(), this, name, lookup_result.mode, NORMAL_VARIABLE,
+      lookup_result.init_flag, lookup_result.maybe_assigned_flag,
       IsStaticFlag::kNotStatic, &was_added);
   DCHECK(was_added);
   var->AllocateTo(location, index);
@@ -2753,25 +2747,22 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DisallowGarbageCollection no_gc;
 
   String name_handle = *name->string();
-  VariableMode mode;
-  InitializationFlag init_flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-  IsStaticFlag is_static_flag;
+  VariableLookupResult lookup_result;
   int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode, &init_flag,
-                                  &maybe_assigned_flag, &is_static_flag);
+      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
   if (index < 0) {
     return nullptr;
   }
 
-  DCHECK(IsConstVariableMode(mode));
-  DCHECK_EQ(init_flag, InitializationFlag::kNeedsInitialization);
-  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
+  DCHECK(IsConstVariableMode(lookup_result.mode));
+  DCHECK_EQ(lookup_result.init_flag, InitializationFlag::kNeedsInitialization);
+  DCHECK_EQ(lookup_result.maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
 
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
   bool was_added;
-  Variable* var = DeclarePrivateName(name, mode, is_static_flag, &was_added);
+  Variable* var = DeclarePrivateName(name, lookup_result.mode,
+                                     lookup_result.is_static_flag, &was_added);
   DCHECK(was_added);
   var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;

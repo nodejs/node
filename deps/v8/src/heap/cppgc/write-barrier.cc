@@ -25,6 +25,7 @@ AtomicEntryFlag WriteBarrier::incremental_or_concurrent_marking_flag_;
 
 namespace {
 
+template <MarkerBase::WriteBarrierType type>
 void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
                       const void* value) {
 #if defined(CPPGC_CAGED_HEAP)
@@ -46,7 +47,7 @@ void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
     return;
   }
 
-  marker->WriteBarrierForObject(header);
+  marker->WriteBarrierForObject<type>(header);
 }
 
 }  // namespace
@@ -62,18 +63,19 @@ void WriteBarrier::DijkstraMarkingBarrierSlowWithSentinelCheck(
 // static
 void WriteBarrier::DijkstraMarkingBarrierSlow(const void* value) {
   const BasePage* page = BasePage::FromPayload(value);
-  const auto* heap = page->heap();
+  const auto& heap = page->heap();
 
   // GetWriteBarrierType() checks marking state.
-  DCHECK(heap->marker());
+  DCHECK(heap.marker());
   // No write barriers should be executed from atomic pause marking.
-  DCHECK(!heap->in_atomic_pause());
+  DCHECK(!heap.in_atomic_pause());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
   if (!header.TryMarkAtomic()) return;
 
-  ProcessMarkValue(header, heap->marker(), value);
+  ProcessMarkValue<MarkerBase::WriteBarrierType::kDijkstra>(
+      header, heap.marker(), value);
 }
 
 // static
@@ -106,18 +108,19 @@ void WriteBarrier::SteeleMarkingBarrierSlowWithSentinelCheck(
 // static
 void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
   const BasePage* page = BasePage::FromPayload(value);
-  const auto* heap = page->heap();
+  const auto& heap = page->heap();
 
   // GetWriteBarrierType() checks marking state.
-  DCHECK(heap->marker());
+  DCHECK(heap.marker());
   // No write barriers should be executed from atomic pause marking.
-  DCHECK(!heap->in_atomic_pause());
+  DCHECK(!heap.in_atomic_pause());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
   if (!header.IsMarked<AccessMode::kAtomic>()) return;
 
-  ProcessMarkValue(header, heap->marker(), value);
+  ProcessMarkValue<MarkerBase::WriteBarrierType::kSteele>(header, heap.marker(),
+                                                          value);
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -151,8 +154,8 @@ bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(const void* object,
   // Large objects cannot have mixins, so we are guaranteed to always have
   // a pointer on the same page.
   const auto* page = BasePage::FromPayload(object);
-  *handle = page->heap();
-  const MarkerBase* marker = page->heap()->marker();
+  *handle = &page->heap();
+  const MarkerBase* marker = page->heap().marker();
   return marker && marker->IsMarking();
 }
 

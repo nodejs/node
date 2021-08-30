@@ -9,6 +9,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/cppgc/object-view.h"
 
 namespace cppgc {
 namespace internal {
@@ -20,14 +21,10 @@ class UnmarkedObjectsPoisoner : public HeapVisitor<UnmarkedObjectsPoisoner> {
   friend class HeapVisitor<UnmarkedObjectsPoisoner>;
 
  private:
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree() || header->IsMarked()) return true;
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsFree() || header.IsMarked()) return true;
 
-    const size_t size =
-        header->IsLargeObject()
-            ? LargePage::From(BasePage::FromPayload(header))->ObjectSize()
-            : header->ObjectSize();
-    ASAN_POISON_MEMORY_REGION(header->ObjectStart(), size);
+    ASAN_POISON_MEMORY_REGION(header.ObjectStart(), ObjectView(header).Size());
     return true;
   }
 };

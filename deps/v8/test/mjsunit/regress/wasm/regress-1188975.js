@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Regress1188975() {
   print(arguments.callee.name);

@@ -216,6 +216,7 @@ class ZoneForwardList;
   V(Undetectable)                              \
   V(UniqueName)                                \
   IF_WASM(V, WasmArray)                        \
+  IF_WASM(V, WasmCapiFunctionData)             \
   IF_WASM(V, WasmExceptionObject)              \
   IF_WASM(V, WasmExceptionPackage)             \
   IF_WASM(V, WasmExportedFunctionData)         \
@@ -225,6 +226,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmJSFunctionData)               \
   IF_WASM(V, WasmMemoryObject)                 \
   IF_WASM(V, WasmModuleObject)                 \
+  IF_WASM(V, WasmObject)                       \
   IF_WASM(V, WasmStruct)                       \
   IF_WASM(V, WasmTypeInfo)                     \
   IF_WASM(V, WasmTableObject)                  \

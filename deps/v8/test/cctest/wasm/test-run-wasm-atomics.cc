@@ -319,7 +319,8 @@ WASM_EXEC_TEST(AtomicFence) {
 
 WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {ProtectedLoad}.
+  FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();
@@ -332,7 +333,8 @@ WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
 
 void RunNoEffectTest(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {ProtectedLoad}.
+  FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();
@@ -353,7 +355,8 @@ WASM_EXEC_TEST(AtomicExchangeNoConsideredEffectful) {
 
 WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {ProtectedLoad}.
+  FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();

@@ -83,6 +83,7 @@
   V(Unreachable)          \
   V(DeadValue)            \
   V(Dead)                 \
+  V(Plug)                 \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.
@@ -337,6 +338,7 @@
   V(SpeculativeNumberAdd)                           \
   V(SpeculativeNumberSubtract)                      \
   V(SpeculativeNumberMultiply)                      \
+  V(SpeculativeNumberPow)                           \
   V(SpeculativeNumberDivide)                        \
   V(SpeculativeNumberModulus)                       \
   V(SpeculativeNumberBitwiseAnd)                    \

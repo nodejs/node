@@ -48,14 +48,14 @@ namespace {
 // For using StringToIndex.
 class OneByteStringStream {
  public:
-  explicit OneByteStringStream(Vector<const byte> lb)
+  explicit OneByteStringStream(base::Vector<const byte> lb)
       : literal_bytes_(lb), pos_(0) {}
 
   bool HasMore() { return pos_ < literal_bytes_.length(); }
   uint16_t GetNext() { return literal_bytes_[pos_++]; }
 
  private:
-  Vector<const byte> literal_bytes_;
+  base::Vector<const byte> literal_bytes_;
   int pos_;
 };
 
@@ -71,7 +71,7 @@ void AstRawString::Internalize(IsolateT* isolate) {
     set_string(isolate->factory()->InternalizeStringWithKey(&key));
   } else {
     TwoByteStringKey key(raw_hash_field_,
-                         Vector<const uint16_t>::cast(literal_bytes_));
+                         base::Vector<const uint16_t>::cast(literal_bytes_));
     set_string(isolate->factory()->InternalizeStringWithKey(&key));
   }
 }
@@ -299,8 +299,9 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
 #define F(name, str)                                                         \
   {                                                                          \
     const char* data = str;                                                  \
-    Vector<const uint8_t> literal(reinterpret_cast<const uint8_t*>(data),    \
-                                  static_cast<int>(strlen(data)));           \
+    base::Vector<const uint8_t> literal(                                     \
+        reinterpret_cast<const uint8_t*>(data),                              \
+        static_cast<int>(strlen(data)));                                     \
     uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(   \
         literal.begin(), literal.length(), hash_seed_);                      \
     name##_string_ = zone_.New<AstRawString>(true, literal, raw_hash_field); \
@@ -314,7 +315,7 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
 }
 
 const AstRawString* AstValueFactory::GetOneByteStringInternal(
-    Vector<const uint8_t> literal) {
+    base::Vector<const uint8_t> literal) {
   if (literal.length() == 1 && literal[0] < kMaxOneCharStringValue) {
     int key = literal[0];
     if (V8_UNLIKELY(one_character_strings_[key] == nullptr)) {
@@ -330,10 +331,11 @@ const AstRawString* AstValueFactory::GetOneByteStringInternal(
 }
 
 const AstRawString* AstValueFactory::GetTwoByteStringInternal(
-    Vector<const uint16_t> literal) {
+    base::Vector<const uint16_t> literal) {
   uint32_t raw_hash_field = StringHasher::HashSequentialString<uint16_t>(
       literal.begin(), literal.length(), hash_seed_);
-  return GetString(raw_hash_field, false, Vector<const byte>::cast(literal));
+  return GetString(raw_hash_field, false,
+                   base::Vector<const byte>::cast(literal));
 }
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
@@ -351,9 +353,10 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
 
 const AstRawString* AstValueFactory::CloneFromOtherFactory(
     const AstRawString* raw_string) {
-  const AstRawString* result = GetString(
-      raw_string->raw_hash_field(), raw_string->is_one_byte(),
-      Vector<const byte>(raw_string->raw_data(), raw_string->byte_length()));
+  const AstRawString* result =
+      GetString(raw_string->raw_hash_field(), raw_string->is_one_byte(),
+                base::Vector<const byte>(raw_string->raw_data(),
+                                         raw_string->byte_length()));
   return result;
 }
 
@@ -392,7 +395,7 @@ template EXPORT_TEMPLATE_DEFINE(
 
 const AstRawString* AstValueFactory::GetString(
     uint32_t raw_hash_field, bool is_one_byte,
-    Vector<const byte> literal_bytes) {
+    base::Vector<const byte> literal_bytes) {
   // literal_bytes here points to whatever the user passed, and this is OK
   // because we use vector_compare (which checks the contents) to compare
   // against the AstRawStrings which are in the string_table_. We should not
@@ -404,9 +407,9 @@ const AstRawString* AstValueFactory::GetString(
         // Copy literal contents for later comparison.
         int length = literal_bytes.length();
         byte* new_literal_bytes = zone()->NewArray<byte>(length);
-        base::Memcpy(new_literal_bytes, literal_bytes.begin(), length);
+        memcpy(new_literal_bytes, literal_bytes.begin(), length);
         AstRawString* new_string = zone()->New<AstRawString>(
-            is_one_byte, Vector<const byte>(new_literal_bytes, length),
+            is_one_byte, base::Vector<const byte>(new_literal_bytes, length),
             raw_hash_field);
         CHECK_NOT_NULL(new_string);
         AddString(new_string);

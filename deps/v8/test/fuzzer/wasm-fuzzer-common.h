@@ -23,8 +23,10 @@ namespace fuzzer {
 // possible. If the interpretation finishes within kMaxSteps steps,
 // module_object is instantiated again and the compiled "main" function is
 // executed.
-void InterpretAndExecuteModule(Isolate* isolate,
-                               Handle<WasmModuleObject> module_object);
+void InterpretAndExecuteModule(
+    Isolate* isolate, Handle<WasmModuleObject> module_object,
+    Handle<WasmModuleObject> module_ref = Handle<WasmModuleObject>::null(),
+    int32_t* max_steps = nullptr, int32_t* nondeterminism = nullptr);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
@@ -38,16 +40,15 @@ void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate);
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() = default;
-  void FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
+  void FuzzWasmModule(base::Vector<const uint8_t> data,
+                      bool require_valid = false);
 
   virtual size_t max_input_size() const { return 512; }
 
  protected:
-  virtual bool GenerateModule(
-      Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
-      ZoneBuffer* buffer, int32_t* num_args,
-      std::unique_ptr<WasmValue[]>* interpreter_args,
-      std::unique_ptr<Handle<Object>[]>* compiler_args) = 0;
+  virtual bool GenerateModule(Isolate* isolate, Zone* zone,
+                              base::Vector<const uint8_t> data,
+                              ZoneBuffer* buffer) = 0;
 };
 
 }  // namespace fuzzer

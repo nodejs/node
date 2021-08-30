@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --stress-compaction --wasm-loop-unrolling
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var initialMemoryPages = 1;
 var maximumMemoryPages = 5;

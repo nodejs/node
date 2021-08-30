@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "src/base/build_config.h"
+#include "src/base/sanitizer/asan.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

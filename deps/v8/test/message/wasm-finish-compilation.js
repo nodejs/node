@@ -4,7 +4,7 @@
 
 // Flags: --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Test that d8 does not terminate until wasm compilation has finished and the
 // promise was resolved.

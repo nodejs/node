@@ -30,6 +30,7 @@
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
@@ -170,8 +171,8 @@ i::Handle<i::String> CcTest::MakeString(const char* str) {
 }
 
 i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
-  i::EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
+  v8::base::EmbeddedVector<char, 128> buffer;
+  v8::base::SNPrintF(buffer, "%s%d", str, suffix);
   return CcTest::MakeString(buffer.begin());
 }
 
@@ -272,6 +273,7 @@ i::Handle<i::JSFunction> Optimize(
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
                                    i::CodeKind::TURBOFAN);
 
+  if (flags & ~i::OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & i::OptimizedCompilationInfo::kInlining) {
     info.set_inlining();
   }
@@ -341,12 +343,10 @@ int main(int argc, char* argv[]) {
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
-    constexpr bool use_default_signal_handler = true;
-    CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  constexpr bool kUseDefaultTrapHandler = true;
+  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler));
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());

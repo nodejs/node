@@ -956,16 +956,12 @@ TEST_F(MachineOperatorReducerTest, ReduceToWord32RorWithParameters) {
   // (x << y) ^ (x >>> (32 - y)) => x ror (32 - y)
   Node* node3 = graph()->NewNode(machine()->Word32Xor(), shl_l, shr_l);
   Reduction reduction3 = Reduce(node3);
-  EXPECT_TRUE(reduction3.Changed());
-  EXPECT_EQ(reduction3.replacement(), node3);
-  EXPECT_THAT(reduction3.replacement(), IsWord32Ror(value, sub));
+  EXPECT_FALSE(reduction3.Changed());
 
   // (x >>> (32 - y)) ^ (x << y) => x ror (32 - y)
   Node* node4 = graph()->NewNode(machine()->Word32Xor(), shr_l, shl_l);
   Reduction reduction4 = Reduce(node4);
-  EXPECT_TRUE(reduction4.Changed());
-  EXPECT_EQ(reduction4.replacement(), node4);
-  EXPECT_THAT(reduction4.replacement(), IsWord32Ror(value, sub));
+  EXPECT_FALSE(reduction4.Changed());
 
   // Testing rotate right.
   Node* shl_r = graph()->NewNode(machine()->Word32Shl(), value, sub);
@@ -988,16 +984,12 @@ TEST_F(MachineOperatorReducerTest, ReduceToWord32RorWithParameters) {
   // (x << (32 - y)) ^ (x >>> y) => x ror y
   Node* node7 = graph()->NewNode(machine()->Word32Xor(), shl_r, shr_r);
   Reduction reduction7 = Reduce(node7);
-  EXPECT_TRUE(reduction7.Changed());
-  EXPECT_EQ(reduction7.replacement(), node7);
-  EXPECT_THAT(reduction7.replacement(), IsWord32Ror(value, shift));
+  EXPECT_FALSE(reduction7.Changed());
 
   // (x >>> y) ^ (x << (32 - y)) => x ror y
   Node* node8 = graph()->NewNode(machine()->Word32Xor(), shr_r, shl_r);
   Reduction reduction8 = Reduce(node8);
-  EXPECT_TRUE(reduction8.Changed());
-  EXPECT_EQ(reduction8.replacement(), node8);
-  EXPECT_THAT(reduction8.replacement(), IsWord32Ror(value, shift));
+  EXPECT_FALSE(reduction8.Changed());
 }
 
 TEST_F(MachineOperatorReducerTest, ReduceToWord32RorWithConstant) {
@@ -2315,7 +2307,8 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithMinusOne) {
 TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
   Node* const p0 = Parameter(0);
   TRACED_FORRANGE(uint64_t, exponent, 1, 0x7FE) {
-    Double divisor = Double(exponent << Double::kPhysicalSignificandSize);
+    base::Double divisor =
+        base::Double(exponent << base::Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
                                           Float64Constant(divisor.value())));

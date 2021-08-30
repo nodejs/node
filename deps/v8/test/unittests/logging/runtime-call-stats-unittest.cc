@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -622,11 +623,14 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
 }
 
 TEST_F(RuntimeCallStatsTest, GarbageCollection) {
+  if (FLAG_stress_incremental_marking) return;
   FLAG_expose_gc = true;
   // Disable concurrent GC threads because otherwise they may continue
   // running after this test completes and race with is_runtime_stats_enabled()
   // updates.
   FLAG_single_threaded_gc = true;
+
+  FlagList::EnforceFlagImplications();
   v8::Isolate* isolate = v8_isolate();
   RunJS(
       "let root = [];"

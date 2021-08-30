@@ -8,7 +8,7 @@
 // affects ARM, where the fp register aliasing is different from other archs.
 // We were inncorrectly clearing the the high fp register in a LiftoffRegList
 // indicating registers to load, hitting a DCHECK.
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(19, 32, false);

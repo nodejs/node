@@ -198,6 +198,7 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   // would cause dupes.
   DCHECK(!o.IsScript());
   return o.IsName() || o.IsSharedFunctionInfo() || o.IsHeapNumber() ||
+         (V8_EXTERNAL_CODE_SPACE_BOOL && o.IsCodeDataContainer()) ||
          o.IsCode() || o.IsScopeInfo() || o.IsAccessorInfo() ||
          o.IsTemplateInfo() || o.IsClassPositions() ||
          o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();

@@ -449,7 +449,7 @@ Response V8ProfilerAgentImpl::takePreciseCoverage(
 }
 
 void V8ProfilerAgentImpl::triggerPreciseCoverageDeltaUpdate(
-    const String16& occassion) {
+    const String16& occasion) {
   if (!m_state->booleanProperty(ProfilerAgentState::preciseCoverageStarted,
                                 false)) {
     return;
@@ -465,7 +465,7 @@ void V8ProfilerAgentImpl::triggerPreciseCoverageDeltaUpdate(
   coverageToProtocol(m_session->inspector(), coverage, &out_result);
   double now =
       v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
-  m_frontend.preciseCoverageDeltaUpdate(now, occassion, std::move(out_result));
+  m_frontend.preciseCoverageDeltaUpdate(now, occasion, std::move(out_result));
 }
 
 Response V8ProfilerAgentImpl::getBestEffortCoverage(

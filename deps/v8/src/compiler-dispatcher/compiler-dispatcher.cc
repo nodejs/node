@@ -9,6 +9,8 @@
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
+#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

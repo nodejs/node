@@ -54,7 +54,6 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
     switch (opcode) {
       case TranslationOpcode::BEGIN:
         UNREACHABLE();
-        break;
 
       case TranslationOpcode::INTERPRETED_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);
@@ -513,6 +512,12 @@ Handle<Object> TranslatedValue::GetValue() {
     //    initialized object if it is safe to allocate one that will
     //    pass the verifier.
     container_->EnsureObjectAllocatedAt(this);
+
+    // Finish any sweeping so that it becomes safe to overwrite the ByteArray
+    // headers.
+    // TODO(hpayer): Find a cleaner way to support a group of
+    // non-fully-initialized objects.
+    isolate()->heap()->mark_compact_collector()->EnsureSweepingCompleted();
 
     // 2. Initialize the objects. If we have allocated only byte arrays
     //    for some objects, we now overwrite the byte arrays with the
@@ -1397,9 +1402,9 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
 }
 
 Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
-  slot = ResolveCapturedObject(slot);
-
   DisallowGarbageCollection no_gc;
+
+  slot = ResolveCapturedObject(slot);
   if (slot->materialization_state() != TranslatedValue::kFinished) {
     std::stack<int> worklist;
     worklist.push(slot->object_index());

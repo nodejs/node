@@ -384,7 +384,6 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
-  i::FLAG_enable_one_shot_optimization = oneshot_opt_;
   i::FLAG_compilation_cache = false;
   i::Handle<i::BytecodeArray> bytecode_array;
   if (module_) {

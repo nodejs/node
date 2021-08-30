@@ -34,6 +34,11 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   remove_prototype: bool: 1 bit;
   accept_any_receiver: bool: 1 bit;
   published: bool: 1 bit;
+  // Allowed receiver ranges are used for instance type checking to check
+  // whether the receiver calling the associated JSFunction is a compatible
+  // receiver.
+  allowed_receiver_range_start: int32: 12 bit;
+  allowed_receiver_range_end: int32: 12 bit;
 }
 
 @generateCppClass
@@ -62,6 +67,9 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // the receiver under the the cached_property_name when this
   // FunctionTemplateInfo is used as a getter.
   cached_property_name: Object;
+  // This will be set as the instance type of the objects that are created from
+  // this FunctionTemplateInfo.
+  instance_type: Smi;
 }
 
 bitfield struct ObjectTemplateInfoFlags extends uint31 {

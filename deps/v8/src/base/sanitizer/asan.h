@@ -20,7 +20,22 @@
     "ASAN_POISON_MEMORY_REGION and ASAN_UNPOISON_MEMORY_REGION must be defined"
 #endif
 
+#define DISABLE_ASAN __attribute__((no_sanitize_address))
+
+// Check that all bytes in a memory region are poisoned. This is different from
+// `__asan_region_is_poisoned()` which only requires a single byte in the region
+// to be poisoned.
+#define ASAN_CHECK_MEMORY_REGION_IS_POISONED(start, size)                     \
+  do {                                                                        \
+    for (size_t i = 0; i < size; i++) {                                       \
+      CHECK(__asan_address_is_poisoned(reinterpret_cast<const char*>(start) + \
+                                       i));                                   \
+    }                                                                         \
+  } while (0)
+
 #else  // !V8_USE_ADDRESS_SANITIZER
+
+#define DISABLE_ASAN
 
 #define ASAN_POISON_MEMORY_REGION(start, size)                      \
   static_assert(std::is_pointer<decltype(start)>::value,            \
@@ -30,6 +45,9 @@
   USE(start, size)
 
 #define ASAN_UNPOISON_MEMORY_REGION(start, size) \
+  ASAN_POISON_MEMORY_REGION(start, size)
+
+#define ASAN_CHECK_MEMORY_REGION_IS_POISONED(start, size) \
   ASAN_POISON_MEMORY_REGION(start, size)
 
 #endif  // !V8_USE_ADDRESS_SANITIZER

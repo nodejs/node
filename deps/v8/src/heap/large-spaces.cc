@@ -142,7 +142,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
-  pending_object_.store(object.address(), std::memory_order_release);
+  UpdatePendingObject(object);
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
@@ -437,6 +437,11 @@ void LargeObjectSpace::Print() {
 }
 #endif  // DEBUG
 
+void LargeObjectSpace::UpdatePendingObject(HeapObject object) {
+  base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
+  pending_object_.store(object.address(), std::memory_order_release);
+}
+
 OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)
     : LargeObjectSpace(heap, LO_SPACE) {}
 
@@ -469,7 +474,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
-  pending_object_.store(result.address(), std::memory_order_release);
+  UpdatePendingObject(result);
 #ifdef ENABLE_MINOR_MC
   if (FLAG_minor_mc) {
     page->AllocateYoungGenerationBitmap();

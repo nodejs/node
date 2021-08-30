@@ -258,8 +258,8 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
-  FlagsContinuation(FlagsCondition condition, Node* result,
-                    Node* true_value, Node* false_value)
+  FlagsContinuation(FlagsCondition condition, Node* result, Node* true_value,
+                    Node* false_value)
       : mode_(kFlags_select),
         condition_(condition),
         frame_state_or_result_(result),
@@ -446,6 +446,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Check if {node} can be covered while generating code for the current
   // instruction. A node can be covered if the {user} of the node has the only
   // edge and the two are in the same basic block.
+  // Before fusing two instructions a and b, it is useful to check that
+  // CanCover(a, b) holds. If this is not the case, code for b must still be
+  // generated for other users, and fusing is unlikely to improve performance.
   bool CanCover(Node* user, Node* node) const;
   // CanCover is not transitive.  The counter example are Nodes A,B,C such that
   // CanCover(A, B) and CanCover(B,C) and B is pure: The the effect level of A
@@ -589,8 +592,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            CallBufferFlags flags, bool is_tail_call,
-                            int stack_slot_delta = 0);
+                            CallBufferFlags flags, int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
 
   void UpdateMaxPushedArgumentCount(size_t count);

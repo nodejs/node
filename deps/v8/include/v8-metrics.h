@@ -5,7 +5,8 @@
 #ifndef V8_METRICS_H_
 #define V8_METRICS_H_
 
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"  // NOLINT(build/include_directory)
+#include "v8.h"           // NOLINT(build/include_directory)
 
 namespace v8 {
 namespace metrics {
@@ -49,9 +50,17 @@ struct GarbageCollectionFullMainThreadIncrementalMark {
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
+struct GarbageCollectionFullMainThreadBatchedIncrementalMark {
+  std::vector<GarbageCollectionFullMainThreadIncrementalMark> events;
+};
+
 struct GarbageCollectionFullMainThreadIncrementalSweep {
   int64_t wall_clock_duration_in_us = -1;
   int64_t cpp_wall_clock_duration_in_us = -1;
+};
+
+struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
+  std::vector<GarbageCollectionFullMainThreadIncrementalSweep> events;
 };
 
 struct GarbageCollectionYoungCycle {
@@ -69,6 +78,7 @@ struct WasmModuleDecoded {
   size_t module_size_in_bytes = 0;
   size_t function_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModuleCompiled {
@@ -81,6 +91,7 @@ struct WasmModuleCompiled {
   size_t code_size_in_bytes = 0;
   size_t liftoff_bailout_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModuleInstantiated {
@@ -94,20 +105,23 @@ struct WasmModuleTieredUp {
   bool lazy = false;
   size_t code_size_in_bytes = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModulesPerIsolate {
   size_t count = 0;
 };
 
-#define V8_MAIN_THREAD_METRICS_EVENTS(V)             \
-  V(GarbageCollectionFullCycle)                      \
-  V(GarbageCollectionFullMainThreadIncrementalMark)  \
-  V(GarbageCollectionFullMainThreadIncrementalSweep) \
-  V(GarbageCollectionYoungCycle)                     \
-  V(WasmModuleDecoded)                               \
-  V(WasmModuleCompiled)                              \
-  V(WasmModuleInstantiated)                          \
+#define V8_MAIN_THREAD_METRICS_EVENTS(V)                    \
+  V(GarbageCollectionFullCycle)                             \
+  V(GarbageCollectionFullMainThreadIncrementalMark)         \
+  V(GarbageCollectionFullMainThreadBatchedIncrementalMark)  \
+  V(GarbageCollectionFullMainThreadIncrementalSweep)        \
+  V(GarbageCollectionFullMainThreadBatchedIncrementalSweep) \
+  V(GarbageCollectionYoungCycle)                            \
+  V(WasmModuleDecoded)                                      \
+  V(WasmModuleCompiled)                                     \
+  V(WasmModuleInstantiated)                                 \
   V(WasmModuleTieredUp)
 
 #define V8_THREAD_SAFE_METRICS_EVENTS(V) V(WasmModulesPerIsolate)
@@ -181,6 +195,32 @@ class V8_EXPORT Recorder {
   static MaybeLocal<Context> GetContext(Isolate* isolate, ContextId id);
   // Return the unique id corresponding to the given context.
   static ContextId GetContextId(Local<Context> context);
+};
+
+/**
+ * Experimental API intended for the LongTasks UKM (crbug.com/1173527).
+ * The Reset() method should be called at the start of a potential
+ * long task. The Get() method returns durations of V8 work that
+ * happened during the task.
+ *
+ * This API is experimental and may be removed/changed in the future.
+ */
+struct V8_EXPORT LongTaskStats {
+  /**
+   * Resets durations of V8 work for the new task.
+   */
+  V8_INLINE static void Reset(Isolate* isolate) {
+    v8::internal::Internals::IncrementLongTasksStatsCounter(isolate);
+  }
+
+  /**
+   * Returns durations of V8 work that happened since the last Reset().
+   */
+  static LongTaskStats Get(Isolate* isolate);
+
+  int64_t gc_full_atomic_wall_clock_duration_us = 0;
+  int64_t gc_full_incremental_wall_clock_duration_us = 0;
+  int64_t gc_young_wall_clock_duration_us = 0;
 };
 
 }  // namespace metrics

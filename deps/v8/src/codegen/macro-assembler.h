@@ -28,7 +28,11 @@ enum AllocationFlags {
   PRETENURE = 1 << 3,
 };
 
-enum class RememberedSetAction { kOmit, kEmit };
+enum class JumpMode {
+  kJump,          // Does a direct jump to the given address
+  kPushAndReturn  // Pushes the given address as the current return address and
+                  // does a return
+};
 
 enum class SmiCheck { kOmit, kInline };
 
@@ -79,7 +83,13 @@ static constexpr int kMaxCParameters = 256;
 class V8_NODISCARD FrameScope {
  public:
   explicit FrameScope(TurboAssembler* tasm, StackFrame::Type type)
-      : tasm_(tasm), type_(type), old_has_frame_(tasm->has_frame()) {
+      :
+#ifdef V8_CODE_COMMENTS
+        comment_(tasm, frame_name(type)),
+#endif
+        tasm_(tasm),
+        type_(type),
+        old_has_frame_(tasm->has_frame()) {
     tasm->set_has_frame(true);
     if (type != StackFrame::MANUAL && type_ != StackFrame::NONE) {
       tasm->EnterFrame(type);
@@ -94,9 +104,30 @@ class V8_NODISCARD FrameScope {
   }
 
  private:
+#ifdef V8_CODE_COMMENTS
+  const char* frame_name(StackFrame::Type type) {
+    switch (type) {
+      case StackFrame::NONE:
+        return "Frame: NONE";
+      case StackFrame::MANUAL:
+        return "Frame: MANUAL";
+#define FRAME_TYPE_CASE(type, field) \
+  case StackFrame::type:             \
+    return "Frame: " #type;
+        STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+#undef FRAME_TYPE_CASE
+      case StackFrame::NUMBER_OF_TYPES:
+        break;
+    }
+    return "Frame";
+  }
+
+  Assembler::CodeComment comment_;
+#endif  // V8_CODE_COMMENTS
+
   TurboAssembler* tasm_;
-  StackFrame::Type type_;
-  bool old_has_frame_;
+  StackFrame::Type const type_;
+  bool const old_has_frame_;
 };
 
 class V8_NODISCARD FrameAndConstantPoolScope {

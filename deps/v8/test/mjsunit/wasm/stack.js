@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --no-force-slow-path
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // The stack trace contains file path, only keep "stack.js".
 function stripPath(s) {

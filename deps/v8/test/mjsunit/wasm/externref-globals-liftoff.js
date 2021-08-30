@@ -5,4 +5,4 @@
 // Flags: --experimental-wasm-reftypes --expose-gc --liftoff
 // Flags: --no-wasm-tier-up --experimental-liftoff-extern-ref
 
-load("test/mjsunit/wasm/externref-globals.js");
+d8.file.execute("test/mjsunit/wasm/externref-globals.js");

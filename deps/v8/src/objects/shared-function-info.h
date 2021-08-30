@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/bit-field.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
@@ -152,6 +153,9 @@ class InterpreterData : public Struct {
   DECL_PRINTER(InterpreterData)
   DECL_VERIFIER(InterpreterData)
 
+ private:
+  DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
+
   OBJECT_CONSTRUCTORS(InterpreterData, Struct);
 };
 
@@ -159,6 +163,8 @@ class BaselineData : public TorqueGeneratedBaselineData<BaselineData, Struct> {
  public:
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);
+
+  DECL_ACCESSORS(baseline_code, Code)
 
   TQ_OBJECT_CONSTRUCTORS(BaselineData)
 };
@@ -332,10 +338,10 @@ class SharedFunctionInfo
   inline const wasm::FunctionSig* wasm_function_signature() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  // builtin_id corresponds to the auto-generated Builtins::Name id.
+  // builtin corresponds to the auto-generated Builtin enum.
   inline bool HasBuiltinId() const;
-  inline int builtin_id() const;
-  inline void set_builtin_id(int builtin_id);
+  inline Builtin builtin_id() const;
+  inline void set_builtin_id(Builtin builtin);
   inline bool HasUncompiledData() const;
   inline UncompiledData uncompiled_data() const;
   inline void set_uncompiled_data(UncompiledData data);
@@ -452,11 +458,6 @@ class SharedFunctionInfo
   // see a binding for it.
   DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
 
-  // Indicates that the function represented by the shared function info was
-  // classed as an immediately invoked function execution (IIFE) function and
-  // is only executed once.
-  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife)
-
   // Whether or not the number of expected properties may change.
   DECL_BOOLEAN_ACCESSORS(are_properties_final)
 
@@ -548,7 +549,7 @@ class SharedFunctionInfo
     kMayContainBreakPoints,
   };
   template <typename IsolateT>
-  Inlineability GetInlineability(IsolateT* isolate) const;
+  Inlineability GetInlineability(IsolateT* isolate, bool is_turboprop) const;
 
   // Source size of this function.
   int SourceSize();
@@ -662,13 +663,10 @@ class SharedFunctionInfo
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
 
-  // [is_oneshot_iife_or_properties_are_final]: This bit is used to track
-  // two mutually exclusive cases. Either this SharedFunctionInfo is
-  // a oneshot_iife or we have finished parsing its properties. These cases
-  // are mutually exclusive because the properties final bit is only used by
-  // class constructors to handle lazily parsed properties and class
-  // constructors can never be oneshot iifes.
-  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife_or_properties_are_final)
+  // [properties_are_final]: This bit is used to track if we have finished
+  // parsing its properties. The properties final bit is only used by
+  // class constructors to handle lazily parsed properties.
+  DECL_BOOLEAN_ACCESSORS(properties_are_final)
 
   inline void set_kind(FunctionKind kind);
 

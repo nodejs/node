@@ -125,8 +125,8 @@ BUILTIN(ConsoleTimeStamp) {
 namespace {
 
 void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
-                            const char* name, Builtins::Name builtin_id,
-                            int context_id, Handle<Object> context_name) {
+                            const char* name, Builtin builtin, int context_id,
+                            Handle<Object> context_name) {
   Factory* const factory = isolate->factory();
 
   Handle<NativeContext> context(isolate->native_context());
@@ -136,7 +136,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
       Name::ToFunctionName(isolate, factory->InternalizeUtf8String(name))
           .ToHandleChecked();
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin);
   info->set_language_mode(LanguageMode::kSloppy);
 
   Handle<JSFunction> fun =
@@ -163,7 +163,7 @@ BUILTIN(ConsoleContext) {
   Factory* const factory = isolate->factory();
   Handle<String> name = factory->InternalizeUtf8String("Context");
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
   info->set_language_mode(LanguageMode::kSloppy);
 
   Handle<JSFunction> cons =
@@ -178,17 +178,17 @@ BUILTIN(ConsoleContext) {
   int id = isolate->last_console_context_id() + 1;
   isolate->set_last_console_context_id(id);
 
-#define CONSOLE_BUILTIN_SETUP(call, name)                                   \
-  InstallContextFunction(isolate, context, #name, Builtins::kConsole##call, \
-                         id, args.at(1));
+#define CONSOLE_BUILTIN_SETUP(call, name)                                      \
+  InstallContextFunction(isolate, context, #name, Builtin::kConsole##call, id, \
+                         args.at(1));
   CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_SETUP)
 #undef CONSOLE_BUILTIN_SETUP
-  InstallContextFunction(isolate, context, "time", Builtins::kConsoleTime, id,
+  InstallContextFunction(isolate, context, "time", Builtin::kConsoleTime, id,
                          args.at(1));
-  InstallContextFunction(isolate, context, "timeEnd", Builtins::kConsoleTimeEnd,
+  InstallContextFunction(isolate, context, "timeEnd", Builtin::kConsoleTimeEnd,
                          id, args.at(1));
   InstallContextFunction(isolate, context, "timeStamp",
-                         Builtins::kConsoleTimeStamp, id, args.at(1));
+                         Builtin::kConsoleTimeStamp, id, args.at(1));
 
   return *context;
 }

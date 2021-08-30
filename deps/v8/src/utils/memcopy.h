@@ -45,7 +45,7 @@ using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {
-  base::Memcpy(dest, src, chars);
+  memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
 const size_t kMinComplexMemCopy = 16;
@@ -66,7 +66,7 @@ using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {
-  base::Memcpy(dest, src, chars);
+  memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
 const size_t kMinComplexMemCopy = 16;
@@ -85,9 +85,9 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
   // fixed sizes to a sequence of move instructions. This avoids the overhead of
   // the general {memcpy} function.
   switch (size) {
-#define CASE(N)                 \
-  case N:                       \
-    base::Memcpy(dest, src, N); \
+#define CASE(N)           \
+  case N:                 \
+    memcpy(dest, src, N); \
     return;
     CASE(1)
     CASE(2)
@@ -107,7 +107,7 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
     CASE(16)
 #undef CASE
     default:
-      base::Memcpy(dest, src, size);
+      memcpy(dest, src, size);
       return;
   }
 }

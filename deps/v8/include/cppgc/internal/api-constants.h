@@ -5,8 +5,8 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
 #define INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
 

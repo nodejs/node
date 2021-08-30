@@ -4,7 +4,7 @@
 
 // Flags: --expose-gc
 
-load('test/mjsunit/mjsunit.js');
+d8.file.execute('test/mjsunit/mjsunit.js');
 
 function assertLessThanOrEqual(a, b) {
   assertTrue(a <= b, `Expected ${a} <= ${b}`);

@@ -6,7 +6,7 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Basic tests.
 

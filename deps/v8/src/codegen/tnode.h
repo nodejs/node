@@ -349,6 +349,7 @@ class TNode {
   TNode(const TNode<U>& other) : node_(other) {
     LazyTemplateChecks();
   }
+  TNode(const TNode& other) : node_(other) { LazyTemplateChecks(); }
   TNode() : TNode(nullptr) {}
 
   TNode operator=(TNode other) {

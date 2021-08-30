@@ -102,7 +102,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
-  TNode<Object> result = CallBuiltin(Builtins::kCreateTypedArray, context,
+  TNode<Object> result = CallBuiltin(Builtin::kCreateTypedArray, context,
                                      target, new_target, arg1, arg2, arg3);
   args.PopAndReturn(result);
 
@@ -173,28 +173,12 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
-  TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(receiver_array);
-
-  Label variable_length(this), normal(this);
-  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
-  BIND(&variable_length);
-  {
-    Label miss(this);
-    Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayLength(
-        receiver_array, receiver_buffer, &miss)));
-    BIND(&miss);
-    Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
-  }
-
-  BIND(&normal);
-  {
-    // Default to zero if the {receiver}s buffer was detached.
-    TNode<UintPtrT> length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSTypedArrayLength(receiver_array); });
-    Return(ChangeUintPtrToTagged(length));
-  }
+  TVARIABLE(UintPtrT, length);
+  Label detached(this), end(this);
+  length = LoadJSTypedArrayLengthAndCheckDetached(receiver_array, &detached);
+  Return(ChangeUintPtrToTagged(length.value()));
+  BIND(&detached);
+  Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
@@ -289,6 +273,17 @@ void TypedArrayBuiltinsAssembler::CallCMemcpy(TNode<RawPtrT> dest_ptr,
   TNode<ExternalReference> memcpy =
       ExternalConstant(ExternalReference::libc_memcpy_function());
   CallCFunction(memcpy, MachineType::AnyTagged(),
+                std::make_pair(MachineType::Pointer(), dest_ptr),
+                std::make_pair(MachineType::Pointer(), src_ptr),
+                std::make_pair(MachineType::UintPtr(), byte_length));
+}
+
+void TypedArrayBuiltinsAssembler::CallCRelaxedMemcpy(
+    TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+    TNode<UintPtrT> byte_length) {
+  TNode<ExternalReference> relaxed_memcpy =
+      ExternalConstant(ExternalReference::relaxed_memcpy_function());
+  CallCFunction(relaxed_memcpy, MachineType::AnyTagged(),
                 std::make_pair(MachineType::Pointer(), dest_ptr),
                 std::make_pair(MachineType::Pointer(), src_ptr),
                 std::make_pair(MachineType::UintPtr(), byte_length));

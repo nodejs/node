@@ -210,59 +210,69 @@ const int kRvcRs1sBits = 3;
 const int kRvcRs2sShift = 2;
 const int kRvcRs2sBits = 3;
 const int kRvcFunct2Shift = 5;
+const int kRvcFunct2BShift = 10;
 const int kRvcFunct2Bits = 2;
 const int kRvcFunct6Shift = 10;
 const int kRvcFunct6Bits = 6;
 
 // RISCV Instruction bit masks
-const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
-const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
-const int kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
-const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
-const int kFunct2Mask = 0b11 << kFunct7Shift;
-const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
-const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
-const int kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
-const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
-const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
-const int kUTypeMask = kBaseOpcodeMask;
-const int kJTypeMask = kBaseOpcodeMask;
-const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
-const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
-const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
-const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
-const int kBImm12Mask = kFunct7Mask | kRdFieldMask;
-const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
-const int kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
-const int kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
-const int kImm31_12Mask = ((1 << 20) - 1) << 12;
-const int kImm19_0Mask = ((1 << 20) - 1);
-const int kRvcOpcodeMask =
+const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1)
+                                 << kBaseOpcodeShift;
+const uint32_t kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+const uint32_t kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
+const uint32_t kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
+const uint32_t kFunct2Mask = 0b11 << kFunct7Shift;
+const uint32_t kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+const uint32_t kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
+const uint32_t kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
+const uint32_t kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
+const uint32_t kITypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const uint32_t kUTypeMask = kBaseOpcodeMask;
+const uint32_t kJTypeMask = kBaseOpcodeMask;
+const uint32_t kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
+const uint32_t kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
+const uint32_t kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
+const uint32_t kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
+const uint32_t kBImm12Mask = kFunct7Mask | kRdFieldMask;
+const uint32_t kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
+const uint32_t kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
+const uint32_t kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
+const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
+const uint32_t kImm19_0Mask = ((1 << 20) - 1);
+const uint32_t kRvcOpcodeMask =
     0b11 | (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const int kRvcFunct3Mask = (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
-const int kRvcFunct4Mask = (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
-const int kRvcFunct6Mask = (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
-const int kRvcFunct2Mask = (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
-const int kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
-const int kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
-const int kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+const uint32_t kRvcFunct3Mask =
+    (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
+const uint32_t kRvcFunct4Mask =
+    (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
+const uint32_t kRvcFunct6Mask =
+    (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
+const uint32_t kRvcFunct2Mask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
+const uint32_t kRvcFunct2BMask =
+    (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2BShift);
+const uint32_t kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
+const uint32_t kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
+const uint32_t kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+const uint32_t kRvcBImm8Mask = (((1 << 5) - 1) << 2) | (((1 << 3) - 1) << 10);
 
 // RISCV CSR related bit mask and shift
 const int kFcsrFlagsBits = 5;
-const int kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
+const uint32_t kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
 const int kFcsrFrmBits = 3;
 const int kFcsrFrmShift = kFcsrFlagsBits;
-const int kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
+const uint32_t kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
 const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
-const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
+const uint32_t kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
+const int kNopByte = 0x00000013;
 // Original MIPS constants
 // TODO(RISCV): to be cleaned up
 const int kImm16Shift = 0;
 const int kImm16Bits = 16;
-const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
+const uint32_t kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
 // end of TODO(RISCV): to be cleaned up
 
 // ----- RISCV Base Opcodes
@@ -728,7 +738,7 @@ class InstructionBase {
   };
 
   inline bool IsIllegalInstruction() const {
-    uint8_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
+    uint16_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
     return FirstHalfWord == 0;
   }
 
@@ -915,6 +925,11 @@ class InstructionGetters : public T {
   inline int RvcFunct2Value() const {
     DCHECK(this->IsShortInstruction());
     return this->Bits(kRvcFunct2Shift + kRvcFunct2Bits - 1, kRvcFunct2Shift);
+  }
+
+  inline int RvcFunct2BValue() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct2BShift + kRvcFunct2Bits - 1, kRvcFunct2BShift);
   }
 
   inline int CsrValue() const {
@@ -1125,6 +1140,17 @@ class InstructionGetters : public T {
     return imm12 << 20 >> 20;
   }
 
+  inline int RvcImm8BValue() const {
+    DCHECK(this->IsShortInstruction());
+    // | funct3 | imm[8|4:3] | rs1` | imm[7:6|2:1|5]  | opcode |
+    //  15       12        10       7                 2
+    uint32_t Bits = this->InstructionBits();
+    int32_t imm9 = ((Bits & 0x4) << 3) | ((Bits & 0x18) >> 2) |
+                   ((Bits & 0x60) << 1) | ((Bits & 0xc00) >> 7) |
+                   ((Bits & 0x1000) >> 4);
+    return imm9 << 23 >> 23;
+  }
+
   inline bool AqValue() const { return this->Bits(kAqShift, kAqShift); }
 
   inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
@@ -1154,7 +1180,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 0;
 
-// TODO(plind): below should be based on kPointerSize
+// TODO(plind): below should be based on kSystemPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
 

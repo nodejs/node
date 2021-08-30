@@ -106,14 +106,14 @@ TEST(DeoptExitSizeIsFixed) {
     Label before_exit;
     if (kind == DeoptimizeKind::kEagerWithResume) {
       masm.bind(&before_exit);
-      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
+      Builtin target = Deoptimizer::GetDeoptWithResumeBuiltin(
           DeoptimizeReason::kDynamicCheckMaps);
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                  &before_exit);
       CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
                Deoptimizer::kEagerWithResumeBeforeArgsSize);
     } else {
-      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
+      Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
       // Mirroring logic in code-generator.cc.
       if (kind == DeoptimizeKind::kLazy) {
         // CFI emits an extra instruction here.

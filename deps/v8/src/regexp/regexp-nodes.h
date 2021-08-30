@@ -314,7 +314,8 @@ class ActionNode : public SeqRegExpNode {
     SET_REGISTER_FOR_LOOP,
     INCREMENT_REGISTER,
     STORE_POSITION,
-    BEGIN_SUBMATCH,
+    BEGIN_POSITIVE_SUBMATCH,
+    BEGIN_NEGATIVE_SUBMATCH,
     POSITIVE_SUBMATCH_SUCCESS,
     EMPTY_MATCH_CHECK,
     CLEAR_CAPTURES
@@ -325,8 +326,12 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* StorePosition(int reg, bool is_capture,
                                    RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
-  static ActionNode* BeginSubmatch(int stack_pointer_reg, int position_reg,
-                                   RegExpNode* on_success);
+  static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
+                                           int position_reg,
+                                           RegExpNode* on_success);
+  static ActionNode* BeginNegativeSubmatch(int stack_pointer_reg,
+                                           int position_reg,
+                                           RegExpNode* on_success);
   static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
                                              int restore_reg,
                                              int clear_capture_count,

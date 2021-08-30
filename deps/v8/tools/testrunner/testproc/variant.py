@@ -42,8 +42,11 @@ class VariantProc(base.TestProcProducer):
     return self._try_send_new_subtest(test, gen)
 
   def _result_for(self, test, subtest, result):
-    gen = self._next_variant[test.procid]
-    if not self._try_send_new_subtest(test, gen):
+    # The generator might have been removed after cycling through all subtests
+    # below. If some of the subtests are heavy, they get buffered and return
+    # their results later.
+    gen = self._next_variant.get(test.procid)
+    if not gen or not self._try_send_new_subtest(test, gen):
       self._send_result(test, None)
 
   def _try_send_new_subtest(self, test, variants_gen):

@@ -14,6 +14,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/memory.h"
+#include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
 #include "src/common/external-pointer-inl.h"
 #include "src/common/globals.h"
@@ -21,8 +22,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
-#include "src/numbers/conversions.h"
-#include "src/numbers/double.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
@@ -35,7 +35,6 @@
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info.h"
-#include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
@@ -82,6 +81,7 @@ bool Object::IsTaggedIndex() const {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DEF(CodeT)
 #undef IS_TYPE_FUNCTION_DEF
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
@@ -145,6 +145,11 @@ bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
 
 bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
+}
+
+DEF_GETTER(HeapObject, IsCodeT, bool) {
+  return V8_EXTERNAL_CODE_SPACE_BOOL ? IsCodeDataContainer(cage_base)
+                                     : IsCode(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsUniqueName, bool) {
@@ -468,22 +473,17 @@ bool Object::FilterKey(PropertyFilter filter) {
 }
 
 Representation Object::OptimalRepresentation(PtrComprCageBase cage_base) const {
-  if (!FLAG_track_fields) return Representation::Tagged();
   if (IsSmi()) {
     return Representation::Smi();
   }
   HeapObject heap_object = HeapObject::cast(*this);
-  if (FLAG_track_double_fields && heap_object.IsHeapNumber(cage_base)) {
+  if (heap_object.IsHeapNumber(cage_base)) {
     return Representation::Double();
-  } else if (FLAG_track_computed_fields &&
-             heap_object.IsUninitialized(
+  } else if (heap_object.IsUninitialized(
                  heap_object.GetReadOnlyRoots(cage_base))) {
     return Representation::None();
-  } else if (FLAG_track_heap_object_fields) {
-    return Representation::HeapObject();
-  } else {
-    return Representation::Tagged();
   }
+  return Representation::HeapObject();
 }
 
 ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
@@ -492,14 +492,15 @@ ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
   return PACKED_ELEMENTS;
 }
 
-bool Object::FitsRepresentation(Representation representation) {
-  if (FLAG_track_fields && representation.IsSmi()) {
+bool Object::FitsRepresentation(Representation representation,
+                                bool allow_coercion) const {
+  if (representation.IsSmi()) {
     return IsSmi();
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
-    return IsNumber();
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsDouble()) {
+    return allow_coercion ? IsNumber() : IsHeapNumber();
+  } else if (representation.IsHeapObject()) {
     return IsHeapObject();
-  } else if (FLAG_track_fields && representation.IsNone()) {
+  } else if (representation.IsNone()) {
     return false;
   }
   return true;
@@ -1010,7 +1011,7 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
 MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
                                                  Handle<Object> object,
                                                  Handle<Name> name) {
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
   return GetProperty(&it);
 }
@@ -1019,7 +1020,7 @@ MaybeHandle<Object> Object::SetPropertyOrElement(
     Isolate* isolate, Handle<Object> object, Handle<Name> name,
     Handle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
   MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
   return value;
@@ -1029,7 +1030,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder) {
   Isolate* isolate = holder->GetIsolate();
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   LookupIterator it(isolate, receiver, key, holder);
   return GetProperty(&it);
 }
@@ -1051,7 +1052,7 @@ Object Object::GetSimpleHash(Object object) {
     if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
       hash = ComputeUnseededHash(FastD2I(num));
     } else {
-      hash = ComputeLongHash(double_to_uint64(num));
+      hash = ComputeLongHash(base::double_to_uint64(num));
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
   }

@@ -21,7 +21,7 @@ export class MySelection {
 
   select(s: Iterable<any>, isSelected?: boolean) {
     for (const i of s) {
-      if (!i) continue;
+      if (i == undefined) continue;
       if (isSelected == undefined) {
         isSelected = !this.selection.has(this.stringKey(i));
       }

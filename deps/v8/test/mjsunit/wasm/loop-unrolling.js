@@ -7,8 +7,8 @@
 // Needed for exceptions-utils.js.
 // Flags: --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 // Test that lowering a ror operator with int64-lowering does not produce
 // floating control, which is incompatible with loop unrolling.
