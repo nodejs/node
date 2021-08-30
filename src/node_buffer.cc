@@ -352,16 +352,31 @@ MaybeLocal<Object> New(Isolate* isolate, size_t length) {
 
 
 MaybeLocal<Object> New(Environment* env, size_t length) {
-  EscapableHandleScope scope(env->isolate());
+  Isolate* isolate(env->isolate());
+  EscapableHandleScope scope(isolate);
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
-    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
     return Local<Object>();
   }
 
-  return scope.EscapeMaybe(
-      AllocatedBuffer::AllocateManaged(env, length).ToBuffer());
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
+  }
+
+  MaybeLocal<Object> obj =
+      New(env, ab, 0, ab->ByteLength())
+          .FromMaybe(Local<Uint8Array>());
+
+  return scope.EscapeMaybe(obj);
 }
 
 
@@ -380,20 +395,33 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
 
 
 MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
-  EscapableHandleScope scope(env->isolate());
+  Isolate* isolate(env->isolate());
+  EscapableHandleScope scope(isolate);
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
-    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
     return Local<Object>();
   }
 
-  AllocatedBuffer ret = AllocatedBuffer::AllocateManaged(env, length);
-  if (length > 0) {
-    memcpy(ret.data(), data, length);
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    memcpy(bs->Data(), data, length);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
   }
 
-  return scope.EscapeMaybe(ret.ToBuffer());
+  MaybeLocal<Object> obj =
+      New(env, ab, 0, ab->ByteLength())
+          .FromMaybe(Local<Uint8Array>());
+
+  return scope.EscapeMaybe(obj);
 }
 
 
@@ -1077,13 +1105,25 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0].As<String>();
   size_t length = str->Utf8Length(isolate);
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, length);
-  str->WriteUtf8(isolate,
-                 buf.data(),
-                 -1,  // We are certain that `data` is sufficiently large
-                 nullptr,
-                 String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  auto array = Uint8Array::New(buf.ToArrayBuffer(), 0, length);
+
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    str->WriteUtf8(isolate,
+                   static_cast<char*>(bs->Data()),
+                   -1,  // We are certain that `data` is sufficiently large
+                   nullptr,
+                   String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
+  }
+
+  auto array = Uint8Array::New(ab, 0, length);
   args.GetReturnValue().Set(array);
 }
 
