@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements_dev.txt
       - name: Lint with flake8
-        run: flake8 . --count --show-source --statistics
+        run: flake8 . --ignore=E203,W503  --max-complexity=101 --max-line-length=88 --show-source --statistics
       - name: Test with pytest
         run: pytest
       # - name: Run doctests with pytest

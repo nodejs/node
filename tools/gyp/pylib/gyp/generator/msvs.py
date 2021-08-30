@@ -152,7 +152,7 @@ def _NormalizedSource(source):
     return source
 
 
-def _FixPath(path):
+def _FixPath(path, separator="\\"):
     """Convert paths to a form that will make sense in a vcproj file.
 
   Arguments:
@@ -168,9 +168,12 @@ def _FixPath(path):
         and not _IsWindowsAbsPath(path)
     ):
         path = os.path.join(fixpath_prefix, path)
-    path = path.replace("/", "\\")
+    if separator == "\\":
+        path = path.replace("/", "\\")
     path = _NormalizedSource(path)
-    if path and path[-1] == "\\":
+    if separator == "/":
+        path = path.replace("\\", "/")
+    if path and path[-1] == separator:
         path = path[:-1]
     return path
 
@@ -185,9 +188,9 @@ def _IsWindowsAbsPath(path):
     return path.startswith("c:") or path.startswith("C:")
 
 
-def _FixPaths(paths):
+def _FixPaths(paths, separator="\\"):
     """Fix each of the paths of the list."""
-    return [_FixPath(i) for i in paths]
+    return [_FixPath(i, separator) for i in paths]
 
 
 def _ConvertSourcesToFilterHierarchy(
@@ -418,7 +421,15 @@ def _BuildCommandLineForRuleRaw(
         # file out of the raw command string, and some commands (like python) are
         # actually batch files themselves.
         command.insert(0, "call")
-        arguments = [i.replace("$(InputDir)", "%INPUTDIR%") for i in cmd[1:]]
+        # Fix the paths
+        # TODO(quote): This is a really ugly heuristic, and will miss path fixing
+        #              for arguments like "--arg=path" or "/opt:path".
+        # If the argument starts with a slash or dash, it's probably a command line
+        # switch
+        # Return the path with forward slashes because the command using it might
+        # not support backslashes.
+        arguments = [i if (i[:1] in "/-") else _FixPath(i, "/") for i in cmd[1:]]
+        arguments = [i.replace("$(InputDir)", "%INPUTDIR%") for i in arguments]
         arguments = [MSVSSettings.FixVCMacroSlashes(i) for i in arguments]
         if quote_cmd:
             # Support a mode for using cmd directly.

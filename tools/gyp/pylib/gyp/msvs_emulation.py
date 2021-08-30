@@ -74,8 +74,8 @@ def EncodeRspFileList(args, quote_cmd):
         program = call + " " + os.path.normpath(program)
     else:
         program = os.path.normpath(args[0])
-    return (program + " " +
-            " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:]))
+    return (program + " "
+            + " ".join(QuoteForRspFile(arg, quote_cmd) for arg in args[1:]))
 
 
 def _GenericRetrieve(root, default, path):
