@@ -68,6 +68,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "validFrom", ValidFrom);
     env->SetProtoMethod(tmpl, "fingerprint", Fingerprint);
     env->SetProtoMethod(tmpl, "fingerprint256", Fingerprint256);
+    env->SetProtoMethod(tmpl, "fingerprint512", Fingerprint512);
     env->SetProtoMethod(tmpl, "keyUsage", KeyUsage);
     env->SetProtoMethod(tmpl, "serialNumber", SerialNumber);
     env->SetProtoMethod(tmpl, "pem", Pem);
@@ -265,6 +266,15 @@ void X509Certificate::Fingerprint256(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   Local<Value> ret;
   if (GetFingerprintDigest(env, EVP_sha256(), cert->get()).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
+}
+
+void X509Certificate::Fingerprint512(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
+  Local<Value> ret;
+  if (GetFingerprintDigest(env, EVP_sha512(), cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
