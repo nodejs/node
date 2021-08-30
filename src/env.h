@@ -256,6 +256,7 @@ constexpr size_t kFsStatsBufferLength =
   V(file_string, "file")                                                       \
   V(filename_string, "filename")                                               \
   V(fingerprint256_string, "fingerprint256")                                   \
+  V(fingerprint512_string, "fingerprint512")                                   \
   V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
   V(flowlabel_string, "flowlabel")                                             \
