@@ -289,8 +289,8 @@ class V8_EXPORT CpuProfilingOptions {
    *                             interval, set via SetSamplingInterval(). If
    *                             zero, the sampling interval will be equal to
    *                             the profiler's sampling interval.
-   * \param filter_context If specified, profiles will only contain frames
-   *                       using this context. Other frames will be elided.
+   * \param filter_context Deprecated option to filter by context, currently a
+   *                       no-op.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
@@ -304,13 +304,9 @@ class V8_EXPORT CpuProfilingOptions {
  private:
   friend class internal::CpuProfile;
 
-  bool has_filter_context() const { return !filter_context_.IsEmpty(); }
-  void* raw_filter_context() const;
-
   CpuProfilingMode mode_;
   unsigned max_samples_;
   int sampling_interval_us_;
-  CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
 };
 
 /**
@@ -900,6 +896,14 @@ class V8_EXPORT HeapProfiler {
    * Takes a heap snapshot and returns it.
    */
   const HeapSnapshot* TakeHeapSnapshot(
+      ActivityControl* control = nullptr,
+      ObjectNameResolver* global_object_name_resolver = nullptr,
+      bool treat_global_objects_as_roots = true);
+
+  /**
+   * Takes a heap snapshot and returns it.
+   */
+  const HeapSnapshot* TakeHeapSnapshotV8_92(
       ActivityControl* control = nullptr,
       ObjectNameResolver* global_object_name_resolver = nullptr,
       bool treat_global_objects_as_roots = true,

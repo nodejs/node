@@ -807,8 +807,17 @@ inline GlobalBackingStoreRegistryImpl* impl() {
 void GlobalBackingStoreRegistry::Register(
     std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store || !backing_store->buffer_start()) return;
-  // Only wasm memory backing stores need to be registered globally.
-  CHECK(backing_store->is_wasm_memory());
+
+  if (!backing_store->free_on_destruct()) {
+    // If the backing store buffer is managed by the embedder,
+    // then we don't have to guarantee that there is single unique
+    // BackingStore per buffer_start() because the destructor of
+    // of the BackingStore will be a no-op in that case.
+
+    // All Wasm memory has to be registered.
+    CHECK(!backing_store->is_wasm_memory());
+    return;
+  }
 
   base::MutexGuard scope_lock(&impl()->mutex_);
   if (backing_store->globally_registered_) return;
@@ -824,8 +833,6 @@ void GlobalBackingStoreRegistry::Register(
 void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
   if (!backing_store->globally_registered_) return;
 
-  CHECK(backing_store->is_wasm_memory());
-
   DCHECK_NOT_NULL(backing_store->buffer_start());
 
   base::MutexGuard scope_lock(&impl()->mutex_);
@@ -835,6 +842,26 @@ void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
     impl()->map_.erase(result);
   }
   backing_store->globally_registered_ = false;
+}
+
+std::shared_ptr<BackingStore> GlobalBackingStoreRegistry::Lookup(
+    void* buffer_start, size_t length) {
+  base::MutexGuard scope_lock(&impl()->mutex_);
+  TRACE_BS("BS:lookup   mem=%p (%zu bytes)\n", buffer_start, length);
+  const auto& result = impl()->map_.find(buffer_start);
+  if (result == impl()->map_.end()) {
+    return std::shared_ptr<BackingStore>();
+  }
+  auto backing_store = result->second.lock();
+  CHECK_EQ(buffer_start, backing_store->buffer_start());
+  if (backing_store->is_wasm_memory()) {
+    // Grow calls to shared WebAssembly threads can be triggered from different
+    // workers, length equality cannot be guaranteed here.
+    CHECK_LE(length, backing_store->byte_length());
+  } else {
+    CHECK_EQ(length, backing_store->byte_length());
+  }
+  return backing_store;
 }
 
 void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
@@ -850,7 +877,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
     auto backing_store = entry.second.lock();
     prevent_destruction_under_lock.emplace_back(backing_store);
     if (!backing_store) continue;  // skip entries where weak ptr is null
-    CHECK(backing_store->is_wasm_memory());
+    if (!backing_store->is_wasm_memory()) continue;  // skip non-wasm memory
     if (!backing_store->is_shared()) continue;       // skip non-shared memory
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();
