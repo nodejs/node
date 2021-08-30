@@ -181,8 +181,9 @@ class JobDelegate {
   /**
    * Returns true if the current task is called from the thread currently
    * running JobHandle::Join().
+   * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
-  virtual bool IsJoiningThread() const = 0;
+  virtual bool IsJoiningThread() const { return false; }
 };
 
 /**
@@ -219,13 +220,18 @@ class JobHandle {
    * Forces all existing workers to yield ASAP but doesn’t wait for them.
    * Warning, this is dangerous if the Job's callback is bound to or has access
    * to state which may be deleted after this call.
+   * TODO(etiennep): Cleanup once implemented by all embedders.
    */
-  virtual void CancelAndDetach() = 0;
+  virtual void CancelAndDetach() { Cancel(); }
 
   /**
    * Returns true if there's any work pending or any worker running.
    */
   virtual bool IsActive() = 0;
+
+  // TODO(etiennep): Clean up once all overrides are removed.
+  V8_DEPRECATED("Use !IsActive() instead.")
+  virtual bool IsCompleted() { return !IsActive(); }
 
   /**
    * Returns true if associated with a Job and other methods may be called.
@@ -233,6 +239,10 @@ class JobHandle {
    * even if no workers are running and IsCompleted() returns true
    */
   virtual bool IsValid() = 0;
+
+  // TODO(etiennep): Clean up once all overrides are removed.
+  V8_DEPRECATED("Use IsValid() instead.")
+  virtual bool IsRunning() { return IsValid(); }
 
   /**
    * Returns true if job priority can be changed.
@@ -262,6 +272,10 @@ class JobTask {
    * it must not call back any JobHandle methods.
    */
   virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
+
+  // TODO(1114823): Clean up once all overrides are removed.
+  V8_DEPRECATED("Use the version that takes |worker_count|.")
+  virtual size_t GetMaxConcurrency() const { return 0; }
 };
 
 /**
