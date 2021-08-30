@@ -318,6 +318,23 @@ void Serializer::ResolvePendingForwardReference(int forward_reference_id) {
   }
 }
 
+ExternalReferenceEncoder::Value Serializer::EncodeExternalReference(
+    Address addr) {
+  Maybe<ExternalReferenceEncoder::Value> result =
+      external_reference_encoder_.TryEncode(addr);
+  if (result.IsNothing()) {
+#ifdef DEBUG
+    PrintStack(std::cerr);
+#endif
+    void* addr_ptr = reinterpret_cast<void*>(addr);
+    v8::base::OS::PrintError("Unknown external reference %p.\n", addr_ptr);
+    v8::base::OS::PrintError("%s\n",
+                             ExternalReferenceTable::ResolveSymbol(addr_ptr));
+    v8::base::OS::Abort();
+  }
+  return result.FromJust();
+}
+
 void Serializer::RegisterObjectIsPending(Handle<HeapObject> obj) {
   if (*obj == ReadOnlyRoots(isolate()).not_mapped_symbol()) return;
 
