@@ -29,6 +29,7 @@
 
 namespace node {
 
+class ExternalReferenceRegistry;
 class Environment;
 
 class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
@@ -45,6 +46,7 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   SET_NO_MEMORY_INFO()
   SET_SELF_SIZE(TCPWrap)
