@@ -30,6 +30,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 class TTYWrap : public LibuvStreamWrap {
  public:
@@ -37,6 +38,7 @@ class TTYWrap : public LibuvStreamWrap {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TTYWrap)
