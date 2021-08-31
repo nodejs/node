@@ -165,19 +165,6 @@ em code {
   line-height: 1.5rem;
 }
 
-#gtoc > ul > li {
-  display: inline;
-  border-right: 1px currentColor solid;
-  margin-right: .4rem;
-  padding-right: .4rem;
-}
-
-#gtoc > ul > li:last-child {
-  border-right: none;
-  margin-right: 0;
-  padding-right: 0;
-}
-
 li.version-picker {
   position: relative;
 }
@@ -739,6 +726,21 @@ kbd {
   border: none;
   background: transparent;
   outline: var(--brand3) dotted 2px;
+}
+
+@media only screen and (min-width: 577px) {
+  #gtoc > ul > li {
+    display: inline;
+    border-right: 1px currentColor solid;
+    margin-right: .4rem;
+    padding-right: .4rem;
+  }
+
+  #gtoc > ul > li:last-child {
+    border-right: none;
+    margin-right: 0;
+    padding-right: 0;
+  }
 }
 
 @media only screen and (max-width: 1024px) {
