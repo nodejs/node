@@ -66,6 +66,7 @@ class ExternalReferenceRegistry {
   V(performance)                                                               \
   V(process_methods)                                                           \
   V(process_object)                                                            \
+  V(report)                                                                    \
   V(task_queue)                                                                \
   V(url)                                                                       \
   V(util)                                                                      \
