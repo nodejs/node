@@ -434,7 +434,7 @@ void OnFatalError(const char* location, const char* message) {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
 
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = Isolate::TryGetCurrent();
   Environment* env = nullptr;
   if (isolate != nullptr) {
     env = Environment::GetCurrent(isolate);
