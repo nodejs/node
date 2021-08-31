@@ -2806,7 +2806,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/39927
-    description: Runtime deprecation.
+    description: Documentation-only deprecation.
 -->
 
 Type: Runtime
