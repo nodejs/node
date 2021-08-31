@@ -3381,6 +3381,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/31178
     description: Add support for Diffie-Hellman.
   - version: v12.0.0
+    pr-url: https://github.com/nodejs/node/pull/26960
+    description: Add support for RSA-PSS key pairs.
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26774
     description: Add ability to generate X25519 and X448 key pairs.
   - version: v12.0.0
@@ -3392,8 +3395,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+* `type`: {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
+  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3411,8 +3414,8 @@ changes:
   * `publicKey`: {string | Buffer | KeyObject}
   * `privateKey`: {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
+Ed25519, Ed448, X25519, X448, and DH are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -3481,6 +3484,12 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/31178
     description: Add support for Diffie-Hellman.
   - version: v12.0.0
+    pr-url: https://github.com/nodejs/node/pull/26960
+    description: Add support for RSA-PSS key pairs.
+  - version: v12.0.0
+    pr-url: https://github.com/nodejs/node/pull/26774
+    description: Add ability to generate X25519 and X448 key pairs.
+  - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26554
     description: Add ability to generate Ed25519 and Ed448 key pairs.
   - version: v11.6.0
@@ -3489,8 +3498,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+* `type`: {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
+  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3507,8 +3516,8 @@ changes:
   * `publicKey`: {string | Buffer | KeyObject}
   * `privateKey`: {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
+Ed25519, Ed448, X25519, X448, and DH are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
