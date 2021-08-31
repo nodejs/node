@@ -148,15 +148,17 @@ bool BaseObject::IsWeakOrDetached() const {
   return pd->wants_weak_jsobj || pd->is_detached;
 }
 
+void BaseObject::LazilyInitializedJSTemplateConstructor(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  DCHECK(args.IsConstructCall());
+  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+}
+
 v8::Local<v8::FunctionTemplate>
 BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
-  auto constructor = [](const v8::FunctionCallbackInfo<v8::Value>& args) {
-    DCHECK(args.IsConstructCall());
-    DCHECK_GT(args.This()->InternalFieldCount(), 0);
-    args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
-  };
-
-  v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  v8::Local<v8::FunctionTemplate> t =
+      env->NewFunctionTemplate(LazilyInitializedJSTemplateConstructor);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
