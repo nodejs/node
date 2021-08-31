@@ -106,6 +106,10 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 void LibuvStreamWrap::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IsConstructCallCallback);
+  registry->Register(GetWriteQueueSize);
+  registry->Register(SetBlocking);
+  // TODO(joyee): StreamBase::RegisterExternalReferences() is called somewhere
+  // else but we may want to do it here too and guard it with a static flag.
 }
 
 LibuvStreamWrap::LibuvStreamWrap(Environment* env,
