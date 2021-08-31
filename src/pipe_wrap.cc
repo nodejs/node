@@ -22,12 +22,13 @@
 #include "pipe_wrap.h"
 
 #include "async_wrap.h"
+#include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_buffer.h"
-#include "connect_wrap.h"
+#include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -104,6 +105,17 @@ void PipeWrap::Initialize(Local<Object> target,
               constants).Check();
 }
 
+void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Bind);
+  registry->Register(Listen);
+  registry->Register(Connect);
+  registry->Register(Open);
+#ifdef _WIN32
+  registry->Register(SetPendingInstances);
+#endif
+  registry->Register(Fchmod);
+}
 
 void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
@@ -236,3 +248,5 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(pipe_wrap,
+                               node::PipeWrap::RegisterExternalReferences)
