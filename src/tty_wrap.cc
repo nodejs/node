@@ -24,6 +24,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -39,6 +40,13 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+void TTYWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(GetWindowSize);
+  registry->Register(SetRawMode);
+  registry->Register(IsTTY);
+}
 
 void TTYWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
@@ -147,3 +155,5 @@ TTYWrap::TTYWrap(Environment* env,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(tty_wrap, node::TTYWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(tty_wrap,
+                               node::TTYWrap::RegisterExternalReferences)
