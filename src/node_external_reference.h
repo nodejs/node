@@ -71,6 +71,7 @@ class ExternalReferenceRegistry {
   V(tty_wrap)                                                                  \
   V(url)                                                                       \
   V(util)                                                                      \
+  V(pipe_wrap)                                                                 \
   V(serdes)                                                                    \
   V(string_decoder)                                                            \
   V(stream_wrap)                                                               \
