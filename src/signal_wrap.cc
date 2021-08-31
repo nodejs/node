@@ -22,6 +22,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "node_external_reference.h"
 #include "node_process-inl.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -60,6 +61,12 @@ class SignalWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "stop", Stop);
 
     env->SetConstructorFunction(target, "Signal", constructor);
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    registry->Register(New);
+    registry->Register(Start);
+    registry->Register(Stop);
   }
 
   SET_NO_MEMORY_INFO()
@@ -167,3 +174,5 @@ bool HasSignalJSHandler(int signum) {
 
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(signal_wrap,
+                               node::SignalWrap::RegisterExternalReferences)
