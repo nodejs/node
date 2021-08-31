@@ -7,7 +7,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const crypto = require('crypto');
+const { subtle } = crypto.webcrypto;
 
 const sizes = [1024, 2048, 4096];
 
@@ -520,4 +521,38 @@ const testVectors = [
     const jwk = await subtle.exportKey('jwk', key);
     assert.strictEqual(jwk.alg, 'PS256');
   })().then(common.mustCall());
+}
+
+{
+  const ecPublic = crypto.createPublicKey(
+    fixtures.readKey('ec_p256_public.pem'));
+  const ecPrivate = crypto.createPrivateKey(
+    fixtures.readKey('ec_p256_private.pem'));
+
+  for (const [name, [publicUsage, privateUsage]] of Object.entries({
+    'RSA-PSS': ['verify', 'sign'],
+    'RSASSA-PKCS1-v1_5': ['verify', 'sign'],
+    'RSA-OAEP': ['encrypt', 'decrypt'],
+  })) {
+    assert.rejects(subtle.importKey(
+      'node.keyObject',
+      ecPublic,
+      { name, hash: 'SHA-256' },
+      true, [publicUsage]), { message: /Invalid key type/ });
+    assert.rejects(subtle.importKey(
+      'node.keyObject',
+      ecPrivate,
+      { name, hash: 'SHA-256' },
+      true, [privateUsage]), { message: /Invalid key type/ });
+    assert.rejects(subtle.importKey(
+      'spki',
+      ecPublic.export({ format: 'der', type: 'spki' }),
+      { name, hash: 'SHA-256' },
+      true, [publicUsage]), { message: /Invalid key type/ });
+    assert.rejects(subtle.importKey(
+      'pkcs8',
+      ecPrivate.export({ format: 'der', type: 'pkcs8' }),
+      { name, hash: 'SHA-256' },
+      true, [privateUsage]), { message: /Invalid key type/ });
+  }
 }
