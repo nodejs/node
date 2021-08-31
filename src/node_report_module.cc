@@ -1,5 +1,6 @@
 #include "env.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options.h"
 #include "node_report.h"
@@ -196,6 +197,26 @@ static void Initialize(Local<Object> exports,
                  SetReportOnUncaughtException);
 }
 
+void RegisterExternalReferences(node::ExternalReferenceRegistry* registry) {
+  registry->Register(WriteReport);
+  registry->Register(GetReport);
+  registry->Register(GetCompact);
+  registry->Register(SetCompact);
+  registry->Register(GetDirectory);
+  registry->Register(SetDirectory);
+  registry->Register(GetFilename);
+  registry->Register(SetFilename);
+  registry->Register(GetSignal);
+  registry->Register(SetSignal);
+  registry->Register(ShouldReportOnFatalError);
+  registry->Register(SetReportOnFatalError);
+  registry->Register(ShouldReportOnSignal);
+  registry->Register(SetReportOnSignal);
+  registry->Register(ShouldReportOnUncaughtException);
+  registry->Register(SetReportOnUncaughtException);
+}
+
 }  // namespace report
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(report, report::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(report, report::RegisterExternalReferences)
