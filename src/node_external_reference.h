@@ -67,6 +67,7 @@ class ExternalReferenceRegistry {
   V(process_object)                                                            \
   V(report)                                                                    \
   V(task_queue)                                                                \
+  V(tcp_wrap)                                                                  \
   V(url)                                                                       \
   V(util)                                                                      \
   V(serdes)                                                                    \
