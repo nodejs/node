@@ -44,6 +44,7 @@
 
 #include "env-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 
 #include <cstring>
 
@@ -288,6 +289,14 @@ void InitDTrace(Environment* env) {
   }, env);
 }
 
+#define NODE_PROBES(V)                                                         \
+  V(DTRACE_NET_SERVER_CONNECTION)                                              \
+  V(DTRACE_NET_STREAM_END)                                                     \
+  V(DTRACE_HTTP_SERVER_REQUEST)                                                \
+  V(DTRACE_HTTP_SERVER_RESPONSE)                                               \
+  V(DTRACE_HTTP_CLIENT_REQUEST)                                                \
+  V(DTRACE_HTTP_CLIENT_RESPONSE)
+
 void InitializeDTrace(Local<Object> target,
                       Local<Value> unused,
                       Local<Context> context,
@@ -295,16 +304,20 @@ void InitializeDTrace(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-# define NODE_PROBE(name) env->SetMethod(target, #name, name);
-  NODE_PROBE(DTRACE_NET_SERVER_CONNECTION)
-  NODE_PROBE(DTRACE_NET_STREAM_END)
-  NODE_PROBE(DTRACE_HTTP_SERVER_REQUEST)
-  NODE_PROBE(DTRACE_HTTP_SERVER_RESPONSE)
-  NODE_PROBE(DTRACE_HTTP_CLIENT_REQUEST)
-  NODE_PROBE(DTRACE_HTTP_CLIENT_RESPONSE)
-# undef NODE_PROBE
-#endif
+#define V(name) env->SetMethod(target, #name, name);
+  NODE_PROBES(V)
+#undef V
+#endif  // defined HAVE_DTRACE || defined HAVE_ETW
+}
+
+void RegisterDtraceExternalReferences(ExternalReferenceRegistry* registry) {
+#if defined HAVE_DTRACE || defined HAVE_ETW
+#define V(name) registry->Register(name);
+  NODE_PROBES(V)
+#undef V
+#endif  // defined HAVE_DTRACE || defined HAVE_ETW
 }
 
 }  // namespace node
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(dtrace, node::InitializeDTrace)
+NODE_MODULE_EXTERNAL_REFERENCE(dtrace, node::RegisterDtraceExternalReferences)
