@@ -53,6 +53,7 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(dtrace)                                                                    \
   V(env_var)                                                                   \
   V(errors)                                                                    \
   V(fs)                                                                        \
