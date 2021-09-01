@@ -2809,7 +2809,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Documentation-only
 
 The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
 and `'mgf1HashAlgorithm'`.
