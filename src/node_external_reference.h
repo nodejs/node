@@ -53,7 +53,6 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
-  V(dtrace)                                                                    \
   V(env_var)                                                                   \
   V(errors)                                                                    \
   V(fs)                                                                        \
@@ -98,10 +97,17 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)
 #endif  // HAVE_INSPECTOR
 
+#if HAVE_DTRACE || HAVE_ETW
+#define EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V) V(dtrace)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)
+#endif
+
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
   EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                      \
   EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
-  EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)
+  EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)                                      \
+  EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)
 
 }  // namespace node
 
