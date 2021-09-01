@@ -775,6 +775,18 @@ including subdirectories and files.
 When copying a directory to another directory, globs are not supported and
 behavior is similar to `cp dir1/ dir2/`.
 
+### `fsPromises.exists(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string}
+* Returns: {Promise} Resolved as `true` if the given path exists, otherwise,
+  resolved as `false`.
+
+Test whether or not the given path exists by checking with the file system.
+
 ### `fsPromises.lchmod(path, mode)`
 <!-- YAML
 deprecated: v10.0.0
