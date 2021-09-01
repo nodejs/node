@@ -2844,12 +2844,10 @@ Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   const char os_name[] = "unknown";
 #endif
   os_template->Set(isolate, "name",
-                   v8::String::NewFromUtf8Literal(isolate, os_name),
-                   PropertyAttribute::ReadOnly);
+                   v8::String::NewFromUtf8Literal(isolate, os_name));
   os_template->Set(
       isolate, "d8Path",
-      v8::String::NewFromUtf8(isolate, options.d8_path).ToLocalChecked(),
-      PropertyAttribute::ReadOnly);
+      v8::String::NewFromUtf8(isolate, options.d8_path).ToLocalChecked());
   return os_template;
 }
 
