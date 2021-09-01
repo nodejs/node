@@ -14,6 +14,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Socket.<anonymous> (node:internal/process/execution:*:*)
     at Socket.emit (node:events:*:*)
     at endReadableNT (node:internal/streams/readable:*:*)
+
+Node.js *
 42
 42
 [stdin]:1
@@ -31,6 +33,8 @@ Error: hello
     at Socket.<anonymous> (node:internal/process/execution:*:*)
     at Socket.emit (node:events:*:*)
     at endReadableNT (node:internal/streams/readable:*:*)
+
+Node.js *
 [stdin]:1
 throw new Error("hello")
 ^
@@ -46,6 +50,8 @@ Error: hello
     at Socket.<anonymous> (node:internal/process/execution:*:*)
     at Socket.emit (node:events:*:*)
     at endReadableNT (node:internal/streams/readable:*:*)
+
+Node.js *
 100
 [stdin]:1
 let x = 100; y = x;
@@ -63,15 +69,21 @@ ReferenceError: y is not defined
     at Socket.emit (node:events:*:*)
     at endReadableNT (node:internal/streams/readable:*:*)
 
-[stdin]:1
-let ______________________________________________; throw 10
-                                                    ^
-10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+Node.js *
 
 [stdin]:1
 let ______________________________________________; throw 10
                                                     ^
 10
 (Use `* --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+
+[stdin]:1
+let ______________________________________________; throw 10
+                                                    ^
+10
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
 done

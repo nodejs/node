@@ -13,3 +13,5 @@ Error: an exception
     at require (node:internal/modules/cjs/helpers:*)
     at Object.<anonymous> (*source_map_throw_first_tick.js:5:1)
     at Module._compile (node:internal/modules/cjs/loader:*)
+
+Node.js *

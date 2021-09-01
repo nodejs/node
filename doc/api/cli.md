@@ -605,6 +605,13 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
+### `--no-extra-info-on-fatal-exception`
+<!-- YAML
+added: REPLACEME
+-->
+
+Hide extra information on fatal exception that causes exit.
+
 ### `--no-force-async-hooks-checks`
 <!-- YAML
 added: v9.0.0
@@ -1423,6 +1430,7 @@ Node.js options that are allowed are:
 * `--napi-modules`
 * `--no-deprecation`
 * `--no-experimental-repl-await`
+* `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
 * `--node-memory-debug`
