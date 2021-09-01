@@ -6152,22 +6152,7 @@ Emitted when the {fs.WriteStream}'s underlying file descriptor has been closed.
 
 #### Event: `'open'`
 <!-- YAML
-added:
-  - v10.0.0
-  - v0.1.93
-changes:
-  - version: v14.17.0
-    pr-url: https://github.com/nodejs/node/pull/35993
-    description: The options argument may include an AbortSignal to abort an
-                 ongoing writeFile request.
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `data` parameter will stringify an object with an
-                 explicit `toString` function.
-  - version: v14.0.0
-    pr-url: https://github.com/nodejs/node/pull/31030
-    description: The `data` parameter won't coerce unsupported input to
-                 strings anymore.
+added: v0.1.93
 -->
 
 * `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.
