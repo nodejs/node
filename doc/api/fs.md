@@ -780,7 +780,7 @@ behavior is similar to `cp dir1/ dir2/`.
 added: REPLACEME
 -->
 
-* `path` {string}
+* `path` {string|Buffer|URL}
 * Returns: {Promise} Resolved as `true` if the given path exists, otherwise,
   resolved as `false`.
 
