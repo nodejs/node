@@ -486,6 +486,13 @@ async function executeOnHandle(dest, func) {
       const fileExists = await exists(nonExistFile);
       assert.strictEqual(fileExists, false);
     }
+
+    {
+      await assert.rejects(() => exists({}), {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError'
+      });
+    }
   }
 
   doTest().then(common.mustCall());
