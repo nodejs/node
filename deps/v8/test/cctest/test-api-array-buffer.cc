@@ -156,7 +156,7 @@ THREADED_TEST(ArrayBuffer_External) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  base::ScopedVector<uint8_t> my_data(100);
+  v8::base::ScopedVector<uint8_t> my_data(100);
   memset(my_data.begin(), 0, 100);
   // Keep the tests until the deprecated functions are removed.
 #if __clang__
@@ -387,7 +387,7 @@ THREADED_TEST(ArrayBuffer_ExternalReused) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  base::ScopedVector<uint8_t> data(100);
+  v8::base::ScopedVector<uint8_t> data(100);
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, data.begin(), 100);
   std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
   ab1->Detach();
@@ -401,7 +401,7 @@ THREADED_TEST(SharedArrayBuffer_ExternalReused) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  base::ScopedVector<uint8_t> data(100);
+  v8::base::ScopedVector<uint8_t> data(100);
   Local<v8::SharedArrayBuffer> ab1 =
       v8::SharedArrayBuffer::New(isolate, data.begin(), 100);
   std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
@@ -458,7 +458,7 @@ THREADED_TEST(SharedArrayBuffer_External) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  base::ScopedVector<uint8_t> my_data(100);
+  v8::base::ScopedVector<uint8_t> my_data(100);
   memset(my_data.begin(), 0, 100);
   Local<v8::SharedArrayBuffer> ab3 =
       v8::SharedArrayBuffer::New(isolate, my_data.begin(), 100);
