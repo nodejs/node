@@ -34,6 +34,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 * [Current project team members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
+  * [Triagers](#triagers)
   * [Release keys](#release-keys)
 * [License](#license)
 
