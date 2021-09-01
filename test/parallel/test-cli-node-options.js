@@ -26,6 +26,7 @@ expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
+expect('--no-extra-info-on-fatal-exception', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
 expect('--trace-sync-io', 'B\n');

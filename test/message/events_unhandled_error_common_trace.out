@@ -18,3 +18,5 @@ Emitted 'error' event at:
     at Module._compile (node:internal/modules/cjs/loader:*:*)
     [... lines matching original stack trace ...]
     at node:internal/main/run_main_module:*:*
+
+Node.js *

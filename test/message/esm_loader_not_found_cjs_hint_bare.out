@@ -14,3 +14,5 @@ Did you mean to import some_module/obj.js?
     at link (node:internal/modules/esm/module_job:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }
+
+Node.js *

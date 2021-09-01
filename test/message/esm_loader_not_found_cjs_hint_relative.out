@@ -18,3 +18,5 @@ Did you mean to import ./test/common/fixtures.js?
     at Object.loadESM (node:internal/process/esm_loader:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }
+
+Node.js *
