@@ -776,7 +776,6 @@ When copying a directory to another directory, globs are not supported and
 behavior is similar to `cp dir1/ dir2/`.
 
 ### `fsPromises.exists(path)`
-
 <!-- YAML
 added: REPLACEME
 -->
