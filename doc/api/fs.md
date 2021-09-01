@@ -1029,7 +1029,9 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v15.2.0
+  - version:
+    - v15.2.0
+    - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
                  ongoing readFile request.
@@ -1350,7 +1352,9 @@ changes:
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
-  - version: v15.2.0
+  - version:
+    - v15.2.0
+    - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -4631,7 +4635,9 @@ link(2) documentation for more detail. Returns `undefined`.
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: v15.3.0
+  - version:
+    - v15.3.0
+    - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/33716
     description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
@@ -5091,7 +5097,9 @@ utility). Returns `undefined`.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v15.3.0
+  - version:
+    - v15.3.0
+    - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/33716
     description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
