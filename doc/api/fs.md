@@ -326,7 +326,9 @@ of the file.
 
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 -->
 
 * `buffers` {Buffer[]|TypedArray[]|DataView[]}
@@ -4566,9 +4568,13 @@ this API: [`fs.read()`][].
 
 ### `fs.readSync(fd, buffer, [options])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 changes:
-  - version: v14.0.0
+  - version:
+     - v13.13.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
                  to make offset, length and position optional.
@@ -4592,7 +4598,9 @@ this API: [`fs.read()`][].
 
 ### `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
-added: v14.0.0
+added:
+ - v13.13.0
+ - v12.17.0
 -->
 
 * `fd` {integer}
