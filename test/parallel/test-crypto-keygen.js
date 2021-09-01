@@ -1545,3 +1545,56 @@ if (!common.hasOpenSSL3) {
     }
   }
 }
+
+{
+  // This test makes sure deprecated and new options may be used
+  // simultaneously so long as they're identical values
+
+  generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    hash: 'sha256',
+    hashAlgorithm: 'sha256',
+    mgf1Hash: 'sha256',
+    mgf1HashAlgorithm: 'sha256'
+  }, common.mustSucceed((publicKey, privateKey) => {
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
+      modulusLength: 512,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
+    });
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
+      modulusLength: 512,
+      publicExponent: 65537n,
+      hashAlgorithm: 'sha256',
+      mgf1HashAlgorithm: 'sha256',
+      saltLength: 16
+    });
+  }));
+}
+
+{
+  // This test makes sure deprecated and new options must
+  // be the same value
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    mgf1Hash: 'sha256',
+    mgf1HashAlgorithm: 'sha1'
+  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    saltLength: 16,
+    hash: 'sha256',
+    hashAlgorithm: 'sha1'
+  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
+}
