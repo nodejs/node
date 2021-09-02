@@ -1815,4 +1815,3 @@ $ node --max-old-space-size=1536 index.js
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
-[`dlopen`]: https://nodejs.org/api/process.html#process_process_dlopen_module_filename_flags
