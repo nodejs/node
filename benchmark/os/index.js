@@ -13,7 +13,11 @@ const bench = common.createBenchmark(main, {
 function main({ n, method }) {
   bench.start();
   for (let i = 0; i < n; ++i) {
-    os[method](0, 0);
+    if (method === 'setPriority') {
+      os[method](0, 0);
+    } else {
+      os[method]();
+    }
   }
   bench.end(n);
 }
