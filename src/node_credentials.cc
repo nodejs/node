@@ -48,10 +48,14 @@ bool HasOnly(int capability) {
     getpid()};
 
 
-  if (syscall(SYS_capget, &cap_header_data, &cap_data[0]) != 0) {
+  if (syscall(SYS_capget, &cap_header_data, &cap_data) != 0) {
     return false;
   }
-  return cap_data[0].effective ==
+  if (capability < 32) {
+    return cap_data[0].permitted ==
+        static_cast<unsigned int>(CAP_TO_MASK(capability));
+  }
+  return cap_data[1].permitted ==
       static_cast<unsigned int>(CAP_TO_MASK(capability));
 }
 #endif
