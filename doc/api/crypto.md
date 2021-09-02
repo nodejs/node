@@ -5304,7 +5304,7 @@ const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
 try {
   decipher.final();
 } catch (err) {
-  throw new Error('Authentication failed!');
+  throw new Error('Authentication failed!', { cause: err });
 }
 
 console.log(receivedPlaintext);
