@@ -44,8 +44,9 @@ const depValid = (child, requested, requestor) => {
 
   switch (requested.type) {
     case 'range':
-      if (requested.fetchSpec === '*')
+      if (requested.fetchSpec === '*') {
         return true
+      }
       // fallthrough
     case 'version':
       // if it's a version or a range other than '*', semver it
@@ -108,17 +109,20 @@ const depValid = (child, requested, requestor) => {
 }
 
 const tarballValid = (child, requested, requestor) => {
-  if (child.isLink)
+  if (child.isLink) {
     return false
+  }
 
-  if (child.resolved)
+  if (child.resolved) {
     return child.resolved.replace(/\\/g, '/') === `file:${requested.fetchSpec.replace(/\\/g, '/')}`
+  }
 
   // if we have a legacy mutated package.json file.  we can't be 100%
   // sure that it resolved to the same file, but if it was the same
   // request, that's a pretty good indicator of sameness.
-  if (child.package._requested)
+  if (child.package._requested) {
     return child.package._requested.saveSpec === requested.saveSpec
+  }
 
   // ok, we're probably dealing with some legacy cruft here, not much
   // we can do at this point unfortunately.

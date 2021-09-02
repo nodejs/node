@@ -20,7 +20,9 @@ Tracker.prototype.addWork = function (work) {
 
 Tracker.prototype.completeWork = function (work) {
   this.workDone += work
-  if (this.workDone > this.workTodo) this.workDone = this.workTodo
+  if (this.workDone > this.workTodo) {
+    this.workDone = this.workTodo
+  }
   this.emit('change', this.name, this.completed(), this)
 }
 

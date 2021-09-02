@@ -85,8 +85,9 @@ class PlaceDep {
         !edge.error &&
         !explicitRequest &&
         !updateNames.includes(edge.name) &&
-        !this.isVulnerable(edge.to))
+        !this.isVulnerable(edge.to)) {
       return
+    }
 
     // walk up the tree until we hit either a top/root node, or a place
     // where the dep is not a peer dep.
@@ -110,8 +111,9 @@ class PlaceDep {
       // but we CAN place it under a, so the correct thing to do is keep
       // walking up the tree.
       const targetEdge = target.edgesOut.get(edge.name)
-      if (!target.isTop && targetEdge && targetEdge.peer)
+      if (!target.isTop && targetEdge && targetEdge.peer) {
         continue
+      }
 
       const cpd = new CanPlaceDep({
         dep,
@@ -141,34 +143,39 @@ class PlaceDep {
       // should treat (b) and (d) as OK, and place them in the last place
       // where they did not themselves conflict, and skip c@2 if conflict
       // is ok by virtue of being forced or not ours and not strict.
-      if (cpd.canPlaceSelf !== CONFLICT)
+      if (cpd.canPlaceSelf !== CONFLICT) {
         canPlaceSelf = cpd
+      }
 
       // we found a place this can go, along with all its peer friends.
       // we break when we get the first conflict
-      if (cpd.canPlace !== CONFLICT)
+      if (cpd.canPlace !== CONFLICT) {
         canPlace = cpd
-      else
+      } else {
         break
+      }
 
       // if it's a load failure, just plop it in the first place attempted,
       // since we're going to crash the build or prune it out anyway.
       // but, this will frequently NOT be a successful canPlace, because
       // it'll have no version or other information.
-      if (dep.errors.length)
+      if (dep.errors.length) {
         break
+      }
 
       // nest packages like npm v1 and v2
       // very disk-inefficient
-      if (legacyBundling)
+      if (legacyBundling) {
         break
+      }
 
       // when installing globally, or just in global style, we never place
       // deps above the first level.
       if (globalStyle) {
         const rp = target.resolveParent
-        if (rp && rp.isProjectRoot)
+        if (rp && rp.isProjectRoot) {
           break
+        }
       }
     }
 
@@ -183,8 +190,9 @@ class PlaceDep {
     if (!canPlace) {
       // if not forced, or it's our dep, or strictPeerDeps is set, then
       // this is an ERESOLVE error.
-      if (!this.conflictOk)
+      if (!this.conflictOk) {
         return this.failPeerConflict()
+      }
 
       // ok!  we're gonna allow the conflict, but we should still warn
       // if we have a current, then we treat CONFLICT as a KEEP.
@@ -237,8 +245,9 @@ class PlaceDep {
     // it's a conflict.  Treat it as a KEEP, but warn and move on.
     if (placementType === KEEP) {
       // this was an overridden peer dep
-      if (edge.peer && !edge.valid)
+      if (edge.peer && !edge.valid) {
         this.warnPeerConflict()
+      }
 
       // if we get a KEEP in a update scenario, then we MAY have something
       // already duplicating this unnecessarily!  For example:
@@ -287,21 +296,24 @@ class PlaceDep {
     })
 
     this.oldDep = target.children.get(this.name)
-    if (this.oldDep)
+    if (this.oldDep) {
       this.replaceOldDep()
-    else
+    } else {
       this.placed.parent = target
+    }
 
     // if it's an overridden peer dep, warn about it
-    if (edge.peer && !this.placed.satisfies(edge))
+    if (edge.peer && !this.placed.satisfies(edge)) {
       this.warnPeerConflict()
+    }
 
     // If the edge is not an error, then we're updating something, and
     // MAY end up putting a better/identical node further up the tree in
     // a way that causes an unnecessary duplication.  If so, remove the
     // now-unnecessary node.
-    if (edge.valid && edge.to && edge.to !== this.placed)
+    if (edge.valid && edge.to && edge.to !== this.placed) {
       this.pruneDedupable(edge.to, false)
+    }
 
     // in case we just made some duplicates that can be removed,
     // prune anything deeper in the tree that can be replaced by this
@@ -310,8 +322,9 @@ class PlaceDep {
         this.pruneDedupable(node, false)
         // only walk the direct children of the ones we kept
         if (node.root === target.root) {
-          for (const kid of node.children.values())
+          for (const kid of node.children.values()) {
             this.pruneDedupable(kid, false)
+          }
         }
       }
     }
@@ -323,8 +336,9 @@ class PlaceDep {
     // otherwise they'd be gone and the peer set would change throughout
     // this loop.
     for (const peerEdge of this.placed.edgesOut.values()) {
-      if (peerEdge.valid || !peerEdge.peer || peerEdge.overridden)
+      if (peerEdge.valid || !peerEdge.peer || peerEdge.overridden) {
         continue
+      }
 
       const peer = virtualRoot.children.get(peerEdge.name)
 
@@ -332,12 +346,14 @@ class PlaceDep {
       // it's an optional peer dep.  If it's not being properly met (ie,
       // peerEdge.valid is false), then this is likely heading for an
       // ERESOLVE error, unless it can walk further up the tree.
-      if (!peer)
+      if (!peer) {
         continue
+      }
 
       // overridden peerEdge, just accept what's there already
-      if (!peer.satisfies(peerEdge))
+      if (!peer.satisfies(peerEdge)) {
         continue
+      }
 
       this.children.push(new PlaceDep({
         parent: this,
@@ -363,8 +379,9 @@ class PlaceDep {
     // later anyway.
     const oldDeps = []
     for (const [name, edge] of this.oldDep.edgesOut.entries()) {
-      if (!this.placed.edgesOut.has(name) && edge.to)
+      if (!this.placed.edgesOut.has(name) && edge.to) {
         oldDeps.push(...gatherDepSet([edge.to], e => e.to !== edge.to))
+      }
     }
     this.placed.replace(this.oldDep)
     this.pruneForReplacement(this.placed, oldDeps)
@@ -377,8 +394,9 @@ class PlaceDep {
       .filter(e => e.to && !e.valid).map(e => e.to))
     for (const dep of oldDeps) {
       const set = gatherDepSet([dep], e => e.to !== dep && e.valid)
-      for (const dep of set)
+      for (const dep of set) {
         invalidDeps.add(dep)
+      }
     }
 
     // ignore dependency edges from the node being replaced, but
@@ -388,8 +406,9 @@ class PlaceDep {
       edge.from !== node && edge.to !== node && edge.valid)
 
     // now just delete whatever's left, because it's junk
-    for (const dep of deps)
+    for (const dep of deps) {
       dep.root = null
+    }
   }
 
   // prune all the nodes in a branch of the tree that can be safely removed
@@ -402,8 +421,9 @@ class PlaceDep {
       // the dep set, except for this node we're deduping, so that we
       // also prune deps that would be made extraneous.
       const deps = gatherDepSet([node], e => e.to !== node && e.valid)
-      for (const node of deps)
+      for (const node of deps) {
         node.root = null
+      }
       return
     }
     if (descend) {
@@ -413,13 +433,15 @@ class PlaceDep {
       const nodeSort = (a, b) => a.location.localeCompare(b.location, 'en')
 
       const children = [...node.children.values()].sort(nodeSort)
-      for (const child of children)
+      for (const child of children) {
         this.pruneDedupable(child)
+      }
       const fsChildren = [...node.fsChildren].sort(nodeSort)
       for (const topNode of fsChildren) {
         const children = [...topNode.children.values()].sort(nodeSort)
-        for (const child of children)
+        for (const child of children) {
           this.pruneDedupable(child)
+        }
       }
     }
   }
@@ -432,11 +454,13 @@ class PlaceDep {
     const { edge } = this.top
     const { from: node } = edge
 
-    if (node.isWorkspace || node.isProjectRoot)
+    if (node.isWorkspace || node.isProjectRoot) {
       return true
+    }
 
-    if (!edge.peer)
+    if (!edge.peer) {
       return false
+    }
 
     // re-entry case.  check if any non-peer edges come from the project,
     // or any entryEdges on peer groups are from the root.
@@ -446,13 +470,15 @@ class PlaceDep {
         hasPeerEdges = true
         continue
       }
-      if (edge.from.isWorkspace || edge.from.isProjectRoot)
+      if (edge.from.isWorkspace || edge.from.isProjectRoot) {
         return true
+      }
     }
     if (hasPeerEdges) {
       for (const edge of peerEntrySets(node).keys()) {
-        if (edge.from.isWorkspace || edge.from.isProjectRoot)
+        if (edge.from.isWorkspace || edge.from.isProjectRoot) {
           return true
+        }
       }
     }
 
@@ -541,8 +567,9 @@ class PlaceDep {
   get allChildren () {
     const set = new Set(this.children)
     for (const child of set) {
-      for (const grandchild of child.children)
+      for (const grandchild of child.children) {
         set.add(grandchild)
+      }
     }
     return [...set]
   }
