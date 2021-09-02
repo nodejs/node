@@ -1019,6 +1019,14 @@ added: v16.4.0
 
 The [debugger][] timed out waiting for the required host/port to be free.
 
+<a id="ERR_DLOPEN_DISABLED"></a>
+### `ERR_DLOPEN_DISABLED`
+<!-- YAML
+added: REPLACEME
+-->
+
+Loading native addons has been disabled using [`--no-addons`][].
+
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
 <!-- YAML
@@ -2871,6 +2879,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
 [`--disable-proto=throw`]: cli.md#cli_disable_proto_mode
 [`--force-fips`]: cli.md#cli_force_fips
+[`--no-addons`]: cli.md#cli_no_addons
 [`Class: assert.AssertionError`]: assert.md#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
