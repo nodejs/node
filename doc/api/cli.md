@@ -618,8 +618,9 @@ dynamically when `async_hooks` is enabled.
 added: REPLACEME
 -->
 
-Enable a `no-addons` resolution condition as well as disable loading native addons. When `--no-addons` is specified,
-calling `process.dlopen` or requiring a native C++ addon will fail and throw an exception.
+Enable a `no-addons` resolution condition as well as disable loading native
+addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
+a native C++ addon will fail and throw an exception.
 
 ### `--no-warnings`
 <!-- YAML
