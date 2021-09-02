@@ -537,6 +537,11 @@ Node.js implements the following conditions:
 * `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
+* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
+   This condition can be used to provide an entry point which uses native C++
+   addons as opposed to an entry point which is more universal and doesn't rely
+   on native addons. This condition can be disabled via the
+   [`--no-addons` flag][].
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
    or ES module file. _This condition should always come last._
 
@@ -615,16 +620,22 @@ node --conditions=development main.js
 ```
 
 which would then resolve the `"development"` condition in package imports and
-exports, while resolving the existing `"node"`, `"default"`, `"import"`, and
-`"require"` conditions as appropriate.
+exports, while resolving the existing `"node"`, `"node-addons"`, `"default"`,
+`"import"`, and `"require"` conditions as appropriate.
 
 Any number of custom conditions can be set with repeat flags.
 
 ### Conditions Definitions
 
-The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
-and implemented in Node.js core,
+The `"import"`, `"require"`, `"node"`, `"node-addons"` and `"default"`
+conditions are defined and implemented in Node.js core,
 [as specified above](#conditional-exports).
+
+The `"node-addons"` condition can be used to provide an entry point which
+uses native C++ addons. However, this condition can be disabled via the
+[`--no-addons` flag][]. When using `"node-addons"`, it's recommended to treat
+`"default"` as an enhancement that provides a more universal entry point, e.g.
+using WebAssembly instead of a native addon.
 
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
@@ -1249,6 +1260,7 @@ This field defines [subpath imports][] for the current package.
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
 [`--conditions` flag]: #resolving-user-conditions
+[`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions

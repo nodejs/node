@@ -415,6 +415,12 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
 // cache that's a plain C list or hash table that's shared across contexts?
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  if (env->no_native_addons()) {
+    return THROW_ERR_DLOPEN_DISABLED(
+      env, "Cannot load native addon because loading addons is disabled.");
+  }
+
   auto context = env->context();
 
   CHECK_NULL(thread_local_modpending);
