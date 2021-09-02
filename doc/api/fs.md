@@ -785,6 +785,7 @@ added: REPLACEME
   resolved as `false`.
 
 Test whether or not the given path exists by checking with the file system.
+It throws when check is impossible, such as encountering permission issue.
 
 ### `fsPromises.lchmod(path, mode)`
 <!-- YAML
