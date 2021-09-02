@@ -402,6 +402,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::force_async_hooks_checks,
             kAllowedInEnvironment,
             true);
+  AddOption("--addons",
+            "disable loading native addons",
+            &EnvironmentOptions::allow_native_addons,
+            kAllowedInEnvironment,
+            true);
   AddOption("--warnings",
             "silence all process warnings",
             &EnvironmentOptions::warnings,

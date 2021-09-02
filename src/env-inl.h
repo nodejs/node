@@ -861,6 +861,11 @@ inline bool Environment::is_main_thread() const {
   return worker_context() == nullptr;
 }
 
+inline bool Environment::no_native_addons() const {
+  return (flags_ & EnvironmentFlags::kNoNativeAddons) ||
+          !options_->allow_native_addons;
+}
+
 inline bool Environment::should_not_register_esm_loader() const {
   return flags_ & EnvironmentFlags::kNoRegisterESMLoader;
 }

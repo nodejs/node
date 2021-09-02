@@ -407,7 +407,13 @@ enum Flags : uint64_t {
   // Set this flag to force hiding console windows when spawning child
   // processes. This is usually used when embedding Node.js in GUI programs on
   // Windows.
-  kHideConsoleWindows = 1 << 5
+  kHideConsoleWindows = 1 << 5,
+  // Set this flag to disable loading native addons via `process.dlopen`.
+  // This environment flag is especially important for worker threads
+  // so that a worker thread can't load a native addon even if `execArgv`
+  // is overwritten and `--no-addons` is not specified but was specified
+  // for this Environment instance.
+  kNoNativeAddons = 1 << 6
 };
 }  // namespace EnvironmentFlags
 

@@ -560,6 +560,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     worker->environment_flags_ |= EnvironmentFlags::kTrackUnmanagedFds;
   if (env->hide_console_windows())
     worker->environment_flags_ |= EnvironmentFlags::kHideConsoleWindows;
+  if (env->no_native_addons())
+    worker->environment_flags_ |= EnvironmentFlags::kNoNativeAddons;
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {

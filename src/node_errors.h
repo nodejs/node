@@ -57,6 +57,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, Error)                                   \
   V(ERR_CRYPTO_JOB_INIT_FAILED, Error)                                         \
+  V(ERR_DLOPEN_DISABLED, Error)                                                \
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
