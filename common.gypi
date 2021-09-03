@@ -259,7 +259,10 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
-        'AdditionalOptions': ['/Zc:__cplusplus'],
+        'AdditionalOptions': [
+          '/Zc:__cplusplus',
+          '-std:c++17'
+        ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
         'ExceptionHandling': 0,               # /EHsc
