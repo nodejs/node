@@ -41,7 +41,7 @@ static napi_value CreateSymbol(napi_env env, napi_callback_info info) {
     napi_value args[1];
     
     NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL,NULL));
-    NODE_API_ASSERT(env, argc == 1, "Expect one argument only(symbol description)");
+    NODE_API_ASSERT(env, argc == 1, "Expect one argument only (symbol description)");
     
     napi_value result_symbol;
     
