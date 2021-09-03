@@ -293,7 +293,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 added: v0.9.4
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/39985
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
 -->
@@ -937,7 +937,7 @@ readable.on('end', () => {
 added: v0.9.4
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/39985
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
 -->
@@ -1817,7 +1817,7 @@ const cleanup = finished(rs, (err) => {
 added: v10.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/39985
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
   - version: v14.0.0

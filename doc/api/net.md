@@ -629,7 +629,7 @@ FIN packet back).
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/39985
     description: The error returned may be an `AggregateError` if more than one
                  error is returned.
 -->
