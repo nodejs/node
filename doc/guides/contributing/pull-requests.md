@@ -579,6 +579,8 @@ If you want to know more about the code review and the landing process, see the
 * `test`
 * `tools`
 
+You can find the full list of supported subsystems in the
+[nodejs/core-validate-commit][] repository.
 More than one subsystem may be valid for any particular issue or pull request.
 
 [Building guide]: ../../../BUILDING.md
@@ -591,5 +593,6 @@ More than one subsystem may be valid for any particular issue or pull request.
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
+[nodejs/core-validate-commit]: https://github.com/nodejs/core-validate-commit/blob/main/lib/rules/subsystem.js
 [pull request template]: https://raw.githubusercontent.com/nodejs/node/HEAD/.github/PULL_REQUEST_TEMPLATE.md
 [running tests]: ../../../BUILDING.md#running-tests
