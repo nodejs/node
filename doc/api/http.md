@@ -702,7 +702,8 @@ changes:
                  streams.
 -->
 
-* `error` {Error} Optional, an error to emit with `'error'` event.
+* `error` {Error|AggregateError} Optional, an error to emit with `'error'`
+  event.
 * Returns: {this}
 
 Destroy the request. Optionally emit an `'error'` event,
@@ -2043,7 +2044,7 @@ changes:
                  streams.
 -->
 
-* `error` {Error}
+* `error` {Error|AggregateError}
 * Returns: {this}
 
 Calls `destroy()` on the socket that received the `IncomingMessage`. If `error`

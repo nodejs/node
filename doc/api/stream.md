@@ -291,9 +291,14 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 ##### Event: `'error'`
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
 -->
 
-* {Error}
+* {Error|AggregateError}
 
 The `'error'` event is emitted if an error occurred while writing or piping
 data. The listener callback is passed a single `Error` argument when called.
@@ -399,7 +404,8 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error} Optional, an error to emit with `'error'` event.
+* `error` {Error|AggregateError} Optional, an error to emit with `'error'`
+  event.
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
@@ -929,9 +935,14 @@ readable.on('end', () => {
 ##### Event: `'error'`
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
 -->
 
-* {Error}
+* {Error|AggregateError}
 
 The `'error'` event may be emitted by a `Readable` implementation at any time.
 Typically, this may occur if the underlying stream is unable to generate data
@@ -1034,7 +1045,8 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error} Error which will be passed as payload in `'error'` event
+* `error` {Error|AggregateError} Error which will be passed as payload in
+  `'error'` event.
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
@@ -1691,7 +1703,7 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error}
+* `error` {Error|AggregateError}
 * Returns: {this}
 
 Destroy the stream, and optionally emit an `'error'` event. After this call, the
@@ -1804,6 +1816,10 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: The `pipeline(..., cb)` will wait for the `'close'` event
@@ -1825,7 +1841,7 @@ changes:
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
-  * `err` {Error}
+  * `err` {Error|AggregateError}
   * `val` Resolved value of `Promise` returned by `destination`.
 * Returns: {Stream}
 
@@ -2585,7 +2601,7 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} A possible error.
+* `err` {Error|AggregateError} A possible error.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 
@@ -2895,7 +2911,7 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} A possible error.
+* `err` {Error|AggregateError} A possible error.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 

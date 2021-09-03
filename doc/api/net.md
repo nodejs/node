@@ -627,9 +627,14 @@ FIN packet back).
 ### Event: `'error'`
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
 -->
 
-* {Error}
+* {Error|AggregateError}
 
 Emitted when an error occurs. The `'close'` event will be called directly
 following this event.
