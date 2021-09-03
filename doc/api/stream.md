@@ -404,8 +404,7 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error|AggregateError} Optional, an error to emit with `'error'`
-  event.
+* `error` {Error} Optional, an error to emit with `'error'` event.
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
@@ -1045,8 +1044,7 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error|AggregateError} Error which will be passed as payload in
-  `'error'` event.
+* `error` {Error} Error which will be passed as payload in `'error'` event
 * Returns: {this}
 
 Destroy the stream. Optionally emit an `'error'` event, and emit a `'close'`
@@ -1703,7 +1701,7 @@ changes:
     description: Work as a no-op on a stream that has already been destroyed.
 -->
 
-* `error` {Error|AggregateError}
+* `error` {Error}
 * Returns: {this}
 
 Destroy the stream, and optionally emit an `'error'` event. After this call, the
@@ -2599,6 +2597,11 @@ user programs.
 #### `writable._destroy(err, callback)`
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39985
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
 -->
 
 * `err` {Error|AggregateError} A possible error.
@@ -2909,6 +2912,11 @@ user programs.
 #### `readable._destroy(err, callback)`
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39985
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
 -->
 
 * `err` {Error|AggregateError} A possible error.
