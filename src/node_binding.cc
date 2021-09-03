@@ -416,8 +416,8 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
 void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (UNLIKELY(!env->options()->allow_native_addons)) {
-    return THROW_ERR_DLOPEN_FAILED(
+  if (env->no_native_addons()) {
+    return THROW_ERR_DLOPEN_DISABLED(
       env, "Cannot load native addon because loading addons is disabled.");
   }
 

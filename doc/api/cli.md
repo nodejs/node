@@ -598,6 +598,15 @@ added: v7.10.0
 
 This option is a no-op. It is kept for compatibility.
 
+### `--no-addons`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable a `no-addons` resolution condition as well as disable loading native
+addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
+a native C++ addon will fail and throw an exception.
+
 ### `--no-deprecation`
 <!-- YAML
 added: v0.8.0
@@ -612,15 +621,6 @@ added: v9.0.0
 
 Disables runtime checks for `async_hooks`. These will still be enabled
 dynamically when `async_hooks` is enabled.
-
-### `--no-addons`
-<!-- YAML
-added: REPLACEME
--->
-
-Enable a `no-addons` resolution condition as well as disable loading native
-addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
-a native C++ addon will fail and throw an exception.
 
 ### `--no-warnings`
 <!-- YAML
@@ -1430,10 +1430,10 @@ Node.js options that are allowed are:
 * `--inspect`
 * `--max-http-header-size`
 * `--napi-modules`
+* `--no-addons`
 * `--no-deprecation`
 * `--no-experimental-repl-await`
 * `--no-force-async-hooks-checks`
-* `--no-addons`
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`

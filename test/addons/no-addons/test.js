@@ -1,3 +1,5 @@
+// Flags: --no-addons
+
 'use strict';
 
 const common = require('../../common');
@@ -12,7 +14,7 @@ try {
 } catch (error) {
   threw = true;
   assert(error instanceof Error);
-  assert.strictEqual(error.code, 'ERR_DLOPEN_FAILED');
+  assert.strictEqual(error.code, 'ERR_DLOPEN_DISABLED');
   assert.strictEqual(
     error.message,
     'Cannot load native addon because loading addons is disabled.'
