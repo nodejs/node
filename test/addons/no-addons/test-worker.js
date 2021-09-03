@@ -18,7 +18,7 @@ const expectError = (error) => {
 };
 
 {
-  // flags should be inherited
+  // Flags should be inherited
   const worker = new Worker(`require(${JSON.stringify(binding)})`, {
     eval: true,
   });
@@ -27,7 +27,7 @@ const expectError = (error) => {
 }
 
 {
-  // explicitly pass `--no-addons`
+  // Explicitly pass `--no-addons`
   const worker = new Worker(`require(${JSON.stringify(binding)})`, {
     eval: true,
     execArgv: ['--no-addons'],
@@ -37,7 +37,7 @@ const expectError = (error) => {
 }
 
 {
-  // if `execArgv` is overwritten it should still fail to load addons
+  // If `execArgv` is overwritten it should still fail to load addons
   const worker = new Worker(`require(${JSON.stringify(binding)})`, {
     eval: true,
     execArgv: [],
