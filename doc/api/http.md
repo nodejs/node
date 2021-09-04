@@ -1290,7 +1290,11 @@ event is emitted on the server object, and (by default) the socket is destroyed.
 See [`server.timeout`][] for more information on how timeout behavior can be
 customized.
 
-### `server.listen()`
+### `server.listen(port[, host][, callback])`
+
+* `port` {number}
+* `host` {string}
+* `callback` {Function}
 
 Starts the HTTP server listening for connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
