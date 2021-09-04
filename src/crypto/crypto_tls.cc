@@ -144,9 +144,6 @@ int NewSessionCallback(SSL* s, SSL_SESSION* sess) {
     return 0;
 
   // Serialize session
-  // TODO(@jasnell): An AllocatedBuffer or BackingStore would be better
-  // here to start eliminating unnecessary uses of Buffer where an ordinary
-  // Uint8Array would do just fine.
   Local<Object> session = Buffer::New(env, size).FromMaybe(Local<Object>());
   if (UNLIKELY(session.IsEmpty()))
     return 0;
@@ -154,16 +151,12 @@ int NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   unsigned char* session_data =
       reinterpret_cast<unsigned char*>(Buffer::Data(session));
 
-  memset(session_data, 0, size);
-  i2d_SSL_SESSION(sess, &session_data);
+  CHECK_EQ(i2d_SSL_SESSION(sess, &session_data), size);
 
   unsigned int session_id_length;
   const unsigned char* session_id_data =
       SSL_SESSION_get_id(sess, &session_id_length);
 
-  // TODO(@jasnell): An AllocatedBuffer or BackingStore would be better
-  // here to start eliminating unnecessary uses of Buffer where an ordinary
-  // Uint8Array would do just fine
   Local<Object> session_id = Buffer::Copy(
       env,
       reinterpret_cast<const char*>(session_id_data),
