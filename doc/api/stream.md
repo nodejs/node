@@ -2041,7 +2041,7 @@ await finished(compose(s1, s2, s3));
 console.log(res); // prints 'HELLOWORLD'
 ```
 
-### `stream.Readable.from(iterable, [options])`
+### `stream.Readable.from(iterable[, options])`
 <!-- YAML
 added:
   - v12.3.0
