@@ -28,7 +28,7 @@ const net = require('net');
 let conns_closed = 0;
 
 const remoteAddrCandidates = [ common.localhostIPv4 ];
-if (common.hasIPv6) remoteAddrCandidates.push('::ffff:127.0.0.1');
+if (common.hasIPv6) remoteAddrCandidates.push('::1', '::ffff:127.0.0.1');
 
 const remoteFamilyCandidates = ['IPv4'];
 if (common.hasIPv6) remoteFamilyCandidates.push('IPv6');
