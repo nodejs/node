@@ -63,7 +63,7 @@ specifically `argv` and `execArgv` options.
 
 ## `worker.getEnvironmentData(key)`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -274,7 +274,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 
 ## `worker.setEnvironmentData(key[, value])`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -427,10 +427,10 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37917
     description: Add 'BlockList' to the list of cloneable types.
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37155
     description: Add 'Histogram' types to the list of cloneable types.
   - version: v14.5.0

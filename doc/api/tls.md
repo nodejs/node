@@ -1357,7 +1357,7 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/35753
     description: Added `onread` option.
   - version: v14.1.0

@@ -185,7 +185,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 
 ### `--dns-result-order=order`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and
@@ -208,7 +208,7 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37362
     description: This API is no longer experimental.
 -->
@@ -352,7 +352,7 @@ be added.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -611,7 +611,7 @@ Silence all process warnings (including deprecations).
 
 ### `--node-memory-debug`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 Enable extra debug checks for memory leaks in Node.js internals. This is

@@ -457,7 +457,7 @@ The `*-deprecation` command-line flags only affect warnings that use the name
 
 ### Event: `'worker'`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 * `worker` {Worker} The {Worker} that was created.
@@ -1618,7 +1618,7 @@ program memory allocations.
 
 ## `process.memoryUsage.rss()`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 * Returns: {integer}
@@ -2350,7 +2350,7 @@ This feature is not available in [`Worker`][] threads.
 
 ## `process.setSourceMapsEnabled(val)`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 > Stability: 1 - Experimental

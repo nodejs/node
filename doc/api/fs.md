@@ -494,7 +494,7 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version: v14.12.0
@@ -799,7 +799,7 @@ rejection only when `recursive` is false.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
 -->
@@ -1203,7 +1203,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 ### `fsPromises.watch(filename[, options])`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 * `filename` {string|Buffer|URL}
@@ -1254,7 +1254,7 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version: v14.17.0
@@ -2560,7 +2560,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
   - version: v10.0.0
@@ -4496,7 +4496,7 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
 -->

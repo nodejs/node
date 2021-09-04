@@ -879,7 +879,7 @@ An unknown Diffie-Hellman group name was given. See
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 A call to `process.dlopen()` failed.
@@ -1432,7 +1432,7 @@ An IP address is not valid.
 <a id="ERR_INVALID_MODULE"></a>
 ### `ERR_INVALID_MODULE`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 An attempt was made to load a module that does not exist or was otherwise not

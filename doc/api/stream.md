@@ -1252,7 +1252,7 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 
 ##### `readable.readableDidRead`
 <!-- YAML
-added: REPLACEME
+added: v14.18.0
 -->
 
 * {boolean}

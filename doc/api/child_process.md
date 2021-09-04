@@ -146,7 +146,7 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -275,7 +275,7 @@ controller.abort();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -382,14 +382,14 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
   - version: v14.17.0
@@ -495,14 +495,14 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
   - version: v14.17.0
@@ -740,7 +740,7 @@ subprocess.unref();
 <!-- YAML
 added: v0.7.10
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/29412
     description: Added the `overlapped` stdio flag.
   - version: v3.3.1
@@ -855,7 +855,7 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -928,7 +928,7 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -992,7 +992,7 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
     description: The `cwd` option can be a WHATWG `URL` object using
                  `file:` protocol.

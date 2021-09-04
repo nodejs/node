@@ -2767,7 +2767,7 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39310
     description: When using a `URL` object parsed username and
                  password will now be properly URI decoded.

@@ -2656,7 +2656,7 @@ Use `fs.rm(path, { recursive: true, force: true })` instead.
 ### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.18.0
     pr-url: https://github.com/nodejs/node/pull/36918
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
