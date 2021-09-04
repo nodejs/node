@@ -58,7 +58,9 @@ net.createServer().listen(
 
 ## Class: `net.BlockList`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 The `BlockList` object can be used with some network APIs to specify rules for
@@ -67,7 +69,9 @@ IP subnets.
 
 ### `blockList.addAddress(address[, type])`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 * `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
@@ -77,7 +81,9 @@ Adds a rule to block the given IP address.
 
 ### `blockList.addRange(start, end[, type])`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 * `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
@@ -90,7 +96,9 @@ Adds a rule to block a range of IP addresses from `start` (inclusive) to
 
 ### `blockList.addSubnet(net, prefix[, type])`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 * `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
@@ -103,7 +111,9 @@ Adds a rule to block a range of IP addresses specified as a subnet mask.
 
 ### `blockList.check(address[, type])`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 * `address` {string|net.SocketAddress} The IP address to check
@@ -130,7 +140,9 @@ console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
 
 ### `blockList.rules`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 * Type: {string[]}
@@ -139,11 +151,15 @@ The list of rules added to the blocklist.
 
 ## Class: `net.SocketAddress`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 ### `new net.SocketAddress([options])`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 
 * `options` {Object}
@@ -156,28 +172,36 @@ added: v15.14.0
 
 ### `socketaddress.address`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 
 * Type {string}
 
 ### `socketaddress.family`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 
 * Type {string} Either `'ipv4'` or `'ipv6'`.
 
 ### `socketaddress.flowlabel`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 
 * Type {number}
 
 ### `socketaddress.port`
 <!-- YAML
-added: v15.14.0
+added:
+  - v15.14.0
+  - v14.18.0
 -->
 
 * Type {number}

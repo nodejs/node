@@ -85,7 +85,9 @@ const buf7 = Buffer.from('tést', 'latin1');
 ## Buffers and character encodings
 <!-- YAML
 changes:
-  - version: v15.7.0
+  - version:
+      - v15.7.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/36952
     description: Introduced `base64url` encoding.
   - version: v6.4.0
@@ -448,7 +450,9 @@ Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 
 ## Class: `Blob`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -458,7 +462,9 @@ multiple worker threads.
 
 ### `new buffer.Blob([sources[, options]])`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 changes:
   - version: v16.7.0
     pr-url: https://github.com/nodejs/node/pull/39708
@@ -488,7 +494,9 @@ U+FFFD replacement characters.
 
 ### `blob.arrayBuffer()`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 * Returns: {Promise}
@@ -498,14 +506,18 @@ the `Blob` data.
 
 ### `blob.size`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 The total size of the `Blob` in bytes.
 
 ### `blob.slice([start, [end, [type]]])`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 * `start` {number} The starting index.
@@ -526,7 +538,9 @@ Returns a new `ReadableStream` that allows the content of the `Blob` to be read.
 
 ### `blob.text()`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 * Returns: {Promise}
@@ -536,7 +550,9 @@ UTF-8 string.
 
 ### `blob.type`
 <!-- YAML
-added: v15.7.0
+added:
+  - v15.7.0
+  - v14.18.0
 -->
 
 * Type: {string}

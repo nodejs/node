@@ -1416,17 +1416,19 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: v15.1.0
+  - version:
+      - v15.1.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/35753
     description: Added `onread` option.
   - version:
-    - v14.1.0
-    - v13.14.0
+      - v14.1.0
+      - v13.14.0
     pr-url: https://github.com/nodejs/node/pull/32786
     description: The `highWaterMark` option is accepted now.
   - version:
-     - v13.6.0
-     - v12.16.0
+      - v13.6.0
+      - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/23188
     description: The `pskCallback` option is now supported.
   - version: v12.9.0
@@ -1439,8 +1441,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/27497
     description: The `enableTrace` option is now supported.
   - version:
-     - v11.8.0
-     - v10.16.0
+      - v11.8.0
+      - v10.16.0
     pr-url: https://github.com/nodejs/node/pull/25517
     description: The `timeout` option is supported now.
   - version: v8.0.0
@@ -1451,8 +1453,8 @@ changes:
     description: The `ALPNProtocols` option can be a `TypedArray` or
      `DataView` now.
   - version:
-    - v5.3.0
-    - v4.7.0
+      - v5.3.0
+      - v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
   - version: v5.0.0

@@ -217,7 +217,9 @@ added:
   - v14.13.1
   - v12.20.0
 changes:
-  - version: v16.0.0
+  - version:
+      - v16.0.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37246
     description: Added `node:` import support to `require(...)`.
 -->
@@ -297,7 +299,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: v16.2.0
+  - version:
+      - v16.2.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->

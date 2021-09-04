@@ -1003,7 +1003,9 @@ An unknown Diffie-Hellman group name was given. See
 <a id="ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
 ### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 An attempt to invoke an unsupported crypto operation was made.
@@ -1668,7 +1670,9 @@ An IP address is not valid.
 <a id="ERR_INVALID_MODULE"></a>
 ### `ERR_INVALID_MODULE`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 An attempt was made to load a module that does not exist or was otherwise not

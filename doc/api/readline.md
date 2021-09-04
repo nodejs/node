@@ -118,7 +118,9 @@ rl.on('line', (input) => {
 
 ### Event: `'history'`
 <!-- YAML
-added: v15.8.0
+added:
+  - v15.8.0
+  - v14.18.0
 -->
 
 The `'history'` event is emitted whenever the history array has changed.
@@ -466,7 +468,9 @@ asynchronous iteration may result in missed lines.
 <!-- YAML
 added: v0.1.98
 changes:
-  - version: v15.8.0
+  - version:
+      - v15.8.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/33676
     description: Value will always be a string, never undefined.
 -->
@@ -921,10 +925,14 @@ the current position of the cursor down.
 <!-- YAML
 added: v0.1.98
 changes:
-  - version: v15.14.0
+  - version:
+      - v15.14.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37932
     description: The `signal` option is supported now.
-  - version: v15.8.0
+  - version:
+      - v15.8.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/33662
     description: The `history` option is supported now.
   - version: v13.9.0

@@ -97,7 +97,9 @@ The following methods from the `dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: v16.7.0
+  - version:
+      - v16.7.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39610
     description: The `options` object now accepts a `tries` option.
   - version: v12.18.3
@@ -643,7 +645,9 @@ one of the [DNS error codes][].
 
 ## `dns.setDefaultResultOrder(order)`
 <!-- YAML
-added: v16.4.0
+added:
+  - v16.4.0
+  - v14.18.0
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -1168,7 +1172,9 @@ is one of the [DNS error codes]().
 
 ### `dnsPromises.setDefaultResultOrder(order)`
 <!-- YAML
-added: v16.4.0
+added:
+  - v16.4.0
+  - v14.18.0
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
