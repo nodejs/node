@@ -29,7 +29,7 @@ const server = net.createServer(function(client) {
   server.close();
 });
 
-server.listen(0, '127.0.0.1', common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   net.connect(this.address().port, 'localhost')
     .on('lookup', common.mustCall(function(err, ip, type, host) {
       assert.strictEqual(err, null);

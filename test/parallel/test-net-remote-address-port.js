@@ -48,8 +48,8 @@ const server = net.createServer(common.mustCall(function(socket) {
   socket.resume();
 }, 2));
 
-server.listen(0, 'localhost', function() {
-  const client = net.createConnection(this.address().port, 'localhost');
+server.listen(0, function() {
+  const client = net.createConnection(this.address().port, '127.0.0.1');
   const client2 = net.createConnection(this.address().port);
   client.on('connect', function() {
     assert.ok(remoteAddrCandidates.includes(client.remoteAddress));
