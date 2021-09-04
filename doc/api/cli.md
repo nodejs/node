@@ -190,7 +190,9 @@ code from strings throw an exception instead. This does not affect the Node.js
 
 ### `--dns-result-order=order`
 <!-- YAML
-added: v16.4.0
+added:
+  - v16.4.0
+  - v14.18.0
 -->
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and
@@ -213,7 +215,9 @@ against FIPS-compatible OpenSSL.)
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v15.11.0
+  - version:
+      - v15.11.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37362
     description: This API is no longer experimental.
 -->
@@ -363,7 +367,9 @@ be added.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -647,7 +653,9 @@ Silence all process warnings (including deprecations).
 
 ### `--node-memory-debug`
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.18.0
 -->
 
 Enable extra debug checks for memory leaks in Node.js internals. This is

@@ -124,7 +124,9 @@ are always 0.
 
 ## `os.devNull`
 <!-- YAML
-added: v16.3.0
+added:
+  - v16.3.0
+  - v14.18.0
 -->
 
 * {string}

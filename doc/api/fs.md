@@ -636,7 +636,9 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v15.14.0
+  - version:
+      - v15.14.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version: v14.12.0
@@ -972,7 +974,9 @@ rejection only when `recursive` is false.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v16.5.0
+  - version:
+      - v16.5.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
 -->
@@ -1389,7 +1393,9 @@ The `atime` and `mtime` arguments follow these rules:
 
 ### `fsPromises.watch(filename[, options])`
 <!-- YAML
-added: v15.9.0
+added:
+  - v15.9.0
+  - v14.18.0
 -->
 
 * `filename` {string|Buffer|URL}
@@ -1440,12 +1446,14 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v15.14.0
+  - version:
+      - v15.14.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
   - version:
-    - v15.2.0
-    - v14.17.0
+      - v15.2.0
+      - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
                  ongoing writeFile request.
@@ -2805,7 +2813,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v16.5.0
+  - version:
+      - v16.5.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
   - version: v10.0.0
@@ -4802,7 +4812,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v16.5.0
+  - version:
+      - v16.5.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/39028
     description: The `prefix` parameter now accepts an empty string.
 -->

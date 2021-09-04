@@ -5982,6 +5982,7 @@ This API may only be called from the main thread.
 <!-- YAML
 added:
   - v15.9.0
+  - v14.18.0
   - v12.22.0
 -->
 

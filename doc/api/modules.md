@@ -283,7 +283,9 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 
 <!-- YAML
 changes:
-  - version: v16.0.0
+  - version:
+      - v16.0.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37246
     description: Added `node:` import support to `require(...)`.
 -->

@@ -2760,7 +2760,9 @@ changes:
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37206
     description: Runtime deprecation.
-  - version: v15.8.0
+  - version:
+      - v15.8.0
+      - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/36918
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
