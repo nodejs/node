@@ -1548,7 +1548,7 @@ if (!common.hasOpenSSL3) {
 
 {
   // This test makes sure deprecated and new options may be used
-  // simultaneously so long as they're identical values
+  // simultaneously so long as they're identical values.
 
   generateKeyPair('rsa-pss', {
     modulusLength: 512,
@@ -1582,7 +1582,7 @@ if (!common.hasOpenSSL3) {
 
 {
   // This test makes sure deprecated and new options must
-  // be the same value
+  // be the same value.
 
   assert.throws(() => generateKeyPair('rsa-pss', {
     modulusLength: 512,
