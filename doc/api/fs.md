@@ -2680,7 +2680,7 @@ changes:
 Asynchronously creates a directory.
 
 The callback is given a possible exception and, if `recursive` is `true`, the
-first directory path created, `(err, [path])`.
+first directory path created, `(err[, path])`.
 `path` can still be `undefined` when `recursive` is `true`, if no directory was
 created.
 
@@ -4908,7 +4908,7 @@ Returns the number of `bytesRead`.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.read()`][].
 
-### `fs.readSync(fd, buffer, [options])`
+### `fs.readSync(fd, buffer[, options])`
 <!-- YAML
 added:
  - v13.13.0
