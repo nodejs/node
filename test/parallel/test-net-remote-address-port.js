@@ -27,20 +27,17 @@ const net = require('net');
 
 let conns_closed = 0;
 
-const remoteAddrCandidates = [ common.localhostIPv4 ];
-if (common.hasIPv6) remoteAddrCandidates.push('::1', '::ffff:127.0.0.1');
+const remoteAddrCandidates = [ common.localhostIPv4,
+                               '::1',
+                               '::ffff:127.0.0.1' ];
 
-const remoteFamilyCandidates = ['IPv4'];
-if (common.hasIPv6) remoteFamilyCandidates.push('IPv6');
+const remoteFamilyCandidates = ['IPv4', 'IPv6'];
 
 const server = net.createServer(common.mustCall(function(socket) {
-  // REM: assert.match(socket.remoteAddress,
-  // REM:              /^127\.0\.0\.1$|^::1$|^::ffff:127\.0\.0\.1$/);
   assert.ok(remoteAddrCandidates.includes(socket.remoteAddress),
             `Illformed remoteAddress: ${socket.remoteAddress}`);
   assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily),
             `Illformed remoteFamily: ${socket.remoteFamily}`);
-  // REM: assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily));
   assert.ok(socket.remotePort);
   assert.notStrictEqual(socket.remotePort, this.address().port);
   socket.on('end', function() {
