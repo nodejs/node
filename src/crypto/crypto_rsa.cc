@@ -79,10 +79,15 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       return EVPKeyCtxPointer();
     }
 
-    if (params->params.saltlen >= 0 &&
+    int saltlen = params->params.saltlen;
+    if (saltlen < 0 && params->params.md != nullptr) {
+      saltlen = EVP_MD_size(params->params.md);
+    }
+
+    if (saltlen >= 0 &&
         EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(
             ctx.get(),
-            params->params.saltlen) <= 0) {
+            saltlen) <= 0) {
       return EVPKeyCtxPointer();
     }
   }
