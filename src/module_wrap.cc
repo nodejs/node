@@ -253,6 +253,21 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(that);
 }
 
+static Local<Object> createImportAssertionContainer(Environment* env,
+  Isolate* isolate, Local<FixedArray> raw_assertions) {
+  Local<Object> assertions =
+        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+  for (int i = 0; i < raw_assertions->Length(); i += 3) {
+      assertions
+          ->Set(env->context(),
+                raw_assertions->Get(env->context(), i).As<String>(),
+                raw_assertions->Get(env->context(), i + 1).As<Value>())
+          .ToChecked();
+  }
+
+  return assertions;
+}
+
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -288,14 +303,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     Local<FixedArray> raw_assertions = module_request->GetImportAssertions();
     Local<Object> assertions =
-        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
-    for (int i = 0; i < raw_assertions->Length(); i += 3) {
-      assertions
-          ->Set(env->context(),
-                raw_assertions->Get(env->context(), i).As<String>(),
-                raw_assertions->Get(env->context(), i + 1).As<Value>())
-          .ToChecked();
-    }
+      createImportAssertionContainer(env, isolate, raw_assertions);
 
     Local<Value> argv[] = {
         specifier,
@@ -602,9 +610,13 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     UNREACHABLE();
   }
 
+  Local<Object> assertions =
+    createImportAssertionContainer(env, isolate, import_assertions);
+
   Local<Value> import_args[] = {
     object,
     Local<Value>(specifier),
+    assertions,
   };
 
   Local<Value> result;
