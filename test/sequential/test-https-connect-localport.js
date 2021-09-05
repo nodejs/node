@@ -23,6 +23,7 @@ const assert = require('assert');
       host: 'localhost',
       pathname: '/',
       port,
+      family: common.hasIPv6 ? 6 : 4,
       localPort: common.PORT,
       rejectUnauthorized: false,
     }, common.mustCall(() => {
