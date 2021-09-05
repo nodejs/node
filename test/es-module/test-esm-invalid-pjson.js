@@ -1,6 +1,6 @@
 'use strict';
 
-const { mustCall, isWindows } = require('../common');
+const { mustCall, checkoutEOL } = require('../common');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
 const { strictEqual, ok } = require('assert');
@@ -21,7 +21,7 @@ child.on('close', mustCall((code, signal) => {
     stderr.includes(
       `[ERR_INVALID_PACKAGE_CONFIG]: Invalid package config ${invalidJson} ` +
       `while importing "invalid-pjson" from ${entry}. ` +
-      `Unexpected token } in JSON at position ${isWindows ? 16 : 14}`
+      `Unexpected token } in JSON at position ${12 + checkoutEOL.length * 2}`
     ),
     stderr);
 }));
