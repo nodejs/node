@@ -35,9 +35,9 @@ const remoteFamilyCandidates = ['IPv4', 'IPv6'];
 
 const server = net.createServer(common.mustCall(function(socket) {
   assert.ok(remoteAddrCandidates.includes(socket.remoteAddress),
-            `Illformed remoteAddress: ${socket.remoteAddress}`);
+            `Invalid remoteAddress: ${socket.remoteAddress}`);
   assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily),
-            `Illformed remoteFamily: ${socket.remoteFamily}`);
+            `Invalid remoteFamily: ${socket.remoteFamily}`);
   assert.ok(socket.remotePort);
   assert.notStrictEqual(socket.remotePort, this.address().port);
   socket.on('end', function() {
