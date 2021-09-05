@@ -134,7 +134,7 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if defined(_WIN32) && !defined(_WIN64)
+#ifdef _WIN32
   inline void set(int index, Smi value) {
     DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
     DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
