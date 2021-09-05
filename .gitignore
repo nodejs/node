@@ -9,9 +9,11 @@
 !deps/**/.*
 !test/fixtures/**/.*
 !.clang-format
+!.cpplint
 !.editorconfig
 !.eslintignore
 !.eslintrc.js
+!.eslintrc.yaml
 !.flake8
 !.gitattributes
 !.github
@@ -19,8 +21,7 @@
 !.gitkeep
 !.mailmap
 !.nycrc
-!.eslintrc.yaml
-!.cpplint
+!.yamllint.yaml
 
 # === Rules for root dir ===
 /core
