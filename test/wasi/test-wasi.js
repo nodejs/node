@@ -34,7 +34,7 @@ if (process.argv[2] === 'wasi-child') {
 } else {
   const assert = require('assert');
   const cp = require('child_process');
-  const { EOL } = require('os');
+  const { checkoutEOL } = common;
 
   function runWASI(options) {
     console.log('executing', options.test);
@@ -69,7 +69,7 @@ if (process.argv[2] === 'wasi-child') {
   }
   runWASI({ test: 'exitcode', exitCode: 120 });
   runWASI({ test: 'fd_prestat_get_refresh' });
-  runWASI({ test: 'freopen', stdout: `hello from input2.txt${EOL}` });
+  runWASI({ test: 'freopen', stdout: `hello from input2.txt${checkoutEOL}` });
   runWASI({ test: 'ftruncate' });
   runWASI({ test: 'getentropy' });
 
@@ -87,10 +87,10 @@ if (process.argv[2] === 'wasi-child') {
     runWASI({ test: 'readdir' });
   }
 
-  runWASI({ test: 'read_file', stdout: `hello from input.txt${EOL}` });
+  runWASI({ test: 'read_file', stdout: `hello from input.txt${checkoutEOL}` });
   runWASI({
     test: 'read_file_twice',
-    stdout: `hello from input.txt${EOL}hello from input.txt${EOL}`
+    stdout: `hello from input.txt${checkoutEOL}hello from input.txt${checkoutEOL}`
   });
   runWASI({ test: 'stat' });
   runWASI({ test: 'write_file' });
