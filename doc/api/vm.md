@@ -54,6 +54,10 @@ executed in specific contexts.
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: The `produceCachedData` is deprecated in favour of
@@ -91,6 +95,8 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -642,6 +648,13 @@ The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
 
 ### `new vm.SourceTextModule(code[, options])`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
+-->
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -667,6 +680,8 @@ defined in the ECMAScript specification.
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     * `specifier` {string} specifier passed to `import()`
     * `module` {vm.Module}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -852,6 +867,10 @@ const vm = require('vm');
 <!-- YAML
 added: v10.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/35431
     description: Added `importModuleDynamically` option again.
@@ -893,6 +912,8 @@ changes:
     considered stable.
     * `specifier` {string} specifier passed to `import()`
     * `function` {Function}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1068,6 +1089,10 @@ vm.measureMemory({ mode: 'detailed', execution: 'eager' })
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
     description: The `breakOnSigint` option is supported now.
@@ -1113,6 +1138,8 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1145,6 +1172,10 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
@@ -1211,6 +1242,8 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -1247,6 +1280,10 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39921
+    description: Added suppoort of import assertions to the
+                 `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
     description: The `breakOnSigint` option is supported now.
@@ -1290,6 +1327,8 @@ changes:
     using it in a production environment.
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
+    * `import_assertions` {Object} The `"assert"` value passed to the
+      `optionExpression` optional parameter.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
