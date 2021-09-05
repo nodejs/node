@@ -371,6 +371,80 @@ If one or more `filehandle.read()` calls are made on a file handle and then a
 position till the end of the file. It doesn't always read from the beginning
 of the file.
 
+#### `filehandle.readStream([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `flags` {string} See [support of file system `flags`][]. **Default:**
+    `'r'`.
+  * `encoding` {string} **Default:** `null`
+  * `autoClose` {boolean} **Default:** `true`
+  * `emitClose` {boolean} **Default:** `true`
+  * `start` {integer}
+  * `end` {integer} **Default:** `Infinity`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`
+  * `fs` {Object|null} **Default:** `null`
+* Returns: {fs.ReadStream} See [Readable Stream][].
+
+Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
+returned by this method has a default `highWaterMark` of 64 kb.
+
+`options` can include `start` and `end` values to read a range of bytes from
+the file instead of the entire file. Both `start` and `end` are inclusive and
+start counting at 0, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. If `start` is
+omitted or `undefined`, `filehandle.readStream()` reads sequentially from the
+current file position. The `encoding` can be any one of those accepted by
+{Buffer}.
+
+If the `FileHandle` points to a character device that only supports blocking
+reads (such as keyboard or sound card), read operations do not finish until data
+is available. This can prevent the process from exiting and the stream from
+closing naturally.
+
+By default, the stream will emit a `'close'` event after it has been
+destroyed, like most `Readable` streams.  Set the `emitClose` option to
+`false` to change this behavior.
+
+By providing the `fs` option, it is possible to override the corresponding `fs`
+implementations for `open`, `read`, and `close`. When providing the `fs` option,
+overrides for `open`, `read`, and `close` are required.
+
+```mjs
+import { open } from 'fs/promises';
+
+const fd = await open('/dev/input/event0');
+// Create a stream from some character device.
+const stream = fd.readStream();
+setTimeout(() => {
+  stream.close(); // This may not close the stream.
+  // Artificially marking end-of-stream, as if the underlying resource had
+  // indicated end-of-file by itself, allows the stream to close.
+  // This does not cancel pending read operations, and if there is such an
+  // operation, the process may still not be able to exit successfully
+  // until it finishes.
+  stream.push(null);
+  stream.read(0);
+}, 100);
+```
+
+If `autoClose` is false, then the file descriptor won't be closed, even if
+there's an error. It is the application's responsibility to close it and make
+sure there's no file descriptor leak. If `autoClose` is set to true (default
+behavior), on `'error'` or `'end'` the file descriptor will be closed
+automatically.
+
+An example to read the last 10 bytes of a file which is 100 bytes long:
+
+```mjs
+import { open } from 'fs/promises';
+
+const fd = await open('sample.txt');
+fd.readStream({ start: 90, end: 99 });
+```
+
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
 added:
@@ -581,6 +655,41 @@ If one or more `filehandle.write()` calls are made on a file handle and then a
 `filehandle.writeFile()` call is made, the data will be written from the
 current position till the end of the file. It doesn't always write from the
 beginning of the file.
+
+#### `filehandle.writeStream([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `encoding` {string} **Default:** `'utf8'`
+  * `autoClose` {boolean} **Default:** `true`
+  * `emitClose` {boolean} **Default:** `true`
+  * `start` {integer}
+  * `fs` {Object|null} **Default:** `null`
+* Returns: {fs.WriteStream} See [Writable Stream][].
+
+`options` may also include a `start` option to allow writing data at some
+position past the beginning of the file, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. Modifying a file rather than replacing
+it may require the `flags` `open` option to be set to `r+` rather than the
+default `r`. The `encoding` can be any one of those accepted by {Buffer}.
+
+If `autoClose` is set to true (default behavior) on `'error'` or `'finish'`
+the file descriptor will be closed automatically. If `autoClose` is false,
+then the file descriptor won't be closed, even if there's an error.
+It is the application's responsibility to close it and make sure there's no
+file descriptor leak.
+
+By default, the stream will emit a `'close'` event after it has been
+destroyed, like most `Writable` streams.  Set the `emitClose` option to
+`false` to change this behavior.
+
+By providing the `fs` option it is possible to override the corresponding `fs`
+implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
+without `writev()` can reduce performance as some optimizations (`_writev()`)
+will be disabled. When providing the `fs` option,  overrides for `open`,
+`close`, and at least one of `write` and `writev` are required.
 
 #### `filehandle.writev(buffers[, position])`
 <!-- YAML
