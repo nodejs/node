@@ -190,7 +190,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 #if OPENSSL_VERSION_MAJOR >= 3
   if (enable == EVP_default_properties_is_fips_enabled(nullptr))
 #else
-  if (enable == FIPS_mode())
+  if (static_cast<int>(enable) == FIPS_mode())
 #endif
     return;  // No action needed.
 
