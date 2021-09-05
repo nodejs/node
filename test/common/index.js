@@ -885,8 +885,14 @@ const common = {
       throw new Error('common.PORT cannot be used in a parallelized test');
     }
     return +process.env.NODE_COMMON_PORT || 12346;
-  }
+  },
 
+  /**
+   * Returns the EOL character used by this Git checkout.
+   */
+  get checkoutEOL() {
+    return fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
+  },
 };
 
 const validProperties = new Set(Object.keys(common));
