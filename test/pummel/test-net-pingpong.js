@@ -112,7 +112,7 @@ function pingPongTest(host, on_complete) {
 
 // All are run at once and will run on different ports.
 pingPongTest(null);
-common.hasIPv6 ? pingPongTest('::1') : pingPongTest('127.0.0.1');
+if (common.hasIPv6) pingPongTest('::1'); else pingPongTest('127.0.0.1');
 
 process.on('exit', function() {
   assert.strictEqual(tests_run, common.hasIPv6 ? 3 : 2);

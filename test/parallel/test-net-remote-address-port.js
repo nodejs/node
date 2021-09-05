@@ -34,10 +34,10 @@ const remoteFamilyCandidates = ['IPv4'];
 if (common.hasIPv6) remoteFamilyCandidates.push('IPv6');
 
 const server = net.createServer(common.mustCall(function(socket) {
-  // test to see real value in CI log
+  // Test to see real value in CI log
   assert.match(socket.remoteAddress,
-               /^127\.0\.0\.1$|^::1$|^::ffff:127.0.0.1$/);
-  // assert.ok(remoteAddrCandidates.includes(socket.remoteAddress));
+               /^127\.0\.0\.1$|^::1$|^::ffff:127\.0\.0\.1$/);
+  // REM: assert.ok(remoteAddrCandidates.includes(socket.remoteAddress));
   assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily));
   assert.ok(socket.remotePort);
   assert.notStrictEqual(socket.remotePort, this.address().port);
