@@ -90,7 +90,23 @@ jobs:
       - name: Lint Python
         run: |
           make lint-py-build || true
-          NODE=$(command -v node) make lint-py
+          make lint-py
+  lint-yaml:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint YAML
+        run: |
+          make lint-yaml-build || true
+          make lint-yaml
+
   lint-sh:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-20.04
