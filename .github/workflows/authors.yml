@@ -1,5 +1,9 @@
 name: "authors update"
 on:
+  schedule:
+    # Run once a week at 00:05 AM UTC on Sunday.
+    - cron: '5 0 * * 0'
+
   workflow_dispatch:
 
 jobs:
