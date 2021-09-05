@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Post stalled comment
         env:
-            COMMENTS_URL: ${{ github.event.issue.comments_url || github.event.pull_request.comments_url }}
+          COMMENTS_URL: ${{ github.event.issue.comments_url || github.event.pull_request.comments_url }}
         run: |
           curl -X POST $COMMENTS_URL \
           -H "Content-Type: application/json" \
