@@ -8,7 +8,7 @@ rules:
   no-var: error
   prefer-const: error
   symbol-description: off
-  multiline-comment-style: ["error", "separate-lines"] 
+  multiline-comment-style: ["error", "separate-lines"]
 
   no-restricted-syntax:
     # Config copied from .eslintrc.js
