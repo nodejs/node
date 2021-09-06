@@ -377,15 +377,12 @@ added: REPLACEME
 -->
 
 * `options` {Object}
-  * `flags` {string} See [support of file system `flags`][]. **Default:**
-    `'r'`.
   * `encoding` {string} **Default:** `null`
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
-  * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.ReadStream} See [Readable Stream][].
 
 Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
@@ -407,10 +404,6 @@ closing naturally.
 By default, the stream will emit a `'close'` event after it has been
 destroyed, like most `Readable` streams.  Set the `emitClose` option to
 `false` to change this behavior.
-
-By providing the `fs` option, it is possible to override the corresponding `fs`
-implementations for `open`, `read`, and `close`. When providing the `fs` option,
-overrides for `open`, `read`, and `close` are required.
 
 ```mjs
 import { open } from 'fs/promises';
@@ -666,7 +659,6 @@ added: REPLACEME
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.WriteStream} See [Writable Stream][].
 
 `options` may also include a `start` option to allow writing data at some
@@ -684,12 +676,6 @@ file descriptor leak.
 By default, the stream will emit a `'close'` event after it has been
 destroyed, like most `Writable` streams.  Set the `emitClose` option to
 `false` to change this behavior.
-
-By providing the `fs` option it is possible to override the corresponding `fs`
-implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
-without `writev()` can reduce performance as some optimizations (`_writev()`)
-will be disabled. When providing the `fs` option,  overrides for `open`,
-`close`, and at least one of `write` and `writev` are required.
 
 #### `filehandle.writev(buffers[, position])`
 <!-- YAML
