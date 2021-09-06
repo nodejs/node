@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import glob
+import os
 import platform
 import re
 import sys
@@ -111,7 +111,13 @@ def IsWindows():
 
 
 def SearchFiles(dir, ext):
-  list = glob.glob(dir+ '/**/*.' + ext, recursive=True)
+  list = []
+  files = os.walk(dir)
+  for ent in files:
+    (path, dirs, files) = ent
+    for file in files:
+      if file.endswith('.' + ext):
+        list.append(path + '/' + file)
   if sys.platform == 'win32':
-    list = [ x.replace('\\', '/')for x in list]
+    list = [x.replace('\\', '/') for x in list]
   return list
