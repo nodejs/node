@@ -787,7 +787,7 @@ added: REPLACEME
 Test whether or not the given path exists by checking with the file system.
 It throws when check is impossible, such as encountering permission issue.
 
-Note that using `fsPromises.exists` only proves that whether the given file
+Using `fsPromises.exists` only proves that whether the given file
 path existed at some time between calling and resolving `exists`
 due to the nature of asynchronous operation.
 
