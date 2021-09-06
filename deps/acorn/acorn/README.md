@@ -54,7 +54,7 @@ required):
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
   either 3, 5, 6 (or 2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019),
-  11 (2020), 12 (2021, partial support), 13 (2022, partial support)
+  11 (2020), 12 (2021), 13 (2022, partial support)
   or `"latest"` (the latest the library supports). This influences
   support for strict mode, the set of reserved words, and support
   for new syntax features.
