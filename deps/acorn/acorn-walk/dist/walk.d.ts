@@ -109,4 +109,6 @@ declare module "acorn-walk" {
   ): Found<TState> | undefined;
 
   export const findNodeAfter: typeof findNodeAround;
+
+  export const base: RecursiveVisitors<any>;
 }

@@ -184,7 +184,7 @@ function ignore(_node, _st, _c) {}
 
 var base = {};
 
-base.Program = base.BlockStatement = function (node, st, c) {
+base.Program = base.BlockStatement = base.StaticBlock = function (node, st, c) {
   for (var i = 0, list = node.body; i < list.length; i += 1)
     {
     var stmt = list[i];

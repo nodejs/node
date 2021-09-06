@@ -173,6 +173,9 @@ declare namespace acorn {
     p_expr: TokContext
     q_tmpl: TokContext
     f_expr: TokContext
+    f_stat: TokContext
+    f_expr_gen: TokContext
+    f_gen: TokContext
   }
 
   function isIdentifierStart(code: number, astral?: boolean): boolean
