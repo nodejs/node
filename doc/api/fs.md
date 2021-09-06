@@ -1935,6 +1935,12 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40013
+    description: The `fs` option does not need `open` method if an `fd` was provided.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40013
+    description: The `fs` option does not need `close` method if `autoClose` is `false`.
   - version:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
@@ -2010,7 +2016,9 @@ destroyed, like most `Readable` streams.  Set the `emitClose` option to
 
 By providing the `fs` option, it is possible to override the corresponding `fs`
 implementations for `open`, `read`, and `close`. When providing the `fs` option,
-overrides for `open`, `read`, and `close` are required.
+an override for `read` is required. If no `fd` is provided, an override for
+`open` is also required. If `autoClose` is `true`, an override for `close` is
+also required.
 
 ```mjs
 import { createReadStream } from 'fs';
@@ -2052,6 +2060,12 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40013
+    description: The `fs` option does not need `open` method if an `fd` was provided.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40013
+    description: The `fs` option does not need `close` method if `autoClose` is `false`.
   - version:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
@@ -2115,8 +2129,10 @@ destroyed, like most `Writable` streams.  Set the `emitClose` option to
 By providing the `fs` option it is possible to override the corresponding `fs`
 implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
 without `writev()` can reduce performance as some optimizations (`_writev()`)
-will be disabled. When providing the `fs` option,  overrides for `open`,
-`close`, and at least one of `write` and `writev` are required.
+will be disabled. When providing the `fs` option, overrides for at least one of
+`write` and `writev` are required. If no `fd` option is supplied, an override
+for `open` is also required. If `autoClose` is `true`, an override for `close`
+is also required.
 
 Like {fs.ReadStream}, if `fd` is specified, {fs.WriteStream} will ignore the
 `path` argument and will use the specified file descriptor. This means that no
