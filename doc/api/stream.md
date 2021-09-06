@@ -1954,7 +1954,7 @@ failure, this can cause event listener leaks and swallowed errors.
 
 ### `stream.compose(...streams)`
 <!-- YAML
-added: REPLACEME
+added: v16.9.0
 -->
 
 > Stability: 1 - `stream.compose` is experimental.
