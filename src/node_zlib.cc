@@ -25,6 +25,7 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
@@ -1266,6 +1267,16 @@ struct MakeClass {
 
     env->SetConstructorFunction(target, name, z);
   }
+
+  static void Make(ExternalReferenceRegistry* registry) {
+    registry->Register(Stream::New);
+    registry->Register(Stream::template Write<true>);
+    registry->Register(Stream::template Write<false>);
+    registry->Register(Stream::Close);
+    registry->Register(Stream::Init);
+    registry->Register(Stream::Params);
+    registry->Register(Stream::Reset);
+  }
 };
 
 void Initialize(Local<Object> target,
@@ -1281,6 +1292,12 @@ void Initialize(Local<Object> target,
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  MakeClass<ZlibStream>::Make(registry);
+  MakeClass<BrotliEncoderStream>::Make(registry);
+  MakeClass<BrotliDecoderStream>::Make(registry);
 }
 
 }  // anonymous namespace
@@ -1408,3 +1425,4 @@ void DefineZlibConstants(Local<Object> target) {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(zlib, node::RegisterExternalReferences)
