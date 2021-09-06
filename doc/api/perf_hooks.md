@@ -274,7 +274,7 @@ is similar to [`window.performance.toJSON`][] in browsers.
 added: v8.5.0
 -->
 
-### `performanceEntry.details`
+### `performanceEntry.detail`
 <!-- YAML
 added: v16.0.0
 -->
@@ -382,7 +382,7 @@ Performance Entry.
 
 ### Garbage Collection ('gc') Details
 
-When `performanceEntry.type` is equal to `'gc'`, the `performanceEntry.details`
+When `performanceEntry.type` is equal to `'gc'`, the `performanceEntry.detail`
 property will be an {Object} with two properties:
 
 * `kind` {number} One of:
@@ -402,10 +402,10 @@ property will be an {Object} with two properties:
 ### HTTP/2 ('http2') Details
 
 When `performanceEntry.type` is equal to `'http2'`, the
-`performanceEntry.details` property will be an {Object} containing
+`performanceEntry.detail` property will be an {Object} containing
 additional performance information.
 
-If `performanceEntry.name` is equal to `Http2Stream`, the `details`
+If `performanceEntry.name` is equal to `Http2Stream`, the `detail`
 will contain the following properties:
 
 * `bytesRead` {number} The number of `DATA` frame bytes received for this
@@ -420,7 +420,7 @@ will contain the following properties:
 * `timeToFirstHeader` {number} The number of milliseconds elapsed between the
   `PerformanceEntry` `startTime` and the reception of the first header.
 
-If `performanceEntry.name` is equal to `Http2Session`, the `details` will
+If `performanceEntry.name` is equal to `Http2Session`, the `detail` will
 contain the following properties:
 
 * `bytesRead` {number} The number of bytes received for this `Http2Session`.
@@ -443,7 +443,7 @@ contain the following properties:
 ### Timerify ('function') Details
 
 When `performanceEntry.type` is equal to `'function'`, the
-`performanceEntry.details` property will be an {Array} listing
+`performanceEntry.detail` property will be an {Array} listing
 the input arguments to the timed function.
 
 ## Class: `PerformanceNodeTiming`
