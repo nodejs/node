@@ -1512,7 +1512,7 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
   for ent in files:
     (path, dirs, files) = ent
     for file in files:
-      if file.endswith('.cpp') or file.endswith('.c') or file.endswith('.h'):
+      if file.endswith(('.cpp', '.c', '.h')):
         # srcfile uses "slash" as dir separator as its output is consumed by gyp
         srcfile = '%s/%s' % (dir_sub, file)
         if patch_dir:
