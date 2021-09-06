@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.9.0">16.9.0</a><br/>
 <a href="#16.8.0">16.8.0</a><br/>
 <a href="#16.7.0">16.7.0</a><br/>
 <a href="#16.6.2">16.6.2</a><br/>
@@ -44,6 +45,119 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.9.0"></a>
+## 2021-09-07, Version 16.9.0 (Current), @targos
+
+### Notable Changes
+
+#### Corepack
+
+Node.js now includes Corepack, a script that acts as a bridge between Node.js projects and the package managers they are intended to be used with during development.
+In practical terms, **Corepack will let you use Yarn and pnpm without having to install them** - just like what currently happens with npm, which is shipped in Node.js by default.
+Please head over to the [Corepack documentation page](https://nodejs.org/dist/latest-v16.x/docs/api/corepack.html) for more information on how to use it.
+
+Contributed by Maël Nison - [#39608](https://github.com/nodejs/node/pull/39608)
+
+#### V8 9.3
+
+V8 is updated to version [9.3](https://v8.dev/blog/v8-release-93), which includes performance improvements and new JavaScript features.
+
+#### [`Object.hasOwn`](https://v8.dev/features/object-has-own)
+
+`Object.hasOwn` is a static alias for `Object.prototype.hasOwnProperty.call`:
+
+```js
+Object.hasOwn({ value: 42 }, 'value'); // Returns `true`.
+```
+
+#### [Error cause](https://v8.dev/features/error-cause)
+
+Errors can now be optionally constructed with a `cause` option, pointing to another error.
+This adds a `cause` property on the new error:
+
+```js
+const error1 = new Error('Error one');
+const error2 = new Error('Error two', { cause: error1 });
+// error2.cause === error1
+```
+
+Contributed by Michaël Zasso - [#39947](https://github.com/nodejs/node/pull/39947)
+
+#### Other Notable Changes
+
+* [[`34c627e4bc`](https://github.com/nodejs/node/commit/34c627e4bc)] - **(SEMVER-MINOR)** **crypto**: add RSA-PSS params to asymmetricKeyDetails (Tobias Nießen) [#39851](https://github.com/nodejs/node/pull/39851)
+* [[`20da0a5379`](https://github.com/nodejs/node/commit/20da0a5379)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* [[`cb44781371`](https://github.com/nodejs/node/commit/cb44781371)] - **(SEMVER-MINOR)** **stream**: add stream.compose (Robert Nagy) [#39029](https://github.com/nodejs/node/pull/39029)
+
+### Commits
+
+* [[`2343c394fb`](https://github.com/nodejs/node/commit/2343c394fb)] - **async_hooks**: use resource stack for AsyncLocalStorage run (Stephen Belanger) [#39890](https://github.com/nodejs/node/pull/39890)
+* [[`00951827cd`](https://github.com/nodejs/node/commit/00951827cd)] - ***Revert*** "**build**: add windows-2022 to GitHub test matrix" (Michaël Zasso) [#39982](https://github.com/nodejs/node/pull/39982)
+* [[`e7834535b3`](https://github.com/nodejs/node/commit/e7834535b3)] - **build**: add windows-2022 to GitHub test matrix (Michaël Zasso) [#39857](https://github.com/nodejs/node/pull/39857)
+* [[`c49b0c0dd4`](https://github.com/nodejs/node/commit/c49b0c0dd4)] - **build**: add support for Visual Studio 2022 (Michaël Zasso) [#39857](https://github.com/nodejs/node/pull/39857)
+* [[`afdb665e57`](https://github.com/nodejs/node/commit/afdb665e57)] - **build**: fix find-inactive-collaborators workflow token (Rich Trott) [#39909](https://github.com/nodejs/node/pull/39909)
+* [[`0ff88f362f`](https://github.com/nodejs/node/commit/0ff88f362f)] - **build**: update token used for pull requests (Rich Trott) [#39907](https://github.com/nodejs/node/pull/39907)
+* [[`beca890330`](https://github.com/nodejs/node/commit/beca890330)] - **build**: adapt v8\_pch.h to V8 9.3 (Michaël Zasso) [#39469](https://github.com/nodejs/node/pull/39469)
+* [[`2170346aa3`](https://github.com/nodejs/node/commit/2170346aa3)] - **build**: reset embedder string to "-node.0" (Michaël Zasso) [#39947](https://github.com/nodejs/node/pull/39947)
+* [[`d33ab968ab`](https://github.com/nodejs/node/commit/d33ab968ab)] - **cluster**: fix comment regarding child\_process file (Yash Ladha) [#39308](https://github.com/nodejs/node/pull/39308)
+* [[`585199497f`](https://github.com/nodejs/node/commit/585199497f)] - **crypto**: fix regression in RSA-PSS keygen (Tobias Nießen) [#39937](https://github.com/nodejs/node/pull/39937)
+* [[`34c627e4bc`](https://github.com/nodejs/node/commit/34c627e4bc)] - **(SEMVER-MINOR)** **crypto**: add RSA-PSS params to asymmetricKeyDetails (Tobias Nießen) [#39851](https://github.com/nodejs/node/pull/39851)
+* [[`1dd91582da`](https://github.com/nodejs/node/commit/1dd91582da)] - **crypto**: fix rsa-pss one-shot sign/verify error handling (Filip Skokan) [#39830](https://github.com/nodejs/node/pull/39830)
+* [[`20cf47004e`](https://github.com/nodejs/node/commit/20cf47004e)] - **crypto**: fix JWK RSA-PSS SubtleCrypto.exportKey (Filip Skokan) [#39828](https://github.com/nodejs/node/pull/39828)
+* [[`e25dc8e470`](https://github.com/nodejs/node/commit/e25dc8e470)] - **deps**: upgrade npm to 7.21.1 (npm team) [#39904](https://github.com/nodejs/node/pull/39904)
+* [[`9270684837`](https://github.com/nodejs/node/commit/9270684837)] - **deps**: update archs files for OpenSSL-1.1.1l+quic (Richard Lau) [#39867](https://github.com/nodejs/node/pull/39867)
+* [[`4b5bbec6cc`](https://github.com/nodejs/node/commit/4b5bbec6cc)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1l+quic (Richard Lau) [#39867](https://github.com/nodejs/node/pull/39867)
+* [[`71659fd4ba`](https://github.com/nodejs/node/commit/71659fd4ba)] - **(SEMVER-MINOR)** **deps**: add corepack (Maël Nison) [#39608](https://github.com/nodejs/node/pull/39608)
+* [[`7470db0dfb`](https://github.com/nodejs/node/commit/7470db0dfb)] - **deps**: restore minimum ICU version to 68 (Michaël Zasso) [#39470](https://github.com/nodejs/node/pull/39470)
+* [[`92d83d18d2`](https://github.com/nodejs/node/commit/92d83d18d2)] - **deps**: make V8 9.3 abi-compatible with 9.0 (Michaël Zasso) [#39947](https://github.com/nodejs/node/pull/39947)
+* [[`0140face81`](https://github.com/nodejs/node/commit/0140face81)] - **deps**: V8: cherry-pick 00bb1a77c03e (Darshan Sen) [#39829](https://github.com/nodejs/node/pull/39829)
+* [[`3e1053e755`](https://github.com/nodejs/node/commit/3e1053e755)] - **deps**: V8: cherry-pick 81814ed44574 (Stephen Belanger) [#39719](https://github.com/nodejs/node/pull/39719)
+* [[`d9d0104878`](https://github.com/nodejs/node/commit/d9d0104878)] - **deps**: silence irrelevant V8 warning (Michaël Zasso) [#38990](https://github.com/nodejs/node/pull/38990)
+* [[`cd9b03ea40`](https://github.com/nodejs/node/commit/cd9b03ea40)] - **deps**: silence irrelevant V8 warnings (Michaël Zasso) [#37587](https://github.com/nodejs/node/pull/37587)
+* [[`b83cab712f`](https://github.com/nodejs/node/commit/b83cab712f)] - **deps**: fix V8 build issue with inline methods (Jiawen Geng) [#35415](https://github.com/nodejs/node/pull/35415)
+* [[`068824d754`](https://github.com/nodejs/node/commit/068824d754)] - **deps**: make v8.h compatible with VS2015 (Joao Reis) [#32116](https://github.com/nodejs/node/pull/32116)
+* [[`54f4f1af50`](https://github.com/nodejs/node/commit/54f4f1af50)] - **deps**: V8: forward declaration of `Rtl*FunctionTable` (Refael Ackermann) [#32116](https://github.com/nodejs/node/pull/32116)
+* [[`10ba1cb8b2`](https://github.com/nodejs/node/commit/10ba1cb8b2)] - **deps**: V8: patch register-arm64.h (Refael Ackermann) [#32116](https://github.com/nodejs/node/pull/32116)
+* [[`3ce6f72124`](https://github.com/nodejs/node/commit/3ce6f72124)] - **deps**: V8: un-cherry-pick bd019bd (Refael Ackermann) [#32116](https://github.com/nodejs/node/pull/32116)
+* [[`f43c292520`](https://github.com/nodejs/node/commit/f43c292520)] - **(SEMVER-MINOR)** **deps**: update V8 to 9.3.345.16 (Michaël Zasso) [#39947](https://github.com/nodejs/node/pull/39947)
+* [[`9e782eb758`](https://github.com/nodejs/node/commit/9e782eb758)] - **doc**: remove {C,Dec}ompressionStream documentation (Luigi Pinca) [#39899](https://github.com/nodejs/node/pull/39899)
+* [[`7857e9cc77`](https://github.com/nodejs/node/commit/7857e9cc77)] - **doc**: add descriptions about when `options.mode` is ignored (Ray) [#39881](https://github.com/nodejs/node/pull/39881)
+* [[`d43b555047`](https://github.com/nodejs/node/commit/d43b555047)] - **doc**: remove danbev from TSC member list (Daniel Bevenius) [#39978](https://github.com/nodejs/node/pull/39978)
+* [[`fc01dd916e`](https://github.com/nodejs/node/commit/fc01dd916e)] - **doc**: add missing changes to generateKeyPair(Sync) (Tobias Nießen) [#39963](https://github.com/nodejs/node/pull/39963)
+* [[`953f2e9f88`](https://github.com/nodejs/node/commit/953f2e9f88)] - **doc**: add nodejs/tweet issue creation to sec. doc (Daniel Bevenius) [#39940](https://github.com/nodejs/node/pull/39940)
+* [[`29c4b07716`](https://github.com/nodejs/node/commit/29c4b07716)] - **doc**: update WASI example to use import.meta.url (Guy Bedford) [#39925](https://github.com/nodejs/node/pull/39925)
+* [[`9eb4a70c14`](https://github.com/nodejs/node/commit/9eb4a70c14)] - **doc**: move reference to OpenSSL flags SSL\_OP\_\* (Tobias Nießen) [#39935](https://github.com/nodejs/node/pull/39935)
+* [[`8ea4befc82`](https://github.com/nodejs/node/commit/8ea4befc82)] - **doc**: add docs for duplex.allowHalfOpen property (Tim Perry) [#39126](https://github.com/nodejs/node/pull/39126)
+* [[`bc2b73ec9b`](https://github.com/nodejs/node/commit/bc2b73ec9b)] - **doc**: add FrankQiu to a triager (FrankQiu) [#39922](https://github.com/nodejs/node/pull/39922)
+* [[`8b68f8ec38`](https://github.com/nodejs/node/commit/8b68f8ec38)] - **doc**: add VoltrexMaster to triagers (voltrexmaster) [#39920](https://github.com/nodejs/node/pull/39920)
+* [[`3a8f77ac0d`](https://github.com/nodejs/node/commit/3a8f77ac0d)] - **doc**: document JavaScript tool for benchmark comparison (Michaël Zasso) [#39835](https://github.com/nodejs/node/pull/39835)
+* [[`4ac703ca8e`](https://github.com/nodejs/node/commit/4ac703ca8e)] - **doc**: add Mesteery to triagers (Mestery) [#39887](https://github.com/nodejs/node/pull/39887)
+* [[`d059a5186b`](https://github.com/nodejs/node/commit/d059a5186b)] - **doc**: update maintaining openssl guide (Richard Lau) [#39878](https://github.com/nodejs/node/pull/39878)
+* [[`486150580c`](https://github.com/nodejs/node/commit/486150580c)] - **doc**: move ERR\_WORKER\_UNSPPORTED\_EXTENSION to legacy (Qingyu Deng) [#39788](https://github.com/nodejs/node/pull/39788)
+* [[`a4b8c13798`](https://github.com/nodejs/node/commit/a4b8c13798)] - **events**: protect property defs against prototype polution (James M Snell) [#39773](https://github.com/nodejs/node/pull/39773)
+* [[`cfbe9065ae`](https://github.com/nodejs/node/commit/cfbe9065ae)] - **events**: add brand checks for detached accessors (James M Snell) [#39773](https://github.com/nodejs/node/pull/39773)
+* [[`112af69194`](https://github.com/nodejs/node/commit/112af69194)] - **fs**: add docs and tests for `AsyncIterable` support in `fh.writeFile` (Antoine du Hamel) [#39836](https://github.com/nodejs/node/pull/39836)
+* [[`402071bc45`](https://github.com/nodejs/node/commit/402071bc45)] - **meta**: remove duplicate AUTHORS entry for NigelKibodeaux (Rich Trott) [#39967](https://github.com/nodejs/node/pull/39967)
+* [[`3588f07603`](https://github.com/nodejs/node/commit/3588f07603)] - **meta**: add mailmap entry for Ethan-Arrowood (Rich Trott) [#39930](https://github.com/nodejs/node/pull/39930)
+* [[`259e0cf4d7`](https://github.com/nodejs/node/commit/259e0cf4d7)] - **meta**: add mailmap entry for branisha (Rich Trott) [#39889](https://github.com/nodejs/node/pull/39889)
+* [[`bc236a6714`](https://github.com/nodejs/node/commit/bc236a6714)] - **meta**: update .mailmap to remove duplicate AUTHORS entry for addaleax (Rich Trott) [#39880](https://github.com/nodejs/node/pull/39880)
+* [[`20da0a5379`](https://github.com/nodejs/node/commit/20da0a5379)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* [[`879dc4658e`](https://github.com/nodejs/node/commit/879dc4658e)] - **src**: remove usage of AllocatedBuffer from src/node\_buffer.cc (Darshan Sen) [#39941](https://github.com/nodejs/node/pull/39941)
+* [[`79ce096470`](https://github.com/nodejs/node/commit/79ce096470)] - **src**: remove extra semicolons outside fns (Shelley Vohr) [#39800](https://github.com/nodejs/node/pull/39800)
+* [[`cb44781371`](https://github.com/nodejs/node/commit/cb44781371)] - **(SEMVER-MINOR)** **stream**: add stream.compose (Robert Nagy) [#39029](https://github.com/nodejs/node/pull/39029)
+* [[`ca9b781d20`](https://github.com/nodejs/node/commit/ca9b781d20)] - **test**: use `assert.match` instead of `regexp.test` (Michaël Zasso) [#39928](https://github.com/nodejs/node/pull/39928)
+* [[`007e2855af`](https://github.com/nodejs/node/commit/007e2855af)] - **test**: use error code mapping in place of raw errno (Darshan Sen) [#38675](https://github.com/nodejs/node/pull/38675)
+* [[`00529b0ef2`](https://github.com/nodejs/node/commit/00529b0ef2)] - **test**: add test to verify other extension can be loaded by worker (Qingyu Deng) [#39788](https://github.com/nodejs/node/pull/39788)
+* [[`4e7212c88c`](https://github.com/nodejs/node/commit/4e7212c88c)] - **test**: update error message keywords (leeight) [#39826](https://github.com/nodejs/node/pull/39826)
+* [[`549d717722`](https://github.com/nodejs/node/commit/549d717722)] - **test**: adapt test-fs-read to V8 9.3 (Michaël Zasso) [#39469](https://github.com/nodejs/node/pull/39469)
+* [[`644b25e068`](https://github.com/nodejs/node/commit/644b25e068)] - **test**: adapt test-util-inspect to V8 9.3 (Michaël Zasso) [#39469](https://github.com/nodejs/node/pull/39469)
+* [[`105bff9ea5`](https://github.com/nodejs/node/commit/105bff9ea5)] - **test**: adapt test-v8-flags to V8 9.3 (Michaël Zasso) [#39469](https://github.com/nodejs/node/pull/39469)
+* [[`d92bd9a982`](https://github.com/nodejs/node/commit/d92bd9a982)] - **tools**: add support for import assertions in linter (Antoine du Hamel) [#39924](https://github.com/nodejs/node/pull/39924)
+* [[`9763561e30`](https://github.com/nodejs/node/commit/9763561e30)] - **tools**: update gyp-next to v0.10.0 (Michaël Zasso) [#39857](https://github.com/nodejs/node/pull/39857)
+* [[`9f105c73fc`](https://github.com/nodejs/node/commit/9f105c73fc)] - **tools**: update V8 gypfiles for 9.3 (Michaël Zasso) [#39469](https://github.com/nodejs/node/pull/39469)
+* [[`16271d2f50`](https://github.com/nodejs/node/commit/16271d2f50)] - **worker**: remove file extension check (Qingyu Deng) [#39788](https://github.com/nodejs/node/pull/39788)
+* [[`3b1ce93e03`](https://github.com/nodejs/node/commit/3b1ce93e03)] - **worker**: add brand checks for detached MessageEvent accessors (James M Snell) [#39773](https://github.com/nodejs/node/pull/39773)
 
 <a id="16.8.0"></a>
 ## 2021-08-25, Version 16.8.0 (Current), @targos

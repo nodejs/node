@@ -1909,7 +1909,7 @@ const {
 <!-- YAML
 added: v15.7.0
 changes:
-  - version: REPLACEME
+  - version: v16.9.0
     pr-url: https://github.com/nodejs/node/pull/39851
     description: Expose `RSASSA-PSS-params` sequence parameters
                  for RSA-PSS keys.
