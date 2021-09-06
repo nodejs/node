@@ -21,7 +21,7 @@ async function validateWrite() {
   const fileHandle = await open(filePathForHandle, 'w');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
 
-  const stream = fileHandle.writeStream();
+  const stream = fileHandle.createWriteStream();
   stream.end(buffer);
   await finished(stream);
 
@@ -38,7 +38,7 @@ async function validateRead() {
   const fileHandle = await open(filePathForHandle);
 
   const chunks = [];
-  for await (const chunk of fileHandle.readStream()) {
+  for await (const chunk of fileHandle.createReadStream()) {
     chunks.push(chunk);
   }
 
