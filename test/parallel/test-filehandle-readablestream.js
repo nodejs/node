@@ -18,12 +18,12 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
   const dec = new TextDecoder();
   const file = await open(__filename);
   let data = '';
-  for await (const chunk of file.readableWebStream())
+  for await (const chunk of file.stream())
     data += dec.decode(chunk);
 
   assert.strictEqual(check, data);
 
-  assert.throws(() => file.readableWebStream(), {
+  assert.throws(() => file.stream(), {
     code: 'ERR_INVALID_STATE',
   });
 
@@ -36,7 +36,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
   const file = await open(__filename);
   await file.close();
 
-  assert.throws(() => file.readableWebStream(), {
+  assert.throws(() => file.stream(), {
     code: 'ERR_INVALID_STATE',
   });
 })().then(common.mustCall());
@@ -47,7 +47,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
   const file = await open(__filename);
   file.close();
 
-  assert.throws(() => file.readableWebStream(), {
+  assert.throws(() => file.stream(), {
     code: 'ERR_INVALID_STATE',
   });
 })().then(common.mustCall());
@@ -56,7 +56,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
 // FileHandle is closed.
 (async () => {
   const file = await open(__filename);
-  const readable = file.readableWebStream();
+  const readable = file.stream();
   const reader = readable.getReader();
   file.close();
   await reader.closed;
@@ -66,7 +66,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
 // FileHandle is closed.
 (async () => {
   const file = await open(__filename);
-  const readable = file.readableWebStream();
+  const readable = file.stream();
   file.close();
   const reader = readable.getReader();
   await reader.closed;
@@ -76,7 +76,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
 // when a ReadableStream has been acquired for it.
 (async () => {
   const file = await open(__filename);
-  file.readableWebStream();
+  file.stream();
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustNotCall();
   assert.throws(() => mc.port2.postMessage(file, [file]), {

@@ -302,52 +302,6 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream()`
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-* Returns: {ReadableStream}
-
-Returns a `ReadableStream` that may be used to read the files data.
-
-An error will be thrown if this method is called more than once or is called
-after the `FileHandle` is closed or closing.
-
-```mjs
-import {
-  open,
-} from 'node:fs/promises';
-
-const file = await open('./some/file/to/read');
-
-for await (const chunk of file.readableWebStream())
-  console.log(chunk);
-
-await file.close();
-```
-
-```cjs
-const {
-  open,
-} = require('fs/promises');
-
-(async () => {
-  const file = await open('./some/file/to/read');
-
-  for await (const chunk of file.readableWebStream())
-    console.log(chunk);
-
-  await file.close();
-})();
-```
-
-While the `ReadableStream` will read the file to completion, it will not
-close the `FileHandle` automatically. User code must still call the
-`fileHandle.close()` method.
-
 #### `filehandle.readFile(options)`
 <!-- YAML
 added: v10.0.0
@@ -403,6 +357,52 @@ changes:
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
 * Returns: {Promise} Fulfills with an {fs.Stats} for the file.
+
+#### `filehandle.stream()`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {ReadableStream}
+
+Returns a `ReadableStream` that may be used to read the files data.
+
+An error will be thrown if this method is called more than once or is called
+after the `FileHandle` is closed or closing.
+
+```mjs
+import {
+  open,
+} from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+
+for await (const chunk of file.stream())
+  console.log(chunk);
+
+await file.close();
+```
+
+```cjs
+const {
+  open,
+} = require('fs/promises');
+
+(async () => {
+  const file = await open('./some/file/to/read');
+
+  for await (const chunk of file.stream())
+    console.log(chunk);
+
+  await file.close();
+})();
+```
+
+While the `ReadableStream` will read the file to completion, it will not
+close the `FileHandle` automatically. User code must still call the
+`fileHandle.close()` method.
 
 #### `filehandle.sync()`
 <!-- YAML
