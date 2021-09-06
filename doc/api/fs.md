@@ -188,6 +188,17 @@ When operating on file handles, the mode cannot be changed from what it was set
 to with [`fsPromises.open()`][]. Therefore, this is equivalent to
 [`filehandle.writeFile()`][].
 
+#### `filehandle.arrayBuffer()`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
+
+Reads the whole file as binary data.
+
 #### `filehandle.chmod(mode)`
 <!-- YAML
 added: v10.0.0
