@@ -787,6 +787,16 @@ added: REPLACEME
 Test whether or not the given path exists by checking with the file system.
 It throws when check is impossible, such as encountering permission issue.
 
+Note that using `fsPromises.exists` only proves that whether the given file
+path existed at some time between calling and resolving `exists`
+due to the nature of asynchronous operation.
+
+It is not recommended to use `fsPromises.exists` to check accessibility of
+a file before opening/reading/writing it. Doing so introduces a race condition,
+since other process may change the states of the file between two call.
+Instead, user code should open/read/write it directly and handle the error
+raise if the file is not accessible.
+
 ### `fsPromises.lchmod(path, mode)`
 <!-- YAML
 deprecated: v10.0.0
