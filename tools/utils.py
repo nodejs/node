@@ -111,13 +111,11 @@ def IsWindows():
 
 
 def SearchFiles(dir, ext):
-  list = []
-  files = os.walk(dir)
-  for ent in files:
-    (path, dirs, files) = ent
+  matching_files = []
+  for path, dirs, files in os.walk(dir):
     for file in files:
       if file.endswith('.' + ext):
-        list.append(path + '/' + file)
+        matching_files.append(path + '/' + file)
   if sys.platform == 'win32':
-    list = [x.replace('\\', '/') for x in list]
-  return list
+    matching_files = [x.replace('\\', '/') for x in matching_files]
+  return matching_files
