@@ -1,3 +1,23 @@
+## 8.5.0 (2021-09-06)
+
+### Bug fixes
+
+Improve context-dependent tokenization in a number of corner cases.
+
+Fix location tracking after a 0x2028 or 0x2029 character in a string literal (which before did not increase the line number).
+
+Fix an issue where arrow function bodies in for loop context would inappropriately consume `in` operators.
+
+Fix wrong end locations stored on SequenceExpression nodes.
+
+Implement restriction that `for`/`of` loop LHS can't start with `let`.
+
+### New features
+
+Add support for ES2022 class static blocks.
+
+Allow multiple input files to be passed to the CLI tool.
+
 ## 8.4.1 (2021-06-24)
 
 ### Bug fixes
