@@ -21,7 +21,7 @@ child.on('close', mustCall((code, signal) => {
     stderr.includes(
       `[ERR_INVALID_PACKAGE_CONFIG]: Invalid package config ${invalidJson} ` +
       `while importing "invalid-pjson" from ${entry}. ` +
-      `Unexpected token } in JSON at position ${checkoutEOL === '\r\n' ? 16 : 14}`
+      `Unexpected token } in JSON at position ${12 + checkoutEOL.length * 2}`
     ),
     stderr);
 }));
