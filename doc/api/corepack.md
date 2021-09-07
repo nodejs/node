@@ -73,10 +73,10 @@ The `prepare` command has [various flags][], consult the detailed
 
 The following binaries are provided through Corepack:
 
-| Package manager | Binary names   |
-| --------------- | -------------- |
+| Package manager | Binary names      |
+| --------------- | ----------------- |
 | [Yarn][]        | `yarn`, `yarnpkg` |
-| [pnpm][]        | `pnpm`, `pnpx` |
+| [pnpm][]        | `pnpm`, `pnpx`    |
 
 ## Common questions
 
@@ -86,10 +86,10 @@ While Corepack could easily support npm like any other package manager, its
 shims aren't currently enabled by default. This has a few consequences:
 
 * It's always possible to run a `npm` command within a project configured to
-be used with another package manager, since Corepack cannot intercept it.
+  be used with another package manager, since Corepack cannot intercept it.
 
 * While `npm` is a valid option in the [`"packageManager"`][] property, the
-lack of shim will cause the global npm to be used.
+  lack of shim will cause the global npm to be used.
 
 ### Running `npm install -g yarn` doesn't work
 
@@ -97,12 +97,12 @@ npm prevents accidentally overriding the Corepack binaries when doing a global
 install. To avoid this problem, consider one of the following options:
 
 * Don't run this command anymore; Corepack will provide the package manager
-binaries anyway and will ensure that the requested versions are always
-available, so installing the package managers explicitly isn't needed anymore.
+  binaries anyway and will ensure that the requested versions are always
+  available, so installing the package managers explicitly isn't needed anymore.
 
 * Add the `--force` to `npm install`; this will tell npm that it's fine to
-override binaries, but you'll erase the Corepack ones in the process (should
-that happen, run [`corepack enable`][] again to add them back).
+  override binaries, but you'll erase the Corepack ones in the process (should
+  that happen, run [`corepack enable`][] again to add them back).
 
 [Corepack]: https://github.com/nodejs/corepack
 [Corepack documentation]: https://github.com/nodejs/corepack#readme
