@@ -580,7 +580,7 @@ If you want to know more about the code review and the landing process, see the
 * `tools`
 
 You can find the full list of supported subsystems in the
-[nodejs/core-validate-commit][] repo.
+[nodejs/core-validate-commit][] repository.
 More than one subsystem may be valid for any particular issue or pull request.
 
 [Building guide]: ../../../BUILDING.md
