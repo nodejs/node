@@ -9,7 +9,7 @@ const { Worker } = require('worker_threads');
 
 const binding = path.resolve(__dirname, `./build/${common.buildType}/binding`);
 
-const expectError = (error) => {
+const assertError = (error) => {
   assert.strictEqual(error.code, 'ERR_DLOPEN_DISABLED');
   assert.strictEqual(
     error.message,
@@ -23,7 +23,19 @@ const expectError = (error) => {
     eval: true,
   });
 
-  worker.on('error', common.mustCall(expectError));
+  worker.on('error', common.mustCall(assertError));
+}
+
+{
+  // Should throw when using `process.dlopen` directly
+  const worker = new Worker(
+    `process.dlopen({ exports: {} }, ${JSON.stringify(binding)});`,
+    {
+      eval: true,
+    }
+  );
+
+  worker.on('error', common.mustCall(assertError));
 }
 
 {
@@ -33,7 +45,7 @@ const expectError = (error) => {
     execArgv: ['--no-addons'],
   });
 
-  worker.on('error', common.mustCall(expectError));
+  worker.on('error', common.mustCall(assertError));
 }
 
 {
@@ -43,5 +55,5 @@ const expectError = (error) => {
     execArgv: [],
   });
 
-  worker.on('error', common.mustCall(expectError));
+  worker.on('error', common.mustCall(assertError));
 }
