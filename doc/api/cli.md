@@ -603,9 +603,9 @@ This option is a no-op. It is kept for compatibility.
 added: REPLACEME
 -->
 
-Enable a `no-addons` resolution condition as well as disable loading native
-addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
-a native C++ addon will fail and throw an exception.
+Disable the `node-addons` exports condition as well as disable loading
+native addons. When `--no-addons` is specified, calling `process.dlopen` or
+requiring a native C++ addon will fail and throw an exception.
 
 ### `--no-deprecation`
 <!-- YAML
