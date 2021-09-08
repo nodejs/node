@@ -10,8 +10,8 @@ EVP_chacha20_poly1305
 
  #include <openssl/evp.h>
 
- const EVP_CIPHER *EVP_chacha20(void)
- const EVP_CIPHER *EVP_chacha20_poly1305(void)
+ const EVP_CIPHER *EVP_chacha20(void);
+ const EVP_CIPHER *EVP_chacha20_poly1305(void);
 
 =head1 DESCRIPTION
 
@@ -54,9 +54,9 @@ L<EVP_CIPHER_meth_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

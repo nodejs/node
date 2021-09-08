@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -40,15 +40,18 @@
 # 50-70% improvement for RSA4096 sign. RSA2048 sign is ~25% faster
 # on Cortex-A57 and ~60-100% faster on others.
 
-$flavour = shift;
-$output  = shift;
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+my $output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+my $flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour \"$output\""
+    or die "can't call $xlate: $1";
 *STDOUT=*OUT;
 
 ($lo0,$hi0,$aj,$m0,$alo,$ahi,
@@ -64,16 +67,34 @@ $n0="x4";	# const BN_ULONG *n0,
 $num="x5";	# int num);
 
 $code.=<<___;
+#ifndef	__KERNEL__
+# include "arm_arch.h"
+.extern OPENSSL_armv8_rsa_neonized
+.hidden OPENSSL_armv8_rsa_neonized
+#endif
 .text
 
 .globl	bn_mul_mont
 .type	bn_mul_mont,%function
 .align	5
 bn_mul_mont:
+.Lbn_mul_mont:
+	tst	$num,#3
+	b.ne	.Lmul_mont
+	cmp	$num,#32
+	b.le	.Lscalar_impl
+#ifndef	__KERNEL__
+	adrp	x17,OPENSSL_armv8_rsa_neonized
+	ldr	w17,[x17,#:lo12:OPENSSL_armv8_rsa_neonized]
+	cbnz	w17, bn_mul8x_mont_neon
+#endif
+
+.Lscalar_impl:
 	tst	$num,#7
 	b.eq	__bn_sqr8x_mont
 	tst	$num,#3
 	b.eq	__bn_mul4x_mont
+
 .Lmul_mont:
 	stp	x29,x30,[sp,#-64]!
 	add	x29,sp,#0
@@ -197,7 +218,7 @@ bn_mul_mont:
 	mul	$nlo,$nj,$m1		// np[j]*m1
 	adds	$lo1,$lo1,$lo0
 	umulh	$nhi,$nj,$m1
-	str	$lo1,[$tp,#-16]		// tp[j-1]
+	stur	$lo1,[$tp,#-16]		// tp[j-1]
 	cbnz	$j,.Linner
 
 .Linner_skip:
@@ -253,13 +274,13 @@ bn_mul_mont:
 	csel	$nj,$tj,$aj,lo		// did it borrow?
 	ldr	$tj,[$tp],#8
 	ldr	$aj,[$rp],#8
-	str	xzr,[$tp,#-16]		// wipe tp
-	str	$nj,[$rp,#-16]
+	stur	xzr,[$tp,#-16]		// wipe tp
+	stur	$nj,[$rp,#-16]
 	cbnz	$num,.Lcond_copy
 
 	csel	$nj,$tj,$aj,lo
-	str	xzr,[$tp,#-8]		// wipe tp
-	str	$nj,[$rp,#-8]
+	stur	xzr,[$tp,#-8]		// wipe tp
+	stur	$nj,[$rp,#-8]
 
 	ldp	x19,x20,[x29,#16]
 	mov	sp,x29
@@ -270,6 +291,369 @@ bn_mul_mont:
 	ret
 .size	bn_mul_mont,.-bn_mul_mont
 ___
+{
+my ($A0,$A1,$N0,$N1)=map("v$_",(0..3));
+my ($Z,$Temp)=("v4.16b","v5");
+my @ACC=map("v$_",(6..13));
+my ($Bi,$Ni,$M0)=map("v$_",(28..30));
+my $sBi="s28";
+my $sM0="s30";
+my $zero="v14";
+my $temp="v15";
+my $ACCTemp="v16";
+
+my ($rptr,$aptr,$bptr,$nptr,$n0,$num)=map("x$_",(0..5));
+my ($tinptr,$toutptr,$inner,$outer,$bnptr)=map("x$_",(6..11));
+
+$code.=<<___;
+.type	bn_mul8x_mont_neon,%function
+.align	5
+bn_mul8x_mont_neon:
+	stp	x29,x30,[sp,#-80]!
+	mov	x16,sp
+	stp	d8,d9,[sp,#16]
+	stp	d10,d11,[sp,#32]
+	stp	d12,d13,[sp,#48]
+	stp	d14,d15,[sp,#64]
+	lsl	$num,$num,#1
+	eor	$zero.16b,$zero.16b,$zero.16b
+
+.align	4
+.LNEON_8n:
+	eor	@ACC[0].16b,@ACC[0].16b,@ACC[0].16b
+	sub	$toutptr,sp,#128
+	eor	@ACC[1].16b,@ACC[1].16b,@ACC[1].16b
+	sub	$toutptr,$toutptr,$num,lsl#4
+	eor	@ACC[2].16b,@ACC[2].16b,@ACC[2].16b
+	and	$toutptr,$toutptr,#-64
+	eor	@ACC[3].16b,@ACC[3].16b,@ACC[3].16b
+	mov	sp,$toutptr		// alloca
+	eor	@ACC[4].16b,@ACC[4].16b,@ACC[4].16b
+	add	$toutptr,$toutptr,#256
+	eor	@ACC[5].16b,@ACC[5].16b,@ACC[5].16b
+	sub	$inner,$num,#8
+	eor	@ACC[6].16b,@ACC[6].16b,@ACC[6].16b
+	eor	@ACC[7].16b,@ACC[7].16b,@ACC[7].16b
+
+.LNEON_8n_init:
+	st1	{@ACC[0].2d,@ACC[1].2d},[$toutptr],#32
+	subs	$inner,$inner,#8
+	st1	{@ACC[2].2d,@ACC[3].2d},[$toutptr],#32
+	st1	{@ACC[4].2d,@ACC[5].2d},[$toutptr],#32
+	st1	{@ACC[6].2d,@ACC[7].2d},[$toutptr],#32
+	bne	.LNEON_8n_init
+
+	add	$tinptr,sp,#256
+	ld1	{$A0.4s,$A1.4s},[$aptr],#32
+	add	$bnptr,sp,#8
+	ldr	$sM0,[$n0],#4
+	mov	$outer,$num
+	b	.LNEON_8n_outer
+
+.align	4
+.LNEON_8n_outer:
+	ldr	$sBi,[$bptr],#4   // *b++
+	uxtl	$Bi.4s,$Bi.4h
+	add	$toutptr,sp,#128
+	ld1	{$N0.4s,$N1.4s},[$nptr],#32
+
+	umlal	@ACC[0].2d,$Bi.2s,$A0.s[0]
+	umlal	@ACC[1].2d,$Bi.2s,$A0.s[1]
+	umlal	@ACC[2].2d,$Bi.2s,$A0.s[2]
+	shl	$Ni.2d,@ACC[0].2d,#16
+	ext	$Ni.16b,$Ni.16b,$Ni.16b,#8
+	umlal	@ACC[3].2d,$Bi.2s,$A0.s[3]
+	add	$Ni.2d,$Ni.2d,@ACC[0].2d
+	umlal	@ACC[4].2d,$Bi.2s,$A1.s[0]
+	mul	$Ni.2s,$Ni.2s,$M0.2s
+	umlal	@ACC[5].2d,$Bi.2s,$A1.s[1]
+	st1	{$Bi.2s},[sp]		// put aside smashed b[8*i+0]
+	umlal	@ACC[6].2d,$Bi.2s,$A1.s[2]
+	uxtl	$Ni.4s,$Ni.4h
+	umlal	@ACC[7].2d,$Bi.2s,$A1.s[3]
+___
+for ($i=0; $i<7;) {
+$code.=<<___;
+	ldr	$sBi,[$bptr],#4   // *b++
+	umlal	@ACC[0].2d,$Ni.2s,$N0.s[0]
+	umlal	@ACC[1].2d,$Ni.2s,$N0.s[1]
+	uxtl	$Bi.4s,$Bi.4h
+	umlal	@ACC[2].2d,$Ni.2s,$N0.s[2]
+	ushr	$temp.2d,@ACC[0].2d,#16
+	umlal	@ACC[3].2d,$Ni.2s,$N0.s[3]
+	umlal	@ACC[4].2d,$Ni.2s,$N1.s[0]
+	ext	@ACC[0].16b,@ACC[0].16b,@ACC[0].16b,#8
+	add	@ACC[0].2d,@ACC[0].2d,$temp.2d
+	umlal	@ACC[5].2d,$Ni.2s,$N1.s[1]
+	ushr	@ACC[0].2d,@ACC[0].2d,#16
+	umlal	@ACC[6].2d,$Ni.2s,$N1.s[2]
+	umlal	@ACC[7].2d,$Ni.2s,$N1.s[3]
+	add	$ACCTemp.2d,@ACC[1].2d,@ACC[0].2d
+	ins	@ACC[1].d[0],$ACCTemp.d[0]
+	st1	{$Ni.2s},[$bnptr],#8	// put aside smashed m[8*i+$i]
+___
+	push(@ACC,shift(@ACC));	$i++;
+$code.=<<___;
+	umlal	@ACC[0].2d,$Bi.2s,$A0.s[0]
+	ld1	{@ACC[7].2d},[$tinptr],#16
+	umlal	@ACC[1].2d,$Bi.2s,$A0.s[1]
+	umlal	@ACC[2].2d,$Bi.2s,$A0.s[2]
+	shl	$Ni.2d,@ACC[0].2d,#16
+	ext	$Ni.16b,$Ni.16b,$Ni.16b,#8
+	umlal	@ACC[3].2d,$Bi.2s,$A0.s[3]
+	add	$Ni.2d,$Ni.2d,@ACC[0].2d
+	umlal	@ACC[4].2d,$Bi.2s,$A1.s[0]
+	mul	$Ni.2s,$Ni.2s,$M0.2s
+	umlal	@ACC[5].2d,$Bi.2s,$A1.s[1]
+	st1	{$Bi.2s},[$bnptr],#8	// put aside smashed b[8*i+$i]
+	umlal	@ACC[6].2d,$Bi.2s,$A1.s[2]
+	uxtl	$Ni.4s,$Ni.4h
+	umlal	@ACC[7].2d,$Bi.2s,$A1.s[3]
+___
+}
+$code.=<<___;
+	ld1	{$Bi.2s},[sp]		// pull smashed b[8*i+0]
+	umlal	@ACC[0].2d,$Ni.2s,$N0.s[0]
+	ld1	{$A0.4s,$A1.4s},[$aptr],#32
+	umlal	@ACC[1].2d,$Ni.2s,$N0.s[1]
+	umlal	@ACC[2].2d,$Ni.2s,$N0.s[2]
+	mov	$Temp.16b,@ACC[0].16b
+	ushr	$Temp.2d,$Temp.2d,#16
+	ext	@ACC[0].16b,@ACC[0].16b,@ACC[0].16b,#8
+	umlal	@ACC[3].2d,$Ni.2s,$N0.s[3]
+	umlal	@ACC[4].2d,$Ni.2s,$N1.s[0]
+	add	@ACC[0].2d,@ACC[0].2d,$Temp.2d
+	umlal	@ACC[5].2d,$Ni.2s,$N1.s[1]
+	ushr	@ACC[0].2d,@ACC[0].2d,#16
+	eor	$temp.16b,$temp.16b,$temp.16b
+	ins	@ACC[0].d[1],$temp.d[0]
+	umlal	@ACC[6].2d,$Ni.2s,$N1.s[2]
+	umlal	@ACC[7].2d,$Ni.2s,$N1.s[3]
+	add	@ACC[1].2d,@ACC[1].2d,@ACC[0].2d
+	st1	{$Ni.2s},[$bnptr],#8	// put aside smashed m[8*i+$i]
+	add	$bnptr,sp,#8		// rewind
+___
+	push(@ACC,shift(@ACC));
+$code.=<<___;
+	sub	$inner,$num,#8
+	b	.LNEON_8n_inner
+
+.align	4
+.LNEON_8n_inner:
+	subs	$inner,$inner,#8
+	umlal	@ACC[0].2d,$Bi.2s,$A0.s[0]
+	ld1	{@ACC[7].2d},[$tinptr]
+	umlal	@ACC[1].2d,$Bi.2s,$A0.s[1]
+	ld1	{$Ni.2s},[$bnptr],#8	// pull smashed m[8*i+0]
+	umlal	@ACC[2].2d,$Bi.2s,$A0.s[2]
+	ld1	{$N0.4s,$N1.4s},[$nptr],#32
+	umlal	@ACC[3].2d,$Bi.2s,$A0.s[3]
+	b.eq	.LInner_jump
+	add	$tinptr,$tinptr,#16	// don't advance in last iteration
+.LInner_jump:
+	umlal	@ACC[4].2d,$Bi.2s,$A1.s[0]
+	umlal	@ACC[5].2d,$Bi.2s,$A1.s[1]
+	umlal	@ACC[6].2d,$Bi.2s,$A1.s[2]
+	umlal	@ACC[7].2d,$Bi.2s,$A1.s[3]
+___
+for ($i=1; $i<8; $i++) {
+$code.=<<___;
+	ld1	{$Bi.2s},[$bnptr],#8	// pull smashed b[8*i+$i]
+	umlal	@ACC[0].2d,$Ni.2s,$N0.s[0]
+	umlal	@ACC[1].2d,$Ni.2s,$N0.s[1]
+	umlal	@ACC[2].2d,$Ni.2s,$N0.s[2]
+	umlal	@ACC[3].2d,$Ni.2s,$N0.s[3]
+	umlal	@ACC[4].2d,$Ni.2s,$N1.s[0]
+	umlal	@ACC[5].2d,$Ni.2s,$N1.s[1]
+	umlal	@ACC[6].2d,$Ni.2s,$N1.s[2]
+	umlal	@ACC[7].2d,$Ni.2s,$N1.s[3]
+	st1	{@ACC[0].2d},[$toutptr],#16
+___
+	push(@ACC,shift(@ACC));
+$code.=<<___;
+	umlal	@ACC[0].2d,$Bi.2s,$A0.s[0]
+	ld1	{@ACC[7].2d},[$tinptr]
+	umlal	@ACC[1].2d,$Bi.2s,$A0.s[1]
+	ld1	{$Ni.2s},[$bnptr],#8	// pull smashed m[8*i+$i]
+	umlal	@ACC[2].2d,$Bi.2s,$A0.s[2]
+	b.eq	.LInner_jump$i
+	add	$tinptr,$tinptr,#16	// don't advance in last iteration
+.LInner_jump$i:
+	umlal	@ACC[3].2d,$Bi.2s,$A0.s[3]
+	umlal	@ACC[4].2d,$Bi.2s,$A1.s[0]
+	umlal	@ACC[5].2d,$Bi.2s,$A1.s[1]
+	umlal	@ACC[6].2d,$Bi.2s,$A1.s[2]
+	umlal	@ACC[7].2d,$Bi.2s,$A1.s[3]
+___
+}
+$code.=<<___;
+	b.ne	.LInner_after_rewind$i
+	sub	$aptr,$aptr,$num,lsl#2	// rewind
+.LInner_after_rewind$i:
+	umlal	@ACC[0].2d,$Ni.2s,$N0.s[0]
+	ld1	{$Bi.2s},[sp]		// pull smashed b[8*i+0]
+	umlal	@ACC[1].2d,$Ni.2s,$N0.s[1]
+	ld1	{$A0.4s,$A1.4s},[$aptr],#32
+	umlal	@ACC[2].2d,$Ni.2s,$N0.s[2]
+	add	$bnptr,sp,#8		// rewind
+	umlal	@ACC[3].2d,$Ni.2s,$N0.s[3]
+	umlal	@ACC[4].2d,$Ni.2s,$N1.s[0]
+	umlal	@ACC[5].2d,$Ni.2s,$N1.s[1]
+	umlal	@ACC[6].2d,$Ni.2s,$N1.s[2]
+	st1	{@ACC[0].2d},[$toutptr],#16
+	umlal	@ACC[7].2d,$Ni.2s,$N1.s[3]
+
+	bne	.LNEON_8n_inner
+___
+	push(@ACC,shift(@ACC));
+$code.=<<___;
+	add	$tinptr,sp,#128
+	st1	{@ACC[0].2d,@ACC[1].2d},[$toutptr],#32
+	eor	$N0.16b,$N0.16b,$N0.16b	// $N0
+	st1	{@ACC[2].2d,@ACC[3].2d},[$toutptr],#32
+	eor	$N1.16b,$N1.16b,$N1.16b	// $N1
+	st1	{@ACC[4].2d,@ACC[5].2d},[$toutptr],#32
+	st1	{@ACC[6].2d},[$toutptr]
+
+	subs	$outer,$outer,#8
+	ld1	{@ACC[0].2d,@ACC[1].2d},[$tinptr],#32
+	ld1	{@ACC[2].2d,@ACC[3].2d},[$tinptr],#32
+	ld1	{@ACC[4].2d,@ACC[5].2d},[$tinptr],#32
+	ld1	{@ACC[6].2d,@ACC[7].2d},[$tinptr],#32
+
+	b.eq	.LInner_8n_jump_2steps
+	sub	$nptr,$nptr,$num,lsl#2	// rewind
+	b	.LNEON_8n_outer
+
+.LInner_8n_jump_2steps:
+	add	$toutptr,sp,#128
+	st1	{$N0.2d,$N1.2d}, [sp],#32	// start wiping stack frame
+	mov	$Temp.16b,@ACC[0].16b
+	ushr	$temp.2d,@ACC[0].2d,#16
+	ext	@ACC[0].16b,@ACC[0].16b,@ACC[0].16b,#8
+	st1	{$N0.2d,$N1.2d}, [sp],#32
+	add	@ACC[0].2d,@ACC[0].2d,$temp.2d
+	st1	{$N0.2d,$N1.2d}, [sp],#32
+	ushr	$temp.2d,@ACC[0].2d,#16
+	st1	{$N0.2d,$N1.2d}, [sp],#32
+	zip1	@ACC[0].4h,$Temp.4h,@ACC[0].4h
+	ins	$temp.d[1],$zero.d[0]
+
+	mov	$inner,$num
+	b	.LNEON_tail_entry
+
+.align	4
+.LNEON_tail:
+	add	@ACC[0].2d,@ACC[0].2d,$temp.2d
+	mov	$Temp.16b,@ACC[0].16b
+	ushr	$temp.2d,@ACC[0].2d,#16
+	ext	@ACC[0].16b,@ACC[0].16b,@ACC[0].16b,#8
+	ld1	{@ACC[2].2d,@ACC[3].2d}, [$tinptr],#32
+	add	@ACC[0].2d,@ACC[0].2d,$temp.2d
+	ld1	{@ACC[4].2d,@ACC[5].2d}, [$tinptr],#32
+	ushr	$temp.2d,@ACC[0].2d,#16
+	ld1	{@ACC[6].2d,@ACC[7].2d}, [$tinptr],#32
+	zip1	@ACC[0].4h,$Temp.4h,@ACC[0].4h
+	ins	$temp.d[1],$zero.d[0]
+
+.LNEON_tail_entry:
+___
+for ($i=1; $i<8; $i++) {
+$code.=<<___;
+	add	@ACC[1].2d,@ACC[1].2d,$temp.2d
+	st1	{@ACC[0].s}[0], [$toutptr],#4
+	ushr	$temp.2d,@ACC[1].2d,#16
+	mov	$Temp.16b,@ACC[1].16b
+	ext	@ACC[1].16b,@ACC[1].16b,@ACC[1].16b,#8
+	add	@ACC[1].2d,@ACC[1].2d,$temp.2d
+	ushr	$temp.2d,@ACC[1].2d,#16
+	zip1	@ACC[1].4h,$Temp.4h,@ACC[1].4h
+	ins	$temp.d[1],$zero.d[0]
+___
+	push(@ACC,shift(@ACC));
+}
+	push(@ACC,shift(@ACC));
+$code.=<<___;
+	ld1	{@ACC[0].2d,@ACC[1].2d}, [$tinptr],#32
+	subs	$inner,$inner,#8
+	st1	{@ACC[7].s}[0], [$toutptr],#4
+	bne	.LNEON_tail
+
+	st1	{$temp.s}[0], [$toutptr],#4	// top-most bit
+	sub	$nptr,$nptr,$num,lsl#2		// rewind $nptr
+	subs	$aptr,sp,#0			// clear carry flag
+	add	$bptr,sp,$num,lsl#2
+
+.LNEON_sub:
+	ldp	w4,w5,[$aptr],#8
+	ldp	w6,w7,[$aptr],#8
+	ldp	w8,w9,[$nptr],#8
+	ldp	w10,w11,[$nptr],#8
+	sbcs	w8,w4,w8
+	sbcs	w9,w5,w9
+	sbcs	w10,w6,w10
+	sbcs	w11,w7,w11
+	sub	x17,$bptr,$aptr
+	stp	w8,w9,[$rptr],#8
+	stp	w10,w11,[$rptr],#8
+	cbnz	x17,.LNEON_sub
+
+	ldr	w10, [$aptr]		// load top-most bit
+	mov	x11,sp
+	eor	v0.16b,v0.16b,v0.16b
+	sub	x11,$bptr,x11		// this is num*4
+	eor	v1.16b,v1.16b,v1.16b
+	mov	$aptr,sp
+	sub	$rptr,$rptr,x11		// rewind $rptr
+	mov	$nptr,$bptr		// second 3/4th of frame
+	sbcs	w10,w10,wzr		// result is carry flag
+
+.LNEON_copy_n_zap:
+	ldp	w4,w5,[$aptr],#8
+	ldp	w6,w7,[$aptr],#8
+	ldp	w8,w9,[$rptr],#8
+	ldp	w10,w11,[$rptr]
+	sub	$rptr,$rptr,#8
+	b.cs	.LCopy_1
+	mov	w8,w4
+	mov	w9,w5
+	mov	w10,w6
+	mov	w11,w7
+.LCopy_1:
+	st1	{v0.2d,v1.2d}, [$nptr],#32		// wipe
+	st1	{v0.2d,v1.2d}, [$nptr],#32		// wipe
+	ldp	w4,w5,[$aptr],#8
+	ldp	w6,w7,[$aptr],#8
+	stp	w8,w9,[$rptr],#8
+	stp	w10,w11,[$rptr],#8
+	sub	$aptr,$aptr,#32
+	ldp	w8,w9,[$rptr],#8
+	ldp	w10,w11,[$rptr]
+	sub	$rptr,$rptr,#8
+	b.cs	.LCopy_2
+	mov	w8, w4
+	mov	w9, w5
+	mov	w10, w6
+	mov	w11, w7
+.LCopy_2:
+	st1	{v0.2d,v1.2d}, [$aptr],#32		// wipe
+	st1	{v0.2d,v1.2d}, [$nptr],#32		// wipe
+	sub	x17,$bptr,$aptr		// preserves carry
+	stp	w8,w9,[$rptr],#8
+	stp	w10,w11,[$rptr],#8
+	cbnz	x17,.LNEON_copy_n_zap
+
+	mov	sp,x16
+	ldp	d14,d15,[sp,#64]
+	ldp	d12,d13,[sp,#48]
+	ldp	d10,d11,[sp,#32]
+	ldp	d8,d9,[sp,#16]
+	ldr	x29,[sp],#80
+	ret			// bx lr
+
+.size	bn_mul8x_mont_neon,.-bn_mul8x_mont_neon
+___
+}
 {
 ########################################################################
 # Following is ARMv8 adaptation of sqrx8x_mont from x86_64-mont5 module.
@@ -596,7 +980,7 @@ __bn_sqr8x_mont:
 	ldp	$a4,$a5,[$tp,#8*4]
 	ldp	$a6,$a7,[$tp,#8*6]
 	adds	$acc0,$acc0,$a0
-	ldr	$n0,[$rp,#-8*8]
+	ldur	$n0,[$rp,#-8*8]
 	adcs	$acc1,$acc1,$a1
 	ldp	$a0,$a1,[$ap,#8*0]
 	adcs	$acc2,$acc2,$a2
@@ -794,7 +1178,7 @@ $code.=<<___;
 	//adc	$carry,xzr,xzr		// moved below
 	cbz	$cnt,.Lsqr8x8_post_condition
 
-	ldr	$n0,[$tp,#-8*8]
+	ldur	$n0,[$tp,#-8*8]
 	ldp	$a0,$a1,[$np,#8*0]
 	ldp	$a2,$a3,[$np,#8*2]
 	ldp	$a4,$a5,[$np,#8*4]
@@ -852,7 +1236,7 @@ $code.=<<___;
 	ldp	$a6,$a7,[$tp,#8*6]
 	cbz	$cnt,.Lsqr8x_tail_break
 
-	ldr	$n0,[$rp,#-8*8]
+	ldur	$n0,[$rp,#-8*8]
 	adds	$acc0,$acc0,$a0
 	adcs	$acc1,$acc1,$a1
 	ldp	$a0,$a1,[$np,#8*0]

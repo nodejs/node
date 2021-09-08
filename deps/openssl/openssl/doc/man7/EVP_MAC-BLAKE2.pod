@@ -1,0 +1,90 @@
+=pod
+
+=head1 NAME
+
+EVP_MAC-BLAKE2, EVP_MAC-BLAKE2BMAC, EVP_MAC-BLAKE2SMAC
+- The BLAKE2 EVP_MAC implementations
+
+=head1 DESCRIPTION
+
+Support for computing BLAKE2 MACs through the B<EVP_MAC> API.
+
+=head2 Identity
+
+These implementations are identified with one of these names and
+properties, to be used with EVP_MAC_fetch():
+
+=over 4
+
+=item "BLAKE2BMAC", "provider=default"
+
+=item "BLAKE2SMAC", "provider=default"
+
+=back
+
+=head2 Supported parameters
+
+The general description of these parameters can be found in
+L<EVP_MAC(3)/PARAMETERS>.
+
+All these parameters can be set with EVP_MAC_CTX_set_params().
+Furthermore, the "size" parameter can be retrieved with
+EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_mac_size().
+The length of the "size" parameter should not exceed that of a B<size_t>.
+Likewise, the "block-size" parameter can be retrieved with
+EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_block_size().
+
+=over 4
+
+=item "key" (B<OSSL_MAC_PARAM_KEY>) <octet string>
+
+Sets the MAC key.
+It may be at most 64 bytes for BLAKE2BMAC or 32 for BLAKE2SMAC and at
+least 1 byte in both cases.
+Setting this parameter is identical to passing a I<key> to L<EVP_MAC_init(3)>.
+
+=item "custom" (B<OSSL_MAC_PARAM_CUSTOM>) <octet string>
+
+Sets the custom value.
+It is an optional value of at most 16 bytes for BLAKE2BMAC or 8 for
+BLAKE2SMAC, and is empty by default.
+
+=item "salt" (B<OSSL_MAC_PARAM_SALT>) <octet string>
+
+Sets the salt.
+It is an optional value of at most 16 bytes for BLAKE2BMAC or 8 for
+BLAKE2SMAC, and is empty by default.
+
+=item "size" (B<OSSL_MAC_PARAM_SIZE>) <unsigned integer>
+
+Sets the MAC size.
+It can be any number between 1 and 32 for EVP_MAC_BLAKE2S or between 1
+and 64 for EVP_MAC_BLAKE2B.
+It is 32 and 64 respectively by default.
+
+=item "block-size" (B<OSSL_MAC_PARAM_SIZE>) <unsigned integer>
+
+Gets the MAC block size.
+By default, it is 64 for EVP_MAC_BLAKE2S and 128 for EVP_MAC_BLAKE2B.
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_MAC_CTX_get_params(3)>, L<EVP_MAC_CTX_set_params(3)>,
+L<EVP_MAC(3)/PARAMETERS>, L<OSSL_PARAM(3)>
+
+=head1 HISTORY
+
+The macros and functions described here were added to OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

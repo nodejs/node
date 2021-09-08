@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -61,7 +61,7 @@ static int dl_load(DSO *dso)
     char *filename = DSO_convert_filename(dso, NULL);
 
     if (filename == NULL) {
-        DSOerr(DSO_F_DL_LOAD, DSO_R_NO_FILENAME);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NO_FILENAME);
         goto err;
     }
     ptr = shl_load(filename, BIND_IMMEDIATE |
@@ -69,13 +69,17 @@ static int dl_load(DSO *dso)
                     DYNAMIC_PATH), 0L);
     if (ptr == NULL) {
         char errbuf[160];
-        DSOerr(DSO_F_DL_LOAD, DSO_R_LOAD_FAILED);
+
         if (openssl_strerror_r(errno, errbuf, sizeof(errbuf)))
-            ERR_add_error_data(4, "filename(", filename, "): ", errbuf);
+            ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
+                           "filename(%s): %s", filename, errbuf);
+        else
+            ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
+                           "filename(%s): errno %d", filename, errno);
         goto err;
     }
     if (!sk_push(dso->meth_data, (char *)ptr)) {
-        DSOerr(DSO_F_DL_LOAD, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         goto err;
     }
     /*
@@ -96,7 +100,7 @@ static int dl_unload(DSO *dso)
 {
     shl_t ptr;
     if (dso == NULL) {
-        DSOerr(DSO_F_DL_UNLOAD, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
     if (sk_num(dso->meth_data) < 1)
@@ -104,7 +108,7 @@ static int dl_unload(DSO *dso)
     /* Is this statement legal? */
     ptr = (shl_t) sk_pop(dso->meth_data);
     if (ptr == NULL) {
-        DSOerr(DSO_F_DL_UNLOAD, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         /*
          * Should push the value back onto the stack in case of a retry.
          */
@@ -121,23 +125,27 @@ static DSO_FUNC_TYPE dl_bind_func(DSO *dso, const char *symname)
     void *sym;
 
     if ((dso == NULL) || (symname == NULL)) {
-        DSOerr(DSO_F_DL_BIND_FUNC, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return NULL;
     }
     if (sk_num(dso->meth_data) < 1) {
-        DSOerr(DSO_F_DL_BIND_FUNC, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         return NULL;
     }
     ptr = (shl_t) sk_value(dso->meth_data, sk_num(dso->meth_data) - 1);
     if (ptr == NULL) {
-        DSOerr(DSO_F_DL_BIND_FUNC, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         return NULL;
     }
     if (shl_findsym(&ptr, symname, TYPE_UNDEFINED, &sym) < 0) {
         char errbuf[160];
-        DSOerr(DSO_F_DL_BIND_FUNC, DSO_R_SYM_FAILURE);
+
         if (openssl_strerror_r(errno, errbuf, sizeof(errbuf)))
-            ERR_add_error_data(4, "symname(", symname, "): ", errbuf);
+            ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
+                           "symname(%s): %s", symname, errbuf);
+        else
+            ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
+                           "symname(%s): errno %d", symname, errno);
         return NULL;
     }
     return (DSO_FUNC_TYPE)sym;
@@ -148,7 +156,7 @@ static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2)
     char *merged;
 
     if (!filespec1 && !filespec2) {
-        DSOerr(DSO_F_DL_MERGER, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return NULL;
     }
     /*
@@ -158,7 +166,7 @@ static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2)
     if (!filespec2 || filespec1[0] == '/') {
         merged = OPENSSL_strdup(filespec1);
         if (merged == NULL) {
-            DSOerr(DSO_F_DL_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
     }
@@ -168,7 +176,7 @@ static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2)
     else if (!filespec1) {
         merged = OPENSSL_strdup(filespec2);
         if (merged == NULL) {
-            DSOerr(DSO_F_DL_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
     } else
@@ -191,7 +199,7 @@ static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2)
         }
         merged = OPENSSL_malloc(len + 2);
         if (merged == NULL) {
-            DSOerr(DSO_F_DL_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
         strcpy(merged, filespec2);
@@ -216,7 +224,7 @@ static char *dl_name_converter(DSO *dso, const char *filename)
     len = strlen(filename);
     rsize = len + 1;
     transform = (strstr(filename, "/") == NULL);
-    {
+    if (transform) {
         /* We will convert this to "%s.s?" or "lib%s.s?" */
         rsize += strlen(DSO_EXTENSION); /* The length of ".s?" */
         if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
@@ -224,7 +232,7 @@ static char *dl_name_converter(DSO *dso, const char *filename)
     }
     translated = OPENSSL_malloc(rsize);
     if (translated == NULL) {
-        DSOerr(DSO_F_DL_NAME_CONVERTER, DSO_R_NAME_TRANSLATION_FAILED);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NAME_TRANSLATION_FAILED);
         return NULL;
     }
     if (transform) {

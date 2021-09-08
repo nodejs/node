@@ -69,7 +69,7 @@ sufficient to allow the connection to continue.
 The TLS handshake is aborted if the verification mode is not B<SSL_VERIFY_NONE>
 and the callback returns a non-positive result.
 
-An arbitrary callback context argument, B<arg>, can be passed in when setting
+An arbitrary callback data argument, B<arg>, can be passed in when setting
 the callback.
 This will be passed to the callback whenever it is invoked.
 Ownership of this context remains with the caller.
@@ -135,9 +135,9 @@ L<SSL_SESSION_get_time(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

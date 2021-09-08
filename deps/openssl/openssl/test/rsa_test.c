@@ -1,13 +1,19 @@
 /*
  * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 /* test vectors from p1ovect1.txt */
+
+/*
+ * RSA low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -21,16 +27,9 @@
 
 #include "testutil.h"
 
-#ifdef OPENSSL_NO_RSA
-int setup_tests(void)
-{
-    /* No tests */
-    return 1;
-}
-#else
-# include <openssl/rsa.h>
+#include <openssl/rsa.h>
 
-# define SetKey \
+#define SetKey \
     RSA_set0_key(key,                                           \
                  BN_bin2bn(n, sizeof(n)-1, NULL),               \
                  BN_bin2bn(e, sizeof(e)-1, NULL),               \
@@ -279,28 +278,6 @@ static int test_rsa_pkcs1(int idx)
                            NULL, NULL);
 }
 
-static int test_rsa_sslv23(int idx)
-{
-    int ret;
-
-    /* Simulate an SSLv2 only client talking to a TLS capable server */
-    ret = test_rsa_simple(idx, RSA_PKCS1_PADDING, RSA_SSLV23_PADDING, 1, NULL,
-                          NULL, NULL);
-
-    /* Simulate a TLS capable client talking to an SSLv2 only server */
-    ret &= test_rsa_simple(idx, RSA_SSLV23_PADDING, RSA_PKCS1_PADDING, 1, NULL,
-                           NULL, NULL);
-
-    /*
-     * Simulate a TLS capable client talking to a TLS capable server. Should
-     * fail due to detecting a rollback attack.
-     */
-    ret &= test_rsa_simple(idx, RSA_SSLV23_PADDING, RSA_SSLV23_PADDING, 0, NULL,
-                           NULL, NULL);
-
-    return ret;
-}
-
 static int test_rsa_oaep(int idx)
 {
     int ret = 0;
@@ -349,11 +326,75 @@ err:
     return ret;
 }
 
+static const struct {
+    int bits;
+    unsigned int r;
+} rsa_security_bits_cases[] = {
+    /* NIST SP 800-56B rev 2 (draft) Appendix D Table 5 */
+    { 2048,     112 },
+    { 3072,     128 },
+    { 4096,     152 },
+    { 6144,     176 },
+    { 8192,     200 },
+    /* NIST FIPS 140-2 IG 7.5 */
+    { 7680,     192 },
+    { 15360,    256 },
+    /* Older values */
+    { 256,      40  },
+    { 512,      56  },
+    { 1024,     80  },
+    /* Some other values */
+    { 8888,     208 },
+    { 2468,     120 },
+    { 13456,    248 },
+    /* Edge points */
+    { 15359,    256 },
+    { 15361,    264 },
+    { 7679,     192 },
+    { 7681,     200 },
+};
+
+static int test_rsa_security_bit(int n)
+{
+    static const unsigned char vals[8] = {
+        0x80, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40
+    };
+    RSA *key = RSA_new();
+    const int bits = rsa_security_bits_cases[n].bits;
+    const int result = rsa_security_bits_cases[n].r;
+    const int bytes = (bits + 7) / 8;
+    int r = 0;
+    unsigned char num[2000];
+
+    if (!TEST_ptr(key) || !TEST_int_le(bytes, (int)sizeof(num)))
+        goto err;
+
+    /*
+     * It is necessary to set the RSA key in order to ask for the strength.
+     * A BN of an appropriate size is created, in general it won't have the
+     * properties necessary for RSA to function.  This is okay here since
+     * the RSA key is never used.
+     */
+    memset(num, vals[bits % 8], bytes);
+
+    /*
+     * The 'e' parameter is set to the same value as 'n'.  This saves having
+     * an extra BN to hold a sensible value for 'e'.  This is safe since the
+     * RSA key is not used.  The 'd' parameter can be NULL safely.
+     */
+    if (TEST_true(RSA_set0_key(key, BN_bin2bn(num, bytes, NULL),
+                               BN_bin2bn(num, bytes, NULL), NULL))
+            && TEST_uint_eq(RSA_security_bits(key), result))
+        r = 1;
+err:
+    RSA_free(key);
+    return r;
+}
+
 int setup_tests(void)
 {
     ADD_ALL_TESTS(test_rsa_pkcs1, 3);
-    ADD_ALL_TESTS(test_rsa_sslv23, 3);
     ADD_ALL_TESTS(test_rsa_oaep, 3);
+    ADD_ALL_TESTS(test_rsa_security_bit, OSSL_NELEM(rsa_security_bits_cases));
     return 1;
 }
-#endif

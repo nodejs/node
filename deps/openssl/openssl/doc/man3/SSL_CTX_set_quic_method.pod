@@ -74,7 +74,7 @@ SSL_quic_max_handshake_flight_len() returns the maximum number of bytes
 that may be received at the given encryption level. This function should be
 used to limit buffering in the QUIC implementation.
 
-See https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-4.
+See L<https://tools.ietf.org/html/RFC9000#section-4>.
 
 SSL_quic_read_level() returns the current read encryption level.
 
@@ -82,10 +82,8 @@ SSL_quic_write_level() returns the current write encryption level.
 
 SSL_provide_quic_data() is used to provide data from QUIC CRYPTO frames to the
 state machine, at a particular encryption level B<level>. It is an error to
-call this function outside of the handshake or with an encryption level other
-than the current read level. The application must buffer and consolidate any
-frames with less than four bytes of content.  It returns one on success and
-zero on error.
+call this function with an encryption level less than the current read level.
+It returns one on success and zero on error.
 
 SSL_process_quic_post_handshake() processes any data that QUIC has provided
 after the handshake has completed. This includes NewSessionTicket messages
@@ -105,7 +103,7 @@ the client will send both extensions.
 SSL_get_quic_transport_version() returns the value set by
 SSL_set_quic_transport_version().
 
-SSL_get_peer_quic_transport_version() returns the version the that was 
+SSL_get_peer_quic_transport_version() returns the version the that was
 negotiated.
 
 SSL_set_quic_early_data_enabled() enables QUIC early data if a nonzero
@@ -120,7 +118,7 @@ These APIs are implementations of BoringSSL's QUIC APIs.
 
 QUIC acts as an underlying transport for the TLS 1.3 handshake. The following
 functions allow a QUIC implementation to serve as the underlying transport as
-described in draft-ietf-quic-tls.
+described in RFC9001.
 
 When configured for QUIC, SSL_do_handshake() will drive the handshake as
 before, but it will not use the configured B<BIO>. It will call functions from
@@ -139,18 +137,17 @@ pass the active write level to add_handshake_data() when writing data. Callers
 can use SSL_quic_write_level() to query the active write level when
 generating their own errors.
 
-See https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-4.1 for more
-details.
+See L<https://tools.ietf.org/html/RFC9001#section-4.1> for more details.
 
-To avoid DoS attacks, the QUIC implementation must limit the amount of data
-being queued up. The implementation can call
+To avoid amplifying DoS attacks, the QUIC implementation must limit the amount
+of data being queued up. The implementation can call
 SSL_quic_max_handshake_flight_len() to get the maximum buffer length at each
 encryption level.
 
-draft-ietf-quic-tls defines a new TLS extension "quic_transport_parameters"
+RFC9001 defines a new TLS extension "quic_transport_parameters"
 used by QUIC for each endpoint to unilaterally declare its supported
 transport parameters. The contents of the extension are specified in
-https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-18 (as
+L<https://tools.ietf.org/html/RFC9000#section-18> (as
 a sequence of tag/length/value parameters) along with the interpretation of the
 various parameters and the rules for their processing.
 
@@ -212,9 +209,6 @@ only available in the client to server direction. The other secret will be
 NULL. The server acknowledges such data at B<ssl_encryption_application>,
 which will be configured in the same SSL_do_handshake() call.
 
-This function should use SSL_get_current_cipher() to determine the TLS
-cipher suite.
-
 add_handshake_data() adds handshake data to the current flight at the given
 encryption level. It returns one on success and zero on error.
 
@@ -258,7 +252,7 @@ These functions were added in OpenSSL 3.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

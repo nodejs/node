@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -124,6 +124,7 @@ sub ::function_begin_B
     push(@out,".align\t$align\n");
     push(@out,"$func:\n");
     push(@out,"$begin:\n")		if ($global);
+    &::endbranch();
     $::stack=4;
 }
 
@@ -172,6 +173,26 @@ sub ::file_end
 	else		{ push (@out,"$tmp\n"); }
     }
     push(@out,$initseg) if ($initseg);
+    if ($::elf) {
+	push(@out,"
+	.section \".note.gnu.property\", \"a\"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz \"GNU\"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
+");
+    }
 }
 
 sub ::data_byte	{   push(@out,".byte\t".join(',',@_)."\n");   }

@@ -1,7 +1,7 @@
 /*
  * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -79,10 +79,8 @@ static int asn1_bio_setup_ex(BIO *b, BIO_ASN1_BUF_CTX *ctx,
 static const BIO_METHOD methods_asn1 = {
     BIO_TYPE_ASN1,
     "asn1",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     asn1_bio_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     asn1_bio_read,
     asn1_bio_puts,
@@ -102,8 +100,10 @@ static int asn1_bio_new(BIO *b)
 {
     BIO_ASN1_BUF_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
 
-    if (ctx == NULL)
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
     if (!asn1_bio_init(ctx, DEFAULT_ASN1_BUF_SIZE)) {
         OPENSSL_free(ctx);
         return 0;
@@ -116,8 +116,8 @@ static int asn1_bio_new(BIO *b)
 
 static int asn1_bio_init(BIO_ASN1_BUF_CTX *ctx, int size)
 {
-    if ((ctx->buf = OPENSSL_malloc(size)) == NULL) {
-        ASN1err(ASN1_F_ASN1_BIO_INIT, ERR_R_MALLOC_FAILURE);
+    if (size <= 0 || (ctx->buf = OPENSSL_malloc(size)) == NULL) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     ctx->bufsize = size;

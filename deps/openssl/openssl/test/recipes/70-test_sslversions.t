@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -37,7 +37,10 @@ plan skip_all => "$test_name needs the sock feature enabled"
     if disabled("sock");
 
 plan skip_all => "$test_name needs TLS1.3, TLS1.2 and TLS1.1 enabled"
-    if disabled("tls1_3") || disabled("tls1_2") || disabled("tls1_1");
+    if disabled("tls1_3")
+       || (disabled("ec") && disabled("dh"))
+       || disabled("tls1_2")
+       || disabled("tls1_1");
 
 $ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 
@@ -49,7 +52,7 @@ my $proxy = TLSProxy::Proxy->new(
 );
 
 #We're just testing various negative and unusual scenarios here. ssltest with
-#02-protocol-version.conf should check all the various combinations of normal
+#02-protocol-version.cnf should check all the various combinations of normal
 #version neg
 
 #Test 1: An empty supported_versions extension should not succeed
@@ -95,6 +98,8 @@ ok(TLSProxy::Message->success()
 #Test 6: no TLSv1.3 or TLSv1.2 version in supported versions extension, but
 #TLSv1.1 and TLSv1.0 are present. Should just use TLSv1.1 and succeed
 $proxy->clear();
+$proxy->clientflags("-cipher DEFAULT:\@SECLEVEL=0");
+$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 $testtype = TLS1_1_AND_1_0_ONLY;
 $proxy->start();
 $record = pop @{$proxy->record_list};

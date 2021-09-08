@@ -1,25 +1,25 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #include <string.h>
-#include "crypto/sm3.h"
+#include "internal/sm3.h"
 
 #define DATA_ORDER_IS_BIG_ENDIAN
 
 #define HASH_LONG               SM3_WORD
 #define HASH_CTX                SM3_CTX
 #define HASH_CBLOCK             SM3_CBLOCK
-#define HASH_UPDATE             sm3_update
-#define HASH_TRANSFORM          sm3_transform
-#define HASH_FINAL              sm3_final
+#define HASH_UPDATE             ossl_sm3_update
+#define HASH_TRANSFORM          ossl_sm3_transform
+#define HASH_FINAL              ossl_sm3_final
 #define HASH_MAKE_STRING(c, s)              \
       do {                                  \
         unsigned long ll;                   \
@@ -32,9 +32,10 @@
         ll=(c)->G; (void)HOST_l2c(ll, (s)); \
         ll=(c)->H; (void)HOST_l2c(ll, (s)); \
       } while (0)
-#define HASH_BLOCK_DATA_ORDER   sm3_block_data_order
+#define HASH_BLOCK_DATA_ORDER   ossl_sm3_block_data_order
 
-void sm3_transform(SM3_CTX *c, const unsigned char *data);
+void ossl_sm3_block_data_order(SM3_CTX *c, const void *p, size_t num);
+void ossl_sm3_transform(SM3_CTX *c, const unsigned char *data);
 
 #include "crypto/md32_common.h"
 

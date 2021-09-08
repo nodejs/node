@@ -1,7 +1,7 @@
 /*
- * Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -257,7 +257,7 @@ static X509 *make_cert(void)
 
     if (!TEST_ptr(crt = X509_new()))
         return NULL;
-    if (!TEST_true(X509_set_version(crt, 2))) {
+    if (!TEST_true(X509_set_version(crt, X509_VERSION_3))) {
         X509_free(crt);
         return NULL;
     }
@@ -289,10 +289,10 @@ static int run_cert(X509 *crt, const char *nameincert,
     for (; *pname != NULL; ++pname) {
         int samename = strcasecmp(nameincert, *pname) == 0;
         size_t namelen = strlen(*pname);
-        char *name = OPENSSL_malloc(namelen);
+        char *name = OPENSSL_malloc(namelen + 1);
         int match, ret;
 
-        memcpy(name, *pname, namelen);
+        memcpy(name, *pname, namelen + 1);
 
         match = -1;
         if (!TEST_int_ge(ret = X509_check_host(crt, name, namelen, 0, NULL),

@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -29,7 +29,7 @@ void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value)
             && a->type != V_ASN1_NULL
             && a->value.ptr != NULL) {
         ASN1_TYPE **tmp_a = &a;
-        asn1_primitive_free((ASN1_VALUE **)tmp_a, NULL, 0);
+        ossl_asn1_primitive_free((ASN1_VALUE **)tmp_a, NULL, 0);
     }
     a->type = type;
     if (type == V_ASN1_BOOLEAN)

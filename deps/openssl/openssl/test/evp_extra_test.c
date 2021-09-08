@@ -1,27 +1,47 @@
 /*
  * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+/* We need to use some deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/bio.h>
+#include <openssl/conf.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/kdf.h>
+#include <openssl/provider.h>
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#include <openssl/param_build.h>
+#include <openssl/dsa.h>
 #include <openssl/dh.h>
+#include <openssl/aes.h>
+#include <openssl/decoder.h>
+#include <openssl/rsa.h>
 #include "testutil.h"
 #include "internal/nelem.h"
+#include "internal/sizes.h"
 #include "crypto/evp.h"
+#include "../e_os.h" /* strcasecmp */
+
+static OSSL_LIB_CTX *testctx = NULL;
+static char *testpropq = NULL;
+
+static OSSL_PROVIDER *nullprov = NULL;
+static OSSL_PROVIDER *deflprov = NULL;
+static OSSL_PROVIDER *lgcyprov = NULL;
 
 /*
  * kExampleRSAKeyDER is an RSA private key in ASN.1, DER format. Of course, you
@@ -80,6 +100,53 @@ static const unsigned char kExampleRSAKeyDER[] = {
     0xa1, 0x1e, 0x54, 0x34, 0xbf, 0x6e, 0xc4, 0x8e, 0x99, 0x5d, 0x08, 0xf1,
     0x2d, 0x86, 0x9d, 0xa5, 0x20, 0x1b, 0xe5, 0xdf,
 };
+
+/*
+* kExampleDSAKeyDER is a DSA private key in ASN.1, DER format. Of course, you
+ * should never use this key anywhere but in an example.
+ */
+#ifndef OPENSSL_NO_DSA
+static const unsigned char kExampleDSAKeyDER[] = {
+    0x30, 0x82, 0x01, 0xba, 0x02, 0x01, 0x00, 0x02, 0x81, 0x81, 0x00, 0x9a,
+    0x05, 0x6d, 0x33, 0xcd, 0x5d, 0x78, 0xa1, 0xbb, 0xcb, 0x7d, 0x5b, 0x8d,
+    0xb4, 0xcc, 0xbf, 0x03, 0x99, 0x64, 0xde, 0x38, 0x78, 0x06, 0x15, 0x2f,
+    0x86, 0x26, 0x77, 0xf3, 0xb1, 0x85, 0x00, 0xed, 0xfc, 0x28, 0x3a, 0x42,
+    0x4d, 0xab, 0xab, 0xdf, 0xbc, 0x9c, 0x16, 0xd0, 0x22, 0x50, 0xd1, 0x38,
+    0xdd, 0x3f, 0x64, 0x05, 0x9e, 0x68, 0x7a, 0x1e, 0xf1, 0x56, 0xbf, 0x1e,
+    0x2c, 0xc5, 0x97, 0x2a, 0xfe, 0x7a, 0x22, 0xdc, 0x6c, 0x68, 0xb8, 0x2e,
+    0x06, 0xdb, 0x41, 0xca, 0x98, 0xd8, 0x54, 0xc7, 0x64, 0x48, 0x24, 0x04,
+    0x20, 0xbc, 0x59, 0xe3, 0x6b, 0xea, 0x7e, 0xfc, 0x7e, 0xc5, 0x4e, 0xd4,
+    0xd8, 0x3a, 0xed, 0xcd, 0x5d, 0x99, 0xb8, 0x5c, 0xa2, 0x8b, 0xbb, 0x0b,
+    0xac, 0xe6, 0x8e, 0x25, 0x56, 0x22, 0x3a, 0x2d, 0x3a, 0x56, 0x41, 0x14,
+    0x1f, 0x1c, 0x8f, 0x53, 0x46, 0x13, 0x85, 0x02, 0x15, 0x00, 0x98, 0x7e,
+    0x92, 0x81, 0x88, 0xc7, 0x3f, 0x70, 0x49, 0x54, 0xf6, 0x76, 0xb4, 0xa3,
+    0x9e, 0x1d, 0x45, 0x98, 0x32, 0x7f, 0x02, 0x81, 0x80, 0x69, 0x4d, 0xef,
+    0x55, 0xff, 0x4d, 0x59, 0x2c, 0x01, 0xfa, 0x6a, 0x38, 0xe0, 0x70, 0x9f,
+    0x9e, 0x66, 0x8e, 0x3e, 0x8c, 0x52, 0x22, 0x9d, 0x15, 0x7e, 0x3c, 0xef,
+    0x4c, 0x7a, 0x61, 0x26, 0xe0, 0x2b, 0x81, 0x3f, 0xeb, 0xaf, 0x35, 0x38,
+    0x8d, 0xfe, 0xed, 0x46, 0xff, 0x5f, 0x03, 0x9b, 0x81, 0x92, 0xe7, 0x6f,
+    0x76, 0x4f, 0x1d, 0xd9, 0xbb, 0x89, 0xc9, 0x3e, 0xd9, 0x0b, 0xf9, 0xf4,
+    0x78, 0x11, 0x59, 0xc0, 0x1d, 0xcd, 0x0e, 0xa1, 0x6f, 0x15, 0xf1, 0x4d,
+    0xc1, 0xc9, 0x22, 0xed, 0x8d, 0xad, 0x67, 0xc5, 0x4b, 0x95, 0x93, 0x86,
+    0xa6, 0xaf, 0x8a, 0xee, 0x06, 0x89, 0x2f, 0x37, 0x7e, 0x64, 0xaa, 0xf6,
+    0xe7, 0xb1, 0x5a, 0x0a, 0x93, 0x95, 0x5d, 0x3e, 0x53, 0x9a, 0xde, 0x8a,
+    0xc2, 0x95, 0x45, 0x81, 0xbe, 0x5c, 0x2f, 0xc2, 0xb2, 0x92, 0x58, 0x19,
+    0x72, 0x80, 0xe9, 0x79, 0xa1, 0x02, 0x81, 0x80, 0x07, 0xd7, 0x62, 0xff,
+    0xdf, 0x1a, 0x3f, 0xed, 0x32, 0xd4, 0xd4, 0x88, 0x7b, 0x2c, 0x63, 0x7f,
+    0x97, 0xdc, 0x44, 0xd4, 0x84, 0xa2, 0xdd, 0x17, 0x16, 0x85, 0x13, 0xe0,
+    0xac, 0x51, 0x8d, 0x29, 0x1b, 0x75, 0x9a, 0xe4, 0xe3, 0x8a, 0x92, 0x69,
+    0x09, 0x03, 0xc5, 0x68, 0xae, 0x5e, 0x94, 0xfe, 0xc9, 0x92, 0x6c, 0x07,
+    0xb4, 0x1e, 0x64, 0x62, 0x87, 0xc6, 0xa4, 0xfd, 0x0d, 0x5f, 0xe5, 0xf9,
+    0x1b, 0x4f, 0x85, 0x5f, 0xae, 0xf3, 0x11, 0xe5, 0x18, 0xd4, 0x4d, 0x79,
+    0x9f, 0xc4, 0x79, 0x26, 0x04, 0x27, 0xf0, 0x0b, 0xee, 0x2b, 0x86, 0x9f,
+    0x86, 0x61, 0xe6, 0x51, 0xce, 0x04, 0x9b, 0x5d, 0x6b, 0x34, 0x43, 0x8c,
+    0x85, 0x3c, 0xf1, 0x51, 0x9b, 0x08, 0x23, 0x1b, 0xf5, 0x7e, 0x33, 0x12,
+    0xea, 0xab, 0x1f, 0xb7, 0x2d, 0xe2, 0x5f, 0xe6, 0x97, 0x99, 0xb5, 0x45,
+    0x16, 0x5b, 0xc3, 0x41, 0x02, 0x14, 0x61, 0xbf, 0x51, 0x60, 0xcf, 0xc8,
+    0xf1, 0x8c, 0x82, 0x97, 0xf2, 0xf4, 0x19, 0xba, 0x2b, 0xf3, 0x16, 0xbe,
+    0x40, 0x48
+};
+#endif
 
 /*
  * kExampleBadRSAKeyDER is an RSA private key in ASN.1, DER format. The private
@@ -318,6 +385,62 @@ static const unsigned char kExampleBadECPubKeyDER[] = {
 static const unsigned char pExampleECParamDER[] = {
     0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
 };
+
+static const unsigned char kExampleED25519KeyDER[] = {
+    0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+    0x04, 0x22, 0x04, 0x20, 0xba, 0x7b, 0xba, 0x20, 0x1b, 0x02, 0x75, 0x3a,
+    0xe8, 0x88, 0xfe, 0x00, 0xcd, 0x8b, 0xc6, 0xf4, 0x5c, 0x47, 0x09, 0x46,
+    0x66, 0xe4, 0x72, 0x85, 0x25, 0x26, 0x5e, 0x12, 0x33, 0x48, 0xf6, 0x50
+};
+
+static const unsigned char kExampleED25519PubKeyDER[] = {
+    0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    0xf5, 0xc5, 0xeb, 0x52, 0x3e, 0x7d, 0x07, 0x86, 0xb2, 0x55, 0x07, 0x45,
+    0xef, 0x5b, 0x7c, 0x20, 0xe8, 0x66, 0x28, 0x30, 0x3c, 0x8a, 0x82, 0x40,
+    0x97, 0xa3, 0x08, 0xdc, 0x65, 0x80, 0x39, 0x29
+};
+
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+static const unsigned char kExampleX25519KeyDER[] = {
+    0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e,
+    0x04, 0x22, 0x04, 0x20, 0xa0, 0x24, 0x3a, 0x31, 0x24, 0xc3, 0x3f, 0xf6,
+    0x7b, 0x96, 0x0b, 0xd4, 0x8f, 0xd1, 0xee, 0x67, 0xf2, 0x9b, 0x88, 0xac,
+    0x50, 0xce, 0x97, 0x36, 0xdd, 0xaf, 0x25, 0xf6, 0x10, 0x34, 0x96, 0x6e
+};
+# endif
+#endif
+
+/* kExampleDHKeyDER is a DH private key in ASN.1, DER format. */
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+# ifndef OPENSSL_NO_DH
+static const unsigned char kExampleDHKeyDER[] = {
+    0x30, 0x82, 0x01, 0x21, 0x02, 0x01, 0x00, 0x30, 0x81, 0x95, 0x06, 0x09,
+    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x03, 0x01, 0x30, 0x81, 0x87,
+    0x02, 0x81, 0x81, 0x00, 0xf7, 0x52, 0xc2, 0x68, 0xcc, 0x66, 0xc4, 0x8d,
+    0x03, 0x3f, 0xfa, 0x9c, 0x52, 0xd0, 0xd8, 0x33, 0xf2, 0xe1, 0xc9, 0x9e,
+    0xb7, 0xe7, 0x6e, 0x90, 0x97, 0xeb, 0x92, 0x91, 0x6a, 0x9a, 0x85, 0x63,
+    0x92, 0x79, 0xab, 0xb6, 0x3d, 0x23, 0x58, 0x5a, 0xe8, 0x45, 0x06, 0x81,
+    0x97, 0x77, 0xe1, 0xcc, 0x34, 0x4e, 0xae, 0x36, 0x80, 0xf2, 0xc4, 0x7f,
+    0x8a, 0x52, 0xb8, 0xdb, 0x58, 0xc8, 0x4b, 0x12, 0x4c, 0xf1, 0x4c, 0x53,
+    0xc1, 0x89, 0x39, 0x8d, 0xb6, 0x06, 0xd8, 0xea, 0x7f, 0x2d, 0x36, 0x53,
+    0x96, 0x29, 0xbe, 0xb6, 0x75, 0xfc, 0xe7, 0xf3, 0x36, 0xd6, 0xf4, 0x8f,
+    0x16, 0xa6, 0xc7, 0xec, 0x7b, 0xce, 0x42, 0x8d, 0x48, 0x2e, 0xb7, 0x74,
+    0x00, 0x11, 0x52, 0x61, 0xb4, 0x19, 0x35, 0xec, 0x5c, 0xe4, 0xbe, 0x34,
+    0xc6, 0x59, 0x64, 0x5e, 0x42, 0x61, 0x70, 0x54, 0xf4, 0xe9, 0x6b, 0x53,
+    0x02, 0x01, 0x02, 0x04, 0x81, 0x83, 0x02, 0x81, 0x80, 0x64, 0xc2, 0xe3,
+    0x09, 0x69, 0x37, 0x3c, 0xd2, 0x4a, 0xba, 0xc3, 0x78, 0x6a, 0x9b, 0x8a,
+    0x2a, 0xdb, 0xe7, 0xe6, 0xc0, 0xfa, 0x3a, 0xbe, 0x39, 0x67, 0xc0, 0xa9,
+    0x2a, 0xf0, 0x0a, 0xc1, 0x53, 0x1c, 0xdb, 0xfa, 0x1a, 0x26, 0x98, 0xb0,
+    0x8c, 0xc6, 0x06, 0x4a, 0xa2, 0x48, 0xd3, 0xa4, 0x3b, 0xbd, 0x05, 0x48,
+    0xea, 0x59, 0xdb, 0x18, 0xa4, 0xca, 0x66, 0xd9, 0x5d, 0xb8, 0x95, 0xd1,
+    0xeb, 0x97, 0x3d, 0x66, 0x97, 0x5c, 0x86, 0x8f, 0x7e, 0x90, 0xd3, 0x43,
+    0xd1, 0xa2, 0x0d, 0xcb, 0xe7, 0xeb, 0x90, 0xea, 0x09, 0x40, 0xb1, 0x6f,
+    0xf7, 0x4c, 0xf2, 0x41, 0x83, 0x1d, 0xd0, 0x76, 0xef, 0xaf, 0x55, 0x6f,
+    0x5d, 0xa9, 0xa3, 0x55, 0x81, 0x2a, 0xd1, 0x5d, 0x9d, 0x22, 0x77, 0x97,
+    0x83, 0xde, 0xad, 0xb6, 0x5d, 0x19, 0xc1, 0x53, 0xec, 0xfb, 0xaf, 0x06,
+    0x2e, 0x87, 0x2a, 0x0b, 0x7a
+};
+# endif
 #endif
 
 static const unsigned char kCFBDefaultKey[] = {
@@ -409,16 +532,2570 @@ static const unsigned char gcmResetTag2[] = {
     0xbb, 0x2d, 0x55, 0x1b
 };
 
-
 typedef struct APK_DATA_st {
     const unsigned char *kder;
     size_t size;
+    const char *keytype;
     int evptype;
     int check;
     int pub_check;
     int param_check;
     int type; /* 0 for private, 1 for public, 2 for params */
 } APK_DATA;
+
+static APK_DATA keydata[] = {
+    {kExampleRSAKeyDER, sizeof(kExampleRSAKeyDER), "RSA", EVP_PKEY_RSA},
+    {kExampleRSAKeyPKCS8, sizeof(kExampleRSAKeyPKCS8), "RSA", EVP_PKEY_RSA},
+#ifndef OPENSSL_NO_EC
+    {kExampleECKeyDER, sizeof(kExampleECKeyDER), "EC", EVP_PKEY_EC}
+#endif
+};
+
+static APK_DATA keycheckdata[] = {
+    {kExampleRSAKeyDER, sizeof(kExampleRSAKeyDER), "RSA", EVP_PKEY_RSA, 1, 1, 1,
+     0},
+    {kExampleBadRSAKeyDER, sizeof(kExampleBadRSAKeyDER), "RSA", EVP_PKEY_RSA,
+     0, 1, 1, 0},
+#ifndef OPENSSL_NO_EC
+    {kExampleECKeyDER, sizeof(kExampleECKeyDER), "EC", EVP_PKEY_EC, 1, 1, 1, 0},
+    /* group is also associated in our pub key */
+    {kExampleECPubKeyDER, sizeof(kExampleECPubKeyDER), "EC", EVP_PKEY_EC, 0, 1,
+     1, 1},
+    {pExampleECParamDER, sizeof(pExampleECParamDER), "EC", EVP_PKEY_EC, 0, 0, 1,
+     2},
+    {kExampleED25519KeyDER, sizeof(kExampleED25519KeyDER), "ED25519",
+     EVP_PKEY_ED25519, 1, 1, 1, 0},
+    {kExampleED25519PubKeyDER, sizeof(kExampleED25519PubKeyDER), "ED25519",
+     EVP_PKEY_ED25519, 0, 1, 1, 1},
+#endif
+};
+
+static EVP_PKEY *load_example_key(const char *keytype,
+                                  const unsigned char *data, size_t data_len)
+{
+    const unsigned char **pdata = &data;
+    EVP_PKEY *pkey = NULL;
+    OSSL_DECODER_CTX *dctx =
+        OSSL_DECODER_CTX_new_for_pkey(&pkey, "DER", NULL, keytype, 0,
+                                      testctx, testpropq);
+
+    /* |pkey| will be NULL on error */
+    (void)OSSL_DECODER_from_data(dctx, pdata, &data_len);
+    OSSL_DECODER_CTX_free(dctx);
+    return pkey;
+}
+
+static EVP_PKEY *load_example_rsa_key(void)
+{
+    return load_example_key("RSA", kExampleRSAKeyDER,
+                            sizeof(kExampleRSAKeyDER));
+}
+
+#ifndef OPENSSL_NO_DSA
+static EVP_PKEY *load_example_dsa_key(void)
+{
+    return load_example_key("DSA", kExampleDSAKeyDER,
+                            sizeof(kExampleDSAKeyDER));
+}
+#endif
+
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+# ifndef OPENSSL_NO_DH
+static EVP_PKEY *load_example_dh_key(void)
+{
+    return load_example_key("DH", kExampleDHKeyDER,
+                            sizeof(kExampleDHKeyDER));
+}
+# endif
+
+# ifndef OPENSSL_NO_EC
+static EVP_PKEY *load_example_ec_key(void)
+{
+    return load_example_key("EC", kExampleECKeyDER,
+                            sizeof(kExampleECKeyDER));
+}
+
+static EVP_PKEY *load_example_ed25519_key(void)
+{
+    return load_example_key("ED25519", kExampleED25519KeyDER,
+                            sizeof(kExampleED25519KeyDER));
+}
+
+static EVP_PKEY *load_example_x25519_key(void)
+{
+    return load_example_key("X25519", kExampleX25519KeyDER,
+                            sizeof(kExampleX25519KeyDER));
+}
+# endif
+#endif /* OPENSSL_NO_DEPRECATED_3_0 */
+
+static EVP_PKEY *load_example_hmac_key(void)
+{
+    EVP_PKEY *pkey = NULL;
+    unsigned char key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+
+    pkey = EVP_PKEY_new_raw_private_key_ex(testctx, "HMAC",
+                                           NULL, key, sizeof(key));
+    if (!TEST_ptr(pkey))
+        return NULL;
+
+    return pkey;
+}
+
+static int test_EVP_set_default_properties(void)
+{
+    OSSL_LIB_CTX *ctx;
+    EVP_MD *md = NULL;
+    int res = 0;
+
+    if (!TEST_ptr(ctx = OSSL_LIB_CTX_new())
+            || !TEST_ptr(md = EVP_MD_fetch(ctx, "sha256", NULL)))
+        goto err;
+    EVP_MD_free(md);
+    md = NULL;
+
+    if (!TEST_true(EVP_set_default_properties(ctx, "provider=fizzbang"))
+            || !TEST_ptr_null(md = EVP_MD_fetch(ctx, "sha256", NULL))
+            || !TEST_ptr(md = EVP_MD_fetch(ctx, "sha256", "-provider")))
+        goto err;
+    EVP_MD_free(md);
+    md = NULL;
+
+    if (!TEST_true(EVP_set_default_properties(ctx, NULL))
+            || !TEST_ptr(md = EVP_MD_fetch(ctx, "sha256", NULL)))
+        goto err;
+    res = 1;
+err:
+    EVP_MD_free(md);
+    OSSL_LIB_CTX_free(ctx);
+    return res;
+}
+
+#if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_EC)
+static int test_fromdata(char *keytype, OSSL_PARAM *params)
+{
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    int testresult = 0;
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, keytype, testpropq)))
+        goto err;
+    if (!TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR,
+                                          params), 0))
+        goto err;
+
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    testresult = 1;
+ err:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pctx);
+
+    return testresult;
+}
+#endif /* !OPENSSL_NO_DH || !OPENSSL_NO_DSA || !OPENSSL_NO_EC */
+
+/*
+ * Test combinations of private, public, missing and private + public key
+ * params to ensure they are all accepted
+ */
+#if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_DSA)
+static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    BIGNUM *p = NULL, *q = NULL, *g = NULL, *pub = NULL, *priv = NULL;
+    int ret = 0;
+
+    /*
+     * Setup the parameters for our pkey object. For our purposes they don't
+     * have to actually be *valid* parameters. We just need to set something.
+     */
+    if (!TEST_ptr(p = BN_new())
+        || !TEST_ptr(q = BN_new())
+        || !TEST_ptr(g = BN_new())
+        || !TEST_ptr(pub = BN_new())
+        || !TEST_ptr(priv = BN_new()))
+        goto err;
+
+    /* Test !priv and !pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata(keytype, params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test priv and !pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
+                                             priv)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata(keytype, params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test !priv and pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                             pub)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata(keytype, params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test priv and pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                             pub))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
+                                             priv)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata(keytype, params))
+        goto err;
+
+    ret = 1;
+ err:
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(p);
+    BN_free(q);
+    BN_free(g);
+    BN_free(pub);
+    BN_free(priv);
+
+    return ret;
+}
+#endif /* !OPENSSL_NO_DH || !OPENSSL_NO_DSA */
+
+/*
+ * Test combinations of private, public, missing and private + public key
+ * params to ensure they are all accepted for EC keys
+ */
+#ifndef OPENSSL_NO_EC
+static unsigned char ec_priv[] = {
+    0xe9, 0x25, 0xf7, 0x66, 0x58, 0xa4, 0xdd, 0x99, 0x61, 0xe7, 0xe8, 0x23,
+    0x85, 0xc2, 0xe8, 0x33, 0x27, 0xc5, 0x5c, 0xeb, 0xdb, 0x43, 0x9f, 0xd5,
+    0xf2, 0x5a, 0x75, 0x55, 0xd0, 0x2e, 0x6d, 0x16
+};
+static unsigned char ec_pub[] = {
+    0x04, 0xad, 0x11, 0x90, 0x77, 0x4b, 0x46, 0xee, 0x72, 0x51, 0x15, 0x97,
+    0x4a, 0x6a, 0xa7, 0xaf, 0x59, 0xfa, 0x4b, 0xf2, 0x41, 0xc8, 0x3a, 0x81,
+    0x23, 0xb6, 0x90, 0x04, 0x6c, 0x67, 0x66, 0xd0, 0xdc, 0xf2, 0x15, 0x1d,
+    0x41, 0x61, 0xb7, 0x95, 0x85, 0x38, 0x5a, 0x84, 0x56, 0xe8, 0xb3, 0x0e,
+    0xf5, 0xc6, 0x5d, 0xa4, 0x54, 0x26, 0xb0, 0xf7, 0xa5, 0x4a, 0x33, 0xf1,
+    0x08, 0x09, 0xb8, 0xdb, 0x03
+};
+
+static int test_EC_priv_pub(void)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    BIGNUM *priv = NULL;
+    int ret = 0;
+
+    /*
+     * Setup the parameters for our pkey object. For our purposes they don't
+     * have to actually be *valid* parameters. We just need to set something.
+     */
+    if (!TEST_ptr(priv = BN_bin2bn(ec_priv, sizeof(ec_priv), NULL)))
+        goto err;
+
+    /* Test !priv and !pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(bld,
+                                                      OSSL_PKEY_PARAM_GROUP_NAME,
+                                                      "P-256", 0)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata("EC", params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test priv and !pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(bld,
+                                                      OSSL_PKEY_PARAM_GROUP_NAME,
+                                                      "P-256", 0))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
+                                             priv)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata("EC", params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test !priv and pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(bld,
+                                                      OSSL_PKEY_PARAM_GROUP_NAME,
+                                                      "P-256", 0))
+        || !TEST_true(OSSL_PARAM_BLD_push_octet_string(bld,
+                                                       OSSL_PKEY_PARAM_PUB_KEY,
+                                                       ec_pub, sizeof(ec_pub))))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata("EC", params))
+        goto err;
+    OSSL_PARAM_free(params);
+    params = NULL;
+    OSSL_PARAM_BLD_free(bld);
+
+    /* Test priv and pub */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(bld,
+                                                      OSSL_PKEY_PARAM_GROUP_NAME,
+                                                      "P-256", 0))
+        || !TEST_true(OSSL_PARAM_BLD_push_octet_string(bld,
+                                                       OSSL_PKEY_PARAM_PUB_KEY,
+                                                       ec_pub, sizeof(ec_pub)))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
+                                             priv)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!test_fromdata("EC", params))
+        goto err;
+
+    ret = 1;
+ err:
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(priv);
+
+    return ret;
+}
+
+/* Test that using a legacy EC key with only a private key in it works */
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+static int test_EC_priv_only_legacy(void)
+{
+    BIGNUM *priv = NULL;
+    int ret = 0;
+    EC_KEY *eckey = NULL;
+    EVP_PKEY *pkey = NULL, *dup_pk = NULL;
+    EVP_MD_CTX *ctx = NULL;
+
+    /* Create the low level EC_KEY */
+    if (!TEST_ptr(priv = BN_bin2bn(ec_priv, sizeof(ec_priv), NULL)))
+        goto err;
+
+    eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!TEST_ptr(eckey))
+        goto err;
+
+    if (!TEST_true(EC_KEY_set_private_key(eckey, priv)))
+        goto err;
+
+    pkey = EVP_PKEY_new();
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    if (!TEST_true(EVP_PKEY_assign_EC_KEY(pkey, eckey)))
+        goto err;
+    eckey = NULL;
+
+    while (dup_pk == NULL) {
+        ret = 0;
+        ctx = EVP_MD_CTX_new();
+        if (!TEST_ptr(ctx))
+            goto err;
+
+        /*
+         * The EVP_DigestSignInit function should create the key on the
+         * provider side which is sufficient for this test.
+         */
+        if (!TEST_true(EVP_DigestSignInit_ex(ctx, NULL, NULL, testctx,
+                                             testpropq, pkey, NULL)))
+            goto err;
+        EVP_MD_CTX_free(ctx);
+        ctx = NULL;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pkey)))
+            goto err;
+        /* EVP_PKEY_eq() returns -2 with missing public keys */
+        ret = TEST_int_eq(EVP_PKEY_eq(pkey, dup_pk), -2);
+        EVP_PKEY_free(pkey);
+        pkey = dup_pk;
+        if (!ret)
+            goto err;
+    }
+
+ err:
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    EC_KEY_free(eckey);
+    BN_free(priv);
+
+    return ret;
+}
+# endif /* OPENSSL_NO_DEPRECATED_3_0 */
+#endif /* OPENSSL_NO_EC */
+
+/*
+ * n = 0 => test using legacy cipher
+ * n = 1 => test using fetched cipher
+ */
+static int test_EVP_Enveloped(int n)
+{
+    int ret = 0;
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_PKEY *keypair = NULL;
+    unsigned char *kek = NULL;
+    unsigned char iv[EVP_MAX_IV_LENGTH];
+    static const unsigned char msg[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    int len, kek_len, ciphertext_len, plaintext_len;
+    unsigned char ciphertext[32], plaintext[16];
+    EVP_CIPHER *type = NULL;
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    if (n == 0)
+        type = (EVP_CIPHER *)EVP_aes_256_cbc();
+    else if (!TEST_ptr(type = EVP_CIPHER_fetch(testctx, "AES-256-CBC",
+                                               testpropq)))
+        goto err;
+
+    if (!TEST_ptr(keypair = load_example_rsa_key())
+            || !TEST_ptr(kek = OPENSSL_zalloc(EVP_PKEY_get_size(keypair)))
+            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+            || !TEST_true(EVP_SealInit(ctx, type, &kek, &kek_len, iv,
+                                       &keypair, 1))
+            || !TEST_true(EVP_SealUpdate(ctx, ciphertext, &ciphertext_len,
+                                         msg, sizeof(msg)))
+            || !TEST_true(EVP_SealFinal(ctx, ciphertext + ciphertext_len,
+                                        &len)))
+        goto err;
+
+    ciphertext_len += len;
+
+    if (!TEST_true(EVP_OpenInit(ctx, type, kek, kek_len, iv, keypair))
+            || !TEST_true(EVP_OpenUpdate(ctx, plaintext, &plaintext_len,
+                                         ciphertext, ciphertext_len))
+            || !TEST_true(EVP_OpenFinal(ctx, plaintext + plaintext_len, &len)))
+        goto err;
+
+    plaintext_len += len;
+    if (!TEST_mem_eq(msg, sizeof(msg), plaintext, plaintext_len))
+        goto err;
+
+    ret = 1;
+err:
+    if (n != 0)
+        EVP_CIPHER_free(type);
+    OPENSSL_free(kek);
+    EVP_PKEY_free(keypair);
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+
+/*
+ * Test 0: Standard calls to EVP_DigestSignInit/Update/Final (Implicit fetch digest, RSA)
+ * Test 1: Standard calls to EVP_DigestSignInit/Update/Final (Implicit fetch digest, DSA)
+ * Test 2: Standard calls to EVP_DigestSignInit/Update/Final (Implicit fetch digest, HMAC)
+ * Test 3: Standard calls to EVP_DigestSignInit/Update/Final (Explicit fetch digest, RSA)
+ * Test 4: Standard calls to EVP_DigestSignInit/Update/Final (Explicit fetch digest, DSA)
+ * Test 5: Standard calls to EVP_DigestSignInit/Update/Final (Explicit fetch diegst, HMAC)
+ * Test 6: Use an MD BIO to do the Update calls instead (RSA)
+ * Test 7: Use an MD BIO to do the Update calls instead (DSA)
+ * Test 8: Use an MD BIO to do the Update calls instead (HMAC)
+ */
+static int test_EVP_DigestSignInit(int tst)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    unsigned char *sig = NULL, *sig2 = NULL;
+    size_t sig_len = 0, sig2_len = 0;
+    EVP_MD_CTX *md_ctx = NULL, *md_ctx_verify = NULL;
+    EVP_MD_CTX *a_md_ctx = NULL, *a_md_ctx_verify = NULL;
+    BIO *mdbio = NULL, *membio = NULL;
+    size_t written;
+    const EVP_MD *md;
+    EVP_MD *mdexp = NULL;
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    if (tst >= 6) {
+        membio = BIO_new(BIO_s_mem());
+        mdbio = BIO_new(BIO_f_md());
+        if (!TEST_ptr(membio) || !TEST_ptr(mdbio))
+            goto out;
+        BIO_push(mdbio, membio);
+        if (!TEST_int_gt(BIO_get_md_ctx(mdbio, &md_ctx), 0))
+            goto out;
+    } else {
+        if (!TEST_ptr(a_md_ctx = md_ctx = EVP_MD_CTX_new())
+                || !TEST_ptr(a_md_ctx_verify = md_ctx_verify = EVP_MD_CTX_new()))
+            goto out;
+    }
+
+    if (tst == 0 || tst == 3 || tst == 6) {
+        if (!TEST_ptr(pkey = load_example_rsa_key()))
+                goto out;
+    } else if (tst == 1 || tst == 4 || tst == 7) {
+#ifndef OPENSSL_NO_DSA
+        if (!TEST_ptr(pkey = load_example_dsa_key()))
+                goto out;
+#else
+        ret = 1;
+        goto out;
+#endif
+    } else {
+        if (!TEST_ptr(pkey = load_example_hmac_key()))
+                goto out;
+    }
+
+    if (tst >= 3 && tst <= 5)
+        md = mdexp = EVP_MD_fetch(NULL, "SHA256", NULL);
+    else
+        md = EVP_sha256();
+
+    if (!TEST_true(EVP_DigestSignInit(md_ctx, NULL, md, NULL, pkey)))
+        goto out;
+
+    if (tst >= 6) {
+        if (!BIO_write_ex(mdbio, kMsg, sizeof(kMsg), &written))
+            goto out;
+    } else {
+        if (!TEST_true(EVP_DigestSignUpdate(md_ctx, kMsg, sizeof(kMsg))))
+            goto out;
+    }
+
+    /* Determine the size of the signature. */
+    if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len))
+            || !TEST_ptr(sig = OPENSSL_malloc(sig_len))
+            || !TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
+        goto out;
+
+    /*
+     * Ensure that the signature round-trips (Verification isn't supported for
+     * HMAC via EVP_DigestVerify*)
+     */
+    if (tst != 2 && tst != 5 && tst != 8) {
+        if (tst >= 6) {
+            if (!TEST_int_gt(BIO_reset(mdbio), 0)
+                || !TEST_int_gt(BIO_get_md_ctx(mdbio, &md_ctx_verify), 0))
+                goto out;
+        }
+
+        if (!TEST_true(EVP_DigestVerifyInit(md_ctx_verify, NULL, md,
+                                            NULL, pkey)))
+            goto out;
+
+        if (tst >= 6) {
+            if (!TEST_true(BIO_write_ex(mdbio, kMsg, sizeof(kMsg), &written)))
+                goto out;
+        } else {
+            if (!TEST_true(EVP_DigestVerifyUpdate(md_ctx_verify, kMsg,
+                                                  sizeof(kMsg))))
+                goto out;
+        }
+        if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+            goto out;
+
+        /* Multiple calls to EVP_DigestVerifyFinal should work */
+        if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+            goto out;
+    } else {
+        /*
+         * For HMAC a doubled call to DigestSignFinal should produce the same
+         * value as finalization should not happen.
+         */
+        if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig2_len))
+            || !TEST_ptr(sig2 = OPENSSL_malloc(sig2_len))
+            || !TEST_true(EVP_DigestSignFinal(md_ctx, sig2, &sig2_len)))
+            goto out;
+
+        if (!TEST_mem_eq(sig, sig_len, sig2, sig2_len))
+            goto out;
+    }
+
+    ret = 1;
+
+ out:
+    BIO_free(membio);
+    BIO_free(mdbio);
+    EVP_MD_CTX_free(a_md_ctx);
+    EVP_MD_CTX_free(a_md_ctx_verify);
+    EVP_PKEY_free(pkey);
+    OPENSSL_free(sig);
+    OPENSSL_free(sig2);
+    EVP_MD_free(mdexp);
+
+    return ret;
+}
+
+static int test_EVP_DigestVerifyInit(void)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    EVP_MD_CTX *md_ctx = NULL;
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new())
+            || !TEST_ptr(pkey = load_example_rsa_key()))
+        goto out;
+
+    if (!TEST_true(EVP_DigestVerifyInit(md_ctx, NULL, EVP_sha256(), NULL, pkey))
+            || !TEST_true(EVP_DigestVerifyUpdate(md_ctx, kMsg, sizeof(kMsg)))
+            || !TEST_true(EVP_DigestVerifyFinal(md_ctx, kSignature,
+                                                 sizeof(kSignature))))
+        goto out;
+    ret = 1;
+
+ out:
+    EVP_MD_CTX_free(md_ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+/*
+ * Test corner cases of EVP_DigestInit/Update/Final API call behavior.
+ */
+static int test_EVP_Digest(void)
+{
+    int ret = 0;
+    EVP_MD_CTX *md_ctx = NULL;
+    unsigned char md[EVP_MAX_MD_SIZE];
+    EVP_MD *sha256 = NULL;
+    EVP_MD *shake256 = NULL;
+
+    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new()))
+        goto out;
+
+    if (!TEST_ptr(sha256 = EVP_MD_fetch(testctx, "sha256", testpropq))
+            || !TEST_ptr(shake256 = EVP_MD_fetch(testctx, "shake256", testpropq)))
+        goto out;
+
+    if (!TEST_true(EVP_DigestInit_ex(md_ctx, sha256, NULL))
+            || !TEST_true(EVP_DigestUpdate(md_ctx, kMsg, sizeof(kMsg)))
+            || !TEST_true(EVP_DigestFinal(md_ctx, md, NULL))
+            /* EVP_DigestFinal resets the EVP_MD_CTX. */
+            || !TEST_ptr_eq(EVP_MD_CTX_get0_md(md_ctx), NULL))
+        goto out;
+
+    if (!TEST_true(EVP_DigestInit_ex(md_ctx, sha256, NULL))
+            || !TEST_true(EVP_DigestUpdate(md_ctx, kMsg, sizeof(kMsg)))
+            || !TEST_true(EVP_DigestFinal_ex(md_ctx, md, NULL))
+            /* EVP_DigestFinal_ex does not reset the EVP_MD_CTX. */
+            || !TEST_ptr(EVP_MD_CTX_get0_md(md_ctx))
+            /*
+             * EVP_DigestInit_ex with NULL type should work on
+             * pre-initialized context.
+             */
+            || !TEST_true(EVP_DigestInit_ex(md_ctx, NULL, NULL)))
+        goto out;
+
+    if (!TEST_true(EVP_DigestInit_ex(md_ctx, shake256, NULL))
+            || !TEST_true(EVP_DigestUpdate(md_ctx, kMsg, sizeof(kMsg)))
+            || !TEST_true(EVP_DigestFinalXOF(md_ctx, md, sizeof(md)))
+            /* EVP_DigestFinalXOF does not reset the EVP_MD_CTX. */
+            || !TEST_ptr(EVP_MD_CTX_get0_md(md_ctx))
+            || !TEST_true(EVP_DigestInit_ex(md_ctx, NULL, NULL)))
+        goto out;
+    ret = 1;
+
+ out:
+    EVP_MD_CTX_free(md_ctx);
+    EVP_MD_free(sha256);
+    EVP_MD_free(shake256);
+    return ret;
+}
+
+static int test_d2i_AutoPrivateKey(int i)
+{
+    int ret = 0;
+    const unsigned char *p;
+    EVP_PKEY *pkey = NULL;
+    const APK_DATA *ak = &keydata[i];
+    const unsigned char *input = ak->kder;
+    size_t input_len = ak->size;
+    int expected_id = ak->evptype;
+
+    p = input;
+    if (!TEST_ptr(pkey = d2i_AutoPrivateKey(NULL, &p, input_len))
+            || !TEST_ptr_eq(p, input + input_len)
+            || !TEST_int_eq(EVP_PKEY_get_id(pkey), expected_id))
+        goto done;
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+#ifndef OPENSSL_NO_EC
+
+static const unsigned char ec_public_sect163k1_validxy[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x02, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
+};
+
+static const unsigned char ec_public_sect163k1_badx[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x0a, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0xb0, 0x02, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
+};
+
+static const unsigned char ec_public_sect163k1_bady[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x0a, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0xe6
+};
+
+static struct ec_der_pub_keys_st {
+    const unsigned char *der;
+    size_t len;
+    int valid;
+} ec_der_pub_keys[] = {
+    { ec_public_sect163k1_validxy, sizeof(ec_public_sect163k1_validxy), 1 },
+    { ec_public_sect163k1_badx, sizeof(ec_public_sect163k1_badx), 0 },
+    { ec_public_sect163k1_bady, sizeof(ec_public_sect163k1_bady), 0 },
+};
+
+/*
+ * Tests the range of the decoded EC char2 public point.
+ * See ec_GF2m_simple_oct2point().
+ */
+static int test_invalide_ec_char2_pub_range_decode(int id)
+{
+    int ret = 0;
+    EVP_PKEY *pkey;
+
+    pkey = load_example_key("EC", ec_der_pub_keys[id].der,
+                            ec_der_pub_keys[id].len);
+
+    ret = (ec_der_pub_keys[id].valid && TEST_ptr(pkey))
+          || TEST_ptr_null(pkey);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+/* Tests loading a bad key in PKCS8 format */
+static int test_EVP_PKCS82PKEY(void)
+{
+    int ret = 0;
+    const unsigned char *derp = kExampleBadECKeyDER;
+    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    if (!TEST_ptr(p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &derp,
+                                              sizeof(kExampleBadECKeyDER))))
+        goto done;
+
+    if (!TEST_ptr_eq(derp,
+                     kExampleBadECKeyDER + sizeof(kExampleBadECKeyDER)))
+        goto done;
+
+    if (!TEST_ptr_null(pkey = EVP_PKCS82PKEY(p8inf)))
+        goto done;
+
+    ret = 1;
+
+ done:
+    PKCS8_PRIV_KEY_INFO_free(p8inf);
+    EVP_PKEY_free(pkey);
+
+    return ret;
+}
+
+#endif
+static int test_EVP_PKCS82PKEY_wrong_tag(void)
+{
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY *pkey2 = NULL;
+    BIO *membio = NULL;
+    char *membuf = NULL;
+    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+    int ok = 0;
+
+    if (testctx != NULL)
+        /* test not supported with non-default context */
+        return 1;
+
+    if (!TEST_ptr(membio = BIO_new(BIO_s_mem()))
+        || !TEST_ptr(pkey = load_example_rsa_key())
+        || !TEST_int_gt(i2d_PKCS8PrivateKey_bio(membio, pkey, NULL,
+                                                NULL, 0, NULL, NULL),
+                        0)
+        || !TEST_int_gt(BIO_get_mem_data(membio, &membuf), 0)
+        || !TEST_ptr(p8inf = d2i_PKCS8_PRIV_KEY_INFO_bio(membio, NULL))
+        || !TEST_ptr(pkey2 = EVP_PKCS82PKEY(p8inf))
+        || !TEST_int_eq(ERR_peek_last_error(), 0)) {
+        goto done;
+    }
+
+    ok = 1;
+ done:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pkey2);
+    PKCS8_PRIV_KEY_INFO_free(p8inf);
+    BIO_free_all(membio);
+    return ok;
+}
+
+/* This uses kExampleRSAKeyDER and kExampleRSAKeyPKCS8 to verify encoding */
+static int test_privatekey_to_pkcs8(void)
+{
+    EVP_PKEY *pkey = NULL;
+    BIO *membio = NULL;
+    char *membuf = NULL;
+    long membuf_len = 0;
+    int ok = 0;
+
+    if (!TEST_ptr(membio = BIO_new(BIO_s_mem()))
+        || !TEST_ptr(pkey = load_example_rsa_key())
+        || !TEST_int_gt(i2d_PKCS8PrivateKey_bio(membio, pkey, NULL,
+                                                NULL, 0, NULL, NULL),
+                        0)
+        || !TEST_int_gt(membuf_len = BIO_get_mem_data(membio, &membuf), 0)
+        || !TEST_ptr(membuf)
+        || !TEST_mem_eq(membuf, (size_t)membuf_len,
+                        kExampleRSAKeyPKCS8, sizeof(kExampleRSAKeyPKCS8))
+        /*
+         * We try to write PEM as well, just to see that it doesn't err, but
+         * assume that the result is correct.
+         */
+        || !TEST_int_gt(PEM_write_bio_PKCS8PrivateKey(membio, pkey, NULL,
+                                                      NULL, 0, NULL, NULL),
+                        0))
+        goto done;
+
+    ok = 1;
+ done:
+    EVP_PKEY_free(pkey);
+    BIO_free_all(membio);
+    return ok;
+}
+
+#ifndef OPENSSL_NO_EC
+static const struct {
+    int encoding;
+    const char *encoding_name;
+} ec_encodings[] = {
+    { OPENSSL_EC_EXPLICIT_CURVE, OSSL_PKEY_EC_ENCODING_EXPLICIT },
+    { OPENSSL_EC_NAMED_CURVE,    OSSL_PKEY_EC_ENCODING_GROUP }
+};
+
+static int ec_export_get_encoding_cb(const OSSL_PARAM params[], void *arg)
+{
+    const OSSL_PARAM *p;
+    const char *enc_name = NULL;
+    int *enc = arg;
+    size_t i;
+
+    *enc = -1;
+
+    if (!TEST_ptr(p = OSSL_PARAM_locate_const(params,
+                                              OSSL_PKEY_PARAM_EC_ENCODING))
+        || !TEST_true(OSSL_PARAM_get_utf8_string_ptr(p, &enc_name)))
+        return 0;
+
+    for (i = 0; i < OSSL_NELEM(ec_encodings); i++) {
+        if (strcasecmp(enc_name, ec_encodings[i].encoding_name) == 0) {
+            *enc = ec_encodings[i].encoding;
+            break;
+        }
+    }
+
+    return (*enc != -1);
+}
+
+static int test_EC_keygen_with_enc(int idx)
+{
+    EVP_PKEY *params = NULL, *key = NULL;
+    EVP_PKEY_CTX *pctx = NULL, *kctx = NULL;
+    int enc;
+    int ret = 0;
+
+    enc = ec_encodings[idx].encoding;
+
+    /* Create key parameters */
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "EC", NULL))
+        || !TEST_true(EVP_PKEY_paramgen_init(pctx))
+        || !TEST_true(EVP_PKEY_CTX_set_group_name(pctx, "P-256"))
+        || !TEST_true(EVP_PKEY_CTX_set_ec_param_enc(pctx, enc))
+        || !TEST_true(EVP_PKEY_paramgen(pctx, &params))
+        || !TEST_ptr(params))
+        goto done;
+
+    /* Create key */
+    if (!TEST_ptr(kctx = EVP_PKEY_CTX_new_from_pkey(testctx, params, NULL))
+        || !TEST_true(EVP_PKEY_keygen_init(kctx))
+        || !TEST_true(EVP_PKEY_keygen(kctx, &key))
+        || !TEST_ptr(key))
+        goto done;
+
+    /* Check that the encoding got all the way into the key */
+    if (!TEST_true(evp_keymgmt_util_export(key, OSSL_KEYMGMT_SELECT_ALL,
+                                           ec_export_get_encoding_cb, &enc))
+        || !TEST_int_eq(enc, ec_encodings[idx].encoding))
+        goto done;
+
+    ret = 1;
+ done:
+    EVP_PKEY_free(key);
+    EVP_PKEY_free(params);
+    EVP_PKEY_CTX_free(kctx);
+    EVP_PKEY_CTX_free(pctx);
+    return ret;
+}
+#endif
+
+#if !defined(OPENSSL_NO_SM2) && !defined(FIPS_MODULE)
+
+static int test_EVP_SM2_verify(void)
+{
+    const char *pubkey =
+        "-----BEGIN PUBLIC KEY-----\n"
+        "MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEp1KLWq1ZE2jmoAnnBJE1LBGxVr18\n"
+        "YvvqECWCpXfAQ9qUJ+UmthnUPf0iM3SaXKHe6PlLIDyNlWMWb9RUh/yU3g==\n"
+        "-----END PUBLIC KEY-----\n";
+
+    const char *msg = "message digest";
+    const char *id = "ALICE123@YAHOO.COM";
+
+    const uint8_t signature[] = {
+        0x30, 0x44, 0x02, 0x20, 0x5b, 0xdb, 0xab, 0x81, 0x4f, 0xbb,
+        0x8b, 0x69, 0xb1, 0x05, 0x9c, 0x99, 0x3b, 0xb2, 0x45, 0x06,
+        0x4a, 0x30, 0x15, 0x59, 0x84, 0xcd, 0xee, 0x30, 0x60, 0x36,
+        0x57, 0x87, 0xef, 0x5c, 0xd0, 0xbe, 0x02, 0x20, 0x43, 0x8d,
+        0x1f, 0xc7, 0x77, 0x72, 0x39, 0xbb, 0x72, 0xe1, 0xfd, 0x07,
+        0x58, 0xd5, 0x82, 0xc8, 0x2d, 0xba, 0x3b, 0x2c, 0x46, 0x24,
+        0xe3, 0x50, 0xff, 0x04, 0xc7, 0xa0, 0x71, 0x9f, 0xa4, 0x70
+    };
+
+    int rc = 0;
+    BIO *bio = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_MD_CTX *mctx = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_MD *sm3 = NULL;
+
+    bio = BIO_new_mem_buf(pubkey, strlen(pubkey));
+    if (!TEST_true(bio != NULL))
+        goto done;
+
+    pkey = PEM_read_bio_PUBKEY_ex(bio, NULL, NULL, NULL, testctx, testpropq);
+    if (!TEST_true(pkey != NULL))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_is_a(pkey, "SM2")))
+        goto done;
+
+    if (!TEST_ptr(mctx = EVP_MD_CTX_new()))
+        goto done;
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, testpropq)))
+        goto done;
+
+    EVP_MD_CTX_set_pkey_ctx(mctx, pctx);
+
+    if (!TEST_ptr(sm3 = EVP_MD_fetch(testctx, "sm3", testpropq)))
+        goto done;
+
+    if (!TEST_true(EVP_DigestVerifyInit(mctx, NULL, sm3, NULL, pkey)))
+        goto done;
+
+    if (!TEST_int_gt(EVP_PKEY_CTX_set1_id(pctx, id, strlen(id)), 0))
+        goto done;
+
+    if (!TEST_true(EVP_DigestVerifyUpdate(mctx, msg, strlen(msg))))
+        goto done;
+
+    if (!TEST_true(EVP_DigestVerifyFinal(mctx, signature, sizeof(signature))))
+        goto done;
+    rc = 1;
+
+ done:
+    BIO_free(bio);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pctx);
+    EVP_MD_CTX_free(mctx);
+    EVP_MD_free(sm3);
+    return rc;
+}
+
+static int test_EVP_SM2(void)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY *pkeyparams = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY_CTX *kctx = NULL;
+    EVP_PKEY_CTX *sctx = NULL;
+    size_t sig_len = 0;
+    unsigned char *sig = NULL;
+    EVP_MD_CTX *md_ctx = NULL;
+    EVP_MD_CTX *md_ctx_verify = NULL;
+    EVP_PKEY_CTX *cctx = NULL;
+    EVP_MD *check_md = NULL;
+
+    uint8_t ciphertext[128];
+    size_t ctext_len = sizeof(ciphertext);
+
+    uint8_t plaintext[8];
+    size_t ptext_len = sizeof(plaintext);
+
+    uint8_t sm2_id[] = {1, 2, 3, 4, 'l', 'e', 't', 't', 'e', 'r'};
+
+    OSSL_PARAM sparams[2] = {OSSL_PARAM_END, OSSL_PARAM_END};
+    OSSL_PARAM gparams[2] = {OSSL_PARAM_END, OSSL_PARAM_END};
+    int i;
+    char mdname[OSSL_MAX_NAME_SIZE];
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx,
+                                                    "SM2", testpropq)))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_paramgen_init(pctx) == 1))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_sm2)))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_paramgen(pctx, &pkeyparams)))
+        goto done;
+
+    if (!TEST_ptr(kctx = EVP_PKEY_CTX_new_from_pkey(testctx,
+                                                    pkeyparams, testpropq)))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_keygen_init(kctx)))
+        goto done;
+
+    if (!TEST_true(EVP_PKEY_keygen(kctx, &pkey)))
+        goto done;
+
+    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new()))
+        goto done;
+
+    if (!TEST_ptr(md_ctx_verify = EVP_MD_CTX_new()))
+        goto done;
+
+    if (!TEST_ptr(sctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, testpropq)))
+        goto done;
+
+    EVP_MD_CTX_set_pkey_ctx(md_ctx, sctx);
+    EVP_MD_CTX_set_pkey_ctx(md_ctx_verify, sctx);
+
+    if (!TEST_ptr(check_md = EVP_MD_fetch(testctx, "sm3", testpropq)))
+        goto done;
+
+    if (!TEST_true(EVP_DigestSignInit(md_ctx, NULL, check_md, NULL, pkey)))
+        goto done;
+
+    if (!TEST_int_gt(EVP_PKEY_CTX_set1_id(sctx, sm2_id, sizeof(sm2_id)), 0))
+        goto done;
+
+    if (!TEST_true(EVP_DigestSignUpdate(md_ctx, kMsg, sizeof(kMsg))))
+        goto done;
+
+    /* Determine the size of the signature. */
+    if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len)))
+        goto done;
+
+    if (!TEST_ptr(sig = OPENSSL_malloc(sig_len)))
+        goto done;
+
+    if (!TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
+        goto done;
+
+    /* Ensure that the signature round-trips. */
+
+    if (!TEST_true(EVP_DigestVerifyInit(md_ctx_verify, NULL, check_md, NULL,
+                                        pkey)))
+        goto done;
+
+    if (!TEST_int_gt(EVP_PKEY_CTX_set1_id(sctx, sm2_id, sizeof(sm2_id)), 0))
+        goto done;
+
+    if (!TEST_true(EVP_DigestVerifyUpdate(md_ctx_verify, kMsg, sizeof(kMsg))))
+        goto done;
+
+    if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+        goto done;
+
+    /* now check encryption/decryption */
+
+    gparams[0] = OSSL_PARAM_construct_utf8_string(OSSL_ASYM_CIPHER_PARAM_DIGEST,
+                                                  mdname, sizeof(mdname));
+    for (i = 0; i < 2; i++) {
+        const char *mdnames[] = {
+#ifndef OPENSSL_NO_SM3
+            "SM3",
+#else
+            NULL,
+#endif
+            "SHA2-256" };
+        EVP_PKEY_CTX_free(cctx);
+
+        if (mdnames[i] == NULL)
+            continue;
+
+        sparams[0] =
+            OSSL_PARAM_construct_utf8_string(OSSL_ASYM_CIPHER_PARAM_DIGEST,
+                                             (char *)mdnames[i], 0);
+
+        if (!TEST_ptr(cctx = EVP_PKEY_CTX_new_from_pkey(testctx,
+                                                        pkey, testpropq)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_encrypt_init(cctx)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_encrypt(cctx, ciphertext, &ctext_len, kMsg,
+                                        sizeof(kMsg))))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_decrypt_init(cctx)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext,
+                                        ctext_len)))
+            goto done;
+
+        if (!TEST_true(EVP_PKEY_CTX_get_params(cctx, gparams)))
+            goto done;
+
+        /*
+         * Test we're still using the digest we think we are.
+         * Because of aliases, the easiest is to fetch the digest and
+         * check the name with EVP_MD_is_a().
+         */
+        EVP_MD_free(check_md);
+        if (!TEST_ptr(check_md = EVP_MD_fetch(testctx, mdname, testpropq)))
+            goto done;
+        if (!TEST_true(EVP_MD_is_a(check_md, mdnames[i]))) {
+            TEST_info("Fetched md %s isn't %s", mdname, mdnames[i]);
+            goto done;
+        }
+
+        if (!TEST_true(ptext_len == sizeof(kMsg)))
+            goto done;
+
+        if (!TEST_true(memcmp(plaintext, kMsg, sizeof(kMsg)) == 0))
+            goto done;
+    }
+
+    ret = 1;
+done:
+    EVP_PKEY_CTX_free(pctx);
+    EVP_PKEY_CTX_free(kctx);
+    EVP_PKEY_CTX_free(sctx);
+    EVP_PKEY_CTX_free(cctx);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pkeyparams);
+    EVP_MD_CTX_free(md_ctx);
+    EVP_MD_CTX_free(md_ctx_verify);
+    EVP_MD_free(check_md);
+    OPENSSL_free(sig);
+    return ret;
+}
+
+#endif
+
+static struct keys_st {
+    int type;
+    char *priv;
+    char *pub;
+} keys[] = {
+    {
+        EVP_PKEY_HMAC, "0123456789", NULL
+    },
+    {
+        EVP_PKEY_HMAC, "", NULL
+#ifndef OPENSSL_NO_POLY1305
+    }, {
+        EVP_PKEY_POLY1305, "01234567890123456789012345678901", NULL
+#endif
+#ifndef OPENSSL_NO_SIPHASH
+    }, {
+        EVP_PKEY_SIPHASH, "0123456789012345", NULL
+#endif
+    },
+#ifndef OPENSSL_NO_EC
+    {
+        EVP_PKEY_X25519, "01234567890123456789012345678901",
+        "abcdefghijklmnopqrstuvwxyzabcdef"
+    }, {
+        EVP_PKEY_ED25519, "01234567890123456789012345678901",
+        "abcdefghijklmnopqrstuvwxyzabcdef"
+    }, {
+        EVP_PKEY_X448,
+        "01234567890123456789012345678901234567890123456789012345",
+        "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd"
+    }, {
+        EVP_PKEY_ED448,
+        "012345678901234567890123456789012345678901234567890123456",
+        "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcde"
+    }
+#endif
+};
+
+static int test_set_get_raw_keys_int(int tst, int pub, int uselibctx)
+{
+    int ret = 0;
+    unsigned char buf[80];
+    unsigned char *in;
+    size_t inlen, len = 0;
+    EVP_PKEY *pkey;
+
+    /* Check if this algorithm supports public keys */
+    if (pub && keys[tst].pub == NULL)
+        return 1;
+
+    memset(buf, 0, sizeof(buf));
+
+    if (pub) {
+#ifndef OPENSSL_NO_EC
+        inlen = strlen(keys[tst].pub);
+        in = (unsigned char *)keys[tst].pub;
+        if (uselibctx) {
+            pkey = EVP_PKEY_new_raw_public_key_ex(
+                        testctx,
+                        OBJ_nid2sn(keys[tst].type),
+                        NULL,
+                        in,
+                        inlen);
+        } else {
+            pkey = EVP_PKEY_new_raw_public_key(keys[tst].type,
+                                               NULL,
+                                               in,
+                                               inlen);
+        }
+#else
+        return 1;
+#endif
+    } else {
+        inlen = strlen(keys[tst].priv);
+        in = (unsigned char *)keys[tst].priv;
+        if (uselibctx) {
+            pkey = EVP_PKEY_new_raw_private_key_ex(
+                        testctx, OBJ_nid2sn(keys[tst].type),
+                        NULL,
+                        in,
+                        inlen);
+        } else {
+            pkey = EVP_PKEY_new_raw_private_key(keys[tst].type,
+                                                NULL,
+                                                in,
+                                                inlen);
+        }
+    }
+
+    if (!TEST_ptr(pkey)
+            || !TEST_int_eq(EVP_PKEY_eq(pkey, pkey), 1)
+            || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, NULL, &len)))
+            || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, NULL, &len)))
+            || !TEST_true(len == inlen)
+            || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, buf, &len)))
+            || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, buf, &len)))
+            || !TEST_mem_eq(in, inlen, buf, len))
+        goto done;
+
+    ret = 1;
+ done:
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+static int test_set_get_raw_keys(int tst)
+{
+    return (nullprov != NULL || test_set_get_raw_keys_int(tst, 0, 0))
+           && test_set_get_raw_keys_int(tst, 0, 1)
+           && (nullprov != NULL || test_set_get_raw_keys_int(tst, 1, 0))
+           && test_set_get_raw_keys_int(tst, 1, 1);
+}
+
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+static int pkey_custom_check(EVP_PKEY *pkey)
+{
+    return 0xbeef;
+}
+
+static int pkey_custom_pub_check(EVP_PKEY *pkey)
+{
+    return 0xbeef;
+}
+
+static int pkey_custom_param_check(EVP_PKEY *pkey)
+{
+    return 0xbeef;
+}
+
+static EVP_PKEY_METHOD *custom_pmeth;
+#endif
+
+static int test_EVP_PKEY_check(int i)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    EVP_PKEY_CTX *ctx2 = NULL;
+#endif
+    const APK_DATA *ak = &keycheckdata[i];
+    const unsigned char *input = ak->kder;
+    size_t input_len = ak->size;
+    int expected_id = ak->evptype;
+    int expected_check = ak->check;
+    int expected_pub_check = ak->pub_check;
+    int expected_param_check = ak->param_check;
+    int type = ak->type;
+
+    if (!TEST_ptr(pkey = load_example_key(ak->keytype, input, input_len)))
+        goto done;
+    if (type == 0
+        && !TEST_int_eq(EVP_PKEY_get_id(pkey), expected_id))
+        goto done;
+
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, testpropq)))
+        goto done;
+
+    if (!TEST_int_eq(EVP_PKEY_check(ctx), expected_check))
+        goto done;
+
+    if (!TEST_int_eq(EVP_PKEY_public_check(ctx), expected_pub_check))
+        goto done;
+
+    if (!TEST_int_eq(EVP_PKEY_param_check(ctx), expected_param_check))
+        goto done;
+
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    ctx2 = EVP_PKEY_CTX_new_id(0xdefaced, NULL);
+    /* assign the pkey directly, as an internal test */
+    EVP_PKEY_up_ref(pkey);
+    ctx2->pkey = pkey;
+
+    if (!TEST_int_eq(EVP_PKEY_check(ctx2), 0xbeef))
+        goto done;
+
+    if (!TEST_int_eq(EVP_PKEY_public_check(ctx2), 0xbeef))
+        goto done;
+
+    if (!TEST_int_eq(EVP_PKEY_param_check(ctx2), 0xbeef))
+        goto done;
+#endif
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_CTX_free(ctx);
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    EVP_PKEY_CTX_free(ctx2);
+#endif
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+#ifndef OPENSSL_NO_CMAC
+static int get_cmac_val(EVP_PKEY *pkey, unsigned char *mac)
+{
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    const char msg[] = "Hello World";
+    size_t maclen;
+    int ret = 1;
+
+    if (!TEST_ptr(mdctx)
+            || !TEST_true(EVP_DigestSignInit_ex(mdctx, NULL, NULL, testctx,
+                                                testpropq, pkey, NULL))
+            || !TEST_true(EVP_DigestSignUpdate(mdctx, msg, sizeof(msg)))
+            || !TEST_true(EVP_DigestSignFinal(mdctx, mac, &maclen))
+            || !TEST_size_t_eq(maclen, AES_BLOCK_SIZE))
+        ret = 0;
+
+    EVP_MD_CTX_free(mdctx);
+
+    return ret;
+}
+static int test_CMAC_keygen(void)
+{
+    static unsigned char key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    EVP_PKEY_CTX *kctx = NULL;
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    unsigned char mac[AES_BLOCK_SIZE];
+# if !defined(OPENSSL_NO_DEPRECATED_3_0)
+    unsigned char mac2[AES_BLOCK_SIZE];
+# endif
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    /*
+     * This is a legacy method for CMACs, but should still work.
+     * This verifies that it works without an ENGINE.
+     */
+    kctx = EVP_PKEY_CTX_new_id(EVP_PKEY_CMAC, NULL);
+
+    /* Test a CMAC key created using the "generated" method */
+    if (!TEST_int_gt(EVP_PKEY_keygen_init(kctx), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_ctrl(kctx, -1, EVP_PKEY_OP_KEYGEN,
+                                            EVP_PKEY_CTRL_CIPHER,
+                                            0, (void *)EVP_aes_256_ecb()), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_ctrl(kctx, -1, EVP_PKEY_OP_KEYGEN,
+                                            EVP_PKEY_CTRL_SET_MAC_KEY,
+                                            sizeof(key), (void *)key), 0)
+            || !TEST_int_gt(EVP_PKEY_keygen(kctx, &pkey), 0)
+            || !TEST_ptr(pkey)
+            || !TEST_true(get_cmac_val(pkey, mac)))
+        goto done;
+
+# if !defined(OPENSSL_NO_DEPRECATED_3_0)
+    EVP_PKEY_free(pkey);
+
+    /*
+     * Test a CMAC key using the direct method, and compare with the mac
+     * created above.
+     */
+    pkey = EVP_PKEY_new_CMAC_key(NULL, key, sizeof(key), EVP_aes_256_ecb());
+    if (!TEST_ptr(pkey)
+            || !TEST_true(get_cmac_val(pkey, mac2))
+            || !TEST_mem_eq(mac, sizeof(mac), mac2, sizeof(mac2)))
+        goto done;
+# endif
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(kctx);
+    return ret;
+}
+#endif
+
+static int test_HKDF(void)
+{
+    EVP_PKEY_CTX *pctx;
+    unsigned char out[20];
+    size_t outlen;
+    int i, ret = 0;
+    unsigned char salt[] = "0123456789";
+    unsigned char key[] = "012345678901234567890123456789";
+    unsigned char info[] = "infostring";
+    const unsigned char expected[] = {
+        0xe5, 0x07, 0x70, 0x7f, 0xc6, 0x78, 0xd6, 0x54, 0x32, 0x5f, 0x7e, 0xc5,
+        0x7b, 0x59, 0x3e, 0xd8, 0x03, 0x6b, 0xed, 0xca
+    };
+    size_t expectedlen = sizeof(expected);
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "HKDF", testpropq)))
+        goto done;
+
+    /* We do this twice to test reuse of the EVP_PKEY_CTX */
+    for (i = 0; i < 2; i++) {
+        outlen = sizeof(out);
+        memset(out, 0, outlen);
+
+        if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
+                || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
+                || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
+                                                            sizeof(salt) - 1), 0)
+                || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
+                                                           sizeof(key) - 1), 0)
+                || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
+                                                            sizeof(info) - 1), 0)
+                || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
+                || !TEST_mem_eq(out, outlen, expected, expectedlen))
+            goto done;
+    }
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_CTX_free(pctx);
+
+    return ret;
+}
+
+static int test_emptyikm_HKDF(void)
+{
+    EVP_PKEY_CTX *pctx;
+    unsigned char out[20];
+    size_t outlen;
+    int ret = 0;
+    unsigned char salt[] = "9876543210";
+    unsigned char key[] = "";
+    unsigned char info[] = "stringinfo";
+    const unsigned char expected[] = {
+        0x68, 0x81, 0xa5, 0x3e, 0x5b, 0x9c, 0x7b, 0x6f, 0x2e, 0xec, 0xc8, 0x47,
+        0x7c, 0xfa, 0x47, 0x35, 0x66, 0x82, 0x15, 0x30
+    };
+    size_t expectedlen = sizeof(expected);
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "HKDF", testpropq)))
+        goto done;
+
+    outlen = sizeof(out);
+    memset(out, 0, outlen);
+
+    if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
+                                                        sizeof(salt) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
+                                                       sizeof(key) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
+                                                        sizeof(info) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
+            || !TEST_mem_eq(out, outlen, expected, expectedlen))
+        goto done;
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_CTX_free(pctx);
+
+    return ret;
+}
+
+#ifndef OPENSSL_NO_EC
+static int test_X509_PUBKEY_inplace(void)
+{
+    int ret = 0;
+    X509_PUBKEY *xp = X509_PUBKEY_new_ex(testctx, testpropq);
+    const unsigned char *p = kExampleECPubKeyDER;
+    size_t input_len = sizeof(kExampleECPubKeyDER);
+
+    if (!TEST_ptr(xp))
+        goto done;
+    if (!TEST_ptr(d2i_X509_PUBKEY(&xp, &p, input_len)))
+        goto done;
+
+    if (!TEST_ptr(X509_PUBKEY_get0(xp)))
+        goto done;
+
+    p = kExampleBadECPubKeyDER;
+    input_len = sizeof(kExampleBadECPubKeyDER);
+
+    if (!TEST_ptr(xp = d2i_X509_PUBKEY(&xp, &p, input_len)))
+        goto done;
+
+    if (!TEST_true(X509_PUBKEY_get0(xp) == NULL))
+        goto done;
+
+    ret = 1;
+
+ done:
+    X509_PUBKEY_free(xp);
+    return ret;
+}
+
+static int test_X509_PUBKEY_dup(void)
+{
+    int ret = 0;
+    X509_PUBKEY *xp = NULL, *xq = NULL;
+    const unsigned char *p = kExampleECPubKeyDER;
+    size_t input_len = sizeof(kExampleECPubKeyDER);
+
+    xp = X509_PUBKEY_new_ex(testctx, testpropq);
+    if (!TEST_ptr(xp)
+            || !TEST_ptr(d2i_X509_PUBKEY(&xp, &p, input_len))
+            || !TEST_ptr(xq = X509_PUBKEY_dup(xp))
+            || !TEST_ptr_ne(xp, xq))
+        goto done;
+
+    if (!TEST_ptr(X509_PUBKEY_get0(xq))
+            || !TEST_ptr(X509_PUBKEY_get0(xp))
+            || !TEST_ptr_eq(X509_PUBKEY_get0(xq), X509_PUBKEY_get0(xp)))
+        goto done;
+
+    X509_PUBKEY_free(xq);
+    xq = NULL;
+    p = kExampleBadECPubKeyDER;
+    input_len = sizeof(kExampleBadECPubKeyDER);
+
+    if (!TEST_ptr(xp = d2i_X509_PUBKEY(&xp, &p, input_len))
+            || !TEST_ptr(xq = X509_PUBKEY_dup(xp)))
+        goto done;
+
+    X509_PUBKEY_free(xp);
+    xp = NULL;
+    if (!TEST_true(X509_PUBKEY_get0(xq) == NULL))
+        goto done;
+
+    ret = 1;
+
+ done:
+    X509_PUBKEY_free(xp);
+    X509_PUBKEY_free(xq);
+    return ret;
+}
+#endif /* OPENSSL_NO_EC */
+
+/* Test getting and setting parameters on an EVP_PKEY_CTX */
+static int test_EVP_PKEY_CTX_get_set_params(EVP_PKEY *pkey)
+{
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    const OSSL_PARAM *params;
+    OSSL_PARAM ourparams[2], *param = ourparams, *param_md;
+    int ret = 0;
+    const EVP_MD *md;
+    char mdname[OSSL_MAX_NAME_SIZE];
+    char ssl3ms[48];
+
+    /* Initialise a sign operation */
+    ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, testpropq);
+    if (!TEST_ptr(ctx)
+            || !TEST_int_gt(EVP_PKEY_sign_init(ctx), 0))
+        goto err;
+
+    /*
+     * We should be able to query the parameters now.
+     */
+    params = EVP_PKEY_CTX_settable_params(ctx);
+    if (!TEST_ptr(params)
+        || !TEST_ptr(OSSL_PARAM_locate_const(params,
+                                             OSSL_SIGNATURE_PARAM_DIGEST)))
+        goto err;
+
+    params = EVP_PKEY_CTX_gettable_params(ctx);
+    if (!TEST_ptr(params)
+        || !TEST_ptr(OSSL_PARAM_locate_const(params,
+                                             OSSL_SIGNATURE_PARAM_ALGORITHM_ID))
+        || !TEST_ptr(OSSL_PARAM_locate_const(params,
+                                             OSSL_SIGNATURE_PARAM_DIGEST)))
+        goto err;
+
+    /*
+     * Test getting and setting params via EVP_PKEY_CTX_set_params() and
+     * EVP_PKEY_CTX_get_params()
+     */
+    strcpy(mdname, "SHA512");
+    param_md = param;
+    *param++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST,
+                                                mdname, 0);
+    *param++ = OSSL_PARAM_construct_end();
+
+    if (!TEST_true(EVP_PKEY_CTX_set_params(ctx, ourparams)))
+        goto err;
+
+    mdname[0] = '\0';
+    *param_md = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST,
+                                                 mdname, sizeof(mdname));
+    if (!TEST_true(EVP_PKEY_CTX_get_params(ctx, ourparams))
+            || !TEST_str_eq(mdname, "SHA512"))
+        goto err;
+
+    /*
+     * Test the TEST_PKEY_CTX_set_signature_md() and
+     * TEST_PKEY_CTX_get_signature_md() functions
+     */
+    if (!TEST_int_gt(EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_get_signature_md(ctx, &md), 0)
+            || !TEST_ptr_eq(md, EVP_sha256()))
+        goto err;
+
+    /*
+     * Test getting MD parameters via an associated EVP_PKEY_CTX
+     */
+    mdctx = EVP_MD_CTX_new();
+    if (!TEST_ptr(mdctx)
+        || !TEST_true(EVP_DigestSignInit_ex(mdctx, NULL, "SHA1", testctx, testpropq,
+                                            pkey, NULL)))
+        goto err;
+
+    /*
+     * We now have an EVP_MD_CTX with an EVP_PKEY_CTX inside it. We should be
+     * able to obtain the digest's settable parameters from the provider.
+     */
+    params = EVP_MD_CTX_settable_params(mdctx);
+    if (!TEST_ptr(params)
+            || !TEST_int_eq(strcmp(params[0].key, OSSL_DIGEST_PARAM_SSL3_MS), 0)
+               /* The final key should be NULL */
+            || !TEST_ptr_null(params[1].key))
+        goto err;
+
+    param = ourparams;
+    memset(ssl3ms, 0, sizeof(ssl3ms));
+    *param++ = OSSL_PARAM_construct_octet_string(OSSL_DIGEST_PARAM_SSL3_MS,
+                                                 ssl3ms, sizeof(ssl3ms));
+    *param++ = OSSL_PARAM_construct_end();
+
+    if (!TEST_true(EVP_MD_CTX_set_params(mdctx, ourparams)))
+        goto err;
+
+    ret = 1;
+
+ err:
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_CTX_free(ctx);
+
+    return ret;
+}
+
+#ifndef OPENSSL_NO_DSA
+static int test_DSA_get_set_params(void)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    BIGNUM *p = NULL, *q = NULL, *g = NULL, *pub = NULL, *priv = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    int ret = 0;
+
+    /*
+     * Setup the parameters for our DSA object. For our purposes they don't
+     * have to actually be *valid* parameters. We just need to set something.
+     */
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "DSA", NULL))
+        || !TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_ptr(p = BN_new())
+        || !TEST_ptr(q = BN_new())
+        || !TEST_ptr(g = BN_new())
+        || !TEST_ptr(pub = BN_new())
+        || !TEST_ptr(priv = BN_new()))
+        goto err;
+    if (!TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY,
+                                             pub))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
+                                             priv)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR,
+                                          params), 0))
+        goto err;
+
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    ret = test_EVP_PKEY_CTX_get_set_params(pkey);
+
+ err:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pctx);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(p);
+    BN_free(q);
+    BN_free(g);
+    BN_free(pub);
+    BN_free(priv);
+
+    return ret;
+}
+
+/*
+ * Test combinations of private, public, missing and private + public key
+ * params to ensure they are all accepted
+ */
+static int test_DSA_priv_pub(void)
+{
+    return test_EVP_PKEY_ffc_priv_pub("DSA");
+}
+
+#endif /* !OPENSSL_NO_DSA */
+
+static int test_RSA_get_set_params(void)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    BIGNUM *n = NULL, *e = NULL, *d = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    int ret = 0;
+
+    /*
+     * Setup the parameters for our RSA object. For our purposes they don't
+     * have to actually be *valid* parameters. We just need to set something.
+     */
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "RSA", NULL))
+        || !TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_ptr(n = BN_new())
+        || !TEST_ptr(e = BN_new())
+        || !TEST_ptr(d = BN_new()))
+        goto err;
+    if (!TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_D, d)))
+        goto err;
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR,
+                                          params), 0))
+        goto err;
+
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    ret = test_EVP_PKEY_CTX_get_set_params(pkey);
+
+ err:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pctx);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(n);
+    BN_free(e);
+    BN_free(d);
+
+    return ret;
+}
+
+#if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
+static int test_decrypt_null_chunks(void)
+{
+    EVP_CIPHER_CTX* ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+    const unsigned char key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1
+    };
+    unsigned char iv[12] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b
+    };
+    unsigned char msg[] = "It was the best of times, it was the worst of times";
+    unsigned char ciphertext[80];
+    unsigned char plaintext[80];
+    /* We initialise tmp to a non zero value on purpose */
+    int ctlen, ptlen, tmp = 99;
+    int ret = 0;
+    const int enc_offset = 10, dec_offset = 20;
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(testctx, "ChaCha20-Poly1305", testpropq))
+            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+            || !TEST_true(EVP_EncryptInit_ex(ctx, cipher, NULL,
+                                             key, iv))
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext, &ctlen, msg,
+                                            enc_offset))
+            /* Deliberate add a zero length update */
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp, NULL,
+                                            0))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp,
+                                            msg + enc_offset,
+                                            sizeof(msg) - enc_offset))
+            || !TEST_int_eq(ctlen += tmp, sizeof(msg))
+            || !TEST_true(EVP_EncryptFinal(ctx, ciphertext + ctlen, &tmp))
+            || !TEST_int_eq(tmp, 0))
+        goto err;
+
+    /* Deliberately initialise tmp to a non zero value */
+    tmp = 99;
+    if (!TEST_true(EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv))
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext, &ptlen, ciphertext,
+                                            dec_offset))
+            /*
+             * Deliberately add a zero length update. We also deliberately do
+             * this at a different offset than for encryption.
+             */
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp, NULL,
+                                            0))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp,
+                                            ciphertext + dec_offset,
+                                            ctlen - dec_offset))
+            || !TEST_int_eq(ptlen += tmp, sizeof(msg))
+            || !TEST_true(EVP_DecryptFinal(ctx, plaintext + ptlen, &tmp))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_mem_eq(msg, sizeof(msg), plaintext, ptlen))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(cipher);
+    return ret;
+}
+#endif /* !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305) */
+
+#ifndef OPENSSL_NO_DH
+/*
+ * Test combinations of private, public, missing and private + public key
+ * params to ensure they are all accepted
+ */
+static int test_DH_priv_pub(void)
+{
+    return test_EVP_PKEY_ffc_priv_pub("DH");
+}
+
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+static int test_EVP_PKEY_set1_DH(void)
+{
+    DH *x942dh = NULL, *noqdh = NULL;
+    EVP_PKEY *pkey1 = NULL, *pkey2 = NULL;
+    int ret = 0;
+    BIGNUM *p, *g = NULL;
+    BIGNUM *pubkey = NULL;
+    unsigned char pub[2048 / 8];
+    size_t len = 0;
+
+    if (!TEST_ptr(p = BN_new())
+            || !TEST_ptr(g = BN_new())
+            || !TEST_ptr(pubkey = BN_new())
+            || !TEST_true(BN_set_word(p, 9999))
+            || !TEST_true(BN_set_word(g, 2))
+            || !TEST_true(BN_set_word(pubkey, 4321))
+            || !TEST_ptr(noqdh = DH_new())
+            || !TEST_true(DH_set0_pqg(noqdh, p, NULL, g))
+            || !TEST_true(DH_set0_key(noqdh, pubkey, NULL))
+            || !TEST_ptr(pubkey = BN_new())
+            || !TEST_true(BN_set_word(pubkey, 4321)))
+        goto err;
+    p = g = NULL;
+
+    x942dh = DH_get_2048_256();
+    pkey1 = EVP_PKEY_new();
+    pkey2 = EVP_PKEY_new();
+    if (!TEST_ptr(x942dh)
+            || !TEST_ptr(noqdh)
+            || !TEST_ptr(pkey1)
+            || !TEST_ptr(pkey2)
+            || !TEST_true(DH_set0_key(x942dh, pubkey, NULL)))
+        goto err;
+    pubkey = NULL;
+
+    if (!TEST_true(EVP_PKEY_set1_DH(pkey1, x942dh))
+            || !TEST_int_eq(EVP_PKEY_get_id(pkey1), EVP_PKEY_DHX))
+        goto err;
+
+    if (!TEST_true(EVP_PKEY_get_bn_param(pkey1, OSSL_PKEY_PARAM_PUB_KEY,
+                                         &pubkey))
+            || !TEST_ptr(pubkey))
+        goto err;
+
+    if (!TEST_true(EVP_PKEY_set1_DH(pkey2, noqdh))
+            || !TEST_int_eq(EVP_PKEY_get_id(pkey2), EVP_PKEY_DH))
+        goto err;
+
+    if (!TEST_true(EVP_PKEY_get_octet_string_param(pkey2,
+                                                   OSSL_PKEY_PARAM_PUB_KEY,
+                                                   pub, sizeof(pub), &len))
+            || !TEST_size_t_ne(len, 0))
+        goto err;
+
+    ret = 1;
+ err:
+    BN_free(p);
+    BN_free(g);
+    BN_free(pubkey);
+    EVP_PKEY_free(pkey1);
+    EVP_PKEY_free(pkey2);
+    DH_free(x942dh);
+    DH_free(noqdh);
+
+    return ret;
+}
+# endif /* !OPENSSL_NO_DEPRECATED_3_0 */
+#endif /* !OPENSSL_NO_DH */
+
+/*
+ * We test what happens with an empty template.  For the sake of this test,
+ * the template must be ignored, and we know that's the case for RSA keys
+ * (this might arguably be a misfeature, but that's what we currently do,
+ * even in provider code, since that's how the legacy RSA implementation
+ * does things)
+ */
+static int test_keygen_with_empty_template(int n)
+{
+    EVP_PKEY_CTX *ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY *tkey = NULL;
+    int ret = 0;
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    switch (n) {
+    case 0:
+        /* We do test with no template at all as well */
+        if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL)))
+            goto err;
+        break;
+    case 1:
+        /* Here we create an empty RSA key that serves as our template */
+        if (!TEST_ptr(tkey = EVP_PKEY_new())
+            || !TEST_true(EVP_PKEY_set_type(tkey, EVP_PKEY_RSA))
+            || !TEST_ptr(ctx = EVP_PKEY_CTX_new(tkey, NULL)))
+            goto err;
+        break;
+    }
+
+    if (!TEST_int_gt(EVP_PKEY_keygen_init(ctx), 0)
+        || !TEST_int_gt(EVP_PKEY_keygen(ctx, &pkey), 0))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(tkey);
+    return ret;
+}
+
+/*
+ * Test that we fail if we attempt to use an algorithm that is not available
+ * in the current library context (unless we are using an algorithm that
+ * should be made available via legacy codepaths).
+ *
+ * 0:   RSA
+ * 1:   SM2
+ */
+static int test_pkey_ctx_fail_without_provider(int tst)
+{
+    OSSL_LIB_CTX *tmpctx = OSSL_LIB_CTX_new();
+    OSSL_PROVIDER *tmpnullprov = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    const char *keytype = NULL;
+    int expect_null = 0;
+    int ret = 0;
+
+    if (!TEST_ptr(tmpctx))
+        goto err;
+
+    tmpnullprov = OSSL_PROVIDER_load(tmpctx, "null");
+    if (!TEST_ptr(tmpnullprov))
+        goto err;
+
+    /*
+     * We check for certain algos in the null provider.
+     * If an algo is expected to have a provider keymgmt, contructing an
+     * EVP_PKEY_CTX is expected to fail (return NULL).
+     * Otherwise, if it's expected to have legacy support, contructing an
+     * EVP_PKEY_CTX is expected to succeed (return non-NULL).
+     */
+    switch (tst) {
+    case 0:
+        keytype = "RSA";
+        expect_null = 1;
+        break;
+    case 1:
+        keytype = "SM2";
+        expect_null = 1;
+#ifdef OPENSSL_NO_EC
+        TEST_info("EC disable, skipping SM2 check...");
+        goto end;
+#endif
+#ifdef OPENSSL_NO_SM2
+        TEST_info("SM2 disable, skipping SM2 check...");
+        goto end;
+#endif
+        break;
+    default:
+        TEST_error("No test for case %d", tst);
+        goto err;
+    }
+
+    pctx = EVP_PKEY_CTX_new_from_name(tmpctx, keytype, "");
+    if (expect_null ? !TEST_ptr_null(pctx) : !TEST_ptr(pctx))
+        goto err;
+
+#if defined(OPENSSL_NO_EC) || defined(OPENSSL_NO_SM2)
+ end:
+#endif
+    ret = 1;
+
+ err:
+    EVP_PKEY_CTX_free(pctx);
+    OSSL_PROVIDER_unload(tmpnullprov);
+    OSSL_LIB_CTX_free(tmpctx);
+    return ret;
+}
+
+static int test_rand_agglomeration(void)
+{
+    EVP_RAND *rand;
+    EVP_RAND_CTX *ctx;
+    OSSL_PARAM params[3], *p = params;
+    int res;
+    unsigned int step = 7;
+    static unsigned char seed[] = "It does not matter how slowly you go "
+                                  "as long as you do not stop.";
+    unsigned char out[sizeof(seed)];
+
+    if (!TEST_int_ne(sizeof(seed) % step, 0)
+            || !TEST_ptr(rand = EVP_RAND_fetch(testctx, "TEST-RAND", testpropq)))
+        return 0;
+    ctx = EVP_RAND_CTX_new(rand, NULL);
+    EVP_RAND_free(rand);
+    if (!TEST_ptr(ctx))
+        return 0;
+
+    memset(out, 0, sizeof(out));
+    *p++ = OSSL_PARAM_construct_octet_string(OSSL_RAND_PARAM_TEST_ENTROPY,
+                                             seed, sizeof(seed));
+    *p++ = OSSL_PARAM_construct_uint(OSSL_RAND_PARAM_MAX_REQUEST, &step);
+    *p = OSSL_PARAM_construct_end();
+    res = TEST_true(EVP_RAND_CTX_set_params(ctx, params))
+          && TEST_true(EVP_RAND_generate(ctx, out, sizeof(out), 0, 1, NULL, 0))
+          && TEST_mem_eq(seed, sizeof(seed), out, sizeof(out));
+    EVP_RAND_CTX_free(ctx);
+    return res;
+}
+
+/*
+ * Test that we correctly return the original or "running" IV after
+ * an encryption operation.
+ * Run multiple times for some different relevant algorithms/modes.
+ */
+static int test_evp_iv_aes(int idx)
+{
+    int ret = 0;
+    EVP_CIPHER_CTX *ctx = NULL;
+    unsigned char key[16] = {0x4c, 0x43, 0xdb, 0xdd, 0x42, 0x73, 0x47, 0xd1,
+                             0xe5, 0x62, 0x7d, 0xcd, 0x4d, 0x76, 0x4d, 0x57};
+    unsigned char init_iv[EVP_MAX_IV_LENGTH] =
+        {0x57, 0x71, 0x7d, 0xad, 0xdb, 0x9b, 0x98, 0x82,
+         0x5a, 0x55, 0x91, 0x81, 0x42, 0xa8, 0x89, 0x34};
+    static const unsigned char msg[] = { 1, 2, 3, 4, 5, 6, 7, 8,
+                                         9, 10, 11, 12, 13, 14, 15, 16 };
+    unsigned char ciphertext[32], oiv[16], iv[16];
+    unsigned char *ref_iv;
+    unsigned char cbc_state[16] = {0x10, 0x2f, 0x05, 0xcc, 0xc2, 0x55, 0x72, 0xb9,
+                                   0x88, 0xe6, 0x4a, 0x17, 0x10, 0x74, 0x22, 0x5e};
+
+    unsigned char ofb_state[16] = {0x76, 0xe6, 0x66, 0x61, 0xd0, 0x8a, 0xe4, 0x64,
+                                   0xdd, 0x66, 0xbf, 0x00, 0xf0, 0xe3, 0x6f, 0xfd};
+    unsigned char cfb_state[16] = {0x77, 0xe4, 0x65, 0x65, 0xd5, 0x8c, 0xe3, 0x6c,
+                                   0xd4, 0x6c, 0xb4, 0x0c, 0xfd, 0xed, 0x60, 0xed};
+    unsigned char gcm_state[12] = {0x57, 0x71, 0x7d, 0xad, 0xdb, 0x9b,
+                                   0x98, 0x82, 0x5a, 0x55, 0x91, 0x81};
+    unsigned char ccm_state[7] = {0x57, 0x71, 0x7d, 0xad, 0xdb, 0x9b, 0x98};
+#ifndef OPENSSL_NO_OCB
+    unsigned char ocb_state[12] = {0x57, 0x71, 0x7d, 0xad, 0xdb, 0x9b,
+                                   0x98, 0x82, 0x5a, 0x55, 0x91, 0x81};
+#endif
+    int len = sizeof(ciphertext);
+    size_t ivlen, ref_len;
+    const EVP_CIPHER *type = NULL;
+    int iv_reset = 0;
+
+    if (nullprov != NULL && idx < 6)
+        return TEST_skip("Test does not support a non-default library context");
+
+    switch(idx) {
+    case 0:
+        type = EVP_aes_128_cbc();
+        /* FALLTHROUGH */
+    case 6:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-cbc", testpropq);
+        ref_iv = cbc_state;
+        ref_len = sizeof(cbc_state);
+        iv_reset = 1;
+        break;
+    case 1:
+        type = EVP_aes_128_ofb();
+        /* FALLTHROUGH */
+    case 7:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-ofb", testpropq);
+        ref_iv = ofb_state;
+        ref_len = sizeof(ofb_state);
+        iv_reset = 1;
+        break;
+    case 2:
+        type = EVP_aes_128_cfb();
+        /* FALLTHROUGH */
+    case 8:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-cfb", testpropq);
+        ref_iv = cfb_state;
+        ref_len = sizeof(cfb_state);
+        iv_reset = 1;
+        break;
+    case 3:
+        type = EVP_aes_128_gcm();
+        /* FALLTHROUGH */
+    case 9:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-gcm", testpropq);
+        ref_iv = gcm_state;
+        ref_len = sizeof(gcm_state);
+        break;
+    case 4:
+        type = EVP_aes_128_ccm();
+        /* FALLTHROUGH */
+    case 10:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-ccm", testpropq);
+        ref_iv = ccm_state;
+        ref_len = sizeof(ccm_state);
+        break;
+#ifdef OPENSSL_NO_OCB
+    case 5:
+    case 11:
+        return 1;
+#else
+    case 5:
+        type = EVP_aes_128_ocb();
+        /* FALLTHROUGH */
+    case 11:
+        type = (type != NULL) ? type :
+                                EVP_CIPHER_fetch(testctx, "aes-128-ocb", testpropq);
+        ref_iv = ocb_state;
+        ref_len = sizeof(ocb_state);
+        break;
+#endif
+    default:
+        return 0;
+    }
+
+    if (!TEST_ptr(type)
+            || !TEST_ptr((ctx = EVP_CIPHER_CTX_new()))
+            || !TEST_true(EVP_EncryptInit_ex(ctx, type, NULL, key, init_iv))
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext, &len, msg,
+                          (int)sizeof(msg)))
+            || !TEST_true(EVP_CIPHER_CTX_get_original_iv(ctx, oiv, sizeof(oiv)))
+            || !TEST_true(EVP_CIPHER_CTX_get_updated_iv(ctx, iv, sizeof(iv)))
+            || !TEST_true(EVP_EncryptFinal_ex(ctx, ciphertext, &len)))
+        goto err;
+    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
+    if (!TEST_mem_eq(init_iv, ivlen, oiv, ivlen)
+            || !TEST_mem_eq(ref_iv, ref_len, iv, ivlen))
+        goto err;
+
+    /* CBC, OFB, and CFB modes: the updated iv must be reset after reinit */
+    if (!TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, NULL))
+        || !TEST_true(EVP_CIPHER_CTX_get_updated_iv(ctx, iv, sizeof(iv))))
+        goto err;
+    if (iv_reset) {
+        if (!TEST_mem_eq(init_iv, ivlen, iv, ivlen))
+            goto err;
+    } else {
+        if (!TEST_mem_eq(ref_iv, ivlen, iv, ivlen))
+            goto err;
+    }
+
+    ret = 1;
+err:
+    EVP_CIPHER_CTX_free(ctx);
+    if (idx >= 6)
+        EVP_CIPHER_free((EVP_CIPHER *)type);
+    return ret;
+}
+
+#ifndef OPENSSL_NO_DES
+static int test_evp_iv_des(int idx)
+{
+    int ret = 0;
+    EVP_CIPHER_CTX *ctx = NULL;
+    static const unsigned char key[24] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xf1, 0xe0, 0xd3, 0xc2, 0xb5, 0xa4, 0x97, 0x86,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const unsigned char init_iv[8] = {
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    static const unsigned char msg[] = { 1, 2, 3, 4, 5, 6, 7, 8,
+                                         9, 10, 11, 12, 13, 14, 15, 16 };
+    unsigned char ciphertext[32], oiv[8], iv[8];
+    unsigned const char *ref_iv;
+    static const unsigned char cbc_state_des[8] = {
+        0x4f, 0xa3, 0x85, 0xcd, 0x8b, 0xf3, 0x06, 0x2a
+    };
+    static const unsigned char cbc_state_3des[8] = {
+        0x35, 0x27, 0x7d, 0x65, 0x6c, 0xfb, 0x50, 0xd9
+    };
+    static const unsigned char ofb_state_des[8] = {
+        0xa7, 0x0d, 0x1d, 0x45, 0xf9, 0x96, 0x3f, 0x2c
+    };
+    static const unsigned char ofb_state_3des[8] = {
+        0xab, 0x16, 0x24, 0xbb, 0x5b, 0xac, 0xed, 0x5e
+    };
+    static const unsigned char cfb_state_des[8] = {
+        0x91, 0xeb, 0x6d, 0x29, 0x4b, 0x08, 0xbd, 0x73
+    };
+    static const unsigned char cfb_state_3des[8] = {
+        0x34, 0xdd, 0xfb, 0x47, 0x33, 0x1c, 0x61, 0xf7
+    };
+    int len = sizeof(ciphertext);
+    size_t ivlen, ref_len;
+    EVP_CIPHER *type = NULL;
+
+    if (lgcyprov == NULL && idx < 3)
+        return TEST_skip("Test requires legacy provider to be loaded");
+
+    switch(idx) {
+    case 0:
+        type = EVP_CIPHER_fetch(testctx, "des-cbc", testpropq);
+        ref_iv = cbc_state_des;
+        ref_len = sizeof(cbc_state_des);
+        break;
+    case 1:
+        type = EVP_CIPHER_fetch(testctx, "des-ofb", testpropq);
+        ref_iv = ofb_state_des;
+        ref_len = sizeof(ofb_state_des);
+        break;
+    case 2:
+        type = EVP_CIPHER_fetch(testctx, "des-cfb", testpropq);
+        ref_iv = cfb_state_des;
+        ref_len = sizeof(cfb_state_des);
+        break;
+    case 3:
+        type = EVP_CIPHER_fetch(testctx, "des-ede3-cbc", testpropq);
+        ref_iv = cbc_state_3des;
+        ref_len = sizeof(cbc_state_3des);
+        break;
+    case 4:
+        type = EVP_CIPHER_fetch(testctx, "des-ede3-ofb", testpropq);
+        ref_iv = ofb_state_3des;
+        ref_len = sizeof(ofb_state_3des);
+        break;
+    case 5:
+        type = EVP_CIPHER_fetch(testctx, "des-ede3-cfb", testpropq);
+        ref_iv = cfb_state_3des;
+        ref_len = sizeof(cfb_state_3des);
+        break;
+    default:
+        return 0;
+    }
+
+    if (!TEST_ptr(type)
+            || !TEST_ptr((ctx = EVP_CIPHER_CTX_new()))
+            || !TEST_true(EVP_EncryptInit_ex(ctx, type, NULL, key, init_iv))
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext, &len, msg,
+                          (int)sizeof(msg)))
+            || !TEST_true(EVP_CIPHER_CTX_get_original_iv(ctx, oiv, sizeof(oiv)))
+            || !TEST_true(EVP_CIPHER_CTX_get_updated_iv(ctx, iv, sizeof(iv)))
+            || !TEST_true(EVP_EncryptFinal_ex(ctx, ciphertext, &len)))
+        goto err;
+    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
+    if (!TEST_mem_eq(init_iv, ivlen, oiv, ivlen)
+            || !TEST_mem_eq(ref_iv, ref_len, iv, ivlen))
+        goto err;
+
+    if (!TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, NULL))
+        || !TEST_true(EVP_CIPHER_CTX_get_updated_iv(ctx, iv, sizeof(iv))))
+        goto err;
+    if (!TEST_mem_eq(init_iv, ivlen, iv, ivlen))
+        goto err;
+
+    ret = 1;
+err:
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(type);
+    return ret;
+}
+#endif
+
+#ifndef OPENSSL_NO_EC
+static int ecpub_nids[] = {
+    NID_brainpoolP256r1, NID_X9_62_prime256v1,
+    NID_secp384r1, NID_secp521r1,
+# ifndef OPENSSL_NO_EC2M
+    NID_sect233k1, NID_sect233r1, NID_sect283r1,
+    NID_sect409k1, NID_sect409r1, NID_sect571k1, NID_sect571r1,
+# endif
+    NID_brainpoolP384r1, NID_brainpoolP512r1
+};
+
+static int test_ecpub(int idx)
+{
+    int ret = 0, len, savelen;
+    int nid;
+    unsigned char buf[1024];
+    unsigned char *p;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+    const unsigned char *q;
+    EVP_PKEY *pkey2 = NULL;
+    EC_KEY *ec = NULL;
+# endif
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    nid = ecpub_nids[idx];
+
+    ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+    if (!TEST_ptr(ctx)
+        || !TEST_true(EVP_PKEY_keygen_init(ctx))
+        || !TEST_true(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid))
+        || !TEST_true(EVP_PKEY_keygen(ctx, &pkey)))
+        goto done;
+    len = i2d_PublicKey(pkey, NULL);
+    savelen = len;
+    if (!TEST_int_ge(len, 1)
+        || !TEST_int_lt(len, 1024))
+        goto done;
+    p = buf;
+    len = i2d_PublicKey(pkey, &p);
+    if (!TEST_int_ge(len, 1)
+            || !TEST_int_eq(len, savelen))
+        goto done;
+
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+    /* Now try to decode the just-created DER. */
+    q = buf;
+    if (!TEST_ptr((pkey2 = EVP_PKEY_new()))
+            || !TEST_ptr((ec = EC_KEY_new_by_curve_name(nid)))
+            || !TEST_true(EVP_PKEY_assign_EC_KEY(pkey2, ec)))
+        goto done;
+    /* EC_KEY ownership transferred */
+    ec = NULL;
+    if (!TEST_ptr(d2i_PublicKey(EVP_PKEY_EC, &pkey2, &q, savelen)))
+        goto done;
+    /* The keys should match. */
+    if (!TEST_int_eq(EVP_PKEY_eq(pkey, pkey2), 1))
+        goto done;
+# endif
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+    EVP_PKEY_free(pkey2);
+    EC_KEY_free(ec);
+# endif
+    return ret;
+}
+#endif
+
+static int test_EVP_rsa_pss_with_keygen_bits(void)
+{
+    int ret = 0;
+    EVP_PKEY_CTX *ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_MD *md;
+
+    md = EVP_MD_fetch(testctx, "sha256", testpropq);
+    ret = TEST_ptr(md)
+        && TEST_ptr((ctx = EVP_PKEY_CTX_new_from_name(testctx, "RSA", testpropq)))
+        && TEST_true(EVP_PKEY_keygen_init(ctx))
+        && TEST_int_gt(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 512), 0)
+        && TEST_true(EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx, md))
+        && TEST_true(EVP_PKEY_keygen(ctx, &pkey));
+
+    EVP_MD_free(md);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
+    return ret;
+}
+
+static int success = 1;
+static void md_names(const char *name, void *vctx)
+{
+    OSSL_LIB_CTX *ctx = (OSSL_LIB_CTX *)vctx;
+    /* Force a namemap update */
+    EVP_CIPHER *aes128 = EVP_CIPHER_fetch(ctx, "AES-128-CBC", NULL);
+
+    if (!TEST_ptr(aes128))
+        success = 0;
+
+    EVP_CIPHER_free(aes128);
+}
+
+/*
+ * Test that changing the namemap in a user callback works in a names_do_all
+ * function.
+ */
+static int test_names_do_all(void)
+{
+    /* We use a custom libctx so that we know the state of the namemap */
+    OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
+    EVP_MD *sha256 = NULL;
+    int testresult = 0;
+
+    if (!TEST_ptr(ctx))
+        goto err;
+
+    sha256 = EVP_MD_fetch(ctx, "SHA2-256", NULL);
+    if (!TEST_ptr(sha256))
+        goto err;
+
+    /*
+     * We loop through all the names for a given digest. This should still work
+     * even if the namemap changes part way through.
+     */
+    if (!TEST_true(EVP_MD_names_do_all(sha256, md_names, ctx)))
+        goto err;
+
+    if (!TEST_true(success))
+        goto err;
+
+    testresult = 1;
+ err:
+    EVP_MD_free(sha256);
+    OSSL_LIB_CTX_free(ctx);
+    return testresult;
+}
 
 typedef struct {
     const char *cipher;
@@ -486,7 +3163,7 @@ static const EVP_INIT_TEST_st evp_init_tests[] = {
 static int evp_init_seq_set_iv(EVP_CIPHER_CTX *ctx, const EVP_INIT_TEST_st *t)
 {
     int res = 0;
-
+    
     if (t->ivlen != 0) {
         if (!TEST_true(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, t->ivlen, NULL)))
             goto err;
@@ -511,7 +3188,7 @@ static int test_evp_init_seq(int idx)
     unsigned char tag[16];
     const EVP_INIT_TEST_st *t = &evp_init_tests[idx];
     EVP_CIPHER_CTX *ctx = NULL;
-    const EVP_CIPHER *type = NULL;
+    EVP_CIPHER *type = NULL;
     size_t taglen = sizeof(tag);
     char *errmsg = NULL;
 
@@ -520,8 +3197,8 @@ static int test_evp_init_seq(int idx)
         errmsg = "CTX_ALLOC";
         goto err;
     }
-    if (!TEST_ptr(type = EVP_get_cipherbyname(t->cipher))) {
-        errmsg = "GET_CIPHERBYNAME";
+    if (!TEST_ptr(type = EVP_CIPHER_fetch(testctx, t->cipher, testpropq))) {
+        errmsg = "CIPHER_FETCH";
         goto err;
     }
     if (!TEST_true(EVP_CipherInit_ex(ctx, type, NULL, NULL, NULL, t->initenc))) {
@@ -583,6 +3260,7 @@ static int test_evp_init_seq(int idx)
     if (errmsg != NULL)
         TEST_info("evp_init_test %d: %s", idx, errmsg);
     EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(type);
     return testresult;
 }
 
@@ -616,15 +3294,15 @@ static int test_evp_reset(int idx)
     int testresult = 0;
     unsigned char outbuf[1024];
     EVP_CIPHER_CTX *ctx = NULL;
-    const EVP_CIPHER *type = NULL;
+    EVP_CIPHER *type = NULL;
     char *errmsg = NULL;
 
     if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())) {
         errmsg = "CTX_ALLOC";
         goto err;
     }
-    if (!TEST_ptr(type = EVP_get_cipherbyname("aes-128-cfb"))) {
-        errmsg = "GET_CIPHERBYNAME";
+    if (!TEST_ptr(type = EVP_CIPHER_fetch(testctx, "aes-128-cfb", testpropq))) {
+        errmsg = "CIPHER_FETCH";
         goto err;
     }
     if (!TEST_true(EVP_CipherInit_ex(ctx, type, NULL, kCFBDefaultKey, iCFBIV, t->enc))) {
@@ -668,6 +3346,114 @@ static int test_evp_reset(int idx)
     if (errmsg != NULL)
         TEST_info("test_evp_reset %d: %s", idx, errmsg);
     EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(type);
+    return testresult;    
+}
+
+typedef struct {
+    const char *cipher;
+    int enc;
+} EVP_UPDATED_IV_TEST_st;
+
+static const EVP_UPDATED_IV_TEST_st evp_updated_iv_tests[] = {
+    {
+        "aes-128-cfb", 1
+    },
+    {
+        "aes-128-cfb", 0
+    },
+    {
+        "aes-128-cfb1", 1
+    },
+    {
+        "aes-128-cfb1", 0
+    },
+    {
+        "aes-128-cfb8", 1
+    },
+    {
+        "aes-128-cfb8", 0
+    },
+    {
+        "aes-128-ofb", 1
+    },
+    {
+        "aes-128-ofb", 0
+    },
+    {
+        "aes-128-ctr", 1
+    },
+    {
+        "aes-128-ctr", 0
+    },
+    {
+        "aes-128-cbc", 1
+    },
+    {
+        "aes-128-cbc", 0
+    }
+};
+
+/*
+ * Test that the IV in the context is updated during a crypto operation for CFB
+ * and OFB.
+ */
+static int test_evp_updated_iv(int idx)
+{
+    const EVP_UPDATED_IV_TEST_st *t = &evp_updated_iv_tests[idx];
+    int outlen1, outlen2;
+    int testresult = 0;
+    unsigned char outbuf[1024];
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *type = NULL;
+    unsigned char updated_iv[EVP_MAX_IV_LENGTH];
+    int iv_len;
+    char *errmsg = NULL;
+
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())) {
+        errmsg = "CTX_ALLOC";
+        goto err;
+    }
+    if ((type = EVP_CIPHER_fetch(testctx, t->cipher, testpropq)) == NULL) {
+        TEST_info("cipher %s not supported, skipping", t->cipher);
+        goto ok;
+    }
+
+    if (!TEST_true(EVP_CipherInit_ex(ctx, type, NULL, kCFBDefaultKey, iCFBIV, t->enc))) {
+        errmsg = "CIPHER_INIT";
+        goto err;
+    }
+    if (!TEST_true(EVP_CIPHER_CTX_set_padding(ctx, 0))) {
+        errmsg = "PADDING";
+        goto err;
+    }
+    if (!TEST_true(EVP_CipherUpdate(ctx, outbuf, &outlen1, cfbPlaintext, sizeof(cfbPlaintext)))) {
+        errmsg = "CIPHER_UPDATE";
+        goto err;
+    }
+    if (!TEST_true(EVP_CIPHER_CTX_get_updated_iv(ctx, updated_iv, sizeof(updated_iv)))) {
+        errmsg = "CIPHER_CTX_GET_UPDATED_IV";
+        goto err;
+    }
+    if (!TEST_true(iv_len = EVP_CIPHER_CTX_get_iv_length(ctx))) {
+        errmsg = "CIPHER_CTX_GET_IV_LEN";
+        goto err;
+    }
+    if (!TEST_mem_ne(iCFBIV, sizeof(iCFBIV), updated_iv, iv_len)) {
+        errmsg = "IV_NOT_UPDATED";
+        goto err;
+    }
+    if (!TEST_true(EVP_CipherFinal_ex(ctx, outbuf + outlen1, &outlen2))) {
+        errmsg = "CIPHER_FINAL";
+        goto err;
+    }
+ ok:
+    testresult = 1;
+ err:
+    if (errmsg != NULL)
+        TEST_info("test_evp_updated_iv %d: %s", idx, errmsg);
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(type);
     return testresult;
 }
 
@@ -705,7 +3491,7 @@ static int test_gcm_reinit(int idx)
     unsigned char tag[16];
     const TEST_GCM_IV_REINIT_st *t = &gcm_reinit_tests[idx];
     EVP_CIPHER_CTX *ctx = NULL;
-    const EVP_CIPHER *type = NULL;
+    EVP_CIPHER *type = NULL;
     size_t taglen = sizeof(tag);
     char *errmsg = NULL;
 
@@ -713,8 +3499,8 @@ static int test_gcm_reinit(int idx)
         errmsg = "CTX_ALLOC";
         goto err;
     }
-    if (!TEST_ptr(type = EVP_get_cipherbyname("aes-256-gcm"))) {
-        errmsg = "GET_CIPHERBYNAME";
+    if (!TEST_ptr(type = EVP_CIPHER_fetch(testctx, "aes-256-gcm", testpropq))) {
+        errmsg = "CIPHER_FETCH";
         goto err;
     }
     if (!TEST_true(EVP_CipherInit_ex(ctx, type, NULL, NULL, NULL, 1))) {
@@ -794,1027 +3580,342 @@ static int test_gcm_reinit(int idx)
     if (errmsg != NULL)
         TEST_info("evp_init_test %d: %s", idx, errmsg);
     EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(type);
     return testresult;
 }
 
-typedef struct {
-    const char *cipher;
-    int enc;
-} EVP_UPDATED_IV_TEST_st;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+static EVP_PKEY_METHOD *custom_pmeth =  NULL;
+static const EVP_PKEY_METHOD *orig_pmeth = NULL;
 
-static const EVP_UPDATED_IV_TEST_st evp_updated_iv_tests[] = {
-    {
-        "aes-128-cfb", 1
-    },
-    {
-        "aes-128-cfb", 0
-    },
-    {
-        "aes-128-cfb1", 1
-    },
-    {
-        "aes-128-cfb1", 0
-    },
-    {
-        "aes-128-cfb128", 1
-    },
-    {
-        "aes-128-cfb128", 0
-    },
-    {
-        "aes-128-cfb8", 1
-    },
-    {
-        "aes-128-cfb8", 0
-    },
-    {
-        "aes-128-ofb", 1
-    },
-    {
-        "aes-128-ofb", 0
-    },
-    {
-        "aes-128-ctr", 1
-    },
-    {
-        "aes-128-ctr", 0
-    },
-    {
-        "aes-128-cbc", 1
-    },
-    {
-        "aes-128-cbc", 0
-    }
-};
+# define EVP_PKEY_CTRL_MY_COMMAND 9999
 
-/*
- * Test that the IV in the context is updated during a crypto operation for CFB
- * and OFB.
- */
-static int test_evp_updated_iv(int idx)
+static int custom_pmeth_init(EVP_PKEY_CTX *ctx)
 {
-    const EVP_UPDATED_IV_TEST_st *t = &evp_updated_iv_tests[idx];
-    int outlen1, outlen2;
-    int testresult = 0;
-    unsigned char outbuf[1024];
-    EVP_CIPHER_CTX *ctx = NULL;
-    const EVP_CIPHER *type = NULL;
-    const unsigned char *updated_iv;
-    int iv_len;
-    char *errmsg = NULL;
+    int (*pinit)(EVP_PKEY_CTX *ctx);
 
-    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())) {
-        errmsg = "CTX_ALLOC";
+    EVP_PKEY_meth_get_init(orig_pmeth, &pinit);
+    return pinit(ctx);
+}
+
+static void custom_pmeth_cleanup(EVP_PKEY_CTX *ctx)
+{
+    void (*pcleanup)(EVP_PKEY_CTX *ctx);
+
+    EVP_PKEY_meth_get_cleanup(orig_pmeth, &pcleanup);
+    pcleanup(ctx);
+}
+
+static int custom_pmeth_sign(EVP_PKEY_CTX *ctx, unsigned char *out,
+                             size_t *outlen, const unsigned char *in,
+                             size_t inlen)
+{
+    int (*psign)(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
+                 const unsigned char *tbs, size_t tbslen);
+
+    EVP_PKEY_meth_get_sign(orig_pmeth, NULL, &psign);
+    return psign(ctx, out, outlen, in, inlen);
+}
+
+static int custom_pmeth_digestsign(EVP_MD_CTX *ctx, unsigned char *sig,
+                                   size_t *siglen, const unsigned char *tbs,
+                                   size_t tbslen)
+{
+    int (*pdigestsign)(EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen,
+                       const unsigned char *tbs, size_t tbslen);
+
+    EVP_PKEY_meth_get_digestsign(orig_pmeth, &pdigestsign);
+    return pdigestsign(ctx, sig, siglen, tbs, tbslen);
+}
+
+static int custom_pmeth_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
+                               size_t *keylen)
+{
+    int (*pderive)(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen);
+
+    EVP_PKEY_meth_get_derive(orig_pmeth, NULL, &pderive);
+    return pderive(ctx, key, keylen);
+}
+
+static int custom_pmeth_copy(EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src)
+{
+    int (*pcopy)(EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src);
+
+    EVP_PKEY_meth_get_copy(orig_pmeth, &pcopy);
+    return pcopy(dst, src);
+}
+
+static int ctrl_called;
+
+static int custom_pmeth_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
+{
+    int (*pctrl)(EVP_PKEY_CTX *ctx, int type, int p1, void *p2);
+
+    EVP_PKEY_meth_get_ctrl(orig_pmeth, &pctrl, NULL);
+
+    if (type == EVP_PKEY_CTRL_MY_COMMAND) {
+        ctrl_called = 1;
+        return 1;
+    }
+
+    return pctrl(ctx, type, p1, p2);
+}
+
+static int test_custom_pmeth(int idx)
+{
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_MD_CTX *ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    int id, orig_id, orig_flags;
+    int testresult = 0;
+    size_t reslen;
+    unsigned char *res = NULL;
+    unsigned char msg[] = { 'H', 'e', 'l', 'l', 'o' };
+    const EVP_MD *md = EVP_sha256();
+    int doderive = 0;
+
+    ctrl_called = 0;
+
+    /* We call deprecated APIs so this test doesn't support a custom libctx */
+    if (testctx != NULL)
+        return 1;
+
+    switch(idx) {
+    case 0:
+    case 6:
+        id = EVP_PKEY_RSA;
+        pkey = load_example_rsa_key();
+        break;
+    case 1:
+    case 7:
+# ifndef OPENSSL_NO_DSA
+        id = EVP_PKEY_DSA;
+        pkey = load_example_dsa_key();
+        break;
+# else
+        return 1;
+# endif
+    case 2:
+    case 8:
+# ifndef OPENSSL_NO_EC
+        id = EVP_PKEY_EC;
+        pkey = load_example_ec_key();
+        break;
+# else
+        return 1;
+# endif
+    case 3:
+    case 9:
+# ifndef OPENSSL_NO_EC
+        id = EVP_PKEY_ED25519;
+        md = NULL;
+        pkey = load_example_ed25519_key();
+        break;
+# else
+        return 1;
+# endif
+    case 4:
+    case 10:
+# ifndef OPENSSL_NO_DH
+        id = EVP_PKEY_DH;
+        doderive = 1;
+        pkey = load_example_dh_key();
+        break;
+# else
+        return 1;
+# endif
+    case 5:
+    case 11:
+# ifndef OPENSSL_NO_EC
+        id = EVP_PKEY_X25519;
+        doderive = 1;
+        pkey = load_example_x25519_key();
+        break;
+# else
+        return 1;
+# endif
+    default:
+        TEST_error("Should not happen");
         goto err;
     }
-    if ((type = EVP_get_cipherbyname(t->cipher)) == NULL) {
-        TEST_info("cipher %s not supported, skipping", t->cipher);
-        goto ok;
-    }
-    if (!TEST_true(EVP_CipherInit_ex(ctx, type, NULL, kCFBDefaultKey, iCFBIV, t->enc))) {
-        errmsg = "CIPHER_INIT";
+
+    if (!TEST_ptr(pkey))
         goto err;
+
+    if (idx < 6) {
+        if (!TEST_true(evp_pkey_is_provided(pkey)))
+            goto err;
+    } else {
+        EVP_PKEY *tmp = pkey;
+
+        /* Convert to a legacy key */
+        pkey = EVP_PKEY_new();
+        if (!TEST_ptr(pkey)) {
+            pkey = tmp;
+            goto err;
+        }
+        if (!TEST_true(evp_pkey_copy_downgraded(&pkey, tmp))) {
+            EVP_PKEY_free(tmp);
+            goto err;
+        }
+        EVP_PKEY_free(tmp);
+        if (!TEST_true(evp_pkey_is_legacy(pkey)))
+            goto err;
     }
-    if (!TEST_true(EVP_CIPHER_CTX_set_padding(ctx, 0))) {
-        errmsg = "PADDING";
+
+    if (!TEST_ptr(orig_pmeth = EVP_PKEY_meth_find(id))
+            || !TEST_ptr(pkey))
         goto err;
-    }
-    if (!TEST_true(EVP_CipherUpdate(ctx, outbuf, &outlen1, cfbPlaintext, sizeof(cfbPlaintext)))) {
-        errmsg = "CIPHER_UPDATE";
+
+    EVP_PKEY_meth_get0_info(&orig_id, &orig_flags, orig_pmeth);
+    if (!TEST_int_eq(orig_id, id)
+            || !TEST_ptr(custom_pmeth = EVP_PKEY_meth_new(id, orig_flags)))
         goto err;
+
+    if (id == EVP_PKEY_ED25519) {
+        EVP_PKEY_meth_set_digestsign(custom_pmeth, custom_pmeth_digestsign);
+    } if (id == EVP_PKEY_DH || id == EVP_PKEY_X25519) {
+        EVP_PKEY_meth_set_derive(custom_pmeth, NULL, custom_pmeth_derive);
+    } else {
+        EVP_PKEY_meth_set_sign(custom_pmeth, NULL, custom_pmeth_sign);
     }
-    if (!TEST_ptr(updated_iv = EVP_CIPHER_CTX_iv(ctx))) {
-        errmsg = "CIPHER_CTX_IV";
+    if (id != EVP_PKEY_ED25519 && id != EVP_PKEY_X25519) {
+        EVP_PKEY_meth_set_init(custom_pmeth, custom_pmeth_init);
+        EVP_PKEY_meth_set_cleanup(custom_pmeth, custom_pmeth_cleanup);
+        EVP_PKEY_meth_set_copy(custom_pmeth, custom_pmeth_copy);
+    }
+    EVP_PKEY_meth_set_ctrl(custom_pmeth, custom_pmeth_ctrl, NULL);
+    if (!TEST_true(EVP_PKEY_meth_add0(custom_pmeth)))
         goto err;
+
+    if (doderive) {
+        pctx = EVP_PKEY_CTX_new(pkey, NULL);
+        if (!TEST_ptr(pctx)
+                || !TEST_int_eq(EVP_PKEY_derive_init(pctx), 1)
+                || !TEST_int_ge(EVP_PKEY_CTX_ctrl(pctx, -1, -1,
+                                                EVP_PKEY_CTRL_MY_COMMAND, 0, NULL),
+                                1)
+                || !TEST_int_eq(ctrl_called, 1)
+                || !TEST_int_ge(EVP_PKEY_derive_set_peer(pctx, pkey), 1)
+                || !TEST_int_ge(EVP_PKEY_derive(pctx, NULL, &reslen), 1)
+                || !TEST_ptr(res = OPENSSL_malloc(reslen))
+                || !TEST_int_ge(EVP_PKEY_derive(pctx, res, &reslen), 1))
+            goto err;
+    } else {
+        ctx = EVP_MD_CTX_new();
+        reslen = EVP_PKEY_size(pkey);
+        res = OPENSSL_malloc(reslen);
+        if (!TEST_ptr(ctx)
+                || !TEST_ptr(res)
+                || !TEST_true(EVP_DigestSignInit(ctx, &pctx, md, NULL, pkey))
+                || !TEST_int_ge(EVP_PKEY_CTX_ctrl(pctx, -1, -1,
+                                                EVP_PKEY_CTRL_MY_COMMAND, 0, NULL),
+                                1)
+                || !TEST_int_eq(ctrl_called, 1))
+            goto err;
+
+        if (id == EVP_PKEY_ED25519) {
+            if (!TEST_true(EVP_DigestSign(ctx, res, &reslen, msg, sizeof(msg))))
+                goto err;
+        } else {
+            if (!TEST_true(EVP_DigestUpdate(ctx, msg, sizeof(msg)))
+                    || !TEST_true(EVP_DigestSignFinal(ctx, res, &reslen)))
+                goto err;
+        }
     }
-    if (!TEST_true(iv_len = EVP_CIPHER_CTX_iv_length(ctx))) {
-        errmsg = "CIPHER_CTX_IV_LEN";
-        goto err;
-    }
-    if (!TEST_mem_ne(iCFBIV, sizeof(iCFBIV), updated_iv, iv_len)) {
-        errmsg = "IV_NOT_UPDATED";
-        goto err;
-    }
-    if (!TEST_true(EVP_CipherFinal_ex(ctx, outbuf + outlen1, &outlen2))) {
-        errmsg = "CIPHER_FINAL";
-        goto err;
-    }
- ok:
+
     testresult = 1;
  err:
-    if (errmsg != NULL)
-        TEST_info("test_evp_updated_iv %d: %s", idx, errmsg);
-    EVP_CIPHER_CTX_free(ctx);
+    OPENSSL_free(res);
+    EVP_MD_CTX_free(ctx);
+    if (doderive)
+        EVP_PKEY_CTX_free(pctx);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_meth_remove(custom_pmeth);
+    EVP_PKEY_meth_free(custom_pmeth);
+    custom_pmeth = NULL;
     return testresult;
 }
 
-static APK_DATA keydata[] = {
-    {kExampleRSAKeyDER, sizeof(kExampleRSAKeyDER), EVP_PKEY_RSA},
-    {kExampleRSAKeyPKCS8, sizeof(kExampleRSAKeyPKCS8), EVP_PKEY_RSA},
-#ifndef OPENSSL_NO_EC
-    {kExampleECKeyDER, sizeof(kExampleECKeyDER), EVP_PKEY_EC}
-#endif
-};
-
-static APK_DATA keycheckdata[] = {
-    {kExampleRSAKeyDER, sizeof(kExampleRSAKeyDER), EVP_PKEY_RSA, 1, -2, -2, 0},
-    {kExampleBadRSAKeyDER, sizeof(kExampleBadRSAKeyDER), EVP_PKEY_RSA,
-     0, -2, -2, 0},
-#ifndef OPENSSL_NO_EC
-    {kExampleECKeyDER, sizeof(kExampleECKeyDER), EVP_PKEY_EC, 1, 1, 1, 0},
-    /* group is also associated in our pub key */
-    {kExampleECPubKeyDER, sizeof(kExampleECPubKeyDER), EVP_PKEY_EC, 0, 1, 1, 1},
-    {pExampleECParamDER, sizeof(pExampleECParamDER), EVP_PKEY_EC, 0, 0, 1, 2}
-#endif
-};
-
-static EVP_PKEY *load_example_rsa_key(void)
+static int test_evp_md_cipher_meth(void)
 {
-    EVP_PKEY *ret = NULL;
-    const unsigned char *derp = kExampleRSAKeyDER;
-    EVP_PKEY *pkey = NULL;
-    RSA *rsa = NULL;
+    EVP_MD *md = EVP_MD_meth_dup(EVP_sha256());
+    EVP_CIPHER *ciph = EVP_CIPHER_meth_dup(EVP_aes_128_cbc());
+    int testresult = 0;
 
-    if (!TEST_true(d2i_RSAPrivateKey(&rsa, &derp, sizeof(kExampleRSAKeyDER))))
-        return NULL;
-
-    if (!TEST_ptr(pkey = EVP_PKEY_new())
-            || !TEST_true(EVP_PKEY_set1_RSA(pkey, rsa)))
-        goto end;
-
-    ret = pkey;
-    pkey = NULL;
-
-end:
-    EVP_PKEY_free(pkey);
-    RSA_free(rsa);
-
-    return ret;
-}
-
-static int test_EVP_Enveloped(void)
-{
-    int ret = 0;
-    EVP_CIPHER_CTX *ctx = NULL;
-    EVP_PKEY *keypair = NULL;
-    unsigned char *kek = NULL;
-    unsigned char iv[EVP_MAX_IV_LENGTH];
-    static const unsigned char msg[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
-    int len, kek_len, ciphertext_len, plaintext_len;
-    unsigned char ciphertext[32], plaintext[16];
-    const EVP_CIPHER *type = EVP_aes_256_cbc();
-
-    if (!TEST_ptr(keypair = load_example_rsa_key())
-            || !TEST_ptr(kek = OPENSSL_zalloc(EVP_PKEY_size(keypair)))
-            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-            || !TEST_true(EVP_SealInit(ctx, type, &kek, &kek_len, iv,
-                                       &keypair, 1))
-            || !TEST_true(EVP_SealUpdate(ctx, ciphertext, &ciphertext_len,
-                                         msg, sizeof(msg)))
-            || !TEST_true(EVP_SealFinal(ctx, ciphertext + ciphertext_len,
-                                        &len)))
+    if (!TEST_ptr(md) || !TEST_ptr(ciph))
         goto err;
 
-    ciphertext_len += len;
+    testresult = 1;
 
-    if (!TEST_true(EVP_OpenInit(ctx, type, kek, kek_len, iv, keypair))
-            || !TEST_true(EVP_OpenUpdate(ctx, plaintext, &plaintext_len,
-                                         ciphertext, ciphertext_len))
-            || !TEST_true(EVP_OpenFinal(ctx, plaintext + plaintext_len, &len)))
-        goto err;
-
-    plaintext_len += len;
-    if (!TEST_mem_eq(msg, sizeof(msg), plaintext, plaintext_len))
-        goto err;
-
-    ret = 1;
-err:
-    OPENSSL_free(kek);
-    EVP_PKEY_free(keypair);
-    EVP_CIPHER_CTX_free(ctx);
-    return ret;
-}
-
-
-static int test_EVP_DigestSignInit(void)
-{
-    int ret = 0;
-    EVP_PKEY *pkey = NULL;
-    unsigned char *sig = NULL;
-    size_t sig_len = 0;
-    EVP_MD_CTX *md_ctx, *md_ctx_verify = NULL;
-
-    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new())
-            || !TEST_ptr(md_ctx_verify = EVP_MD_CTX_new())
-            || !TEST_ptr(pkey = load_example_rsa_key()))
-        goto out;
-
-    if (!TEST_true(EVP_DigestSignInit(md_ctx, NULL, EVP_sha256(), NULL, pkey))
-            || !TEST_true(EVP_DigestSignUpdate(md_ctx, kMsg, sizeof(kMsg))))
-        goto out;
-
-    /* Determine the size of the signature. */
-    if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len))
-            || !TEST_size_t_eq(sig_len, (size_t)EVP_PKEY_size(pkey)))
-        goto out;
-
-    if (!TEST_ptr(sig = OPENSSL_malloc(sig_len))
-            || !TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
-        goto out;
-
-    /* Ensure that the signature round-trips. */
-    if (!TEST_true(EVP_DigestVerifyInit(md_ctx_verify, NULL, EVP_sha256(),
-                                        NULL, pkey))
-            || !TEST_true(EVP_DigestVerifyUpdate(md_ctx_verify,
-                                                 kMsg, sizeof(kMsg)))
-            || !TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
-        goto out;
-
-    ret = 1;
-
- out:
-    EVP_MD_CTX_free(md_ctx);
-    EVP_MD_CTX_free(md_ctx_verify);
-    EVP_PKEY_free(pkey);
-    OPENSSL_free(sig);
-
-    return ret;
-}
-
-static int test_EVP_DigestVerifyInit(void)
-{
-    int ret = 0;
-    EVP_PKEY *pkey = NULL;
-    EVP_MD_CTX *md_ctx = NULL;
-
-    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new())
-            || !TEST_ptr(pkey = load_example_rsa_key()))
-        goto out;
-
-    if (!TEST_true(EVP_DigestVerifyInit(md_ctx, NULL, EVP_sha256(), NULL, pkey))
-            || !TEST_true(EVP_DigestVerifyUpdate(md_ctx, kMsg, sizeof(kMsg)))
-            || !TEST_true(EVP_DigestVerifyFinal(md_ctx, kSignature,
-                                                 sizeof(kSignature))))
-        goto out;
-    ret = 1;
-
- out:
-    EVP_MD_CTX_free(md_ctx);
-    EVP_PKEY_free(pkey);
-    return ret;
-}
-
-static int test_d2i_AutoPrivateKey(int i)
-{
-    int ret = 0;
-    const unsigned char *p;
-    EVP_PKEY *pkey = NULL;
-    const APK_DATA *ak = &keydata[i];
-    const unsigned char *input = ak->kder;
-    size_t input_len = ak->size;
-    int expected_id = ak->evptype;
-
-    p = input;
-    if (!TEST_ptr(pkey = d2i_AutoPrivateKey(NULL, &p, input_len))
-            || !TEST_ptr_eq(p, input + input_len)
-            || !TEST_int_eq(EVP_PKEY_id(pkey), expected_id))
-        goto done;
-
-    ret = 1;
-
- done:
-    EVP_PKEY_free(pkey);
-    return ret;
-}
-
-#ifndef OPENSSL_NO_EC
-
-static const unsigned char ec_public_sect163k1_validxy[] = {
-    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
-    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
-    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x02, 0xd1, 0x7b,
-    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
-    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
-};
-
-static const unsigned char ec_public_sect163k1_badx[] = {
-    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
-    0x0a, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
-    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0xb0, 0x02, 0xd1, 0x7b,
-    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
-    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
-};
-
-static const unsigned char ec_public_sect163k1_bady[] = {
-    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
-    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
-    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x0a, 0xd1, 0x7b,
-    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
-    0x6a, 0xd8, 0x17, 0x65, 0x41, 0xe6
-};
-
-static struct ec_der_pub_keys_st {
-    const unsigned char *der;
-    size_t len;
-    int valid;
-} ec_der_pub_keys[] = {
-    { ec_public_sect163k1_validxy, sizeof(ec_public_sect163k1_validxy), 1 },
-    { ec_public_sect163k1_badx, sizeof(ec_public_sect163k1_badx), 0 },
-    { ec_public_sect163k1_bady, sizeof(ec_public_sect163k1_bady), 0 },
-};
-
-/*
- * Tests the range of the decoded EC char2 public point.
- * See ec_GF2m_simple_oct2point().
- */
-static int test_invalide_ec_char2_pub_range_decode(int id)
-{
-    int ret = 0;
-    BIO *bio = NULL;
-    EC_KEY *eckey = NULL;
-
-    if (!TEST_ptr(bio = BIO_new_mem_buf(ec_der_pub_keys[id].der,
-                                        ec_der_pub_keys[id].len)))
-        goto err;
-    eckey = d2i_EC_PUBKEY_bio(bio, NULL);
-    ret = (ec_der_pub_keys[id].valid && TEST_ptr(eckey))
-          || TEST_ptr_null(eckey);
-err:
-    EC_KEY_free(eckey);
-    BIO_free(bio);
-    return ret;
-}
-
-/* Tests loading a bad key in PKCS8 format */
-static int test_EVP_PKCS82PKEY(void)
-{
-    int ret = 0;
-    const unsigned char *derp = kExampleBadECKeyDER;
-    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
-    EVP_PKEY *pkey = NULL;
-
-    if (!TEST_ptr(p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &derp,
-                                              sizeof(kExampleBadECKeyDER))))
-        goto done;
-
-    if (!TEST_ptr_eq(derp,
-                     kExampleBadECKeyDER + sizeof(kExampleBadECKeyDER)))
-        goto done;
-
-    if (!TEST_ptr_null(pkey = EVP_PKCS82PKEY(p8inf)))
-        goto done;
-
-    ret = 1;
-
- done:
-    PKCS8_PRIV_KEY_INFO_free(p8inf);
-    EVP_PKEY_free(pkey);
-
-    return ret;
-}
-#endif
-
-#ifndef OPENSSL_NO_SM2
-
-static int test_EVP_SM2_verify(void)
-{
-    /* From https://tools.ietf.org/html/draft-shen-sm2-ecdsa-02#appendix-A */
-    const char *pubkey =
-       "-----BEGIN PUBLIC KEY-----\n"
-       "MIIBMzCB7AYHKoZIzj0CATCB4AIBATAsBgcqhkjOPQEBAiEAhULWnkwETxjouSQ1\n"
-       "v2/33kVyg5FcRVF9ci7biwjx38MwRAQgeHlotPoyw/0kF4Quc7v+/y88hItoMdfg\n"
-       "7GUiizk35JgEIGPkxtOyOwyEnPhCQUhL/kj2HVmlsWugbm4S0donxSSaBEEEQh3r\n"
-       "1hti6rZ0ZDTrw8wxXjIiCzut1QvcTE5sFH/t1D0GgFEry7QsB9RzSdIVO3DE5df9\n"
-       "/L+jbqGoWEG55G4JogIhAIVC1p5MBE8Y6LkkNb9v990pdyBjBIVijVrnTufDLnm3\n"
-       "AgEBA0IABArkx3mKoPEZRxvuEYJb5GICu3nipYRElel8BP9N8lSKfAJA+I8c1OFj\n"
-       "Uqc8F7fxbwc1PlOhdtaEqf4Ma7eY6Fc=\n"
-       "-----END PUBLIC KEY-----\n";
-
-    const char *msg = "message digest";
-    const char *id = "ALICE123@YAHOO.COM";
-
-    const uint8_t signature[] = {
-       0x30, 0x44, 0x02, 0x20,
-
-       0x40, 0xF1, 0xEC, 0x59, 0xF7, 0x93, 0xD9, 0xF4, 0x9E, 0x09, 0xDC,
-       0xEF, 0x49, 0x13, 0x0D, 0x41, 0x94, 0xF7, 0x9F, 0xB1, 0xEE, 0xD2,
-       0xCA, 0xA5, 0x5B, 0xAC, 0xDB, 0x49, 0xC4, 0xE7, 0x55, 0xD1,
-
-       0x02, 0x20,
-
-       0x6F, 0xC6, 0xDA, 0xC3, 0x2C, 0x5D, 0x5C, 0xF1, 0x0C, 0x77, 0xDF,
-       0xB2, 0x0F, 0x7C, 0x2E, 0xB6, 0x67, 0xA4, 0x57, 0x87, 0x2F, 0xB0,
-       0x9E, 0xC5, 0x63, 0x27, 0xA6, 0x7E, 0xC7, 0xDE, 0xEB, 0xE7
-    };
-
-    int rc = 0;
-    BIO *bio = NULL;
-    EVP_PKEY *pkey = NULL;
-    EVP_MD_CTX *mctx = NULL;
-    EVP_PKEY_CTX *pctx = NULL;
-
-    bio = BIO_new_mem_buf(pubkey, strlen(pubkey));
-    if (!TEST_true(bio != NULL))
-        goto done;
-
-    pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-    if (!TEST_true(pkey != NULL))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2)))
-        goto done;
-
-    if (!TEST_ptr(mctx = EVP_MD_CTX_new()))
-        goto done;
-
-    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new(pkey, NULL)))
-        goto done;
-
-    if (!TEST_int_gt(EVP_PKEY_CTX_set1_id(pctx, (const uint8_t *)id,
-                                          strlen(id)), 0))
-        goto done;
-
-    EVP_MD_CTX_set_pkey_ctx(mctx, pctx);
-
-    if (!TEST_true(EVP_DigestVerifyInit(mctx, NULL, EVP_sm3(), NULL, pkey)))
-        goto done;
-
-    if (!TEST_true(EVP_DigestVerifyUpdate(mctx, msg, strlen(msg))))
-        goto done;
-
-    if (!TEST_true(EVP_DigestVerifyFinal(mctx, signature, sizeof(signature))))
-        goto done;
-    rc = 1;
-
- done:
-    BIO_free(bio);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(pctx);
-    EVP_MD_CTX_free(mctx);
-    return rc;
-}
-
-static int test_EVP_SM2(void)
-{
-    int ret = 0;
-    EVP_PKEY *pkey = NULL;
-    EVP_PKEY *params = NULL;
-    EVP_PKEY_CTX *pctx = NULL;
-    EVP_PKEY_CTX *kctx = NULL;
-    EVP_PKEY_CTX *sctx = NULL;
-    size_t sig_len = 0;
-    unsigned char *sig = NULL;
-    EVP_MD_CTX *md_ctx = NULL;
-    EVP_MD_CTX *md_ctx_verify = NULL;
-    EVP_PKEY_CTX *cctx = NULL;
-
-    uint8_t ciphertext[128];
-    size_t ctext_len = sizeof(ciphertext);
-
-    uint8_t plaintext[8];
-    size_t ptext_len = sizeof(plaintext);
-
-    uint8_t sm2_id[] = {1, 2, 3, 4, 'l', 'e', 't', 't', 'e', 'r'};
-
-    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
-    if (!TEST_ptr(pctx))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_paramgen_init(pctx) == 1))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_sm2)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_paramgen(pctx, &params)))
-        goto done;
-
-    kctx = EVP_PKEY_CTX_new(params, NULL);
-    if (!TEST_ptr(kctx))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_keygen_init(kctx)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_keygen(kctx, &pkey)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2)))
-        goto done;
-
-    if (!TEST_ptr(md_ctx = EVP_MD_CTX_new()))
-        goto done;
-
-    if (!TEST_ptr(md_ctx_verify = EVP_MD_CTX_new()))
-        goto done;
-
-    if (!TEST_ptr(sctx = EVP_PKEY_CTX_new(pkey, NULL)))
-        goto done;
-
-    EVP_MD_CTX_set_pkey_ctx(md_ctx, sctx);
-    EVP_MD_CTX_set_pkey_ctx(md_ctx_verify, sctx);
-
-    if (!TEST_int_gt(EVP_PKEY_CTX_set1_id(sctx, sm2_id, sizeof(sm2_id)), 0))
-        goto done;
-
-    if (!TEST_true(EVP_DigestSignInit(md_ctx, NULL, EVP_sm3(), NULL, pkey)))
-        goto done;
-
-    if(!TEST_true(EVP_DigestSignUpdate(md_ctx, kMsg, sizeof(kMsg))))
-        goto done;
-
-    /* Determine the size of the signature. */
-    if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len)))
-        goto done;
-
-    if (!TEST_size_t_eq(sig_len, (size_t)EVP_PKEY_size(pkey)))
-        goto done;
-
-    if (!TEST_ptr(sig = OPENSSL_malloc(sig_len)))
-        goto done;
-
-    if (!TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
-        goto done;
-
-    /* Ensure that the signature round-trips. */
-
-    if (!TEST_true(EVP_DigestVerifyInit(md_ctx_verify, NULL, EVP_sm3(), NULL, pkey)))
-        goto done;
-
-    if (!TEST_true(EVP_DigestVerifyUpdate(md_ctx_verify, kMsg, sizeof(kMsg))))
-        goto done;
-
-    if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
-        goto done;
-
-    /* now check encryption/decryption */
-
-    if (!TEST_ptr(cctx = EVP_PKEY_CTX_new(pkey, NULL)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_encrypt_init(cctx)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_encrypt(cctx, ciphertext, &ctext_len, kMsg, sizeof(kMsg))))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_decrypt_init(cctx)))
-        goto done;
-
-    if (!TEST_true(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext, ctext_len)))
-        goto done;
-
-    if (!TEST_true(ptext_len == sizeof(kMsg)))
-        goto done;
-
-    if (!TEST_true(memcmp(plaintext, kMsg, sizeof(kMsg)) == 0))
-        goto done;
-
-    ret = 1;
-done:
-    EVP_PKEY_CTX_free(pctx);
-    EVP_PKEY_CTX_free(kctx);
-    EVP_PKEY_CTX_free(sctx);
-    EVP_PKEY_CTX_free(cctx);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_free(params);
-    EVP_MD_CTX_free(md_ctx);
-    EVP_MD_CTX_free(md_ctx_verify);
-    OPENSSL_free(sig);
-    return ret;
-}
-
-#endif
-
-static struct keys_st {
-    int type;
-    char *priv;
-    char *pub;
-} keys[] = {
-    {
-        EVP_PKEY_HMAC, "0123456789", NULL
-#ifndef OPENSSL_NO_POLY1305
-    }, {
-        EVP_PKEY_POLY1305, "01234567890123456789012345678901", NULL
-#endif
-#ifndef OPENSSL_NO_SIPHASH
-    }, {
-        EVP_PKEY_SIPHASH, "0123456789012345", NULL
-#endif
-    },
-#ifndef OPENSSL_NO_EC
-    {
-        EVP_PKEY_X25519, "01234567890123456789012345678901",
-        "abcdefghijklmnopqrstuvwxyzabcdef"
-    }, {
-        EVP_PKEY_ED25519, "01234567890123456789012345678901",
-        "abcdefghijklmnopqrstuvwxyzabcdef"
-    }, {
-        EVP_PKEY_X448,
-        "01234567890123456789012345678901234567890123456789012345",
-        "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd"
-    }, {
-        EVP_PKEY_ED448,
-        "012345678901234567890123456789012345678901234567890123456",
-        "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcde"
-    }
-#endif
-};
-
-static int test_set_get_raw_keys_int(int tst, int pub)
-{
-    int ret = 0;
-    unsigned char buf[80];
-    unsigned char *in;
-    size_t inlen, len = 0;
-    EVP_PKEY *pkey;
-
-    /* Check if this algorithm supports public keys */
-    if (pub && keys[tst].pub == NULL)
-        return 1;
-
-    memset(buf, 0, sizeof(buf));
-
-    if (pub) {
-#ifndef OPENSSL_NO_EC
-        inlen = strlen(keys[tst].pub);
-        in = (unsigned char *)keys[tst].pub;
-        pkey = EVP_PKEY_new_raw_public_key(keys[tst].type,
-                                           NULL,
-                                           in,
-                                           inlen);
-#else
-        return 1;
-#endif
-    } else {
-        inlen = strlen(keys[tst].priv);
-        in = (unsigned char *)keys[tst].priv;
-        pkey = EVP_PKEY_new_raw_private_key(keys[tst].type,
-                                            NULL,
-                                            in,
-                                            inlen);
-    }
-
-    if (!TEST_ptr(pkey)
-            || !TEST_int_eq(EVP_PKEY_cmp(pkey, pkey), 1)
-            || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, NULL, &len)))
-            || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, NULL, &len)))
-            || !TEST_true(len == inlen)
-            || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, buf, &len)))
-            || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, buf, &len)))
-            || !TEST_mem_eq(in, inlen, buf, len))
-        goto done;
-
-    ret = 1;
- done:
-    EVP_PKEY_free(pkey);
-    return ret;
-}
-
-static int test_set_get_raw_keys(int tst)
-{
-    return test_set_get_raw_keys_int(tst, 0)
-           && test_set_get_raw_keys_int(tst, 1);
-}
-
-static int pkey_custom_check(EVP_PKEY *pkey)
-{
-    return 0xbeef;
-}
-
-static int pkey_custom_pub_check(EVP_PKEY *pkey)
-{
-    return 0xbeef;
-}
-
-static int pkey_custom_param_check(EVP_PKEY *pkey)
-{
-    return 0xbeef;
-}
-
-static EVP_PKEY_METHOD *custom_pmeth;
-
-static int test_EVP_PKEY_check(int i)
-{
-    int ret = 0;
-    const unsigned char *p;
-    EVP_PKEY *pkey = NULL;
-#ifndef OPENSSL_NO_EC
-    EC_KEY *eckey = NULL;
-#endif
-    EVP_PKEY_CTX *ctx = NULL;
-    EVP_PKEY_CTX *ctx2 = NULL;
-    const APK_DATA *ak = &keycheckdata[i];
-    const unsigned char *input = ak->kder;
-    size_t input_len = ak->size;
-    int expected_id = ak->evptype;
-    int expected_check = ak->check;
-    int expected_pub_check = ak->pub_check;
-    int expected_param_check = ak->param_check;
-    int type = ak->type;
-    BIO *pubkey = NULL;
-
-    p = input;
-
-    switch (type) {
-    case 0:
-        if (!TEST_ptr(pkey = d2i_AutoPrivateKey(NULL, &p, input_len))
-            || !TEST_ptr_eq(p, input + input_len)
-            || !TEST_int_eq(EVP_PKEY_id(pkey), expected_id))
-            goto done;
-        break;
-#ifndef OPENSSL_NO_EC
-    case 1:
-        if (!TEST_ptr(pubkey = BIO_new_mem_buf(input, input_len))
-            || !TEST_ptr(eckey = d2i_EC_PUBKEY_bio(pubkey, NULL))
-            || !TEST_ptr(pkey = EVP_PKEY_new())
-            || !TEST_true(EVP_PKEY_assign_EC_KEY(pkey, eckey)))
-            goto done;
-        break;
-    case 2:
-        if (!TEST_ptr(eckey = d2i_ECParameters(NULL, &p, input_len))
-            || !TEST_ptr_eq(p, input + input_len)
-            || !TEST_ptr(pkey = EVP_PKEY_new())
-            || !TEST_true(EVP_PKEY_assign_EC_KEY(pkey, eckey)))
-            goto done;
-        break;
-#endif
-    default:
-        return 0;
-    }
-
-    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL)))
-        goto done;
-
-    if (!TEST_int_eq(EVP_PKEY_check(ctx), expected_check))
-        goto done;
-
-    if (!TEST_int_eq(EVP_PKEY_public_check(ctx), expected_pub_check))
-        goto done;
-
-    if (!TEST_int_eq(EVP_PKEY_param_check(ctx), expected_param_check))
-        goto done;
-
-    ctx2 = EVP_PKEY_CTX_new_id(0xdefaced, NULL);
-    /* assign the pkey directly, as an internal test */
-    EVP_PKEY_up_ref(pkey);
-    ctx2->pkey = pkey;
-
-    if (!TEST_int_eq(EVP_PKEY_check(ctx2), 0xbeef))
-        goto done;
-
-    if (!TEST_int_eq(EVP_PKEY_public_check(ctx2), 0xbeef))
-        goto done;
-
-    if (!TEST_int_eq(EVP_PKEY_param_check(ctx2), 0xbeef))
-        goto done;
-
-    ret = 1;
-
- done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_CTX_free(ctx2);
-    EVP_PKEY_free(pkey);
-    BIO_free(pubkey);
-    return ret;
-}
-
-static int test_HKDF(void)
-{
-    EVP_PKEY_CTX *pctx;
-    unsigned char out[20];
-    size_t outlen;
-    int i, ret = 0;
-    unsigned char salt[] = "0123456789";
-    unsigned char key[] = "012345678901234567890123456789";
-    unsigned char info[] = "infostring";
-    const unsigned char expected[] = {
-        0xe5, 0x07, 0x70, 0x7f, 0xc6, 0x78, 0xd6, 0x54, 0x32, 0x5f, 0x7e, 0xc5,
-        0x7b, 0x59, 0x3e, 0xd8, 0x03, 0x6b, 0xed, 0xca
-    };
-    size_t expectedlen = sizeof(expected);
-
-    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)))
-        goto done;
-
-    /* We do this twice to test reuse of the EVP_PKEY_CTX */
-    for (i = 0; i < 2; i++) {
-        outlen = sizeof(out);
-        memset(out, 0, outlen);
-
-        if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
-                || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
-                || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
-                                                            sizeof(salt) - 1), 0)
-                || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
-                                                           sizeof(key) - 1), 0)
-                || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
-                                                            sizeof(info) - 1), 0)
-                || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
-                || !TEST_mem_eq(out, outlen, expected, expectedlen))
-            goto done;
-    }
-
-    ret = 1;
-
- done:
-    EVP_PKEY_CTX_free(pctx);
-
-    return ret;
-}
-
-static int test_emptyikm_HKDF(void)
-{
-    EVP_PKEY_CTX *pctx;
-    unsigned char out[20];
-    size_t outlen;
-    int ret = 0;
-    unsigned char salt[] = "9876543210";
-    unsigned char key[] = "";
-    unsigned char info[] = "stringinfo";
-    const unsigned char expected[] = {
-        0x68, 0x81, 0xa5, 0x3e, 0x5b, 0x9c, 0x7b, 0x6f, 0x2e, 0xec, 0xc8, 0x47,
-        0x7c, 0xfa, 0x47, 0x35, 0x66, 0x82, 0x15, 0x30
-    };
-    size_t expectedlen = sizeof(expected);
-
-    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)))
-        goto done;
-
-    outlen = sizeof(out);
-    memset(out, 0, outlen);
-
-    if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
-            || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
-            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
-                                                        sizeof(salt) - 1), 0)
-            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
-                                                       sizeof(key) - 1), 0)
-            || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
-                                                        sizeof(info) - 1), 0)
-            || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
-            || !TEST_mem_eq(out, outlen, expected, expectedlen))
-        goto done;
-
-    ret = 1;
-
- done:
-    EVP_PKEY_CTX_free(pctx);
-
-    return ret;
-}
-
-#ifndef OPENSSL_NO_EC
-static int test_X509_PUBKEY_inplace(void)
-{
-  int ret = 0;
-  X509_PUBKEY *xp = NULL;
-  const unsigned char *p = kExampleECPubKeyDER;
-  size_t input_len = sizeof(kExampleECPubKeyDER);
-
-  if (!TEST_ptr(xp = d2i_X509_PUBKEY(NULL, &p, input_len)))
-    goto done;
-
-  if (!TEST_ptr(X509_PUBKEY_get0(xp)))
-    goto done;
-
-  p = kExampleBadECPubKeyDER;
-  input_len = sizeof(kExampleBadECPubKeyDER);
-
-  if (!TEST_ptr(xp = d2i_X509_PUBKEY(&xp, &p, input_len)))
-    goto done;
-
-  if (!TEST_true(X509_PUBKEY_get0(xp) == NULL))
-    goto done;
-
-  ret = 1;
-
-done:
-  X509_PUBKEY_free(xp);
-  return ret;
-}
-#endif
-
-#if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
-static int test_decrypt_null_chunks(void)
-{
-    EVP_CIPHER_CTX* ctx = NULL;
-    const unsigned char key[32] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
-        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1
-    };
-    unsigned char iv[12] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b
-    };
-    unsigned char msg[] = "It was the best of times, it was the worst of times";
-    unsigned char ciphertext[80];
-    unsigned char plaintext[80];
-    /* We initialise tmp to a non zero value on purpose */
-    int ctlen, ptlen, tmp = 99;
-    int ret = 0;
-    const int enc_offset = 10, dec_offset = 20;
-
-    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-            || !TEST_true(EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL,
-                                             key, iv))
-            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext, &ctlen, msg,
-                                            enc_offset))
-            /* Deliberate add a zero length update */
-            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp, NULL,
-                                            0))
-            || !TEST_int_eq(tmp, 0)
-            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp,
-                                            msg + enc_offset,
-                                            sizeof(msg) - enc_offset))
-            || !TEST_int_eq(ctlen += tmp, sizeof(msg))
-            || !TEST_true(EVP_EncryptFinal(ctx, ciphertext + ctlen, &tmp))
-            || !TEST_int_eq(tmp, 0))
-        goto err;
-
-    /* Deliberately initialise tmp to a non zero value */
-    tmp = 99;
-    if (!TEST_true(EVP_DecryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
-                                      iv))
-            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext, &ptlen, ciphertext,
-                                            dec_offset))
-            /*
-             * Deliberately add a zero length update. We also deliberately do
-             * this at a different offset than for encryption.
-             */
-            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp, NULL,
-                                            0))
-            || !TEST_int_eq(tmp, 0)
-            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp,
-                                            ciphertext + dec_offset,
-                                            ctlen - dec_offset))
-            || !TEST_int_eq(ptlen += tmp, sizeof(msg))
-            || !TEST_true(EVP_DecryptFinal(ctx, plaintext + ptlen, &tmp))
-            || !TEST_int_eq(tmp, 0)
-            || !TEST_mem_eq(msg, sizeof(msg), plaintext, ptlen))
-        goto err;
-
-    ret = 1;
  err:
-    EVP_CIPHER_CTX_free(ctx);
-    return ret;
-}
-#endif /* !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305) */
+    EVP_MD_meth_free(md);
+    EVP_CIPHER_meth_free(ciph);
 
-#ifndef OPENSSL_NO_DH
-static int test_EVP_PKEY_set1_DH(void)
+    return testresult;
+}
+#endif /* OPENSSL_NO_DEPRECATED_3_0 */
+
+typedef enum OPTION_choice {
+    OPT_ERR = -1,
+    OPT_EOF = 0,
+    OPT_CONTEXT,
+    OPT_TEST_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS *test_get_options(void)
 {
-    DH *x942dh, *pkcs3dh;
-    EVP_PKEY *pkey1, *pkey2;
-    int ret = 0;
-
-    x942dh = DH_get_2048_256();
-    pkcs3dh = DH_new_by_nid(NID_ffdhe2048);
-    pkey1 = EVP_PKEY_new();
-    pkey2 = EVP_PKEY_new();
-    if (!TEST_ptr(x942dh)
-            || !TEST_ptr(pkcs3dh)
-            || !TEST_ptr(pkey1)
-            || !TEST_ptr(pkey2))
-        goto err;
-
-    if(!TEST_true(EVP_PKEY_set1_DH(pkey1, x942dh))
-            || !TEST_int_eq(EVP_PKEY_id(pkey1), EVP_PKEY_DHX))
-        goto err;
-
-
-    if(!TEST_true(EVP_PKEY_set1_DH(pkey2, pkcs3dh))
-            || !TEST_int_eq(EVP_PKEY_id(pkey2), EVP_PKEY_DH))
-        goto err;
-
-    ret = 1;
- err:
-    EVP_PKEY_free(pkey1);
-    EVP_PKEY_free(pkey2);
-    DH_free(x942dh);
-    DH_free(pkcs3dh);
-
-    return ret;
+    static const OPTIONS options[] = {
+        OPT_TEST_OPTIONS_DEFAULT_USAGE,
+        { "context", OPT_CONTEXT, '-', "Explicitly use a non-default library context" },
+        { NULL }
+    };
+    return options;
 }
-#endif
 
 int setup_tests(void)
 {
-    ADD_TEST(test_EVP_DigestSignInit);
+    OPTION_CHOICE o;
+
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_CONTEXT:
+            /* Set up an alternate library context */
+            testctx = OSSL_LIB_CTX_new();
+            if (!TEST_ptr(testctx))
+                return 0;
+            /* Swap the libctx to test non-default context only */
+            nullprov = OSSL_PROVIDER_load(NULL, "null");
+            deflprov = OSSL_PROVIDER_load(testctx, "default");
+            lgcyprov = OSSL_PROVIDER_load(testctx, "legacy");
+            break;
+        case OPT_TEST_CASES:
+            break;
+        default:
+            return 0;
+        }
+    }
+
+    ADD_TEST(test_EVP_set_default_properties);
+    ADD_ALL_TESTS(test_EVP_DigestSignInit, 9);
     ADD_TEST(test_EVP_DigestVerifyInit);
-    ADD_TEST(test_EVP_Enveloped);
+    ADD_TEST(test_EVP_Digest);
+    ADD_ALL_TESTS(test_EVP_Enveloped, 2);
     ADD_ALL_TESTS(test_d2i_AutoPrivateKey, OSSL_NELEM(keydata));
+    ADD_TEST(test_privatekey_to_pkcs8);
+    ADD_TEST(test_EVP_PKCS82PKEY_wrong_tag);
 #ifndef OPENSSL_NO_EC
     ADD_TEST(test_EVP_PKCS82PKEY);
 #endif
-#ifndef OPENSSL_NO_SM2
+#ifndef OPENSSL_NO_EC
+    ADD_ALL_TESTS(test_EC_keygen_with_enc, OSSL_NELEM(ec_encodings));
+#endif
+#if !defined(OPENSSL_NO_SM2) && !defined(FIPS_MODULE)
     ADD_TEST(test_EVP_SM2);
     ADD_TEST(test_EVP_SM2_verify);
 #endif
     ADD_ALL_TESTS(test_set_get_raw_keys, OSSL_NELEM(keys));
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     custom_pmeth = EVP_PKEY_meth_new(0xdefaced, 0);
     if (!TEST_ptr(custom_pmeth))
         return 0;
@@ -1823,25 +3924,71 @@ int setup_tests(void)
     EVP_PKEY_meth_set_param_check(custom_pmeth, pkey_custom_param_check);
     if (!TEST_int_eq(EVP_PKEY_meth_add0(custom_pmeth), 1))
         return 0;
+#endif
     ADD_ALL_TESTS(test_EVP_PKEY_check, OSSL_NELEM(keycheckdata));
+#ifndef OPENSSL_NO_CMAC
+    ADD_TEST(test_CMAC_keygen);
+#endif
     ADD_TEST(test_HKDF);
     ADD_TEST(test_emptyikm_HKDF);
 #ifndef OPENSSL_NO_EC
     ADD_TEST(test_X509_PUBKEY_inplace);
+    ADD_TEST(test_X509_PUBKEY_dup);
     ADD_ALL_TESTS(test_invalide_ec_char2_pub_range_decode,
                   OSSL_NELEM(ec_der_pub_keys));
 #endif
+#ifndef OPENSSL_NO_DSA
+    ADD_TEST(test_DSA_get_set_params);
+    ADD_TEST(test_DSA_priv_pub);
+#endif
+    ADD_TEST(test_RSA_get_set_params);
 #if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
     ADD_TEST(test_decrypt_null_chunks);
 #endif
 #ifndef OPENSSL_NO_DH
+    ADD_TEST(test_DH_priv_pub);
+# ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_TEST(test_EVP_PKEY_set1_DH);
+# endif
 #endif
+#ifndef OPENSSL_NO_EC
+    ADD_TEST(test_EC_priv_pub);
+# ifndef OPENSSL_NO_DEPRECATED_3_0
+    ADD_TEST(test_EC_priv_only_legacy);
+# endif
+#endif
+    ADD_ALL_TESTS(test_keygen_with_empty_template, 2);
+    ADD_ALL_TESTS(test_pkey_ctx_fail_without_provider, 2);
+
+    ADD_TEST(test_rand_agglomeration);
+    ADD_ALL_TESTS(test_evp_iv_aes, 12);
+#ifndef OPENSSL_NO_DES
+    ADD_ALL_TESTS(test_evp_iv_des, 6);
+#endif
+    ADD_TEST(test_EVP_rsa_pss_with_keygen_bits);
+#ifndef OPENSSL_NO_EC
+    ADD_ALL_TESTS(test_ecpub, OSSL_NELEM(ecpub_nids));
+#endif
+
+    ADD_TEST(test_names_do_all);
 
     ADD_ALL_TESTS(test_evp_init_seq, OSSL_NELEM(evp_init_tests));
     ADD_ALL_TESTS(test_evp_reset, OSSL_NELEM(evp_reset_tests));
     ADD_ALL_TESTS(test_gcm_reinit, OSSL_NELEM(gcm_reinit_tests));
     ADD_ALL_TESTS(test_evp_updated_iv, OSSL_NELEM(evp_updated_iv_tests));
 
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    ADD_ALL_TESTS(test_custom_pmeth, 12);
+    ADD_TEST(test_evp_md_cipher_meth);
+#endif
+
     return 1;
+}
+
+void cleanup_tests(void)
+{
+    OSSL_PROVIDER_unload(nullprov);
+    OSSL_PROVIDER_unload(deflprov);
+    OSSL_PROVIDER_unload(lgcyprov);
+    OSSL_LIB_CTX_free(testctx);
 }

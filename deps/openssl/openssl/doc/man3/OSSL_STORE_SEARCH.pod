@@ -139,27 +139,27 @@ OSSL_STORE_SEARCH_by_name(),
 OSSL_STORE_SEARCH_by_issuer_serial(),
 OSSL_STORE_SEARCH_by_key_fingerprint(),
 and OSSL_STORE_SEARCH_by_alias()
-return a B<OSSL_STORE_SEARCH> pointer on success, or B<NULL> on failure.
+return a B<OSSL_STORE_SEARCH> pointer on success, or NULL on failure.
 
 OSSL_STORE_SEARCH_get_type() returns the criterion type of the given
 B<OSSL_STORE_SEARCH>.
 There is no error value.
 
 OSSL_STORE_SEARCH_get0_name() returns a B<X509_NAME> pointer on success,
-or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+or NULL when the given B<OSSL_STORE_SEARCH> was of a different type.
 
 OSSL_STORE_SEARCH_get0_serial() returns a B<ASN1_INTEGER> pointer on success,
-or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+or NULL when the given B<OSSL_STORE_SEARCH> was of a different type.
 
 OSSL_STORE_SEARCH_get0_bytes() returns a B<const unsigned char> pointer and
-sets B<*length> to the strings length on success, or B<NULL> when the given
+sets I<*length> to the strings length on success, or NULL when the given
 B<OSSL_STORE_SEARCH> was of a different type.
 
 OSSL_STORE_SEARCH_get0_string() returns a B<const char> pointer on success,
-or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+or NULL when the given B<OSSL_STORE_SEARCH> was of a different type.
 
 OSSL_STORE_SEARCH_get0_digest() returns a B<const EVP_MD> pointer.
-B<NULL> is a valid value and means that the store loader default will
+NULL is a valid value and means that the store loader default will
 be used when applicable.
 
 =head1 SEE ALSO
@@ -183,9 +183,9 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

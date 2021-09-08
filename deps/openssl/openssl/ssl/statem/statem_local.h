@@ -1,7 +1,7 @@
 /*
  * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -19,7 +19,6 @@
 /* The spec allows for a longer length than this, but we limit it */
 #define HELLO_VERIFY_REQUEST_MAX_LENGTH 258
 #define END_OF_EARLY_DATA_MAX_LENGTH    0
-#define SERVER_HELLO_MAX_LENGTH         20000
 #define HELLO_RETRY_REQUEST_MAX_LENGTH  20000
 #define ENCRYPTED_EXTENSIONS_MAX_LENGTH 20000
 #define SESSION_TICKET_MAX_LENGTH_TLS13 131338
@@ -28,6 +27,10 @@
 #define SERVER_HELLO_DONE_MAX_LENGTH    0
 #define KEY_UPDATE_MAX_LENGTH           1
 #define CCS_MAX_LENGTH                  1
+
+/* Max ServerHello size permitted by RFC 8446 */
+#define SERVER_HELLO_MAX_LENGTH         65607
+
 /* Max should actually be 36 but we are generous */
 #define FINISHED_MAX_LENGTH             64
 
@@ -94,9 +97,11 @@ WORK_STATE ossl_statem_server_post_process_message(SSL *s, WORK_STATE wst);
 /* Functions for getting new message data */
 __owur int tls_get_message_header(SSL *s, int *mt);
 __owur int tls_get_message_body(SSL *s, size_t *len);
-__owur int dtls_get_message(SSL *s, int *mt, size_t *len);
+__owur int dtls_get_message(SSL *s, int *mt);
+__owur int dtls_get_message_body(SSL *s, size_t *len);
 #ifndef OPENSSL_NO_QUIC
-__owur int quic_get_message(SSL *s, int *mt, size_t *len);
+__owur int quic_get_message(SSL *s, int *mt);
+__owur int quic_get_message_body(SSL *s, size_t *len);
 #endif
 
 /* Message construction and processing functions */
@@ -131,6 +136,7 @@ __owur int tls_construct_cert_status_body(SSL *s, WPACKET *pkt);
 __owur int tls_construct_cert_status(SSL *s, WPACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_key_exchange(SSL *s, PACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_server_certificate(SSL *s, PACKET *pkt);
+__owur WORK_STATE tls_post_process_server_certificate(SSL *s, WORK_STATE wst);
 __owur int ssl3_check_cert_and_algorithm(SSL *s);
 #ifndef OPENSSL_NO_NEXTPROTONEG
 __owur int tls_construct_next_proto(SSL *s, WPACKET *pkt);
@@ -158,6 +164,11 @@ __owur MSG_PROCESS_RETURN tls_process_next_proto(SSL *s, PACKET *pkt);
 __owur int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt);
 MSG_PROCESS_RETURN tls_process_end_of_early_data(SSL *s, PACKET *pkt);
 
+#ifndef OPENSSL_NO_GOST
+/* These functions are used in GOST18 CKE, both for client and server */
+int ossl_gost18_cke_cipher_nid(const SSL *s);
+int ossl_gost_ukm(const SSL *s, unsigned char *dgst_buf);
+#endif
 
 /* Extension processing */
 
@@ -201,12 +212,10 @@ int tls_parse_ctos_srp(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 #endif
 int tls_parse_ctos_early_data(SSL *s, PACKET *pkt, unsigned int context,
                               X509 *x, size_t chainidx);
-#ifndef OPENSSL_NO_EC
 int tls_parse_ctos_ec_pt_formats(SSL *s, PACKET *pkt, unsigned int context,
                                  X509 *x, size_t chainidx);
 int tls_parse_ctos_supported_groups(SSL *s, PACKET *pkt, unsigned int context,
                                     X509 *x, size_t chainidxl);
-#endif
 int tls_parse_ctos_session_ticket(SSL *s, PACKET *pkt, unsigned int context,
                                   X509 *x, size_t chainidx);
 int tls_parse_ctos_sig_algs_cert(SSL *s, PACKET *pkt, unsigned int context,
@@ -262,11 +271,9 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
 EXT_RETURN tls_construct_stoc_maxfragmentlen(SSL *s, WPACKET *pkt,
                                              unsigned int context, X509 *x,
                                              size_t chainidx);
-#ifndef OPENSSL_NO_EC
 EXT_RETURN tls_construct_stoc_ec_pt_formats(SSL *s, WPACKET *pkt,
                                             unsigned int context, X509 *x,
                                             size_t chainidx);
-#endif
 EXT_RETURN tls_construct_stoc_supported_groups(SSL *s, WPACKET *pkt,
                                                unsigned int context, X509 *x,
                                                size_t chainidx);
@@ -333,14 +340,13 @@ EXT_RETURN tls_construct_ctos_maxfragmentlen(SSL *s, WPACKET *pkt, unsigned int 
 EXT_RETURN tls_construct_ctos_srp(SSL *s, WPACKET *pkt, unsigned int context, X509 *x,
                            size_t chainidx);
 #endif
-#ifndef OPENSSL_NO_EC
 EXT_RETURN tls_construct_ctos_ec_pt_formats(SSL *s, WPACKET *pkt,
                                             unsigned int context, X509 *x,
                                             size_t chainidx);
 EXT_RETURN tls_construct_ctos_supported_groups(SSL *s, WPACKET *pkt,
                                                unsigned int context, X509 *x,
                                                size_t chainidx);
-#endif
+
 EXT_RETURN tls_construct_ctos_early_data(SSL *s, WPACKET *pkt,
                                          unsigned int context, X509 *x,
                                          size_t chainidx);
@@ -409,10 +415,8 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
                               X509 *x, size_t chainidx);
 int tls_parse_stoc_maxfragmentlen(SSL *s, PACKET *pkt, unsigned int context,
                                   X509 *x, size_t chainidx);
-#ifndef OPENSSL_NO_EC
 int tls_parse_stoc_ec_pt_formats(SSL *s, PACKET *pkt, unsigned int context,
                                  X509 *x, size_t chainidx);
-#endif
 int tls_parse_stoc_session_ticket(SSL *s, PACKET *pkt, unsigned int context,
                                   X509 *x, size_t chainidx);
 #ifndef OPENSSL_NO_OCSP
