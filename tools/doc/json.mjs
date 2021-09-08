@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import html from 'remark-html';
-import unified from 'unified';
+import { unified } from 'unified';
 import { selectAll } from 'unist-util-select';
 
 import * as common from './common.mjs';
@@ -376,7 +376,7 @@ function parseListItem(item, file) {
 
   current.textRaw = item.children.filter((node) => node.type !== 'list')
     .map((node) => (
-      file.contents.slice(node.position.start.offset, node.position.end.offset))
+      file.value.slice(node.position.start.offset, node.position.end.offset))
     )
     .join('').replace(/\s+/g, ' ').replace(/<!--.*?-->/sg, '');
   let text = current.textRaw;
@@ -491,8 +491,8 @@ function newSection(header, file) {
 function textJoin(nodes, file) {
   return nodes.map((node) => {
     if (node.type === 'linkReference') {
-      return file.contents.slice(node.position.start.offset,
-                                 node.position.end.offset);
+      return file.value.slice(node.position.start.offset,
+                              node.position.end.offset);
     } else if (node.type === 'inlineCode') {
       return `\`${node.value}\``;
     } else if (node.type === 'strong') {
