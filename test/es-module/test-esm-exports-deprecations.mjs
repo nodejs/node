@@ -16,7 +16,6 @@ const expectedWarnings = [
 
 process.addListener('warning', mustCall((warning) => {
   assert(warning.stack.includes(expectedWarnings[curWarning++]), warning.stack);
-  console.log(expectedWarnings[curWarning - 1] + ' passed');
 }, expectedWarnings.length));
 
 await import('./test-esm-exports.mjs');
