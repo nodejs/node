@@ -3,17 +3,16 @@ import * as fixtures from '../common/fixtures.mjs';
 
 import assert from 'assert';
 import { readFileSync } from 'fs';
-import { createRequire } from 'module';
 
 import * as html from '../../tools/doc/html.mjs';
 import { replaceLinks } from '../../tools/doc/markdown.mjs';
-
-const require = createRequire(new URL('../../tools/doc/', import.meta.url));
-const unified = require('unified');
-const markdown = require('remark-parse');
-const remark2rehype = require('remark-rehype');
-const raw = require('rehype-raw');
-const htmlStringify = require('rehype-stringify');
+import {
+  rehypeRaw,
+  rehypeStringify,
+  remarkParse,
+  remarkRehype,
+  unified,
+} from '../../tools/doc/deps.mjs';
 
 // Test links mapper is an object of the following structure:
 // {
@@ -31,14 +30,14 @@ const testLinksMapper = {
 function toHTML({ input, filename, nodeVersion, versions }) {
   const content = unified()
     .use(replaceLinks, { filename, linksMapper: testLinksMapper })
-    .use(markdown)
+    .use(remarkParse)
     .use(html.firstHeader)
     .use(html.preprocessText, { nodeVersion })
     .use(html.preprocessElements, { filename })
     .use(html.buildToc, { filename, apilinks: {} })
-    .use(remark2rehype, { allowDangerousHtml: true })
-    .use(raw)
-    .use(htmlStringify)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeStringify)
     .processSync(input);
 
   return html.toHTML({ input, content, filename, nodeVersion, versions });
