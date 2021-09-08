@@ -7,7 +7,7 @@ import htmlStringify from 'rehype-stringify';
 import gfm from 'remark-gfm';
 import markdown from 'remark-parse';
 import remark2rehype from 'remark-rehype';
-import unified from 'unified';
+import { unified } from 'unified';
 import { visit } from 'unist-util-visit';
 
 const source = new URL('../../out/doc/api/', import.meta.url);
@@ -63,7 +63,7 @@ function createHTML(md) {
     .use(processStability)
     .processSync(md);
 
-  return file.contents.trim();
+  return file.value.trim();
 }
 
 function processStability() {

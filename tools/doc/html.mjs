@@ -28,7 +28,7 @@ import htmlStringify from 'rehype-stringify';
 import gfm from 'remark-gfm';
 import markdown from 'remark-parse';
 import remark2rehype from 'remark-rehype';
-import unified from 'unified';
+import { unified } from 'unified';
 import { visit } from 'unist-util-visit';
 
 import * as common from './common.mjs';
@@ -396,7 +396,7 @@ export function buildToc({ filename, apilinks }) {
 
       depth = node.depth;
       const realFilename = path.basename(filename, '.md');
-      const headingText = file.contents.slice(
+      const headingText = file.value.slice(
         node.children[0].position.start.offset,
         node.position.end.offset).trim();
       const id = getId(headingText, idCounters);

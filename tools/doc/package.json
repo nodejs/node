@@ -7,19 +7,19 @@
     "node": ">=14.8.0"
   },
   "devDependencies": {
-    "highlight.js": "11.0.1",
-    "js-yaml": "4.1.0",
-    "rehype-raw": "5.1.0",
-    "rehype-stringify": "8.0.0",
-    "remark-frontmatter": "^3.0.0",
-    "remark-gfm": "^1.0.0",
-    "remark-html": "13.0.2",
-    "remark-parse": "^9.0.0",
-    "remark-rehype": "8.1.0",
-    "to-vfile": "7.1.0",
-    "unified": "9.2.1",
-    "unist-util-select": "4.0.0",
-    "unist-util-visit": "3.1.0"
+    "highlight.js": "^11.2.0",
+    "js-yaml": "^4.1.0",
+    "rehype-raw": "^6.1.0",
+    "rehype-stringify": "^9.0.2",
+    "remark-frontmatter": "^4.0.0",
+    "remark-gfm": "^2.0.0",
+    "remark-html": "^14.0.1",
+    "remark-parse": "^10.0.0",
+    "remark-rehype": "^9.0.0",
+    "to-vfile": "^7.2.2",
+    "unified": "^10.1.0",
+    "unist-util-select": "^4.0.0",
+    "unist-util-visit": "^4.0.0"
   },
   "bin": {
     "node-doc-generator": "generate.js"
