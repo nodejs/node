@@ -1,3 +1,4 @@
+// Flags: --pending-deprecation
 import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 

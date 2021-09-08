@@ -2815,6 +2815,12 @@ The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
 and `'mgf1HashAlgorithm'`.
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40039
+    description: Documentation-only.
+-->
 
 Type: Runtime
 

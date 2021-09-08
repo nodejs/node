@@ -1,3 +1,5 @@
+// Flags: --pending-deprecation
+
 import '../common/index.mjs';
 import assert from 'assert';
 import fixtures from '../common/fixtures.js';
