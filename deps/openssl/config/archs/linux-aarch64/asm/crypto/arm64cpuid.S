@@ -57,6 +57,13 @@ _armv8_sha512_probe:
 	ret
 .size	_armv8_sha512_probe,.-_armv8_sha512_probe
 
+.globl	_armv8_cpuid_probe
+.type	_armv8_cpuid_probe,%function
+_armv8_cpuid_probe:
+	mrs	x0, midr_el1
+	ret
+.size	_armv8_cpuid_probe,.-_armv8_cpuid_probe
+
 .globl	OPENSSL_cleanse
 .type	OPENSSL_cleanse,%function
 .align	5

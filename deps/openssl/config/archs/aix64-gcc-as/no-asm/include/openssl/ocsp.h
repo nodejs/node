@@ -276,8 +276,9 @@ typedef OSSL_HTTP_REQ_CTX OCSP_REQ_CTX;
         OSSL_HTTP_REQ_CTX_new(io, io, buf_size)
 #   define OCSP_REQ_CTX_free OSSL_HTTP_REQ_CTX_free
 #   define OCSP_REQ_CTX_http(rctx, op, path) \
-        OSSL_HTTP_REQ_CTX_set_request_line(rctx, strcmp(op, "POST") == 0, \
-                                           NULL, NULL, path)
+        (OSSL_HTTP_REQ_CTX_set_expected(rctx, NULL, 1 /* asn1 */, 0, 0) && \
+         OSSL_HTTP_REQ_CTX_set_request_line(rctx, strcmp(op, "POST") == 0, \
+                                            NULL, NULL, path))
 #   define OCSP_REQ_CTX_add1_header OSSL_HTTP_REQ_CTX_add1_header
 #   define OCSP_REQ_CTX_i2d(r, it, req) \
         OSSL_HTTP_REQ_CTX_set1_req(r, "application/ocsp-request", it, req)
@@ -285,7 +286,7 @@ typedef OSSL_HTTP_REQ_CTX OCSP_REQ_CTX;
         OCSP_REQ_CTX_i2d(r, ASN1_ITEM_rptr(OCSP_REQUEST), (ASN1_VALUE *)(req))
 #   define OCSP_REQ_CTX_nbio OSSL_HTTP_REQ_CTX_nbio
 #   define OCSP_REQ_CTX_nbio_d2i OSSL_HTTP_REQ_CTX_nbio_d2i
-#   define OCSP_sendreq_nbio(r, p) \
+#   define OCSP_sendreq_nbio(p, r) \
         OSSL_HTTP_REQ_CTX_nbio_d2i(r, (ASN1_VALUE **)(p), \
                                    ASN1_ITEM_rptr(OCSP_RESPONSE))
 #   define OCSP_REQ_CTX_get0_mem_bio OSSL_HTTP_REQ_CTX_get0_mem_bio

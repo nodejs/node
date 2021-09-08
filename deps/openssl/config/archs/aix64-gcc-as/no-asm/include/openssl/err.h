@@ -245,11 +245,6 @@ static ossl_unused ossl_inline int ERR_GET_LIB(unsigned long errcode)
     return (errcode >> ERR_LIB_OFFSET) & ERR_LIB_MASK;
 }
 
-static ossl_unused ossl_inline int ERR_GET_FUNC(unsigned long errcode ossl_unused)
-{
-    return 0;
-}
-
 static ossl_unused ossl_inline int ERR_GET_RFLAGS(unsigned long errcode)
 {
     if (ERR_SYSTEM_ERROR(errcode))
@@ -355,6 +350,9 @@ static ossl_unused ossl_inline int ERR_COMMON_ERROR(unsigned long errcode)
 # define ERR_R_MISSING_ASN1_EOS                  (267|ERR_RFLAG_COMMON)
 # define ERR_R_UNSUPPORTED                       (268|ERR_RFLAG_COMMON)
 # define ERR_R_FETCH_FAILED                      (269|ERR_RFLAG_COMMON)
+# define ERR_R_INVALID_PROPERTY_DEFINITION       (270|ERR_RFLAG_COMMON)
+# define ERR_R_UNABLE_TO_GET_READ_LOCK           (271|ERR_R_FATAL)
+# define ERR_R_UNABLE_TO_GET_WRITE_LOCK          (272|ERR_R_FATAL)
 
 typedef struct ERR_string_data_st {
     unsigned long error;

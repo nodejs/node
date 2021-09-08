@@ -3,6 +3,7 @@
 .align	4
 _whirlpool_block_mmx:
 L_whirlpool_block_mmx_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi

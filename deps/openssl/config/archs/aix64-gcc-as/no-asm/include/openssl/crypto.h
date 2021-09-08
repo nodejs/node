@@ -173,10 +173,6 @@ const char *OPENSSL_info(int type);
 # define OPENSSL_INFO_SEED_SOURCE               1007
 # define OPENSSL_INFO_CPU_SETTINGS              1008
 
-# ifndef OPENSSL_NO_QUIC
-#  define OPENSSL_INFO_QUIC                     2000
-# endif
-
 int OPENSSL_issetugid(void);
 
 struct crypto_ex_data_st {

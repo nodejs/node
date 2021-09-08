@@ -6,10 +6,10 @@ section	.text	code align=64
 %else
 section	.text	code
 %endif
-global	_md5_block_asm_data_order
+global	_ossl_md5_block_asm_data_order
 align	16
-_md5_block_asm_data_order:
-L$_md5_block_asm_data_order_begin:
+_ossl_md5_block_asm_data_order:
+L$_ossl_md5_block_asm_data_order_begin:
 	push	esi
 	push	edi
 	mov	edi,DWORD [12+esp]

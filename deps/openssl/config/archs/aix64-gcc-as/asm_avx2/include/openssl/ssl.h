@@ -41,6 +41,7 @@
 # include <openssl/symhacks.h>
 # include <openssl/ct.h>
 # include <openssl/sslerr.h>
+# include <openssl/prov_ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -58,7 +59,7 @@ extern "C" {
 
 # define SSL_MIN_RSA_MODULUS_LENGTH_IN_BYTES     (512/8)
 # define SSL_MAX_KEY_ARG_LENGTH                  8
-# define SSL_MAX_MASTER_KEY_LENGTH               48
+/* SSL_MAX_MASTER_KEY_LENGTH is defined in prov_ssl.h */
 
 /* The maximum number of encrypt/decrypt pipelines we can support */
 # define SSL_MAX_PIPELINES  32
@@ -692,6 +693,7 @@ typedef int (*GEN_SESSION_CB) (SSL *ssl, unsigned char *id,
 # define SSL_SESS_CACHE_NO_INTERNAL_STORE        0x0200
 # define SSL_SESS_CACHE_NO_INTERNAL \
         (SSL_SESS_CACHE_NO_INTERNAL_LOOKUP|SSL_SESS_CACHE_NO_INTERNAL_STORE)
+# define SSL_SESS_CACHE_UPDATE_TIME              0x0400
 
 LHASH_OF(SSL_SESSION) *SSL_CTX_sessions(SSL_CTX *ctx);
 # define SSL_CTX_sess_number(ctx) \
@@ -2584,6 +2586,15 @@ const char *OSSL_default_ciphersuites(void);
  * ssl_encryption_level_t represents a specific QUIC encryption level used to
  * transmit handshake messages. BoringSSL has this as an 'enum'.
  */
+#include <openssl/quic.h>
+
+/* Used by Chromium/QUIC - moved from evp.h to avoid breaking FIPS checksums */
+# define X25519_PRIVATE_KEY_LEN          32
+# define X25519_PUBLIC_VALUE_LEN         32
+
+/* moved from types.h to avoid breaking FIPS checksums */
+typedef struct ssl_quic_method_st SSL_QUIC_METHOD;
+
 typedef enum ssl_encryption_level_t {
     ssl_encryption_initial = 0,
     ssl_encryption_early_data,

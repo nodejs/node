@@ -145,11 +145,100 @@ SKM_DEFINE_STACK_OF_INTERNAL(X509_VERIFY_PARAM, X509_VERIFY_PARAM, X509_VERIFY_P
 #define sk_X509_VERIFY_PARAM_set_cmp_func(sk, cmp) ((sk_X509_VERIFY_PARAM_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_X509_VERIFY_PARAM_sk_type(sk), ossl_check_X509_VERIFY_PARAM_compfunc_type(cmp)))
 
 
+/* This is used for a table of trust checking functions */
+typedef struct x509_trust_st {
+    int trust;
+    int flags;
+    int (*check_trust) (struct x509_trust_st *, X509 *, int);
+    char *name;
+    int arg1;
+    void *arg2;
+} X509_TRUST;
+SKM_DEFINE_STACK_OF_INTERNAL(X509_TRUST, X509_TRUST, X509_TRUST)
+#define sk_X509_TRUST_num(sk) OPENSSL_sk_num(ossl_check_const_X509_TRUST_sk_type(sk))
+#define sk_X509_TRUST_value(sk, idx) ((X509_TRUST *)OPENSSL_sk_value(ossl_check_const_X509_TRUST_sk_type(sk), (idx)))
+#define sk_X509_TRUST_new(cmp) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new(ossl_check_X509_TRUST_compfunc_type(cmp)))
+#define sk_X509_TRUST_new_null() ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new_null())
+#define sk_X509_TRUST_new_reserve(cmp, n) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_new_reserve(ossl_check_X509_TRUST_compfunc_type(cmp), (n)))
+#define sk_X509_TRUST_reserve(sk, n) OPENSSL_sk_reserve(ossl_check_X509_TRUST_sk_type(sk), (n))
+#define sk_X509_TRUST_free(sk) OPENSSL_sk_free(ossl_check_X509_TRUST_sk_type(sk))
+#define sk_X509_TRUST_zero(sk) OPENSSL_sk_zero(ossl_check_X509_TRUST_sk_type(sk))
+#define sk_X509_TRUST_delete(sk, i) ((X509_TRUST *)OPENSSL_sk_delete(ossl_check_X509_TRUST_sk_type(sk), (i)))
+#define sk_X509_TRUST_delete_ptr(sk, ptr) ((X509_TRUST *)OPENSSL_sk_delete_ptr(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr)))
+#define sk_X509_TRUST_push(sk, ptr) OPENSSL_sk_push(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
+#define sk_X509_TRUST_unshift(sk, ptr) OPENSSL_sk_unshift(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
+#define sk_X509_TRUST_pop(sk) ((X509_TRUST *)OPENSSL_sk_pop(ossl_check_X509_TRUST_sk_type(sk)))
+#define sk_X509_TRUST_shift(sk) ((X509_TRUST *)OPENSSL_sk_shift(ossl_check_X509_TRUST_sk_type(sk)))
+#define sk_X509_TRUST_pop_free(sk, freefunc) OPENSSL_sk_pop_free(ossl_check_X509_TRUST_sk_type(sk),ossl_check_X509_TRUST_freefunc_type(freefunc))
+#define sk_X509_TRUST_insert(sk, ptr, idx) OPENSSL_sk_insert(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr), (idx))
+#define sk_X509_TRUST_set(sk, idx, ptr) ((X509_TRUST *)OPENSSL_sk_set(ossl_check_X509_TRUST_sk_type(sk), (idx), ossl_check_X509_TRUST_type(ptr)))
+#define sk_X509_TRUST_find(sk, ptr) OPENSSL_sk_find(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
+#define sk_X509_TRUST_find_ex(sk, ptr) OPENSSL_sk_find_ex(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr))
+#define sk_X509_TRUST_find_all(sk, ptr, pnum) OPENSSL_sk_find_all(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_type(ptr), pnum)
+#define sk_X509_TRUST_sort(sk) OPENSSL_sk_sort(ossl_check_X509_TRUST_sk_type(sk))
+#define sk_X509_TRUST_is_sorted(sk) OPENSSL_sk_is_sorted(ossl_check_const_X509_TRUST_sk_type(sk))
+#define sk_X509_TRUST_dup(sk) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_dup(ossl_check_const_X509_TRUST_sk_type(sk)))
+#define sk_X509_TRUST_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(X509_TRUST) *)OPENSSL_sk_deep_copy(ossl_check_const_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_copyfunc_type(copyfunc), ossl_check_X509_TRUST_freefunc_type(freefunc)))
+#define sk_X509_TRUST_set_cmp_func(sk, cmp) ((sk_X509_TRUST_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_X509_TRUST_sk_type(sk), ossl_check_X509_TRUST_compfunc_type(cmp)))
+
+
+/* standard trust ids */
+# define X509_TRUST_DEFAULT      0 /* Only valid in purpose settings */
+# define X509_TRUST_COMPAT       1
+# define X509_TRUST_SSL_CLIENT   2
+# define X509_TRUST_SSL_SERVER   3
+# define X509_TRUST_EMAIL        4
+# define X509_TRUST_OBJECT_SIGN  5
+# define X509_TRUST_OCSP_SIGN    6
+# define X509_TRUST_OCSP_REQUEST 7
+# define X509_TRUST_TSA          8
+/* Keep these up to date! */
+# define X509_TRUST_MIN          1
+# define X509_TRUST_MAX          8
+
+/* trust_flags values */
+# define X509_TRUST_DYNAMIC      (1U << 0)
+# define X509_TRUST_DYNAMIC_NAME (1U << 1)
+/* No compat trust if self-signed, preempts "DO_SS" */
+# define X509_TRUST_NO_SS_COMPAT (1U << 2)
+/* Compat trust if no explicit accepted trust EKUs */
+# define X509_TRUST_DO_SS_COMPAT (1U << 3)
+/* Accept "anyEKU" as a wildcard rejection OID and as a wildcard trust OID */
+# define X509_TRUST_OK_ANY_EKU   (1U << 4)
+
+/* check_trust return codes */
+# define X509_TRUST_TRUSTED      1
+# define X509_TRUST_REJECTED     2
+# define X509_TRUST_UNTRUSTED    3
+
+int X509_TRUST_set(int *t, int trust);
+int X509_TRUST_get_count(void);
+X509_TRUST *X509_TRUST_get0(int idx);
+int X509_TRUST_get_by_id(int id);
+int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
+                   const char *name, int arg1, void *arg2);
+void X509_TRUST_cleanup(void);
+int X509_TRUST_get_flags(const X509_TRUST *xp);
+char *X509_TRUST_get0_name(const X509_TRUST *xp);
+int X509_TRUST_get_trust(const X509_TRUST *xp);
+
+int X509_trusted(const X509 *x);
+int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj);
+int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj);
+void X509_trust_clear(X509 *x);
+void X509_reject_clear(X509 *x);
+STACK_OF(ASN1_OBJECT) *X509_get0_trust_objects(X509 *x);
+STACK_OF(ASN1_OBJECT) *X509_get0_reject_objects(X509 *x);
+
+int (*X509_TRUST_set_default(int (*trust) (int, X509 *, int))) (int, X509 *,
+                                                                int);
+int X509_check_trust(X509 *x, int id, int flags);
+
+int X509_verify_cert(X509_STORE_CTX *ctx);
+int X509_STORE_CTX_verify(X509_STORE_CTX *ctx);
 STACK_OF(X509) *X509_build_chain(X509 *target, STACK_OF(X509) *certs,
                                  X509_STORE *store, int with_self_signed,
                                  OSSL_LIB_CTX *libctx, const char *propq);
-int X509_verify_cert(X509_STORE_CTX *ctx);
-int X509_STORE_CTX_verify(X509_STORE_CTX *ctx);
 
 int X509_STORE_set_depth(X509_STORE *store, int depth);
 
@@ -474,8 +563,8 @@ X509_STORE_CTX *X509_STORE_CTX_new(void);
 int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
 
 void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
-int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store,
-                        X509 *target, STACK_OF(X509) *chain);
+int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store,
+                        X509 *target, STACK_OF(X509) *untrusted);
 void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
 void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx);
 
@@ -674,9 +763,9 @@ X509_CRL *X509_STORE_CTX_get0_current_crl(const X509_STORE_CTX *ctx);
 X509_STORE_CTX *X509_STORE_CTX_get0_parent_ctx(const X509_STORE_CTX *ctx);
 STACK_OF(X509) *X509_STORE_CTX_get0_chain(const X509_STORE_CTX *ctx);
 STACK_OF(X509) *X509_STORE_CTX_get1_chain(const X509_STORE_CTX *ctx);
-void X509_STORE_CTX_set_cert(X509_STORE_CTX *c, X509 *x);
+void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *target);
 void X509_STORE_CTX_set0_verified_chain(X509_STORE_CTX *c, STACK_OF(X509) *sk);
-void X509_STORE_CTX_set0_crls(X509_STORE_CTX *c, STACK_OF(X509_CRL) *sk);
+void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk);
 int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
 int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
 int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,

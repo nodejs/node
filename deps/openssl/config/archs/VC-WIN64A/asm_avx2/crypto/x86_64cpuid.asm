@@ -18,6 +18,7 @@ global	OPENSSL_atomic_add
 ALIGN	16
 OPENSSL_atomic_add:
 
+DB	243,15,30,250
 	mov	eax,DWORD[rcx]
 $L$spin:	lea	r8,[rax*1+rdx]
 DB	0xf0
@@ -34,6 +35,7 @@ global	OPENSSL_rdtsc
 ALIGN	16
 OPENSSL_rdtsc:
 
+DB	243,15,30,250
 	rdtsc
 	shl	rdx,32
 	or	rax,rdx
@@ -53,6 +55,7 @@ $L$SEH_begin_OPENSSL_ia32_cpuid:
 
 
 
+DB	243,15,30,250
 	mov	r8,rbx
 
 
@@ -224,6 +227,7 @@ global	OPENSSL_cleanse
 ALIGN	16
 OPENSSL_cleanse:
 
+DB	243,15,30,250
 	xor	rax,rax
 	cmp	rdx,15
 	jae	NEAR $L$ot
@@ -261,6 +265,7 @@ global	CRYPTO_memcmp
 ALIGN	16
 CRYPTO_memcmp:
 
+DB	243,15,30,250
 	xor	rax,rax
 	xor	r10,r10
 	cmp	r8,0
@@ -315,6 +320,7 @@ global	OPENSSL_instrument_bus
 ALIGN	16
 OPENSSL_instrument_bus:
 
+DB	243,15,30,250
 	mov	r10,rcx
 	mov	rcx,rdx
 	mov	r11,rdx
@@ -349,6 +355,7 @@ global	OPENSSL_instrument_bus2
 ALIGN	16
 OPENSSL_instrument_bus2:
 
+DB	243,15,30,250
 	mov	r10,rcx
 	mov	rcx,rdx
 	mov	r11,r8
@@ -398,6 +405,7 @@ global	OPENSSL_ia32_rdrand_bytes
 ALIGN	16
 OPENSSL_ia32_rdrand_bytes:
 
+DB	243,15,30,250
 	xor	rax,rax
 	cmp	rdx,0
 	je	NEAR $L$done_rdrand_bytes
@@ -441,6 +449,7 @@ global	OPENSSL_ia32_rdseed_bytes
 ALIGN	16
 OPENSSL_ia32_rdseed_bytes:
 
+DB	243,15,30,250
 	xor	rax,rax
 	cmp	rdx,0
 	je	NEAR $L$done_rdseed_bytes

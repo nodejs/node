@@ -1,22 +1,19 @@
 .machine	"any"
 .csect	.text[PR],7
-.align	5
-
 
 .globl	.bn_mul_mont_fixed_n6
+.align	5
 .bn_mul_mont_fixed_n6:
-	mr	9,3
 
-	mtvsrd	32,14
-	mtvsrd	33,15
-	mtvsrd	34,20
-	mtvsrd	35,21
-	mtvsrd	36,22
-	mtvsrd	37,23
-	mtvsrd	38,24
-	mtvsrd	39,25
-	mtvsrd	40,26
-	mtvsrd	41,27
+	std	14,-8(1)
+	std	20,-16(1)
+	std	21,-24(1)
+	std	22,-32(1)
+	std	23,-40(1)
+	std	24,-48(1)
+	std	25,-56(1)
+	std	26,-64(1)
+	std	27,-72(1)
 
 	ld	7,0(7)
 
@@ -58,12 +55,13 @@
 	addze	26,10
 	li	27,0
 
-	li	15,0
+	li	9,0
 	mtctr	8
 	b	Lenter_6
 
+.align	4
 Louter_6:
-	ldx	11,5,15
+	ldx	11,5,9
 
 	ld	12,0(4)
 	mulld	14,12,11
@@ -113,6 +111,7 @@ Louter_6:
 
 	addc	26,26,10
 	addze	27,27
+.align	4
 Lenter_6:
 	mulld	11,20,7
 
@@ -165,8 +164,8 @@ Lenter_6:
 	addc	25,26,10
 	addze	26,27
 
-	addi	15,15,8
-	bc	25,0,Louter_6
+	addi	9,9,8
+	bc	16,0,Louter_6
 
 	and.	26,26,26
 	bne	Lsub_6
@@ -177,68 +176,66 @@ Lenter_6:
 Lsub_6:
 	ld	11,0(6)
 	subfc	14,11,20
-	std	14,0(9)
+	std	14,0(3)
 
 	ld	11,8(6)
 	subfe	14,11,21
-	std	14,8(9)
+	std	14,8(3)
 
 	ld	11,16(6)
 	subfe	14,11,22
-	std	14,16(9)
+	std	14,16(3)
 
 	ld	11,24(6)
 	subfe	14,11,23
-	std	14,24(9)
+	std	14,24(3)
 
 	ld	11,32(6)
 	subfe	14,11,24
-	std	14,32(9)
+	std	14,32(3)
 
 	subfe	14,12,25
-	std	14,40(9)
+	std	14,40(3)
 
 	addme.	26,26
 	beq	Lend_6
 
 Lcopy_6:
-	std	20,0(9)
-	std	21,8(9)
-	std	22,16(9)
-	std	23,24(9)
-	std	24,32(9)
-	std	25,40(9)
+	std	20,0(3)
+	std	21,8(3)
+	std	22,16(3)
+	std	23,24(3)
+	std	24,32(3)
+	std	25,40(3)
 
 Lend_6:
-	mfvsrd	14,32
-	mfvsrd	15,33
-	mfvsrd	20,34
-	mfvsrd	21,35
-	mfvsrd	22,36
-	mfvsrd	23,37
-	mfvsrd	24,38
-	mfvsrd	25,39
-	mfvsrd	26,40
-	mfvsrd	27,41
+	ld	14,-8(1)
+	ld	20,-16(1)
+	ld	21,-24(1)
+	ld	22,-32(1)
+	ld	23,-40(1)
+	ld	24,-48(1)
+	ld	25,-56(1)
+	ld	26,-64(1)
+	ld	27,-72(1)
 
 	li	3,1
 	blr	
 
 
 .globl	.bn_mul_mont_300_fixed_n6
+.align	5
 .bn_mul_mont_300_fixed_n6:
-	mr	9,3
 
-	mtvsrd	32,14
-	mtvsrd	33,15
-	mtvsrd	34,20
-	mtvsrd	35,21
-	mtvsrd	36,22
-	mtvsrd	37,23
-	mtvsrd	38,24
-	mtvsrd	39,25
-	mtvsrd	40,26
-	mtvsrd	41,27
+	std	14,-8(1)
+	std	20,-16(1)
+	std	21,-24(1)
+	std	22,-32(1)
+	std	23,-40(1)
+	std	24,-48(1)
+	std	25,-56(1)
+	std	26,-64(1)
+	std	27,-72(1)
 
 	ld	7,0(7)
 
@@ -270,12 +267,13 @@ Lend_6:
 
 	li	27,0
 
-	li	15,0
+	li	9,0
 	mtctr	8
 	b	Lenter_300_6
 
+.align	4
 Louter_300_6:
-	ldx	11,5,15
+	ldx	11,5,9
 
 	ld	12,0(4)
 	.long	0x11CC5D33
@@ -314,6 +312,7 @@ Louter_300_6:
 
 	addc	26,26,10
 	addze	27,27
+.align	4
 Lenter_300_6:
 	mulld	11,20,7
 
@@ -354,8 +353,8 @@ Lenter_300_6:
 	addc	25,26,10
 	addze	26,27
 
-	addi	15,15,8
-	bc	25,0,Louter_300_6
+	addi	9,9,8
+	bc	16,0,Louter_300_6
 
 	and.	26,26,26
 	bne	Lsub_300_6
@@ -366,49 +365,48 @@ Lenter_300_6:
 Lsub_300_6:
 	ld	11,0(6)
 	subfc	14,11,20
-	std	14,0(9)
+	std	14,0(3)
 
 	ld	11,8(6)
 	subfe	14,11,21
-	std	14,8(9)
+	std	14,8(3)
 
 	ld	11,16(6)
 	subfe	14,11,22
-	std	14,16(9)
+	std	14,16(3)
 
 	ld	11,24(6)
 	subfe	14,11,23
-	std	14,24(9)
+	std	14,24(3)
 
 	ld	11,32(6)
 	subfe	14,11,24
-	std	14,32(9)
+	std	14,32(3)
 
 	subfe	14,12,25
-	std	14,40(9)
+	std	14,40(3)
 
 	addme.	26,26
 	beq	Lend_300_6
 
 Lcopy_300_6:
-	std	20,0(9)
-	std	21,8(9)
-	std	22,16(9)
-	std	23,24(9)
-	std	24,32(9)
-	std	25,40(9)
+	std	20,0(3)
+	std	21,8(3)
+	std	22,16(3)
+	std	23,24(3)
+	std	24,32(3)
+	std	25,40(3)
 
 Lend_300_6:
-	mfvsrd	14,32
-	mfvsrd	15,33
-	mfvsrd	20,34
-	mfvsrd	21,35
-	mfvsrd	22,36
-	mfvsrd	23,37
-	mfvsrd	24,38
-	mfvsrd	25,39
-	mfvsrd	26,40
-	mfvsrd	27,41
+	ld	14,-8(1)
+	ld	20,-16(1)
+	ld	21,-24(1)
+	ld	22,-32(1)
+	ld	23,-40(1)
+	ld	24,-48(1)
+	ld	25,-56(1)
+	ld	26,-64(1)
+	ld	27,-72(1)
 
 	li	3,1
 	blr	

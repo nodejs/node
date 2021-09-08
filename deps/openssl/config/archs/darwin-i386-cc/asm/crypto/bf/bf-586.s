@@ -3,6 +3,7 @@
 .align	4
 _BF_encrypt:
 L_BF_encrypt_begin:
+.byte	243,15,30,251
 
 	pushl	%ebp
 	pushl	%ebx
@@ -351,6 +352,7 @@ L_BF_encrypt_begin:
 .align	4
 _BF_decrypt:
 L_BF_decrypt_begin:
+.byte	243,15,30,251
 
 	pushl	%ebp
 	pushl	%ebx
@@ -699,6 +701,7 @@ L_BF_decrypt_begin:
 .align	4
 _BF_cbc_encrypt:
 L_BF_cbc_encrypt_begin:
+.byte	243,15,30,251
 
 	pushl	%ebp
 	pushl	%ebx
@@ -762,21 +765,28 @@ L004PIC_point:
 	xorl	%edx,%edx
 	jmp	*%ebp
 L006ej7:
+.byte	243,15,30,251
 	movb	6(%esi),%dh
 	shll	$8,%edx
 L007ej6:
+.byte	243,15,30,251
 	movb	5(%esi),%dh
 L008ej5:
+.byte	243,15,30,251
 	movb	4(%esi),%dl
 L009ej4:
+.byte	243,15,30,251
 	movl	(%esi),%ecx
 	jmp	L010ejend
 L011ej3:
+.byte	243,15,30,251
 	movb	2(%esi),%ch
 	shll	$8,%ecx
 L012ej2:
+.byte	243,15,30,251
 	movb	1(%esi),%ch
 L013ej1:
+.byte	243,15,30,251
 	movb	(%esi),%cl
 L010ejend:
 	xorl	%ecx,%eax
