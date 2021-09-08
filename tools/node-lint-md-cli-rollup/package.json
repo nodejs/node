@@ -6,15 +6,15 @@
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
-    "rollup": "^2.52.7",
+    "rollup": "^2.56.3",
     "shx": "^0.3.3"
   },
   "dependencies": {
     "markdown-extensions": "^1.1.1",
-    "remark": "^14.0.0",
+    "remark": "^14.0.1",
     "remark-gfm": "^2.0.0",
-    "remark-preset-lint-node": "^3.0.0",
-    "unified-args": "^9.0.0"
+    "remark-preset-lint-node": "^3.0.1",
+    "unified-args": "^9.0.2"
   },
   "main": "dist/index.js",
   "scripts": {

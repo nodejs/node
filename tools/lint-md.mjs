@@ -1,6 +1,7 @@
 import path$b from 'path';
-import require$$0$3, { realpathSync as realpathSync$1, statSync, Stats } from 'fs';
+import process$1 from 'process';
 import { URL as URL$1, fileURLToPath, pathToFileURL } from 'url';
+import require$$0$3, { realpathSync as realpathSync$1, statSync, Stats } from 'fs';
 import process$2 from 'node:process';
 import stream, { PassThrough } from 'node:stream';
 import require$$0$2 from 'os';
@@ -13,7 +14,6 @@ import { pathToFileURL as pathToFileURL$1 } from 'node:url';
 import assert$2 from 'assert';
 import fs$a from 'node:fs';
 import { EventEmitter as EventEmitter$1 } from 'node:events';
-import process$1 from 'process';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -2197,7 +2197,8 @@ const depth = token => {
 /**
  * Quickly scans a glob pattern and returns an object with a handful of
  * useful properties, like `isGlob`, `path` (the leading non-glob, if it exists),
- * `glob` (the actual pattern), and `negated` (true if the path starts with `!`).
+ * `glob` (the actual pattern), `negated` (true if the path starts with `!` but not
+ * with `!(`) and `negatedExtglob` (true if the path starts with `!(`).
  *
  * ```js
  * const pm = require('picomatch');
@@ -2231,6 +2232,7 @@ const scan$1 = (input, options) => {
   let braceEscaped = false;
   let backslashes = false;
   let negated = false;
+  let negatedExtglob = false;
   let finished = false;
   let braces = 0;
   let prev;
@@ -2342,6 +2344,9 @@ const scan$1 = (input, options) => {
         isGlob = token.isGlob = true;
         isExtglob = token.isExtglob = true;
         finished = true;
+        if (code === CHAR_EXCLAMATION_MARK && index === start) {
+          negatedExtglob = true;
+        }
 
         if (scanToEnd === true) {
           while (eos() !== true && (code = advance())) {
@@ -2396,13 +2401,15 @@ const scan$1 = (input, options) => {
           isBracket = token.isBracket = true;
           isGlob = token.isGlob = true;
           finished = true;
-
-          if (scanToEnd === true) {
-            continue;
-          }
           break;
         }
       }
+
+      if (scanToEnd === true) {
+        continue;
+      }
+
+      break;
     }
 
     if (opts.nonegate !== true && code === CHAR_EXCLAMATION_MARK && index === start) {
@@ -2493,7 +2500,8 @@ const scan$1 = (input, options) => {
     isGlob,
     isExtglob,
     isGlobstar,
-    negated
+    negated,
+    negatedExtglob
   };
 
   if (opts.tokens === true) {
@@ -2639,7 +2647,7 @@ const parse$e = (input, options) => {
     START_ANCHOR
   } = PLATFORM_CHARS;
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
 
@@ -2689,12 +2697,13 @@ const parse$e = (input, options) => {
 
   const eos = () => state.index === len - 1;
   const peek = state.peek = (n = 1) => input[state.index + n];
-  const advance = state.advance = () => input[++state.index];
+  const advance = state.advance = () => input[++state.index] || '';
   const remaining = () => input.slice(state.index + 1);
   const consume = (value = '', num = 0) => {
     state.consumed += value;
     state.index += num;
   };
+
   const append = token => {
     state.output += token.output != null ? token.output : token.value;
     consume(token.value);
@@ -2750,7 +2759,7 @@ const parse$e = (input, options) => {
       }
     }
 
-    if (extglobs.length && tok.type !== 'paren' && !EXTGLOB_CHARS[tok.value]) {
+    if (extglobs.length && tok.type !== 'paren') {
       extglobs[extglobs.length - 1].inner += tok.value;
     }
 
@@ -2782,6 +2791,7 @@ const parse$e = (input, options) => {
 
   const extglobClose = token => {
     let output = token.close + (opts.capture ? ')' : '');
+    let rest;
 
     if (token.type === 'negate') {
       let extglobStar = star;
@@ -2794,7 +2804,11 @@ const parse$e = (input, options) => {
         output = token.close = `)$))${extglobStar}`;
       }
 
-      if (token.prev.type === 'bos' && eos()) {
+      if (token.inner.includes('*') && (rest = remaining()) && /^\.[^\\/.]+$/.test(rest)) {
+        output = token.close = `)${rest})${extglobStar})`;
+      }
+
+      if (token.prev.type === 'bos') {
         state.negatedExtglob = true;
       }
     }
@@ -2903,9 +2917,9 @@ const parse$e = (input, options) => {
       }
 
       if (opts.unescape === true) {
-        value = advance() || '';
+        value = advance();
       } else {
-        value += advance() || '';
+        value += advance();
       }
 
       if (state.brackets === 0) {
@@ -3569,7 +3583,7 @@ parse$e.fastpaths = (input, options) => {
     star = `(${star})`;
   }
 
-  const globstar = (opts) => {
+  const globstar = opts => {
     if (opts.noglobstar === true) return star;
     return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
   };
@@ -3855,6 +3869,40 @@ picomatch$3.parse = (pattern, options) => {
 picomatch$3.scan = (input, options) => scan(input, options);
 
 /**
+ * Compile a regular expression from the `state` object returned by the
+ * [parse()](#parse) method.
+ *
+ * @param {Object} `state`
+ * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Intended for implementors, this argument allows you to return the raw output from the parser.
+ * @param {Boolean} `returnState` Adds the state to a `state` property on the returned regex. Useful for implementors and debugging.
+ * @return {RegExp}
+ * @api public
+ */
+
+picomatch$3.compileRe = (state, options, returnOutput = false, returnState = false) => {
+  if (returnOutput === true) {
+    return state.output;
+  }
+
+  const opts = options || {};
+  const prepend = opts.contains ? '' : '^';
+  const append = opts.contains ? '' : '$';
+
+  let source = `${prepend}(?:${state.output})${append}`;
+  if (state && state.negated === true) {
+    source = `^(?!${source}).*$`;
+  }
+
+  const regex = picomatch$3.toRegex(source, options);
+  if (returnState === true) {
+    regex.state = state;
+  }
+
+  return regex;
+};
+
+/**
  * Create a regular expression from a parsed glob pattern.
  *
  * ```js
@@ -3867,56 +3915,25 @@ picomatch$3.scan = (input, options) => scan(input, options);
  * ```
  * @param {String} `state` The object returned from the `.parse` method.
  * @param {Object} `options`
+ * @param {Boolean} `returnOutput` Implementors may use this argument to return the compiled output, instead of a regular expression. This is not exposed on the options to prevent end-users from mutating the result.
+ * @param {Boolean} `returnState` Implementors may use this argument to return the state from the parsed glob with the returned regular expression.
  * @return {RegExp} Returns a regex created from the given pattern.
  * @api public
  */
 
-picomatch$3.compileRe = (parsed, options, returnOutput = false, returnState = false) => {
-  if (returnOutput === true) {
-    return parsed.output;
-  }
-
-  const opts = options || {};
-  const prepend = opts.contains ? '' : '^';
-  const append = opts.contains ? '' : '$';
-
-  let source = `${prepend}(?:${parsed.output})${append}`;
-  if (parsed && parsed.negated === true) {
-    source = `^(?!${source}).*$`;
-  }
-
-  const regex = picomatch$3.toRegex(source, options);
-  if (returnState === true) {
-    regex.state = parsed;
-  }
-
-  return regex;
-};
-
-picomatch$3.makeRe = (input, options, returnOutput = false, returnState = false) => {
+picomatch$3.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
   if (!input || typeof input !== 'string') {
     throw new TypeError('Expected a non-empty string');
   }
 
-  const opts = options || {};
   let parsed = { negated: false, fastpaths: true };
-  let prefix = '';
-  let output;
 
-  if (input.startsWith('./')) {
-    input = input.slice(2);
-    prefix = parsed.prefix = './';
+  if (options.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
+    parsed.output = parse$d.fastpaths(input, options);
   }
 
-  if (opts.fastpaths !== false && (input[0] === '.' || input[0] === '*')) {
-    output = parse$d.fastpaths(input, options);
-  }
-
-  if (output === undefined) {
+  if (!parsed.output) {
     parsed = parse$d(input, options);
-    parsed.prefix = prefix + (parsed.prefix || '');
-  } else {
-    parsed.output = output;
   }
 
   return picomatch$3.compileRe(parsed, options, returnOutput, returnState);
@@ -8650,7 +8667,7 @@ function extend$2(target, source) {
 }
 
 
-function repeat$1(string, count) {
+function repeat(string, count) {
   var result = '', cycle;
 
   for (cycle = 0; cycle < count; cycle += 1) {
@@ -8669,7 +8686,7 @@ function isNegativeZero(number) {
 var isNothing_1      = isNothing;
 var isObject_1       = isObject$1;
 var toArray_1        = toArray;
-var repeat_1         = repeat$1;
+var repeat_1         = repeat;
 var isNegativeZero_1 = isNegativeZero;
 var extend_1         = extend$2;
 
@@ -16965,7 +16982,7 @@ const SemVer$6 = semver$2;
 const parse$4 = parse_1;
 const {re: re$3, t: t$2} = re$6.exports;
 
-const coerce$I = (version, options) => {
+const coerce$2 = (version, options) => {
   if (version instanceof SemVer$6) {
     return version
   }
@@ -17011,7 +17028,7 @@ const coerce$I = (version, options) => {
 
   return parse$4(`${match[2]}.${match[3] || '0'}.${match[4] || '0'}`, options)
 };
-var coerce_1 = coerce$I;
+var coerce_1 = coerce$2;
 
 var iterator = function (Yallist) {
   Yallist.prototype[Symbol.iterator] = function* () {
@@ -17796,7 +17813,7 @@ class Range$a {
       }
     }
 
-    if (range instanceof Comparator$2) {
+    if (range instanceof Comparator$3) {
       // just put it in the set and return
       this.raw = range.value;
       this.set = [[range]];
@@ -17865,7 +17882,7 @@ class Range$a {
     // this is a very hot path, and fully deterministic.
     const memoOpts = Object.keys(this.options).join(',');
     const memoKey = `parseRange:${memoOpts}:${range}`;
-    const cached = cache$1.get(memoKey);
+    const cached = cache.get(memoKey);
     if (cached)
       return cached
 
@@ -17900,7 +17917,7 @@ class Range$a {
       .map(comp => replaceGTE0(comp, this.options))
       // in loose mode, throw out any that are not valid comparators
       .filter(this.options.loose ? comp => !!comp.match(compRe) : () => true)
-      .map(comp => new Comparator$2(comp, this.options));
+      .map(comp => new Comparator$3(comp, this.options));
 
     // if any comparators are the null set, then replace with JUST null set
     // if more than one comparator, remove any * comparators
@@ -17916,7 +17933,7 @@ class Range$a {
       rangeMap.delete('');
 
     const result = [...rangeMap.values()];
-    cache$1.set(memoKey, result);
+    cache.set(memoKey, result);
     return result
   }
 
@@ -17967,10 +17984,10 @@ class Range$a {
 var range$1 = Range$a;
 
 const LRU = lruCache;
-const cache$1 = new LRU({ max: 1000 });
+const cache = new LRU({ max: 1000 });
 
 const parseOptions$1 = parseOptions_1;
-const Comparator$2 = comparator$1;
+const Comparator$3 = comparator$1;
 const debug$d = debug_1;
 const SemVer$5 = semver$2;
 const {
@@ -18270,7 +18287,7 @@ const testSet = (set, version, options) => {
     // even though it's within the range set by the comparators.
     for (let i = 0; i < set.length; i++) {
       debug$d(set[i].semver);
-      if (set[i].semver === Comparator$2.ANY) {
+      if (set[i].semver === Comparator$3.ANY) {
         continue
       }
 
@@ -18293,14 +18310,14 @@ const testSet = (set, version, options) => {
 
 const ANY$2 = Symbol('SemVer ANY');
 // hoisted class for cyclic dependency
-class Comparator$1 {
+class Comparator$2 {
   static get ANY () {
     return ANY$2
   }
   constructor (comp, options) {
     options = parseOptions(options);
 
-    if (comp instanceof Comparator$1) {
+    if (comp instanceof Comparator$2) {
       if (comp.loose === !!options.loose) {
         return comp
       } else {
@@ -18366,7 +18383,7 @@ class Comparator$1 {
   }
 
   intersects (comp, options) {
-    if (!(comp instanceof Comparator$1)) {
+    if (!(comp instanceof Comparator$2)) {
       throw new TypeError('a Comparator is required')
     }
 
@@ -18418,7 +18435,7 @@ class Comparator$1 {
   }
 }
 
-var comparator$1 = Comparator$1;
+var comparator$1 = Comparator$2;
 
 const parseOptions = parseOptions_1;
 const {re: re$1, t} = re$6.exports;
@@ -18572,8 +18589,8 @@ const validRange = (range, options) => {
 var valid = validRange;
 
 const SemVer = semver$2;
-const Comparator = comparator$1;
-const {ANY: ANY$1} = Comparator;
+const Comparator$1 = comparator$1;
+const {ANY: ANY$1} = Comparator$1;
 const Range$2 = range$1;
 const satisfies$2 = satisfies_1;
 const gt = gt_1;
@@ -18621,7 +18638,7 @@ const outside$2 = (version, range, hilo, options) => {
 
     comparators.forEach((comparator) => {
       if (comparator.semver === ANY$1) {
-        comparator = new Comparator('>=0.0.0');
+        comparator = new Comparator$1('>=0.0.0');
       }
       high = high || comparator;
       low = low || comparator;
@@ -18716,22 +18733,30 @@ var simplify = (versions, range, options) => {
 };
 
 const Range = range$1;
-const { ANY } = comparator$1;
+const Comparator = comparator$1;
+const { ANY } = Comparator;
 const satisfies = satisfies_1;
 const compare$1 = compare_1;
 
 // Complex range `r1 || r2 || ...` is a subset of `R1 || R2 || ...` iff:
-// - Every simple range `r1, r2, ...` is a subset of some `R1, R2, ...`
+// - Every simple range `r1, r2, ...` is a null set, OR
+// - Every simple range `r1, r2, ...` which is not a null set is a subset of
+//   some `R1, R2, ...`
 //
 // Simple range `c1 c2 ...` is a subset of simple range `C1 C2 ...` iff:
 // - If c is only the ANY comparator
 //   - If C is only the ANY comparator, return true
-//   - Else return false
+//   - Else if in prerelease mode, return false
+//   - else replace c with `[>=0.0.0]`
+// - If C is only the ANY comparator
+//   - if in prerelease mode, return true
+//   - else replace C with `[>=0.0.0]`
 // - Let EQ be the set of = comparators in c
 // - If EQ is more than one, return true (null set)
 // - Let GT be the highest > or >= comparator in c
 // - Let LT be the lowest < or <= comparator in c
 // - If GT and LT, and GT.semver > LT.semver, return true (null set)
+// - If any C is a = range, and GT or LT are set, return false
 // - If EQ
 //   - If GT, and EQ does not satisfy GT, return true (null set)
 //   - If LT, and EQ does not satisfy LT, return true (null set)
@@ -18740,13 +18765,16 @@ const compare$1 = compare_1;
 // - If GT
 //   - If GT.semver is lower than any > or >= comp in C, return false
 //   - If GT is >=, and GT.semver does not satisfy every C, return false
+//   - If GT.semver has a prerelease, and not in prerelease mode
+//     - If no C has a prerelease and the GT.semver tuple, return false
 // - If LT
 //   - If LT.semver is greater than any < or <= comp in C, return false
 //   - If LT is <=, and LT.semver does not satisfy every C, return false
-// - If any C is a = range, and GT or LT are set, return false
+//   - If GT.semver has a prerelease, and not in prerelease mode
+//     - If no C has a prerelease and the LT.semver tuple, return false
 // - Else return true
 
-const subset = (sub, dom, options) => {
+const subset = (sub, dom, options = {}) => {
   if (sub === dom)
     return true
 
@@ -18775,8 +18803,21 @@ const simpleSubset = (sub, dom, options) => {
   if (sub === dom)
     return true
 
-  if (sub.length === 1 && sub[0].semver === ANY)
-    return dom.length === 1 && dom[0].semver === ANY
+  if (sub.length === 1 && sub[0].semver === ANY) {
+    if (dom.length === 1 && dom[0].semver === ANY)
+      return true
+    else if (options.includePrerelease)
+      sub = [ new Comparator('>=0.0.0-0') ];
+    else
+      sub = [ new Comparator('>=0.0.0') ];
+  }
+
+  if (dom.length === 1 && dom[0].semver === ANY) {
+    if (options.includePrerelease)
+      return true
+    else
+      dom = [ new Comparator('>=0.0.0') ];
+  }
 
   const eqSet = new Set();
   let gt, lt;
@@ -18819,10 +18860,32 @@ const simpleSubset = (sub, dom, options) => {
 
   let higher, lower;
   let hasDomLT, hasDomGT;
+  // if the subset has a prerelease, we need a comparator in the superset
+  // with the same tuple and a prerelease, or it's not a subset
+  let needDomLTPre = lt &&
+    !options.includePrerelease &&
+    lt.semver.prerelease.length ? lt.semver : false;
+  let needDomGTPre = gt &&
+    !options.includePrerelease &&
+    gt.semver.prerelease.length ? gt.semver : false;
+  // exception: <1.2.3-0 is the same as <1.2.3
+  if (needDomLTPre && needDomLTPre.prerelease.length === 1 &&
+      lt.operator === '<' && needDomLTPre.prerelease[0] === 0) {
+    needDomLTPre = false;
+  }
+
   for (const c of dom) {
     hasDomGT = hasDomGT || c.operator === '>' || c.operator === '>=';
     hasDomLT = hasDomLT || c.operator === '<' || c.operator === '<=';
     if (gt) {
+      if (needDomGTPre) {
+        if (c.semver.prerelease && c.semver.prerelease.length &&
+            c.semver.major === needDomGTPre.major &&
+            c.semver.minor === needDomGTPre.minor &&
+            c.semver.patch === needDomGTPre.patch) {
+          needDomGTPre = false;
+        }
+      }
       if (c.operator === '>' || c.operator === '>=') {
         higher = higherGT(gt, c, options);
         if (higher === c && higher !== gt)
@@ -18831,6 +18894,14 @@ const simpleSubset = (sub, dom, options) => {
         return false
     }
     if (lt) {
+      if (needDomLTPre) {
+        if (c.semver.prerelease && c.semver.prerelease.length &&
+            c.semver.major === needDomLTPre.major &&
+            c.semver.minor === needDomLTPre.minor &&
+            c.semver.patch === needDomLTPre.patch) {
+          needDomLTPre = false;
+        }
+      }
       if (c.operator === '<' || c.operator === '<=') {
         lower = lowerLT(lt, c, options);
         if (lower === c && lower !== lt)
@@ -18849,6 +18920,12 @@ const simpleSubset = (sub, dom, options) => {
     return false
 
   if (lt && hasDomGT && !gt && gtltComp !== 0)
+    return false
+
+  // we needed a prerelease range in a specific tuple, but didn't get one
+  // then this isn't a subset.  eg >=1.2.3-pre is not a subset of >=1.0.0,
+  // because it includes prereleases in the 1.2.3 tuple
+  if (needDomGTPre || needDomLTPre)
     return false
 
   return true
@@ -21878,9 +21955,7 @@ class Configuration {
     if (options.rcName) {
       names.push(
         options.rcName,
-        options.rcName + '.js',
-        options.rcName + '.yml',
-        options.rcName + '.yaml'
+        ...Object.keys(loaders).map((d) => options.rcName + d)
       );
       debug$a('Looking for `%s` configuration files', names);
     }
@@ -23336,6 +23411,9 @@ function range(a, b, str) {
   var i = ai;
 
   if (ai >= 0 && bi > 0) {
+    if(a===b) {
+      return [ai, bi];
+    }
     begs = [];
     left = str.length;
 
@@ -24552,8 +24630,6 @@ pathIsAbsolute.exports.win32 = win32;
 
 var common$2 = {};
 
-common$2.alphasort = alphasort;
-common$2.alphasorti = alphasorti;
 common$2.setopts = setopts$2;
 common$2.ownProp = ownProp$2;
 common$2.makeAbs = makeAbs;
@@ -24571,12 +24647,8 @@ var minimatch$2 = minimatch_1;
 var isAbsolute$2 = pathIsAbsolute.exports;
 var Minimatch = minimatch$2.Minimatch;
 
-function alphasorti (a, b) {
-  return a.toLowerCase().localeCompare(b.toLowerCase())
-}
-
 function alphasort (a, b) {
-  return a.localeCompare(b)
+  return a.localeCompare(b, 'en')
 }
 
 function setupIgnores (self, options) {
@@ -24704,7 +24776,7 @@ function finish (self) {
     all = Object.keys(all);
 
   if (!self.nosort)
-    all = all.sort(self.nocase ? alphasorti : alphasort);
+    all = all.sort(alphasort);
 
   // at *some* point we statted all of these
   if (self.mark) {
@@ -24803,8 +24875,6 @@ var path$2 = path$b;
 var assert$1 = assert$2;
 var isAbsolute$1 = pathIsAbsolute.exports;
 var common$1 = common$2;
-common$1.alphasort;
-common$1.alphasorti;
 var setopts$1 = common$1.setopts;
 var ownProp$1 = common$1.ownProp;
 var childrenIgnored$1 = common$1.childrenIgnored;
@@ -25459,8 +25529,6 @@ var assert = assert$2;
 var isAbsolute = pathIsAbsolute.exports;
 var globSync = sync$1;
 var common = common$2;
-common.alphasort;
-common.alphasorti;
 var setopts = common.setopts;
 var ownProp = common.ownProp;
 var inflight = inflight_1;
@@ -26203,8 +26271,6 @@ var isBuffer = function isBuffer (obj) {
     typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
 };
 
-const proc$1 = process;
-
 var own$b = {}.hasOwnProperty;
 
 /**
@@ -26413,10 +26479,47 @@ VFileMessage.prototype.source = null;
 VFileMessage.prototype.ruleId = null;
 VFileMessage.prototype.position = null;
 
+const proc$1 = process$1;
+
+/**
+ * @typedef URL
+ * @property {string} hash
+ * @property {string} host
+ * @property {string} hostname
+ * @property {string} href
+ * @property {string} origin
+ * @property {string} password
+ * @property {string} pathname
+ * @property {string} port
+ * @property {string} protocol
+ * @property {string} search
+ * @property {any} searchParams
+ * @property {string} username
+ * @property {() => string} toString
+ * @property {() => string} toJSON
+ */
+
+/**
+ * @param {unknown} fileURLOrPath
+ * @returns {fileURLOrPath is URL}
+ */
+// From: <https://github.com/nodejs/node/blob/fcf8ba4/lib/internal/url.js#L1501>
+function isUrl(fileURLOrPath) {
+  return (
+    fileURLOrPath !== null &&
+    typeof fileURLOrPath === 'object' &&
+    // @ts-expect-error: indexable.
+    fileURLOrPath.href &&
+    // @ts-expect-error: indexable.
+    fileURLOrPath.origin
+  )
+}
+
 /**
  * @typedef {import('unist').Node} Node
  * @typedef {import('unist').Position} Position
  * @typedef {import('unist').Point} Point
+ * @typedef {import('./minurl.shared.js').URL} URL
  *
  * @typedef {'ascii'|'utf8'|'utf-8'|'utf16le'|'ucs2'|'ucs-2'|'base64'|'latin1'|'binary'|'hex'} BufferEncoding
  *   Encodings supported by the buffer class.
@@ -26424,21 +26527,22 @@ VFileMessage.prototype.position = null;
  *   being needed.
  *   Copied from: <https://github.com/DefinitelyTyped/DefinitelyTyped/blob/a2bc1d8/types/node/globals.d.ts#L174>
  *
- * @typedef {string|Uint8Array} VFileValue Contents of the file.
+ * @typedef {string|Uint8Array} VFileValue
+ *   Contents of the file.
  *   Can either be text, or a Buffer like structure.
  *   This does not directly use type `Buffer`, because it can also be used in a
  *   browser context.
  *   Instead this leverages `Uint8Array` which is the base type for `Buffer`,
  *   and a native JavaScript construct.
  *
- * @typedef {VFileValue|VFileOptions|VFile} VFileCompatible Things that can be
- *   passed to the constructor.
+ * @typedef {VFileValue|VFileOptions|VFile|URL} VFileCompatible
+ *   Things that can be passed to the constructor.
  *
  * @typedef VFileCoreOptions
  * @property {VFileValue} [value]
  * @property {string} [cwd]
  * @property {Array.<string>} [history]
- * @property {string} [path]
+ * @property {string|URL} [path]
  * @property {string} [basename]
  * @property {string} [stem]
  * @property {string} [extname]
@@ -26456,7 +26560,7 @@ VFileMessage.prototype.position = null;
 // Order of setting (least specific to most), we need this because otherwise
 // `{stem: 'a', path: '~/b.js'}` would throw, as a path is needed before a
 // stem can be set.
-var order = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
+const order = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
 
 class VFile {
   /**
@@ -26476,19 +26580,18 @@ class VFile {
    * @param {VFileCompatible} [value]
    */
   constructor(value) {
-    var index = -1;
     /** @type {VFileOptions} */
-    var options;
-    /** @type {string} */
-    var prop;
+    let options;
 
     if (!value) {
       options = {};
     } else if (typeof value === 'string' || isBuffer(value)) {
-      // @ts-ignore Looks like a buffer.
+      // @ts-expect-error Looks like a buffer.
       options = {value};
+    } else if (isUrl(value)) {
+      options = {path: value};
     } else {
-      // @ts-ignore Looks like file or options.
+      // @ts-expect-error Looks like file or options.
       options = value;
     }
 
@@ -26544,29 +26647,44 @@ class VFile {
      * @type {unknown}
      */
     this.result;
+
+    /**
+     * Sometimes files have a source map associated with them.
+     * This can be stored in the `map` field.
+     * This should be a `RawSourceMap` type from the `source-map` module.
+     * @type {unknown}
+     */
+    this.map;
     /* eslint-enable no-unused-expressions */
 
     // Set path related properties in the correct order.
+    let index = -1;
+
     while (++index < order.length) {
-      prop = order[index];
+      const prop = order[index];
 
       // Note: we specifically use `in` instead of `hasOwnProperty` to accept
       // `vfile`s too.
       if (prop in options && options[prop] !== undefined) {
-        this[prop] = prop === 'history' ? options[prop].concat() : options[prop];
+        // @ts-expect-error: TS is confused by the different types for `history`.
+        this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
       }
     }
 
+    /** @type {string} */
+    let prop;
+
     // Set non-path related properties.
     for (prop in options) {
-      if (!order.includes(prop)) {
-        this[prop] = options[prop];
-      }
+      // @ts-expect-error: fine to set other things.
+      if (!order.includes(prop)) this[prop] = options[prop];
     }
   }
 
   /**
    * Access full path (`~/index.min.js`).
+   *
+   * @returns {string}
    */
   get path() {
     return this.history[this.history.length - 1]
@@ -26575,8 +26693,14 @@ class VFile {
   /**
    * Set full path (`~/index.min.js`).
    * Cannot be nullified.
+   *
+   * @param {string|URL} path
    */
   set path(path) {
+    if (isUrl(path)) {
+      path = fileURLToPath(path);
+    }
+
     assertNonEmpty(path, 'path');
 
     if (this.path !== path) {
@@ -26596,7 +26720,7 @@ class VFile {
    * Cannot be set if there's no `path` yet.
    */
   set dirname(dirname) {
-    assertPath(this.path, 'dirname');
+    assertPath(this.basename, 'dirname');
     this.path = path$b.join(dirname || '', this.basename);
   }
 
@@ -26631,7 +26755,7 @@ class VFile {
    */
   set extname(extname) {
     assertPart(extname, 'extname');
-    assertPath(this.path, 'extname');
+    assertPath(this.dirname, 'extname');
 
     if (extname) {
       if (extname.charCodeAt(0) !== 46 /* `.` */) {
@@ -26672,7 +26796,7 @@ class VFile {
    * @returns {string}
    */
   toString(encoding) {
-    // @ts-ignore string’s don’t accept the parameter, but buffers do.
+    // @ts-expect-error string’s don’t accept the parameter, but buffers do.
     return (this.value || '').toString(encoding)
   }
 
@@ -26685,7 +26809,7 @@ class VFile {
    * @returns {VFileMessage}
    */
   message(reason, place, origin) {
-    var message = new VFileMessage(reason, place, origin);
+    const message = new VFileMessage(reason, place, origin);
 
     if (this.path) {
       message.name = this.path + ':' + message.name;
@@ -26710,7 +26834,7 @@ class VFile {
    * @returns {VFileMessage}
    */
   info(reason, place, origin) {
-    var message = this.message(reason, place, origin);
+    const message = this.message(reason, place, origin);
 
     message.fatal = null;
 
@@ -26729,7 +26853,7 @@ class VFile {
    * @returns {never}
    */
   fail(reason, place, origin) {
-    var message = this.message(reason, place, origin);
+    const message = this.message(reason, place, origin);
 
     message.fatal = true;
 
@@ -26740,7 +26864,7 @@ class VFile {
 /**
  * Assert that `part` is not a path (as in, does not contain `path.sep`).
  *
- * @param {string} part
+ * @param {string|undefined} part
  * @param {string} name
  * @returns {void}
  */
@@ -26755,9 +26879,9 @@ function assertPart(part, name) {
 /**
  * Assert that `part` is not empty.
  *
- * @param {string} part
+ * @param {string|undefined} part
  * @param {string} name
- * @returns {void}
+ * @returns {asserts part is string}
  */
 function assertNonEmpty(part, name) {
   if (!part) {
@@ -26768,9 +26892,9 @@ function assertNonEmpty(part, name) {
 /**
  * Assert `path` exists.
  *
- * @param {string} path
+ * @param {string|undefined} path
  * @param {string} name
- * @returns {void}
+ * @returns {asserts path is string}
  */
 function assertPath(path, name) {
   if (!path) {
@@ -26802,10 +26926,10 @@ function assertPath(path, name) {
  * @returns {VFile}
  */
 function toVFile(options) {
-  if (typeof options === 'string' || isBuffer(options)) {
+  if (typeof options === 'string' || options instanceof URL$1) {
+    options = {path: options};
+  } else if (isBuffer(options)) {
     options = {path: String(options)};
-  } else if (options instanceof URL$1) {
-    options = {path: fileURLToPath(options)};
   }
 
   return looksLikeAVFile$1(options) ? options : new VFile(options)
@@ -26819,7 +26943,7 @@ function toVFile(options) {
  * @returns {VFile}
  */
 function readSync(description, options) {
-  var file = toVFile(description);
+  const file = toVFile(description);
   file.value = require$$0$3.readFileSync(path$b.resolve(file.cwd, file.path), options);
   return file
 }
@@ -26832,7 +26956,7 @@ function readSync(description, options) {
  * @returns {VFile}
  */
 function writeSync(description, options) {
-  var file = toVFile(description);
+  const file = toVFile(description);
   require$$0$3.writeFileSync(path$b.resolve(file.cwd, file.path), file.value || '', options);
   return file
 }
@@ -26854,7 +26978,7 @@ const read$2 =
      * @param {Callback} [callback]
      */
     function (description, options, callback) {
-      var file = toVFile(description);
+      const file = toVFile(description);
 
       if (!callback && typeof options === 'function') {
         callback = options;
@@ -26880,7 +27004,7 @@ const read$2 =
        */
       function executor(resolve, reject) {
         /** @type {string} */
-        var fp;
+        let fp;
 
         try {
           fp = path$b.resolve(file.cwd, file.path);
@@ -26923,7 +27047,7 @@ const write =
      * @param {Callback} [callback]
      */
     function (description, options, callback) {
-      var file = toVFile(description);
+      const file = toVFile(description);
 
       // Weird, right? Otherwise `fs` doesn’t accept it.
       if (!callback && typeof options === 'function') {
@@ -26950,7 +27074,7 @@ const write =
        */
       function executor(resolve, reject) {
         /** @type {string} */
-        var fp;
+        let fp;
 
         try {
           fp = path$b.resolve(file.cwd, file.path);
@@ -27155,7 +27279,11 @@ function search$1(input, options, next) {
 
     const part = base$1(file);
 
-    if (options.nested && (part.charAt(0) === '.' || part === 'node_modules')) {
+    if (
+      options.nested &&
+      part &&
+      (part.charAt(0) === '.' || part === 'node_modules')
+    ) {
       return
     }
 
@@ -27203,7 +27331,7 @@ function search$1(input, options, next) {
           !dir &&
           options.nested &&
           options.extensions.length > 0 &&
-          !options.extensions.includes(ext)
+          (!ext || !options.extensions.includes(ext))
         ) {
           return one(null, [])
         }
@@ -27309,7 +27437,7 @@ function statAndIgnore(file, options, callback) {
 
 /**
  * @param {string|VFile} file
- * @returns {string}
+ * @returns {string|undefined}
  */
 function base$1(file) {
   return typeof file === 'string' ? path$c.basename(file) : file.basename
@@ -29650,75 +29778,6 @@ function stringWidth(string) {
 	return width;
 }
 
-/*!
- * repeat-string <https://github.com/jonschlinkert/repeat-string>
- *
- * Copyright (c) 2014-2015, Jon Schlinkert.
- * Licensed under the MIT License.
- */
-
-/**
- * Results cache
- */
-
-var res = '';
-var cache;
-
-/**
- * Expose `repeat`
- */
-
-var repeatString = repeat;
-
-/**
- * Repeat the given `string` the specified `number`
- * of times.
- *
- * **Example:**
- *
- * ```js
- * var repeat = require('repeat-string');
- * repeat('A', 5);
- * //=> AAAAA
- * ```
- *
- * @param {String} `string` The string to repeat
- * @param {Number} `number` The number of times to repeat the string
- * @return {String} Repeated string
- * @api public
- */
-
-function repeat(str, num) {
-  if (typeof str !== 'string') {
-    throw new TypeError('expected a string');
-  }
-
-  // cover common, quick use cases
-  if (num === 1) return str;
-  if (num === 2) return str + str;
-
-  var max = str.length * num;
-  if (cache !== str || typeof cache === 'undefined') {
-    cache = str;
-    res = '';
-  } else if (res.length >= max) {
-    return res.substr(0, max);
-  }
-
-  while (max > res.length && num > 1) {
-    if (num & 1) {
-      res += str;
-    }
-
-    num >>= 1;
-    str += str;
-  }
-
-  res += str;
-  res = res.substr(0, max);
-  return res;
-}
-
 /**
  * @typedef {import('vfile').VFile} VFile
  * @typedef {import('vfile-message').VFileMessage} VFileMessage
@@ -29805,19 +29864,24 @@ function compare(a, b, property) {
  * @property {_Sizes} sizes
  */
 
-var own$8 = {}.hasOwnProperty;
+const own$8 = {}.hasOwnProperty;
 
-// @ts-ignore Types are incorrect.
-var supported = supportsColor.stderr.hasBasic;
+// @ts-expect-error Types are incorrect.
+const supported = supportsColor.stderr.hasBasic;
 
 // `log-symbols` without chalk, ignored for Windows:
 /* c8 ignore next 4 */
-var chars =
+const chars =
   process.platform === 'win32'
     ? {error: '×', warning: '‼'}
     : {error: '✖', warning: '⚠'};
 
-var labels = {true: 'error', false: 'warning', null: 'info', undefined: 'info'};
+const labels = {
+  true: 'error',
+  false: 'warning',
+  null: 'info',
+  undefined: 'info'
+};
 
 /**
  * Report a file’s messages.
@@ -29827,8 +29891,8 @@ var labels = {true: 'error', false: 'warning', null: 'info', undefined: 'info'};
  * @returns {string}
  */
 function reporter$1(files, options = {}) {
-  /** @type {boolean} */
-  var one;
+  /** @type {boolean|undefined} */
+  let one;
 
   if (!files) {
     return ''
@@ -29854,45 +29918,36 @@ function reporter$1(files, options = {}) {
  * @returns {_Info}
  */
 function transform(files, options) {
-  var index = -1;
   /** @type {Array.<_FileRow|_Row>} */
-  var rows = [];
+  const rows = [];
   /** @type {Array.<VFileMessage>} */
-  var all = [];
-  /** @type {number} */
-  var offset;
+  const all = [];
   /** @type {_Sizes} */
-  var sizes = {};
-  /** @type {Array.<VFileMessage>} */
-  var messages;
-  /** @type {VFileMessage} */
-  var message;
-  /** @type {_Row} */
-  var row;
-  /** @type {Array.<_Row>} */
-  var messageRows;
-  /** @type {string} */
-  var key;
+  const sizes = {};
+  let index = -1;
 
   while (++index < files.length) {
-    // @ts-ignore it works fine.
-    messages = sort({messages: [...files[index].messages]}).messages;
-    messageRows = [];
-    offset = -1;
+    // @ts-expect-error it works fine.
+    const messages = sort({messages: [...files[index].messages]}).messages;
+    /** @type {Array.<_Row>} */
+    const messageRows = [];
+    let offset = -1;
 
     while (++offset < messages.length) {
-      message = messages[offset];
+      const message = messages[offset];
 
       if (!options.silent || message.fatal) {
         all.push(message);
 
-        row = {
+        const row = {
           place: stringifyPosition$1(
-            message.position.end.line && message.position.end.column
-              ? message.position
-              : message.position.start
+            message.position
+              ? message.position.end.line && message.position.end.column
+                ? message.position
+                : message.position.start
+              : undefined
           ),
-          label: labels[message.fatal],
+          label: labels[/** @type {keyof labels} */ (String(message.fatal))],
           reason:
             (message.stack || message.message) +
             (options.verbose && message.note ? '\n' + message.note : ''),
@@ -29900,7 +29955,11 @@ function transform(files, options) {
           source: message.source || ''
         };
 
+        /** @type {keyof row} */
+        let key;
+
         for (key in row) {
+          // eslint-disable-next-line max-depth
           if (own$8.call(row, key)) {
             sizes[key] = Math.max(size$1(row[key]), sizes[key] || 0);
           }
@@ -29923,37 +29982,26 @@ function transform(files, options) {
 
 /**
  * @param {_Info} map
- * @param {boolean} one
+ * @param {boolean|undefined} one
  * @param {Options} options
  */
+// eslint-disable-next-line complexity
 function format(map, one, options) {
   /** @type {boolean} */
-  var enabled =
+  const enabled =
     options.color === undefined || options.color === null
       ? supported
       : options.color;
   /** @type {Array.<string>} */
-  var lines = [];
-  var index = -1;
-  /** @type {Statistics} */
-  var stats;
-  /** @type {_FileRow|_Row} */
-  var row;
-  /** @type {string} */
-  var line;
-  /** @type {string} */
-  var reason;
-  /** @type {string} */
-  var rest;
-  /** @type {RegExpMatchArray} */
-  var match;
+  const lines = [];
+  let index = -1;
 
   while (++index < map.rows.length) {
-    row = map.rows[index];
+    const row = map.rows[index];
 
     if ('type' in row) {
-      stats = row.stats;
-      line = row.file.history[0] || options.defaultName || '<stdin>';
+      const stats = row.stats;
+      let line = row.file.history[0] || options.defaultName || '<stdin>';
 
       line =
         one && !options.defaultName && !row.file.history[0]
@@ -29990,8 +30038,10 @@ function format(map, one, options) {
         lines.push(line);
       }
     } else {
-      reason = row.reason;
-      match = /\r?\n|\r/.exec(reason);
+      let reason = row.reason;
+      const match = /\r?\n|\r/.exec(reason);
+      /** @type {string} */
+      let rest;
 
       if (match) {
         rest = reason.slice(match.index);
@@ -30003,7 +30053,7 @@ function format(map, one, options) {
       lines.push(
         (
           '  ' +
-          repeatString(' ', map.sizes.place - size$1(row.place)) +
+          ' '.repeat(map.sizes.place - size$1(row.place)) +
           row.place +
           '  ' +
           (enabled
@@ -30013,13 +30063,13 @@ function format(map, one, options) {
               row.label +
               '\u001B[39m'
             : row.label) +
-          repeatString(' ', map.sizes.label - size$1(row.label)) +
+          ' '.repeat(map.sizes.label - size$1(row.label)) +
           '  ' +
           reason +
-          repeatString(' ', map.sizes.reason - size$1(reason)) +
+          ' '.repeat(map.sizes.reason - size$1(reason)) +
           '  ' +
           row.ruleId +
-          repeatString(' ', map.sizes.ruleId - size$1(row.ruleId)) +
+          ' '.repeat(map.sizes.ruleId - size$1(row.ruleId)) +
           '  ' +
           (row.source || '')
         ).replace(/ +$/, '') + rest
@@ -30027,10 +30077,10 @@ function format(map, one, options) {
     }
   }
 
-  stats = map.stats;
+  const stats = map.stats;
 
   if (stats.fatal || stats.warn) {
-    line = '';
+    let line = '';
 
     if (stats.fatal) {
       line =
@@ -30072,7 +30122,7 @@ function format(map, one, options) {
  * @returns {number}
  */
 function size$1(value) {
-  var match = /\r?\n|\r/.exec(value);
+  const match = /\r?\n|\r/.exec(value);
   return stringWidth(match ? value.slice(0, match.index) : value)
 }
 
@@ -32581,7 +32631,7 @@ function options(flags, configuration) {
     silentlyIgnore: config.silentlyIgnore,
     detectIgnore: config.ignore,
     pluginPrefix: configuration.pluginPrefix,
-    plugins: plugins$2(/** @type {string} */ (config.use)),
+    plugins: plugins$1(/** @type {string} */ (config.use)),
     reporter: report[0],
     reporterOptions: report[1],
     color: config.color,
@@ -32624,7 +32674,7 @@ function commaSeparated(value) {
  * @param {string[]|string|null|undefined} value
  * @returns {Record<string, Record<string, unknown>|undefined>}
  */
-function plugins$2(value) {
+function plugins$1(value) {
   const normalized = normalize(value).map((d) => splitOptions(d));
   let index = -1;
   /** @type {Record<string, Record<string, unknown>|undefined>} */
@@ -34402,8 +34452,54 @@ function initializeDocument(effects) {
   /** @type {State} */
 
   function documentContinue(code) {
-    if (self.containerState._closeFlow) closeFlow();
-    continued++;
+    continued++; // Note: this field is called `_closeFlow` but it also closes containers.
+    // Perhaps a good idea to rename it but it’s already used in the wild by
+    // extensions.
+
+    if (self.containerState._closeFlow) {
+      self.containerState._closeFlow = undefined;
+
+      if (childFlow) {
+        closeFlow();
+      } // Note: this algorithm for moving events around is similar to the
+      // algorithm when dealing with lazy lines in `writeToChild`.
+
+      const indexBeforeExits = self.events.length;
+      let indexBeforeFlow = indexBeforeExits;
+      /** @type {Point|undefined} */
+
+      let point; // Find the flow chunk.
+
+      while (indexBeforeFlow--) {
+        if (
+          self.events[indexBeforeFlow][0] === 'exit' &&
+          self.events[indexBeforeFlow][1].type === 'chunkFlow'
+        ) {
+          point = self.events[indexBeforeFlow][1].end;
+          break
+        }
+      }
+
+      exitContainers(continued); // Fix positions.
+
+      let index = indexBeforeExits;
+
+      while (index < self.events.length) {
+        self.events[index][1].end = Object.assign({}, point);
+        index++;
+      } // Inject the exits earlier (they’re still also at the end).
+
+      splice(
+        self.events,
+        indexBeforeFlow + 1,
+        0,
+        self.events.slice(indexBeforeExits)
+      ); // Discard the duplicate exits.
+
+      self.events.length = index;
+      return checkNewContainers(code)
+    }
+
     return start(code)
   }
   /** @type {State} */
@@ -34574,7 +34670,8 @@ function initializeDocument(effects) {
           // part of something.
           return
         }
-      }
+      } // Note: this algorithm for moving events around is similar to the
+      // algorithm when closing flow in `documentContinue`.
 
       const indexBeforeExits = self.events.length;
       let indexBeforeFlow = indexBeforeExits;
@@ -34897,7 +34994,9 @@ function resolveAllAttention(events, context) {
 /** @type {Tokenizer} */
 
 function tokenizeAttention(effects, ok) {
-  const before = classifyCharacter(this.previous);
+  const attentionMarkers = this.parser.constructs.attentionMarkers.null;
+  const previous = this.previous;
+  const before = classifyCharacter(previous);
   /** @type {NonNullable<Code>} */
 
   let marker;
@@ -34919,8 +35018,10 @@ function tokenizeAttention(effects, ok) {
 
     const token = effects.exit('attentionSequence');
     const after = classifyCharacter(code);
-    const open = !after || (after === 2 && before);
-    const close = !before || (before === 2 && after);
+    const open =
+      !after || (after === 2 && before) || attentionMarkers.includes(code);
+    const close =
+      !before || (before === 2 && after) || attentionMarkers.includes(previous);
     token._open = Boolean(marker === 42 ? open : open && (before || !close));
     token._close = Boolean(marker === 42 ? close : close && (after || !open));
     return ok(code)
@@ -42094,6 +42195,11 @@ const text$2 = {
 const insideSpan = {
   null: [attention, resolver]
 };
+/** @type {Extension['attentionMarkers']} */
+
+const attentionMarkers = {
+  null: [42, 95]
+};
 /** @type {Extension['disable']} */
 
 const disable = {
@@ -42109,6 +42215,7 @@ var defaultConstructs = /*#__PURE__*/Object.freeze({
 	string: string,
 	text: text$2,
 	insideSpan: insideSpan,
+	attentionMarkers: attentionMarkers,
 	disable: disable
 });
 
@@ -43573,22 +43680,33 @@ function configure(base, extension) {
  * @returns {string}
  */
 function containerFlow(parent, context) {
+  const indexStack = context.indexStack;
   const children = parent.children || [];
   /** @type {Array.<string>} */
   const results = [];
   let index = -1;
 
+  indexStack.push(-1);
+
   while (++index < children.length) {
     const child = children[index];
+
+    indexStack[indexStack.length - 1] = index;
 
     results.push(
       context.handle(child, parent, context, {before: '\n', after: '\n'})
     );
 
+    if (child.type !== 'list') {
+      context.bulletLastUsed = undefined;
+    }
+
     if (index < children.length - 1) {
       results.push(between(child, children[index + 1]));
     }
   }
+
+  indexStack.pop();
 
   return results.join('')
 
@@ -43599,11 +43717,9 @@ function containerFlow(parent, context) {
    */
   function between(left, right) {
     let index = context.join.length;
-    /** @type {ReturnType<Join>} */
-    let result;
 
     while (index--) {
-      result = context.join[index](left, right, parent, context);
+      const result = context.join[index](left, right, parent, context);
 
       if (result === true || result === 1) {
         break
@@ -43930,11 +44046,15 @@ function safe(context, input, config) {
     // the next character, and the next character is definitly being escaped,
     // then skip this escape.
     if (
-      position + 1 < end &&
-      positions[index + 1] === position + 1 &&
-      infos[position].after &&
-      !infos[position + 1].before &&
-      !infos[position + 1].after
+      (position + 1 < end &&
+        positions[index + 1] === position + 1 &&
+        infos[position].after &&
+        !infos[position + 1].before &&
+        !infos[position + 1].after) ||
+      (positions[index - 1] === position - 1 &&
+        infos[position].before &&
+        !infos[position - 1].before &&
+        !infos[position - 1].after)
     ) {
       continue
     }
@@ -44233,16 +44353,21 @@ function checkEmphasis(context) {
  * @returns {string}
  */
 function containerPhrasing(parent, context, safeOptions) {
+  const indexStack = context.indexStack;
   const children = parent.children || [];
   /** @type {Array.<string>} */
   const results = [];
   let index = -1;
   let before = safeOptions.before;
 
+  indexStack.push(-1);
+
   while (++index < children.length) {
     const child = children[index];
     /** @type {string} */
     let after;
+
+    indexStack[indexStack.length - 1] = index;
 
     if (index + 1 < children.length) {
       // @ts-expect-error: hush, it’s actually a `zwitch`.
@@ -44280,6 +44405,8 @@ function containerPhrasing(parent, context, safeOptions) {
 
     before = results[results.length - 1].slice(-1);
   }
+
+  indexStack.pop();
 
   return results.join('')
 }
@@ -44319,6 +44446,361 @@ function emphasisPeek(_, _1, context) {
 }
 
 /**
+ * @typedef {import('unist').Node} Node
+ * @typedef {import('unist').Parent} Parent
+ *
+ * @typedef {string} Type
+ * @typedef {Object<string, unknown>} Props
+ *
+ * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
+ */
+
+const convert =
+  /**
+   * @type {(
+   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
+   *   ((test?: Test) => AssertAnything)
+   * )}
+   */
+  (
+    /**
+     * Generate an assertion from a check.
+     * @param {Test} [test]
+     * When nullish, checks if `node` is a `Node`.
+     * When `string`, works like passing `function (node) {return node.type === test}`.
+     * When `function` checks if function passed the node is true.
+     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
+     * When `array`, checks any one of the subtests pass.
+     * @returns {AssertAnything}
+     */
+    function (test) {
+      if (test === undefined || test === null) {
+        return ok
+      }
+
+      if (typeof test === 'string') {
+        return typeFactory(test)
+      }
+
+      if (typeof test === 'object') {
+        return Array.isArray(test) ? anyFactory(test) : propsFactory(test)
+      }
+
+      if (typeof test === 'function') {
+        return castFactory(test)
+      }
+
+      throw new Error('Expected function, string, or object as test')
+    }
+  );
+/**
+ * @param {Array.<Type|Props|TestFunctionAnything>} tests
+ * @returns {AssertAnything}
+ */
+function anyFactory(tests) {
+  /** @type {Array.<AssertAnything>} */
+  const checks = [];
+  let index = -1;
+
+  while (++index < tests.length) {
+    checks[index] = convert(tests[index]);
+  }
+
+  return castFactory(any)
+
+  /**
+   * @this {unknown}
+   * @param {unknown[]} parameters
+   * @returns {boolean}
+   */
+  function any(...parameters) {
+    let index = -1;
+
+    while (++index < checks.length) {
+      if (checks[index].call(this, ...parameters)) return true
+    }
+
+    return false
+  }
+}
+
+/**
+ * Utility to assert each property in `test` is represented in `node`, and each
+ * values are strictly equal.
+ *
+ * @param {Props} check
+ * @returns {AssertAnything}
+ */
+function propsFactory(check) {
+  return castFactory(all)
+
+  /**
+   * @param {Node} node
+   * @returns {boolean}
+   */
+  function all(node) {
+    /** @type {string} */
+    let key;
+
+    for (key in check) {
+      // @ts-expect-error: hush, it sure works as an index.
+      if (node[key] !== check[key]) return false
+    }
+
+    return true
+  }
+}
+
+/**
+ * Utility to convert a string into a function which checks a given node’s type
+ * for said string.
+ *
+ * @param {Type} check
+ * @returns {AssertAnything}
+ */
+function typeFactory(check) {
+  return castFactory(type)
+
+  /**
+   * @param {Node} node
+   */
+  function type(node) {
+    return node && node.type === check
+  }
+}
+
+/**
+ * Utility to convert a string into a function which checks a given node’s type
+ * for said string.
+ * @param {TestFunctionAnything} check
+ * @returns {AssertAnything}
+ */
+function castFactory(check) {
+  return assertion
+
+  /**
+   * @this {unknown}
+   * @param {Array.<unknown>} parameters
+   * @returns {boolean}
+   */
+  function assertion(...parameters) {
+    // @ts-expect-error: spreading is fine.
+    return Boolean(check.call(this, ...parameters))
+  }
+}
+
+// Utility to return true.
+function ok() {
+  return true
+}
+
+/**
+ * @param {string} d
+ * @returns {string}
+ */
+function color$1(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+/**
+ * @typedef {import('unist').Node} Node
+ * @typedef {import('unist').Parent} Parent
+ * @typedef {import('unist-util-is').Test} Test
+ */
+
+/**
+ * Continue traversing as normal
+ */
+const CONTINUE$1 = true;
+/**
+ * Do not traverse this node’s children
+ */
+const SKIP$1 = 'skip';
+/**
+ * Stop traversing immediately
+ */
+const EXIT$1 = false;
+
+/**
+ * Visit children of tree which pass a test
+ *
+ * @param tree Abstract syntax tree to walk
+ * @param test Test node, optional
+ * @param visitor Function to run for each node
+ * @param reverse Visit the tree in reverse order, defaults to false
+ */
+const visitParents$1 =
+  /**
+   * @type {(
+   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
+   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
+   * )}
+   */
+  (
+    /**
+     * @param {Node} tree
+     * @param {Test} test
+     * @param {Visitor<Node>} visitor
+     * @param {boolean} [reverse]
+     */
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        // @ts-expect-error no visitor given, so `visitor` is test.
+        visitor = test;
+        test = null;
+      }
+
+      const is = convert(test);
+      const step = reverse ? -1 : 1;
+
+      factory(tree, null, [])();
+
+      /**
+       * @param {Node} node
+       * @param {number?} index
+       * @param {Array.<Parent>} parents
+       */
+      function factory(node, index, parents) {
+        /** @type {Object.<string, unknown>} */
+        // @ts-expect-error: hush
+        const value = typeof node === 'object' && node !== null ? node : {};
+        /** @type {string|undefined} */
+        let name;
+
+        if (typeof value.type === 'string') {
+          name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              : typeof value.name === 'string'
+              ? value.name
+              : undefined;
+
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' +
+              color$1(value.type + (name ? '<' + name + '>' : '')) +
+              ')'
+          });
+        }
+
+        return visit
+
+        function visit() {
+          /** @type {ActionTuple} */
+          let result = [];
+          /** @type {ActionTuple} */
+          let subresult;
+          /** @type {number} */
+          let offset;
+          /** @type {Array.<Parent>} */
+          let grandparents;
+
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult$1(visitor(node, parents));
+
+            if (result[0] === EXIT$1) {
+              return result
+            }
+          }
+
+          // @ts-expect-error looks like a parent.
+          if (node.children && result[0] !== SKIP$1) {
+            // @ts-expect-error looks like a parent.
+            offset = (reverse ? node.children.length : -1) + step;
+            // @ts-expect-error looks like a parent.
+            grandparents = parents.concat(node);
+
+            // @ts-expect-error looks like a parent.
+            while (offset > -1 && offset < node.children.length) {
+              // @ts-expect-error looks like a parent.
+              subresult = factory(node.children[offset], offset, grandparents)();
+
+              if (subresult[0] === EXIT$1) {
+                return subresult
+              }
+
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+
+          return result
+        }
+      }
+    }
+  );
+
+/**
+ * @param {VisitorResult} value
+ * @returns {ActionTuple}
+ */
+function toResult$1(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$1, value]
+  }
+
+  return [value]
+}
+
+/**
+ * @typedef {import('unist').Node} Node
+ * @typedef {import('unist').Parent} Parent
+ * @typedef {import('unist-util-is').Test} Test
+ * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
+ */
+
+/**
+ * Visit children of tree which pass a test
+ *
+ * @param tree Abstract syntax tree to walk
+ * @param test Test, optional
+ * @param visitor Function to run for each node
+ * @param reverse Fisit the tree in reverse, defaults to false
+ */
+const visit$1 =
+  /**
+   * @type {(
+   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
+   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
+   * )}
+   */
+  (
+    /**
+     * @param {Node} tree
+     * @param {Test} test
+     * @param {Visitor<Node>} visitor
+     * @param {boolean} [reverse]
+     */
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+
+      visitParents$1(tree, test, overload, reverse);
+
+      /**
+       * @param {Node} node
+       * @param {Array.<Parent>} parents
+       */
+      function overload(node, parents) {
+        const parent = parents[parents.length - 1];
+        return visitor(
+          node,
+          parent ? parent.children.indexOf(node) : null,
+          parent
+        )
+      }
+    }
+  );
+
+/**
  * @typedef {import('mdast').Heading} Heading
  * @typedef {import('../types.js').Context} Context
  */
@@ -44329,8 +44811,24 @@ function emphasisPeek(_, _1, context) {
  * @returns {boolean}
  */
 function formatHeadingAsSetext(node, context) {
+  let literalWithBreak = false;
+
+  // Look for literals with a line break.
+  // Note that this also
+  visit$1(node, (node) => {
+    if (
+      ('value' in node && /\r?\n|\r/.test(node.value)) ||
+      node.type === 'break'
+    ) {
+      literalWithBreak = true;
+      return EXIT$1
+    }
+  });
+
   return Boolean(
-    context.options.setext && (!node.depth || node.depth < 3) && toString(node)
+    (!node.depth || node.depth < 3) &&
+      toString(node) &&
+      (context.options.setext || literalWithBreak)
   )
 }
 
@@ -44346,17 +44844,11 @@ function formatHeadingAsSetext(node, context) {
  */
 function heading(node, _, context) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
-  /** @type {Exit} */
-  let exit;
-  /** @type {Exit} */
-  let subexit;
-  /** @type {string} */
-  let value;
 
   if (formatHeadingAsSetext(node, context)) {
-    exit = context.enter('headingSetext');
-    subexit = context.enter('phrasing');
-    value = containerPhrasing(node, context, {before: '\n', after: '\n'});
+    const exit = context.enter('headingSetext');
+    const subexit = context.enter('phrasing');
+    const value = containerPhrasing(node, context, {before: '\n', after: '\n'});
     subexit();
     exit();
 
@@ -44374,10 +44866,20 @@ function heading(node, _, context) {
   }
 
   const sequence = '#'.repeat(rank);
-  exit = context.enter('headingAtx');
-  subexit = context.enter('phrasing');
-  value = containerPhrasing(node, context, {before: '# ', after: '\n'});
+  const exit = context.enter('headingAtx');
+  const subexit = context.enter('phrasing');
+  let value = containerPhrasing(node, context, {before: '# ', after: '\n'});
+
+  if (/^[\t ]/.test(value)) {
+    value =
+      '&#x' +
+      value.charCodeAt(0).toString(16).toUpperCase() +
+      ';' +
+      value.slice(1);
+  }
+
   value = value ? sequence + ' ' + value : sequence;
+
   if (context.options.closeAtx) {
     value += ' ' + sequence;
   }
@@ -44752,22 +45254,6 @@ function linkReferencePeek() {
 }
 
 /**
- * @typedef {import('mdast').List} List
- * @typedef {import('../types.js').Handle} Handle
- */
-
-/**
- * @type {Handle}
- * @param {List} node
- */
-function list(node, _, context) {
-  const exit = context.enter('list');
-  const value = containerFlow(node, context);
-  exit();
-  return value
-}
-
-/**
  * @typedef {import('../types.js').Context} Context
  * @typedef {import('../types.js').Options} Options
  */
@@ -44788,6 +45274,232 @@ function checkBullet(context) {
   }
 
   return marker
+}
+
+/**
+ * @typedef {import('../types.js').Context} Context
+ * @typedef {import('../types.js').Options} Options
+ */
+
+/**
+ * @param {Context} context
+ * @returns {Exclude<Options['bullet'], undefined>}
+ */
+function checkBulletOther(context) {
+  const bullet = checkBullet(context);
+  const bulletOther = context.options.bulletOther;
+
+  if (!bulletOther) {
+    return bullet === '*' ? '-' : '*'
+  }
+
+  if (bulletOther !== '*' && bulletOther !== '+' && bulletOther !== '-') {
+    throw new Error(
+      'Cannot serialize items with `' +
+        bulletOther +
+        '` for `options.bulletOther`, expected `*`, `+`, or `-`'
+    )
+  }
+
+  if (bulletOther === bullet) {
+    throw new Error(
+      'Expected `bullet` (`' +
+        bullet +
+        '`) and `bulletOther` (`' +
+        bulletOther +
+        '`) to be different'
+    )
+  }
+
+  return bulletOther
+}
+
+/**
+ * @typedef {import('../types.js').Context} Context
+ * @typedef {import('../types.js').Options} Options
+ */
+
+/**
+ * @param {Context} context
+ * @returns {Exclude<Options['bulletOrdered'], undefined>}
+ */
+function checkBulletOrdered(context) {
+  const marker = context.options.bulletOrdered || '.';
+
+  if (marker !== '.' && marker !== ')') {
+    throw new Error(
+      'Cannot serialize items with `' +
+        marker +
+        '` for `options.bulletOrdered`, expected `.` or `)`'
+    )
+  }
+
+  return marker
+}
+
+/**
+ * @typedef {import('../types.js').Context} Context
+ * @typedef {import('../types.js').Options} Options
+ */
+
+/**
+ * @param {Context} context
+ * @returns {Exclude<Options['bulletOrdered'], undefined>}
+ */
+function checkBulletOrderedOther(context) {
+  const bulletOrdered = checkBulletOrdered(context);
+  const bulletOrderedOther = context.options.bulletOrderedOther;
+
+  if (!bulletOrderedOther) {
+    return bulletOrdered === '.' ? ')' : '.'
+  }
+
+  if (bulletOrderedOther !== '.' && bulletOrderedOther !== ')') {
+    throw new Error(
+      'Cannot serialize items with `' +
+        bulletOrderedOther +
+        '` for `options.bulletOrderedOther`, expected `*`, `+`, or `-`'
+    )
+  }
+
+  if (bulletOrderedOther === bulletOrdered) {
+    throw new Error(
+      'Expected `bulletOrdered` (`' +
+        bulletOrdered +
+        '`) and `bulletOrderedOther` (`' +
+        bulletOrderedOther +
+        '`) to be different'
+    )
+  }
+
+  return bulletOrderedOther
+}
+
+/**
+ * @typedef {import('../types.js').Context} Context
+ * @typedef {import('../types.js').Options} Options
+ */
+
+/**
+ * @param {Context} context
+ * @returns {Exclude<Options['rule'], undefined>}
+ */
+function checkRule(context) {
+  const marker = context.options.rule || '*';
+
+  if (marker !== '*' && marker !== '-' && marker !== '_') {
+    throw new Error(
+      'Cannot serialize rules with `' +
+        marker +
+        '` for `options.rule`, expected `*`, `-`, or `_`'
+    )
+  }
+
+  return marker
+}
+
+/**
+ * @typedef {import('mdast').List} List
+ * @typedef {import('../types.js').Handle} Handle
+ */
+
+/**
+ * @type {Handle}
+ * @param {List} node
+ */
+function list(node, parent, context) {
+  const exit = context.enter('list');
+  const bulletCurrent = context.bulletCurrent;
+  /** @type {string} */
+  let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
+  /** @type {string} */
+  const bulletOther = node.ordered
+    ? checkBulletOrderedOther(context)
+    : checkBulletOther(context);
+  const bulletLastUsed = context.bulletLastUsed;
+  let useDifferentMarker = false;
+
+  if (
+    parent &&
+    // Explicit `other` set.
+    (node.ordered
+      ? context.options.bulletOrderedOther
+      : context.options.bulletOther) &&
+    bulletLastUsed &&
+    bullet === bulletLastUsed
+  ) {
+    useDifferentMarker = true;
+  }
+
+  if (!node.ordered) {
+    const firstListItem = node.children ? node.children[0] : undefined;
+
+    // If there’s an empty first list item directly in two list items,
+    // we have to use a different bullet:
+    //
+    // ```markdown
+    // * - *
+    // ```
+    //
+    // …because otherwise it would become one big thematic break.
+    if (
+      // Bullet could be used as a thematic break marker:
+      (bullet === '*' || bullet === '-') &&
+      // Empty first list item:
+      firstListItem &&
+      (!firstListItem.children || !firstListItem.children[0]) &&
+      // Directly in two other list items:
+      context.stack[context.stack.length - 1] === 'list' &&
+      context.stack[context.stack.length - 2] === 'listItem' &&
+      context.stack[context.stack.length - 3] === 'list' &&
+      context.stack[context.stack.length - 4] === 'listItem' &&
+      // That are each the first child.
+      context.indexStack[context.indexStack.length - 1] === 0 &&
+      context.indexStack[context.indexStack.length - 2] === 0 &&
+      context.indexStack[context.indexStack.length - 3] === 0 &&
+      context.indexStack[context.indexStack.length - 4] === 0
+    ) {
+      useDifferentMarker = true;
+    }
+
+    // If there’s a thematic break at the start of the first list item,
+    // we have to use a different bullet:
+    //
+    // ```markdown
+    // * ---
+    // ```
+    //
+    // …because otherwise it would become one big thematic break.
+    if (checkRule(context) === bullet && firstListItem) {
+      let index = -1;
+
+      while (++index < node.children.length) {
+        const item = node.children[index];
+
+        if (
+          item &&
+          item.type === 'listItem' &&
+          item.children &&
+          item.children[0] &&
+          item.children[0].type === 'thematicBreak'
+        ) {
+          useDifferentMarker = true;
+          break
+        }
+      }
+    }
+  }
+
+  if (useDifferentMarker) {
+    bullet = bulletOther;
+  }
+
+  context.bulletCurrent = bullet;
+  const value = containerFlow(node, context);
+  context.bulletLastUsed = bullet;
+  context.bulletCurrent = bulletCurrent;
+  exit();
+  return value
 }
 
 /**
@@ -44833,9 +45545,9 @@ function checkListItemIndent(context) {
  */
 function listItem(node, parent, context) {
   const listItemIndent = checkListItemIndent(context);
-  /** @type {string} */
-  let bullet = checkBullet(context);
+  let bullet = context.bulletCurrent || checkBullet(context);
 
+  // Add the marker value for ordered lists.
   if (parent && parent.type === 'list' && parent.ordered) {
     bullet =
       (typeof parent.start === 'number' && parent.start > -1
@@ -44844,7 +45556,7 @@ function listItem(node, parent, context) {
       (context.options.incrementListMarker === false
         ? 0
         : parent.children.indexOf(node)) +
-      '.';
+      bullet;
   }
 
   let size = bullet.length + 1;
@@ -44852,7 +45564,7 @@ function listItem(node, parent, context) {
   if (
     listItemIndent === 'tab' ||
     (listItemIndent === 'mixed' &&
-      ((parent && 'spread' in parent && parent.spread) || node.spread))
+      ((parent && parent.type === 'list' && parent.spread) || node.spread))
   ) {
     size = Math.ceil(size / 4) * 4;
   }
@@ -44998,29 +45710,6 @@ function checkRuleRepetition(context) {
 }
 
 /**
- * @typedef {import('../types.js').Context} Context
- * @typedef {import('../types.js').Options} Options
- */
-
-/**
- * @param {Context} context
- * @returns {Exclude<Options['rule'], undefined>}
- */
-function checkRule(context) {
-  const marker = context.options.rule || '*';
-
-  if (marker !== '*' && marker !== '-' && marker !== '_') {
-    throw new Error(
-      'Cannot serialize rules with `' +
-        marker +
-        '` for `options.rule`, expected `*`, `-`, or `_`'
-    )
-  }
-
-  return marker
-}
-
-/**
  * @typedef {import('../types.js').Handle} Handle
  * @typedef {import('mdast').ThematicBreak} ThematicBreak
  */
@@ -45069,16 +45758,24 @@ const join = [joinDefaults];
 
 /** @type {Join} */
 function joinDefaults(left, right, parent, context) {
+  // Indented code after list or another indented code.
   if (
-    // Two lists with the same marker.
-    (right.type === 'list' &&
-      right.type === left.type &&
-      Boolean(left.ordered) === Boolean(right.ordered)) ||
-    // Indented code after list or another indented code.
-    (right.type === 'code' &&
-      formatCodeAsIndented(right, context) &&
-      (left.type === 'list' ||
-        (left.type === right.type && formatCodeAsIndented(left, context))))
+    right.type === 'code' &&
+    formatCodeAsIndented(right, context) &&
+    (left.type === 'list' ||
+      (left.type === right.type && formatCodeAsIndented(left, context)))
+  ) {
+    return false
+  }
+
+  // Two lists with the same marker.
+  if (
+    left.type === 'list' &&
+    left.type === right.type &&
+    Boolean(left.ordered) === Boolean(right.ordered) &&
+    !(left.ordered
+      ? context.options.bulletOrderedOther
+      : context.options.bulletOther)
   ) {
     return false
   }
@@ -45107,6 +45804,8 @@ function joinDefaults(left, right, parent, context) {
 
 /** @type {Array.<Unsafe>} */
 const unsafe = [
+  {character: '\t', after: '[\\r\\n]', inConstruct: 'phrasing'},
+  {character: '\t', before: '[\\r\\n]', inConstruct: 'phrasing'},
   {
     character: '\t',
     inConstruct: ['codeFencedLangGraveAccent', 'codeFencedLangTilde']
@@ -45133,6 +45832,8 @@ const unsafe = [
       'headingAtx'
     ]
   },
+  {character: ' ', after: '[\\r\\n]', inConstruct: 'phrasing'},
+  {character: ' ', before: '[\\r\\n]', inConstruct: 'phrasing'},
   {
     character: ' ',
     inConstruct: ['codeFencedLangGraveAccent', 'codeFencedLangTilde']
@@ -45191,10 +45892,7 @@ const unsafe = [
   // Note: typical escapes are handled in `safe`!
   {character: '\\', after: '[\\r\\n]', inConstruct: 'phrasing'},
   // A right bracket can exit labels.
-  {
-    character: ']',
-    inConstruct: ['label', 'reference']
-  },
+  {character: ']', inConstruct: ['label', 'reference']},
   // Caret is not used in markdown for constructs.
   // An underscore can start emphasis, strong, or a thematic break.
   {atBreak: true, character: '_'},
@@ -45240,7 +45938,8 @@ function toMarkdown(tree, options = {}) {
     unsafe: [],
     join: [],
     handlers: {},
-    options: {}
+    options: {},
+    indexStack: []
   };
 
   configure(context, {unsafe, join, handlers: handle});
@@ -45419,15 +46118,15 @@ const devDependencies = {
 	"@rollup/plugin-commonjs": "^20.0.0",
 	"@rollup/plugin-json": "^4.1.0",
 	"@rollup/plugin-node-resolve": "^13.0.4",
-	rollup: "^2.52.7",
+	rollup: "^2.56.3",
 	shx: "^0.3.3"
 };
 const dependencies = {
 	"markdown-extensions": "^1.1.1",
-	remark: "^14.0.0",
+	remark: "^14.0.1",
 	"remark-gfm": "^2.0.0",
-	"remark-preset-lint-node": "^3.0.0",
-	"unified-args": "^9.0.0"
+	"remark-preset-lint-node": "^3.0.1",
+	"unified-args": "^9.0.2"
 };
 const main = "dist/index.js";
 const scripts = {
@@ -45526,159 +46225,10 @@ function location(file) {
 }
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- *
- * @typedef {string} Type
- * @typedef {Object<string, unknown>} Props
- *
- * @typedef {null|undefined|Type|Props|TestFunctionAnything|Array.<Type|Props|TestFunctionAnything>} Test
- */
-
-const convert =
-  /**
-   * @type {(
-   *   (<T extends Node>(test: T['type']|Partial<T>|TestFunctionPredicate<T>) => AssertPredicate<T>) &
-   *   ((test?: Test) => AssertAnything)
-   * )}
-   */
-  (
-    /**
-     * Generate an assertion from a check.
-     * @param {Test} [test]
-     * When nullish, checks if `node` is a `Node`.
-     * When `string`, works like passing `function (node) {return node.type === test}`.
-     * When `function` checks if function passed the node is true.
-     * When `object`, checks that all keys in test are in node, and that they have (strictly) equal values.
-     * When `array`, checks any one of the subtests pass.
-     * @returns {AssertAnything}
-     */
-    function (test) {
-      if (test === undefined || test === null) {
-        return ok
-      }
-
-      if (typeof test === 'string') {
-        return typeFactory(test)
-      }
-
-      if (typeof test === 'object') {
-        return Array.isArray(test) ? anyFactory(test) : propsFactory(test)
-      }
-
-      if (typeof test === 'function') {
-        return castFactory(test)
-      }
-
-      throw new Error('Expected function, string, or object as test')
-    }
-  );
-/**
- * @param {Array.<Type|Props|TestFunctionAnything>} tests
- * @returns {AssertAnything}
- */
-function anyFactory(tests) {
-  /** @type {Array.<AssertAnything>} */
-  const checks = [];
-  let index = -1;
-
-  while (++index < tests.length) {
-    checks[index] = convert(tests[index]);
-  }
-
-  return castFactory(any)
-
-  /**
-   * @this {unknown}
-   * @param {unknown[]} parameters
-   * @returns {boolean}
-   */
-  function any(...parameters) {
-    let index = -1;
-
-    while (++index < checks.length) {
-      if (checks[index].call(this, ...parameters)) return true
-    }
-
-    return false
-  }
-}
-
-/**
- * Utility to assert each property in `test` is represented in `node`, and each
- * values are strictly equal.
- *
- * @param {Props} check
- * @returns {AssertAnything}
- */
-function propsFactory(check) {
-  return castFactory(all)
-
-  /**
-   * @param {Node} node
-   * @returns {boolean}
-   */
-  function all(node) {
-    /** @type {string} */
-    let key;
-
-    for (key in check) {
-      // @ts-expect-error: hush, it sure works as an index.
-      if (node[key] !== check[key]) return false
-    }
-
-    return true
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- *
- * @param {Type} check
- * @returns {AssertAnything}
- */
-function typeFactory(check) {
-  return castFactory(type)
-
-  /**
-   * @param {Node} node
-   */
-  function type(node) {
-    return node && node.type === check
-  }
-}
-
-/**
- * Utility to convert a string into a function which checks a given node’s type
- * for said string.
- * @param {TestFunctionAnything} check
- * @returns {AssertAnything}
- */
-function castFactory(check) {
-  return assertion
-
-  /**
-   * @this {unknown}
-   * @param {Array.<unknown>} parameters
-   * @returns {boolean}
-   */
-  function assertion(...parameters) {
-    // @ts-expect-error: spreading is fine.
-    return Boolean(check.call(this, ...parameters))
-  }
-}
-
-// Utility to return true.
-function ok() {
-  return true
-}
-
-/**
  * @param {string} d
  * @returns {string}
  */
-function color$2(d) {
+function color(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
@@ -45691,17 +46241,17 @@ function color$2(d) {
 /**
  * Continue traversing as normal
  */
-const CONTINUE$2 = true;
+const CONTINUE = true;
 /**
  * Do not traverse this node’s children
  */
-const SKIP$2 = 'skip';
+const SKIP = 'skip';
 /**
  * Stop traversing immediately
  */
-const EXIT$2 = false;
+const EXIT = false;
 
-const visitParents$2 =
+const visitParents =
   /**
    * @type {(
    *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
@@ -45753,7 +46303,7 @@ const visitParents$2 =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color$2(value.type + (name ? '<' + name + '>' : '')) +
+              color(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -45771,14 +46321,14 @@ const visitParents$2 =
           var grandparents;
 
           if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$2(visitor(node, parents));
+            result = toResult(visitor(node, parents));
 
-            if (result[0] === EXIT$2) {
+            if (result[0] === EXIT) {
               return result
             }
           }
 
-          if (node.children && result[0] !== SKIP$2) {
+          if (node.children && result[0] !== SKIP) {
             // @ts-ignore looks like a parent.
             offset = (reverse ? node.children.length : -1) + step;
             // @ts-ignore looks like a parent.
@@ -45788,7 +46338,7 @@ const visitParents$2 =
             while (offset > -1 && offset < node.children.length) {
               subresult = factory(node.children[offset], offset, grandparents)();
 
-              if (subresult[0] === EXIT$2) {
+              if (subresult[0] === EXIT) {
                 return subresult
               }
 
@@ -45807,13 +46357,13 @@ const visitParents$2 =
  * @param {VisitorResult} value
  * @returns {ActionTuple}
  */
-function toResult$2(value) {
+function toResult(value) {
   if (Array.isArray(value)) {
     return value
   }
 
   if (typeof value === 'number') {
-    return [CONTINUE$2, value]
+    return [CONTINUE, value]
   }
 
   return [value]
@@ -45826,7 +46376,7 @@ function toResult$2(value) {
  * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
  */
 
-const visit$1 =
+const visit =
   /**
    * @type {(
    *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
@@ -45850,7 +46400,7 @@ const visit$1 =
         test = null;
       }
 
-      visitParents$2(tree, test, overload, reverse);
+      visitParents(tree, test, overload, reverse);
 
       /**
        * @param {Node} node
@@ -45982,7 +46532,7 @@ function messageControl(options) {
     /** @type {Mark[]} */
     const globals = [];
 
-    visit$1(tree, options.test, visitor);
+    visit(tree, options.test, visitor);
 
     file.messages = file.messages.filter((m) => filter(m));
 
@@ -46217,7 +46767,7 @@ function detectGaps(tree, file) {
   let gap;
 
   // Find all gaps.
-  visit$1(tree, one);
+  visit(tree, one);
 
   // Get the end of the document.
   // This detects if the last node was the last node.
@@ -46449,13 +46999,13 @@ function lintMessageControl() {
  * @returns {void}
  */
 
-const primitives$G = new Set(['string', 'number', 'boolean']);
+const primitives = new Set(['string', 'number', 'boolean']);
 
 /**
  * @param {string} id
  * @param {Rule} rule
  */
-function lintRule$G(id, rule) {
+function lintRule(id, rule) {
   const parts = id.split(':');
   // Possibly useful if externalised later.
   /* c8 ignore next */
@@ -46468,7 +47018,7 @@ function lintRule$G(id, rule) {
 
   /** @type {import('unified').Plugin<[unknown]|void[]>} */
   function plugin(raw) {
-    const [severity, options] = coerce$H(ruleId, raw);
+    const [severity, options] = coerce$1(ruleId, raw);
 
     if (!severity) return
 
@@ -46507,7 +47057,7 @@ function lintRule$G(id, rule) {
  * @param {unknown} value
  * @returns {SeverityTuple}
  */
-function coerce$H(name, value) {
+function coerce$1(name, value) {
   /** @type {unknown[]} */
   let result;
 
@@ -46519,7 +47069,7 @@ function coerce$H(name, value) {
     Array.isArray(value) &&
     // `isArray(unknown)` is turned into `any[]`:
     // type-coverage:ignore-next-line
-    primitives$G.has(typeof value[0])
+    primitives.has(typeof value[0])
   ) {
     // `isArray(unknown)` is turned into `any[]`:
     // type-coverage:ignore-next-line
@@ -46614,7 +47164,7 @@ function coerce$H(name, value) {
  *   ```
  */
 
-const remarkLintFinalNewline = lintRule$G(
+const remarkLintFinalNewline = lintRule(
   'remark-lint:final-newline',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -46628,134 +47178,6 @@ const remarkLintFinalNewline = lintRule$G(
 );
 
 var remarkLintFinalNewline$1 = remarkLintFinalNewline;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$F = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$F(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$G(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$G(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$F.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 var pluralize = {exports: {}};
 
@@ -47263,212 +47685,6 @@ var pluralize = {exports: {}};
 var plural = pluralize.exports;
 
 /**
- * @param {string} d
- * @returns {string}
- */
-function color$1(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE$1 = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP$1 = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT$1 = false;
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test node, optional
- * @param visitor Function to run for each node
- * @param reverse Visit the tree in reverse order, defaults to false
- */
-const visitParents$1 =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('./complex-types').Matches<import('./complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('./complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-expect-error no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      const is = convert(test);
-      const step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        // @ts-expect-error: hush
-        const value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string|undefined} */
-        let name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          let result = [];
-          /** @type {ActionTuple} */
-          let subresult;
-          /** @type {number} */
-          let offset;
-          /** @type {Array.<Parent>} */
-          let grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult$1(visitor(node, parents));
-
-            if (result[0] === EXIT$1) {
-              return result
-            }
-          }
-
-          // @ts-expect-error looks like a parent.
-          if (node.children && result[0] !== SKIP$1) {
-            // @ts-expect-error looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-expect-error looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-expect-error looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              // @ts-expect-error looks like a parent.
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT$1) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult$1(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE$1, value]
-  }
-
-  return [value]
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- */
-
-/**
- * Visit children of tree which pass a test
- *
- * @param tree Abstract syntax tree to walk
- * @param test Test, optional
- * @param visitor Function to run for each node
- * @param reverse Fisit the tree in reverse, defaults to false
- */
-const visit =
-  /**
-   * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * @param {Node} tree
-     * @param {Test} test
-     * @param {Visitor<Node>} visitor
-     * @param {boolean} [reverse]
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-
-      visitParents$1(tree, test, overload, reverse);
-
-      /**
-       * @param {Node} node
-       * @param {Array.<Parent>} parents
-       */
-      function overload(node, parents) {
-        const parent = parents[parents.length - 1];
-        return visitor(
-          node,
-          parent ? parent.children.indexOf(node) : null,
-          parent
-        )
-      }
-    }
-  );
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -47507,11 +47723,11 @@ const visit =
  *   4:2: Incorrect indentation before bullet: remove 1 space
  */
 
-const remarkLintListItemBulletIndent = lintRule$F(
+const remarkLintListItemBulletIndent = lintRule(
   'remark-lint:list-item-bullet-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'list', (list, _, grandparent) => {
+    visit$1(tree, 'list', (list, _, grandparent) => {
       let index = -1;
 
       while (++index < list.children.length) {
@@ -47544,134 +47760,6 @@ const remarkLintListItemBulletIndent = lintRule$F(
 );
 
 var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$E = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$E(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$F(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$F(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$E.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @typedef {import('unist').Position} Position
@@ -47865,7 +47953,7 @@ function generated(node) {
  *    1:1: Incorrect list-item indent style `💩`: use either `'tab-size'`, `'space'`, or `'mixed'`
  */
 
-const remarkLintListItemIndent = lintRule$E(
+const remarkLintListItemIndent = lintRule(
   'remark-lint:list-item-indent',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'tab-size') => {
@@ -47879,7 +47967,7 @@ const remarkLintListItemIndent = lintRule$E(
       );
     }
 
-    visit(tree, 'list', (node) => {
+    visit$1(tree, 'list', (node) => {
       if (generated(node)) return
 
       const spread = node.spread;
@@ -47923,134 +48011,6 @@ const remarkLintListItemIndent = lintRule$E(
 var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$D = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$D(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$E(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$E(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$D.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -48092,11 +48052,11 @@ function coerce$E(name, value) {
 // See: <https://en.wikipedia.org/wiki/URI_scheme#Generic_syntax>.
 const protocol = /^[a-z][a-z+.-]+:\/?/i;
 
-const remarkLintNoAutoLinkWithoutProtocol = lintRule$D(
+const remarkLintNoAutoLinkWithoutProtocol = lintRule(
   'remark-lint:no-auto-link-without-protocol',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'link', (node) => {
+    visit$1(tree, 'link', (node) => {
       if (
         !generated(node) &&
         pointStart(node).column === pointStart(node.children[0]).column - 1 &&
@@ -48111,134 +48071,6 @@ const remarkLintNoAutoLinkWithoutProtocol = lintRule$D(
 );
 
 var remarkLintNoAutoLinkWithoutProtocol$1 = remarkLintNoAutoLinkWithoutProtocol;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$C = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$C(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$D(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$D(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$C.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -48297,14 +48129,14 @@ function coerce$D(name, value) {
  *   3:1: Missing marker in block quote
  */
 
-const remarkLintNoBlockquoteWithoutMarker = lintRule$C(
+const remarkLintNoBlockquoteWithoutMarker = lintRule(
   'remark-lint:no-blockquote-without-marker',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
     const loc = location(file);
 
-    visit(tree, 'blockquote', (node) => {
+    visit$1(tree, 'blockquote', (node) => {
       let index = -1;
 
       while (++index < node.children.length) {
@@ -48336,134 +48168,6 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule$C(
 );
 
 var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$B = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$B(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$C(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$C(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$B.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -48501,11 +48205,11 @@ function coerce$C(name, value) {
  *   1:1-1:19: Don’t use literal URLs without angle brackets
  */
 
-const remarkLintNoLiteralUrls = lintRule$B(
+const remarkLintNoLiteralUrls = lintRule(
   'remark-lint:no-literal-urls',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'link', (node) => {
+    visit$1(tree, 'link', (node) => {
       const value = toString(node);
 
       if (
@@ -48522,134 +48226,6 @@ const remarkLintNoLiteralUrls = lintRule$B(
 );
 
 var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$A = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$A(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$B(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$B(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$A.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -48708,7 +48284,7 @@ function coerce$B(name, value) {
  *   1:1: Incorrect ordered list item marker style `💩`: use either `'.'` or `')'`
  */
 
-const remarkLintOrderedListMarkerStyle = lintRule$A(
+const remarkLintOrderedListMarkerStyle = lintRule(
   'remark-lint:ordered-list-marker-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -48722,7 +48298,7 @@ const remarkLintOrderedListMarkerStyle = lintRule$A(
       );
     }
 
-    visit(tree, 'list', (node) => {
+    visit$1(tree, 'list', (node) => {
       let index = -1;
 
       if (!node.ordered) return
@@ -48755,134 +48331,6 @@ const remarkLintOrderedListMarkerStyle = lintRule$A(
 var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$z = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$z(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$A(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$A(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$z.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -48908,13 +48356,13 @@ function coerce$A(name, value) {
  *   1:12-2:1: Use two spaces for hard line breaks
  */
 
-const remarkLintHardBreakSpaces = lintRule$z(
+const remarkLintHardBreakSpaces = lintRule(
   'remark-lint:hard-break-spaces',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit(tree, 'break', (node) => {
+    visit$1(tree, 'break', (node) => {
       if (!generated(node)) {
         const slice = value
           .slice(pointStart(node).offset, pointEnd(node).offset)
@@ -48930,134 +48378,6 @@ const remarkLintHardBreakSpaces = lintRule$z(
 );
 
 var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$y = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$y(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$z(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$z(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$y.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -49085,14 +48405,14 @@ function coerce$z(name, value) {
  *   2:1-2:11: Do not use definitions with the same identifier (1:1)
  */
 
-const remarkLintNoDuplicateDefinitions = lintRule$y(
+const remarkLintNoDuplicateDefinitions = lintRule(
   'remark-lint:no-duplicate-definitions',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, string>} */
     const map = Object.create(null);
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -49116,134 +48436,6 @@ const remarkLintNoDuplicateDefinitions = lintRule$y(
 );
 
 var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$x = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$x(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$y(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$y(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$x.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @typedef {import('mdast').Heading} Heading
@@ -49354,11 +48546,11 @@ function consolidate(depth, relative) {
  *   #··
  */
 
-const remarkLintNoHeadingContentIndent = lintRule$x(
+const remarkLintNoHeadingContentIndent = lintRule(
   'remark-lint:no-heading-content-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'heading', (node) => {
+    visit$1(tree, 'heading', (node) => {
       if (generated(node)) {
         return
       }
@@ -49411,134 +48603,6 @@ const remarkLintNoHeadingContentIndent = lintRule$x(
 var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$w = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$w(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$x(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$x(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$w.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -49565,13 +48629,13 @@ function coerce$x(name, value) {
  *   1:7-1:38: Don’t pad `link` with inner spaces
  */
 
-const remarkLintNoInlinePadding = lintRule$w(
+const remarkLintNoInlinePadding = lintRule(
   'remark-lint:no-inline-padding',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     // Note: `emphasis`, `strong`, `delete` (GFM) can’t have padding anymore
     // since CM.
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         (node.type === 'link' || node.type === 'linkReference') &&
         !generated(node)
@@ -49587,134 +48651,6 @@ const remarkLintNoInlinePadding = lintRule$w(
 );
 
 var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$v = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$v(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$w(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$w(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$v.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -49750,11 +48686,11 @@ function coerce$w(name, value) {
  *   1:1-1:7: Use the trailing [] on reference images
  */
 
-const remarkLintNoShortcutReferenceImage = lintRule$v(
+const remarkLintNoShortcutReferenceImage = lintRule(
   'remark-lint:no-shortcut-reference-image',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'imageReference', (node) => {
+    visit$1(tree, 'imageReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing [] on reference images', node);
       }
@@ -49763,134 +48699,6 @@ const remarkLintNoShortcutReferenceImage = lintRule$v(
 );
 
 var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$u = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$u(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$v(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$v(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$u.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -49926,11 +48734,11 @@ function coerce$v(name, value) {
  *   1:1-1:6: Use the trailing `[]` on reference links
  */
 
-const remarkLintNoShortcutReferenceLink = lintRule$u(
+const remarkLintNoShortcutReferenceLink = lintRule(
   'remark-lint:no-shortcut-reference-link',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'linkReference', (node) => {
+    visit$1(tree, 'linkReference', (node) => {
       if (!generated(node) && node.referenceType === 'shortcut') {
         file.message('Use the trailing `[]` on reference links', node);
       }
@@ -49939,134 +48747,6 @@ const remarkLintNoShortcutReferenceLink = lintRule$u(
 );
 
 var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$t = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$t(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$u(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$u(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$t.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -50136,7 +48816,7 @@ function coerce$u(name, value) {
  *   17:23-17:26: Found reference to undefined definition
  */
 
-const remarkLintNoUndefinedReferences = lintRule$t(
+const remarkLintNoUndefinedReferences = lintRule(
   'remark-lint:no-undefined-references',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = {}) => {
@@ -50149,7 +48829,7 @@ const remarkLintNoUndefinedReferences = lintRule$t(
     /** @type {Record<string, boolean>} */
     const map = Object.create(null);
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -50158,7 +48838,7 @@ const remarkLintNoUndefinedReferences = lintRule$t(
       }
     });
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       // CM specifiers that references only form when defined.
       // Still, they could be added by plugins, so let’s keep it.
       /* c8 ignore next 10 */
@@ -50185,7 +48865,7 @@ const remarkLintNoUndefinedReferences = lintRule$t(
       /** @type {Range[]} */
       let ranges = [];
 
-      visit(node, (child) => {
+      visit$1(node, (child) => {
         // Ignore the node itself.
         if (child === node) return
 
@@ -50337,134 +49017,6 @@ const remarkLintNoUndefinedReferences = lintRule$t(
 var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$s = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$s(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$t(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$t(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$s.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2016 Titus Wormer
  * @license MIT
@@ -50492,14 +49044,14 @@ function coerce$t(name, value) {
 
 const own$1 = {}.hasOwnProperty;
 
-const remarkLintNoUnusedDefinitions = lintRule$s(
+const remarkLintNoUnusedDefinitions = lintRule(
   'remark-lint:no-unused-definitions',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, {node: DefinitionContent, used: boolean}>} */
     const map = Object.create(null);
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
         !generated(node)
@@ -50508,7 +49060,7 @@ const remarkLintNoUnusedDefinitions = lintRule$s(
       }
     });
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         node.type === 'imageReference' ||
         node.type === 'linkReference' ||
@@ -50545,160 +49097,33 @@ var remarkLintNoUnusedDefinitions$1 = remarkLintNoUnusedDefinitions;
  *   mistakes or stuff that fails across vendors.
  */
 
-const plugins$1 = [
-  remarkLint,
-  // Unix compatibility.
-  remarkLintFinalNewline$1,
-  // Rendering across vendors differs greatly if using other styles.
-  remarkLintListItemBulletIndent$1,
-  [remarkLintListItemIndent$1, 'tab-size'],
-  // Differs or unsupported across vendors.
-  remarkLintNoAutoLinkWithoutProtocol$1,
-  remarkLintNoBlockquoteWithoutMarker$1,
-  remarkLintNoLiteralUrls$1,
-  [remarkLintOrderedListMarkerStyle$1, '.'],
-  // Mistakes.
-  remarkLintHardBreakSpaces$1,
-  remarkLintNoDuplicateDefinitions$1,
-  remarkLintNoHeadingContentIndent$1,
-  remarkLintNoInlinePadding$1,
-  remarkLintNoShortcutReferenceImage$1,
-  remarkLintNoShortcutReferenceLink$1,
-  remarkLintNoUndefinedReferences$1,
-  remarkLintNoUnusedDefinitions$1
-];
-
-const remarkPresetLintRecommended = {plugins: plugins$1};
+/** @type {Preset} */
+const remarkPresetLintRecommended = {
+  plugins: [
+    remarkLint,
+    // Unix compatibility.
+    remarkLintFinalNewline$1,
+    // Rendering across vendors differs greatly if using other styles.
+    remarkLintListItemBulletIndent$1,
+    [remarkLintListItemIndent$1, 'tab-size'],
+    // Differs or unsupported across vendors.
+    remarkLintNoAutoLinkWithoutProtocol$1,
+    remarkLintNoBlockquoteWithoutMarker$1,
+    remarkLintNoLiteralUrls$1,
+    [remarkLintOrderedListMarkerStyle$1, '.'],
+    // Mistakes.
+    remarkLintHardBreakSpaces$1,
+    remarkLintNoDuplicateDefinitions$1,
+    remarkLintNoHeadingContentIndent$1,
+    remarkLintNoInlinePadding$1,
+    remarkLintNoShortcutReferenceImage$1,
+    remarkLintNoShortcutReferenceLink$1,
+    remarkLintNoUndefinedReferences$1,
+    remarkLintNoUnusedDefinitions$1
+  ]
+};
 
 var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$r = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$r(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$s(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$s(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$r.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -50750,11 +49175,11 @@ function coerce$s(name, value) {
  *   9:3: Add 1 space between block quote and content
  */
 
-const remarkLintBlockquoteIndentation = lintRule$r(
+const remarkLintBlockquoteIndentation = lintRule(
   'remark-lint:blockquote-indentation',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
-    visit(tree, 'blockquote', (node) => {
+    visit$1(tree, 'blockquote', (node) => {
       if (generated(node) || node.children.length === 0) {
         return
       }
@@ -50790,134 +49215,6 @@ var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
  */
 function check(node) {
   return pointStart(node.children[0]).column - pointStart(node).column
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$q = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$q(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$r(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$r(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$q.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
 }
 
 /**
@@ -50999,7 +49296,7 @@ function coerce$r(name, value) {
  *   1:1: Incorrect checked checkbox marker `💩`: use either `'x'`, or `'X'`
  */
 
-const remarkLintCheckboxCharacterStyle = lintRule$q(
+const remarkLintCheckboxCharacterStyle = lintRule(
   'remark-lint:checkbox-character-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -51030,7 +49327,7 @@ const remarkLintCheckboxCharacterStyle = lintRule$q(
       );
     }
 
-    visit(tree, 'listItem', (node) => {
+    visit$1(tree, 'listItem', (node) => {
       const head = node.children[0];
       const point = pointStart(head);
 
@@ -51083,134 +49380,6 @@ const remarkLintCheckboxCharacterStyle = lintRule$q(
 var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$p = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$p(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$q(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$q(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$p.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -51242,14 +49411,14 @@ function coerce$q(name, value) {
  *   4:7-4:10: Checkboxes should be followed by a single character
  */
 
-const remarkLintCheckboxContentIndent = lintRule$p(
+const remarkLintCheckboxContentIndent = lintRule(
   'remark-lint:checkbox-content-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
     const loc = location(file);
 
-    visit(tree, 'listItem', (node) => {
+    visit$1(tree, 'listItem', (node) => {
       const head = node.children[0];
       const point = pointStart(head);
 
@@ -51289,134 +49458,6 @@ const remarkLintCheckboxContentIndent = lintRule$p(
 );
 
 var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$o = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$o(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$p(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$p(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$o.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -51521,7 +49562,7 @@ function coerce$p(name, value) {
  *   1:1: Incorrect code block style `💩`: use either `'consistent'`, `'fenced'`, or `'indented'`
  */
 
-const remarkLintCodeBlockStyle = lintRule$o(
+const remarkLintCodeBlockStyle = lintRule(
   'remark-lint:code-block-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -51539,7 +49580,7 @@ const remarkLintCodeBlockStyle = lintRule$o(
       );
     }
 
-    visit(tree, 'code', (node) => {
+    visit$1(tree, 'code', (node) => {
       if (generated(node)) {
         return
       }
@@ -51562,134 +49603,6 @@ const remarkLintCodeBlockStyle = lintRule$o(
 );
 
 var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$n = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$n(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$o(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$o(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$n.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -51717,13 +49630,13 @@ function coerce$o(name, value) {
 
 const label = /^\s*\[((?:\\[\s\S]|[^[\]])+)]/;
 
-const remarkLintDefinitionSpacing = lintRule$n(
+const remarkLintDefinitionSpacing = lintRule(
   'remark-lint:definition-spacing',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (node.type === 'definition' || node.type === 'footnoteDefinition') {
         const start = pointStart(node).offset;
         const end = pointEnd(node).offset;
@@ -51744,134 +49657,6 @@ const remarkLintDefinitionSpacing = lintRule$n(
 );
 
 var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$m = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$m(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$n(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$n(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$m.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -51957,7 +49742,7 @@ function coerce$n(name, value) {
 
 const fence = /^ {0,3}([~`])\1{2,}/;
 
-const remarkLintFencedCodeFlag = lintRule$m(
+const remarkLintFencedCodeFlag = lintRule(
   'remark-lint:fenced-code-flag',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option) => {
@@ -51978,7 +49763,7 @@ const remarkLintFencedCodeFlag = lintRule$m(
       }
     }
 
-    visit(tree, 'code', (node) => {
+    visit$1(tree, 'code', (node) => {
       if (!generated(node)) {
         if (node.lang) {
           if (allowed.length > 0 && !allowed.includes(node.lang)) {
@@ -52000,134 +49785,6 @@ const remarkLintFencedCodeFlag = lintRule$m(
 );
 
 var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$l = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$l(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$m(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$m(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$l.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -52220,7 +49877,7 @@ function coerce$m(name, value) {
  *   1:1: Incorrect fenced code marker `💩`: use either `'consistent'`, `` '`' ``, or `'~'`
  */
 
-const remarkLintFencedCodeMarker = lintRule$l(
+const remarkLintFencedCodeMarker = lintRule(
   'remark-lint:fenced-code-marker',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -52234,7 +49891,7 @@ const remarkLintFencedCodeMarker = lintRule$l(
       );
     }
 
-    visit(tree, 'code', (node) => {
+    visit$1(tree, 'code', (node) => {
       const start = pointStart(node).offset;
 
       if (typeof start === 'number') {
@@ -52264,134 +49921,6 @@ const remarkLintFencedCodeMarker = lintRule$l(
 var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$k = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$k(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$l(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$l(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$k.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -52419,7 +49948,7 @@ function coerce$l(name, value) {
  *   {"name": "readme.mkd", "setting": "mkd"}
  */
 
-const remarkLintFileExtension = lintRule$k(
+const remarkLintFileExtension = lintRule(
   'remark-lint:file-extension',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (_, file, option = 'md') => {
@@ -52432,134 +49961,6 @@ const remarkLintFileExtension = lintRule$k(
 );
 
 var remarkLintFileExtension$1 = remarkLintFileExtension;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$j = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$j(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$k(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$k(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$j.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -52603,13 +50004,13 @@ function coerce$k(name, value) {
  *   [example-2]: http://example.com/two/
  */
 
-const remarkLintFinalDefinition = lintRule$j(
+const remarkLintFinalDefinition = lintRule(
   'remark-lint:final-definition',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     let last = 0;
 
-    visit(
+    visit$1(
       tree,
       (node) => {
         // Ignore generated and HTML comment nodes.
@@ -52642,134 +50043,6 @@ const remarkLintFinalDefinition = lintRule$j(
 );
 
 var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$i = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$i(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$j(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$j(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$i.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -52865,11 +50138,11 @@ function coerce$j(name, value) {
 
 const re = /<h([1-6])/;
 
-const remarkLintFirstHeadingLevel = lintRule$i(
+const remarkLintFirstHeadingLevel = lintRule(
   'remark-lint:first-heading-level',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (!generated(node)) {
         /** @type {Depth|undefined} */
         let rank;
@@ -52902,134 +50175,6 @@ function infer(node) {
   const results = node.value.match(re);
   // @ts-expect-error: can be castes fine.
   return results ? Number(results[1]) : undefined
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$h = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$h(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$i(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$i(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$h.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
 }
 
 /**
@@ -53110,7 +50255,7 @@ function coerce$i(name, value) {
  *   1:1: Incorrect heading style type `💩`: use either `'consistent'`, `'atx'`, `'atx-closed'`, or `'setext'`
  */
 
-const remarkLintHeadingStyle = lintRule$h(
+const remarkLintHeadingStyle = lintRule(
   'remark-lint:heading-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -53127,7 +50272,7 @@ const remarkLintHeadingStyle = lintRule$h(
       );
     }
 
-    visit(tree, 'heading', (node) => {
+    visit$1(tree, 'heading', (node) => {
       if (!generated(node)) {
         if (option === 'consistent') {
           // Funky nodes perhaps cannot be detected.
@@ -53142,134 +50287,6 @@ const remarkLintHeadingStyle = lintRule$h(
 );
 
 var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$g = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$g(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$h(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$h(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$g.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -53369,14 +50386,14 @@ function coerce$h(name, value) {
  *   4:12: Line must be at most 10 characters
  */
 
-const remarkLintMaximumLineLength = lintRule$g(
+const remarkLintMaximumLineLength = lintRule(
   'remark-lint:maximum-line-length',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 80) => {
     const value = String(file);
     const lines = value.split(/\r?\n/);
 
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (
         (node.type === 'heading' ||
           node.type === 'table' ||
@@ -53398,7 +50415,7 @@ const remarkLintMaximumLineLength = lintRule$g(
     // the wrap.
     // However, when they do, and there’s whitespace after it, they are not
     // allowed.
-    visit(tree, (node, pos, parent_) => {
+    visit$1(tree, (node, pos, parent_) => {
       const parent = /** @type {Parent} */ (parent_);
 
       if (
@@ -53463,134 +50480,6 @@ const remarkLintMaximumLineLength = lintRule$g(
 var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$f = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$f(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$g(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$g(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$f.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -53636,11 +50525,11 @@ function coerce$g(name, value) {
  *   4:5: Remove 2 lines after node
  */
 
-const remarkLintNoConsecutiveBlankLines = lintRule$f(
+const remarkLintNoConsecutiveBlankLines = lintRule(
   'remark-lint:no-consecutive-blank-lines',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, (node) => {
+    visit$1(tree, (node) => {
       if (!generated(node) && 'children' in node) {
         const head = node.children[0];
 
@@ -53701,134 +50590,6 @@ const remarkLintNoConsecutiveBlankLines = lintRule$f(
 var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$e = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$e(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$f(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$f(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$e.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -53860,7 +50621,7 @@ function coerce$f(name, value) {
  *   1:1: Do not start file names with `an`
  */
 
-const remarkLintNoFileNameArticles = lintRule$e(
+const remarkLintNoFileNameArticles = lintRule(
   'remark-lint:no-file-name-articles',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -53873,134 +50634,6 @@ const remarkLintNoFileNameArticles = lintRule$e(
 );
 
 var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$d = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$d(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$e(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$e(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$d.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -54019,7 +50652,7 @@ function coerce$e(name, value) {
  *   1:1: Do not use consecutive dashes in a file name
  */
 
-const remarkLintNoFileNameConsecutiveDashes = lintRule$d(
+const remarkLintNoFileNameConsecutiveDashes = lintRule(
   'remark-lint:no-file-name-consecutive-dashes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -54030,134 +50663,6 @@ const remarkLintNoFileNameConsecutiveDashes = lintRule$d(
 );
 
 var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDashes;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$c = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$c(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$d(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$d(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$c.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -54181,7 +50686,7 @@ function coerce$d(name, value) {
  *   1:1: Do not use initial or final dashes in a file name
  */
 
-const remarkLintNofileNameOuterDashes = lintRule$c(
+const remarkLintNofileNameOuterDashes = lintRule(
   'remark-lint:no-file-name-outer-dashes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -54192,134 +50697,6 @@ const remarkLintNofileNameOuterDashes = lintRule$c(
 );
 
 var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$b = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$b(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$c(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$c(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$b.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -54372,11 +50749,11 @@ function coerce$c(name, value) {
  *   8:4: Remove 3 spaces before this heading
  */
 
-const remarkLintNoHeadingIndent = lintRule$b(
+const remarkLintNoHeadingIndent = lintRule(
   'remark-lint:no-heading-indent',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'heading', (node, _, parent) => {
+    visit$1(tree, 'heading', (node, _, parent) => {
       // Note: it’s rather complex to detect what the expected indent is in block
       // quotes and lists, so let’s only do directly in root for now.
       if (generated(node) || (parent && parent.type !== 'root')) {
@@ -54400,134 +50777,6 @@ const remarkLintNoHeadingIndent = lintRule$b(
 );
 
 var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$a = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$a(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$b(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$b(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$a.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -54559,14 +50808,14 @@ function coerce$b(name, value) {
  *   3:1-3:6: Don’t use multiple top level headings (1:1)
  */
 
-const remarkLintNoMultipleToplevelHeadings = lintRule$a(
+const remarkLintNoMultipleToplevelHeadings = lintRule(
   'remark-lint:no-multiple-toplevel-headings',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
     /** @type {string|undefined} */
     let duplicate;
 
-    visit(tree, 'heading', (node) => {
+    visit$1(tree, 'heading', (node) => {
       if (!generated(node) && node.depth === option) {
         if (duplicate) {
           file.message(
@@ -54582,134 +50831,6 @@ const remarkLintNoMultipleToplevelHeadings = lintRule$a(
 );
 
 var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$9 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$9(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$a(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$a(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$9.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -54785,11 +50906,11 @@ const flags = new Set([
   'zsh'
 ]);
 
-const remarkLintNoShellDollars = lintRule$9(
+const remarkLintNoShellDollars = lintRule(
   'remark-lint:no-shell-dollars',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
-    visit(tree, 'code', (node) => {
+    visit$1(tree, 'code', (node) => {
       // Check both known shell code and unknown code.
       if (!generated(node) && node.lang && flags.has(node.lang)) {
         const lines = node.value
@@ -54816,134 +50937,6 @@ const remarkLintNoShellDollars = lintRule$9(
 );
 
 var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$8 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$8(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$9(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$9(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$8.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -55011,14 +51004,14 @@ function coerce$9(name, value) {
  *   3:6: Do not indent table rows
  */
 
-const remarkLintNoTableIndentation = lintRule$8(
+const remarkLintNoTableIndentation = lintRule(
   'remark-lint:no-table-indentation',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
     const loc = location(value);
 
-    visit(tree, 'table', (node, _, parent) => {
+    visit$1(tree, 'table', (node, _, parent) => {
       const end = pointEnd(node).line;
       let line = pointStart(node).line;
       let column = 0;
@@ -55071,134 +51064,6 @@ const remarkLintNoTableIndentation = lintRule$8(
 );
 
 var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$7 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$7(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$8(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$8(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$7.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -55255,7 +51120,7 @@ function coerce$8(name, value) {
  *   13:41: Use spaces instead of tabs
  */
 
-const remarkLintNoTabs = lintRule$7(
+const remarkLintNoTabs = lintRule(
   'remark-lint:no-tabs',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
@@ -55732,7 +51597,7 @@ function factory(id, rule) {
   return attacher
 
   function attacher(raw) {
-    var config = coerce$7(ruleId, raw);
+    var config = coerce(ruleId, raw);
     var severity = config[0];
     var options = config[1];
     var fatal = severity === 2;
@@ -55772,7 +51637,7 @@ function factory(id, rule) {
 }
 
 // Coerce a value to a severity--options tuple.
-function coerce$7(name, value) {
+function coerce(name, value) {
   var def = 1;
   var result;
   var level;
@@ -55851,134 +51716,6 @@ function noTrailingSpaces(ast, file) {
   }
 }
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$6 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$6(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$6(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$6(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$6.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
 function* getLinksRecursively(node) {
   if (node.url) {
     yield node;
@@ -56018,7 +51755,7 @@ function validateLinks(tree, vfile) {
   }
 }
 
-const remarkLintNodejsLinks = lintRule$6(
+const remarkLintNodejsLinks = lintRule(
   "remark-lint:nodejs-links",
   validateLinks
 );
@@ -56235,7 +51972,7 @@ function validateMeta(node, file, meta) {
 }
 
 function validateYAMLComments(tree, file) {
-  visit(tree, "html", function visitor(node) {
+  visit$1(tree, "html", function visitor(node) {
     if (node.value.startsWith("<!--YAML\n"))
       file.message(
         "Expected `<!-- YAML`, found `<!--YAML`. Please add a space",
@@ -56252,7 +51989,7 @@ function validateYAMLComments(tree, file) {
   });
 }
 
-const remarkLintNodejsYamlComments = lintRule$6(
+const remarkLintNodejsYamlComments = lintRule(
   "remark-lint:nodejs-yaml-comments",
   validateYAMLComments
 );
@@ -56269,135 +52006,7 @@ function escapeStringRegexp(string) {
 		.replace(/-/g, '\\x2d');
 }
 
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$5 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$5(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$5(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$5(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$5.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-const remarkLintProhibitedStrings = lintRule$5('remark-lint:prohibited-strings', prohibitedStrings);
+const remarkLintProhibitedStrings = lintRule('remark-lint:prohibited-strings', prohibitedStrings);
 
 function testProhibited (val, content) {
   let regexpFlags = 'g';
@@ -56453,7 +52062,7 @@ function testProhibited (val, content) {
 function prohibitedStrings (ast, file, strings) {
   const myLocation = location(file);
 
-  visit(ast, 'text', checkText);
+  visit$1(ast, 'text', checkText);
 
   function checkText (node) {
     const content = node.value;
@@ -56472,134 +52081,6 @@ function prohibitedStrings (ast, file, strings) {
       }
     });
   }
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$4 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$4(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$4(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$4(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$4.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
 }
 
 /**
@@ -56664,7 +52145,7 @@ function coerce$4(name, value) {
  *   1:1: Incorrect preferred rule style: provide a correct markdown rule or `'consistent'`
  */
 
-const remarkLintRuleStyle = lintRule$4(
+const remarkLintRuleStyle = lintRule(
   'remark-lint:rule-style',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -56676,7 +52157,7 @@ const remarkLintRuleStyle = lintRule$4(
       );
     }
 
-    visit(tree, 'thematicBreak', (node) => {
+    visit$1(tree, 'thematicBreak', (node) => {
       const initial = pointStart(node).offset;
       const final = pointEnd(node).offset;
 
@@ -56694,134 +52175,6 @@ const remarkLintRuleStyle = lintRule$4(
 );
 
 var remarkLintRuleStyle$1 = remarkLintRuleStyle;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$3 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$3(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$3(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$3(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$3.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -56883,7 +52236,7 @@ function coerce$3(name, value) {
  *   1:1: Incorrect strong marker `💩`: use either `'consistent'`, `'*'`, or `'_'`
  */
 
-const remarkLintStrongMarker = lintRule$3(
+const remarkLintStrongMarker = lintRule(
   'remark-lint:strong-marker',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -56897,7 +52250,7 @@ const remarkLintStrongMarker = lintRule$3(
       );
     }
 
-    visit(tree, 'strong', (node) => {
+    visit$1(tree, 'strong', (node) => {
       const start = pointStart(node).offset;
 
       if (typeof start === 'number') {
@@ -56914,134 +52267,6 @@ const remarkLintStrongMarker = lintRule$3(
 );
 
 var remarkLintStrongMarker$1 = remarkLintStrongMarker;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$2 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$2(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$2(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$2(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$2.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -57215,7 +52440,7 @@ function coerce$2(name, value) {
  *   | Echo  | Foxtrot |
  */
 
-const remarkLintTableCellPadding = lintRule$2(
+const remarkLintTableCellPadding = lintRule(
   'remark-lint:table-cell-padding',
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
@@ -57231,7 +52456,7 @@ const remarkLintTableCellPadding = lintRule$2(
       );
     }
 
-    visit(tree, 'table', (node) => {
+    visit$1(tree, 'table', (node) => {
       const rows = node.children;
       // To do: fix types to always have `align` defined.
       /* c8 ignore next */
@@ -57381,134 +52606,6 @@ function size(node) {
 }
 
 /**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives$1 = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule$1(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce$1(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce$1(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives$1.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
-
-/**
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
@@ -57550,13 +52647,13 @@ function coerce$1(name, value) {
 const reasonStart = 'Missing initial pipe in table fence';
 const reasonEnd = 'Missing final pipe in table fence';
 
-const remarkLintTablePipes = lintRule$1(
+const remarkLintTablePipes = lintRule(
   'remark-lint:table-pipes',
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
 
-    visit(tree, 'table', (node) => {
+    visit$1(tree, 'table', (node) => {
       let index = -1;
 
       while (++index < node.children.length) {
@@ -57583,134 +52680,6 @@ const remarkLintTablePipes = lintRule$1(
 );
 
 var remarkLintTablePipes$1 = remarkLintTablePipes;
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('vfile').VFile} VFile
- *
- * @typedef {0|1|2} Severity
- * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
- *
- * @callback Rule
- * @param {Node} tree
- * @param {VFile} file
- * @param {unknown} options
- * @returns {void}
- */
-
-const primitives = new Set(['string', 'number', 'boolean']);
-
-/**
- * @param {string} id
- * @param {Rule} rule
- */
-function lintRule(id, rule) {
-  const parts = id.split(':');
-  // Possibly useful if externalised later.
-  /* c8 ignore next */
-  const source = parts[1] ? parts[0] : undefined;
-  const ruleId = parts[1];
-
-  Object.defineProperty(plugin, 'name', {value: id});
-
-  return plugin
-
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
-  function plugin(raw) {
-    const [severity, options] = coerce(ruleId, raw);
-
-    if (!severity) return
-
-    const fatal = severity === 2;
-
-    return (tree, file, next) => {
-      let index = file.messages.length - 1;
-
-      wrap(rule, (error) => {
-        const messages = file.messages;
-
-        // Add the error, if not already properly added.
-        // Only happens for incorrect plugins.
-        /* c8 ignore next 6 */
-        // @ts-expect-error: errors could be `messages`.
-        if (error && !messages.includes(error)) {
-          try {
-            file.fail(error);
-          } catch {}
-        }
-
-        while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
-        }
-
-        next();
-      })(tree, file, options);
-    }
-  }
-}
-
-/**
- * Coerce a value to a severity--options tuple.
- *
- * @param {string} name
- * @param {unknown} value
- * @returns {SeverityTuple}
- */
-function coerce(name, value) {
-  /** @type {unknown[]} */
-  let result;
-
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    primitives.has(typeof value[0])
-  ) {
-    // `isArray(unknown)` is turned into `any[]`:
-    // type-coverage:ignore-next-line
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-
-  let level = result[0];
-
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-
-  result[0] = level;
-
-  // @ts-expect-error: it’s now a valid tuple.
-  return result
-}
 
 /**
  * @author Titus Wormer
@@ -57803,7 +52772,7 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
       );
     }
 
-    visit(tree, 'list', (node) => {
+    visit$1(tree, 'list', (node) => {
       if (node.ordered) return
 
       let index = -1;
@@ -58769,6 +53738,9 @@ function gfmStrikethrough(options = {}) {
     },
     insideSpan: {
       null: [tokenizer]
+    },
+    attentionMarkers: {
+      null: [126]
     }
   }
   /**
@@ -59911,151 +54883,6 @@ function ccount(value, character) {
 }
 
 /**
- * @param {string} d
- * @returns {string}
- */
-function color(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-/**
- * @typedef {import('unist').Node} Node
- * @typedef {import('unist').Parent} Parent
- * @typedef {import('unist-util-is').Test} Test
- */
-
-/**
- * Continue traversing as normal
- */
-const CONTINUE = true;
-/**
- * Do not traverse this node’s children
- */
-const SKIP = 'skip';
-/**
- * Stop traversing immediately
- */
-const EXIT = false;
-
-const visitParents =
-  /**
-   * @type {(
-   *   (<T extends Node>(tree: Node, test: T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>|Array.<T['type']|Partial<T>|import('unist-util-is').TestFunctionPredicate<T>>, visitor: Visitor<T>, reverse?: boolean) => void) &
-   *   ((tree: Node, test: Test, visitor: Visitor<Node>, reverse?: boolean) => void) &
-   *   ((tree: Node, visitor: Visitor<Node>, reverse?: boolean) => void)
-   * )}
-   */
-  (
-    /**
-     * Visit children of tree which pass a test
-     *
-     * @param {Node} tree Abstract syntax tree to walk
-     * @param {Test} test test Test node
-     * @param {Visitor<Node>} visitor Function to run for each node
-     * @param {boolean} [reverse] Fisit the tree in reverse, defaults to false
-     */
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        // @ts-ignore no visitor given, so `visitor` is test.
-        visitor = test;
-        test = null;
-      }
-
-      var is = convert(test);
-      var step = reverse ? -1 : 1;
-
-      factory(tree, null, [])();
-
-      /**
-       * @param {Node} node
-       * @param {number?} index
-       * @param {Array.<Parent>} parents
-       */
-      function factory(node, index, parents) {
-        /** @type {Object.<string, unknown>} */
-        var value = typeof node === 'object' && node !== null ? node : {};
-        /** @type {string} */
-        var name;
-
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-
-        return visit
-
-        function visit() {
-          /** @type {ActionTuple} */
-          var result = [];
-          /** @type {ActionTuple} */
-          var subresult;
-          /** @type {number} */
-          var offset;
-          /** @type {Array.<Parent>} */
-          var grandparents;
-
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult(visitor(node, parents));
-
-            if (result[0] === EXIT) {
-              return result
-            }
-          }
-
-          if (node.children && result[0] !== SKIP) {
-            // @ts-ignore looks like a parent.
-            offset = (reverse ? node.children.length : -1) + step;
-            // @ts-ignore looks like a parent.
-            grandparents = parents.concat(node);
-
-            // @ts-ignore looks like a parent.
-            while (offset > -1 && offset < node.children.length) {
-              subresult = factory(node.children[offset], offset, grandparents)();
-
-              if (subresult[0] === EXIT) {
-                return subresult
-              }
-
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-
-          return result
-        }
-      }
-    }
-  );
-
-/**
- * @param {VisitorResult} value
- * @returns {ActionTuple}
- */
-function toResult(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return [CONTINUE, value]
-  }
-
-  return [value]
-}
-
-/**
  * @typedef Options Configuration.
  * @property {Test} [ignore] `unist-util-is` test used to assert parents
  *
@@ -60292,6 +55119,7 @@ function toFunction(replace) {
 }
 
 /**
+ * @typedef {import('mdast').Link} Link
  * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
  * @typedef {import('mdast-util-from-markdown').Transform} FromMarkdownTransform
  * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
@@ -60344,7 +55172,6 @@ const gfmAutolinkLiteralToMarkdown = {
 
 /** @type {FromMarkdownHandle} */
 function enterLiteralAutolink(token) {
-  // @ts-expect-error: `null` is fine.
   this.enter({type: 'link', title: null, url: '', children: []}, token);
 }
 
@@ -60361,7 +55188,8 @@ function exitLiteralAutolinkHttp(token) {
 /** @type {FromMarkdownHandle} */
 function exitLiteralAutolinkWww(token) {
   this.config.exit.data.call(this, token);
-  this.stack[this.stack.length - 1].url = 'http://' + this.sliceSerialize(token);
+  const node = /** @type {Link} */ (this.stack[this.stack.length - 1]);
+  node.url = 'http://' + this.sliceSerialize(token);
 }
 
 /** @type {FromMarkdownHandle} */
@@ -60379,8 +55207,8 @@ function transformGfmAutolinkLiterals(tree) {
   findAndReplace(
     tree,
     [
-      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/i, findUrl],
-      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/, findEmail]
+      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
     ],
     {ignore: ['link', 'linkReference']}
   );
@@ -60419,7 +55247,6 @@ function findUrl(_, protocol, domain, path, match) {
   if (!parts[0]) return false
 
   /** @type {PhrasingContent} */
-  // @ts-expect-error: `null` is fine.
   const result = {
     type: 'link',
     title: null,
@@ -60449,7 +55276,6 @@ function findEmail(_, atext, label, match) {
 
   return {
     type: 'link',
-    // @ts-expect-error: `null` is fine.
     title: null,
     url: 'mailto:' + atext + '@' + label,
     children: [{type: 'text', value: atext + '@' + label}]
