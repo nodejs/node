@@ -11,7 +11,7 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { finished } = require('stream/promises');
-const { Blob } = require('buffer');
+const { buffer } = require('stream/consumers');
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
@@ -31,19 +31,15 @@ async function validateWrite() {
 
 async function validateRead() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-read.txt');
-  const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
+  const buf = Buffer.from('Hello world'.repeat(100), 'utf8');
 
-  fs.writeFileSync(filePathForHandle, buffer);
+  fs.writeFileSync(filePathForHandle, buf);
 
   const fileHandle = await open(filePathForHandle);
-
-  const chunks = [];
-  for await (const chunk of fileHandle.createReadStream()) {
-    chunks.push(chunk);
-  }
-
-  const arrayBuffer = await new Blob(chunks).arrayBuffer();
-  assert.deepStrictEqual(Buffer.from(arrayBuffer), buffer);
+  assert.deepStrictEqual(
+    await buffer(fileHandle.createReadStream()),
+    buf
+  );
 }
 
 Promise.all([
