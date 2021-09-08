@@ -9,7 +9,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import gfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { toVFile } from 'to-vfile';
-import unified from 'unified';
+import { unified } from 'unified';
 
 const rootDir = new URL('../../', import.meta.url);
 const doc = new URL('./doc/api/addons.md', rootDir);

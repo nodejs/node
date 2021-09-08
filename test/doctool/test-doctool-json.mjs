@@ -3,13 +3,12 @@ import * as fixtures from '../common/fixtures.mjs';
 
 import assert from 'assert';
 import fs from 'fs';
-import { createRequire } from 'module';
 
 import * as json from '../../tools/doc/json.mjs';
-
-const require = createRequire(new URL('../../tools/doc/', import.meta.url));
-const unified = require('unified');
-const markdown = require('remark-parse');
+import {
+  remarkParse,
+  unified,
+} from '../../tools/doc/deps.mjs';
 
 function toJSON(input, filename, cb) {
   function nullCompiler() {
@@ -17,7 +16,7 @@ function toJSON(input, filename, cb) {
   }
 
   unified()
-    .use(markdown)
+    .use(remarkParse)
     .use(json.jsonAPI, { filename })
     .use(nullCompiler)
     .process(input, cb);
