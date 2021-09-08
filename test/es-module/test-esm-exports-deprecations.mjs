@@ -1,3 +1,4 @@
+// Flags: --pending-deprecation
 import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
@@ -5,7 +6,10 @@ let curWarning = 0;
 const expectedWarnings = [
   '"./sub/"',
   '"./fallbackdir/"',
+  '"./trailing-pattern-slash/"',
   '"./subpath/"',
+  '"./subpath/dir1/"',
+  '"./subpath/dir2/"',
   'no_exports',
   'default_index',
 ];

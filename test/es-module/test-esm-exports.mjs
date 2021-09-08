@@ -41,13 +41,19 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/dir2/dir2/trailer', { default: 'index' }],
     ['pkgexports/a/dir1/dir1', { default: 'main' }],
     ['pkgexports/a/b/dir1/dir1', { default: 'main' }],
+
+    // Deprecated:
+    ['pkgexports/trailing-pattern-slash/',
+     { default: 'trailing-pattern-slash' }],
   ]);
 
   if (isRequire) {
     validSpecifiers.set('pkgexports/subpath/file', { default: 'file' });
     validSpecifiers.set('pkgexports/subpath/dir1', { default: 'main' });
+    // Deprecated:
     validSpecifiers.set('pkgexports/subpath/dir1/', { default: 'main' });
     validSpecifiers.set('pkgexports/subpath/dir2', { default: 'index' });
+    // Deprecated:
     validSpecifiers.set('pkgexports/subpath/dir2/', { default: 'index' });
   } else {
     // No exports or main field

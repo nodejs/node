@@ -1205,6 +1205,8 @@ _isImports_, _conditions_)
 >       _expansionKey_ up to but excluding the first _"*"_ character.
 >    1. If _patternBase_ is not **null** and _matchKey_ starts with but is not
 >       equal to _patternBase_, then
+>       1. If _matchKey_ ends with _"/"_, throw an _Invalid Module Specifier_
+>          error.
 >       1. Let _patternTrailer_ be the substring of _expansionKey_ from the
 >          index after the first _"*"_ character.
 >       1. If _patternTrailer_ has zero length, or if _matchKey_ ends with
