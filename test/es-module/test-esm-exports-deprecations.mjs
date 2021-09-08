@@ -5,13 +5,17 @@ let curWarning = 0;
 const expectedWarnings = [
   '"./sub/"',
   '"./fallbackdir/"',
+  '"./trailing-pattern-slash/"',
   '"./subpath/"',
+  '"./subpath/dir1/"',
+  '"./subpath/dir2/"',
   'no_exports',
   'default_index',
 ];
 
 process.addListener('warning', mustCall((warning) => {
   assert(warning.stack.includes(expectedWarnings[curWarning++]), warning.stack);
+  console.log(expectedWarnings[curWarning - 1] + ' passed');
 }, expectedWarnings.length));
 
 await import('./test-esm-exports.mjs');
