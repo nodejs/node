@@ -2819,10 +2819,11 @@ and `'mgf1HashAlgorithm'`.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/40039
-    description: Documentation-only.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
 for package `"exports"` and `"imports"` pattern resolutions.
