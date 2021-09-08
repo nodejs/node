@@ -2814,6 +2814,13 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
 and `'mgf1HashAlgorithm'`.
 
+### DEP0155: Trailing slashes in pattern specifier resolutions
+
+Type: Runtime
+
+The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
+for package `"exports"` and `"imports"` pattern resolutions.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
