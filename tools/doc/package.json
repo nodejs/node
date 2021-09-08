@@ -13,7 +13,7 @@
     "rehype-stringify": "8.0.0",
     "remark-frontmatter": "^3.0.0",
     "remark-gfm": "^1.0.0",
-    "remark-html": "13.0.1",
+    "remark-html": "13.0.2",
     "remark-parse": "^9.0.0",
     "remark-rehype": "8.1.0",
     "to-vfile": "7.1.0",

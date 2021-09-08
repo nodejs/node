@@ -187,7 +187,7 @@ export function jsonAPI({ filename }) {
               { type: 'root', children: nodes.concat(definitions) }
             );
           })
-          .use(html)
+          .use(html, { sanitize: false })
           .processSync('').toString().trim();
         if (!current.desc) delete current.desc;
       }
