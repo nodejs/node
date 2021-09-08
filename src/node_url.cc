@@ -600,7 +600,6 @@ std::string URLHost::ToString() const {
     case HostType::H_DOMAIN:
     case HostType::H_OPAQUE:
       return value_.domain_or_opaque;
-      break;
     case HostType::H_IPV4: {
       dest.reserve(15);
       uint32_t value = value_.ipv4;

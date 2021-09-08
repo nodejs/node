@@ -87,7 +87,6 @@ inline void* StartIoThreadMain(void* unused) {
     if (agent != nullptr)
       agent->RequestIoThreadStart();
   }
-  return nullptr;
 }
 
 static int StartDebugSignalHandler() {
