@@ -72,6 +72,17 @@ timer is active. Each of the `Timeout` objects returned by these functions
 export both `timeout.ref()` and `timeout.unref()` functions that can be used to
 control this default behavior.
 
+### `timeout.close()`
+<!-- YAML
+added: v0.9.1
+-->
+
+> Stability: 3 - Legacy: Use [`clearTimeout()`][] instead.
+
+* Returns: {Timeout} a reference to `timeout`
+
+Cancels the timeout.
+
 ### `timeout.hasRef()`
 <!-- YAML
 added: v11.0.0
