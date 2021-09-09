@@ -10,8 +10,9 @@ const printDiff = diff => {
   depth({
     tree: diff,
     visit: d => {
-      if (d.location === '')
+      if (d.location === '') {
         return
+      }
       switch (d.action) {
         case 'REMOVE':
           console.error('REMOVE', d.actual.location)
@@ -38,9 +39,11 @@ arb.reify(options).then(tree => {
   process.emit('timeEnd', 'install')
   const end = process.hrtime(start)
   print(tree)
-  if (options.dryRun)
+  if (options.dryRun) {
     printDiff(arb.diff)
+  }
   console.error(`resolved ${tree.inventory.size} deps in ${end[0] + end[1] / 1e9}s`)
-  if (tree.meta && options.save)
+  if (tree.meta && options.save) {
     tree.meta.save()
+  }
 }).catch(er => console.error(require('util').inspect(er, { depth: Infinity })))

@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "August 2021" "" ""
+.TH "WORKSPACES" "7" "September 2021" "" ""
 .SH "NAME"
 \fBworkspaces\fR \- Working with workspaces
 .SS Description
@@ -189,6 +189,17 @@ npm run test \-\-workspaces
 .RE
 .P
 Will run the \fBtest\fP script in both \fB\|\./packages/a\fP and \fB\|\./packages/b\fP\|\.
+.SS Ignoring missing scripts
+.P
+It is not required for all of the workspaces to implement scripts run with the \fBnpm run\fP command\.
+.P
+By running the command with the \fB\-\-if\-present\fP flag, npm will ignore workspaces missing target script\.
+.P
+.RS 2
+.nf
+npm run test \-\-workspaces \-\-if\-present
+.fi
+.RE
 .SS See also
 .RS 0
 .IP \(bu 2

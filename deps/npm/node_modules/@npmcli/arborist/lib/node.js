@@ -120,8 +120,9 @@ class Node {
     // should be equal if not a link
     this.path = path ? resolve(path) : null
 
-    if (!this.name && (!this.path || this.path !== dirname(this.path)))
+    if (!this.name && (!this.path || this.path !== dirname(this.path))) {
       throw new TypeError('could not detect node name from path or package')
+    }
 
     this.realpath = !this.isLink ? this.path : resolve(realpath)
 
@@ -142,8 +143,9 @@ class Node {
       //
       // Otherwise, hopefully a shrinkwrap will help us out.
       const resolved = consistentResolve(pkg._resolved)
-      if (resolved && !(/^file:/.test(resolved) && pkg._where))
+      if (resolved && !(/^file:/.test(resolved) && pkg._where)) {
         this.resolved = resolved
+      }
     }
     this.integrity = integrity || pkg._integrity || null
     this.hasShrinkwrap = hasShrinkwrap || pkg._hasShrinkwrap || false
@@ -215,18 +217,21 @@ class Node {
     // see parent/root setters below.
     // root is set to parent's root if we have a parent, otherwise if it's
     // null, then it's set to the node itself.
-    if (!parent && !fsParent)
+    if (!parent && !fsParent) {
       this.root = root || null
+    }
 
     // mostly a convenience for testing, but also a way to create
     // trees in a more declarative way than setting parent on each
     if (children) {
-      for (const c of children)
+      for (const c of children) {
         new Node({ ...c, parent: this })
+      }
     }
     if (fsChildren) {
-      for (const c of fsChildren)
+      for (const c of fsChildren) {
         new Node({ ...c, fsParent: this })
+      }
     }
 
     // now load all the dep edges
@@ -239,8 +244,9 @@ class Node {
 
   set meta (meta) {
     this[_meta] = meta
-    if (meta)
+    if (meta) {
       meta.add(this)
+    }
   }
 
   get global () {
@@ -260,8 +266,9 @@ class Node {
     // deletes edges if they already exists
     if (this[_workspaces]) {
       for (const name of this[_workspaces].keys()) {
-        if (!workspaces.has(name))
+        if (!workspaces.has(name)) {
           this.edgesOut.get(name).detach()
+        }
       }
     }
 
@@ -271,8 +278,9 @@ class Node {
   }
 
   get binPaths () {
-    if (!this.parent)
+    if (!this.parent) {
       return []
+    }
 
     return getBinPaths({
       pkg: this[_package],
@@ -319,8 +327,9 @@ class Node {
     // only do this more than once at the root level, so the resolve() calls
     // are only one level deep, and there's not much to be saved, anyway.
     // simpler to just toss them all out.
-    for (const edge of this.edgesOut.values())
+    for (const edge of this.edgesOut.values()) {
       edge.detach()
+    }
 
     this[_explanation] = null
     /* istanbul ignore next - should be impossible */
@@ -341,8 +350,9 @@ class Node {
   // node.explain(nodes seen already, edge we're trying to satisfy
   // if edge is not specified, it lists every edge into the node.
   explain (edge = null, seen = []) {
-    if (this[_explanation])
+    if (this[_explanation]) {
       return this[_explanation]
+    }
 
     return this[_explanation] = this[_explain](edge, seen)
   }
@@ -374,11 +384,13 @@ class Node {
       }
     }
 
-    if (this.sourceReference)
+    if (this.sourceReference) {
       return this.sourceReference.explain(edge, seen)
+    }
 
-    if (seen.includes(this))
+    if (seen.includes(this)) {
       return why
+    }
 
     why.location = this.location
     why.isWorkspace = this.isWorkspace
@@ -387,56 +399,64 @@ class Node {
     seen = seen.concat(this)
 
     why.dependents = []
-    if (edge)
+    if (edge) {
       why.dependents.push(edge.explain(seen))
-    else {
+    } else {
       // ignore invalid edges, since those aren't satisfied by this thing,
       // and are not keeping it held in this spot anyway.
       const edges = []
       for (const edge of this.edgesIn) {
-        if (!edge.valid && !edge.from.isProjectRoot)
+        if (!edge.valid && !edge.from.isProjectRoot) {
           continue
+        }
 
         edges.push(edge)
       }
-      for (const edge of edges)
+      for (const edge of edges) {
         why.dependents.push(edge.explain(seen))
+      }
     }
 
-    if (this.linksIn.size)
+    if (this.linksIn.size) {
       why.linksIn = [...this.linksIn].map(link => link[_explain](edge, seen))
+    }
 
     return why
   }
 
   isDescendantOf (node) {
     for (let p = this; p; p = p.resolveParent) {
-      if (p === node)
+      if (p === node) {
         return true
+      }
     }
     return false
   }
 
   getBundler (path = []) {
     // made a cycle, definitely not bundled!
-    if (path.includes(this))
+    if (path.includes(this)) {
       return null
+    }
 
     path.push(this)
 
     const parent = this[_parent]
-    if (!parent)
+    if (!parent) {
       return null
+    }
 
     const pBundler = parent.getBundler(path)
-    if (pBundler)
+    if (pBundler) {
       return pBundler
+    }
 
     const ppkg = parent.package
     const bd = ppkg && ppkg.bundleDependencies
     // explicit bundling
-    if (Array.isArray(bd) && bd.includes(this.name))
+    if (Array.isArray(bd) && bd.includes(this.name)) {
       return parent
+    }
 
     // deps that are deduped up to the bundling level are bundled.
     // however, if they get their dep met further up than that,
@@ -444,11 +464,13 @@ class Node {
     // unmet bundled deps will not cause your deps to be bundled.
     for (const edge of this.edgesIn) {
       const eBundler = edge.from.getBundler(path)
-      if (!eBundler)
+      if (!eBundler) {
         continue
+      }
 
-      if (eBundler === parent)
+      if (eBundler === parent) {
         return eBundler
+      }
     }
 
     return null
@@ -467,8 +489,9 @@ class Node {
   }
 
   get isWorkspace () {
-    if (this.isProjectRoot)
+    if (this.isProjectRoot) {
       return false
+    }
     const { root } = this
     const { type, to } = root.edgesOut.get(this.packageName) || {}
     return type === 'workspace' && to && (to.target === this || to === this)
@@ -486,15 +509,17 @@ class Node {
   }
 
   * ancestry () {
-    for (let anc = this; anc; anc = anc.resolveParent)
+    for (let anc = this; anc; anc = anc.resolveParent) {
       yield anc
+    }
   }
 
   set root (root) {
     // setting to null means this is the new root
     // should only ever be one step
-    while (root && root.root !== root)
+    while (root && root.root !== root) {
       root = root.root
+    }
 
     root = root || this
 
@@ -504,8 +529,9 @@ class Node {
     // can't set the root (yet) if there's no way to determine location
     // this allows us to do new Node({...}) and then set the root later.
     // just make the assignment so we don't lose it, and move on.
-    if (!this.path || !root.realpath || !root.path)
+    if (!this.path || !root.realpath || !root.path) {
       return this[_root] = root
+    }
 
     // temporarily become a root node
     this[_root] = this
@@ -521,8 +547,9 @@ class Node {
     if (this.isLink) {
       if (target) {
         target.linksIn.delete(this)
-        if (target.root === this)
+        if (target.root === this) {
           target[_delistFromMeta]()
+        }
       }
       this[_target] = null
     }
@@ -539,16 +566,17 @@ class Node {
       this[_fsParent] = null
     }
 
-    if (root === this)
+    if (root === this) {
       this[_refreshLocation]()
-    else {
+    } else {
       // setting to some different node.
       const loc = relpath(root.realpath, this.path)
       const current = root.inventory.get(loc)
 
       // clobber whatever is there now
-      if (current)
+      if (current) {
         current.root = null
+      }
 
       this[_root] = root
       // set this.location and add to inventory
@@ -556,8 +584,9 @@ class Node {
 
       // try to find our parent/fsParent in the new root inventory
       for (const p of walkUp(dirname(this.path))) {
-        if (p === this.path)
+        if (p === this.path) {
           continue
+        }
         const ploc = relpath(root.realpath, p)
         const parent = root.inventory.get(ploc)
         if (parent) {
@@ -576,8 +605,9 @@ class Node {
           const isParent = this.location === childLoc
           if (isParent) {
             const oldChild = parent.children.get(this.name)
-            if (oldChild && oldChild !== this)
+            if (oldChild && oldChild !== this) {
               oldChild.root = null
+            }
             if (this.parent) {
               this.parent.children.delete(this.name)
               this.parent[_reloadNamedEdges](this.name)
@@ -586,13 +616,15 @@ class Node {
             this[_parent] = parent
             // don't do it for links, because they don't have a target yet
             // we'll hit them up a bit later on.
-            if (!this.isLink)
+            if (!this.isLink) {
               parent[_reloadNamedEdges](this.name)
+            }
           } else {
             /* istanbul ignore if - should be impossible, since we break
              * all fsParent/child relationships when moving? */
-            if (this.fsParent)
+            if (this.fsParent) {
               this.fsParent.fsChildren.delete(this)
+            }
             parent.fsChildren.add(this)
             this[_fsParent] = parent
           }
@@ -601,10 +633,11 @@ class Node {
       }
 
       // if it doesn't have a parent, it's a top node
-      if (!this.parent)
+      if (!this.parent) {
         root.tops.add(this)
-      else
+      } else {
         root.tops.delete(this)
+      }
 
       // assign parentage for any nodes that need to have this as a parent
       // this can happen when we have a node at nm/a/nm/b added *before*
@@ -614,24 +647,30 @@ class Node {
       const nmloc = `${this.location}${this.location ? '/' : ''}node_modules/`
       const isChild = n => n.location === nmloc + n.name
       // check dirname so that /foo isn't treated as the fsparent of /foo-bar
-      const isFsChild = n => dirname(n.path).startsWith(this.path) &&
-        n !== this &&
-        !n.parent &&
-        (!n.fsParent || n.fsParent === this || dirname(this.path).startsWith(n.fsParent.path))
+      const isFsChild = n => {
+        return dirname(n.path).startsWith(this.path) &&
+          n !== this &&
+          !n.parent &&
+          (!n.fsParent ||
+            n.fsParent === this ||
+            dirname(this.path).startsWith(n.fsParent.path))
+      }
       const isKid = n => isChild(n) || isFsChild(n)
 
       // only walk top nodes, since anything else already has a parent.
       for (const child of root.tops) {
-        if (!isKid(child))
+        if (!isKid(child)) {
           continue
+        }
 
         // set up the internal parentage links
-        if (this.isLink)
+        if (this.isLink) {
           child.root = null
-        else {
+        } else {
           // can't possibly have a parent, because it's in tops
-          if (child.fsParent)
+          if (child.fsParent) {
             child.fsParent.fsChildren.delete(child)
+          }
           child[_fsParent] = null
           if (isChild(child)) {
             this.children.set(child.name, child)
@@ -648,13 +687,15 @@ class Node {
       // to that realpath, or a thing at that realpath if we're adding a link
       // (if we're adding a regular node, we already deleted the old one)
       for (const node of root.inventory.query('realpath', this.realpath)) {
-        if (node === this)
+        if (node === this) {
           continue
+        }
 
         /* istanbul ignore next - should be impossible */
         debug(() => {
-          if (node.root !== root)
+          if (node.root !== root) {
             throw new Error('inventory contains node from other root')
+          }
         })
 
         if (this.isLink) {
@@ -663,8 +704,9 @@ class Node {
           this[_package] = target.package
           target.linksIn.add(this)
           // reload edges here, because now we have a target
-          if (this.parent)
+          if (this.parent) {
             this.parent[_reloadNamedEdges](this.name)
+          }
           break
         } else {
           /* istanbul ignore else - should be impossible */
@@ -672,8 +714,9 @@ class Node {
             node[_target] = this
             node[_package] = this.package
             this.linksIn.add(node)
-            if (node.parent)
+            if (node.parent) {
               node.parent[_reloadNamedEdges](node.name)
+            }
           } else {
             debug(() => {
               throw Object.assign(new Error('duplicate node in root setter'), {
@@ -690,14 +733,16 @@ class Node {
     // reload all edgesIn where the root doesn't match, so we don't have
     // cross-tree dependency graphs
     for (const edge of this.edgesIn) {
-      if (edge.from.root !== root)
+      if (edge.from.root !== root) {
         edge.reload()
+      }
     }
     // reload all edgesOut where root doens't match, or is missing, since
     // it might not be missing in the new tree
     for (const edge of this.edgesOut.values()) {
-      if (!edge.to || edge.to.root !== root)
+      if (!edge.to || edge.to.root !== root) {
         edge.reload()
+      }
     }
 
     // now make sure our family comes along for the ride!
@@ -721,15 +766,17 @@ class Node {
       }
     }
     for (const child of family) {
-      if (child.root !== root)
+      if (child.root !== root) {
         child.root = root
+      }
     }
 
     // if we had a target, and didn't find one in the new root, then bring
     // it over as well, but only if we're setting the link into a new root,
     // as we don't want to lose the target any time we remove a link.
-    if (this.isLink && target && !this.target && root !== this)
+    if (this.isLink && target && !this.target && root !== this) {
       target.root = root
+    }
 
     // tree should always be valid upon root setter completion.
     treeCheck(this)
@@ -741,11 +788,13 @@ class Node {
   }
 
   [_loadWorkspaces] () {
-    if (!this[_workspaces])
+    if (!this[_workspaces]) {
       return
+    }
 
-    for (const [name, path] of this[_workspaces].entries())
+    for (const [name, path] of this[_workspaces].entries()) {
       new Edge({ from: this, name, spec: `file:${path}`, type: 'workspace' })
+    }
   }
 
   [_loadDeps] () {
@@ -764,10 +813,11 @@ class Node {
       const peerDependencies = {}
       const peerOptional = {}
       for (const [name, dep] of Object.entries(pd)) {
-        if (pm[name] && pm[name].optional)
+        if (pm[name] && pm[name].optional) {
           peerOptional[name] = dep
-        else
+        } else {
           peerDependencies[name] = dep
+        }
       }
       this[_loadDepType](peerDependencies, 'peer')
       this[_loadDepType](peerOptional, 'peerOptional')
@@ -784,8 +834,9 @@ class Node {
     } = sourceReference || {}
     const thisDev = isTop && !globalTop && path
     const srcDev = !sourceReference || srcTop && !srcGlobalTop && srcPath
-    if (thisDev && srcDev)
+    if (thisDev && srcDev) {
       this[_loadDepType](this.package.devDependencies, 'dev')
+    }
   }
 
   [_loadDepType] (deps, type) {
@@ -794,8 +845,9 @@ class Node {
     // prioritize a new edge over an existing one
     for (const [name, spec] of Object.entries(deps || {})) {
       const current = this.edgesOut.get(name)
-      if (!current || current.type !== 'workspace')
+      if (!current || current.type !== 'workspace') {
         new Edge({ from: this, name, spec, accept: ad[name], type })
+      }
     }
   }
 
@@ -803,25 +855,29 @@ class Node {
     const parent = this[_fsParent]
     /* istanbul ignore next - should be impossible */
     debug(() => {
-      if (parent === this)
+      if (parent === this) {
         throw new Error('node set to its own fsParent')
+      }
     })
     return parent
   }
 
   set fsParent (fsParent) {
     if (!fsParent) {
-      if (this[_fsParent])
+      if (this[_fsParent]) {
         this.root = null
+      }
       return
     }
 
     debug(() => {
-      if (fsParent === this)
+      if (fsParent === this) {
         throw new Error('setting node to its own fsParent')
+      }
 
-      if (fsParent.realpath === this.realpath)
+      if (fsParent.realpath === this.realpath) {
         throw new Error('setting fsParent to same path')
+      }
 
       // the initial set MUST be an actual walk-up from the realpath
       // subsequent sets will re-root on the new fsParent's path.
@@ -837,16 +893,19 @@ class Node {
       }
     })
 
-    if (fsParent.isLink)
+    if (fsParent.isLink) {
       fsParent = fsParent.target
+    }
 
     // setting a thing to its own fsParent is not normal, but no-op for safety
-    if (this === fsParent || fsParent.realpath === this.realpath)
+    if (this === fsParent || fsParent.realpath === this.realpath) {
       return
+    }
 
     // nothing to do
-    if (this[_fsParent] === fsParent)
+    if (this[_fsParent] === fsParent) {
       return
+    }
 
     const oldFsParent = this[_fsParent]
     const newPath = !oldFsParent ? this.path
@@ -874,11 +933,13 @@ class Node {
     }
 
     // update this.path/realpath for this and all children/fsChildren
-    if (pathChange)
+    if (pathChange) {
       this[_changePath](newPath)
+    }
 
-    if (oldParent)
+    if (oldParent) {
       oldParent[_reloadNamedEdges](oldName)
+    }
 
     // clobbers anything at that path, resets all appropriate references
     this.root = fsParent.root
@@ -894,11 +955,13 @@ class Node {
   // will go ahead and create the invalid state, and then try to resolve
   // it with more tree construction, because it's a user request.
   canReplaceWith (node, ignorePeers = []) {
-    if (node.name !== this.name)
+    if (node.name !== this.name) {
       return false
+    }
 
-    if (node.packageName !== this.packageName)
+    if (node.packageName !== this.packageName) {
       return false
+    }
 
     ignorePeers = new Set(ignorePeers)
 
@@ -915,12 +978,14 @@ class Node {
         edge.from.parent === this.parent &&
         edge.peer &&
         ignorePeers.has(edge.from.name)
-      if (ignored)
+      if (ignored) {
         continue
+      }
 
       // only care about edges that don't originate from this node
-      if (!depSet.has(edge.from) && !edge.satisfiedBy(node))
+      if (!depSet.has(edge.from) && !edge.satisfiedBy(node)) {
         return false
+      }
     }
 
     return true
@@ -935,41 +1000,49 @@ class Node {
   // to if it was removed, or nothing is depending on it in the first place.
   canDedupe (preferDedupe = false) {
     // not allowed to mess with shrinkwraps or bundles
-    if (this.inDepBundle || this.inShrinkwrap)
+    if (this.inDepBundle || this.inShrinkwrap) {
       return false
+    }
 
     // it's a top level pkg, or a dep of one
-    if (!this.resolveParent || !this.resolveParent.resolveParent)
+    if (!this.resolveParent || !this.resolveParent.resolveParent) {
       return false
+    }
 
     // no one wants it, remove it
-    if (this.edgesIn.size === 0)
+    if (this.edgesIn.size === 0) {
       return true
+    }
 
     const other = this.resolveParent.resolveParent.resolve(this.name)
 
     // nothing else, need this one
-    if (!other)
+    if (!other) {
       return false
+    }
 
     // if it's the same thing, then always fine to remove
-    if (other.matches(this))
+    if (other.matches(this)) {
       return true
+    }
 
     // if the other thing can't replace this, then skip it
-    if (!other.canReplace(this))
+    if (!other.canReplace(this)) {
       return false
+    }
 
     // if we prefer dedupe, or if the version is greater/equal, take the other
-    if (preferDedupe || semver.gte(other.version, this.version))
+    if (preferDedupe || semver.gte(other.version, this.version)) {
       return true
+    }
 
     return false
   }
 
   satisfies (requested) {
-    if (requested instanceof Edge)
+    if (requested instanceof Edge) {
       return this.name === requested.name && requested.satisfiedBy(this)
+    }
 
     const parsed = npa(requested)
     const { name = this.name, rawSpec: spec } = parsed
@@ -983,29 +1056,35 @@ class Node {
 
   matches (node) {
     // if the nodes are literally the same object, obviously a match.
-    if (node === this)
+    if (node === this) {
       return true
+    }
 
     // if the names don't match, they're different things, even if
     // the package contents are identical.
-    if (node.name !== this.name)
+    if (node.name !== this.name) {
       return false
+    }
 
     // if they're links, they match if the targets match
-    if (this.isLink)
+    if (this.isLink) {
       return node.isLink && this.target.matches(node.target)
+    }
 
     // if they're two project root nodes, they're different if the paths differ
-    if (this.isProjectRoot && node.isProjectRoot)
+    if (this.isProjectRoot && node.isProjectRoot) {
       return this.path === node.path
+    }
 
     // if the integrity matches, then they're the same.
-    if (this.integrity && node.integrity)
+    if (this.integrity && node.integrity) {
       return this.integrity === node.integrity
+    }
 
     // if no integrity, check resolved
-    if (this.resolved && node.resolved)
+    if (this.resolved && node.resolved) {
       return this.resolved === node.resolved
+    }
 
     // if no resolved, check both package name and version
     // otherwise, conclude that they are different things
@@ -1031,39 +1110,44 @@ class Node {
     // parent's children map, and leave it at that.
     const nameMatch = node.parent &&
       node.parent.children.get(this.name) === node
-    if (nameMatch)
+    if (nameMatch) {
       this.path = resolve(node.parent.path, 'node_modules', this.name)
-    else {
+    } else {
       this.path = node.path
       this.name = node.name
     }
 
-    if (!this.isLink)
+    if (!this.isLink) {
       this.realpath = this.path
+    }
     this[_refreshLocation]()
 
     // keep children when a node replaces another
     if (!this.isLink) {
-      for (const kid of node.children.values())
+      for (const kid of node.children.values()) {
         kid.parent = this
+      }
     }
 
-    if (!node.isRoot)
+    if (!node.isRoot) {
       this.root = node.root
+    }
 
     treeCheck(this)
   }
 
   get inShrinkwrap () {
-    return this.parent && (this.parent.hasShrinkwrap || this.parent.inShrinkwrap)
+    return this.parent &&
+      (this.parent.hasShrinkwrap || this.parent.inShrinkwrap)
   }
 
   get parent () {
     const parent = this[_parent]
     /* istanbul ignore next - should be impossible */
     debug(() => {
-      if (parent === this)
+      if (parent === this) {
         throw new Error('node set to its own parent')
+      }
     })
     return parent
   }
@@ -1083,23 +1167,27 @@ class Node {
     if (!parent) {
       // but only delete it if we actually had a parent in the first place
       // otherwise it's just setting to null when it's already null
-      if (this[_parent])
+      if (this[_parent]) {
         this.root = null
+      }
       return
     }
 
-    if (parent.isLink)
+    if (parent.isLink) {
       parent = parent.target
+    }
 
     // setting a thing to its own parent is not normal, but no-op for safety
-    if (this === parent)
+    if (this === parent) {
       return
+    }
 
     const oldParent = this[_parent]
 
     // nothing to do
-    if (oldParent === parent)
+    if (oldParent === parent) {
       return
+    }
 
     // ok now we know something is actually changing, and parent is not a link
     const newPath = resolve(parent.path, 'node_modules', this.name)
@@ -1116,8 +1204,9 @@ class Node {
     }
 
     // update this.path/realpath for this and all children/fsChildren
-    if (pathChange)
+    if (pathChange) {
       this[_changePath](newPath)
+    }
 
     // clobbers anything at that path, resets all appropriate references
     this.root = parent.root
@@ -1127,16 +1216,19 @@ class Node {
   // Removes the node from its root the metadata and inventory.
   [_delistFromMeta] () {
     const root = this.root
-    if (!root.realpath || !this.path)
+    if (!root.realpath || !this.path) {
       return
+    }
     root.inventory.delete(this)
     root.tops.delete(this)
-    if (root.meta)
+    if (root.meta) {
       root.meta.delete(this.path)
+    }
     /* istanbul ignore next - should be impossible */
     debug(() => {
-      if ([...root.inventory.values()].includes(this))
+      if ([...root.inventory.values()].includes(this)) {
         throw new Error('failed to delist')
+      }
     })
   }
 
@@ -1148,8 +1240,9 @@ class Node {
     this.path = newPath
     const namePattern = /(?:^|\/|\\)node_modules[\\/](@[^/\\]+[\\/][^\\/]+|[^\\/]+)$/
     const nameChange = newPath.match(namePattern)
-    if (nameChange && this.name !== nameChange[1])
+    if (nameChange && this.name !== nameChange[1]) {
       this.name = nameChange[1].replace(/\\/g, '/')
+    }
 
     // if we move a link target, update link realpaths
     if (!this.isLink) {
@@ -1161,10 +1254,12 @@ class Node {
       }
     }
     // if we move /x to /y, then a module at /x/a/b becomes /y/a/b
-    for (const child of this.fsChildren)
+    for (const child of this.fsChildren) {
       child[_changePath](resolve(newPath, relative(oldPath, child.path)))
-    for (const [name, child] of this.children.entries())
+    }
+    for (const [name, child] of this.children.entries()) {
       child[_changePath](resolve(newPath, 'node_modules', name))
+    }
 
     this[_refreshLocation]()
   }
@@ -1179,8 +1274,9 @@ class Node {
     this.location = loc
 
     root.inventory.add(this)
-    if (root.meta)
+    if (root.meta) {
       root.meta.add(this)
+    }
   }
 
   addEdgeOut (edge) {
@@ -1191,8 +1287,9 @@ class Node {
     this.edgesIn.add(edge)
 
     // try to get metadata from the yarn.lock file
-    if (this.root.meta)
+    if (this.root.meta) {
       this.root.meta.addEdge(edge)
+    }
   }
 
   [_reloadNamedEdges] (name, rootLoc = this.location) {
@@ -1202,13 +1299,16 @@ class Node {
       edge.to.location === `${rootLoc}/node_modules/${edge.name}`
     const sameResolved = edge && this.resolve(name) === edge.to
     const recheck = rootLocResolved || !sameResolved
-    if (edge && recheck)
+    if (edge && recheck) {
       edge.reload(true)
-    for (const c of this.children.values())
+    }
+    for (const c of this.children.values()) {
       c[_reloadNamedEdges](name, rootLoc)
+    }
 
-    for (const c of this.fsChildren)
+    for (const c of this.fsChildren) {
       c[_reloadNamedEdges](name, rootLoc)
+    }
   }
 
   get isLink () {
@@ -1255,15 +1355,18 @@ class Node {
     /* istanbul ignore next - should be impossible,
      * but I keep doing this mistake in tests */
     debug(() => {
-      if (typeof name !== 'string' || !name)
+      if (typeof name !== 'string' || !name) {
         throw new Error('non-string passed to Node.resolve')
+      }
     })
     const mine = this.children.get(name)
-    if (mine)
+    if (mine) {
       return mine
+    }
     const resolveParent = this.resolveParent
-    if (resolveParent)
+    if (resolveParent) {
       return resolveParent.resolve(name)
+    }
     return null
   }
 

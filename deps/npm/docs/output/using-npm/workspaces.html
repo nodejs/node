@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#defining-workspaces">Defining workspaces</a></li><li><a href="#getting-started-with-workspaces">Getting started with workspaces</a></li><li><a href="#adding-dependencies-to-a-workspace">Adding dependencies to a workspace</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#defining-workspaces">Defining workspaces</a></li><li><a href="#getting-started-with-workspaces">Getting started with workspaces</a></li><li><a href="#adding-dependencies-to-a-workspace">Adding dependencies to a workspace</a></li><li><a href="#using-workspaces">Using workspaces</a></li><li><a href="#running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</a></li><li><a href="#ignoring-missing-scripts">Ignoring missing scripts</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -264,6 +264,11 @@ configured workspaces. e.g:</p>
 <pre><code>npm run test --workspaces
 </code></pre>
 <p>Will run the <code>test</code> script in both <code>./packages/a</code> and <code>./packages/b</code>.</p>
+<h3 id="ignoring-missing-scripts">Ignoring missing scripts</h3>
+<p>It is not required for all of the workspaces to implement scripts run with the <code>npm run</code> command.</p>
+<p>By running the command with the <code>--if-present</code> flag, npm will ignore workspaces missing target script.</p>
+<pre><code>npm run test --workspaces --if-present
+</code></pre>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>

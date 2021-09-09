@@ -64,14 +64,17 @@ class CanPlaceDep {
     } = options
 
     debug(() => {
-      if (!dep)
+      if (!dep) {
         throw new Error('no dep provided to CanPlaceDep')
+      }
 
-      if (!target)
+      if (!target) {
         throw new Error('no target provided to CanPlaceDep')
+      }
 
-      if (!edge)
+      if (!edge) {
         throw new Error('no edge provided to CanPlaceDep')
+      }
 
       this._treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
         .map(([loc, {packageName, version, resolved}]) => {
@@ -108,8 +111,9 @@ class CanPlaceDep {
     this.edgeOverride = !dep.satisfies(edge)
 
     this.canPlace = this.checkCanPlace()
-    if (!this.canPlaceSelf)
+    if (!this.canPlaceSelf) {
       this.canPlaceSelf = this.canPlace
+    }
 
     debug(() => {
       const treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
@@ -131,15 +135,18 @@ class CanPlaceDep {
 
     // if the dep failed to load, we're going to fail the build or
     // prune it out anyway, so just move forward placing/replacing it.
-    if (dep.errors.length)
+    if (dep.errors.length) {
       return current ? REPLACE : OK
+    }
 
     // cannot place peers inside their dependents, except for tops
-    if (targetEdge && targetEdge.peer && !target.isTop)
+    if (targetEdge && targetEdge.peer && !target.isTop) {
       return CONFLICT
+    }
 
-    if (targetEdge && !dep.satisfies(targetEdge) && targetEdge !== this.edge)
+    if (targetEdge && !dep.satisfies(targetEdge) && targetEdge !== this.edge) {
       return CONFLICT
+    }
 
     return current ? this.checkCanPlaceCurrent() : this.checkCanPlaceNoCurrent()
   }
@@ -150,8 +157,9 @@ class CanPlaceDep {
     const { preferDedupe, explicitRequest, current, target, edge, dep } = this
 
     if (dep.matches(current)) {
-      if (current.satisfies(edge) || this.edgeOverride)
+      if (current.satisfies(edge) || this.edgeOverride) {
         return explicitRequest ? REPLACE : KEEP
+      }
     }
 
     const { version: curVer } = current
@@ -163,19 +171,22 @@ class CanPlaceDep {
        * but it is theoretically possible if peer deps are pinned.  In
        * that case we treat it like any other conflict, and keep trying */
       const cpp = this.canPlacePeers(REPLACE)
-      if (cpp !== CONFLICT)
+      if (cpp !== CONFLICT) {
         return cpp
+      }
     }
 
     // ok, can't replace the current with new one, but maybe current is ok?
-    if (current.satisfies(edge) && (!explicitRequest || preferDedupe))
+    if (current.satisfies(edge) && (!explicitRequest || preferDedupe)) {
       return KEEP
+    }
 
     // if we prefer deduping, then try replacing newer with older
     if (preferDedupe && !tryReplace && dep.canReplace(current)) {
       const cpp = this.canPlacePeers(REPLACE)
-      if (cpp !== CONFLICT)
+      if (cpp !== CONFLICT) {
         return cpp
+      }
     }
 
     // Check for interesting cases!
@@ -185,29 +196,33 @@ class CanPlaceDep {
     const myDeepest = this.deepestNestingTarget
 
     // ok, i COULD be placed deeper, so leave the current one alone.
-    if (target !== myDeepest)
+    if (target !== myDeepest) {
       return CONFLICT
+    }
 
     // if we are not checking a peerDep, then we MUST place it here, in the
     // target that has a non-peer dep on it.
-    if (!edge.peer && target === edge.from)
+    if (!edge.peer && target === edge.from) {
       return this.canPlacePeers(REPLACE)
+    }
 
     // if we aren't placing a peer in a set, then we're done here.
     // This is ignored because it SHOULD be redundant, as far as I can tell,
     // with the deepest target and target===edge.from tests.  But until we
     // can prove that isn't possible, this condition is here for safety.
     /* istanbul ignore if - allegedly impossible */
-    if (!this.parent && !edge.peer)
+    if (!this.parent && !edge.peer) {
       return CONFLICT
+    }
 
     // check the deps in the peer group for each edge into that peer group
     // if ALL of them can be pushed deeper, or if it's ok to replace its
     // members with the contents of the new peer group, then we're good.
     let canReplace = true
     for (const [entryEdge, currentPeers] of peerEntrySets(current)) {
-      if (entryEdge === this.edge || entryEdge === this.peerEntryEdge)
+      if (entryEdge === this.edge || entryEdge === this.peerEntryEdge) {
         continue
+      }
 
       // First, see if it's ok to just replace the peerSet entirely.
       // we do this by walking out from the entryEdge, because in a case like
@@ -231,8 +246,9 @@ class CanPlaceDep {
       const entryNode = entryEdge.to
       const entryRep = dep.parent.children.get(entryNode.name)
       if (entryRep) {
-        if (entryRep.canReplace(entryNode, dep.parent.children.keys()))
+        if (entryRep.canReplace(entryNode, dep.parent.children.keys())) {
           continue
+        }
       }
 
       let canClobber = !entryRep
@@ -240,12 +256,14 @@ class CanPlaceDep {
         const peerReplacementWalk = new Set([entryNode])
         OUTER: for (const currentPeer of peerReplacementWalk) {
           for (const edge of currentPeer.edgesOut.values()) {
-            if (!edge.peer || !edge.valid)
+            if (!edge.peer || !edge.valid) {
               continue
+            }
             const rep = dep.parent.children.get(edge.name)
             if (!rep) {
-              if (edge.to)
+              if (edge.to) {
                 peerReplacementWalk.add(edge.to)
+              }
               continue
             }
             if (!rep.satisfies(edge)) {
@@ -255,14 +273,16 @@ class CanPlaceDep {
           }
         }
       }
-      if (canClobber)
+      if (canClobber) {
         continue
+      }
 
       // ok, we can't replace, but maybe we can nest the current set deeper?
       let canNestCurrent = true
       for (const currentPeer of currentPeers) {
-        if (!canNestCurrent)
+        if (!canNestCurrent) {
           break
+        }
 
         // still possible to nest this peerSet
         const curDeep = deepestNestingTarget(entryEdge.from, currentPeer.name)
@@ -270,14 +290,16 @@ class CanPlaceDep {
           canNestCurrent = false
           canReplace = false
         }
-        if (canNestCurrent)
+        if (canNestCurrent) {
           continue
+        }
       }
     }
 
     // if we can nest or replace all the current peer groups, we can replace.
-    if (canReplace)
+    if (canReplace) {
       return this.canPlacePeers(REPLACE)
+    }
 
     return CONFLICT
   }
@@ -293,8 +315,9 @@ class CanPlaceDep {
     if (current) {
       for (const edge of current.edgesIn.values()) {
         if (edge.from.isDescendantOf(target) && edge.valid) {
-          if (!dep.satisfies(edge))
+          if (!dep.satisfies(edge)) {
             return CONFLICT
+          }
         }
       }
     }
@@ -316,8 +339,9 @@ class CanPlaceDep {
   get allChildren () {
     const set = new Set(this.children)
     for (const child of set) {
-      for (const grandchild of child.children)
+      for (const grandchild of child.children) {
         set.add(grandchild)
+      }
     }
     return [...set]
   }
@@ -329,15 +353,17 @@ class CanPlaceDep {
   // check if peers can go here.  returns state or CONFLICT
   canPlacePeers (state) {
     this.canPlaceSelf = state
-    if (this._canPlacePeers)
+    if (this._canPlacePeers) {
       return this._canPlacePeers
+    }
 
     // TODO: represent peerPath in ERESOLVE error somehow?
     const peerPath = [...this.peerPath, this.dep]
     let sawConflict = false
     for (const peerEdge of this.dep.edgesOut.values()) {
-      if (!peerEdge.peer || !peerEdge.to || peerPath.includes(peerEdge.to))
+      if (!peerEdge.peer || !peerEdge.to || peerPath.includes(peerEdge.to)) {
         continue
+      }
       const peer = peerEdge.to
       // it may be the case that the *initial* dep can be nested, but a peer
       // of that dep needs to be placed shallower, because the target has
@@ -354,13 +380,15 @@ class CanPlaceDep {
       })
       /* istanbul ignore next */
       debug(() => {
-        if (this.children.some(c => c.dep === cpp.dep))
+        if (this.children.some(c => c.dep === cpp.dep)) {
           throw new Error('checking same dep repeatedly')
+        }
       })
       this.children.push(cpp)
 
-      if (cpp.canPlace === CONFLICT)
+      if (cpp.canPlace === CONFLICT) {
         sawConflict = true
+      }
     }
 
     this._canPlacePeers = sawConflict ? CONFLICT : state

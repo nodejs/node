@@ -5,8 +5,9 @@ const checkTree = (tree, checkUnreachable = true) => {
 
   // this can only happen in tests where we have a "tree" object
   // that isn't actually a tree.
-  if (!tree.root || !tree.root.inventory)
+  if (!tree.root || !tree.root.inventory) {
     return tree
+  }
 
   const { inventory } = tree.root
   const seen = new Set()
@@ -21,8 +22,9 @@ const checkTree = (tree, checkUnreachable = true) => {
       'root=' + !!(node && node.isRoot),
     ])
 
-    if (!node || seen.has(node) || node.then)
+    if (!node || seen.has(node) || node.then) {
       return
+    }
 
     seen.add(node)
 
@@ -116,14 +118,18 @@ const checkTree = (tree, checkUnreachable = true) => {
     check(fsParent, node, 'fsParent')
     check(target, node, 'target')
     log.push(['CHILDREN', node.location, ...node.children.keys()])
-    for (const kid of node.children.values())
+    for (const kid of node.children.values()) {
       check(kid, node, 'children')
-    for (const kid of node.fsChildren)
+    }
+    for (const kid of node.fsChildren) {
       check(kid, node, 'fsChildren')
-    for (const link of node.linksIn)
+    }
+    for (const link of node.linksIn) {
       check(link, node, 'linksIn')
-    for (const top of node.tops)
+    }
+    for (const top of node.tops) {
       check(top, node, 'tops')
+    }
     log.push(['DONE', node.location])
   }
   check(tree)

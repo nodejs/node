@@ -63,8 +63,9 @@ class AuditReport extends Map {
           prod = false
         }
       }
-      if (prod)
+      if (prod) {
         dependencies.prod++
+      }
     }
 
     // if it doesn't have any topVulns, then it's fixable with audit fix
@@ -104,8 +105,9 @@ class AuditReport extends Map {
   async run () {
     this.report = await this[_getReport]()
     this.log.silly('audit report', this.report)
-    if (this.report)
+    if (this.report) {
       await this[_init]()
+    }
     return this
   }
 
@@ -119,8 +121,9 @@ class AuditReport extends Map {
 
     const promises = []
     for (const [name, advisories] of Object.entries(this.report)) {
-      for (const advisory of advisories)
+      for (const advisory of advisories) {
         promises.push(this.calculator.calculate(name, advisory))
+      }
     }
 
     // now the advisories are calculated with a set of versions
@@ -136,43 +139,51 @@ class AuditReport extends Map {
       // adding multiple advisories with the same range is fine, but no
       // need to search for nodes we already would have added.
       const k = `${name}@${range}`
-      if (seen.has(k))
+      if (seen.has(k)) {
         continue
+      }
 
       seen.add(k)
 
       const vuln = this.get(name) || new Vuln({ name, advisory })
-      if (this.has(name))
+      if (this.has(name)) {
         vuln.addAdvisory(advisory)
+      }
       super.set(name, vuln)
 
       const p = []
       for (const node of this.tree.inventory.query('packageName', name)) {
-        if (!shouldAudit(node, this[_omit], this.filterSet))
+        if (!shouldAudit(node, this[_omit], this.filterSet)) {
           continue
+        }
 
         // if not vulnerable by this advisory, keep searching
-        if (!advisory.testVersion(node.version))
+        if (!advisory.testVersion(node.version)) {
           continue
+        }
 
         // we will have loaded the source already if this is a metavuln
-        if (advisory.type === 'metavuln')
+        if (advisory.type === 'metavuln') {
           vuln.addVia(this.get(advisory.dependency))
+        }
 
         // already marked this one, no need to do it again
-        if (vuln.nodes.has(node))
+        if (vuln.nodes.has(node)) {
           continue
+        }
 
         // haven't marked this one yet.  get its dependents.
         vuln.nodes.add(node)
         for (const { from: dep, spec } of node.edgesIn) {
-          if (dep.isTop && !vuln.topNodes.has(dep))
+          if (dep.isTop && !vuln.topNodes.has(dep)) {
             this[_checkTopNode](dep, vuln, spec)
-          else {
+          } else {
             // calculate a metavuln, if necessary
-            p.push(this.calculator.calculate(dep.packageName, advisory).then(meta => {
-              if (meta.testVersion(dep.version, spec))
+            const calc = this.calculator.calculate(dep.packageName, advisory)
+            p.push(calc.then(meta => {
+              if (meta.testVersion(dep.version, spec)) {
                 advisories.add(meta)
+              }
             }))
           }
         }
@@ -193,9 +204,11 @@ class AuditReport extends Map {
       // the nodes it references, then remove it from the advisory list.
       // happens when using omit with old audit endpoint.
       for (const advisory of vuln.advisories) {
-        const relevant = [...vuln.nodes].some(n => advisory.testVersion(n.version))
-        if (!relevant)
+        const relevant = [...vuln.nodes]
+          .some(n => advisory.testVersion(n.version))
+        if (!relevant) {
           vuln.deleteAdvisory(advisory)
+        }
       }
     }
     process.emit('timeEnd', 'auditReport:init')
@@ -221,18 +234,21 @@ class AuditReport extends Map {
     // this will always be set to at least {name, versions:{}}
     const paku = vuln.packument
 
-    if (!vuln.testSpec(spec))
+    if (!vuln.testSpec(spec)) {
       return true
+    }
 
     // similarly, even if we HAVE a packument, but we're looking for it
     // somewhere other than the registry, and we got something vulnerable,
     // then we're stuck with it.
     const specObj = npa(spec)
-    if (!specObj.registry)
+    if (!specObj.registry) {
       return false
+    }
 
-    if (specObj.subSpec)
+    if (specObj.subSpec) {
       spec = specObj.subSpec.rawSpec
+    }
 
     // We don't provide fixes for top nodes other than root, but we
     // still check to see if the node is fixable with a different version,
@@ -287,8 +303,9 @@ class AuditReport extends Map {
 
   async [_getReport] () {
     // if we're not auditing, just return false
-    if (this.options.audit === false || this.tree.inventory.size === 1)
+    if (this.options.audit === false || this.tree.inventory.size === 1) {
       return null
+    }
 
     process.emit('time', 'auditReport:getReport')
     try {
@@ -299,8 +316,9 @@ class AuditReport extends Map {
 
         // no sense asking if we don't have anything to audit,
         // we know it'll be empty
-        if (!Object.keys(body).length)
+        if (!Object.keys(body).length) {
           return null
+        }
 
         const res = await fetch('/-/npm/v1/security/advisories/bulk', {
           ...this.options,
@@ -353,13 +371,15 @@ const prepareBulkData = (tree, omit, filterSet) => {
   for (const name of tree.inventory.query('packageName')) {
     const set = new Set()
     for (const node of tree.inventory.query('packageName', name)) {
-      if (!shouldAudit(node, omit, filterSet))
+      if (!shouldAudit(node, omit, filterSet)) {
         continue
+      }
 
       set.add(node.version)
     }
-    if (set.size)
+    if (set.size) {
       payload[name] = [...set]
+    }
   }
   return payload
 }

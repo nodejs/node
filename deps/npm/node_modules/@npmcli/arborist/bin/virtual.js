@@ -8,9 +8,11 @@ require('./lib/timers.js')
 const start = process.hrtime()
 new Arborist(options).loadVirtual().then(tree => {
   const end = process.hrtime(start)
-  if (!options.quiet)
+  if (!options.quiet) {
     print(tree)
-  if (options.save)
+  }
+  if (options.save) {
     tree.meta.save()
+  }
   console.error(`read ${tree.inventory.size} deps in ${end[0] * 1000 + end[1] / 1e6}ms`)
 }).catch(er => console.error(er))
