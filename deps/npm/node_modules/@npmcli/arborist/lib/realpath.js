@@ -14,18 +14,21 @@ const { resolve, basename, dirname } = require('path')
 const realpathCached = (path, rpcache, stcache, depth) => {
   // just a safety against extremely deep eloops
   /* istanbul ignore next */
-  if (depth > 2000)
+  if (depth > 2000) {
     throw eloop(path)
+  }
 
   path = resolve(path)
-  if (rpcache.has(path))
+  if (rpcache.has(path)) {
     return Promise.resolve(rpcache.get(path))
+  }
 
   const dir = dirname(path)
   const base = basename(path)
 
-  if (base && rpcache.has(dir))
+  if (base && rpcache.has(dir)) {
     return realpathChild(dir, base, rpcache, stcache, depth)
+  }
 
   // if it's the root, then we know it's real
   if (!base) {
@@ -40,8 +43,9 @@ const realpathCached = (path, rpcache, stcache, depth) => {
 }
 
 const lstatCached = (path, stcache) => {
-  if (stcache.has(path))
+  if (stcache.has(path)) {
     return Promise.resolve(stcache.get(path))
+  }
 
   const p = lstat(path).then(st => {
     stcache.set(path, st)
@@ -66,8 +70,9 @@ const realpathChild = (dir, base, rpcache, stcache, depth) => {
   const realdir = rpcache.get(dir)
   // that unpossible
   /* istanbul ignore next */
-  if (typeof realdir === 'undefined')
+  if (typeof realdir === 'undefined') {
     throw new Error('in realpathChild without parent being in realpath cache')
+  }
 
   const realish = resolve(realdir, base)
   return lstatCached(realish, stcache).then(st => {
@@ -78,8 +83,9 @@ const realpathChild = (dir, base, rpcache, stcache, depth) => {
 
     return readlink(realish).then(target => {
       const resolved = resolve(realdir, target)
-      if (realish === resolved)
+      if (realish === resolved) {
         throw eloop(realish)
+      }
 
       return realpathCached(resolved, rpcache, stcache, depth + 1)
     }).then(real => {

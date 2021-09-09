@@ -10,8 +10,9 @@ module.exports = class Map extends OGMap {
   constructor (items = []) {
     super()
     this[_keys] = new OGMap()
-    for (const [key, val] of items)
+    for (const [key, val] of items) {
       this.set(key, val)
+    }
   }
 
   [_normKey] (key) {
@@ -26,8 +27,9 @@ module.exports = class Map extends OGMap {
 
   set (key, val) {
     const normKey = this[_normKey](key)
-    if (this[_keys].has(normKey))
+    if (this[_keys].has(normKey)) {
       super.delete(this[_keys].get(normKey))
+    }
     this[_keys].set(normKey, key)
     return super.set(key, val)
   }

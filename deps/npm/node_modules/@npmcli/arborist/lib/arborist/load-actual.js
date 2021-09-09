@@ -78,8 +78,9 @@ module.exports = cls => class ActualLoader extends cls {
   [_resetDepFlags] (tree, root) {
     // reset all deps to extraneous prior to recalc
     if (!root) {
-      for (const node of tree.inventory.values())
+      for (const node of tree.inventory.values()) {
         node.extraneous = true
+      }
     }
 
     // only reset root flags if we're not re-rooting,
@@ -176,8 +177,9 @@ module.exports = cls => class ActualLoader extends cls {
     await this[_loadFSTree](this[_actualTree])
     await this[_loadWorkspaces](this[_actualTree])
     await this[_loadWorkspaceTargets](this[_actualTree])
-    if (!ignoreMissing)
+    if (!ignoreMissing) {
       await this[_findMissingEdges]()
+    }
     this[_findFSParents]()
     this[_transplant](root)
 
@@ -200,8 +202,9 @@ module.exports = cls => class ActualLoader extends cls {
   // if there are workspace targets without Link nodes created, load
   // the targets, so that we know what they are.
   async [_loadWorkspaceTargets] (tree) {
-    if (!tree.workspaces || !tree.workspaces.size)
+    if (!tree.workspaces || !tree.workspaces.size) {
       return
+    }
 
     const promises = []
     for (const path of tree.workspaces.values()) {
@@ -215,18 +218,21 @@ module.exports = cls => class ActualLoader extends cls {
   }
 
   [_transplant] (root) {
-    if (!root || root === this[_actualTree])
+    if (!root || root === this[_actualTree]) {
       return
+    }
 
     this[_actualTree][_changePath](root.path)
     for (const node of this[_actualTree].children.values()) {
-      if (!this[_transplantFilter](node))
+      if (!this[_transplantFilter](node)) {
         node.root = null
+      }
     }
 
     root.replace(this[_actualTree])
-    for (const node of this[_actualTree].fsChildren)
+    for (const node of this[_actualTree].fsChildren) {
       node.root = this[_transplantFilter](node) ? root : null
+    }
 
     this[_actualTree] = root
   }
@@ -291,8 +297,9 @@ module.exports = cls => class ActualLoader extends cls {
     // it'll get parented later, making the fsParent scan a no-op, but better
     // safe than sorry, since it's cheap.
     const { parent, realpath } = options
-    if (!parent)
+    if (!parent) {
       this[_topNodes].add(realpath)
+    }
     return process.env._TEST_ARBORIST_SLOW_LINK_TARGET_ === '1'
       ? new Promise(res => setTimeout(() => res(new Node(options)), 100))
       : new Node(options)
@@ -309,8 +316,9 @@ module.exports = cls => class ActualLoader extends cls {
       // if a link target points at a node outside of the root tree's
       // node_modules hierarchy, then load that node as well.
       return this[_loadFSTree](link.target).then(() => link)
-    } else if (target.then)
+    } else if (target.then) {
       target.then(node => link.target = node)
+    }
 
     return link
   }
@@ -321,13 +329,15 @@ module.exports = cls => class ActualLoader extends cls {
 
     // if a Link target has started, but not completed, then
     // a Promise will be in the cache to indicate this.
-    if (node.then)
+    if (node.then) {
       return node.then(node => this[_loadFSTree](node))
+    }
 
     // impossible except in pathological ELOOP cases
     /* istanbul ignore if */
-    if (did.has(node.realpath))
+    if (did.has(node.realpath)) {
       return Promise.resolve(node)
+    }
 
     did.add(node.realpath)
     return this[_loadFSChildren](node)
@@ -371,8 +381,11 @@ module.exports = cls => class ActualLoader extends cls {
 
       const depPromises = []
       for (const [name, edge] of node.edgesOut.entries()) {
-        if (!edge.missing && !(edge.to && (edge.to.dummy || edge.to.parent !== node)))
+        const notMissing = !edge.missing &&
+          !(edge.to && (edge.to.dummy || edge.to.parent !== node))
+        if (notMissing) {
           continue
+        }
 
         // start the walk from the dirname, because we would have found
         // the dep in the loadFSTree step already if it was local.
@@ -383,14 +396,16 @@ module.exports = cls => class ActualLoader extends cls {
           // allows for finding the transitive deps of link targets.
           // ie, if it has to go up and back out to get to the path
           // from the nearest common ancestor, we've gone too far.
-          if (ancestor && /^\.\.(?:[\\/]|$)/.test(relative(ancestor, p)))
+          if (ancestor && /^\.\.(?:[\\/]|$)/.test(relative(ancestor, p))) {
             break
+          }
 
           const entries = nmContents.get(p) ||
             await readdir(p + '/node_modules').catch(() => [])
           nmContents.set(p, entries)
-          if (!entries.includes(name))
+          if (!entries.includes(name)) {
             continue
+          }
 
           const d = this[_cache].has(p) ? await this[_cache].get(p)
             : new Node({ path: p, root: node.root, dummy: true })

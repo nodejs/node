@@ -5,6 +5,48 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/utils/error-message.js TAP 404 cleans sensitive info from package id > must match snapshot 1`] = `
+Object {
+  "detail": Array [
+    Array [
+      "404",
+      "",
+    ],
+    Array [
+      "404",
+      "",
+      "'http://evil:***@npmjs.org/not-found' is not in this registry.",
+    ],
+    Array [
+      "404",
+      "This package name is not valid, because",
+      "",
+    ],
+    Array [
+      "404",
+      " 1. name can only contain URL-friendly characters",
+    ],
+    Array [
+      "404",
+      String(
+
+        Note that you can also install from a
+      ),
+    ],
+    Array [
+      "404",
+      "tarball, folder, http url, or git url.",
+    ],
+  ],
+  "summary": Array [
+    Array [
+      "404",
+      "not found",
+    ],
+  ],
+}
+`
+
 exports[`test/lib/utils/error-message.js TAP 404 name with error > must match snapshot 1`] = `
 Object {
   "detail": Array [
@@ -15,7 +57,7 @@ Object {
     Array [
       "404",
       "",
-      "'node_modules' is not in the npm registry.",
+      "'node_modules' is not in this registry.",
     ],
     Array [
       "404",
@@ -57,7 +99,7 @@ Object {
     Array [
       "404",
       "",
-      "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is not in the npm registry.",
+      "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is not in this registry.",
     ],
     Array [
       "404",
@@ -111,7 +153,7 @@ Object {
     Array [
       "404",
       "",
-      "'yolo' is not in the npm registry.",
+      "'yolo' is not in this registry.",
     ],
     Array [
       "404",

@@ -13,8 +13,9 @@ const setup = fn => {
   const sigListeners = { loaded: false }
 
   const unload = () => {
-    if (!sigListeners.loaded)
+    if (!sigListeners.loaded) {
       return
+    }
     for (const sig of signals) {
       try {
         process.removeListener(sig, sigListeners[sig])
@@ -43,8 +44,9 @@ const setup = fn => {
     // if we exit normally, but caught a signal which would have been fatal,
     // then re-send it once we're done with whatever cleanup we have to do.
     unload()
-    if (process.listeners(sig).length < 1)
+    if (process.listeners(sig).length < 1) {
       process.once('beforeExit', onBeforeExit)
+    }
 
     fn({ signal: sig })
   }
@@ -56,8 +58,9 @@ const setup = fn => {
     try {
       // if we call this a bunch of times, avoid triggering the warning
       const { length } = process.listeners(sig)
-      if (length >= max)
+      if (length >= max) {
         process.setMaxListeners(length + 1)
+      }
       process.on(sig, sigListeners[sig])
     } catch (er) {}
   }

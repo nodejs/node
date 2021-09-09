@@ -11,8 +11,9 @@ class Link extends Node {
   constructor (options) {
     const { root, realpath, target, parent, fsParent } = options
 
-    if (!realpath && !(target && target.path))
+    if (!realpath && !(target && target.path)) {
       throw new TypeError('must provide realpath for Link node')
+    }
 
     super({
       ...options,
@@ -23,11 +24,11 @@ class Link extends Node {
       : null),
     })
 
-    if (target)
+    if (target) {
       this.target = target
-    else if (this.realpath === this.root.path)
+    } else if (this.realpath === this.root.path) {
       this.target = this.root
-    else {
+    } else {
       this.target = new Node({
         ...options,
         path: realpath,
@@ -48,8 +49,9 @@ class Link extends Node {
 
   set target (target) {
     const current = this[_target]
-    if (target === current)
+    if (target === current) {
       return
+    }
 
     if (current && current.then) {
       debug(() => {
@@ -72,25 +74,28 @@ class Link extends Node {
     }
 
     if (!target) {
-      if (current && current.linksIn)
+      if (current && current.linksIn) {
         current.linksIn.delete(this)
+      }
       if (this.path) {
         this[_delistFromMeta]()
         this[_target] = null
         this.package = {}
         this[_refreshLocation]()
-      } else
+      } else {
         this[_target] = null
+      }
       return
     }
 
     if (!this.path) {
       // temp node pending assignment to a tree
       // we know it's not in the inventory yet, because no path.
-      if (target.path)
+      if (target.path) {
         this.realpath = target.path
-      else
+      } else {
         target.path = target.realpath = this.realpath
+      }
       target.root = this.root
       this[_target] = target
       target.linksIn.add(this)

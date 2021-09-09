@@ -423,6 +423,14 @@ t.test('404', t => {
     t.matchSnapshot(errorMessage(er, npm))
     t.end()
   })
+  t.test('cleans sensitive info from package id', t => {
+    const er = Object.assign(new Error('404 not found'), {
+      pkgid: 'http://evil:password@npmjs.org/not-found',
+      code: 'E404',
+    })
+    t.matchSnapshot(errorMessage(er, npm))
+    t.end()
+  })
   t.end()
 })
 

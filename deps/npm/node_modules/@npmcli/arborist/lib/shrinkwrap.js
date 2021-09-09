@@ -47,8 +47,9 @@ const readlink = promisify(fs.readlink)
 const lstat = promisify(fs.lstat)
 /* istanbul ignore next - version specific polyfill */
 const readdir = async (path, opt) => {
-  if (!opt || !opt.withFileTypes)
+  if (!opt || !opt.withFileTypes) {
     return readdir_(path, opt)
+  }
   const ents = await readdir_(path, opt)
   if (typeof ents[0] === 'string') {
     return Promise.all(ents.map(async ent => {
@@ -97,20 +98,22 @@ const consistentResolve = require('./consistent-resolve.js')
 const maybeReadFile = file => {
   return readFile(file, 'utf8').then(d => d, er => {
     /* istanbul ignore else - can't test without breaking module itself */
-    if (er.code === 'ENOENT')
+    if (er.code === 'ENOENT') {
       return ''
-    else
+    } else {
       throw er
+    }
   })
 }
 
 const maybeStatFile = file => {
   return stat(file).then(st => st.isFile(), er => {
     /* istanbul ignore else - can't test without breaking module itself */
-    if (er.code === 'ENOENT')
+    if (er.code === 'ENOENT') {
       return null
-    else
+    } else {
       throw er
+    }
   })
 }
 
@@ -163,13 +166,16 @@ const assertNoNewer = async (path, data, lockTime, dir = path, seen = null) => {
   const rel = relpath(path, dir)
   if (dir !== path) {
     const dirTime = (await stat(dir)).mtime
-    if (dirTime > lockTime)
+    if (dirTime > lockTime) {
       throw 'out of date, updated: ' + rel
-    if (!isScope && !isNM && !data.packages[rel])
+    }
+    if (!isScope && !isNM && !data.packages[rel]) {
       throw 'missing from lockfile: ' + rel
+    }
     seen.add(rel)
-  } else
+  } else {
     seen = new Set([rel])
+  }
 
   const parent = isParent ? dir : resolve(dir, 'node_modules')
   const children = dir === path
@@ -179,26 +185,29 @@ const assertNoNewer = async (path, data, lockTime, dir = path, seen = null) => {
   return children.catch(() => [])
     .then(ents => Promise.all(ents.map(async ent => {
       const child = resolve(parent, ent.name)
-      if (ent.isDirectory() && !/^\./.test(ent.name))
+      if (ent.isDirectory() && !/^\./.test(ent.name)) {
         await assertNoNewer(path, data, lockTime, child, seen)
-      else if (ent.isSymbolicLink()) {
+      } else if (ent.isSymbolicLink()) {
         const target = resolve(parent, await readlink(child))
         const tstat = await stat(target).catch(
           /* istanbul ignore next - windows */ () => null)
         seen.add(relpath(path, child))
         /* istanbul ignore next - windows cannot do this */
-        if (tstat && tstat.isDirectory() && !seen.has(relpath(path, target)))
+        if (tstat && tstat.isDirectory() && !seen.has(relpath(path, target))) {
           await assertNoNewer(path, data, lockTime, target, seen)
+        }
       }
     })))
     .then(() => {
-      if (dir !== path)
+      if (dir !== path) {
         return
+      }
 
       // assert that all the entries in the lockfile were seen
       for (const loc of new Set(Object.keys(data.packages))) {
-        if (!seen.has(loc))
+        if (!seen.has(loc)) {
           throw 'missing from node_modules: ' + loc
+        }
       }
     })
 }
@@ -252,39 +261,48 @@ class Shrinkwrap {
     const meta = {}
     pkgMetaKeys.forEach(key => {
       const val = metaFieldFromPkg(node.package, key)
-      if (val)
+      if (val) {
         meta[key.replace(/^_/, '')] = val
+      }
     })
     // we only include name if different from the node path name, and for the
     // root to help prevent churn based on the name of the directory the
     // project is in
     const pname = node.packageName
-    if (pname && (node === node.root || pname !== node.name))
+    if (pname && (node === node.root || pname !== node.name)) {
       meta.name = pname
+    }
 
-    if (node.isTop && node.package.devDependencies)
+    if (node.isTop && node.package.devDependencies) {
       meta.devDependencies = node.package.devDependencies
+    }
 
     nodeMetaKeys.forEach(key => {
-      if (node[key])
+      if (node[key]) {
         meta[key] = node[key]
+      }
     })
 
     const resolved = consistentResolve(node.resolved, node.path, path, true)
-    if (resolved)
+    if (resolved) {
       meta.resolved = resolved
+    }
 
-    if (node.extraneous)
+    if (node.extraneous) {
       meta.extraneous = true
-    else {
-      if (node.peer)
+    } else {
+      if (node.peer) {
         meta.peer = true
-      if (node.dev)
+      }
+      if (node.dev) {
         meta.dev = true
-      if (node.optional)
+      }
+      if (node.optional) {
         meta.optional = true
-      if (node.devOptional && !node.dev && !node.optional)
+      }
+      if (node.devOptional && !node.dev && !node.optional) {
         meta.devOptional = true
+      }
     }
     return meta
   }
@@ -423,8 +441,9 @@ class Shrinkwrap {
       this.indent = indent !== undefined ? indent : this.indent
       this.newline = newline !== undefined ? newline : this.newline
 
-      if (!this.hiddenLockfile || !data.packages)
+      if (!this.hiddenLockfile || !data.packages) {
         return data
+      }
 
       // add a few ms just to account for jitter
       const lockTime = +(await stat(this.filename)).mtime + 10
@@ -467,8 +486,9 @@ class Shrinkwrap {
     // migrate a v1 package lock to the new format.
     const meta = this[_metaFromLock](location, name, lock)
     // dependencies nested under a link are actually under the link target
-    if (meta.link)
+    if (meta.link) {
       location = meta.resolved
+    }
     if (lock.dependencies) {
       for (const [name, dep] of Object.entries(lock.dependencies)) {
         const loc = location + (location ? '/' : '') + 'node_modules/' + name
@@ -488,13 +508,15 @@ class Shrinkwrap {
     pkgMetaKeys.forEach(key => {
       const val = metaFieldFromPkg(pkg, key)
       const k = key.replace(/^_/, '')
-      if (val)
+      if (val) {
         root[k] = val
+      }
     })
 
     for (const [loc, meta] of Object.entries(this.data.packages)) {
-      if (!meta.requires || !loc)
+      if (!meta.requires || !loc) {
         continue
+      }
 
       // resolve each require to a meta entry
       // if this node isn't optional, but the dep is, then it's an optionalDep
@@ -523,27 +545,33 @@ class Shrinkwrap {
   [_resolveMetaNode] (loc, name) {
     for (let path = loc; true; path = path.replace(/(^|\/)[^/]*$/, '')) {
       const check = `${path}${path ? '/' : ''}node_modules/${name}`
-      if (this.data.packages[check])
+      if (this.data.packages[check]) {
         return this.data.packages[check]
+      }
 
-      if (!path)
+      if (!path) {
         break
+      }
     }
     return null
   }
 
   [_lockFromLoc] (lock, path, i = 0) {
-    if (!lock)
+    if (!lock) {
       return null
+    }
 
-    if (path[i] === '')
+    if (path[i] === '') {
       i++
+    }
 
-    if (i >= path.length)
+    if (i >= path.length) {
       return lock
+    }
 
-    if (!lock.dependencies)
+    if (!lock.dependencies) {
       return null
+    }
 
     return this[_lockFromLoc](lock.dependencies[path[i]], path, i + 1)
   }
@@ -555,8 +583,9 @@ class Shrinkwrap {
   }
 
   delete (nodePath) {
-    if (!this.data)
+    if (!this.data) {
       throw new Error('run load() before getting or setting data')
+    }
     const location = this[_pathToLoc](nodePath)
     this[_awaitingUpdate].delete(location)
 
@@ -564,22 +593,26 @@ class Shrinkwrap {
     const path = location.split(/(?:^|\/)node_modules\//)
     const name = path.pop()
     const pLock = this[_lockFromLoc](this.data, path)
-    if (pLock && pLock.dependencies)
+    if (pLock && pLock.dependencies) {
       delete pLock.dependencies[name]
+    }
   }
 
   get (nodePath) {
-    if (!this.data)
+    if (!this.data) {
       throw new Error('run load() before getting or setting data')
+    }
 
     const location = this[_pathToLoc](nodePath)
-    if (this[_awaitingUpdate].has(location))
+    if (this[_awaitingUpdate].has(location)) {
       this[_updateWaitingNode](location)
+    }
 
     // first try to get from the newer spot, which we know has
     // all the things we need.
-    if (this.data.packages[location])
+    if (this.data.packages[location]) {
       return this.data.packages[location]
+    }
 
     // otherwise, fall back to the legacy metadata, and hope for the best
     // get the node in the shrinkwrap corresponding to this spot
@@ -595,8 +628,9 @@ class Shrinkwrap {
     // from a lockfile which may be outdated or incomplete.  Since v1
     // lockfiles used the "version" field to contain a variety of
     // different possible types of data, this gets a little complicated.
-    if (!lock)
+    if (!lock) {
       return {}
+    }
 
     // try to figure out a npm-package-arg spec from the lockfile entry
     // This will return null if we could not get anything valid out of it.
@@ -613,29 +647,35 @@ class Shrinkwrap {
       }
       // also save the link target, omitting version since we don't know
       // what it is, but we know it isn't a link to itself!
-      if (!this.data.packages[target])
+      if (!this.data.packages[target]) {
         this[_metaFromLock](target, name, { ...lock, version: null })
+      }
       return this.data.packages[location]
     }
 
     const meta = {}
     // when calling loadAll we'll change these into proper dep objects
-    if (lock.requires && typeof lock.requires === 'object')
+    if (lock.requires && typeof lock.requires === 'object') {
       meta.requires = lock.requires
+    }
 
-    if (lock.optional)
+    if (lock.optional) {
       meta.optional = true
-    if (lock.dev)
+    }
+    if (lock.dev) {
       meta.dev = true
+    }
 
     // the root will typically have a name from the root project's
     // package.json file.
-    if (location === '')
+    if (location === '') {
       meta.name = lock.name
+    }
 
     // if we have integrity, save it now.
-    if (lock.integrity)
+    if (lock.integrity) {
       meta.integrity = lock.integrity
+    }
 
     if (lock.version && !lock.integrity) {
       // this is usually going to be a git url or symlink, but it could
@@ -668,12 +708,13 @@ class Shrinkwrap {
     // have a fetchSpec equal to the fully resolved thing.
     // Registry deps, we take what's in the lockfile.
     if (lock.resolved || (spec.type && !spec.registry)) {
-      if (spec.registry)
+      if (spec.registry) {
         meta.resolved = lock.resolved
-      else if (spec.type === 'file')
+      } else if (spec.type === 'file') {
         meta.resolved = consistentResolve(spec, this.path, this.path, true)
-      else if (spec.fetchSpec)
+      } else if (spec.fetchSpec) {
         meta.resolved = spec.fetchSpec
+      }
     }
 
     // at this point, if still we don't have a version, do our best to
@@ -685,32 +726,37 @@ class Shrinkwrap {
           versionFromTgz(spec.name, meta.resolved)
         if (fromTgz) {
           meta.version = fromTgz.version
-          if (fromTgz.name !== name)
+          if (fromTgz.name !== name) {
             meta.name = fromTgz.name
+          }
         }
       } else if (spec.type === 'alias') {
         meta.name = spec.subSpec.name
         meta.version = spec.subSpec.fetchSpec
-      } else if (spec.type === 'version')
+      } else if (spec.type === 'version') {
         meta.version = spec.fetchSpec
+      }
       // ok, I did my best!  good luck!
     }
 
-    if (lock.bundled)
+    if (lock.bundled) {
       meta.inBundle = true
+    }
 
     // save it for next time
     return this.data.packages[location] = meta
   }
 
   add (node) {
-    if (!this.data)
+    if (!this.data) {
       throw new Error('run load() before getting or setting data')
+    }
 
     // will be actually updated on read
     const loc = relpath(this.path, node.path)
-    if (node.path === this.path)
+    if (node.path === this.path) {
       this.tree = node
+    }
 
     // if we have metadata about this node, and it's a match, then
     // try to decorate it.
@@ -758,18 +804,21 @@ class Shrinkwrap {
   }
 
   addEdge (edge) {
-    if (!this.yarnLock || !edge.valid)
+    if (!this.yarnLock || !edge.valid) {
       return
+    }
 
     const { to: node } = edge
 
     // if it's already set up, nothing to do
-    if (node.resolved !== null && node.integrity !== null)
+    if (node.resolved !== null && node.integrity !== null) {
       return
+    }
 
     // if the yarn lock is empty, nothing to do
-    if (!this.yarnLock.entries || !this.yarnLock.entries.size)
+    if (!this.yarnLock.entries || !this.yarnLock.entries.size) {
       return
+    }
 
     // we relativize the path here because that's how it shows up in the lock
     // XXX how is this different from pathFixed above??
@@ -783,11 +832,13 @@ class Shrinkwrap {
     if (!entry ||
         mismatch(node.version, entry.version) ||
         mismatch(node.integrity, entry.integrity) ||
-        mismatch(pathFixed, entry.resolved))
+        mismatch(pathFixed, entry.resolved)) {
       return
+    }
 
-    if (entry.resolved && yarnRegRe.test(entry.resolved) && spec.registry)
+    if (entry.resolved && yarnRegRe.test(entry.resolved) && spec.registry) {
       entry.resolved = entry.resolved.replace(yarnRegRe, 'https://registry.npmjs.org/')
+    }
 
     node.integrity = node.integrity || entry.integrity || null
     node.resolved = node.resolved ||
@@ -804,30 +855,35 @@ class Shrinkwrap {
 
   commit () {
     if (this.tree) {
-      if (this.yarnLock)
+      if (this.yarnLock) {
         this.yarnLock.fromTree(this.tree)
+      }
       const root = Shrinkwrap.metaFromNode(this.tree.target, this.path)
       this.data.packages = {}
-      if (Object.keys(root).length)
+      if (Object.keys(root).length) {
         this.data.packages[''] = root
+      }
       for (const node of this.tree.root.inventory.values()) {
         // only way this.tree is not root is if the root is a link to it
-        if (node === this.tree || node.isRoot || node.location === '')
+        if (node === this.tree || node.isRoot || node.location === '') {
           continue
+        }
         const loc = relpath(this.path, node.path)
         this.data.packages[loc] = Shrinkwrap.metaFromNode(node, this.path)
       }
     } else if (this[_awaitingUpdate].size > 0) {
-      for (const loc of this[_awaitingUpdate].keys())
+      for (const loc of this[_awaitingUpdate].keys()) {
         this[_updateWaitingNode](loc)
+      }
     }
 
     // hidden lockfiles don't include legacy metadata or a root entry
     if (this.hiddenLockfile) {
       delete this.data.packages['']
       delete this.data.dependencies
-    } else if (this.tree)
+    } else if (this.tree) {
       this[_buildLegacyLockfile](this.tree, this.data)
+    }
 
     return this.data
   }
@@ -836,8 +892,9 @@ class Shrinkwrap {
     if (node === this.tree) {
       // the root node
       lock.name = node.packageName || node.name
-      if (node.version)
+      if (node.version) {
         lock.version = node.version
+      }
     }
 
     // npm v6 and before tracked 'from', meaning "the request that led
@@ -868,26 +925,29 @@ class Shrinkwrap {
     const spec = !edge ? rSpec
       : npa.resolve(node.name, edge.spec, edge.from.realpath)
 
-    if (node.isLink)
+    if (node.isLink) {
       lock.version = `file:${relpath(this.path, node.realpath)}`
-    else if (spec && (spec.type === 'file' || spec.type === 'remote'))
+    } else if (spec && (spec.type === 'file' || spec.type === 'remote')) {
       lock.version = spec.saveSpec
-    else if (spec && spec.type === 'git' || rSpec.type === 'git') {
+    } else if (spec && spec.type === 'git' || rSpec.type === 'git') {
       lock.version = node.resolved
       /* istanbul ignore else - don't think there are any cases where a git
        * spec (or indeed, ANY npa spec) doesn't have a .raw member */
-      if (spec.raw)
+      if (spec.raw) {
         lock.from = spec.raw
+      }
     } else if (!node.isRoot &&
         node.package &&
         node.packageName &&
-        node.packageName !== node.name)
+        node.packageName !== node.name) {
       lock.version = `npm:${node.packageName}@${node.version}`
-    else if (node.package && node.version)
+    } else if (node.package && node.version) {
       lock.version = node.version
+    }
 
-    if (node.inDepBundle)
+    if (node.inDepBundle) {
       lock.bundled = true
+    }
 
     // when we didn't resolve to git, file, or dir, and didn't request
     // git, file, dir, or remote, then the resolved value is necessary.
@@ -899,77 +959,90 @@ class Shrinkwrap {
         spec.type !== 'directory' &&
         spec.type !== 'git' &&
         spec.type !== 'file' &&
-        spec.type !== 'remote')
+        spec.type !== 'remote') {
       lock.resolved = node.resolved
+    }
 
-    if (node.integrity)
+    if (node.integrity) {
       lock.integrity = node.integrity
+    }
 
-    if (node.extraneous)
+    if (node.extraneous) {
       lock.extraneous = true
-    else if (!node.isLink) {
-      if (node.peer)
+    } else if (!node.isLink) {
+      if (node.peer) {
         lock.peer = true
+      }
 
-      if (node.devOptional && !node.dev && !node.optional)
+      if (node.devOptional && !node.dev && !node.optional) {
         lock.devOptional = true
+      }
 
-      if (node.dev)
+      if (node.dev) {
         lock.dev = true
+      }
 
-      if (node.optional)
+      if (node.optional) {
         lock.optional = true
+      }
     }
 
     const depender = node.target
     if (depender.edgesOut.size > 0) {
       if (node !== this.tree) {
-        lock.requires = [...depender.edgesOut.entries()].reduce((set, [k, v]) => {
+        const entries = [...depender.edgesOut.entries()]
+        lock.requires = entries.reduce((set, [k, v]) => {
           // omit peer deps from legacy lockfile requires field, because
           // npm v6 doesn't handle peer deps, and this triggers some bad
           // behavior if the dep can't be found in the dependencies list.
           const { spec, peer } = v
-          if (peer)
+          if (peer) {
             return set
+          }
           if (spec.startsWith('file:')) {
             // turn absolute file: paths into relative paths from the node
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
             const p = resolve(node.realpath, spec.substr('file:'.length))
             set[k] = `file:${relpath(node.realpath, p)}`
-          } else
+          } else {
             set[k] = spec
+          }
           return set
         }, {})
-      } else
+      } else {
         lock.requires = true
+      }
     }
 
     // now we walk the children, putting them in the 'dependencies' object
     const {children} = node.target
-    if (!children.size)
+    if (!children.size) {
       delete lock.dependencies
-    else {
+    } else {
       const kidPath = [...path, node.realpath]
       const dependencies = {}
       // skip any that are already in the descent path, so cyclical link
       // dependencies don't blow up with ELOOP.
       let found = false
       for (const [name, kid] of children.entries()) {
-        if (path.includes(kid.realpath))
+        if (path.includes(kid.realpath)) {
           continue
+        }
         dependencies[name] = this[_buildLegacyLockfile](kid, {}, kidPath)
         found = true
       }
-      if (found)
+      if (found) {
         lock.dependencies = dependencies
+      }
     }
     return lock
   }
 
   save (options = {}) {
-    if (!this.data)
+    if (!this.data) {
       throw new Error('run load() before saving data')
+    }
 
     const { format = true } = options
     const defaultIndent = this.indent || 2
