@@ -1518,8 +1518,8 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
   DisallowGarbageCollection no_gc;
 
   Map holder_map = holder->map();
-  CHECK(!holder_map.is_access_check_needed());
-  CHECK(!holder_map.has_named_interceptor());
+  if (holder_map.is_access_check_needed()) return {};
+  if (holder_map.has_named_interceptor()) return {};
 
   GlobalDictionary dict = holder->global_dictionary(kAcquireLoad);
   base::Optional<PropertyCell> cell =
