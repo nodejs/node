@@ -86,6 +86,8 @@ const setEnvs = (config) => {
 
   // also set some other common nice envs that we want to rely on
   env.HOME = config.home
+  env.npm_config_global_prefix = config.globalPrefix
+  env.npm_config_local_prefix = config.localPrefix
   if (cliConf.editor)
     env.EDITOR = cliConf.editor
 

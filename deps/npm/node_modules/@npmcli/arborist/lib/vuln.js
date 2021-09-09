@@ -28,8 +28,9 @@ const severities = new Map([
   [null, -1],
 ])
 
-for (const [name, val] of severities.entries())
+for (const [name, val] of severities.entries()) {
   severities.set(val, name)
+}
 
 class Vuln {
   constructor ({ name, advisory }) {
@@ -43,7 +44,7 @@ class Vuln {
     this[_simpleRange] = null
     this.nodes = new Set()
     // assume a fix is available unless it hits a top node
-    // that locks it in place, setting this to false or {isSemVerMajor, version}.
+    // that locks it in place, setting this false or {isSemVerMajor, version}.
     this[_fixAvailable] = true
     this.addAdvisory(advisory)
     this.packument = advisory.packument
@@ -65,30 +66,35 @@ class Vuln {
     // - true: fix does not require -f
     for (const v of this.via) {
       // don't blow up on loops
-      if (v.fixAvailable === f)
+      if (v.fixAvailable === f) {
         continue
+      }
 
-      if (f === false)
+      if (f === false) {
         v.fixAvailable = f
-      else if (v.fixAvailable === true)
+      } else if (v.fixAvailable === true) {
         v.fixAvailable = f
-      else if (typeof f === 'object' && (
-        typeof v.fixAvailable !== 'object' || !v.fixAvailable.isSemVerMajor))
+      } else if (typeof f === 'object' && (
+        typeof v.fixAvailable !== 'object' || !v.fixAvailable.isSemVerMajor)) {
         v.fixAvailable = f
+      }
     }
   }
 
   testSpec (spec) {
     const specObj = npa(spec)
-    if (!specObj.registry)
+    if (!specObj.registry) {
       return true
+    }
 
-    if (specObj.subSpec)
+    if (specObj.subSpec) {
       spec = specObj.subSpec.rawSpec
+    }
 
     for (const v of this.versions) {
-      if (satisfies(v, spec) && !satisfies(v, this.range, semverOpt))
+      if (satisfies(v, spec) && !satisfies(v, this.range, semverOpt)) {
         return false
+      }
     }
     return true
   }
@@ -135,14 +141,16 @@ class Vuln {
     this[_range] = null
     this[_simpleRange] = null
     // refresh severity
-    for (const advisory of this.advisories)
+    for (const advisory of this.advisories) {
       this.addAdvisory(advisory)
+    }
 
     // remove any effects that are no longer relevant
     const vias = new Set([...this.advisories].map(a => a.dependency))
     for (const via of this.via) {
-      if (!vias.has(via.name))
+      if (!vias.has(via.name)) {
         this.deleteVia(via)
+      }
     }
   }
 
@@ -151,8 +159,9 @@ class Vuln {
     const sev = severities.get(advisory.severity)
     this[_range] = null
     this[_simpleRange] = null
-    if (sev > severities.get(this.severity))
+    if (sev > severities.get(this.severity)) {
       this.severity = advisory.severity
+    }
   }
 
   get range () {
@@ -161,8 +170,9 @@ class Vuln {
   }
 
   get simpleRange () {
-    if (this[_simpleRange] && this[_simpleRange] === this[_range])
+    if (this[_simpleRange] && this[_simpleRange] === this[_range]) {
       return this[_simpleRange]
+    }
 
     const versions = [...this.advisories][0].versions
     const range = this.range
@@ -171,12 +181,14 @@ class Vuln {
   }
 
   isVulnerable (node) {
-    if (this.nodes.has(node))
+    if (this.nodes.has(node)) {
       return true
+    }
 
     const { version } = node.package
-    if (!version)
+    if (!version) {
       return false
+    }
 
     for (const v of this.advisories) {
       if (v.testVersion(version)) {

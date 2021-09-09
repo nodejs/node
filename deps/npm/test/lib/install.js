@@ -126,6 +126,146 @@ t.test('should install globally using Arborist', (t) => {
   })
 })
 
+t.test('npm i -g npm engines check success', (t) => {
+  const Install = t.mock('../../lib/install.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/arborist': function () {
+      this.reify = () => {}
+    },
+    pacote: {
+      manifest: () => {
+        return {
+          version: '100.100.100',
+          engines: {
+            node: '>1',
+          },
+        }
+      },
+    },
+  })
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    config: {
+      global: true,
+    },
+  })
+  const install = new Install(npm)
+  install.exec(['npm'], er => {
+    if (er)
+      throw er
+    t.end()
+  })
+})
+
+t.test('npm i -g npm engines check failure', (t) => {
+  const Install = t.mock('../../lib/install.js', {
+    pacote: {
+      manifest: () => {
+        return {
+          _id: 'npm@1.2.3',
+          version: '100.100.100',
+          engines: {
+            node: '>1000',
+          },
+        }
+      },
+    },
+  })
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    config: {
+      global: true,
+    },
+  })
+  const install = new Install(npm)
+  install.exec(['npm'], er => {
+    t.match(er, {
+      message: 'Unsupported engine',
+      pkgid: 'npm@1.2.3',
+      current: {
+        node: process.version,
+        npm: '100.100.100',
+      },
+      required: {
+        node: '>1000',
+      },
+      code: 'EBADENGINE',
+    })
+    t.end()
+  })
+})
+
+t.test('npm i -g npm engines check failure forced override', (t) => {
+  const Install = t.mock('../../lib/install.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/arborist': function () {
+      this.reify = () => {}
+    },
+    pacote: {
+      manifest: () => {
+        return {
+          _id: 'npm@1.2.3',
+          version: '100.100.100',
+          engines: {
+            node: '>1000',
+          },
+        }
+      },
+    },
+  })
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    config: {
+      force: true,
+      global: true,
+    },
+  })
+  const install = new Install(npm)
+  install.exec(['npm'], er => {
+    if (er)
+      throw er
+    t.end()
+  })
+})
+
+t.test('npm i -g npm@version engines check failure', (t) => {
+  const Install = t.mock('../../lib/install.js', {
+    pacote: {
+      manifest: () => {
+        return {
+          _id: 'npm@1.2.3',
+          version: '100.100.100',
+          engines: {
+            node: '>1000',
+          },
+        }
+      },
+    },
+  })
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    config: {
+      global: true,
+    },
+  })
+  const install = new Install(npm)
+  install.exec(['npm@100'], er => {
+    t.match(er, {
+      message: 'Unsupported engine',
+      pkgid: 'npm@1.2.3',
+      current: {
+        node: process.version,
+        npm: '100.100.100',
+      },
+      required: {
+        node: '>1000',
+      },
+      code: 'EBADENGINE',
+    })
+    t.end()
+  })
+})
+
 t.test('completion to folder', async t => {
   const Install = t.mock('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},

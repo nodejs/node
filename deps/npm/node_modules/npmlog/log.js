@@ -13,8 +13,9 @@ var stream = process.stderr
 Object.defineProperty(log, 'stream', {
   set: function (newStream) {
     stream = newStream
-    if (this.gauge)
+    if (this.gauge) {
       this.gauge.setWriteTo(stream, stream)
+    }
   },
   get: function () {
     return stream
@@ -78,20 +79,23 @@ log.setGaugeTemplate = function (template) {
 }
 
 log.enableProgress = function () {
-  if (this.progressEnabled)
+  if (this.progressEnabled) {
     return
+  }
 
   this.progressEnabled = true
   this.tracker.on('change', this.showProgress)
-  if (this._paused)
+  if (this._paused) {
     return
+  }
 
   this.gauge.enable()
 }
 
 log.disableProgress = function () {
-  if (!this.progressEnabled)
+  if (!this.progressEnabled) {
     return
+  }
   this.progressEnabled = false
   this.tracker.removeListener('change', this.showProgress)
   this.gauge.disable()
@@ -103,19 +107,23 @@ var mixinLog = function (tracker) {
   // mixin the public methods from log into the tracker
   // (except: conflicts and one's we handle specially)
   Object.keys(log).forEach(function (P) {
-    if (P[0] === '_')
+    if (P[0] === '_') {
       return
+    }
 
     if (trackerConstructors.filter(function (C) {
       return C === P
-    }).length)
+    }).length) {
       return
+    }
 
-    if (tracker[P])
+    if (tracker[P]) {
       return
+    }
 
-    if (typeof log[P] !== 'function')
+    if (typeof log[P] !== 'function') {
       return
+    }
 
     var func = log[P]
     tracker[P] = function () {
@@ -143,27 +151,31 @@ trackerConstructors.forEach(function (C) {
 })
 
 log.clearProgress = function (cb) {
-  if (!this.progressEnabled)
+  if (!this.progressEnabled) {
     return cb && process.nextTick(cb)
+  }
 
   this.gauge.hide(cb)
 }
 
 log.showProgress = function (name, completed) {
-  if (!this.progressEnabled)
+  if (!this.progressEnabled) {
     return
+  }
 
   var values = {}
-  if (name)
+  if (name) {
     values.section = name
+  }
 
   var last = log.record[log.record.length - 1]
   if (last) {
     values.subsection = last.prefix
     var disp = log.disp[last.level] || last.level
     var logline = this._format(disp, log.style[last.level])
-    if (last.prefix)
+    if (last.prefix) {
       logline += ' ' + this._format(last.prefix, this.prefixStyle)
+    }
 
     logline += ' ' + last.message.split(/\r?\n/)[0]
     values.logline = logline
@@ -175,13 +187,15 @@ log.showProgress = function (name, completed) {
 // temporarily stop emitting, but don't drop
 log.pause = function () {
   this._paused = true
-  if (this.progressEnabled)
+  if (this.progressEnabled) {
     this.gauge.disable()
+  }
 }
 
 log.resume = function () {
-  if (!this._paused)
+  if (!this._paused) {
     return
+  }
 
   this._paused = false
 
@@ -190,8 +204,9 @@ log.resume = function () {
   b.forEach(function (m) {
     this.emitLog(m)
   }, this)
-  if (this.progressEnabled)
+  if (this.progressEnabled) {
     this.gauge.enable()
+  }
 }
 
 log._buffer = []
@@ -220,8 +235,9 @@ log.log = function (lvl, prefix, message) {
       })
     }
   }
-  if (stack)
+  if (stack) {
     a.unshift(stack + '\n')
+  }
   message = util.format.apply(util, a)
 
   var m = {
@@ -234,8 +250,9 @@ log.log = function (lvl, prefix, message) {
 
   this.emit('log', m)
   this.emit('log.' + lvl, m)
-  if (m.prefix)
+  if (m.prefix) {
     this.emit(m.prefix, m)
+  }
 
   this.record.push(m)
   var mrs = this.maxRecordSize
@@ -253,18 +270,22 @@ log.emitLog = function (m) {
     this._buffer.push(m)
     return
   }
-  if (this.progressEnabled)
+  if (this.progressEnabled) {
     this.gauge.pulse(m.prefix)
+  }
 
   var l = this.levels[m.level]
-  if (l === undefined)
+  if (l === undefined) {
     return
+  }
 
-  if (l < this.levels[this.level])
+  if (l < this.levels[this.level]) {
     return
+  }
 
-  if (l > 0 && !isFinite(l))
+  if (l > 0 && !isFinite(l)) {
     return
+  }
 
   // If 'disp' is null or undefined, use the lvl as a default
   // Allows: '', 0 as valid disp
@@ -277,8 +298,9 @@ log.emitLog = function (m) {
     }
     this.write(disp, log.style[m.level])
     var p = m.prefix || ''
-    if (p)
+    if (p) {
       this.write(' ')
+    }
 
     this.write(p, this.prefixStyle)
     this.write(' ' + line + '\n')
@@ -287,52 +309,63 @@ log.emitLog = function (m) {
 }
 
 log._format = function (msg, style) {
-  if (!stream)
+  if (!stream) {
     return
+  }
 
   var output = ''
   if (this.useColor()) {
     style = style || {}
     var settings = []
-    if (style.fg)
+    if (style.fg) {
       settings.push(style.fg)
+    }
 
-    if (style.bg)
+    if (style.bg) {
       settings.push('bg' + style.bg[0].toUpperCase() + style.bg.slice(1))
+    }
 
-    if (style.bold)
+    if (style.bold) {
       settings.push('bold')
+    }
 
-    if (style.underline)
+    if (style.underline) {
       settings.push('underline')
+    }
 
-    if (style.inverse)
+    if (style.inverse) {
       settings.push('inverse')
+    }
 
-    if (settings.length)
+    if (settings.length) {
       output += consoleControl.color(settings)
+    }
 
-    if (style.beep)
+    if (style.beep) {
       output += consoleControl.beep()
+    }
   }
   output += msg
-  if (this.useColor())
+  if (this.useColor()) {
     output += consoleControl.color('reset')
+  }
 
   return output
 }
 
 log.write = function (msg, style) {
-  if (!stream)
+  if (!stream) {
     return
+  }
 
   stream.write(this._format(msg, style))
 }
 
 log.addLevel = function (lvl, n, style, disp) {
   // If 'disp' is null or undefined, use the lvl as a default
-  if (disp == null)
+  if (disp == null) {
     disp = lvl
+  }
 
   this.levels[lvl] = n
   this.style[lvl] = style
@@ -340,8 +373,9 @@ log.addLevel = function (lvl, n, style, disp) {
     this[lvl] = function () {
       var a = new Array(arguments.length + 1)
       a[0] = lvl
-      for (var i = 0; i < arguments.length; i++)
+      for (var i = 0; i < arguments.length; i++) {
         a[i + 1] = arguments[i]
+      }
 
       return this.log.apply(this, a)
     }.bind(this)

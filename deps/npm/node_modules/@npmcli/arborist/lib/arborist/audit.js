@@ -22,8 +22,9 @@ module.exports = cls => class Auditor extends cls {
 
     process.emit('time', 'audit')
     const tree = await this.loadVirtual()
-    if (this[_workspaces] && this[_workspaces].length)
+    if (this[_workspaces] && this[_workspaces].length) {
       options.filterSet = this.workspaceDependencySet(tree, this[_workspaces])
+    }
     this.auditReport = await AuditReport.load(tree, options)
     const ret = options.fix ? this.reify(options) : this.auditReport
     process.emit('timeEnd', 'audit')

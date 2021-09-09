@@ -82,7 +82,7 @@ class Request extends Body {
       key,
       passphrase,
       pfx,
-      rejectUnauthorized = true,
+      rejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
       secureOptions,
       secureProtocol,
       servername,

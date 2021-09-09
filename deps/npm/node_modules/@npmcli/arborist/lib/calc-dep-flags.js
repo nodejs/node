@@ -11,7 +11,8 @@ const calcDepFlags = (tree, resetRoot = true) => {
     tree,
     visit: node => calcDepFlagsStep(node),
     filter: node => node,
-    getChildren: (node, tree) => [...tree.edgesOut.values()].map(edge => edge.to),
+    getChildren: (node, tree) =>
+      [...tree.edgesOut.values()].map(edge => edge.to),
   })
   return ret
 }
@@ -39,8 +40,9 @@ const calcDepFlagsStep = (node) => {
 
   node.edgesOut.forEach(({peer, optional, dev, to}) => {
     // if the dep is missing, then its flags are already maximally unset
-    if (!to)
+    if (!to) {
       return
+    }
 
     // everything with any kind of edge into it is not extraneous
     to.extraneous = false
@@ -59,28 +61,34 @@ const calcDepFlagsStep = (node) => {
       !node.optional && !optional
     const unsetPeer = !node.peer && !peer
 
-    if (unsetPeer)
+    if (unsetPeer) {
       unsetFlag(to, 'peer')
+    }
 
-    if (unsetDevOpt)
+    if (unsetDevOpt) {
       unsetFlag(to, 'devOptional')
+    }
 
-    if (unsetDev)
+    if (unsetDev) {
       unsetFlag(to, 'dev')
+    }
 
-    if (unsetOpt)
+    if (unsetOpt) {
       unsetFlag(to, 'optional')
+    }
   })
 
   return node
 }
 
 const resetParents = (node, flag) => {
-  if (node[flag])
+  if (node[flag]) {
     return
+  }
 
-  for (let p = node; p && (p === node || p[flag]); p = p.resolveParent)
+  for (let p = node; p && (p === node || p[flag]); p = p.resolveParent) {
     p[flag] = false
+  }
 }
 
 // typically a short walk, since it only traverses deps that
@@ -92,8 +100,9 @@ const unsetFlag = (node, flag) => {
       tree: node,
       visit: node => {
         node.extraneous = node[flag] = false
-        if (node.isLink)
+        if (node.isLink) {
           node.target.extraneous = node.target[flag] = false
+        }
       },
       getChildren: node => [...node.target.edgesOut.values()]
         .filter(edge => edge.to && edge.to[flag] &&

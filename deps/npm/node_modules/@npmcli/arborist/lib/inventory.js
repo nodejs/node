@@ -13,11 +13,13 @@ const debug = require('./debug.js')
 const getLicense = pkg => {
   if (pkg) {
     const lic = pkg.license || pkg.licence
-    if (lic)
+    if (lic) {
       return lic
+    }
     const lics = pkg.licenses || pkg.licences
-    if (Array.isArray(lics))
+    if (Array.isArray(lics)) {
       return lics[0]
+    }
   }
 }
 
@@ -42,8 +44,9 @@ class Inventory extends Map {
 
   * filter (fn) {
     for (const node of this.values()) {
-      if (fn(node))
+      if (fn(node)) {
         yield node
+      }
     }
   }
 
@@ -62,8 +65,9 @@ class Inventory extends Map {
 
     const current = super.get(node[this.primaryKey])
     if (current) {
-      if (current === node)
+      if (current === node) {
         return
+      }
       this.delete(current)
     }
     super.set(node[this.primaryKey], node)
@@ -85,8 +89,9 @@ class Inventory extends Map {
   }
 
   delete (node) {
-    if (!this.has(node))
+    if (!this.has(node)) {
       return
+    }
 
     super.delete(node[this.primaryKey])
     for (const [key, map] of this[_index].entries()) {
@@ -95,8 +100,9 @@ class Inventory extends Map {
       const set = map.get(val)
       if (set) {
         set.delete(node)
-        if (set.size === 0)
+        if (set.size === 0) {
           map.delete(node[key])
+        }
       }
     }
   }

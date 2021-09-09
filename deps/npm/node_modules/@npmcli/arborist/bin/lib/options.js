@@ -11,17 +11,17 @@ for (const arg of process.argv.slice(2)) {
   } else if (/^--rm=/.test(arg)) {
     options.rm = options.rm || []
     options.rm.push(arg.substr('--rm='.length))
-  } else if (arg === '--global')
+  } else if (arg === '--global') {
     options.global = true
-  else if (arg === '--global-style')
+  } else if (arg === '--global-style') {
     options.globalStyle = true
-  else if (arg === '--prefer-dedupe')
+  } else if (arg === '--prefer-dedupe') {
     options.preferDedupe = true
-  else if (arg === '--legacy-peer-deps')
+  } else if (arg === '--legacy-peer-deps') {
     options.legacyPeerDeps = true
-  else if (arg === '--force')
+  } else if (arg === '--force') {
     options.force = true
-  else if (arg === '--update-all') {
+  } else if (arg === '--update-all') {
     options.update = options.update || {}
     options.update.all = true
   } else if (/^--update=/.test(arg)) {
@@ -31,9 +31,9 @@ for (const arg of process.argv.slice(2)) {
   } else if (/^--omit=/.test(arg)) {
     options.omit = options.omit || []
     options.omit.push(arg.substr('--omit='.length))
-  } else if (/^--before=/.test(arg))
+  } else if (/^--before=/.test(arg)) {
     options.before = new Date(arg.substr('--before='.length))
-  else if (/^-w.+/.test(arg)) {
+  } else if (/^-w.+/.test(arg)) {
     options.workspaces = options.workspaces || []
     options.workspaces.push(arg.replace(/^-w/, ''))
   } else if (/^--workspace=/.test(arg)) {
@@ -43,15 +43,17 @@ for (const arg of process.argv.slice(2)) {
     const [key, ...v] = arg.replace(/^--/, '').split('=')
     const val = v.join('=')
     options[key] = val === 'false' ? false : val === 'true' ? true : val
-  } else if (/^--.+/.test(arg))
+  } else if (/^--.+/.test(arg)) {
     options[arg.replace(/^--/, '')] = true
-  else if (options.path === undefined)
+  } else if (options.path === undefined) {
     options.path = arg
-  else
+  } else {
     options._.push(arg)
+  }
 }
 
-if (options.path === undefined)
+if (options.path === undefined) {
   options.path = '.'
+}
 
 console.error(options)

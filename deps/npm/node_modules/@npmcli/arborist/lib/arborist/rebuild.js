@@ -61,8 +61,9 @@ module.exports = cls => class Builder extends cls {
 
   async rebuild ({ nodes, handleOptionalFailure = false } = {}) {
     // nothing to do if we're not building anything!
-    if (this[_ignoreScripts] && !this[_binLinks])
+    if (this[_ignoreScripts] && !this[_binLinks]) {
       return
+    }
 
     // when building for the first time, as part of reify, we ignore
     // failures in optional nodes, and just delete them.  however, when
@@ -76,8 +77,9 @@ module.exports = cls => class Builder extends cls {
       if (this[_workspaces] && this[_workspaces].length) {
         const filterSet = this.workspaceDependencySet(tree, this[_workspaces])
         nodes = tree.inventory.filter(node => filterSet.has(node))
-      } else
+      } else {
         nodes = tree.inventory.values()
+      }
     }
 
     // separates links nodes so that it can run
@@ -88,10 +90,11 @@ module.exports = cls => class Builder extends cls {
     for (const node of nodes) {
       // we skip the target nodes to that workspace in order to make sure
       // we only run lifecycle scripts / place bin links once per workspace
-      if (node.isLink)
+      if (node.isLink) {
         linkNodes.add(node)
-      else
+      } else {
         depNodes.add(node)
+      }
     }
 
     await this[_build](depNodes, {})
@@ -118,17 +121,20 @@ module.exports = cls => class Builder extends cls {
     process.emit('time', `build:${type}`)
 
     await this[_buildQueues](nodes)
-    if (!this[_ignoreScripts])
+    if (!this[_ignoreScripts]) {
       await this[_runScripts]('preinstall')
-    if (this[_binLinks] && type !== 'links')
+    }
+    if (this[_binLinks] && type !== 'links') {
       await this[_linkAllBins]()
+    }
 
     // links should also run prepare scripts and only link bins after that
     if (type === 'links') {
       await this[_runScripts]('prepare')
 
-      if (this[_binLinks])
+      if (this[_binLinks]) {
         await this[_linkAllBins]()
+      }
     }
 
     if (!this[_ignoreScripts]) {
@@ -173,8 +179,9 @@ module.exports = cls => class Builder extends cls {
       const { preinstall, install, postinstall, prepare } = scripts
       const tests = { bin, preinstall, install, postinstall, prepare }
       for (const [key, has] of Object.entries(tests)) {
-        if (has)
+        if (has) {
           this[_queues][key].push(node)
+        }
       }
     }
     process.emit('timeEnd', 'build:queue')
@@ -186,15 +193,17 @@ module.exports = cls => class Builder extends cls {
     // the node path.  Otherwise a package can have a preinstall script
     // that unlinks something, to allow them to silently overwrite system
     // binaries, which is unsafe and insecure.
-    if (!node.globalTop || this[_force])
+    if (!node.globalTop || this[_force]) {
       return
+    }
     const { path, package: pkg } = node
     await binLinks.checkBins({ pkg, path, top: true, global: true })
   }
 
   async [_addToBuildSet] (node, set, refreshed = false) {
-    if (set.has(node))
+    if (set.has(node)) {
       return
+    }
 
     if (this[_oldMeta] === null) {
       const {root: {meta}} = node
@@ -233,8 +242,9 @@ module.exports = cls => class Builder extends cls {
       await isNodeGypPackage(node.path)
 
     if (bin || preinstall || install || postinstall || prepare || isGyp) {
-      if (bin)
+      if (bin) {
         await this[_checkBins](node)
+      }
       if (isGyp) {
         scripts.install = defaultGypInstallScript
         node.package.scripts = scripts
@@ -246,8 +256,9 @@ module.exports = cls => class Builder extends cls {
   async [_runScripts] (event) {
     const queue = this[_queues][event]
 
-    if (!queue.length)
+    if (!queue.length) {
       return
+    }
 
     process.emit('time', `build:run:${event}`)
     const stdio = this.options.foregroundScripts ? 'inherit' : 'pipe'
@@ -266,8 +277,9 @@ module.exports = cls => class Builder extends cls {
       } = node.target
 
       // skip any that we know we'll be deleting
-      if (this[_trashList].has(path))
+      if (this[_trashList].has(path)) {
         return
+      }
 
       const timer = `build:run:${event}:${location}`
       process.emit('time', timer)
@@ -321,23 +333,26 @@ module.exports = cls => class Builder extends cls {
 
   async [_linkAllBins] () {
     const queue = this[_queues].bin
-    if (!queue.length)
+    if (!queue.length) {
       return
+    }
 
     process.emit('time', 'build:link')
     const promises = []
     // sort the queue by node path, so that the module-local collision
     // detector in bin-links will always resolve the same way.
-    for (const node of queue.sort(sortNodes))
+    for (const node of queue.sort(sortNodes)) {
       promises.push(this[_createBinLinks](node))
+    }
 
     await promiseAllRejectLate(promises)
     process.emit('timeEnd', 'build:link')
   }
 
   async [_createBinLinks] (node) {
-    if (this[_trashList].has(node.path))
+    if (this[_trashList].has(node.path)) {
       return
+    }
 
     process.emit('time', `build:link:${node.location}`)
 

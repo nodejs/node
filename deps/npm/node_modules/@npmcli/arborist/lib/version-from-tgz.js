@@ -4,8 +4,9 @@ const {basename} = require('path')
 const {parse} = require('url')
 module.exports = (name, tgz) => {
   const base = basename(tgz)
-  if (!base.endsWith('.tgz'))
+  if (!base.endsWith('.tgz')) {
     return null
+  }
 
   const u = parse(tgz)
   if (/^https?:/.test(u.protocol)) {
@@ -35,8 +36,9 @@ module.exports = (name, tgz) => {
 }
 
 const versionFromBaseScopeName = (base, scope, name) => {
-  if (!base.startsWith(name + '-'))
+  if (!base.startsWith(name + '-')) {
     return null
+  }
 
   const parsed = semver.parse(base.substring(name.length + 1, base.length - 4))
   return parsed ? {

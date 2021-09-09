@@ -7,45 +7,62 @@ const relpath = require('./relpath.js')
 class ArboristNode {
   constructor (tree, path) {
     this.name = tree.name
-    if (tree.packageName && tree.packageName !== this.name)
+    if (tree.packageName && tree.packageName !== this.name) {
       this.packageName = tree.packageName
-    if (tree.version)
+    }
+    if (tree.version) {
       this.version = tree.version
+    }
     this.location = tree.location
     this.path = tree.path
-    if (tree.realpath !== this.path)
+    if (tree.realpath !== this.path) {
       this.realpath = tree.realpath
-    if (tree.resolved !== null)
+    }
+    if (tree.resolved !== null) {
       this.resolved = tree.resolved
-    if (tree.extraneous)
+    }
+    if (tree.extraneous) {
       this.extraneous = true
-    if (tree.dev)
+    }
+    if (tree.dev) {
       this.dev = true
-    if (tree.optional)
+    }
+    if (tree.optional) {
       this.optional = true
-    if (tree.devOptional && !tree.dev && !tree.optional)
+    }
+    if (tree.devOptional && !tree.dev && !tree.optional) {
       this.devOptional = true
-    if (tree.peer)
+    }
+    if (tree.peer) {
       this.peer = true
-    if (tree.inBundle)
+    }
+    if (tree.inBundle) {
       this.bundled = true
-    if (tree.inDepBundle)
+    }
+    if (tree.inDepBundle) {
       this.bundler = tree.getBundler().location
-    if (tree.isProjectRoot)
+    }
+    if (tree.isProjectRoot) {
       this.isProjectRoot = true
-    if (tree.isWorkspace)
+    }
+    if (tree.isWorkspace) {
       this.isWorkspace = true
+    }
     const bd = tree.package && tree.package.bundleDependencies
-    if (bd && bd.length)
+    if (bd && bd.length) {
       this.bundleDependencies = bd
-    if (tree.inShrinkwrap)
+    }
+    if (tree.inShrinkwrap) {
       this.inShrinkwrap = true
-    else if (tree.hasShrinkwrap)
+    } else if (tree.hasShrinkwrap) {
       this.hasShrinkwrap = true
-    if (tree.error)
+    }
+    if (tree.error) {
       this.error = treeError(tree.error)
-    if (tree.errors && tree.errors.length)
+    }
+    if (tree.errors && tree.errors.length) {
       this.errors = tree.errors.map(treeError)
+    }
 
     // edgesOut sorted by name
     if (tree.edgesOut.size) {
@@ -109,10 +126,12 @@ class Edge {
     this.type = edge.type
     this.name = edge.name
     this.spec = edge.spec || '*'
-    if (edge.error)
+    if (edge.error) {
       this.error = edge.error
-    if (edge.overridden)
+    }
+    if (edge.overridden) {
       this.overridden = edge.overridden
+    }
   }
 }
 
@@ -151,8 +170,9 @@ class EdgeIn extends Edge {
 }
 
 const printableTree = (tree, path = []) => {
-  if (!tree)
+  if (!tree) {
     return tree
+  }
 
   const Cls = tree.isLink ? ArboristLink
     : tree.sourceReference ? ArboristVirtualNode

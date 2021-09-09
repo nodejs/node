@@ -59,8 +59,9 @@ class Arborist extends Base {
       packumentCache: options.packumentCache || new Map(),
       log: options.log || procLog,
     }
-    if (options.saveType && !saveTypeMap.get(options.saveType))
+    if (options.saveType && !saveTypeMap.get(options.saveType)) {
       throw new Error(`Invalid saveType ${options.saveType}`)
+    }
     this.cache = resolve(this.options.cache)
     this.path = resolve(this.options.path)
     process.emit('timeEnd', 'arborist:ctor')
@@ -81,17 +82,20 @@ class Arborist extends Base {
         const dep = edge.to
         if (dep) {
           set.add(dep)
-          if (dep.isLink)
+          if (dep.isLink) {
             set.add(dep.target)
+          }
         }
       }
       for (const child of node.children.values()) {
-        if (child.extraneous)
+        if (child.extraneous) {
           extraneous.add(child)
+        }
       }
     }
-    for (const extra of extraneous)
+    for (const extra of extraneous) {
       set.add(extra)
+    }
     return set
   }
 }

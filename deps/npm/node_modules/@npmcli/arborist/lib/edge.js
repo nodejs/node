@@ -45,22 +45,26 @@ class Edge {
   constructor (options) {
     const { type, name, spec, accept, from } = options
 
-    if (typeof spec !== 'string')
+    if (typeof spec !== 'string') {
       throw new TypeError('must provide string spec')
+    }
 
-    if (type === 'workspace' && npa(spec).type !== 'directory')
+    if (type === 'workspace' && npa(spec).type !== 'directory') {
       throw new TypeError('workspace edges must be a symlink')
+    }
 
     this[_spec] = spec
 
     if (accept !== undefined) {
-      if (typeof accept !== 'string')
+      if (typeof accept !== 'string') {
         throw new TypeError('accept field must be a string if provided')
+      }
       this[_accept] = accept || '*'
     }
 
-    if (typeof name !== 'string')
+    if (typeof name !== 'string') {
       throw new TypeError('must provide dependency name')
+    }
     this[_name] = name
 
     if (!types.has(type)) {
@@ -69,20 +73,23 @@ class Edge {
         `(valid types are: ${Edge.types.join(', ')})`)
     }
     this[_type] = type
-    if (!from)
+    if (!from) {
       throw new TypeError('must provide "from" node')
+    }
     this[_setFrom](from)
     this[_error] = this[_loadError]()
     this.overridden = false
   }
 
   satisfiedBy (node) {
-    return node.name === this.name && depValid(node, this.spec, this.accept, this.from)
+    return node.name === this.name &&
+      depValid(node, this.spec, this.accept, this.from)
   }
 
   explain (seen = []) {
-    if (this[_explanation])
+    if (this[_explanation]) {
       return this[_explanation]
+    }
 
     return this[_explanation] = this[_explain](seen)
   }
@@ -101,8 +108,9 @@ class Edge {
   }
 
   get bundled () {
-    if (!this.from)
+    if (!this.from) {
       return false
+    }
     const { package: { bundleDependencies = [] } } = this.from
     return bundleDependencies.includes(this.name)
   }
@@ -175,20 +183,24 @@ class Edge {
     this[_explanation] = null
     const newTo = this[_from].resolve(this.name)
     if (newTo !== this[_to]) {
-      if (this[_to])
+      if (this[_to]) {
         this[_to].edgesIn.delete(this)
+      }
       this[_to] = newTo
       this[_error] = this[_loadError]()
-      if (this[_to])
+      if (this[_to]) {
         this[_to].addEdgeIn(this)
-    } else if (hard)
+      }
+    } else if (hard) {
       this[_error] = this[_loadError]()
+    }
   }
 
   detach () {
     this[_explanation] = null
-    if (this[_to])
+    if (this[_to]) {
       this[_to].edgesIn.delete(this)
+    }
     this[_from].edgesOut.delete(this.name)
     this[_to] = null
     this[_error] = 'DETACHED'
@@ -198,8 +210,9 @@ class Edge {
   [_setFrom] (node) {
     this[_explanation] = null
     this[_from] = node
-    if (node.edgesOut.has(this.name))
+    if (node.edgesOut.has(this.name)) {
       node.edgesOut.get(this.name).detach()
+    }
     node.addEdgeOut(this)
     this.reload()
   }

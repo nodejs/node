@@ -19,7 +19,9 @@ util.inherits(TrackerGroup, TrackerBase)
 function bubbleChange (trackerGroup) {
   return function (name, completed, tracker) {
     trackerGroup.completion[tracker.id] = completed
-    if (trackerGroup.finished) return
+    if (trackerGroup.finished) {
+      return
+    }
     trackerGroup.emit('change', name || trackerGroup.name, trackerGroup.completed(), trackerGroup)
   }
 }
@@ -53,17 +55,22 @@ TrackerGroup.prototype.addUnit = function (unit, weight) {
   this.trackers.push(unit)
   this.completion[unit.id] = unit.completed()
   unit.on('change', this.bubbleChange)
-  if (!this.finished) this.emit('change', unit.name, this.completion[unit.id], unit)
+  if (!this.finished) {
+    this.emit('change', unit.name, this.completion[unit.id], unit)
+  }
   return unit
 }
 
 TrackerGroup.prototype.completed = function () {
-  if (this.trackers.length === 0) return 0
+  if (this.trackers.length === 0) {
+    return 0
+  }
   var valPerWeight = 1 / this.totalWeight
   var completed = 0
   for (var ii = 0; ii < this.trackers.length; ii++) {
     var trackerId = this.trackers[ii].id
-    completed += valPerWeight * this.weight[trackerId] * this.completion[trackerId]
+    completed +=
+      valPerWeight * this.weight[trackerId] * this.completion[trackerId]
   }
   return completed
 }
@@ -82,7 +89,9 @@ TrackerGroup.prototype.newStream = function (name, todo, weight) {
 
 TrackerGroup.prototype.finish = function () {
   this.finished = true
-  if (!this.trackers.length) this.addUnit(new Tracker(), 1, true)
+  if (!this.trackers.length) {
+    this.addUnit(new Tracker(), 1, true)
+  }
   for (var ii = 0; ii < this.trackers.length; ii++) {
     var tracker = this.trackers[ii]
     tracker.finish()

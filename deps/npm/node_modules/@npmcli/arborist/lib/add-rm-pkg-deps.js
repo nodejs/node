@@ -1,8 +1,9 @@
 // add and remove dependency specs to/from pkg manifest
 
 const add = ({pkg, add, saveBundle, saveType, log}) => {
-  for (const spec of add)
+  for (const spec of add) {
     addSingle({pkg, spec, saveBundle, saveType, log})
+  }
 
   return pkg
 }
@@ -24,8 +25,9 @@ const addSingle = ({pkg, spec, saveBundle, saveType, log}) => {
   // to keep based on the same order of priority we do when
   // building the tree as defined in the _loadDeps method of
   // the node class.
-  if (!saveType)
+  if (!saveType) {
     saveType = inferSaveType(pkg, spec.name)
+  }
 
   if (saveType === 'prod') {
     // a production dependency can only exist as production (rpj ensures it
@@ -48,8 +50,9 @@ const addSingle = ({pkg, spec, saveBundle, saveType, log}) => {
   const depType = saveTypeMap.get(saveType)
 
   pkg[depType] = pkg[depType] || {}
-  if (rawSpec !== '' || pkg[depType][name] === undefined)
+  if (rawSpec !== '' || pkg[depType][name] === undefined) {
     pkg[depType][name] = rawSpec || '*'
+  }
   if (saveType === 'optional') {
     // Affordance for previous npm versions that require this behaviour
     pkg.dependencies = pkg.dependencies || {}
@@ -58,17 +61,18 @@ const addSingle = ({pkg, spec, saveBundle, saveType, log}) => {
 
   if (saveType === 'peer' || saveType === 'peerOptional') {
     const pdm = pkg.peerDependenciesMeta || {}
-    if (saveType === 'peer' && pdm[name] && pdm[name].optional)
+    if (saveType === 'peer' && pdm[name] && pdm[name].optional) {
       pdm[name].optional = false
-    else if (saveType === 'peerOptional') {
+    } else if (saveType === 'peerOptional') {
       pdm[name] = pdm[name] || {}
       pdm[name].optional = true
       pkg.peerDependenciesMeta = pdm
     }
     // peerDeps are often also a devDep, so that they can be tested when
     // using package managers that don't auto-install peer deps
-    if (pkg.devDependencies && pkg.devDependencies[name] !== undefined)
+    if (pkg.devDependencies && pkg.devDependencies[name] !== undefined) {
       pkg.devDependencies[name] = pkg.peerDependencies[name]
+    }
   }
 
   if (saveBundle && saveType !== 'peer' && saveType !== 'peerOptional') {
@@ -87,47 +91,54 @@ const inferSaveType = (pkg, name) => {
         saveType === 'peerOptional' &&
         (!hasSubKey(pkg, 'peerDependenciesMeta', name) ||
         !pkg.peerDependenciesMeta[name].optional)
-      )
+      ) {
         return 'peer'
+      }
       return saveType
     }
   }
   return 'prod'
 }
 
+const { hasOwnProperty } = Object.prototype
 const hasSubKey = (pkg, depType, name) => {
-  return pkg[depType] && Object.prototype.hasOwnProperty.call(pkg[depType], name)
+  return pkg[depType] && hasOwnProperty.call(pkg[depType], name)
 }
 
 // Removes a subkey and warns about it if it's being replaced
 const deleteSubKey = (pkg, depType, name, replacedBy, log) => {
   if (hasSubKey(pkg, depType, name)) {
-    if (replacedBy && log)
+    if (replacedBy && log) {
       log.warn('idealTree', `Removing ${depType}.${name} in favor of ${replacedBy}.${name}`)
+    }
     delete pkg[depType][name]
 
-    // clean up peerDependenciesMeta if we are removing something from peerDependencies
+    // clean up peerDepsMeta if we are removing something from peerDependencies
     if (depType === 'peerDependencies' && pkg.peerDependenciesMeta) {
       delete pkg.peerDependenciesMeta[name]
-      if (!Object.keys(pkg.peerDependenciesMeta).length)
+      if (!Object.keys(pkg.peerDependenciesMeta).length) {
         delete pkg.peerDependenciesMeta
+      }
     }
 
-    if (!Object.keys(pkg[depType]).length)
+    if (!Object.keys(pkg[depType]).length) {
       delete pkg[depType]
+    }
   }
 }
 
 const rm = (pkg, rm) => {
   for (const depType of new Set(saveTypeMap.values())) {
-    for (const name of rm)
+    for (const name of rm) {
       deleteSubKey(pkg, depType, name)
+    }
   }
   if (pkg.bundleDependencies) {
     pkg.bundleDependencies = pkg.bundleDependencies
       .filter(name => !rm.includes(name))
-    if (!pkg.bundleDependencies.length)
+    if (!pkg.bundleDependencies.length) {
       delete pkg.bundleDependencies
+    }
   }
   return pkg
 }

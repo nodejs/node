@@ -19,13 +19,15 @@ a.loadVirtual().then(tree => {
   const end = process.hrtime(start)
   if (!query) {
     for (const node of tree.inventory.values()) {
-      if (node.package.funding)
+      if (node.package.funding) {
         console.log(node.name, node.location, node.package.funding)
+      }
     }
   } else {
     for (const node of tree.inventory.query('name', query)) {
-      if (node.package.funding)
+      if (node.package.funding) {
         console.log(node.name, node.location, node.package.funding)
+      }
     }
   }
   console.error(`read ${tree.inventory.size} deps in ${end[0] * 1000 + end[1] / 1e6}ms`)

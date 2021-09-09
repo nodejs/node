@@ -181,7 +181,7 @@ module.exports = (er, npm) => {
         const pkg = er.pkgid.replace(/(?!^)@.*$/, '')
 
         detail.push(['404', ''])
-        detail.push(['404', '', "'" + er.pkgid + "' is not in the npm registry."])
+        detail.push(['404', '', `'${replaceInfo(er.pkgid)}' is not in this registry.`])
 
         const valResult = nameValidator(pkg)
 

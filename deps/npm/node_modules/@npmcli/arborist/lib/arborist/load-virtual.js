@@ -40,8 +40,9 @@ module.exports = cls => class VirtualLoader extends cls {
 
   // public method
   async loadVirtual (options = {}) {
-    if (this.virtualTree)
+    if (this.virtualTree) {
       return this.virtualTree
+    }
 
     // allow the user to set reify options on the ctor as well.
     // XXX: deprecate separate reify() options object.
@@ -85,18 +86,21 @@ module.exports = cls => class VirtualLoader extends cls {
       root.optional = false
       root.devOptional = false
       root.peer = false
-    } else
+    } else {
       this[flagsSuspect] = true
+    }
 
     this[checkRootEdges](s, root)
     root.meta = s
     this.virtualTree = root
     const {links, nodes} = this[resolveNodes](s, root)
     await this[resolveLinks](links, nodes)
-    if (!(s.originalLockfileVersion >= 2))
+    if (!(s.originalLockfileVersion >= 2)) {
       this[assignBundles](nodes)
-    if (this[flagsSuspect])
+    }
+    if (this[flagsSuspect]) {
       this[reCalcDepFlags](nodes.values())
+    }
     return root
   }
 
@@ -104,8 +108,9 @@ module.exports = cls => class VirtualLoader extends cls {
     // reset all dep flags
     // can't use inventory here, because virtualTree might not be root
     for (const node of nodes) {
-      if (node.isRoot || node === this[rootOptionProvided])
+      if (node.isRoot || node === this[rootOptionProvided]) {
         continue
+      }
       node.extraneous = true
       node.dev = true
       node.optional = true
@@ -123,8 +128,9 @@ module.exports = cls => class VirtualLoader extends cls {
     // loaded virtually from tree, no chance of being out of sync
     // ancient lockfiles are critically damaged by this process,
     // so we need to just hope for the best in those cases.
-    if (!s.loadedFromDisk || s.ancientLockfile)
+    if (!s.loadedFromDisk || s.ancientLockfile) {
       return
+    }
 
     const lock = s.get('')
     const prod = lock.dependencies || {}
@@ -140,16 +146,18 @@ module.exports = cls => class VirtualLoader extends cls {
         }
       }
     }
-    for (const name of Object.keys(optional))
+    for (const name of Object.keys(optional)) {
       delete prod[name]
+    }
 
     const lockWS = []
     const workspaces = this[loadWorkspacesVirtual]({
       cwd: this.path,
       lockfile: s.data,
     })
-    for (const [name, path] of workspaces.entries())
+    for (const [name, path] of workspaces.entries()) {
       lockWS.push(['workspace', name, `file:${path}`])
+    }
 
     const lockEdges = [
       ...depsToEdges('prod', prod),
@@ -174,8 +182,9 @@ module.exports = cls => class VirtualLoader extends cls {
     for (let i = 0; i < lockEdges.length; i++) {
       if (rootEdges[i][0] !== lockEdges[i][0] ||
           rootEdges[i][1] !== lockEdges[i][1] ||
-          rootEdges[i][2] !== lockEdges[i][2])
+          rootEdges[i][2] !== lockEdges[i][2]) {
         return this[flagsSuspect] = true
+      }
     }
   }
 
@@ -185,13 +194,15 @@ module.exports = cls => class VirtualLoader extends cls {
     const nodes = new Map([['', root]])
     for (const [location, meta] of Object.entries(s.data.packages)) {
       // skip the root because we already got it
-      if (!location)
+      if (!location) {
         continue
+      }
 
-      if (meta.link)
+      if (meta.link) {
         links.set(location, meta)
-      else
+      } else {
         nodes.set(location, this[loadNode](location, meta))
+      }
     }
     return {links, nodes}
   }
@@ -212,8 +223,9 @@ module.exports = cls => class VirtualLoader extends cls {
       if (!link.target.parent) {
         const pj = link.realpath + '/package.json'
         const pkg = await rpj(pj).catch(() => null)
-        if (pkg)
+        if (pkg) {
           link.target.package = pkg
+        }
       }
     }
   }
@@ -221,12 +233,14 @@ module.exports = cls => class VirtualLoader extends cls {
   [assignBundles] (nodes) {
     for (const [location, node] of nodes) {
       // Skip assignment of parentage for the root package
-      if (!location || node.isLink && !node.target.location)
+      if (!location || node.isLink && !node.target.location) {
         continue
+      }
       const { name, parent, package: { inBundle }} = node
 
-      if (!parent)
+      if (!parent) {
         continue
+      }
 
       // read inBundle from package because 'package' here is
       // actually a v2 lockfile metadata entry.
@@ -236,10 +250,11 @@ module.exports = cls => class VirtualLoader extends cls {
       const { package: ppkg } = parent
       const { inBundle: parentBundled } = ppkg
       if (inBundle && !parentBundled && parent.edgesOut.has(node.name)) {
-        if (!ppkg.bundleDependencies)
+        if (!ppkg.bundleDependencies) {
           ppkg.bundleDependencies = [name]
-        else
+        } else {
           ppkg.bundleDependencies.push(name)
+        }
       }
     }
   }
@@ -248,8 +263,9 @@ module.exports = cls => class VirtualLoader extends cls {
     const p = this.virtualTree ? this.virtualTree.realpath : this.path
     const path = resolve(p, location)
     // shrinkwrap doesn't include package name unless necessary
-    if (!sw.name)
+    if (!sw.name) {
       sw.name = nameFromFolder(path)
+    }
 
     const dev = sw.dev
     const optional = sw.optional

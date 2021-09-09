@@ -11,35 +11,37 @@ module.exports = cls => class Tracker extends cls {
 
   addTracker (section, subsection = null, key = null) {
     // TrackerGroup type object not found
-    if (!this.log.newGroup)
+    if (!this.log.newGroup) {
       return
+    }
 
-    if (section === null || section === undefined)
+    if (section === null || section === undefined) {
       this[_onError](`Tracker can't be null or undefined`)
+    }
 
-    if (key === null)
+    if (key === null) {
       key = subsection
+    }
 
     const hasTracker = this[_progress].has(section)
     const hasSubtracker = this[_progress].has(`${section}:${key}`)
 
-    if (hasTracker && subsection === null)
+    if (hasTracker && subsection === null) {
       // 0. existing tracker, no subsection
       this[_onError](`Tracker "${section}" already exists`)
-
-    else if (!hasTracker && subsection === null) {
+    } else if (!hasTracker && subsection === null) {
       // 1. no existing tracker, no subsection
       // Create a new tracker from this.log
       // starts progress bar
-      if (this[_progress].size === 0)
+      if (this[_progress].size === 0) {
         this.log.enableProgress()
+      }
 
       this[_progress].set(section, this.log.newGroup(section))
-    } else if (!hasTracker && subsection !== null)
+    } else if (!hasTracker && subsection !== null) {
       // 2. no parent tracker and subsection
       this[_onError](`Parent tracker "${section}" does not exist`)
-
-    else if (!hasTracker || !hasSubtracker) {
+    } else if (!hasTracker || !hasSubtracker) {
       // 3. existing parent tracker, no subsection tracker
       // Create a new subtracker in this[_progress] from parent tracker
       this[_progress].set(`${section}:${key}`,
@@ -52,14 +54,17 @@ module.exports = cls => class Tracker extends cls {
 
   finishTracker (section, subsection = null, key = null) {
     // TrackerGroup type object not found
-    if (!this.log.newGroup)
+    if (!this.log.newGroup) {
       return
+    }
 
-    if (section === null || section === undefined)
+    if (section === null || section === undefined) {
       this[_onError](`Tracker can't be null or undefined`)
+    }
 
-    if (key === null)
+    if (key === null) {
       key = subsection
+    }
 
     const hasTracker = this[_progress].has(section)
     const hasSubtracker = this[_progress].has(`${section}:${key}`)
@@ -71,8 +76,9 @@ module.exports = cls => class Tracker extends cls {
       // not have any remaining children
       const keys = this[_progress].keys()
       for (const key of keys) {
-        if (key.match(new RegExp(section + ':')))
+        if (key.match(new RegExp(section + ':'))) {
           this.finishTracker(section, key)
+        }
       }
 
       // remove parent tracker
@@ -81,13 +87,13 @@ module.exports = cls => class Tracker extends cls {
 
       // remove progress bar if all
       // trackers are finished
-      if (this[_progress].size === 0)
+      if (this[_progress].size === 0) {
         this.log.disableProgress()
-    } else if (!hasTracker && subsection === null)
+      }
+    } else if (!hasTracker && subsection === null) {
       // 1. no existing parent tracker, no subsection
       this[_onError](`Tracker "${section}" does not exist`)
-
-    else if (!hasTracker || hasSubtracker) {
+    } else if (!hasTracker || hasSubtracker) {
       // 2. subtracker exists
       // Finish subtracker and remove from this[_progress]
       this[_progress].get(`${section}:${key}`).finish()
