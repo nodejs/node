@@ -176,6 +176,16 @@ npm run test --workspaces
 
 Will run the `test` script in both `./packages/a` and `./packages/b`.
 
+### Ignoring missing scripts
+
+It is not required for all of the workspaces to implement scripts run with the `npm run` command.
+
+By running the command with the `--if-present` flag, npm will ignore workspaces missing target script.
+
+```
+npm run test --workspaces --if-present
+```
+
 ### See also
 
 * [npm install](/commands/npm-install)

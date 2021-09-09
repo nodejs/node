@@ -15,12 +15,14 @@ const peerEntrySets = node => {
   const unionSet = new Set([node])
   for (const node of unionSet) {
     for (const edge of node.edgesOut.values()) {
-      if (edge.valid && edge.peer && edge.to)
+      if (edge.valid && edge.peer && edge.to) {
         unionSet.add(edge.to)
+      }
     }
     for (const edge of node.edgesIn) {
-      if (edge.valid && edge.peer)
+      if (edge.valid && edge.peer) {
         unionSet.add(edge.from)
+      }
     }
   }
   const entrySets = new Map()
@@ -28,16 +30,18 @@ const peerEntrySets = node => {
     for (const edge of peer.edgesIn) {
       // if not valid, it doesn't matter anyway.  either it's been previously
       // overridden, or it's the thing we're interested in replacing.
-      if (!edge.valid)
+      if (!edge.valid) {
         continue
+      }
       // this is the entry point into the peer set
       if (!edge.peer || edge.from.isTop) {
         // get the subset of peer brought in by this peer entry edge
         const sub = new Set([peer])
         for (const peer of sub) {
           for (const edge of peer.edgesOut.values()) {
-            if (edge.valid && edge.peer && edge.to)
+            if (edge.valid && edge.peer && edge.to) {
               sub.add(edge.to)
+            }
           }
         }
         // if this subset does not include the node we are focused on,
@@ -60,8 +64,9 @@ const peerEntrySets = node => {
         //     Edge(a->b) => Set(b, d, e, f, g)
         //     Edge(a->d) => Set(d, e, f, g)
         //   }
-        if (sub.has(node))
+        if (sub.has(node)) {
           entrySets.set(edge, sub)
+        }
       }
     }
   }

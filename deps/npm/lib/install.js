@@ -8,6 +8,8 @@ const log = require('npmlog')
 const { resolve, join } = require('path')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
+const pacote = require('pacote')
+const checks = require('npm-install-checks')
 
 const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
 class Install extends ArboristWorkspaceCmd {
@@ -126,6 +128,23 @@ class Install extends ArboristWorkspaceCmd {
     const ignoreScripts = this.npm.config.get('ignore-scripts')
     const isGlobalInstall = this.npm.config.get('global')
     const where = isGlobalInstall ? globalTop : this.npm.prefix
+    const forced = this.npm.config.get('force')
+    const isDev = this.npm.config.get('dev')
+    const scriptShell = this.npm.config.get('script-shell') || undefined
+
+    // be very strict about engines when trying to update npm itself
+    const npmInstall = args.find(arg => arg.startsWith('npm@') || arg === 'npm')
+    if (isGlobalInstall && npmInstall) {
+      const npmManifest = await pacote.manifest(npmInstall)
+      try {
+        checks.checkEngine(npmManifest, npmManifest.version, process.version)
+      } catch (e) {
+        if (forced)
+          this.npm.log.warn('install', `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`)
+        else
+          throw e
+      }
+    }
 
     // don't try to install the prefix into itself
     args = args.filter(a => resolve(a) !== this.npm.prefix)
@@ -135,7 +154,7 @@ class Install extends ArboristWorkspaceCmd {
       args = ['.']
 
     // TODO: Add warnings for other deprecated flags?  or remove this one?
-    if (this.npm.config.get('dev'))
+    if (isDev)
       log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.')
 
     const opts = {
@@ -150,7 +169,6 @@ class Install extends ArboristWorkspaceCmd {
     await arb.reify(opts)
 
     if (!args.length && !isGlobalInstall && !ignoreScripts) {
-      const scriptShell = this.npm.config.get('script-shell') || undefined
       const scripts = [
         'preinstall',
         'install',
