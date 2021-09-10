@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.9.1">16.9.1</a><br/>
 <a href="#16.9.0">16.9.0</a><br/>
 <a href="#16.8.0">16.8.0</a><br/>
 <a href="#16.7.0">16.7.0</a><br/>
@@ -45,6 +46,17 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.9.1"></a>
+## 2021-09-10, Version 16.9.1 (Current), @richardlau
+
+### Notable Changes
+
+This release fixes a [regression](https://github.com/nodejs/node/issues/40030) introduced by the V8 9.3 update in Node.js 16.9.0.
+
+### Commits
+
+* [[`04f1943109`](https://github.com/nodejs/node/commit/04f1943109)] - **deps**: V8: cherry-pick 9a607043cb31 (Jiawen Geng) [#40046](https://github.com/nodejs/node/pull/40046)
 
 <a id="16.9.0"></a>
 ## 2021-09-07, Version 16.9.0 (Current), @targos
