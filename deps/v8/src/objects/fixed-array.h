@@ -134,7 +134,7 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930)
+#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
   inline void set(int index, Smi value);
 #else
   inline void set(int index, Smi value) {
