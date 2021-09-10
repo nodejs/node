@@ -2052,8 +2052,8 @@ added:
   `Symbol.iterator` iterable protocol. Emits an 'error' event if a null
    value is passed.
 * `options` {Object} Options provided to `new stream.Readable([options])`.
-  By default, `Readable.from()` will set `options.objectMode` to `true`, unless
-  this is explicitly opted out by setting `options.objectMode` to `false`.
+  By default, `Readable.from()` will set `options.objectMode` to `true`,
+  unless this is explicitly opted out by setting `options.objectMode` to `false`.
 * Returns: {stream.Readable}
 
 A utility method for creating readable streams out of iterators.
@@ -2076,6 +2076,28 @@ readable.on('data', (chunk) => {
 Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
+
+### `stream.Readable.concat(streams, [options])`
+
+* `streams` {stream.Readable[]|Iterable[]|AsyncIterable[]} List of readable
+  streams or iterator of readable stream generator
+* `options` {Object} Options provided to `new stream.Readable([options])`.
+  By default, `Readable.concat()` will set `options.objectMode` to `false`,
+  unless this is explicitly opted out by setting `options.objectMode` to `true`.
+* Returns: {stream.Readable}
+
+A utility method to concatenate multiple readable streams to single one. The
+main readable stream will consume the list of readable streams in order.
+
+```js
+const { createReadStream, createWriteStream } = require('fs');
+const { Readable } = require('stream');
+
+const head = createReadStream('head.txt');
+const tail = createReadStream('tail.txt');
+
+Readable.concat([ head, tail ]).pipe(createWriteStream('file.txt'));
+```
 
 ### `stream.Readable.fromWeb(readableStream[, options])`
 <!-- YAML
