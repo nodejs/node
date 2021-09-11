@@ -11,6 +11,7 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::ConstructorBehavior;
 using v8::DontDelete;
 using v8::FunctionCallback;
@@ -28,6 +29,7 @@ using v8::ReadOnly;
 using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -539,41 +541,9 @@ WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
 }
 
 namespace {
-AllocatedBuffer StatelessDiffieHellman(
-    Environment* env,
-    ManagedEVPPKey our_key,
-    ManagedEVPPKey their_key) {
-  size_t out_size;
-
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
-  if (!ctx ||
-      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
-      EVP_PKEY_derive_set_peer(ctx.get(), their_key.get()) <= 0 ||
-      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
-    return AllocatedBuffer();
-
-  AllocatedBuffer result = AllocatedBuffer::AllocateManaged(env, out_size);
-  CHECK_NOT_NULL(result.data());
-
-  unsigned char* data = reinterpret_cast<unsigned char*>(result.data());
-  if (EVP_PKEY_derive(ctx.get(), data, &out_size) <= 0)
-    return AllocatedBuffer();
-
-  ZeroPadDiffieHellmanSecret(out_size, &result);
-  return result;
-}
-
-// The version of StatelessDiffieHellman that returns an AllocatedBuffer
-// is not threadsafe because of the AllocatedBuffer allocation of a
-// v8::BackingStore (it'll cause much crashing if we call it from a
-// libuv worker thread). This version allocates a ByteSource instead,
-// which we can convert into a v8::BackingStore later.
-// TODO(@jasnell): Eliminate the code duplication between these two
-// versions of the function.
 ByteSource StatelessDiffieHellmanThreadsafe(
-    Environment* env,
-    ManagedEVPPKey our_key,
-    ManagedEVPPKey their_key) {
+    const ManagedEVPPKey& our_key,
+    const ManagedEVPPKey& their_key) {
   size_t out_size;
 
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
@@ -612,11 +582,18 @@ void DiffieHellman::Stateless(const FunctionCallbackInfo<Value>& args) {
   ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
   ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
 
-  AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
-  if (out.size() == 0)
+  Local<Value> out;
+  {
+    Local<ArrayBuffer> ab = StatelessDiffieHellmanThreadsafe(our_key, their_key)
+        .ToArrayBuffer(env);
+    out = Buffer::New(env, ab, 0, ab->ByteLength())
+        .FromMaybe(Local<Uint8Array>());
+  }
+
+  if (Buffer::Length(out) == 0)
     return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
 
-  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
+  args.GetReturnValue().Set(out);
 }
 
 Maybe<bool> DHBitsTraits::AdditionalConfig(
@@ -661,7 +638,6 @@ bool DHBitsTraits::DeriveBits(
     const DHBitsConfig& params,
     ByteSource* out) {
   *out = StatelessDiffieHellmanThreadsafe(
-      env,
       params.private_key->GetAsymmetricKey(),
       params.public_key->GetAsymmetricKey());
   return true;
