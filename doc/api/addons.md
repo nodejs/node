@@ -966,7 +966,7 @@ or removal at any time. They are not documented by Node.js or V8, and they
 should never be used outside of testing.
 
 During shutdown of the process or worker threads destructors are not called
-by the JS engine. Therefore it's in the responsibility of the user to track
+by the JS engine. Therefore it's the responsibility of the user to track
 these objects and ensure proper destruction to avoid resource leaks.
 
 ### Factory of wrapped objects
