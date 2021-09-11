@@ -527,7 +527,7 @@ TEST(function test_lookup_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, dns.NOTFOUND);
     assert.strictEqual(err.code, 'ENOTFOUND');
-    assert.doesNotMatch(err.message, !/ENOENT/);
+    assert.doesNotMatch(err.message, /ENOENT/);
     assert.ok(err.message.includes(addresses.NOT_FOUND));
 
     done();
