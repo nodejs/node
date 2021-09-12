@@ -3012,6 +3012,34 @@ added: REPLACEME
 
 Ensures all tasks in the V8 micro-task queue have completed. This will cause any callback passed to [`process.nextTick()`][], [`queueMicrotasks()`][] or to [`.then()`][`promise.then()`] or [`.catch`][`promise.catch()`] of an immediately resolving or rejecting promise to be executed.
 
+```mjs
+import { runNextTicks } from 'process';
+
+let value = '';
+
+queueMicrotask(() => {
+  value = 'foo';
+});
+
+process.runNextTicks();
+
+console.log(value); //=> 'foo'
+```
+
+```cjs
+const { runNextTicks } = require('process');
+
+let value = '';
+
+queueMicrotask(() => {
+  value = 'foo';
+});
+
+process.runNextTicks();
+
+console.log(value); //=> 'foo'
+```
+
 ## `process.send(message[, sendHandle[, options]][, callback])`
 <!-- YAML
 added: v0.5.9
