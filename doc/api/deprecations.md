@@ -2466,7 +2466,8 @@ changes:
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `process._tickCallback` property was never documented as
-an officially supported API.
+an officially supported API. Please use `process.runNextTicks`
+instead.
 
 ### DEP0135: `WriteStream.open()` and `ReadStream.open()` are internal
 <!-- YAML

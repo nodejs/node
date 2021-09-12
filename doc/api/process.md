@@ -3005,6 +3005,10 @@ console.log(resourceUsage());
 */
 ```
 
+## `process.runNextTicks()`
+
+Ensure all tasks in the V8 micro-task queue have completed. This will cause any callback passed to [`process.nextTick()`][], [`queueMicrotasks()`][] or to [`.then()`][`promise.then()`] or [`.catch`][`promise.catch()`] of an immediately resolving or rejecting promise to be executed.
+
 ## `process.send(message[, sendHandle[, options]][, callback])`
 <!-- YAML
 added: v0.5.9
@@ -3720,7 +3724,9 @@ cases:
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
+[`process.nextTick()`]: #process_process_nexttick_callback_args
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
+[`promise.then()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`queueMicrotask()`]: globals.md#queuemicrotaskcallback
 [`readable.read()`]: stream.md#readablereadsize
