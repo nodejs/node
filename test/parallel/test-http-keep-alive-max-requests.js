@@ -1,16 +1,16 @@
 'use strict';
 
+const common = require('../common');
 const net = require('net');
 const http = require('http');
 const assert = require('assert');
-const common = require('../common');
 
 const bodySent = 'This is my request';
 
 function assertResponse(headers, body, expectClosed) {
   if (expectClosed) {
     assert.match(headers, /Connection: close\r\n/m);
-    assert(headers.search(/Keep-Alive: timeout=5, max=3\r\n/m) === -1);
+    assert.strictEqual(headers.search(/Keep-Alive: timeout=5, max=3\r\n/m), -1);
     assert.match(body, /Hello World!/m);
   } else {
     assert.match(headers, /Connection: keep-alive\r\n/m);
@@ -26,34 +26,34 @@ function writeRequest(socket, withBody) {
     socket.write('Content-Type: text/plain\r\n');
     socket.write(`Content-Length: ${bodySent.length}\r\n\r\n`);
     socket.write(`${bodySent}\r\n`);
-    socket.write('\r\n\r\n')
+    socket.write('\r\n\r\n');
   } else {
     socket.write('GET / HTTP/1.1\r\n');
     socket.write('Connection: keep-alive\r\n');
-    socket.write('\r\n\r\n')
+    socket.write('\r\n\r\n');
   }
 }
 
-const server = http.createServer(function (req, res) {
-  let body = ''
+const server = http.createServer((req, res) => {
+  let body = '';
   req.on('data', (data) => {
-    body += data
+    body += data;
   });
 
   req.on('end', () => {
     if (req.method === 'POST') {
-      assert(bodySent === body)
+      assert.strictEqual(bodySent, body);
     }
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello World!');
     res.end();
-  })
-})
+  });
+});
 
 function initialRequests(socket, numberOfRequests, cb) {
   let buffer = '';
 
-  writeRequest(socket)
+  writeRequest(socket);
 
   socket.on('data', (data) => {
     buffer += data;
@@ -64,9 +64,9 @@ function initialRequests(socket, numberOfRequests, cb) {
         cb();
       } else {
         const [headers, body] = buffer.trim().split('\r\n\r\n');
-        assertResponse(headers, body)
+        assertResponse(headers, body);
         buffer = '';
-        writeRequest(socket, true)
+        writeRequest(socket, true);
       }
     }
   });
@@ -85,22 +85,26 @@ server.listen(0, common.mustCall((res) => {
   socket.on('ready', common.mustCall(() => {
     // Do 2 of 3 allowed requests and ensure they still alive
     initialRequests(socket, 2, common.mustCall(() => {
-        anotherSocket.connect({ port: server.address().port });
-    }))
+      anotherSocket.connect({ port: server.address().port });
+    }));
   }));
 
   anotherSocket.on('ready', common.mustCall(() => {
-    // Do another 2 requests with another socket, enusre that this will not affect the first socket
+    // Do another 2 requests with another socket
+    // enusre that this will not affect the first socket
     initialRequests(anotherSocket, 2, common.mustCall(() => {
       let buffer = '';
 
-      // Send the rest of the calls to the first socket and see connection is closed
+      // Send the rest of the calls to the first socket
+      // and see connection is closed
       socket.on('data', common.mustCall((data) => {
         buffer += data;
 
         if (buffer.endsWith('\r\n\r\n')) {
           const [headers, body] = buffer.trim().split('\r\n\r\n');
           assertResponse(headers, body, true);
+          anotherSocket.end();
+          socket.end();
         }
       }));
 
