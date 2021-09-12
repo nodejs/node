@@ -3027,8 +3027,6 @@ console.log(value); //=> 'foo'
 ```
 
 ```cjs
-const { runNextTicks } = require('process');
-
 let value = '';
 
 queueMicrotask(() => {
