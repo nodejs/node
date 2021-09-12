@@ -1,4 +1,4 @@
-name: test-linux
+name: test-internet
 
 on:
   workflow_dispatch:
