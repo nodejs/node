@@ -4,7 +4,6 @@ const net = require('net');
 const http = require('http');
 const assert = require('assert');
 const common = require('../common');
-const { mustCall } = require('../common');
 
 const bodySent = 'This is my request';
 
@@ -79,12 +78,12 @@ server.listen(0, common.mustCall((res) => {
   const socket = new net.Socket();
   const anotherSocket = new net.Socket();
 
-  socket.on('end', mustCall(() => {
+  socket.on('end', common.mustCall(() => {
     server.close();
   }));
 
   socket.on('ready', common.mustCall(() => {
-    // Do two of 3 requests and ensure they still alive
+    // Do 2 of 3 allowed requests and ensure they still alive
     initialRequests(socket, 2, common.mustCall(() => {
         anotherSocket.connect({ port: server.address().port });
     }))
