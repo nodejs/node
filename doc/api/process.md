@@ -3021,7 +3021,7 @@ queueMicrotask(() => {
   value = 'foo';
 });
 
-process.runNextTicks();
+runNextTicks();
 
 console.log(value); // 'foo'
 ```
@@ -3753,7 +3753,7 @@ cases:
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
-[`process.nextTick()`]: #processnexttickcallbackargs
+[`process.nextTick()`]: #process_nexttick_callback_args
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
 [`promise.then()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
