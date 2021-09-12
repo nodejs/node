@@ -54,6 +54,7 @@ function handleExit(error, stdout, stderr) {
   const signalCode = error ? error.signal : null;
 
   if (code !== 0) {
+    process.stdout.write(stdout);
     process.stderr.write(stderr);
   }
 
