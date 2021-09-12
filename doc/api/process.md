@@ -3023,7 +3023,7 @@ queueMicrotask(() => {
 
 process.runNextTicks();
 
-console.log(value); //=> 'foo'
+console.log(value); // 'foo'
 ```
 
 ```cjs
@@ -3035,7 +3035,7 @@ queueMicrotask(() => {
 
 process.runNextTicks();
 
-console.log(value); //=> 'foo'
+console.log(value); // 'foo'
 ```
 
 ## `process.send(message[, sendHandle[, options]][, callback])`
