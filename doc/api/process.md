@@ -3010,7 +3010,10 @@ console.log(resourceUsage());
 added: REPLACEME
 -->
 
-Ensures all tasks in the V8 micro-task queue have completed. This will cause any callback passed to [`process.nextTick()`][], [`queueMicrotask()`][] or to [`.then()`][`promise.then()`] or [`.catch()`][`promise.catch()`] of an immediately resolving or rejecting promise to be executed.
+Ensures all tasks in the V8 micro-task queue have completed. This will cause any
+callback passed to [`process.nextTick()`][], [`queueMicrotask()`][] or to
+[`.then()`][`promise.then()`] or [`.catch()`][`promise.catch()`] of an
+immediately resolving or rejecting promise to be executed.
 
 ```mjs
 import { runNextTicks } from 'process';
