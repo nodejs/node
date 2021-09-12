@@ -4,6 +4,7 @@ const net = require('net');
 const http = require('http');
 const assert = require('assert');
 const common = require('../common');
+const { mustCall } = require('../common');
 
 const bodySent = 'This is my request';
 
@@ -50,65 +51,63 @@ const server = http.createServer(function (req, res) {
   })
 })
 
+function initialRequests(socket, numberOfRequests, cb) {
+  let buffer = '';
+
+  writeRequest(socket)
+
+  socket.on('data', (data) => {
+    buffer += data;
+
+    if (buffer.endsWith('\r\n\r\n')) {
+      if (--numberOfRequests === 0) {
+        socket.removeAllListeners('data');
+        cb();
+      } else {
+        const [headers, body] = buffer.trim().split('\r\n\r\n');
+        assertResponse(headers, body)
+        buffer = '';
+        writeRequest(socket, true)
+      }
+    }
+  });
+}
+
+
 server.maxRequestsPerSocket = 3;
 server.listen(0, common.mustCall((res) => {
-  const socket = net.createConnection(
-    { port: server.address().port },
-    common.mustCall(() => {
-      writeRequest(socket)
-      writeRequest(socket)
+  const socket = new net.Socket();
+  const anotherSocket = new net.Socket();
 
-      const anotherSocket = net.createConnection(
-        { port: server.address().port },
-        common.mustCall(() => {
-          writeRequest(anotherSocket)
+  socket.on('end', mustCall(() => {
+    server.close();
+  }));
 
-          let anotherBuffer = ''
-          let lastWritten = false;
-          anotherSocket.setEncoding('utf8');
-          anotherSocket.on('data', (data) => {
-            anotherBuffer += data;
+  socket.on('ready', common.mustCall(() => {
+    // Do two of 3 requests and ensure they still alive
+    initialRequests(socket, 2, common.mustCall(() => {
+        anotherSocket.connect({ port: server.address().port });
+    }))
+  }));
 
-            if (anotherBuffer.endsWith('\r\n\r\n')) {
-              if (lastWritten) {
-                anotherSocket.end()
-              } else {
-                writeRequest(anotherSocket);
-                lastWritten = true;
-              }
-            }
-          });
+  anotherSocket.on('ready', common.mustCall(() => {
+    // Do another 2 requests with another socket, enusre that this will not affect the first socket
+    initialRequests(anotherSocket, 2, common.mustCall(() => {
+      let buffer = '';
 
-          anotherSocket.on('end', common.mustCall(() => {
-            const anoterResponses = anotherBuffer.trim().split('\r\n\r\n');
+      // Send the rest of the calls to the first socket and see connection is closed
+      socket.on('data', common.mustCall((data) => {
+        buffer += data;
 
-            assertResponse(anoterResponses[0], anoterResponses[1], false)
-            assertResponse(anoterResponses[2], anoterResponses[3], false)
+        if (buffer.endsWith('\r\n\r\n')) {
+          const [headers, body] = buffer.trim().split('\r\n\r\n');
+          assertResponse(headers, body, true);
+        }
+      }));
 
-            // Add two additional requests to two previous on the first socket
-            writeRequest(socket, true)
-            writeRequest(socket, true)
+      writeRequest(socket, true);
+    }));
+  }));
 
-            let buffer = '';
-            socket.setEncoding('utf8');
-            socket.on('data', (data) => {
-                buffer += data;
-            });
-
-            socket.on('end', common.mustCall(() => {
-              const responses = buffer.trim().split('\r\n\r\n');
-              // We sent more requests than allowed per socket, 
-              // but we get only the allowed number of responses & headers
-              assert(responses.length === server.maxRequestsPerSocket * 2);
-
-              assertResponse(responses[0], responses[1], false)
-              assertResponse(responses[2], responses[3], false)
-              assertResponse(responses[4], responses[5], true)
-
-              server.close();
-            }));
-          }));
-        }));
-    })
-  );
+  socket.connect({ port: server.address().port });
 }));
