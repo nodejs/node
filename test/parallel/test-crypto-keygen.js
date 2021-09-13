@@ -637,7 +637,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'error:1E08010C:DECODER routines::unsupported'
+                    message: 'error:07880109:common libcrypto ' +
+                             'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
@@ -674,7 +675,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
                   common.hasOpenSSL3 ? {
-                    message: 'error:1E08010C:DECODER routines::unsupported'
+                    message: 'error:07880109:common libcrypto ' +
+                             'routines::interrupted or cancelled'
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
