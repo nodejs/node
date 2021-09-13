@@ -519,7 +519,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // Reading an encrypted key without a passphrase should fail.
   assert.throws(() => createPrivateKey(privateDsa), common.hasOpenSSL3 ? {
     name: 'Error',
-    message: 'error:1E08010C:DECODER routines::unsupported',
+    message: 'error:07880109:common libcrypto routines::interrupted or ' +
+             'cancelled',
   } : {
     name: 'TypeError',
     code: 'ERR_MISSING_PASSPHRASE',
@@ -545,7 +546,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     passphrase: Buffer.alloc(1024, 'a')
   }), {
     message: common.hasOpenSSL3 ?
-      'error:1E08010C:DECODER routines::unsupported' :
+      'error:07880109:common libcrypto routines::interrupted or cancelled' :
       /bad decrypt/
   });
 
