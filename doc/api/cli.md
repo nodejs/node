@@ -587,6 +587,15 @@ added: v7.10.0
 
 This option is a no-op. It is kept for compatibility.
 
+### `--no-addons`
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable the `node-addons` exports condition as well as disable loading
+native addons. When `--no-addons` is specified, calling `process.dlopen` or
+requiring a native C++ addon will fail and throw an exception.
+
 ### `--no-deprecation`
 <!-- YAML
 added: v0.8.0
@@ -1357,6 +1366,7 @@ Node.js options that are allowed are:
 * `--inspect`
 * `--max-http-header-size`
 * `--napi-modules`
+* `--no-addons`
 * `--no-deprecation`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`

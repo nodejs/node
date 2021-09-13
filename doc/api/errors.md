@@ -876,6 +876,14 @@ An unknown cipher was specified.
 An unknown Diffie-Hellman group name was given. See
 [`crypto.getDiffieHellman()`][] for a list of valid group names.
 
+<a id="ERR_DLOPEN_DISABLED"></a>
+### `ERR_DLOPEN_DISABLED`
+<!-- YAML
+added: REPLACEME
+-->
+
+Loading native addons has been disabled using [`--no-addons`][].
+
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
 <!-- YAML
@@ -2591,6 +2599,7 @@ closed.
 [`'uncaughtException'`]: process.md#process_event_uncaughtexception
 [`--disable-proto=throw`]: cli.md#cli_disable_proto_mode
 [`--force-fips`]: cli.md#cli_force_fips
+[`--no-addons`]: cli.md#cli_no_addons
 [`Class: assert.AssertionError`]: assert.md#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.md#events_class_eventemitter
