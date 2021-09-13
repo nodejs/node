@@ -16,6 +16,11 @@ async function test() {
     { code: 'ERR_FAILED_IMPORT_ASSERTION' }
   );
 
+  await rejects(
+    import('specifier', { assert: { type: 'unsupported' } }),
+    { code: 'ERR_INVALID_IMPORT_ASSERTION' }
+  );
+
   {
     const [secret0, secret1] = await Promise.all([
       import('../fixtures/experimental.json'),

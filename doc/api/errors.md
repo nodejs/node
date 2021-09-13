@@ -1667,6 +1667,14 @@ for more information.
 
 An invalid HTTP token was supplied.
 
+<a id="ERR_INVALID_IMPORT_ASSERTION"></a>
+### `ERR_INVALID_IMPORT_ASSERTION`
+<!-- YAML
+added: REPLACEME
+-->
+
+An import assertion is not supported by this version of Node.js.
+
 <a id="ERR_INVALID_IP_ADDRESS"></a>
 ### `ERR_INVALID_IP_ADDRESS`
 
