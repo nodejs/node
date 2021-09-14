@@ -53,6 +53,25 @@ except NameError:  # Python 3
     return (x > y) - (x < y)
 
 
+def _v8_builder_fallback(builder, builder_group):
+  """Fallback to V8 builder names before splitting builder/tester.
+
+  This eases splitting builders and testers on release branches and
+  can be removed as soon as all builder have been split and all MB configs
+  exist on all branches.
+  """
+  builders = [builder]
+  if builder.endswith(' - builder'):
+    builders.append(builder[:-len(' - builder')])
+  elif builder.endswith(' builder'):
+    builders.append(builder[:-len(' builder')])
+
+  for builder in builders:
+    if builder in builder_group:
+      return builder_group[builder]
+  return None
+
+
 def main(args):
   mbw = MetaBuildWrapper()
   return mbw.Main(args)
@@ -651,12 +670,14 @@ class MetaBuildWrapper(object):
       raise MBErr('Builder groups name "%s" not found in "%s"' %
                   (self.args.builder_group, self.args.config_file))
 
-    if not self.args.builder in self.builder_groups[self.args.builder_group]:
+    config = _v8_builder_fallback(
+        self.args.builder, self.builder_groups[self.args.builder_group])
+
+    if not config:
       raise MBErr(
         'Builder name "%s"  not found under builder_groups[%s] in "%s"' %
         (self.args.builder, self.args.builder_group, self.args.config_file))
 
-    config = self.builder_groups[self.args.builder_group][self.args.builder]
     if isinstance(config, dict):
       if self.args.phase is None:
         raise MBErr('Must specify a build --phase for %s on %s' %

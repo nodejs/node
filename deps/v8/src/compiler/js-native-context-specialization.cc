@@ -825,6 +825,12 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kUndefined) {
       return NoChange();
+    } else if (property_cell_type == PropertyCellType::kConstantType) {
+      // We rely on stability further below.
+      if (property_cell_value.IsHeapObject() &&
+          !property_cell_value.AsHeapObject().map().is_stable()) {
+        return NoChange();
+      }
     }
   } else if (access_mode == AccessMode::kHas) {
     DCHECK_EQ(receiver, lookup_start_object);
@@ -943,17 +949,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         if (property_cell_value.IsHeapObject()) {
           MapRef property_cell_value_map =
               property_cell_value.AsHeapObject().map();
-          if (property_cell_value_map.is_stable()) {
-            dependencies()->DependOnStableMap(property_cell_value_map);
-          } else {
-            // The value's map is already unstable. If this store were to go
-            // through the C++ runtime, it would transition the PropertyCell to
-            // kMutable. We don't want to change the cell type from generated
-            // code (to simplify concurrent heap access), however, so we keep
-            // it as kConstantType and do the store anyways (if the new value's
-            // map matches). This is safe because it merely prolongs the limbo
-            // state that we are in already.
-          }
+          dependencies()->DependOnStableMap(property_cell_value_map);
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
