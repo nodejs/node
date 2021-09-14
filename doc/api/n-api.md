@@ -3303,7 +3303,6 @@ Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToBoolean()` as defined in
 [Section 7.1.2][] of the ECMAScript Language Specification.
-This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_coerce_to_number
 <!-- YAML
@@ -3325,7 +3324,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToNumber()` as defined in
 [Section 7.1.3][] of the ECMAScript Language Specification.
-This API can be re-entrant if getters are defined on the passed-in `Object`.
+This function potentially runs JS code if the passed-in value is an
+object.
 
 ### napi_coerce_to_object
 <!-- YAML
@@ -3347,7 +3347,6 @@ Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToObject()` as defined in
 [Section 7.1.13][] of the ECMAScript Language Specification.
-This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_coerce_to_string
 <!-- YAML
@@ -3369,7 +3368,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToString()` as defined in
 [Section 7.1.13][] of the ECMAScript Language Specification.
-This API can be re-entrant if getters are defined on the passed-in `Object`.
+This function potentially runs JS code if the passed-in value is an
+object.
 
 ### napi_typeof
 <!-- YAML
