@@ -1,6 +1,13 @@
 name: test-asan
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '.mailmap'
+      - '**.md'
+      - 'AUTHORS'
+      - 'doc/**'
   push:
     branches:
       - master
@@ -9,12 +16,9 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - '.mailmap'
       - '**.md'
-      - 'doc/**'
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
+      - 'AUTHORS'
       - 'doc/**'
 
 env:
