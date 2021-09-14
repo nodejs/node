@@ -371,13 +371,17 @@ void UDPWrap::Disconnect(const FunctionCallbackInfo<Value>& args) {
 #define X(name, fn)                                                            \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {                \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                            \
+    if (wrap == nullptr) {                                                     \
+      args.GetReturnValue().Set(UV_EBADF);                                     \
+      return;                                                                  \
+    }                                                                          \
     Environment* env = wrap->env();                                            \
     CHECK_EQ(args.Length(), 1);                                                \
     int flag;                                                                  \
     if (!args[0]->Int32Value(env->context()).To(&flag)) {                      \
       return;                                                                  \
     }                                                                          \
-    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);           \
+    int err = fn(&wrap->handle_, flag);                                        \
     args.GetReturnValue().Set(err);                                            \
   }
 
