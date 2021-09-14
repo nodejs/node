@@ -331,7 +331,7 @@ For information about the governance of the Node.js project, see
 * [gengjiawen](https://github.com/gengjiawen) -
 **Jiawen Geng** &lt;technicalcute@gmail.com&gt;
 * [GeoffreyBooth](https://github.com/geoffreybooth) -
-**Geoffrey Booth** &lt;webmaster@geoffreybooth.com&gt; (he/him)
+**Geoffrey Booth** &lt;webadmin@geoffreybooth.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [guybedford](https://github.com/guybedford) -
