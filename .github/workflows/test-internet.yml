@@ -3,7 +3,21 @@ name: test-internet
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 0 * * *"
+    - cron: 5 0 * * *
+
+pull_request:
+  types: [opened, synchronize, reopened, ready_for_review]
+  paths:
+    - test/internet/**
+  push:
+    branches:
+      - master
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths:
+      - test/internet/**
 
 env:
   PYTHON_VERSION: 3.9
