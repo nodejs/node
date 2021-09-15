@@ -2818,9 +2818,8 @@ and `'mgf1HashAlgorithm'`.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/40017
+    pr-url: https://github.com/nodejs/node/pull/40117
     description: Runtime deprecation.
-changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/40039
     description: Documentation-only deprecation
