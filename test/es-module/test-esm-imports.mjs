@@ -34,8 +34,6 @@ const { requireImport, importImport } = importer;
   }
 
   const invalidImportTargets = new Set([
-    // External subpath import without trailing slash
-    ['#external/invalidsubpath/x', '#external/invalidsubpath/'],
     // Target steps below the package base
     ['#belowbase', '#belowbase'],
     // Target is a URL
@@ -73,6 +71,8 @@ const { requireImport, importImport } = importer;
   }
 
   const undefinedImports = new Set([
+    // EOL subpaths
+    '#external/invalidsubpath/x',
     // Missing import
     '#missing',
     // Explicit null import
