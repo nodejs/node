@@ -1221,51 +1221,51 @@ added: v16.6.0
 
 ### Class: `CompressionStream`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 #### `new CompressionStream(format)`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `format` {string} One of either `'deflate'` or `'gzip'`.
 
 #### `compressionStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Type: {ReadableStream}
 
 #### `compressionStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Type: {WritableStream}
 
 ### Class: `DecompressionStream`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 #### `new DecompressionStream(format)`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `format` {string} One of either `'deflate'` or `'gzip'`.
 
 #### `decompressionStream.readable`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Type: {ReadableStream}
 
 #### `decompressionStream.writable`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Type: {WritableStream}

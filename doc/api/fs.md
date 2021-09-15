@@ -395,7 +395,7 @@ number of bytes read is zero.
 
 #### `filehandle.readableWebStream()`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 > Stability: 1 - Experimental

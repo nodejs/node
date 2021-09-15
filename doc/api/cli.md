@@ -623,7 +623,7 @@ Silence deprecation warnings.
 
 ### `--no-extra-info-on-fatal-exception`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 Hide extra information on fatal exception that causes exit.
@@ -672,7 +672,7 @@ against FIPS-enabled OpenSSL.
 
 ### `--openssl-legacy-provider`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
