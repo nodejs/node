@@ -574,7 +574,7 @@ mc1.port2.postMessage(blob);
 mc2.port2.postMessage(blob);
 
 // The Blob is still usable after posting.
-data.text().then(console.log);
+blob.text().then(console.log);
 ```
 
 ```cjs
@@ -601,7 +601,7 @@ mc1.port2.postMessage(blob);
 mc2.port2.postMessage(blob);
 
 // The Blob is still usable after posting.
-data.text().then(console.log);
+blob.text().then(console.log);
 ```
 
 ## Class: `Buffer`
