@@ -1159,7 +1159,7 @@ The resolver can throw the following errors:
 >       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
 >          _packageURL_, _mainExport_, _""_, **false**, **false**,
 >          _conditions_).
->       1. If _resolved_ is not **null** or **undefined**, return _resolved.
+>       1. If _resolved_ is not **null** or **undefined**, return _resolved_.
 > 1. Otherwise, if _exports_ is an Object and all keys of _exports_ start with
 >    _"."_, then
 >    1. Let _matchKey_ be the string _"./"_ concatenated with _subpath_.
@@ -1180,7 +1180,7 @@ The resolver can throw the following errors:
 >    1. If _pjson.imports_ is a non-null Object, then
 >       1. Let _resolved_ be the result of **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(
 >          _specifier_, _pjson.imports_, _packageURL_, **true**, _conditions_).
->       1. If _resolved_ is not **null** or **undefined**, return _resolved.
+>       1. If _resolved_ is not **null** or **undefined**, return _resolved_.
 > 1. Throw a _Package Import Not Defined_ error.
 
 **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
