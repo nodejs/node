@@ -2707,7 +2707,7 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/40119
+    pr-url: https://github.com/nodejs/node/pull/40121
     description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37215
