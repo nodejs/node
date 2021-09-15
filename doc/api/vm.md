@@ -54,7 +54,7 @@ executed in specific contexts.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.
@@ -651,7 +651,7 @@ defined in the ECMAScript specification.
 ### `new vm.SourceTextModule(code[, options])`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.
@@ -869,7 +869,7 @@ const vm = require('vm');
 <!-- YAML
 added: v10.10.0
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.
@@ -1092,7 +1092,7 @@ vm.measureMemory({ mode: 'detailed', execution: 'eager' })
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.
@@ -1176,7 +1176,7 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.
@@ -1285,7 +1285,7 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40249
     description: Added support for import assertions to the
                  `importModuleDynamically` parameter.

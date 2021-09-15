@@ -2707,7 +2707,7 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40121
     description: End-of-Life.
   - version: v16.0.0
@@ -2795,7 +2795,7 @@ deprecated and should no longer be used.
 ### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39793
     description: Runtime deprecation.
   - version: v16.8.0
@@ -2826,7 +2826,7 @@ and `'mgf1HashAlgorithm'`.
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/40117
     description: Runtime deprecation.
   - version: v16.10.0
@@ -2843,7 +2843,7 @@ for package `"exports"` and `"imports"` pattern resolutions.
 ### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/36670
     description: Documentation-only deprecation.
 -->
