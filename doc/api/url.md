@@ -1386,7 +1386,7 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/38631
     description: Now throws an `ERR_INVALID_URL` exception when Punycode
                  conversion of a hostname introduces changes that could cause

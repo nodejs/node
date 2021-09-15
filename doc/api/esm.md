@@ -8,7 +8,7 @@
 added: v8.5.0
 changes:
   - version:
-    - REPLACEME
+    - v17.0.0
     pr-url: https://github.com/nodejs/node/pull/37468
     description:
       Consolidate loader hooks, removed `getFormat`, `getSource`,

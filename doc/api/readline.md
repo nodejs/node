@@ -536,14 +536,14 @@ line prompts are included in the calculations.
 
 ## Promises API
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 > Stability: 1 - Experimental
 
 ### Class: `readlinePromises.Interface`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Extends: {readline.InterfaceConstructor}
@@ -556,7 +556,7 @@ and is read from, the `input` stream.
 
 #### `rl.question(query[, options])`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `query` {string} A statement or query to write to `output`, prepended to the
@@ -602,12 +602,12 @@ setTimeout(() => ac.abort(), 10000);
 
 ### Class: `readlinePromises.Readline`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 #### `new readlinePromises.Readline(stream[, options])`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `stream` {stream.Writable} A [TTY][] stream.
@@ -616,7 +616,7 @@ added: REPLACEME
 
 #### `rl.clearLine(dir)`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `dir` {integer}
@@ -633,7 +633,7 @@ was passed to the constructor.
 
 #### `rl.clearScreenDown()`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Returns: this
@@ -646,7 +646,7 @@ was passed to the constructor.
 
 #### `rl.commit()`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Returns: {Promise}
@@ -656,7 +656,7 @@ The `rl.commit()` method sends all the pending actions to the associated
 
 #### `rl.cursorTo(x[, y])`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `x` {integer}
@@ -670,7 +670,7 @@ was passed to the constructor.
 
 #### `rl.moveCursor(dx, dy)`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `dx` {integer}
@@ -685,7 +685,7 @@ was passed to the constructor.
 
 #### `rl.rollback()`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * Returns: this
@@ -695,7 +695,7 @@ sending it to the associated `stream`.
 
 ### `readlinePromises.createInterface(options)`
 <!-- YAML
-added: REPLACEME
+added: v17.0.0
 -->
 
 * `options` {Object}
@@ -797,7 +797,7 @@ added: v0.1.104
 <!-- YAML
 added: v0.1.104
 changes:
-  - version: REPLACEME
+  - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/37947
     description: The class `readline.Interface` now inherits from `Interface`.
 -->
