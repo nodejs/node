@@ -295,6 +295,21 @@ assert.rejects(
         assert.strictEqual(cryptoKey.type, keyObject.type);
         assert.strictEqual(cryptoKey.algorithm.name, 'ECDH');
       }, common.mustNotCall());
+
+      subtle.importKey(
+        keyObject.type === 'private' ? 'pkcs8' : 'spki',
+        keyObject.export({
+          format: 'der',
+          type: keyObject.type === 'private' ? 'pkcs8' : 'spki',
+        }),
+        { name: 'ECDH', namedCurve },
+        true,
+        keyObject.type === 'private' ? ['deriveBits'] : [],
+      ).then((cryptoKey) => {
+        assert.strictEqual(cryptoKey.type, keyObject.type);
+        assert.strictEqual(cryptoKey.algorithm.name, 'ECDH');
+        assert.strictEqual(cryptoKey.algorithm.namedCurve, namedCurve);
+      }, common.mustNotCall());
     }
   }
 }
