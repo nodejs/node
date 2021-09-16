@@ -382,6 +382,21 @@ assert.rejects(
         assert.strictEqual(cryptoKey.algorithm.name, namedCurve);
       }, common.mustNotCall());
 
+      subtle.importKey(
+        keyObject.type === 'private' ? 'pkcs8' : 'spki',
+        keyObject.export({
+          format: 'der',
+          type: keyObject.type === 'private' ? 'pkcs8' : 'spki',
+        }),
+        { name: namedCurve, namedCurve },
+        true,
+        keyObject.type === 'private' ? ['sign'] : ['verify'],
+      ).then((cryptoKey) => {
+        assert.strictEqual(cryptoKey.type, keyObject.type);
+        assert.strictEqual(cryptoKey.algorithm.name, namedCurve);
+        assert.strictEqual(cryptoKey.algorithm.namedCurve, namedCurve);
+      }, common.mustNotCall());
+
       assert.rejects(
         subtle.importKey(
           'node.keyObject',
