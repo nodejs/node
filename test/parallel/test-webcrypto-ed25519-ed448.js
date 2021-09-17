@@ -394,6 +394,7 @@ assert.rejects(
       ).then((cryptoKey) => {
         assert.strictEqual(cryptoKey.type, keyObject.type);
         assert.strictEqual(cryptoKey.algorithm.name, namedCurve);
+        assert.strictEqual(cryptoKey.algorithm.namedCurve, namedCurve);
       }, common.mustNotCall());
 
       assert.rejects(
