@@ -780,6 +780,7 @@ kbd {
 }
 
 .js-flavor-selector {
+  -webkit-appearance: none;
   appearance: none;
   float: right;
   background-image: url(./js-flavor-cjs.svg);
