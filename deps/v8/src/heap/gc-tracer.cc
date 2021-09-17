@@ -69,9 +69,8 @@ CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId scope_id) {
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer), scope_(scope), thread_kind_(thread_kind) {
   start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-
 #ifdef V8_RUNTIME_CALL_STATS
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   if (thread_kind_ == ThreadKind::kMain) {
     DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
     runtime_stats_ =

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 extern class CallHandlerInfo extends Struct {
   callback: NonNullForeign|Undefined|Zero;
   js_callback: NonNullForeign|Undefined|Zero;
@@ -17,7 +16,6 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   has_no_side_effect: bool: 1 bit;
 }
 
-@generateCppClass
 @generatePrint
 extern class InterceptorInfo extends Struct {
   getter: NonNullForeign|Zero|Undefined;
@@ -31,7 +29,6 @@ extern class InterceptorInfo extends Struct {
   flags: SmiTagged<InterceptorInfoFlags>;
 }
 
-@generateCppClass
 @generatePrint
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
@@ -53,7 +50,6 @@ bitfield struct AccessorInfoFlags extends uint31 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
-@generateCppClass
 @generatePrint
 extern class AccessorInfo extends Struct {
   name: Name;

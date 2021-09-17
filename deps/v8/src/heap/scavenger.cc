@@ -41,6 +41,14 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     VisitPointersImpl(host, start, end);
   }
 
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // Code slots never appear in new space because CodeDataContainers, the
+    // only object that can contain code pointers, are always allocated in
+    // the old space.
+    UNREACHABLE();
+  }
+
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     HandleSlot(host, FullHeapObjectSlot(&target), target);
@@ -114,6 +122,13 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                                     HeapObject::cast(target))) {
       // We should never try to record off-heap slots.
       DCHECK((std::is_same<THeapObjectSlot, HeapObjectSlot>::value));
+      // Code slots never appear in new space because CodeDataContainers, the
+      // only object that can contain code pointers, are always allocated in
+      // the old space.
+      DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                     !MemoryChunk::FromHeapObject(target)->IsFlagSet(
+                         MemoryChunk::IS_EXECUTABLE));
+
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.

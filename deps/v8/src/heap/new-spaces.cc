@@ -500,7 +500,7 @@ void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
   Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
   DCHECK_LE(top(), new_limit);
   DCHECK_LE(new_limit, to_space_.page_high());
-  allocation_info_.set_limit(new_limit);
+  allocation_info_.SetLimit(new_limit);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
 #if DEBUG
@@ -596,11 +596,8 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
-  if (info.limit() != kNullAddress && info.limit() == top()) {
-    DCHECK_NE(info.top(), kNullAddress);
-    allocation_info_.set_top(info.top());
-    allocation_info_.MoveStartToTop();
-    original_top_.store(info.top(), std::memory_order_release);
+  if (allocation_info_.MergeIfAdjacent(info)) {
+    original_top_.store(allocation_info_.top(), std::memory_order_release);
   }
 
 #if DEBUG
@@ -675,8 +672,9 @@ void NewSpace::VerifyTop() {
   DCHECK_LE(allocation_info_.start(), allocation_info_.top());
   DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
 
-  // Ensure that original_top_ always equals LAB start.
-  DCHECK_EQ(original_top_, allocation_info_.start());
+  // Ensure that original_top_ always >= LAB start. The delta between start_
+  // and top_ is still to be processed by allocation observers.
+  DCHECK_GE(original_top_, allocation_info_.start());
 
   // Ensure that limit() is <= original_limit_, original_limit_ always needs
   // to be end of curent to space page.

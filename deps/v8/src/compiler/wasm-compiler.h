@@ -266,15 +266,14 @@ class WasmGraphBuilder {
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* MemoryGrow(Node* input);
-  Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
+  Node* Throw(uint32_t tag_index, const wasm::WasmTag* tag,
               const base::Vector<Node*> values,
               wasm::WasmCodePosition position);
   Node* Rethrow(Node* except_obj);
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
-  Node* LoadExceptionTagFromTable(uint32_t exception_index);
+  Node* LoadTagFromTable(uint32_t tag_index);
   Node* GetExceptionTag(Node* except_obj);
-  Node* GetExceptionValues(Node* except_obj,
-                           const wasm::WasmException* exception,
+  Node* GetExceptionValues(Node* except_obj, const wasm::WasmTag* tag,
                            base::Vector<Node*> values_out);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);

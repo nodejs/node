@@ -3,51 +3,41 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class FixedArrayBase extends HeapObject {
   // length of the array.
   const length: Smi;
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }
 
 type EmptyFixedArray extends FixedArray;
 
-@generateCppClass
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
   @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
-@generateCppClass
-extern class ByteArray extends FixedArrayBase {
-  bytes[length]: uint8;
-}
+extern class ByteArray extends FixedArrayBase { bytes[length]: uint8; }
 
 @hasSameInstanceTypeAsParent
-@generateCppClass
 @doNotGenerateCast
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
-@generateCppClass
 @doNotGenerateCast
 extern class TemplateList extends FixedArray {
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;

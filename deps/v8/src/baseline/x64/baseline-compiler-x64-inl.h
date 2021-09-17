@@ -18,7 +18,8 @@ namespace baseline {
 void BaselineCompiler::Prologue() {
   ASM_CODE_COMMENT(&masm_);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
-  int max_frame_size = bytecode_->frame_size() + max_call_args_;
+  int max_frame_size =
+      bytecode_->frame_size() + max_call_args_ * kSystemPointerSize;
   CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
@@ -33,7 +34,8 @@ void BaselineCompiler::PrologueFillFrame() {
       bytecode_->incoming_new_target_or_generator_register();
   if (FLAG_debug_code) {
     __ masm()->Cmp(kInterpreterAccumulatorRegister,
-                   isolate_->factory()->undefined_value());
+                   handle(ReadOnlyRoots(local_isolate_).undefined_value(),
+                          local_isolate_));
     __ masm()->Assert(equal, AbortReason::kUnexpectedValue);
   }
   int register_count = bytecode_->register_count();

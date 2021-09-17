@@ -152,7 +152,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_a);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc, kExprLocalSet, 0, kExprLocalGet, 0])
+      .addBody([kExprRefNull, kAnyFuncCode, kExprLocalSet, 0, kExprLocalGet, 0])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -164,7 +164,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc])
+      .addBody([kExprRefNull, kAnyFuncCode])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -176,7 +176,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyFunc, kExprReturn])
+      .addBody([kExprRefNull, kAnyFuncCode, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;

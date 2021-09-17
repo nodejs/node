@@ -17,6 +17,7 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
 #include "src/heap/heap.h"
+#include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
@@ -37,7 +38,6 @@ class FreeList;
 class Isolate;
 class LargeObjectSpace;
 class LargePage;
-class LinearAllocationArea;
 class Page;
 class PagedSpace;
 class SemiSpace;
@@ -365,61 +365,6 @@ class PageRange {
 // -----------------------------------------------------------------------------
 // A space has a circular list of pages. The next page can be accessed via
 // Page::next_page() call.
-
-// An abstraction of allocation and relocation pointers in a page-structured
-// space.
-class LinearAllocationArea {
- public:
-  LinearAllocationArea()
-      : start_(kNullAddress), top_(kNullAddress), limit_(kNullAddress) {}
-  LinearAllocationArea(Address top, Address limit)
-      : start_(top), top_(top), limit_(limit) {}
-
-  void Reset(Address top, Address limit) {
-    start_ = top;
-    set_top(top);
-    set_limit(limit);
-  }
-
-  void MoveStartToTop() { start_ = top_; }
-
-  V8_INLINE Address start() const { return start_; }
-
-  V8_INLINE void set_top(Address top) {
-    SLOW_DCHECK(top == kNullAddress || (top & kHeapObjectTagMask) == 0);
-    top_ = top;
-  }
-
-  V8_INLINE Address top() const {
-    SLOW_DCHECK(top_ == kNullAddress || (top_ & kHeapObjectTagMask) == 0);
-    return top_;
-  }
-
-  Address* top_address() { return &top_; }
-
-  V8_INLINE void set_limit(Address limit) { limit_ = limit; }
-
-  V8_INLINE Address limit() const { return limit_; }
-
-  Address* limit_address() { return &limit_; }
-
-#ifdef DEBUG
-  bool VerifyPagedAllocation() {
-    return (Page::FromAllocationAreaAddress(top_) ==
-            Page::FromAllocationAreaAddress(limit_)) &&
-           (top_ <= limit_);
-  }
-#endif
-
- private:
-  // Current allocation top.
-  Address start_;
-  // Current allocation top.
-  Address top_;
-  // Current allocation limit.
-  Address limit_;
-};
-
 
 // LocalAllocationBuffer represents a linear allocation area that is created
 // from a given {AllocationResult} and can be used to allocate memory without

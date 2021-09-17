@@ -32,42 +32,26 @@ class Zone;
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
 // https://tc39.github.io/ecma262/#sec-abstract-module-records
-class Module : public HeapObject {
+class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
-  // The complete export table, mapping an export name to its cell.
-  DECL_ACCESSORS(exports, ObjectHashTable)
-
-  // Hash for this object (a random non-zero Smi).
-  DECL_INT_ACCESSORS(hash)
-
-  // Status.
-  DECL_INT_ACCESSORS(status)
   enum Status {
     // Order matters!
-    kUninstantiated,
-    kPreInstantiating,
-    kInstantiating,
-    kInstantiated,
+    kUnlinked,
+    kPreLinking,
+    kLinking,
+    kLinked,
     kEvaluating,
+    kEvaluatingAsync,
     kEvaluated,
     kErrored
   };
 
-  // The namespace object (or undefined).
-  DECL_ACCESSORS(module_namespace, HeapObject)
-
   // The exception in the case {status} is kErrored.
   Object GetException();
-  DECL_ACCESSORS(exception, Object)
-
-  // The top level promise capability of this module. Will only be defined
-  // for cycle roots.
-  DECL_ACCESSORS(top_level_capability, HeapObject)
 
   // Returns if this module or any transitively requested module is [[Async]],
   // i.e. has a top-level await.
@@ -100,10 +84,6 @@ class Module : public HeapObject {
   // created.
   static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
                                                       Handle<Module> module);
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_MODULE_FIELDS)
 
   using BodyDescriptor =
       FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;
@@ -142,7 +122,7 @@ class Module : public HeapObject {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluate(
       Isolate* isolate, Handle<Module> module);
 
-  // Set module's status back to kUninstantiated and reset other internal state.
+  // Set module's status back to kUnlinked and reset other internal state.
   // This is used when instantiation fails.
   static void Reset(Isolate* isolate, Handle<Module> module);
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
@@ -155,7 +135,7 @@ class Module : public HeapObject {
   static void RecordError(Isolate* isolate, Handle<Module> module,
                           Handle<Object> error);
 
-  OBJECT_CONSTRUCTORS(Module, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(Module)
 };
 
 // When importing a module namespace (import * as foo from "bar"), a

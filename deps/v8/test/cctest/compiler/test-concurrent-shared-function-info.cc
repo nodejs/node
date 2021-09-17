@@ -187,9 +187,15 @@ TEST(TestConcurrentSharedFunctionInfo) {
 
   // Finalize job.
   {
+    // Cannot assert successful completion here since concurrent modifications
+    // may have invalidated compilation dependencies (e.g. since the serialized
+    // JSFunctionRef no longer matches the actual JSFunction state).
     const CompilationJob::Status status = job->FinalizeJob(isolate);
-    CHECK_EQ(status, CompilationJob::SUCCEEDED);
-    CHECK(job->compilation_info()->has_bytecode_array());
+    if (status == CompilationJob::SUCCEEDED) {
+      CHECK(job->compilation_info()->has_bytecode_array());
+    } else {
+      CHECK_EQ(status, CompilationJob::FAILED);
+    }
   }
 }
 

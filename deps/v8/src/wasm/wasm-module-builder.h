@@ -292,8 +292,21 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     DCHECK(types_[index].kind == Type::kFunctionSig);
     return types_[index].sig;
   }
+  bool IsStructType(uint32_t index) {
+    return types_[index].kind == Type::kStructType;
+  }
+  StructType* GetStructType(uint32_t index) {
+    return types_[index].struct_type;
+  }
+
+  bool IsArrayType(uint32_t index) {
+    return types_[index].kind == Type::kArrayType;
+  }
+  ArrayType* GetArrayType(uint32_t index) { return types_[index].array_type; }
 
   int NumExceptions() { return static_cast<int>(exceptions_.size()); }
+
+  int NumTypes() { return static_cast<int>(types_.size()); }
 
   FunctionSig* GetExceptionType(int index) {
     return types_[exceptions_[index]].sig;

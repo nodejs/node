@@ -46,22 +46,6 @@ void ConsoleCall(
   CHECK(!isolate->has_scheduled_exception());
   if (!isolate->console_delegate()) return;
   HandleScope scope(isolate);
-
-  // Access check. The current context has to match the context of all
-  // arguments, otherwise the inspector might leak objects across contexts.
-  Handle<Context> context = handle(isolate->context(), isolate);
-  for (int i = 0; i < args.length(); ++i) {
-    Handle<Object> argument = args.at<Object>(i);
-    if (!argument->IsJSObject()) continue;
-
-    Handle<JSObject> argument_obj = Handle<JSObject>::cast(argument);
-    if (argument->IsAccessCheckNeeded(isolate) &&
-        !isolate->MayAccess(context, argument_obj)) {
-      isolate->ReportFailedAccessCheck(argument_obj);
-      return;
-    }
-  }
-
   debug::ConsoleCallArguments wrapper(args);
   Handle<Object> context_id_obj = JSObject::GetDataProperty(
       args.target(), isolate->factory()->console_context_id_symbol());
@@ -78,7 +62,7 @@ void ConsoleCall(
 }
 
 void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
-                   Logger::StartEnd se) {
+                   v8::LogEventStatus se) {
   if (!isolate->logger()->is_logging()) return;
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
@@ -102,21 +86,21 @@ CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
 
 BUILTIN(ConsoleTime) {
-  LogTimerEvent(isolate, args, Logger::START);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStart);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::Time);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeEnd) {
-  LogTimerEvent(isolate, args, Logger::END);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kEnd);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeEnd);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeStamp) {
-  LogTimerEvent(isolate, args, Logger::STAMP);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStamp);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();

@@ -81,7 +81,7 @@
 //         - JSSegments            // If V8_INTL_SUPPORT enabled.
 //         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
 //         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
-//         - WasmExceptionObject
+//         - WasmTagObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject
 //         - WasmMemoryObject
@@ -592,7 +592,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Returns true if the result of iterating over the object is the same
   // (including observable effects) as simply accessing the properties between 0
   // and length.
-  bool IterationHasObservableEffects();
+  V8_EXPORT_PRIVATE bool IterationHasObservableEffects();
 
   // TC39 "Dynamic Code Brand Checks"
   bool IsCodeLike(Isolate* isolate) const;

@@ -176,7 +176,7 @@ class V8_EXPORT_PRIVATE PagedSpace
     return size_in_bytes - wasted;
   }
 
-  inline bool TryFreeLast(HeapObject object, int object_size);
+  inline bool TryFreeLast(Address object_address, int object_size);
 
   void ResetFreeList();
 

@@ -26,7 +26,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #include "third_party/zlib/google/zip.h"
+#include "third_party/zlib/google/zip_internal.h"
 #include "third_party/zlib/google/zip_reader.h"
+
+// Convenience macro to create a file path from a string literal.
+#define FP(path) base::FilePath(FILE_PATH_LITERAL(path))
 
 namespace {
 
@@ -58,7 +62,7 @@ class VirtualFileSystem : public zip::FileAccessor {
 
   VirtualFileSystem() {
     base::FilePath test_dir;
-    base::FilePath foo_txt_path = test_dir.Append(FILE_PATH_LITERAL("foo.txt"));
+    base::FilePath foo_txt_path = test_dir.AppendASCII("foo.txt");
 
     base::FilePath file_path;
     base::File file;
@@ -66,15 +70,13 @@ class VirtualFileSystem : public zip::FileAccessor {
     DCHECK(success);
     files_[foo_txt_path] = std::move(file);
 
-    base::FilePath bar_dir = test_dir.Append(FILE_PATH_LITERAL("bar"));
-    base::FilePath bar1_txt_path =
-        bar_dir.Append(FILE_PATH_LITERAL("bar1.txt"));
+    base::FilePath bar_dir = test_dir.AppendASCII("bar");
+    base::FilePath bar1_txt_path = bar_dir.AppendASCII("bar1.txt");
     success = CreateFile(kBar1Content, &file_path, &file);
     DCHECK(success);
     files_[bar1_txt_path] = std::move(file);
 
-    base::FilePath bar2_txt_path =
-        bar_dir.Append(FILE_PATH_LITERAL("bar2.txt"));
+    base::FilePath bar2_txt_path = bar_dir.AppendASCII("bar2.txt");
     success = CreateFile(kBar2Content, &file_path, &file);
     DCHECK(success);
     files_[bar2_txt_path] = std::move(file);
@@ -172,22 +174,20 @@ class ZipTest : public PlatformTest {
     test_dir_ = temp_dir_.GetPath();
 
     base::FilePath zip_path(test_dir_);
-    zip_contents_.insert(zip_path.Append(FILE_PATH_LITERAL("foo.txt")));
-    zip_path = zip_path.Append(FILE_PATH_LITERAL("foo"));
+    zip_contents_.insert(zip_path.AppendASCII("foo.txt"));
+    zip_path = zip_path.AppendASCII("foo");
     zip_contents_.insert(zip_path);
-    zip_contents_.insert(zip_path.Append(FILE_PATH_LITERAL("bar.txt")));
-    zip_path = zip_path.Append(FILE_PATH_LITERAL("bar"));
+    zip_contents_.insert(zip_path.AppendASCII("bar.txt"));
+    zip_path = zip_path.AppendASCII("bar");
     zip_contents_.insert(zip_path);
-    zip_contents_.insert(zip_path.Append(FILE_PATH_LITERAL("baz.txt")));
-    zip_contents_.insert(zip_path.Append(FILE_PATH_LITERAL("quux.txt")));
-    zip_contents_.insert(zip_path.Append(FILE_PATH_LITERAL(".hidden")));
+    zip_contents_.insert(zip_path.AppendASCII("baz.txt"));
+    zip_contents_.insert(zip_path.AppendASCII("quux.txt"));
+    zip_contents_.insert(zip_path.AppendASCII(".hidden"));
 
     // Include a subset of files in |zip_file_list_| to test ZipFiles().
-    zip_file_list_.push_back(base::FilePath(FILE_PATH_LITERAL("foo.txt")));
-    zip_file_list_.push_back(
-        base::FilePath(FILE_PATH_LITERAL("foo/bar/quux.txt")));
-    zip_file_list_.push_back(
-        base::FilePath(FILE_PATH_LITERAL("foo/bar/.hidden")));
+    zip_file_list_.push_back(FP("foo.txt"));
+    zip_file_list_.push_back(FP("foo/bar/quux.txt"));
+    zip_file_list_.push_back(FP("foo/bar/.hidden"));
   }
 
   virtual void TearDown() { PlatformTest::TearDown(); }
@@ -224,7 +224,7 @@ class ZipTest : public PlatformTest {
         base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
     base::FilePath unzipped_entry_path = files.Next();
     size_t count = 0;
-    while (!unzipped_entry_path.value().empty()) {
+    while (!unzipped_entry_path.empty()) {
       EXPECT_EQ(zip_contents_.count(unzipped_entry_path), 1U)
           << "Couldn't find " << unzipped_entry_path.value();
       count++;
@@ -232,28 +232,15 @@ class ZipTest : public PlatformTest {
       if (base::PathExists(unzipped_entry_path) &&
           !base::DirectoryExists(unzipped_entry_path)) {
         // It's a file, check its contents are what we zipped.
-        // TODO(774156): figure out why the commented out EXPECT_TRUE below
-        // fails on the build bots (but not on the try-bots).
         base::FilePath relative_path;
-        bool append_relative_path_success =
-            test_dir_.AppendRelativePath(unzipped_entry_path, &relative_path);
-        if (!append_relative_path_success) {
-          LOG(ERROR) << "Append relative path failed, params: " << test_dir_
-                     << " and " << unzipped_entry_path;
-        }
+        ASSERT_TRUE(
+            test_dir_.AppendRelativePath(unzipped_entry_path, &relative_path))
+            << "Cannot append relative path failed, params: '" << test_dir_
+            << "' and '" << unzipped_entry_path << "'";
         base::FilePath original_path = original_dir.Append(relative_path);
-        const bool equal =
-            base::ContentsEqual(original_path, unzipped_entry_path);
-        if (equal) {
-          LOG(INFO) << "Original and unzipped file '" << relative_path
-                    << "' are equal";
-        } else {
-          LOG(ERROR) << "Original and unzipped file '" << relative_path
-                     << "' are different";
-        }
-        // EXPECT_TRUE(base::ContentsEqual(original_path, unzipped_entry_path))
-        //    << "Contents differ between original " << original_path.value()
-        //    << " and unzipped file " << unzipped_entry_path.value();
+        EXPECT_TRUE(base::ContentsEqual(original_path, unzipped_entry_path))
+            << "Original file '" << original_path << "' and unzipped file '"
+            << unzipped_entry_path << "' have different contents";
       }
       unzipped_entry_path = files.Next();
     }
@@ -575,17 +562,17 @@ TEST_F(ZipTest, ZipWithFileAccessor) {
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
   const base::FilePath& temp_dir = scoped_temp_dir.GetPath();
   ASSERT_TRUE(zip::Unzip(zip_file, temp_dir));
-  base::FilePath bar_dir = temp_dir.Append(FILE_PATH_LITERAL("bar"));
+  base::FilePath bar_dir = temp_dir.AppendASCII("bar");
   EXPECT_TRUE(base::DirectoryExists(bar_dir));
   std::string file_content;
-  EXPECT_TRUE(base::ReadFileToString(
-      temp_dir.Append(FILE_PATH_LITERAL("foo.txt")), &file_content));
+  EXPECT_TRUE(
+      base::ReadFileToString(temp_dir.AppendASCII("foo.txt"), &file_content));
   EXPECT_EQ(VirtualFileSystem::kFooContent, file_content);
-  EXPECT_TRUE(base::ReadFileToString(
-      bar_dir.Append(FILE_PATH_LITERAL("bar1.txt")), &file_content));
+  EXPECT_TRUE(
+      base::ReadFileToString(bar_dir.AppendASCII("bar1.txt"), &file_content));
   EXPECT_EQ(VirtualFileSystem::kBar1Content, file_content);
-  EXPECT_TRUE(base::ReadFileToString(
-      bar_dir.Append(FILE_PATH_LITERAL("bar2.txt")), &file_content));
+  EXPECT_TRUE(
+      base::ReadFileToString(bar_dir.AppendASCII("bar2.txt"), &file_content));
   EXPECT_EQ(VirtualFileSystem::kBar2Content, file_content);
 }
 
@@ -708,6 +695,123 @@ TEST_F(ZipTest, ZipCancel) {
 
     EXPECT_EQ(j, i);
   }
+}
+
+// Tests zip::internal::GetCompressionMethod()
+TEST_F(ZipTest, GetCompressionMethod) {
+  using zip::internal::GetCompressionMethod;
+  using zip::internal::kDeflated;
+  using zip::internal::kStored;
+
+  EXPECT_EQ(GetCompressionMethod(FP("")), kDeflated);
+  EXPECT_EQ(GetCompressionMethod(FP("NoExtension")), kDeflated);
+  EXPECT_EQ(GetCompressionMethod(FP("Folder.zip").Append(FP("NoExtension"))),
+            kDeflated);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.txt")), kDeflated);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.zip")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("Name....zip")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.zip")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("NAME.ZIP")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.gz")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.tar.gz")), kStored);
+  EXPECT_EQ(GetCompressionMethod(FP("Name.tar")), kDeflated);
+
+  // This one is controversial.
+  EXPECT_EQ(GetCompressionMethod(FP(".zip")), kStored);
+}
+
+// Tests that files put inside a ZIP are effectively compressed.
+TEST_F(ZipTest, Compressed) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const base::FilePath src_dir = temp_dir.GetPath().AppendASCII("input");
+  EXPECT_TRUE(base::CreateDirectory(src_dir));
+
+  // Create some dummy source files.
+  for (const base::StringPiece s : {"foo", "bar.txt", ".hidden"}) {
+    base::File f(src_dir.AppendASCII(s),
+                 base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+    ASSERT_TRUE(f.SetLength(5000));
+  }
+
+  // Zip the source files.
+  const base::FilePath dest_file = temp_dir.GetPath().AppendASCII("dest.zip");
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir,
+                        .dest_file = dest_file,
+                        .include_hidden_files = true}));
+
+  // Since the source files compress well, the destination ZIP file should be
+  // smaller than the source files.
+  int64_t dest_file_size;
+  ASSERT_TRUE(base::GetFileSize(dest_file, &dest_file_size));
+  EXPECT_GT(dest_file_size, 300);
+  EXPECT_LT(dest_file_size, 1000);
+}
+
+// Tests that a ZIP put inside a ZIP is simply stored instead of being
+// compressed.
+TEST_F(ZipTest, NestedZip) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const base::FilePath src_dir = temp_dir.GetPath().AppendASCII("input");
+  EXPECT_TRUE(base::CreateDirectory(src_dir));
+
+  // Create a dummy ZIP file. This is not a valid ZIP file, but for the purpose
+  // of this test, it doesn't really matter.
+  const int64_t src_size = 5000;
+
+  {
+    base::File f(src_dir.AppendASCII("src.zip"),
+                 base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+    ASSERT_TRUE(f.SetLength(src_size));
+  }
+
+  // Zip the dummy ZIP file.
+  const base::FilePath dest_file = temp_dir.GetPath().AppendASCII("dest.zip");
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir, .dest_file = dest_file}));
+
+  // Since the dummy source (inner) ZIP file should simply be stored in the
+  // destination (outer) ZIP file, the destination file should be bigger than
+  // the source file, but not much bigger.
+  int64_t dest_file_size;
+  ASSERT_TRUE(base::GetFileSize(dest_file, &dest_file_size));
+  EXPECT_GT(dest_file_size, src_size + 100);
+  EXPECT_LT(dest_file_size, src_size + 300);
+}
+
+// Tests that there is no 2GB or 4GB limits. Tests that big files can be zipped
+// (crbug.com/1207737) and that big ZIP files can be created
+// (crbug.com/1221447).
+TEST_F(ZipTest, DISABLED_BigFile) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const base::FilePath src_dir = temp_dir.GetPath().AppendASCII("input");
+  EXPECT_TRUE(base::CreateDirectory(src_dir));
+
+  // Create a big dummy ZIP file. This is not a valid ZIP file, but for the
+  // purpose of this test, it doesn't really matter.
+  const int64_t src_size = 5'000'000'000;
+
+  {
+    base::File f(src_dir.AppendASCII("src.zip"),
+                 base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+    ASSERT_TRUE(f.SetLength(src_size));
+  }
+
+  // Zip the dummy ZIP file.
+  const base::FilePath dest_file = temp_dir.GetPath().AppendASCII("dest.zip");
+  EXPECT_TRUE(zip::Zip({.src_dir = src_dir, .dest_file = dest_file}));
+
+  // Since the dummy source (inner) ZIP file should simply be stored in the
+  // destination (outer) ZIP file, the destination file should be bigger than
+  // the source file, but not much bigger.
+  int64_t dest_file_size;
+  ASSERT_TRUE(base::GetFileSize(dest_file, &dest_file_size));
+  EXPECT_GT(dest_file_size, src_size + 100);
+  EXPECT_LT(dest_file_size, src_size + 300);
 }
 
 }  // namespace

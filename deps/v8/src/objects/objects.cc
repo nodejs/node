@@ -1762,14 +1762,15 @@ bool Object::IterationHasObservableEffects() {
   JSArray array = JSArray::cast(*this);
   Isolate* isolate = array.GetIsolate();
 
-#ifdef V8_ENABLE_FORCE_SLOW_PATH
-  if (isolate->force_slow_path()) return true;
-#endif
-
   // Check that we have the original ArrayPrototype.
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::Context> context;
+  if (!array.GetCreationContext().ToHandle(&context)) return false;
   if (!array.map().prototype().IsJSObject()) return true;
   JSObject array_proto = JSObject::cast(array.map().prototype());
-  if (!isolate->is_initial_array_prototype(array_proto)) return true;
+  auto initial_array_prototype =
+      context->native_context().initial_array_prototype();
+  if (initial_array_prototype != array_proto) return true;
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
@@ -2363,7 +2364,8 @@ bool HeapObject::CanBeRehashed() const {
   }
 }
 
-void HeapObject::RehashBasedOnMap(Isolate* isolate) {
+template <typename IsolateT>
+void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
   switch (map().instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2399,11 +2401,11 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
     case ORDERED_HASH_SET_TYPE:
       UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
     case JS_MAP_TYPE: {
-      JSMap::cast(*this).Rehash(isolate);
+      JSMap::cast(*this).Rehash(isolate->AsIsolate());
       break;
     }
     case JS_SET_TYPE: {
-      JSSet::cast(*this).Rehash(isolate);
+      JSSet::cast(*this).Rehash(isolate->AsIsolate());
       break;
     }
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
@@ -2419,6 +2421,8 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
       UNREACHABLE();
   }
 }
+template void HeapObject::RehashBasedOnMap(Isolate* isolate);
+template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
 bool HeapObject::IsExternal(Isolate* isolate) const {
   return map().FindRootMap(isolate) == isolate->heap()->external_map();
@@ -2767,12 +2771,11 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
-  // TODO(v8:11111): Support RAB / GSAB.
   if (it->IsElement() && receiver->IsJSObject(isolate) &&
-      JSObject::cast(*receiver).HasTypedArrayElements(isolate)) {
+      JSObject::cast(*receiver).HasTypedArrayOrRabGsabTypedArrayElements(
+          isolate)) {
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();
-    if (elements_kind == BIGINT64_ELEMENTS ||
-        elements_kind == BIGUINT64_ELEMENTS) {
+    if (IsBigIntTypedArrayElementsKind(elements_kind)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        BigInt::FromObject(isolate, value),
                                        Nothing<bool>());
@@ -4469,7 +4472,7 @@ Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
                         isolate, native_context,
                         Handle<FunctionTemplateInfo>::cast(accessor))
                         .ToHandleChecked();
-    accessor_pair->set(component, *function);
+    accessor_pair->set(component, *function, kReleaseStore);
     return function;
   }
   if (accessor->IsNull(isolate)) {
@@ -4703,7 +4706,8 @@ Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
        i < kFastElementsKindCount; ++i) {
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-    Map maybe_elements_transition = current_map->ElementsTransitionMap(isolate);
+    Map maybe_elements_transition = current_map->ElementsTransitionMap(
+        isolate, ConcurrencyMode::kNotConcurrent);
     if (!maybe_elements_transition.is_null()) {
       new_map = handle(maybe_elements_transition, isolate);
     } else {
@@ -5354,12 +5358,9 @@ Handle<Object> JSPromise::Fulfill(Handle<JSPromise> promise,
 }
 
 static void MoveMessageToPromise(Isolate* isolate, Handle<JSPromise> promise) {
-  if (isolate->thread_local_top()->pending_message_obj_.IsTheHole(isolate)) {
-    return;
-  }
+  if (!isolate->has_pending_message()) return;
 
-  Handle<Object> message =
-      handle(isolate->thread_local_top()->pending_message_obj_, isolate);
+  Handle<Object> message = handle(isolate->pending_message(), isolate);
   Handle<Symbol> key = isolate->factory()->promise_debug_message_symbol();
   Object::SetProperty(isolate, promise, key, message, StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))
@@ -5905,7 +5906,6 @@ GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
     CHECK(element.IsPropertyCell(cage_base));
     return PropertyCell::cast(element);
   }
-  return {};
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {

@@ -229,8 +229,10 @@ void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
   // Filter out already marked values. The write barrier for WeakMember
   // ensures that any newly set value after this point is kept alive and does
   // not require the callback.
-  if (HeapObjectHeader::FromObject(desc.base_object_payload)
-          .IsMarked<AccessMode::kAtomic>())
+  const HeapObjectHeader& header =
+      HeapObjectHeader::FromObject(desc.base_object_payload);
+  if (!header.IsInConstruction<AccessMode::kAtomic>() &&
+      header.IsMarked<AccessMode::kAtomic>())
     return;
   RegisterWeakCallback(weak_callback, parameter);
 }

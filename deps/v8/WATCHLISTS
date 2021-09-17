@@ -33,6 +33,9 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
+    'api': {
+      'filepath': 'include/',
+    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -52,7 +55,7 @@
                   '|test/unittests/interpreter/',
     },
     'baseline': {
-      'filepath': 'src/baseline/'
+      'filepath': 'src/baseline/',
     },
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
@@ -66,9 +69,6 @@
     'csa': {
       'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
                   '|src/builtins/.*-gen.(cc|h)$',
-    },
-    'ia32': {
-      'filepath': '/ia32/',
     },
     'merges': {
       'filepath': '.',
@@ -102,7 +102,7 @@
       'filepath': 'BUILD.gn' \
                   '|BUILD.bazel' \
                   '|WORKSPACE' \
-                  '|bazel/'
+                  '|bazel/',
     },
   },
 
@@ -153,17 +153,21 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
+      'cbruni+watch@chromium.org',
     ],
     'ieee754': [
       'rtoy+watch@chromium.org',
-      'hongchan+watch@chromium.org'
+      'hongchan+watch@chromium.org',
     ],
     'regexp': [
       'jgruber+watch@chromium.org',
-      'pthier+watch@chromium.org'
+      'pthier+watch@chromium.org',
     ],
-    'bazel' : [
-      'victorgomes+watch@chromium.org'
+    'bazel': [
+      'victorgomes+watch@chromium.org',
+    ],
+    'api': [
+      'cbruni+watch@chromium.org',
     ],
   },
 }

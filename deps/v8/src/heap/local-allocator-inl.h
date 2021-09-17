@@ -56,7 +56,8 @@ void EvacuationAllocator::FreeLastInNewSpace(HeapObject object,
 
 void EvacuationAllocator::FreeLastInOldSpace(HeapObject object,
                                              int object_size) {
-  if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object, object_size)) {
+  if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object.address(),
+                                                      object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
     heap_->CreateFillerObjectAt(object.address(), object_size,
                                 ClearRecordedSlots::kNo);

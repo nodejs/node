@@ -345,6 +345,13 @@ class ConcurrentLookupIterator final : public AllStatic {
       JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
       size_t index);
 
+  // Implements the own data property lookup for the specialized case of
+  // strings.
+  V8_EXPORT_PRIVATE static Result TryGetOwnChar(String* result_out,
+                                                Isolate* isolate,
+                                                LocalIsolate* local_isolate,
+                                                String string, size_t index);
+
   // This method reimplements the following sequence in a concurrent setting:
   //
   // LookupIterator it(holder, isolate, name, LookupIterator::OWN);

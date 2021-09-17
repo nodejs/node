@@ -45,6 +45,9 @@ digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y);
 digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y);
 
 inline bool IsDigitNormalized(Digits X) { return X.len() == 0 || X.msd() != 0; }
+inline bool IsBitNormalized(Digits X) {
+  return (X.msd() >> (kDigitBits - 1)) == 1;
+}
 
 inline bool GreaterThanOrEqual(Digits A, Digits B) {
   return Compare(A, B) >= 0;

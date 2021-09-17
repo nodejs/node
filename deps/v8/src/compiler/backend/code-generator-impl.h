@@ -189,7 +189,8 @@ class DeoptimizationExit : public ZoneObject {
  public:
   explicit DeoptimizationExit(SourcePosition pos, BytecodeOffset bailout_id,
                               int translation_id, int pc_offset,
-                              DeoptimizeKind kind, DeoptimizeReason reason)
+                              DeoptimizeKind kind, DeoptimizeReason reason,
+                              NodeId node_id)
       : deoptimization_id_(kNoDeoptIndex),
         pos_(pos),
         bailout_id_(bailout_id),
@@ -197,6 +198,7 @@ class DeoptimizationExit : public ZoneObject {
         pc_offset_(pc_offset),
         kind_(kind),
         reason_(reason),
+        node_id_(node_id),
         immediate_args_(nullptr),
         emitted_(false) {}
 
@@ -220,6 +222,7 @@ class DeoptimizationExit : public ZoneObject {
   int pc_offset() const { return pc_offset_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  NodeId node_id() const { return node_id_; }
   const ZoneVector<ImmediateOperand*>* immediate_args() const {
     return immediate_args_;
   }
@@ -243,6 +246,7 @@ class DeoptimizationExit : public ZoneObject {
   const int pc_offset_;
   const DeoptimizeKind kind_;
   const DeoptimizeReason reason_;
+  const NodeId node_id_;
   ZoneVector<ImmediateOperand*>* immediate_args_;
   bool emitted_;
 };

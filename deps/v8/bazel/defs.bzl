@@ -237,3 +237,62 @@ v8_mksnapshot = rule(
         ),
     }
 )
+
+def _quote(val):
+    if val[0] == '"' and val[-1] == '"':
+        fail("String", val, "already quoted")
+    return '"' + val + '"'
+
+def _kv_bool_pair(k, v):
+    return _quote(k) + ": " + v
+
+def _json(kv_pairs):
+    content = "{"
+    for (k, v) in kv_pairs[:-1]:
+        content += _kv_bool_pair(k, v) + ", "
+    (k, v) = kv_pairs[-1]
+    content += _kv_bool_pair(k, v)
+    content += "}\n"
+    return content
+
+# TODO(victorgomes): Create a rule (instead of a macro), that can
+# dynamically populate the build config.
+def v8_build_config(name):
+    cpu = _quote("x64")
+    content = _json([
+        ("current_cpu", cpu),
+        ("dcheck_always_on", "false"),
+        ("is_android", "false"),
+        ("is_asan", "false"),
+        ("is_cfi", "false"),
+        ("is_clang", "true"),
+        ("is_component_build", "false"),
+        ("is_debug", "false"),
+        ("is_full_debug", "false"),
+        ("is_gcov_coverage", "false"),
+        ("is_msan", "false"),
+        ("is_tsan", "false"),
+        ("is_ubsan_vptr", "false"),
+        ("target_cpu", cpu),
+        ("v8_current_cpu", cpu),
+        ("v8_enable_atomic_marking_state", "false"),
+        ("v8_enable_atomic_object_field_writes", "false"),
+        ("v8_enable_concurrent_marking", "false"),
+        ("v8_enable_i18n_support", "true"),
+        ("v8_enable_verify_predictable", "false"),
+        ("v8_enable_verify_csa", "false"),
+        ("v8_enable_lite_mode", "false"),
+        ("v8_enable_runtime_call_stats", "false"),
+        ("v8_enable_pointer_compression", "true"),
+        ("v8_enable_pointer_compression_shared_cage", "false"),
+        ("v8_enable_third_party_heap", "false"),
+        ("v8_enable_webassembly", "false"),
+        ("v8_control_flow_integrity", "false"),
+        ("v8_enable_single_generation", "false"),
+        ("v8_target_cpu", cpu),
+    ])
+    native.genrule(
+        name = name,
+        outs = [name + ".json"],
+        cmd = "echo '" + content + "' > \"$@\"",
+    )

@@ -28,7 +28,7 @@ namespace compiler {
 
 namespace {
 
-bool CanInlinePropertyAccess(Handle<Map> map, AccessMode access_mode) {
+bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   // We can inline property access to prototypes of all primitives, except
   // the special Oddball ones that have no wrapper counterparts (i.e. Null,
   // Undefined and TheHole).
@@ -37,16 +37,17 @@ bool CanInlinePropertyAccess(Handle<Map> map, AccessMode access_mode) {
   // relationship between the map and the object (and therefore the property
   // dictionary).
   STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
-  if (map->IsBooleanMap()) return true;
-  if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
-  if (map->IsJSObjectMap()) {
-    if (map->is_dictionary_map()) {
+  if (map.object()->IsBooleanMap()) return true;
+  if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
+  if (map.object()->IsJSObjectMap()) {
+    if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
-      return access_mode == AccessMode::kLoad && map->is_prototype_map();
+      return access_mode == AccessMode::kLoad &&
+             map.object()->is_prototype_map();
     }
-    return !map->has_named_interceptor() &&
+    return !map.object()->has_named_interceptor() &&
            // TODO(verwaest): Allowlist contexts to which we have access.
-           !map->is_access_check_needed();
+           !map.is_access_check_needed();
   }
   return false;
 }
@@ -82,8 +83,8 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
 }
 
 ElementAccessInfo::ElementAccessInfo(
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
-    ElementsKind elements_kind, Zone* zone)
+    ZoneVector<MapRef>&& lookup_start_object_maps, ElementsKind elements_kind,
+    Zone* zone)
     : elements_kind_(elements_kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       transition_sources_(zone) {
@@ -96,22 +97,25 @@ PropertyAccessInfo PropertyAccessInfo::Invalid(Zone* zone) {
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::NotFound(Zone* zone,
-                                                Handle<Map> receiver_map,
-                                                MaybeHandle<JSObject> holder) {
+PropertyAccessInfo PropertyAccessInfo::NotFound(
+    Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder) {
   return PropertyAccessInfo(zone, kNotFound, holder, {{receiver_map}, zone});
 }
 
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
-    Zone* zone, Handle<Map> receiver_map,
+    Zone* zone, MapRef receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+    Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
+    base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
   DCHECK_IMPLIES(
       field_representation.IsDouble(),
-      HasFieldRepresentationDependenciesOnMap(dependencies, field_owner_map));
+      HasFieldRepresentationDependenciesOnMap(
+          dependencies, transition_map.has_value()
+                            ? transition_map->object()
+                            : holder.has_value() ? holder->map().object()
+                                                 : receiver_map.object()));
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
                             field_representation, field_type, field_owner_map,
                             field_map, {{receiver_map}, zone},
@@ -120,11 +124,11 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 
 // static
 PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
-    Zone* zone, Handle<Map> receiver_map,
+    Zone* zone, MapRef receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+    Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
+    base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
   return PropertyAccessInfo(kFastDataConstant, holder, transition_map,
                             field_index, field_representation, field_type,
                             field_owner_map, field_map, {{receiver_map}, zone},
@@ -133,39 +137,38 @@ PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
 
 // static
 PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
-    Zone* zone, Handle<Map> receiver_map, Handle<Object> constant,
-    MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant,
-                            MaybeHandle<Name>(), {{receiver_map}, zone});
-}
-
-// static
-PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
-                                                    Handle<Map> receiver_map,
-                                                    Handle<Cell> cell) {
-  return PropertyAccessInfo(zone, kModuleExport, MaybeHandle<JSObject>(), cell,
-                            MaybeHandle<Name>{}, {{receiver_map}, zone});
-}
-
-// static
-PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
-                                                    Handle<Map> receiver_map) {
-  return PropertyAccessInfo(zone, kStringLength, MaybeHandle<JSObject>(),
+    Zone* zone, MapRef receiver_map, base::Optional<ObjectRef> constant,
+    base::Optional<JSObjectRef> holder) {
+  return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant, {},
                             {{receiver_map}, zone});
 }
 
 // static
+PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
+                                                    MapRef receiver_map,
+                                                    CellRef cell) {
+  return PropertyAccessInfo(zone, kModuleExport, {}, cell, {},
+                            {{receiver_map}, zone});
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
+                                                    MapRef receiver_map) {
+  return PropertyAccessInfo(zone, kStringLength, {}, {{receiver_map}, zone});
+}
+
+// static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
-    Zone* zone, Handle<Map> receiver_map, Handle<JSObject> holder,
-    InternalIndex dictionary_index, Handle<Name> name) {
+    Zone* zone, MapRef receiver_map, JSObjectRef holder,
+    InternalIndex dictionary_index, NameRef name) {
   return PropertyAccessInfo(zone, kDictionaryProtoDataConstant, holder,
                             {{receiver_map}, zone}, dictionary_index, name);
 }
 
 // static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoAccessorConstant(
-    Zone* zone, Handle<Map> receiver_map, MaybeHandle<JSObject> holder,
-    Handle<Object> constant, Handle<Name> property_name) {
+    Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
+    ObjectRef constant, NameRef property_name) {
   return PropertyAccessInfo(zone, kDictionaryProtoAccessorConstant, holder,
                             constant, property_name, {{receiver_map}, zone});
 }
@@ -193,8 +196,8 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
       dictionary_index_(InternalIndex::NotFound()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
-    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps)
+    Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
+    ZoneVector<MapRef>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       holder_(holder),
@@ -204,9 +207,9 @@ PropertyAccessInfo::PropertyAccessInfo(
       dictionary_index_(InternalIndex::NotFound()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
-    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
-    Handle<Object> constant, MaybeHandle<Name> property_name,
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps)
+    Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
+    base::Optional<ObjectRef> constant, base::Optional<NameRef> name,
+    ZoneVector<MapRef>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       constant_(constant),
@@ -215,15 +218,16 @@ PropertyAccessInfo::PropertyAccessInfo(
       field_representation_(Representation::None()),
       field_type_(Type::Any()),
       dictionary_index_(InternalIndex::NotFound()),
-      name_(property_name) {
-  DCHECK_IMPLIES(kind == kDictionaryProtoAccessorConstant,
-                 !property_name.is_null());
+      name_(name) {
+  DCHECK_IMPLIES(kind == kDictionaryProtoAccessorConstant, name.has_value());
 }
+
 PropertyAccessInfo::PropertyAccessInfo(
-    Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
-    FieldIndex field_index, Representation field_representation,
-    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
+    Kind kind, base::Optional<JSObjectRef> holder,
+    base::Optional<MapRef> transition_map, FieldIndex field_index,
+    Representation field_representation, Type field_type,
+    MapRef field_owner_map, base::Optional<MapRef> field_map,
+    ZoneVector<MapRef>&& lookup_start_object_maps,
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
@@ -236,14 +240,14 @@ PropertyAccessInfo::PropertyAccessInfo(
       field_owner_map_(field_owner_map),
       field_map_(field_map),
       dictionary_index_(InternalIndex::NotFound()) {
-  DCHECK_IMPLIES(!transition_map.is_null(),
-                 field_owner_map.address() == transition_map.address());
+  DCHECK_IMPLIES(transition_map.has_value(),
+                 field_owner_map.equals(transition_map.value()));
 }
 
 PropertyAccessInfo::PropertyAccessInfo(
-    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
-    InternalIndex dictionary_index, Handle<Name> name)
+    Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
+    ZoneVector<MapRef>&& lookup_start_object_maps,
+    InternalIndex dictionary_index, NameRef name)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       holder_(holder),
@@ -262,14 +266,31 @@ MinimorphicLoadPropertyAccessInfo::MinimorphicLoadPropertyAccessInfo(
       field_representation_(field_representation),
       field_type_(field_type) {}
 
+namespace {
+
+template <class RefT>
+bool OptionalRefEquals(base::Optional<RefT> lhs, base::Optional<RefT> rhs) {
+  if (!lhs.has_value()) return !rhs.has_value();
+  if (!rhs.has_value()) return false;
+  return lhs->equals(rhs.value());
+}
+
+template <class T>
+void AppendVector(ZoneVector<T>* dst, const ZoneVector<T>& src) {
+  dst->insert(dst->end(), src.begin(), src.end());
+}
+
+}  // namespace
+
 bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                AccessMode access_mode, Zone* zone) {
-  if (this->kind_ != that->kind_) return false;
-  if (this->holder_.address() != that->holder_.address()) return false;
+  if (kind_ != that->kind_) return false;
+  if (!OptionalRefEquals(holder_, that->holder_)) return false;
 
-  switch (this->kind_) {
+  switch (kind_) {
     case kInvalid:
-      return that->kind_ == kInvalid;
+      DCHECK_EQ(that->kind_, kInvalid);
+      return true;
 
     case kDataField:
     case kFastDataConstant: {
@@ -277,90 +298,70 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       // GetFieldAccessStubKey method here just like the ICs do
       // since that way we only compare the relevant bits of the
       // field indices).
-      if (this->field_index_.GetFieldAccessStubKey() ==
+      if (field_index_.GetFieldAccessStubKey() !=
           that->field_index_.GetFieldAccessStubKey()) {
-        switch (access_mode) {
-          case AccessMode::kHas:
-          case AccessMode::kLoad: {
-            if (!this->field_representation_.Equals(
-                    that->field_representation_)) {
-              if (this->field_representation_.IsDouble() ||
-                  that->field_representation_.IsDouble()) {
-                return false;
-              }
-              this->field_representation_ = Representation::Tagged();
-            }
-            if (this->field_map_.address() != that->field_map_.address()) {
-              this->field_map_ = MaybeHandle<Map>();
-            }
-            break;
-          }
-          case AccessMode::kStore:
-          case AccessMode::kStoreInLiteral: {
-            // For stores, the field map and field representation information
-            // must match exactly, otherwise we cannot merge the stores. We
-            // also need to make sure that in case of transitioning stores,
-            // the transition targets match.
-            if (this->field_map_.address() != that->field_map_.address() ||
-                !this->field_representation_.Equals(
-                    that->field_representation_) ||
-                this->transition_map_.address() !=
-                    that->transition_map_.address()) {
+        return false;
+      }
+
+      switch (access_mode) {
+        case AccessMode::kHas:
+        case AccessMode::kLoad: {
+          if (!field_representation_.Equals(that->field_representation_)) {
+            if (field_representation_.IsDouble() ||
+                that->field_representation_.IsDouble()) {
               return false;
             }
-            break;
+            field_representation_ = Representation::Tagged();
           }
+          if (!OptionalRefEquals(field_map_, that->field_map_)) {
+            field_map_ = {};
+          }
+          break;
         }
-        this->field_type_ =
-            Type::Union(this->field_type_, that->field_type_, zone);
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        this->unrecorded_dependencies_.insert(
-            this->unrecorded_dependencies_.end(),
-            that->unrecorded_dependencies_.begin(),
-            that->unrecorded_dependencies_.end());
-        return true;
+        case AccessMode::kStore:
+        case AccessMode::kStoreInLiteral: {
+          // For stores, the field map and field representation information
+          // must match exactly, otherwise we cannot merge the stores. We
+          // also need to make sure that in case of transitioning stores,
+          // the transition targets match.
+          if (!OptionalRefEquals(field_map_, that->field_map_) ||
+              !field_representation_.Equals(that->field_representation_) ||
+              !OptionalRefEquals(transition_map_, that->transition_map_)) {
+            return false;
+          }
+          break;
+        }
       }
-      return false;
+
+      field_type_ = Type::Union(field_type_, that->field_type_, zone);
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      AppendVector(&unrecorded_dependencies_, that->unrecorded_dependencies_);
+      return true;
     }
 
     case kDictionaryProtoAccessorConstant:
     case kFastAccessorConstant: {
       // Check if we actually access the same constant.
-      if (this->constant_.address() == that->constant_.address()) {
-        DCHECK(this->unrecorded_dependencies_.empty());
-        DCHECK(that->unrecorded_dependencies_.empty());
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        return true;
-      }
-      return false;
+      if (!OptionalRefEquals(constant_, that->constant_)) return false;
+
+      DCHECK(unrecorded_dependencies_.empty());
+      DCHECK(that->unrecorded_dependencies_.empty());
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
     }
 
     case kDictionaryProtoDataConstant: {
       DCHECK_EQ(AccessMode::kLoad, access_mode);
-      if (this->dictionary_index_ == that->dictionary_index_) {
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        return true;
-      }
-      return false;
+      if (dictionary_index_ != that->dictionary_index_) return false;
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
     }
 
     case kNotFound:
     case kStringLength: {
-      DCHECK(this->unrecorded_dependencies_.empty());
+      DCHECK(unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
-      this->lookup_start_object_maps_.insert(
-          this->lookup_start_object_maps_.end(),
-          that->lookup_start_object_maps_.begin(),
-          that->lookup_start_object_maps_.end());
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
       return true;
     }
     case kModuleExport:
@@ -369,10 +370,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
-  if (IsFastDataConstant()) {
-    return ConstFieldInfo(field_owner_map_.ToHandleChecked());
-  }
-  return ConstFieldInfo::None();
+  return IsFastDataConstant() ? ConstFieldInfo(field_owner_map_->object())
+                              : ConstFieldInfo::None();
 }
 
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
@@ -384,13 +383,9 @@ AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
       zone_(zone) {}
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
-    Handle<Map> map, AccessMode access_mode) const {
-  // Check if it is safe to inline element access for the {map}.
-  base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
-  if (!map_ref.has_value()) return {};
-  if (!CanInlineElementAccess(*map_ref)) return base::nullopt;
-  ElementsKind const elements_kind = map_ref->elements_kind();
-  return ElementAccessInfo({{map}, zone()}, elements_kind, zone());
+    MapRef map, AccessMode access_mode) const {
+  if (!CanInlineElementAccess(map)) return {};
+  return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(
@@ -412,13 +407,17 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
   for (auto const& group : feedback.transition_groups()) {
     DCHECK(!group.empty());
-    Handle<Map> target = group.front();
+    base::Optional<MapRef> target =
+        MakeRefAssumeMemoryFence(broker(), group.front());
     base::Optional<ElementAccessInfo> access_info =
-        ComputeElementAccessInfo(target, access_mode);
+        ComputeElementAccessInfo(target.value(), access_mode);
     if (!access_info.has_value()) return false;
 
     for (size_t i = 1; i < group.size(); ++i) {
-      access_info->AddTransitionSource(group[i]);
+      base::Optional<MapRef> map_ref =
+          MakeRefAssumeMemoryFence(broker(), group[i]);
+      if (!map_ref.has_value()) continue;
+      access_info->AddTransitionSource(map_ref.value());
     }
     access_infos->push_back(*access_info);
   }
@@ -426,11 +425,11 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
-    Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
+    MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
-      map->instance_descriptors(kAcquireLoad));
+  // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
+  Handle<DescriptorArray> descriptors = map.instance_descriptors().object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
@@ -442,34 +441,31 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // here and fall back to use the regular IC logic instead.
     return Invalid();
   }
-  FieldIndex field_index =
-      FieldIndex::ForPropertyIndex(*map, index, details_representation);
+  FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
+                                                        details_representation);
   Type field_type = Type::NonInternal();
-  MaybeHandle<Map> field_map;
-
-  base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
-  if (!map_ref.has_value()) return Invalid();
+  base::Optional<MapRef> field_map;
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
-  if (!map_ref->TrySerializeOwnDescriptor(descriptor)) {
-    return Invalid();
-  }
+
+  Handle<FieldType> descriptors_field_type =
+      broker()->CanonicalPersistentHandle(
+          descriptors->GetFieldType(descriptor));
+  base::Optional<ObjectRef> descriptors_field_type_ref =
+      TryMakeRef<Object>(broker(), descriptors_field_type);
+  if (!descriptors_field_type_ref.has_value()) return Invalid();
+
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
-                                                                  descriptor));
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            map, descriptor, details_representation));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
-                                                                  descriptor));
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            map, descriptor, details_representation));
   } else if (details_representation.IsHeapObject()) {
-    // Extract the field type from the property details (make sure its
-    // representation is TaggedPointer to reflect the heap object case).
-    Handle<FieldType> descriptors_field_type =
-        broker()->CanonicalPersistentHandle(
-            descriptors->GetFieldType(descriptor));
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       if (access_mode == AccessMode::kStore) {
@@ -480,16 +476,15 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // about the contents now.
     }
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
-                                                                  descriptor));
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            map, descriptor, details_representation));
     if (descriptors_field_type->IsClass()) {
       // Remember the field map, and try to infer a useful type.
-      Handle<Map> map = broker()->CanonicalPersistentHandle(
-          descriptors_field_type->AsClass());
-      base::Optional<MapRef> maybe_ref = TryMakeRef(broker(), map);
-      if (!maybe_ref.has_value()) return Invalid();
-      field_type = Type::For(*maybe_ref);
-      field_map = MaybeHandle<Map>(map);
+      base::Optional<MapRef> maybe_field_map =
+          TryMakeRef(broker(), descriptors_field_type->AsClass());
+      if (!maybe_field_map.has_value()) return Invalid();
+      field_type = Type::For(maybe_field_map.value());
+      field_map = maybe_field_map;
     }
   } else {
     CHECK(details_representation.IsTagged());
@@ -497,63 +492,74 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   // TODO(turbofan): We may want to do this only depending on the use
   // of the access info.
   unrecorded_dependencies.push_back(
-      dependencies()->FieldTypeDependencyOffTheRecord(*map_ref, descriptor));
+      dependencies()->FieldTypeDependencyOffTheRecord(
+          map, descriptor, descriptors_field_type_ref.value()));
 
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
   } else {
-    constness = dependencies()->DependOnFieldConstness(*map_ref, descriptor);
+    constness = dependencies()->DependOnFieldConstness(map, descriptor);
   }
-  // TODO(v8:11670): Make FindFieldOwner and friends robust wrt concurrency.
-  Handle<Map> field_owner_map = broker()->CanonicalPersistentHandle(
-      map->FindFieldOwner(isolate(), descriptor));
+
+  // Note: FindFieldOwner may be called multiple times throughout one
+  // compilation. This is safe since its result is fixed for a given map and
+  // descriptor.
+  MapRef field_owner_map = map.FindFieldOwner(descriptor);
+
   switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
-          holder);
+          holder, {});
+
     case PropertyConstness::kConst:
       return PropertyAccessInfo::FastDataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
-          holder);
+          holder, {});
   }
   UNREACHABLE();
 }
 
 namespace {
+
 using AccessorsObjectGetter = std::function<Handle<Object>()>;
 
 PropertyAccessInfo AccessorAccessInfoHelper(
     Isolate* isolate, Zone* zone, JSHeapBroker* broker,
-    const AccessInfoFactory* ai_factory, Handle<Map> receiver_map,
-    Handle<Name> name, Handle<Map> map, MaybeHandle<JSObject> holder,
-    AccessMode access_mode, AccessorsObjectGetter get_accessors) {
-  if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
-    DCHECK(map->is_prototype_map());
+    const AccessInfoFactory* ai_factory, MapRef receiver_map, NameRef name,
+    MapRef map, base::Optional<JSObjectRef> holder, AccessMode access_mode,
+    AccessorsObjectGetter get_accessors) {
+  if (map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
+    DCHECK(map.object()->is_prototype_map());
     Handle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
-        PrototypeInfo::cast(map->prototype_info()));
+        PrototypeInfo::cast(map.object()->prototype_info()));
     Handle<JSModuleNamespace> module_namespace =
         broker->CanonicalPersistentHandle(
             JSModuleNamespace::cast(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cell::cast(module_namespace->module().exports().Lookup(
-            isolate, name, Smi::ToInt(name->GetHash()))));
+            isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
     if (cell->value().IsTheHole(isolate)) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }
-    return PropertyAccessInfo::ModuleExport(zone, receiver_map, cell);
+    base::Optional<CellRef> cell_ref = TryMakeRef(broker, cell);
+    if (!cell_ref.has_value()) {
+      return PropertyAccessInfo::Invalid(zone);
+    }
+    return PropertyAccessInfo::ModuleExport(zone, receiver_map,
+                                            cell_ref.value());
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
-    DCHECK(!map->is_dictionary_map());
+    DCHECK(!map.is_dictionary_map());
 
     // HasProperty checks don't call getter/setters, existence is sufficient.
-    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map,
-                                                    Handle<Object>(), holder);
+    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, {},
+                                                    holder);
   }
   Handle<Object> maybe_accessors = get_accessors();
   if (!maybe_accessors->IsAccessorPair()) {
@@ -561,61 +567,74 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   }
   Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(maybe_accessors);
   Handle<Object> accessor = broker->CanonicalPersistentHandle(
-      access_mode == AccessMode::kLoad ? accessors->getter()
-                                       : accessors->setter());
+      access_mode == AccessMode::kLoad ? accessors->getter(kAcquireLoad)
+                                       : accessors->setter(kAcquireLoad));
 
-  ObjectData* data = broker->TryGetOrCreateData(accessor);
-  if (data == nullptr) return PropertyAccessInfo::Invalid(zone);
+  base::Optional<ObjectRef> accessor_ref = TryMakeRef(broker, accessor);
+  if (!accessor_ref.has_value()) return PropertyAccessInfo::Invalid(zone);
 
   if (!accessor->IsJSFunction()) {
     CallOptimization optimization(broker->local_isolate_or_isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
-            *broker->target_native_context().object(), *map)) {
+            *broker->target_native_context().object(), *map.object())) {
       return PropertyAccessInfo::Invalid(zone);
     }
 
     CallOptimization::HolderLookup lookup;
-    holder = broker->CanonicalPersistentHandle(
+    Handle<JSObject> holder_handle = broker->CanonicalPersistentHandle(
         optimization.LookupHolderOfExpectedType(
-            broker->local_isolate_or_isolate(), receiver_map, &lookup));
+            broker->local_isolate_or_isolate(), receiver_map.object(),
+            &lookup));
     if (lookup == CallOptimization::kHolderNotFound) {
       return PropertyAccessInfo::Invalid(zone);
     }
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
-                   holder.is_null());
-    DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound, !holder.is_null());
-  }
-  if (access_mode == AccessMode::kLoad) {
-    base::Optional<Name> maybe_cached_property_name =
-        FunctionTemplateInfo::TryGetCachedPropertyName(isolate, *accessor);
-    if (maybe_cached_property_name.has_value()) {
-      Handle<Name> cached_property_name =
-          broker->CanonicalPersistentHandle(maybe_cached_property_name.value());
-      PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-          map, cached_property_name, access_mode);
-      if (!access_info.IsInvalid()) return access_info;
+                   holder_handle.is_null());
+    DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound,
+                   !holder_handle.is_null());
+
+    if (holder_handle.is_null()) {
+      holder = {};
+    } else {
+      holder = TryMakeRef(broker, holder_handle);
+      if (!holder.has_value()) return PropertyAccessInfo::Invalid(zone);
     }
   }
-  if (map->is_dictionary_map()) {
+  if (access_mode == AccessMode::kLoad) {
+    base::Optional<Name> cached_property_name =
+        FunctionTemplateInfo::TryGetCachedPropertyName(isolate, *accessor);
+    if (cached_property_name.has_value()) {
+      base::Optional<NameRef> cached_property_name_ref =
+          TryMakeRef(broker, cached_property_name.value());
+      if (cached_property_name_ref.has_value()) {
+        PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
+            map, cached_property_name_ref.value(), access_mode);
+        if (!access_info.IsInvalid()) return access_info;
+      }
+    }
+  }
+
+  if (map.is_dictionary_map()) {
     return PropertyAccessInfo::DictionaryProtoAccessorConstant(
-        zone, receiver_map, holder, accessor, name);
+        zone, receiver_map, holder, accessor_ref.value(), name);
   } else {
-    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map,
-                                                    accessor, holder);
+    return PropertyAccessInfo::FastAccessorConstant(
+        zone, receiver_map, accessor_ref.value(), holder);
   }
 }
 
 }  // namespace
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
-    Handle<Map> receiver_map, Handle<Name> name, Handle<Map> holder_map,
-    MaybeHandle<JSObject> holder, InternalIndex descriptor,
+    MapRef receiver_map, NameRef name, MapRef holder_map,
+    base::Optional<JSObjectRef> holder, InternalIndex descriptor,
     AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
-      holder_map->instance_descriptors(kRelaxedLoad));
-  SLOW_DCHECK(descriptor == descriptors->Search(*name, *holder_map));
+      holder_map.object()->instance_descriptors(kRelaxedLoad));
+  SLOW_DCHECK(descriptor ==
+              descriptors->Search(*name.object(), *holder_map.object()));
 
   auto get_accessors = [&]() {
     return broker()->CanonicalPersistentHandle(
@@ -627,11 +646,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
-    Handle<Map> receiver_map, Handle<Name> name, Handle<JSObject> holder,
+    MapRef receiver_map, NameRef name, JSObjectRef holder,
     InternalIndex dictionary_index, AccessMode access_mode,
     PropertyDetails details) const {
   CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-  DCHECK(holder->map().is_prototype_map());
+  DCHECK(holder.map().object()->is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
   // We can only inline accesses to constant properties.
@@ -645,11 +664,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
   }
 
   auto get_accessors = [&]() {
-    return JSObject::DictionaryPropertyAt(isolate(), holder, dictionary_index);
+    return JSObject::DictionaryPropertyAt(isolate(), holder.object(),
+                                          dictionary_index);
   };
-  Handle<Map> holder_map = broker()->CanonicalPersistentHandle(holder->map());
   return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
-                                  receiver_map, name, holder_map, holder,
+                                  receiver_map, name, holder.map(), holder,
                                   access_mode, get_accessors);
 }
 
@@ -668,15 +687,15 @@ MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 }
 
 bool AccessInfoFactory::TryLoadPropertyDetails(
-    Handle<Map> map, MaybeHandle<JSObject> maybe_holder, Handle<Name> name,
+    MapRef map, base::Optional<JSObjectRef> maybe_holder, NameRef name,
     InternalIndex* index_out, PropertyDetails* details_out) const {
-  if (map->is_dictionary_map()) {
+  if (map.is_dictionary_map()) {
     DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
-    DCHECK(map->is_prototype_map());
+    DCHECK(map.object()->is_prototype_map());
 
     DisallowGarbageCollection no_gc;
 
-    if (maybe_holder.is_null()) {
+    if (!maybe_holder.has_value()) {
       // TODO(v8:11457) In this situation, we have a dictionary mode prototype
       // as a receiver. Consider other means of obtaining the holder in this
       // situation.
@@ -685,24 +704,24 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
       return false;
     }
 
-    Handle<JSObject> holder = maybe_holder.ToHandleChecked();
+    Handle<JSObject> holder = maybe_holder->object();
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dict = holder->property_dictionary_swiss();
-      *index_out = dict.FindEntry(isolate(), name);
+      *index_out = dict.FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
         *details_out = dict.DetailsAt(*index_out);
       }
     } else {
       NameDictionary dict = holder->property_dictionary();
-      *index_out = dict.FindEntry(isolate(), name);
+      *index_out = dict.FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
         *details_out = dict.DetailsAt(*index_out);
       }
     }
   } else {
-    DescriptorArray descriptors = map->instance_descriptors(kAcquireLoad);
-    *index_out =
-        descriptors.Search(*name, *map, broker()->is_concurrent_inlining());
+    DescriptorArray descriptors = *map.instance_descriptors().object();
+    *index_out = descriptors.Search(*name.object(), *map.object(),
+                                    broker()->is_concurrent_inlining());
     if (index_out->is_found()) {
       *details_out = descriptors.GetDetails(*index_out);
     }
@@ -712,12 +731,17 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
-  CHECK(name->IsUniqueName());
+    MapRef map, NameRef name, AccessMode access_mode) const {
+  CHECK(name.IsUniqueName());
+
+  // Dictionary property const tracking is unsupported when concurrent inlining
+  // is enabled.
+  CHECK_IMPLIES(V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                !broker()->is_concurrent_inlining());
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
-  if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) {
+  if (access_mode == AccessMode::kHas && !map.object()->IsJSReceiverMap()) {
     return Invalid();
   }
 
@@ -737,8 +761,21 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   bool fast_mode_prototype_on_chain = false;
 
   // Remember the receiver map. We use {map} as loop variable.
-  Handle<Map> receiver_map = map;
-  MaybeHandle<JSObject> holder;
+  MapRef receiver_map = map;
+  base::Optional<JSObjectRef> holder;
+
+  // Perform the implicit ToObject for primitives here.
+  // Implemented according to ES6 section 7.3.2 GetV (V, P).
+  // Note: Keep sync'd with
+  // CompilationDependencies::DependOnStablePrototypeChains.
+  if (receiver_map.IsPrimitiveMap()) {
+    base::Optional<JSFunctionRef> constructor =
+        broker()->target_native_context().GetConstructorFunction(receiver_map);
+    if (!constructor.has_value()) return Invalid();
+    map = constructor->initial_map(broker()->dependencies());
+    DCHECK(!map.IsPrimitiveMap());
+  }
+
   while (true) {
     PropertyDetails details = PropertyDetails::Empty();
     InternalIndex index = InternalIndex::NotFound();
@@ -749,13 +786,12 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (index.is_found()) {
       if (access_mode == AccessMode::kStore ||
           access_mode == AccessMode::kStoreInLiteral) {
-        DCHECK(!map->is_dictionary_map());
+        DCHECK(!map.is_dictionary_map());
 
         // Don't bother optimizing stores to read-only properties.
-        if (details.IsReadOnly()) {
-          return Invalid();
-        }
-        if (details.kind() == kData && !holder.is_null()) {
+        if (details.IsReadOnly()) return Invalid();
+
+        if (details.kind() == kData && holder.has_value()) {
           // This is a store to a property not found on the receiver but on a
           // prototype. According to ES6 section 9.1.9 [[Set]], we need to
           // create a new data property on the receiver. We can still optimize
@@ -763,7 +799,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           return LookupTransition(receiver_map, name, holder);
         }
       }
-      if (map->is_dictionary_map()) {
+
+      if (map.is_dictionary_map()) {
         DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
         if (fast_mode_prototype_on_chain) {
@@ -776,10 +813,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         }
 
         // TryLoadPropertyDetails only succeeds if we know the holder.
-        return ComputeDictionaryProtoAccessInfo(receiver_map, name,
-                                                holder.ToHandleChecked(), index,
-                                                access_mode, details);
+        return ComputeDictionaryProtoAccessInfo(
+            receiver_map, name, holder.value(), index, access_mode, details);
       }
+
       if (dictionary_prototype_on_chain) {
         // If V8_DICT_PROPERTY_CONST_TRACKING_BOOL was disabled, then a
         // dictionary prototype would have caused a bailout earlier.
@@ -817,12 +854,13 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // The property wasn't found on {map}. Look on the prototype if appropriate.
+    DCHECK(!index.is_found());
 
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
-    if (map->IsJSTypedArrayMap() && name->IsString()) {
+    if (map.object()->IsJSTypedArrayMap() && name.IsString()) {
       if (broker()->IsMainThread()) {
-        if (IsSpecialIndex(String::cast(*name))) {
+        if (IsSpecialIndex(String::cast(*name.object()))) {
           return Invalid();
         }
       } else {
@@ -839,72 +877,67 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Don't lookup private symbols on the prototype chain.
-    if (name->IsPrivate()) {
+    if (name.object()->IsPrivate()) {
       return Invalid();
     }
 
-    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !holder.is_null()) {
+    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
-      DCHECK(holder.ToHandleChecked()->map().is_prototype_map());
-      DCHECK_NE(holder.ToHandleChecked()->map(), *receiver_map);
+      DCHECK(holder->object()->map().is_prototype_map());
+      DCHECK(!holder->map().equals(receiver_map));
 
       fast_mode_prototype_on_chain =
-          fast_mode_prototype_on_chain || !map->is_dictionary_map();
+          fast_mode_prototype_on_chain || !map.is_dictionary_map();
       dictionary_prototype_on_chain =
-          dictionary_prototype_on_chain || map->is_dictionary_map();
+          dictionary_prototype_on_chain || map.is_dictionary_map();
     }
 
     // Walk up the prototype chain.
-    base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
-    if (!map_ref.has_value()) return Invalid();
-    if (!map_ref->TrySerializePrototype()) return Invalid();
-
-    // Acquire synchronously the map's prototype's map to guarantee that every
-    // time we use it, we use the same Map.
-    Handle<Map> map_prototype_map =
-        broker()->CanonicalPersistentHandle(map->prototype().map(kAcquireLoad));
-    if (!map_prototype_map->IsJSObjectMap()) {
-      // Perform the implicit ToObject for primitives here.
-      // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      Handle<JSFunction> constructor;
-      base::Optional<JSFunction> maybe_constructor =
-          Map::GetConstructorFunction(
-              *map, *broker()->target_native_context().object());
-      if (maybe_constructor.has_value()) {
-        map = broker()->CanonicalPersistentHandle(
-            maybe_constructor->initial_map());
-        map_prototype_map = broker()->CanonicalPersistentHandle(
-            map->prototype().map(kAcquireLoad));
-        DCHECK(map_prototype_map->IsJSObjectMap());
-      } else if (map->prototype().IsNull()) {
-        if (dictionary_prototype_on_chain) {
-          // TODO(v8:11248) See earlier comment about
-          // dictionary_prototype_on_chain. We don't support absent properties
-          // with dictionary mode prototypes on the chain, either. This is again
-          // just due to how we currently deal with dependencies for dictionary
-          // properties during finalization.
-          return Invalid();
-        }
-
-        // Store to property not found on the receiver or any prototype, we need
-        // to transition to a new data property.
-        // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
-        if (access_mode == AccessMode::kStore) {
-          return LookupTransition(receiver_map, name, holder);
-        }
-        // The property was not found (access returns undefined or throws
-        // depending on the language mode of the load operation.
-        // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
-        return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
-      } else {
+    if (!broker()->is_concurrent_inlining()) {
+      if (!map.TrySerializePrototype(NotConcurrentInliningTag{broker()})) {
         return Invalid();
       }
     }
 
-    holder =
-        broker()->CanonicalPersistentHandle(JSObject::cast(map->prototype()));
+    // Load the map's prototype's map to guarantee that every time we use it,
+    // we use the same Map.
+    base::Optional<HeapObjectRef> prototype = map.prototype();
+    if (!prototype.has_value()) return Invalid();
+
+    MapRef map_prototype_map = prototype->map();
+    if (!map_prototype_map.object()->IsJSObjectMap()) {
+      // Don't allow proxies on the prototype chain.
+      if (!prototype->IsNull()) {
+        DCHECK(prototype->object()->IsJSProxy());
+        return Invalid();
+      }
+
+      DCHECK(prototype->IsNull());
+
+      if (dictionary_prototype_on_chain) {
+        // TODO(v8:11248) See earlier comment about
+        // dictionary_prototype_on_chain. We don't support absent properties
+        // with dictionary mode prototypes on the chain, either. This is again
+        // just due to how we currently deal with dependencies for dictionary
+        // properties during finalization.
+        return Invalid();
+      }
+
+      // Store to property not found on the receiver or any prototype, we need
+      // to transition to a new data property.
+      // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
+      if (access_mode == AccessMode::kStore) {
+        return LookupTransition(receiver_map, name, holder);
+      }
+
+      // The property was not found (access returns undefined or throws
+      // depending on the language mode of the load operation.
+      // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
+      return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
+    }
+
+    holder = prototype->AsJSObject();
     map = map_prototype_map;
-    CHECK(!map->is_deprecated());
 
     if (!CanInlinePropertyAccess(map, access_mode)) {
       return Invalid();
@@ -912,8 +945,12 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Successful lookup on prototype chain needs to guarantee that all the
     // prototypes up to the holder have stable maps, except for dictionary-mode
-    // prototypes.
-    CHECK_IMPLIES(!map->is_dictionary_map(), map->is_stable());
+    // prototypes. We currently do this by taking a
+    // DependOnStablePrototypeChains dependency in the caller.
+    //
+    // TODO(jgruber): This is brittle and easy to miss. Consider a refactor
+    // that moves the responsibility of taking the dependency into
+    // AccessInfoFactory.
   }
   UNREACHABLE();
 }
@@ -930,15 +967,6 @@ PropertyAccessInfo AccessInfoFactory::FinalizePropertyAccessInfosAsOne(
     }
   }
   return Invalid();
-}
-
-void AccessInfoFactory::ComputePropertyAccessInfos(
-    MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
-    ZoneVector<PropertyAccessInfo>* access_infos) const {
-  DCHECK(access_infos->empty());
-  for (Handle<Map> map : maps) {
-    access_infos->push_back(ComputePropertyAccessInfo(map, name, access_mode));
-  }
 }
 
 void PropertyAccessInfo::RecordDependencies(
@@ -1007,7 +1035,7 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
     ElementAccessFeedback const& feedback) const {
-  if (feedback.transition_groups().empty()) return base::nullopt;
+  if (feedback.transition_groups().empty()) return {};
 
   DCHECK(!feedback.transition_groups().front().empty());
   Handle<Map> first_map = feedback.transition_groups().front().front();
@@ -1016,20 +1044,20 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
   InstanceType instance_type = first_map_ref->instance_type();
   ElementsKind elements_kind = first_map_ref->elements_kind();
 
-  ZoneVector<Handle<Map>> maps(zone());
+  ZoneVector<MapRef> maps(zone());
   for (auto const& group : feedback.transition_groups()) {
     for (Handle<Map> map_handle : group) {
       base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
       if (!map.has_value()) return {};
       if (map->instance_type() != instance_type ||
           !CanInlineElementAccess(*map)) {
-        return base::nullopt;
+        return {};
       }
       if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
                .To(&elements_kind)) {
-        return base::nullopt;
+        return {};
       }
-      maps.push_back(map->object());
+      maps.push_back(map.value());
     }
   }
 
@@ -1037,31 +1065,33 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
 }
 
 PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
-    Handle<Map> map, Handle<Name> name) const {
+    MapRef map, NameRef name) const {
   // Check for String::length field accessor.
-  if (map->IsStringMap()) {
-    if (Name::Equals(isolate(), name, isolate()->factory()->length_string())) {
+  if (map.object()->IsStringMap()) {
+    if (Name::Equals(isolate(), name.object(),
+                     isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringLength(zone(), map);
     }
     return Invalid();
   }
   // Check for special JSObject field accessors.
   FieldIndex field_index;
-  if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
+  if (Accessors::IsJSObjectFieldAccessor(isolate(), map.object(), name.object(),
+                                         &field_index)) {
     Type field_type = Type::NonInternal();
     Representation field_representation = Representation::Tagged();
-    if (map->IsJSArrayMap()) {
-      DCHECK(
-          Name::Equals(isolate(), isolate()->factory()->length_string(), name));
+    if (map.object()->IsJSArrayMap()) {
+      DCHECK(Name::Equals(isolate(), isolate()->factory()->length_string(),
+                          name.object()));
       // The JSArray::length property is a smi in the range
       // [0, FixedDoubleArray::kMaxLength] in case of fast double
       // elements, a smi in the range [0, FixedArray::kMaxLength]
       // in case of other fast elements, and [0, kMaxUInt32] in
       // case of other arrays.
-      if (IsDoubleElementsKind(map->elements_kind())) {
+      if (IsDoubleElementsKind(map.elements_kind())) {
         field_type = type_cache_->kFixedDoubleArrayLengthType;
         field_representation = Representation::Smi();
-      } else if (IsFastElementsKind(map->elements_kind())) {
+      } else if (IsFastElementsKind(map.elements_kind())) {
         field_type = type_cache_->kFixedArrayLengthType;
         field_representation = Representation::Smi();
       } else {
@@ -1070,97 +1100,96 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(zone(), map, {{}, zone()}, field_index,
-                                         field_representation, field_type, map);
+                                         field_representation, field_type, map,
+                                         {}, {}, {});
   }
   return Invalid();
 }
 
 PropertyAccessInfo AccessInfoFactory::LookupTransition(
-    Handle<Map> map, Handle<Name> name, MaybeHandle<JSObject> holder) const {
+    MapRef map, NameRef name, base::Optional<JSObjectRef> holder) const {
   // Check if the {map} has a data transition with the given {name}.
-  Map transition =
-      TransitionsAccessor(isolate(), map, broker()->is_concurrent_inlining())
-          .SearchTransition(*name, kData, NONE);
-  if (transition.is_null()) {
-    return Invalid();
-  }
+  Map transition = TransitionsAccessor(isolate(), map.object(),
+                                       broker()->is_concurrent_inlining())
+                       .SearchTransition(*name.object(), kData, NONE);
+  if (transition.is_null()) return Invalid();
 
-  Handle<Map> transition_map = broker()->CanonicalPersistentHandle(transition);
-  InternalIndex const number = transition_map->LastAdded();
-  Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
-      transition_map->instance_descriptors(kAcquireLoad));
+  base::Optional<MapRef> maybe_transition_map =
+      TryMakeRef(broker(), transition);
+  if (!maybe_transition_map.has_value()) return Invalid();
+  MapRef transition_map = maybe_transition_map.value();
+
+  InternalIndex const number = transition_map.object()->LastAdded();
+  Handle<DescriptorArray> descriptors =
+      transition_map.instance_descriptors().object();
   PropertyDetails const details = descriptors->GetDetails(number);
+
   // Don't bother optimizing stores to read-only properties.
-  if (details.IsReadOnly()) {
-    return Invalid();
-  }
+  if (details.IsReadOnly()) return Invalid();
+
   // TODO(bmeurer): Handle transition to data constant?
-  if (details.location() != kField) {
-    return Invalid();
-  }
+  if (details.location() != kField) return Invalid();
+
   int const index = details.field_index();
   Representation details_representation = details.representation();
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(*transition_map, index,
-                                                        details_representation);
+  FieldIndex field_index = FieldIndex::ForPropertyIndex(
+      *transition_map.object(), index, details_representation);
   Type field_type = Type::NonInternal();
-  MaybeHandle<Map> field_map;
-
-  base::Optional<MapRef> transition_map_ref =
-      TryMakeRef(broker(), transition_map);
-  if (!transition_map_ref.has_value()) return Invalid();
+  base::Optional<MapRef> field_map;
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
-    }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            *transition_map_ref, number));
+            transition_map, number, details_representation));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
-    }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            *transition_map_ref, number));
+            transition_map, number, details_representation));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
+    // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
     Handle<FieldType> descriptors_field_type =
         broker()->CanonicalPersistentHandle(descriptors->GetFieldType(number));
+    base::Optional<ObjectRef> descriptors_field_type_ref =
+        TryMakeRef<Object>(broker(), descriptors_field_type);
+    if (!descriptors_field_type_ref.has_value()) return Invalid();
+
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return Invalid();
     }
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
-    }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            *transition_map_ref, number));
+            transition_map, number, details_representation));
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
-          dependencies()->FieldTypeDependencyOffTheRecord(*transition_map_ref,
-                                                          number));
+          dependencies()->FieldTypeDependencyOffTheRecord(
+              transition_map, number,
+              MakeRef<Object>(broker(), descriptors_field_type)));
       // Remember the field map, and try to infer a useful type.
-      Handle<Map> map = broker()->CanonicalPersistentHandle(
-          descriptors_field_type->AsClass());
-      base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
-      if (!map_ref.has_value()) return Invalid();
-      field_type = Type::For(*map_ref);
-      field_map = map;
+      base::Optional<MapRef> maybe_field_map =
+          TryMakeRef(broker(), descriptors_field_type->AsClass());
+      if (!maybe_field_map.has_value()) return Invalid();
+      field_type = Type::For(maybe_field_map.value());
+      field_map = maybe_field_map;
     }
   }
+
   unrecorded_dependencies.push_back(
-      dependencies()->TransitionDependencyOffTheRecord(*transition_map_ref));
-  transition_map_ref->SerializeBackPointer();  // For BuildPropertyStore.
+      dependencies()->TransitionDependencyOffTheRecord(transition_map));
+  if (!broker()->is_concurrent_inlining()) {
+    transition_map.SerializeBackPointer(
+        NotConcurrentInliningTag{broker()});  // For BuildPropertyStore.
+  }
+
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.
-  switch (dependencies()->DependOnFieldConstness(*transition_map_ref, number)) {
+  switch (dependencies()->DependOnFieldConstness(transition_map, number)) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), map, std::move(unrecorded_dependencies), field_index,

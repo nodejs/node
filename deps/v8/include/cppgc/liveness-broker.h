@@ -44,7 +44,10 @@ class V8_EXPORT LivenessBroker final {
  public:
   template <typename T>
   bool IsHeapObjectAlive(const T* object) const {
-    return object &&
+    // nullptr objects are considered alive to allow weakness to be used from
+    // stack while running into a conservative GC. Treating nullptr as dead
+    // would mean that e.g. custom collectins could not be strongified on stack.
+    return !object ||
            IsHeapObjectAliveImpl(
                TraceTrait<T>::GetTraceDescriptor(object).base_object_payload);
   }

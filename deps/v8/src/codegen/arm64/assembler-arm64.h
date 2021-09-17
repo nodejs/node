@@ -204,6 +204,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  // This function is called when on-heap-compilation invariants are
+  // invalidated. For instance, when the assembler buffer grows or a GC happens
+  // between Code object allocation and Code object finalization.
+  void FixOnHeapReferences(bool update_embedded_objects = true);
+
+  // This function is called when we fallback from on-heap to off-heap
+  // compilation and patch on-heap references to handles.
+  void FixOnHeapReferencesToHandles();
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
@@ -213,6 +222,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   inline void Unreachable();
 
@@ -339,8 +349,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   int buffer_space() const;
 
@@ -2067,7 +2077,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNone(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+             RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
@@ -2075,7 +2086,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNone(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+             RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2083,7 +2095,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNone(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+             RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2675,6 +2688,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static size_t GetApproxMaxDistToConstPoolForTesting() {
     return ConstantPool::kApproxDistToPool64;
+  }
+
+  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object,
+                             EmbeddedObjectIndex index) {
+    return *reinterpret_cast<uint64_t*>(buffer_->start() + pc_offset) ==
+           (IsOnHeap() ? object->ptr() : index);
   }
 #endif
 

@@ -55,16 +55,6 @@ for (var i = 0; i < 10; i++) {
   mixedSet.add(i);
 }
 
-var deterministicNativeFunction = Math.log;
-var parentObj = {};
-Object.defineProperty(parentObj, 'propNotNamedProto', {
-  get: deterministicNativeFunction,
-  set: function() {}
-});
-inspector.allowAccessorFormatting(parentObj);
-var objInheritsGetterProperty = {__proto__: parentObj};
-inspector.allowAccessorFormatting(objInheritsGetterProperty);
-
 var arrayWithLongValues = ["a".repeat(101), 2n**401n];
 `);
 
@@ -130,13 +120,6 @@ InspectorTest.runTestSuite([
   function testMixedSetPropertiesPreview(next)
   {
     Protocol.Runtime.evaluate({ "expression": "mixedSet", "generatePreview": true })
-        .then(result => InspectorTest.logMessage(result.result.result.preview))
-        .then(next);
-  },
-
-  function testObjInheritsGetterProperty(next)
-  {
-    Protocol.Runtime.evaluate({ "expression": "objInheritsGetterProperty", "generatePreview": true })
         .then(result => InspectorTest.logMessage(result.result.result.preview))
         .then(next);
   },

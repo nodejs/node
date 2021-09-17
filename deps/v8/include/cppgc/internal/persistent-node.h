@@ -75,7 +75,7 @@ class PersistentNode final {
   TraceCallback trace_ = nullptr;
 };
 
-class V8_EXPORT PersistentRegion final {
+class V8_EXPORT PersistentRegion {
   using PersistentNodeSlots = std::array<PersistentNode, 256u>;
 
  public:
@@ -116,6 +116,9 @@ class V8_EXPORT PersistentRegion final {
  private:
   void EnsureNodeSlots();
 
+  template <typename PersistentBaseClass>
+  void ClearAllUsedNodes();
+
   std::vector<std::unique_ptr<PersistentNodeSlots>> nodes_;
   PersistentNode* free_list_head_ = nullptr;
   size_t nodes_in_use_ = 0;
@@ -135,7 +138,7 @@ class V8_EXPORT PersistentRegionLock final {
 
 // Variant of PersistentRegion that checks whether the PersistentRegionLock is
 // locked.
-class V8_EXPORT CrossThreadPersistentRegion final {
+class V8_EXPORT CrossThreadPersistentRegion final : protected PersistentRegion {
  public:
   CrossThreadPersistentRegion() = default;
   // Clears Persistent fields to avoid stale pointers after heap teardown.
@@ -147,12 +150,12 @@ class V8_EXPORT CrossThreadPersistentRegion final {
 
   V8_INLINE PersistentNode* AllocateNode(void* owner, TraceCallback trace) {
     PersistentRegionLock::AssertLocked();
-    return persistent_region_.AllocateNode(owner, trace);
+    return PersistentRegion::AllocateNode(owner, trace);
   }
 
   V8_INLINE void FreeNode(PersistentNode* node) {
     PersistentRegionLock::AssertLocked();
-    persistent_region_.FreeNode(node);
+    PersistentRegion::FreeNode(node);
   }
 
   void Trace(Visitor*);
@@ -160,9 +163,6 @@ class V8_EXPORT CrossThreadPersistentRegion final {
   size_t NodesInUse() const;
 
   void ClearAllUsedNodes();
-
- private:
-  PersistentRegion persistent_region_;
 };
 
 }  // namespace internal

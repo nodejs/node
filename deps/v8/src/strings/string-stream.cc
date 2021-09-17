@@ -365,7 +365,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   if (object_print_mode_ == kPrintObjectConcise) return;
   DebugObjectCache* debug_object_cache =
       isolate->string_stream_debug_object_cache();
-  Add("==== Key         ============================================\n\n");
+  Add("-- ObjectCacheKey --\n\n");
   for (size_t i = 0; i < debug_object_cache->size(); i++) {
     HeapObject printee = *(*debug_object_cache)[i];
     Add(" #%d# %p: ", static_cast<int>(i),

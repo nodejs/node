@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 @generatePrint
-@generateCppClass
 extern class CachedTemplateObject extends Struct {
   slot_id: Smi;
   template_object: JSArray;
@@ -11,7 +10,6 @@ extern class CachedTemplateObject extends Struct {
 }
 
 @generatePrint
-@generateCppClass
 extern class TemplateObjectDescription extends Struct {
   raw_strings: FixedArray;
   cooked_strings: FixedArray;

@@ -18,8 +18,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
-CAST_ACCESSOR(PropertyArray)
+#include "torque-generated/src/objects/property-array-tq-inl.inc"
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyArray)
 
 SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,

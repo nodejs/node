@@ -13,6 +13,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -206,43 +207,79 @@ void LiftoffAssembler::AlignFrameSize() {
   max_used_spill_offset_ = RoundUp(max_used_spill_offset_, kSystemPointerSize);
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
-  // The frame_size includes the frame marker. The frame marker has already been
-  // pushed on the stack though, so we don't need to allocate memory for it
-  // anymore.
-  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
-  // Need to align sp to system pointer size.
-  DCHECK_EQ(frame_size, RoundUp(frame_size, kSystemPointerSize));
-  // We can't run out of space, just pass anything big enough to not cause the
-  // assembler to try to grow the buffer.
+void LiftoffAssembler::PatchPrepareStackFrame(
+    int offset, SafepointTableBuilder* safepoint_table_builder) {
+  // The frame_size includes the frame marker and the instance slot. Both are
+  // pushed as part of frame construction, so we don't need to allocate memory
+  // for them anymore.
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  DCHECK_EQ(0, frame_size % kSystemPointerSize);
+
+  // We can't run out of space when patching, just pass anything big enough to
+  // not cause the assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
   Assembler patching_assembler(
       AssemblerOptions{},
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
-#if V8_TARGET_OS_WIN
-  if (frame_size > kStackPageSize) {
-    // Generate OOL code (at the end of the function, where the current
-    // assembler is pointing) to do the explicit stack limit check (see
-    // https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-studio-6.0/aa227153(v=vs.60)).
-    // At the function start, emit a jump to that OOL code (from {offset} to
-    // {pc_offset()}).
-    int ool_offset = pc_offset() - offset;
-    patching_assembler.jmp_rel(ool_offset);
-    DCHECK_GE(liftoff::kSubSpSize, patching_assembler.pc_offset());
-    patching_assembler.Nop(liftoff::kSubSpSize -
-                           patching_assembler.pc_offset());
 
-    // Now generate the OOL code.
-    AllocateStackSpace(frame_size);
-    // Jump back to the start of the function (from {pc_offset()} to {offset +
-    // kSubSpSize}).
-    int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
-    jmp_rel(func_start_offset);
+  if (V8_LIKELY(frame_size < 4 * KB)) {
+    // This is the standard case for small frames: just subtract from SP and be
+    // done with it.
+    patching_assembler.sub_sp_32(frame_size);
+    DCHECK_EQ(liftoff::kSubSpSize, patching_assembler.pc_offset());
     return;
   }
-#endif
-  patching_assembler.sub_sp_32(frame_size);
-  DCHECK_EQ(liftoff::kSubSpSize, patching_assembler.pc_offset());
+
+  // The frame size is bigger than 4KB, so we might overflow the available stack
+  // space if we first allocate the frame and then do the stack check (we will
+  // need some remaining stack space for throwing the exception). That's why we
+  // check the available stack space before we allocate the frame. To do this we
+  // replace the {__ sub(sp, framesize)} with a jump to OOL code that does this
+  // "extended stack check".
+  //
+  // The OOL code can simply be generated here with the normal assembler,
+  // because all other code generation, including OOL code, has already finished
+  // when {PatchPrepareStackFrame} is called. The function prologue then jumps
+  // to the current {pc_offset()} to execute the OOL code for allocating the
+  // large frame.
+
+  // Emit the unconditional branch in the function prologue (from {offset} to
+  // {pc_offset()}).
+  patching_assembler.jmp_rel(pc_offset() - offset);
+  DCHECK_GE(liftoff::kSubSpSize, patching_assembler.pc_offset());
+  patching_assembler.Nop(liftoff::kSubSpSize - patching_assembler.pc_offset());
+
+  // If the frame is bigger than the stack, we throw the stack overflow
+  // exception unconditionally. Thereby we can avoid the integer overflow
+  // check in the condition code.
+  RecordComment("OOL: stack check for large frame");
+  Label continuation;
+  if (frame_size < FLAG_stack_size * 1024) {
+    movq(kScratchRegister,
+         FieldOperand(kWasmInstanceRegister,
+                      WasmInstanceObject::kRealStackLimitAddressOffset));
+    movq(kScratchRegister, Operand(kScratchRegister, 0));
+    addq(kScratchRegister, Immediate(frame_size));
+    cmpq(rsp, kScratchRegister);
+    j(above_equal, &continuation, Label::kNear);
+  }
+
+  near_call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  // The call will not return; just define an empty safepoint.
+  safepoint_table_builder->DefineSafepoint(this);
+  AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+
+  bind(&continuation);
+
+  // Now allocate the stack space. Note that this might do more than just
+  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  AllocateStackSpace(frame_size);
+
+  // Jump back to the start of the function, from {pc_offset()} to
+  // right after the reserved space for the {__ sub(sp, sp, framesize)} (which
+  // is a branch now).
+  int func_start_offset = offset + liftoff::kSubSpSize;
+  jmp_rel(func_start_offset - pc_offset());
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -2321,38 +2358,6 @@ void EmitI8x16Shr(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-// Can be used by both the immediate and register version of the shifts. psraq
-// is only available in AVX512, so we can't use it yet.
-template <typename ShiftOperand>
-void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
-                   LiftoffRegister lhs, ShiftOperand rhs,
-                   bool shift_is_rcx = false) {
-  bool restore_rcx = false;
-  Register backup = kScratchRegister2;
-  if (!shift_is_rcx) {
-    if (assm->cache_state()->is_used(LiftoffRegister(rcx))) {
-      restore_rcx = true;
-      assm->movq(backup, rcx);
-    }
-    assm->movl(rcx, rhs);
-  }
-
-  Register tmp = kScratchRegister;
-
-  assm->Pextrq(tmp, lhs.fp(), int8_t{0x0});
-  assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x0});
-
-  assm->Pextrq(tmp, lhs.fp(), int8_t{0x1});
-  assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x1});
-
-  // restore rcx.
-  if (restore_rcx) {
-    assm->movq(rcx, backup);
-  }
-}
-
 inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src) {
   assm->xorq(dst.gp(), dst.gp());
@@ -3458,13 +3463,13 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  liftoff::EmitI64x2ShrS(this, dst, lhs, rhs.gp(),
-                         /*shift_is_rcx=*/rhs.gp() == rcx);
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs.gp(), kScratchDoubleReg,
+            liftoff::kScratchDoubleReg2, kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  liftoff::EmitI64x2ShrS(this, dst, lhs, Immediate(rhs));
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs & 0x3F, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,

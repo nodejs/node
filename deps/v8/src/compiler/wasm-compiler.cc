@@ -244,6 +244,21 @@ class WasmGraphAssembler : public GraphAssembler {
   // Rule of thumb: if access to a given field in an object is required in
   // at least two places, put a helper function here.
 
+  Node* Allocate(int size) {
+    AllowLargeObjects allow_large = size < kMaxRegularHeapObjectSize
+                                        ? AllowLargeObjects::kFalse
+                                        : AllowLargeObjects::kTrue;
+    return Allocate(Int32Constant(size), allow_large);
+  }
+
+  Node* Allocate(Node* size,
+                 AllowLargeObjects allow_large = AllowLargeObjects::kTrue) {
+    return AddNode(
+        graph()->NewNode(simplified_.AllocateRaw(
+                             Type::Any(), AllocationType::kYoung, allow_large),
+                         size, effect(), control()));
+  }
+
   Node* LoadFromObject(MachineType type, Node* base, Node* offset) {
     return AddNode(graph()->NewNode(
         simplified_.LoadFromObject(ObjectAccess(type, kNoWriteBarrier)), base,
@@ -2349,12 +2364,11 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   return diamond_result;
 }
 
-Node* WasmGraphBuilder::Throw(uint32_t exception_index,
-                              const wasm::WasmException* exception,
+Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
                               const base::Vector<Node*> values,
                               wasm::WasmCodePosition position) {
   needs_stack_check_ = true;
-  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
+  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(tag);
 
   Node* values_array =
       gasm_->CallRuntimeStub(wasm::WasmCode::kWasmAllocateFixedArray,
@@ -2362,7 +2376,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   SetSourcePosition(values_array, position);
 
   uint32_t index = 0;
-  const wasm::WasmExceptionSig* sig = exception->sig;
+  const wasm::WasmTagSig* sig = tag->sig;
   MachineOperatorBuilder* m = mcgraph()->machine();
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value = values[i];
@@ -2414,7 +2428,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   }
   DCHECK_EQ(encoded_size, index);
 
-  Node* exception_tag = LoadExceptionTagFromTable(exception_index);
+  Node* exception_tag = LoadTagFromTable(tag_index);
 
   Node* throw_call = gasm_->CallRuntimeStub(wasm::WasmCode::kWasmThrow,
                                             exception_tag, values_array);
@@ -2471,11 +2485,10 @@ Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
   return gasm_->WordEqual(caught_tag, expected_tag);
 }
 
-Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
-  Node* exceptions_table =
-      LOAD_INSTANCE_FIELD(ExceptionsTable, MachineType::TaggedPointer());
-  Node* tag =
-      gasm_->LoadFixedArrayElementPtr(exceptions_table, exception_index);
+Node* WasmGraphBuilder::LoadTagFromTable(uint32_t tag_index) {
+  Node* tags_table =
+      LOAD_INSTANCE_FIELD(TagsTable, MachineType::TaggedPointer());
+  Node* tag = gasm_->LoadFixedArrayElementPtr(tags_table, tag_index);
   return tag;
 }
 
@@ -2487,14 +2500,14 @@ Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
 }
 
 Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
-                                           const wasm::WasmException* exception,
+                                           const wasm::WasmTag* tag,
                                            base::Vector<Node*> values) {
   Node* values_array = gasm_->CallBuiltin(
       Builtin::kWasmGetOwnProperty, Operator::kEliminatable, except_obj,
       LOAD_ROOT(wasm_exception_values_symbol, wasm_exception_values_symbol),
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   uint32_t index = 0;
-  const wasm::WasmExceptionSig* sig = exception->sig;
+  const wasm::WasmTagSig* sig = tag->sig;
   DCHECK_EQ(sig->parameter_count(), values.size());
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value;
@@ -2544,7 +2557,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
     }
     values[i] = value;
   }
-  DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
+  DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(tag));
   return values_array;
 }
 
@@ -5560,8 +5573,13 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt,
                                          base::Vector<Node*> fields) {
-  Node* s = gasm_->CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
-                               Operator::kEliminatable, rtt);
+  int size = WasmStruct::Size(type);
+  Node* s = gasm_->Allocate(size);
+  gasm_->StoreMap(s, TNode<Map>::UncheckedCast(rtt));
+  gasm_->StoreToObject(
+      ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), s,
+      wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   for (uint32_t i = 0; i < type->field_count(); i++) {
     gasm_->StoreStructField(s, type, i, fields[i]);
   }
@@ -5600,6 +5618,9 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
       gasm_->CallBuiltin(stub, Operator::kEliminatable, rtt, length,
                          Int32Constant(element_type.element_size_bytes()));
   if (initial_value != nullptr) {
+    // TODO(manoskouk): If the loop is ever removed here, we have to update
+    // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
+    // loop as non-innermost.
     auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
     auto done = gasm_->MakeLabel();
     Node* start_offset =
@@ -7897,6 +7918,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   std::vector<WasmLoopInfo> loop_infos;
 
+  wasm::WasmFeatures unused_detected_features;
+  if (!detected) detected = &unused_detected_features;
   if (!BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
                                  &loop_infos, node_origins, source_positions)) {
     return wasm::WasmCompilationResult{};
@@ -7921,8 +7944,13 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
       func_body, env->module, func_index, &loop_infos);
 
   if (counters) {
-    counters->wasm_compile_function_peak_memory_bytes()->AddSample(
-        static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
+    int zone_bytes =
+        static_cast<int>(mcgraph->graph()->zone()->allocation_size());
+    counters->wasm_compile_function_peak_memory_bytes()->AddSample(zone_bytes);
+    if (func_body.end - func_body.start >= 100 * KB) {
+      counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
+          zone_bytes);
+    }
   }
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
@@ -8173,7 +8201,7 @@ AssemblerOptions WasmAssemblerOptions() {
   AssemblerOptions options;
   // Relocation info required to serialize {WasmCode} for proper functions.
   options.record_reloc_info_for_serialization = true;
-  options.enable_root_array_delta_access = false;
+  options.enable_root_relative_access = false;
   return options;
 }
 
@@ -8181,7 +8209,7 @@ AssemblerOptions WasmStubAssemblerOptions() {
   AssemblerOptions options;
   // Relocation info not necessary because stubs are not serialized.
   options.record_reloc_info_for_serialization = false;
-  options.enable_root_array_delta_access = false;
+  options.enable_root_relative_access = false;
   return options;
 }
 

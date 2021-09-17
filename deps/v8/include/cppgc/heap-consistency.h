@@ -69,6 +69,23 @@ class HeapConsistency final {
   }
 
   /**
+   * Gets the required write barrier type for a specific write.
+   * This version is meant to be used in conjunction with with a marking write
+   * barrier barrier which doesn't consider the slot.
+   *
+   * \param value The pointer to the object. May be an interior pointer to an
+   *   interface of the actual object.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  static V8_INLINE WriteBarrierType
+  GetWriteBarrierType(const void* value, WriteBarrierParams& params) {
+    return internal::WriteBarrier::GetWriteBarrierType(value, params);
+  }
+
+  /**
    * Conservative Dijkstra-style write barrier that processes an object if it
    * has not yet been processed.
    *

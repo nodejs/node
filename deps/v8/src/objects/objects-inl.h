@@ -34,7 +34,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
-#include "src/objects/regexp-match-info.h"
+#include "src/objects/regexp-match-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
@@ -439,7 +439,6 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(*this).value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
@@ -449,7 +448,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
 CAST_ACCESSOR(BigIntBase)
 CAST_ACCESSOR(BigInt)
-CAST_ACCESSOR(RegExpMatchInfo)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray. ByteArray is used
@@ -732,12 +730,8 @@ void HeapObject::set_map(Map value) {
 #endif
 }
 
-Map HeapObject::map(AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map(cage_base, tag);
-}
-Map HeapObject::map(PtrComprCageBase cage_base, AcquireLoadTag tag) const {
-  return map_word(cage_base, tag).ToMap();
+DEF_ACQUIRE_GETTER(HeapObject, map, Map) {
+  return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
 void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
@@ -783,11 +777,7 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base, RelaxedLoadTag) const {
+DEF_RELAXED_GETTER(HeapObject, map_word, MapWord) {
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
@@ -795,11 +785,7 @@ void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
-MapWord HeapObject::map_word(AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base, AcquireLoadTag) const {
+DEF_ACQUIRE_GETTER(HeapObject, map_word, MapWord) {
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 
@@ -868,48 +854,6 @@ bool Object::ToIntegerIndex(size_t* index) const {
     return true;
   }
   return false;
-}
-
-int RegExpMatchInfo::NumberOfCaptureRegisters() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  Object obj = get(kNumberOfCapturesIndex);
-  return Smi::ToInt(obj);
-}
-
-void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kNumberOfCapturesIndex, Smi::FromInt(value));
-}
-
-String RegExpMatchInfo::LastSubject() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return String::cast(get(kLastSubjectIndex));
-}
-
-void RegExpMatchInfo::SetLastSubject(String value, WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastSubjectIndex, value, mode);
-}
-
-Object RegExpMatchInfo::LastInput() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return get(kLastInputIndex);
-}
-
-void RegExpMatchInfo::SetLastInput(Object value, WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastInputIndex, value, mode);
-}
-
-int RegExpMatchInfo::Capture(int i) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  Object obj = get(kFirstCaptureIndex + i);
-  return Smi::ToInt(obj);
-}
-
-void RegExpMatchInfo::SetCapture(int i, int value) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  set(kFirstCaptureIndex + i, Smi::FromInt(value));
 }
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(

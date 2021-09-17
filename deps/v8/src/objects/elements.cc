@@ -3296,7 +3296,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
     DCHECK(!typed_array->WasDetached());
     DCHECK_LE(start, end);
-    DCHECK_LE(end, typed_array->length());
+    DCHECK_LE(end, typed_array->GetLength());
     DisallowGarbageCollection no_gc;
     ElementType scalar = FromHandle(value);
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());

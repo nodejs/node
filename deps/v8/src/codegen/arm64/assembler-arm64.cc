@@ -4275,8 +4275,41 @@ bool Assembler::IsImmFP64(double imm) {
   return true;
 }
 
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  if (update_embedded_objects) {
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      Handle<HeapObject> object = GetEmbeddedObject(p.second);
+      WriteUnalignedValue(base + p.first, object->ptr());
+    }
+  }
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
+    Address target = p.second * kInstrSize + options().code_range_start;
+    DCHECK(is_int26(p.second));
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    WriteUnalignedValue(base + p.first, p.second);
+  }
+  saved_handles_for_raw_object_ptr_.clear();
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
+    DCHECK(is_int26(p.second));
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    instr->SetInstructionBits(instr->Mask(UnconditionalBranchMask) | p.second);
+  }
+  saved_offsets_for_runtime_entries_.clear();
+}
+
 void Assembler::GrowBuffer() {
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -4320,18 +4353,12 @@ void Assembler::GrowBuffer() {
     WriteUnalignedValue<intptr_t>(address, internal_ref);
   }
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    Address base = reinterpret_cast<Address>(buffer_->start());
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      WriteUnalignedValue(base + p.first, p.second);
-    }
-    for (auto p : saved_offsets_for_runtime_entries_) {
-      Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
-      DCHECK(is_int26(p.second));
-      DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-      instr->SetInstructionBits(instr->Mask(UnconditionalBranchMask) |
-                                p.second);
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
+    } else {
+      FixOnHeapReferencesToHandles();
     }
   }
 
@@ -4345,12 +4372,16 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
-      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
+      (rmode == RelocInfo::LITERAL_CONSTANT) ||
+      (rmode == RelocInfo::DEOPT_NODE_ID)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
+           RelocInfo::IsDeoptNodeId(rmode) ||
            RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {

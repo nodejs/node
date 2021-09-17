@@ -61,9 +61,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   // Tries to allocate `maximum_pages` of memory and commit `initial_pages`.
   static std::unique_ptr<BackingStore> TryAllocateAndPartiallyCommitMemory(
-      Isolate* isolate, size_t byte_length, size_t page_size,
-      size_t initial_pages, size_t maximum_pages, bool is_wasm_memory,
-      SharedFlag shared);
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      size_t page_size, size_t initial_pages, size_t maximum_pages,
+      bool is_wasm_memory, SharedFlag shared);
 
   // Create a backing store that wraps existing allocated memory.
   // If {free_on_destruct} is {true}, the memory will be freed using the
@@ -90,6 +90,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       std::memory_order memory_order = std::memory_order_relaxed) const {
     return byte_length_.load(memory_order);
   }
+  size_t max_byte_length() const { return max_byte_length_; }
   size_t byte_capacity() const { return byte_capacity_; }
   bool is_shared() const { return is_shared_; }
   bool is_resizable() const { return is_resizable_; }
@@ -165,12 +166,13 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  private:
   friend class GlobalBackingStoreRegistry;
 
-  BackingStore(void* buffer_start, size_t byte_length, size_t byte_capacity,
-               SharedFlag shared, ResizableFlag resizable, bool is_wasm_memory,
-               bool free_on_destruct, bool has_guard_regions,
-               bool custom_deleter, bool empty_deleter)
+  BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
+               size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
+               bool is_wasm_memory, bool free_on_destruct,
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter)
       : buffer_start_(buffer_start),
         byte_length_(byte_length),
+        max_byte_length_(max_byte_length),
         byte_capacity_(byte_capacity),
         is_shared_(shared == SharedFlag::kShared),
         is_resizable_(resizable == ResizableFlag::kResizable),
@@ -185,6 +187,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     DCHECK_IMPLIES(is_wasm_memory_, !is_resizable_);
     DCHECK_IMPLIES(is_resizable_, !custom_deleter_);
     DCHECK_IMPLIES(is_resizable_, free_on_destruct_);
+    DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_,
+                   byte_length_ == max_byte_length_);
   }
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
@@ -192,6 +196,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_{0};
+  // Max byte length of the corresponding JSArrayBuffer(s).
+  size_t max_byte_length_ = 0;
+  // Amount of the memory allocated
   size_t byte_capacity_ = 0;
 
   struct DeleterInfo {

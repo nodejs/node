@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 @generatePrint
 extern class BreakPoint extends Struct {
   id: Smi;
   condition: String;
 }
 
-@generateCppClass
 @generatePrint
 extern class BreakPointInfo extends Struct {
   // The position in the source for the break position.
@@ -34,7 +32,6 @@ bitfield struct DebuggerHints extends uint31 {
   debugging_id: int32: 20 bit;
 }
 
-@generateCppClass
 @generatePrint
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
@@ -69,7 +66,6 @@ struct CoverageInfoSlot {
 
 // CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
 // not contain any HeapObject fields.
-@generateCppClass
 extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;

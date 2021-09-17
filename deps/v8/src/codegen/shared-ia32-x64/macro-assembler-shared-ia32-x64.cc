@@ -18,6 +18,30 @@
 namespace v8 {
 namespace internal {
 
+void SharedTurboAssembler::Move(Register dst, Register src) {
+  // Helper to paper over the different assembler function names.
+  if (dst != src) {
+#if V8_TARGET_ARCH_IA32
+    mov(dst, src);
+#elif V8_TARGET_ARCH_X64
+    movq(dst, src);
+#else
+#error Unsupported target architecture.
+#endif
+  }
+}
+
+void SharedTurboAssembler::And(Register dst, Immediate src) {
+  // Helper to paper over the different assembler function names.
+#if V8_TARGET_ARCH_IA32
+  and_(dst, src);
+#elif V8_TARGET_ARCH_X64
+  andq(dst, src);
+#else
+#error Unsupported target architecture.
+#endif
+}
+
 void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
@@ -494,6 +518,67 @@ void SharedTurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
     pcmpeqd(scratch, scratch);
     xorps(dst, scratch);
   }
+}
+
+void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
+                                     uint8_t shift, XMMRegister xmm_tmp) {
+  DCHECK_GT(64, shift);
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  // Use logical right shift to emulate arithmetic right shifts:
+  // Given:
+  // signed >> c
+  //   == (signed + 2^63 - 2^63) >> c
+  //   == ((signed + 2^63) >> c) - (2^63 >> c)
+  //                                ^^^^^^^^^
+  //                                 xmm_tmp
+  // signed + 2^63 is an unsigned number, so we can use logical right shifts.
+
+  // xmm_tmp = wasm_i64x2_const(0x80000000'00000000).
+  Pcmpeqd(xmm_tmp, xmm_tmp);
+  Psllq(xmm_tmp, byte{63});
+
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
+    Movapd(dst, src);
+    src = dst;
+  }
+  // Add a bias of 2^63 to convert signed to unsigned.
+  // Since only highest bit changes, use pxor instead of paddq.
+  Pxor(dst, src, xmm_tmp);
+  // Logically shift both value and bias.
+  Psrlq(dst, shift);
+  Psrlq(xmm_tmp, shift);
+  // Subtract shifted bias to convert back to signed value.
+  Psubq(dst, xmm_tmp);
+}
+
+void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
+                                     Register shift, XMMRegister xmm_tmp,
+                                     XMMRegister xmm_shift,
+                                     Register tmp_shift) {
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  DCHECK_NE(xmm_shift, dst);
+  DCHECK_NE(xmm_shift, src);
+  // tmp_shift can alias shift since we don't use shift after masking it.
+
+  // See I64x2ShrS with constant shift for explanation of this algorithm.
+  Pcmpeqd(xmm_tmp, xmm_tmp);
+  Psllq(xmm_tmp, byte{63});
+
+  // Shift modulo 64.
+  Move(tmp_shift, shift);
+  And(tmp_shift, Immediate(0x3F));
+  Movd(xmm_shift, tmp_shift);
+
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
+    Movapd(dst, src);
+    src = dst;
+  }
+  Pxor(dst, src, xmm_tmp);
+  Psrlq(dst, xmm_shift);
+  Psrlq(xmm_tmp, xmm_shift);
+  Psubq(dst, xmm_tmp);
 }
 
 // 1. Unpack src0, src1 into even-number elements of scratch.

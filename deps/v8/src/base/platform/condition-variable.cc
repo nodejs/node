@@ -9,6 +9,10 @@
 
 #include "src/base/platform/time.h"
 
+#if V8_OS_WIN
+#include <windows.h>
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -119,22 +123,25 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 #elif V8_OS_WIN
 
 ConditionVariable::ConditionVariable() {
-  InitializeConditionVariable(&native_handle_);
+  InitializeConditionVariable(V8ToWindowsType(&native_handle_));
 }
 
 
 ConditionVariable::~ConditionVariable() {}
 
-void ConditionVariable::NotifyOne() { WakeConditionVariable(&native_handle_); }
+void ConditionVariable::NotifyOne() {
+  WakeConditionVariable(V8ToWindowsType(&native_handle_));
+}
 
 void ConditionVariable::NotifyAll() {
-  WakeAllConditionVariable(&native_handle_);
+  WakeAllConditionVariable(V8ToWindowsType(&native_handle_));
 }
 
 
 void ConditionVariable::Wait(Mutex* mutex) {
   mutex->AssertHeldAndUnmark();
-  SleepConditionVariableSRW(&native_handle_, &mutex->native_handle(), INFINITE,
+  SleepConditionVariableSRW(V8ToWindowsType(&native_handle_),
+                            V8ToWindowsType(&mutex->native_handle()), INFINITE,
                             0);
   mutex->AssertUnheldAndMark();
 }
@@ -144,7 +151,8 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   int64_t msec = rel_time.InMilliseconds();
   mutex->AssertHeldAndUnmark();
   BOOL result = SleepConditionVariableSRW(
-      &native_handle_, &mutex->native_handle(), static_cast<DWORD>(msec), 0);
+      V8ToWindowsType(&native_handle_),
+      V8ToWindowsType(&mutex->native_handle()), static_cast<DWORD>(msec), 0);
 #ifdef DEBUG
   if (!result) {
     // On failure, we only expect the CV to timeout. Any other error value means

@@ -1516,22 +1516,14 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
-  bool flag_was_enabled = i::FLAG_harmony_regexp_match_indices;
-
   // The last byte encodes the regexp flags.
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52, 0x03,
                                           0x66, 0x6F, 0x6F, 0xAD, 0x01};
 
-  i::FLAG_harmony_regexp_match_indices = true;
   Local<Value> value = DecodeTest(regexp_encoding);
   ASSERT_TRUE(value->IsRegExp());
   ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
   ExpectScriptTrue("result.toString() === '/foo/dgmsy'");
-
-  i::FLAG_harmony_regexp_match_indices = false;
-  InvalidDecodeTest(regexp_encoding);
-
-  i::FLAG_harmony_regexp_match_indices = flag_was_enabled;
 }
 
 TEST_F(ValueSerializerTest, RoundTripMap) {

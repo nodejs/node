@@ -19,6 +19,8 @@ namespace sampler {
 // https://stackoverflow.com/questions/22643374/deadlock-with-pthread-rwlock-t-and-signals
 // This test reproduces it, and can be used to test if this problem is fixed in
 // future Mac releases.
+// Note: For now, we fall back to using pthread_mutex_t to implement SharedMutex
+// on Mac, so this test succeeds.
 
 #ifdef USE_SIGNALS
 

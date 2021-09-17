@@ -31,9 +31,9 @@ namespace wasm {
 class InterpretedFrame;
 class NativeModule;
 class WasmCode;
-struct WasmException;
 struct WasmGlobal;
 struct WasmModule;
+struct WasmTag;
 class WasmValue;
 class WireBytesRef;
 }  // namespace wasm
@@ -351,7 +351,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
-  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
@@ -360,6 +360,10 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(isolate_root, Address)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
+  DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
@@ -385,23 +389,36 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                    \
   /* Often-accessed fields go first to minimize generated code size. */   \
+  /* Less than system pointer sized fields come first. */                 \
+  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
+  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
+  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
+  /* Optional padding to align system pointer size fields */              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemoryStartOffset, kSystemPointerSize)                               \
   V(kMemorySizeOffset, kSizetSize)                                        \
   V(kMemoryMaskOffset, kSizetSize)                                        \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
-  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
-  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
   V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
   V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
-  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
-  /* Optional padding to align system pointer size fields */              \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
   V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
   V(kIsolateRootOffset, kSystemPointerSize)                               \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
+  /* Continue with system pointer size fields to maintain alignment. */   \
+  V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
+  V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
+  V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
+  V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
+  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
+  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
+  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
+  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
+  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
+  V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
+  /* Less than system pointer size aligned fields are below. */           \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -412,15 +429,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kTablesOffset, kTaggedSize)                                           \
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
-  V(kExceptionsTableOffset, kTaggedSize)                                  \
+  V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
-  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
-  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
-  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
-  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
-  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
-  V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
@@ -454,7 +465,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kTablesOffset,
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
-      kExceptionsTableOffset,
+      kTagsTableOffset,
       kWasmExternalFunctionsOffset,
       kManagedObjectMapsOffset};
 
@@ -541,29 +552,33 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 };
 
 // Representation of WebAssembly.Exception JavaScript-level object.
-class WasmExceptionObject
-    : public TorqueGeneratedWasmExceptionObject<WasmExceptionObject, JSObject> {
+class WasmTagObject
+    : public TorqueGeneratedWasmTagObject<WasmTagObject, JSObject> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(WasmExceptionObject)
+  DECL_PRINTER(WasmTagObject)
 
   // Checks whether the given {sig} has the same parameter types as the
-  // serialized signature stored within this exception object.
+  // serialized signature stored within this tag object.
   bool MatchesSignature(const wasm::FunctionSig* sig);
 
-  static Handle<WasmExceptionObject> New(Isolate* isolate,
-                                         const wasm::FunctionSig* sig,
-                                         Handle<HeapObject> exception_tag);
+  static Handle<WasmTagObject> New(Isolate* isolate,
+                                   const wasm::FunctionSig* sig,
+                                   Handle<HeapObject> tag);
 
-  TQ_OBJECT_CONSTRUCTORS(WasmExceptionObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
-class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSReceiver {
+class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
   static Handle<WasmExceptionPackage> New(
       Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
       int encoded_size);
+
+  static Handle<WasmExceptionPackage> New(
+      Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
+      Handle<FixedArray> values);
 
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
@@ -573,11 +588,25 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSReceiver {
       Isolate* isolate, Handle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
-  static uint32_t GetEncodedSize(const wasm::WasmException* exception);
+  static uint32_t GetEncodedSize(const wasm::WasmTag* tag);
 
   DECL_CAST(WasmExceptionPackage)
-  OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSReceiver);
+  OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
 };
+
+void V8_EXPORT_PRIVATE EncodeI32ExceptionValue(
+    Handle<FixedArray> encoded_values, uint32_t* encoded_index, uint32_t value);
+
+void V8_EXPORT_PRIVATE EncodeI64ExceptionValue(
+    Handle<FixedArray> encoded_values, uint32_t* encoded_index, uint64_t value);
+
+void V8_EXPORT_PRIVATE
+DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                        uint32_t* encoded_index, uint32_t* value);
+
+void V8_EXPORT_PRIVATE
+DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                        uint32_t* encoded_index, uint64_t* value);
 
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.
@@ -805,8 +834,8 @@ class WasmScript : public AllStatic {
 
 // Tags provide an object identity for each exception defined in a wasm module
 // header. They are referenced by the following fields:
-//  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
-//  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
+//  - {WasmTagObject::tag}: The tag of the {Tag} object.
+//  - {WasmInstanceObject::tags_table}: List of tags used by an instance.
 class WasmExceptionTag
     : public TorqueGeneratedWasmExceptionTag<WasmExceptionTag, Struct> {
  public:
@@ -932,9 +961,11 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
 namespace wasm {
 
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, MaybeHandle<Map> rtt_parent);
+                            int struct_index, MaybeHandle<Map> rtt_parent,
+                            Handle<WasmInstanceObject> instance);
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, MaybeHandle<Map> rtt_parent);
+                           int array_index, MaybeHandle<Map> rtt_parent,
+                           Handle<WasmInstanceObject> instance);
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent, WasmRttSubMode mode);

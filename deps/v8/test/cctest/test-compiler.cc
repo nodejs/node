@@ -27,18 +27,19 @@
 
 #include <stdlib.h>
 #include <wchar.h>
-#include <memory>
 
-#include "src/init/v8.h"
+#include <memory>
 
 #include "include/v8-profiler.h"
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/script-details.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
+#include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/objects-inl.h"
@@ -72,8 +73,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source_code, Compiler::ScriptDetails(),
-          v8::ScriptOriginOptions(), nullptr, nullptr,
+          isolate, source_code, ScriptDetails(), nullptr, nullptr,
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();

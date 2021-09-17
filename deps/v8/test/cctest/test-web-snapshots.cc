@@ -366,8 +366,65 @@ TEST(SFIDeduplication) {
   }
 }
 
+TEST(SFIDeduplicationClasses) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    const char* snapshot_source =
+        "let foo = {};\n"
+        "foo.create = function(a) {\n"
+        "  return class {\n"
+        "   constructor(x) {this.x = x;};\n"
+        "  }\n"
+        "}\n"
+        "foo.class = foo.create('hi');";
+
+    CompileRun(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+  }
+
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate);
+    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
+                                      snapshot_data.buffer_size));
+    CHECK(!deserializer.has_error());
+
+    const char* get_class = "foo.class";
+    const char* create_new_class = "foo.create()";
+
+    // Verify that foo.inner and the JSFunction which is the result of calling
+    // foo.outer() after deserialization share the SFI.
+    v8::Local<v8::Function> v8_class1 =
+        CompileRun(get_class).As<v8::Function>();
+    v8::Local<v8::Function> v8_class2 =
+        CompileRun(create_new_class).As<v8::Function>();
+
+    Handle<JSFunction> class1 =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class1));
+    Handle<JSFunction> class2 =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class2));
+
+    CHECK_EQ(class1->shared(), class2->shared());
+  }
+}
+
 TEST(SFIDeduplicationAfterBytecodeFlushing) {
-  FLAG_stress_flush_bytecode = true;
+  FLAG_stress_flush_code = true;
+  FLAG_flush_bytecode = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -448,6 +505,92 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     // Check that it shares the SFI with the original inner function which is in
     // the snapshot.
     CHECK_EQ(inner1->shared(), inner3->shared());
+  }
+}
+
+TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
+  FLAG_stress_flush_code = true;
+  FLAG_flush_bytecode = true;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+
+    const char* snapshot_source =
+        "let foo = {};\n"
+        "foo.create = function(a) {\n"
+        "  return class {\n"
+        "   constructor(x) {this.x = x;};\n"
+        "  }\n"
+        "}\n"
+        "foo.class = foo.create('hi');";
+
+    CompileRun(snapshot_source);
+
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+  }
+
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate);
+    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
+                                      snapshot_data.buffer_size));
+    CHECK(!deserializer.has_error());
+
+    const char* get_create = "foo.create";
+    const char* get_class = "foo.class";
+    const char* create_new_class = "foo.create()";
+
+    v8::Local<v8::Function> v8_create =
+        CompileRun(get_create).As<v8::Function>();
+    Handle<JSFunction> create =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_create));
+    CHECK(!create->shared().is_compiled());
+
+    v8::Local<v8::Function> v8_class1 =
+        CompileRun(get_class).As<v8::Function>();
+    v8::Local<v8::Function> v8_class2 =
+        CompileRun(create_new_class).As<v8::Function>();
+
+    Handle<JSFunction> class1 =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class1));
+    Handle<JSFunction> class2 =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class2));
+
+    CHECK(create->shared().is_compiled());
+    CHECK_EQ(class1->shared(), class2->shared());
+
+    // Force bytecode flushing of "foo.outer".
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+
+    CHECK(!create->shared().is_compiled());
+
+    // Create another inner function.
+    v8::Local<v8::Function> v8_class3 =
+        CompileRun(create_new_class).As<v8::Function>();
+    Handle<JSFunction> class3 =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class3));
+
+    // Check that it shares the SFI with the original inner function which is in
+    // the snapshot.
+    CHECK_EQ(class1->shared(), class3->shared());
   }
 }
 

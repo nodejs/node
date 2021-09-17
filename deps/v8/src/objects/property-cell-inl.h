@@ -16,9 +16,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PropertyCell, HeapObject)
+#include "torque-generated/src/objects/property-cell-tq-inl.inc"
 
-CAST_ACCESSOR(PropertyCell)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyCell)
 
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, name, Name, kNameOffset)

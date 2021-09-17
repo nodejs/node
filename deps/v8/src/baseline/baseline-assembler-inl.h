@@ -5,16 +5,15 @@
 #ifndef V8_BASELINE_BASELINE_ASSEMBLER_INL_H_
 #define V8_BASELINE_BASELINE_ASSEMBLER_INL_H_
 
+#include "src/baseline/baseline-assembler.h"
+
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_MIPS
+#if ENABLE_SPARKPLUG
 
 #include <type_traits>
 #include <unordered_map>
 
-#include "src/baseline/baseline-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/feedback-cell.h"
@@ -142,6 +141,6 @@ SaveAccumulatorScope::~SaveAccumulatorScope() {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // ENABLE_SPARKPLUG
 
 #endif  // V8_BASELINE_BASELINE_ASSEMBLER_INL_H_

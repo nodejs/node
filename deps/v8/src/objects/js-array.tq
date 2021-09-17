@@ -4,6 +4,7 @@
 
 extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
+@doNotGenerateCppClass
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
   next_index: Number;
@@ -24,6 +25,7 @@ macro CreateArrayIterator(implicit context: NativeContext)(
   };
 }
 
+@doNotGenerateCppClass
 extern class JSArray extends JSObject {
   macro IsEmpty(): bool {
     return this.length == 0;
@@ -65,6 +67,10 @@ transient type FastJSArrayForRead extends JSArray;
 
 // A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray;
+
+// A FastJSArrayForCopy when the global IsConcatSpreadableProtector is not
+// invalidated.
+transient type FastJSArrayForConcat extends FastJSArrayForCopy;
 
 // A FastJSArray when the global ArrayIteratorProtector is not invalidated.
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray;

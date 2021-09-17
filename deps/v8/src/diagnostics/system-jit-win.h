@@ -5,9 +5,10 @@
 #ifndef V8_DIAGNOSTICS_SYSTEM_JIT_WIN_H_
 #define V8_DIAGNOSTICS_SYSTEM_JIT_WIN_H_
 
-#include "include/v8.h"
-
 namespace v8 {
+
+struct JitCodeEvent;
+
 namespace internal {
 namespace ETWJITInterface {
 void Register();

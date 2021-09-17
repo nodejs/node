@@ -188,7 +188,7 @@ using MapHandles = std::vector<Handle<Map>>;
 // |               |   [raw_transitions]                             |
 // +---------------+-------------------------------------------------+
 
-class Map : public HeapObject {
+class Map : public TorqueGeneratedMap<Map, HeapObject> {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -436,7 +436,7 @@ class Map : public HeapObject {
   // elements or an object with any frozen elements, or a slow arguments object.
   bool MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate);
 
-  inline Map ElementsTransitionMap(Isolate* isolate);
+  inline Map ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode);
 
   inline FixedArrayBase GetInitialElements() const;
 
@@ -497,15 +497,16 @@ class Map : public HeapObject {
   };
 
   FieldCounts GetFieldCounts() const;
-  int NumberOfFields() const;
+  int NumberOfFields(ConcurrencyMode cmode) const;
 
   bool HasOutOfObjectProperties() const;
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
-  bool InstancesNeedRewriting(Map target) const;
+  bool InstancesNeedRewriting(Map target, ConcurrencyMode cmode) const;
   bool InstancesNeedRewriting(Map target, int target_number_of_fields,
                               int target_inobject, int target_unused,
-                              int* old_number_of_fields) const;
+                              int* old_number_of_fields,
+                              ConcurrencyMode cmode) const;
   // Returns true if the |field_type| is the most general one for
   // given |representation|.
   static inline bool IsMostGeneralFieldType(Representation representation,
@@ -653,6 +654,7 @@ class Map : public HeapObject {
 
   DECL_BOOLEAN_ACCESSORS(is_deprecated)
   inline bool CanBeDeprecated() const;
+
   // Returns a non-deprecated version of the input. If the input was not
   // deprecated, it is directly returned. Otherwise, the non-deprecated version
   // is found by re-transitioning from the root of the transition tree using the
@@ -660,8 +662,6 @@ class Map : public HeapObject {
   // is found.
   V8_EXPORT_PRIVATE static MaybeHandle<Map> TryUpdate(
       Isolate* isolate, Handle<Map> map) V8_WARN_UNUSED_RESULT;
-  V8_EXPORT_PRIVATE static Map TryUpdateSlow(Isolate* isolate,
-                                             Map map) V8_WARN_UNUSED_RESULT;
 
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
@@ -701,6 +701,10 @@ class Map : public HeapObject {
   static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
                                           ElementsKind to_kind);
 
+  static base::Optional<Map> TryAsElementsKind(Isolate* isolate,
+                                               Handle<Map> map,
+                                               ElementsKind kind,
+                                               ConcurrencyMode cmode);
   V8_EXPORT_PRIVATE static Handle<Map> AsElementsKind(Isolate* isolate,
                                                       Handle<Map> map,
                                                       ElementsKind kind);
@@ -750,8 +754,6 @@ class Map : public HeapObject {
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
 
-  DECL_CAST(Map)
-
   static inline int SlackForArraySize(int old_size, int size_limit);
 
   V8_EXPORT_PRIVATE static void EnsureDescriptorSlack(Isolate* isolate,
@@ -770,7 +772,7 @@ class Map : public HeapObject {
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
   V8_EXPORT_PRIVATE Map FindElementsKindTransitionedMap(
-      Isolate* isolate, MapHandles const& candidates);
+      Isolate* isolate, MapHandles const& candidates, ConcurrencyMode cmode);
 
   inline bool CanTransition() const;
 
@@ -810,9 +812,6 @@ class Map : public HeapObject {
                                                 Handle<Map> map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_MAP_FIELDS)
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
@@ -867,21 +866,24 @@ class Map : public HeapObject {
 
   // Returns the map that this (root) map transitions to if its elements_kind
   // is changed to |elements_kind|, or |nullptr| if no such map is cached yet.
-  Map LookupElementsTransitionMap(Isolate* isolate, ElementsKind elements_kind);
+  Map LookupElementsTransitionMap(Isolate* isolate, ElementsKind elements_kind,
+                                  ConcurrencyMode cmode);
 
   // Tries to replay property transitions starting from this (root) map using
   // the descriptor array of the |map|. The |root_map| is expected to have
   // proper elements kind and therefore elements kinds transitions are not
   // taken by this function. Returns |nullptr| if matching transition map is
   // not found.
-  Map TryReplayPropertyTransitions(Isolate* isolate, Map map);
+  Map TryReplayPropertyTransitions(Isolate* isolate, Map map,
+                                   ConcurrencyMode cmode);
 
   static void ConnectTransition(Isolate* isolate, Handle<Map> parent,
                                 Handle<Map> child, Handle<Name> name,
                                 SimpleTransitionFlag flag);
 
-  bool EquivalentToForTransition(const Map other) const;
-  bool EquivalentToForElementsKindTransition(const Map other) const;
+  bool EquivalentToForTransition(const Map other, ConcurrencyMode cmode) const;
+  bool EquivalentToForElementsKindTransition(const Map other,
+                                             ConcurrencyMode cmode) const;
   static Handle<Map> RawCopy(Isolate* isolate, Handle<Map> map,
                              int instance_size, int inobject_properties);
   static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,
@@ -923,6 +925,10 @@ class Map : public HeapObject {
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
 
+  // Hide inherited accessors from the generated superclass.
+  DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Object)
+  DECL_ACCESSORS(transitions_or_prototype_info, Object)
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
 
@@ -930,7 +936,7 @@ class Map : public HeapObject {
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
 
-  OBJECT_CONSTRUCTORS(Map, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(Map)
 };
 
 // The cache for maps used by normalized (dictionary mode) objects.

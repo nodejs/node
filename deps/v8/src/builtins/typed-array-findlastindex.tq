@@ -1,0 +1,115 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array {
+const kBuiltinNameFindLastIndex: constexpr string =
+    '%TypedArray%.prototype.findIndexLast';
+
+// Continuation part of
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
+// when array buffer was detached.
+transitioning builtin FindLastIndexAllElementsDetachedContinuation(
+    implicit context: Context)(
+    array: JSTypedArray, predicate: Callable, thisArg: JSAny,
+    initialK: Number): Number {
+  // 6. Repeat, while k ≥ 0
+  for (let k: Number = initialK; k >= 0; k--) {
+    // 6a. Let Pk be ! ToString(𝔽(k)).
+    // there is no need to cast ToString to load elements.
+
+    // 6b. Let kValue be ! Get(O, Pk).
+    // kValue must be undefined when the buffer was detached.
+
+    // 6c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
+    // 𝔽(k), O »)).
+    // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+    // indices to optimize Convert<Number>(k) for the most common case.
+    const indexNumber: Number = Convert<Number>(k);
+    const result =
+        Call(context, predicate, thisArg, Undefined, indexNumber, array);
+    // 6d. If testResult is true, return 𝔽(k).
+    if (ToBoolean(result)) {
+      return indexNumber;
+    }
+
+    // 6e. Set k to k - 1. (done by the loop).
+  }
+
+  // 7. Return -1𝔽.
+  return -1;
+}
+
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
+transitioning macro FindLastIndexAllElements(implicit context: Context)(
+    array: typed_array::AttachedJSTypedArray, predicate: Callable,
+    thisArg: JSAny): Number labels
+Bailout(Number) {
+  let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
+  // 3. Let len be O.[[ArrayLength]].
+  const length: uintptr = witness.Get().length;
+  // 5. Let k be len - 1.
+  // 6. Repeat, while k ≥ 0
+  for (let k: uintptr = length; k-- > 0;) {
+    witness.Recheck() otherwise goto Bailout(Convert<Number>(k));
+    // 6a. Let Pk be ! ToString(𝔽(k)).
+    // there is no need to cast ToString to load elements.
+
+    // 6b. Let kValue be ! Get(O, Pk).
+    const value: JSAny = witness.Load(k);
+
+    // 6c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
+    // 𝔽(k), O »)).
+    // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+    // indices to optimize Convert<Number>(k) for the most common case.
+    const indexNumber: Number = Convert<Number>(k);
+    const result = Call(
+        context, predicate, thisArg, value, indexNumber, witness.GetStable());
+    // 6d. If testResult is true, return 𝔽(k).
+    if (ToBoolean(result)) {
+      return indexNumber;
+    }
+
+    // 6e. Set k to k - 1. (done by the loop).
+  }
+
+  // 7. Return -1𝔽.
+  return -1;
+}
+
+// https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
+transitioning javascript builtin
+TypedArrayPrototypeFindLastIndex(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // arguments[0] = callback
+  // arguments[1] = thisArg.
+  try {
+    // 1. Let O be the this value.
+    const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+        otherwise NotTypedArray;
+    // 2. Perform ? ValidateTypedArray(O).
+    const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
+
+    // 4. If IsCallable(predicate) is false, throw a TypeError exception.
+    const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
+    const thisArg = arguments[1];
+
+    try {
+      return FindLastIndexAllElements(uarray, predicate, thisArg)
+          otherwise Bailout;
+    } label Bailout(k: Number) deferred {
+      return FindLastIndexAllElementsDetachedContinuation(
+          uarray, predicate, thisArg, k);
+    }
+  } label NotCallable deferred {
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+  } label NotTypedArray deferred {
+    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindLastIndex);
+  } label IsDetached deferred {
+    ThrowTypeError(
+        MessageTemplate::kDetachedOperation, kBuiltinNameFindLastIndex);
+  }
+}
+}

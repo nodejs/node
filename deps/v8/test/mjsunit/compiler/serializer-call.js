@@ -23,5 +23,5 @@ function bar() {
 %PrepareFunctionForOptimization(call);
 assertTrue(bar());
 assertTrue(bar());
-%OptimizeFunctionOnNextCall(bar);
+%OptimizeFunctionForTopTier(bar);
 assertFalse(bar());

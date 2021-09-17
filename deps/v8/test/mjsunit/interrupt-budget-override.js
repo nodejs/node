@@ -16,4 +16,5 @@ function f() {
 f();
 f();
 f();
+%FinalizeOptimization();
 assertOptimized(f);

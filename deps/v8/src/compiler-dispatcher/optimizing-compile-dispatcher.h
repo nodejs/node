@@ -43,6 +43,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   // Takes ownership of |job|.
   void QueueForOptimization(OptimizedCompilationJob* job);
   void Unblock();
+  void AwaitCompileTasks();
   void InstallOptimizedFunctions();
 
   inline bool IsQueueAvailable() {
@@ -54,6 +55,15 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   // This method must be called on the main thread.
   bool HasJobs();
+
+  // Whether to finalize and thus install the optimized code.  Defaults to true.
+  // Only set to false for testing (where finalization is then manually
+  // requested using %FinalizeOptimization).
+  bool finalize() const { return finalize_; }
+  void set_finalize(bool finalize) {
+    CHECK(!HasJobs());
+    finalize_ = finalize;
+  }
 
  private:
   class CompileTask;
@@ -101,6 +111,8 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   // Since flags might get modified while the background thread is running, it
   // is not safe to access them directly.
   int recompilation_delay_;
+
+  bool finalize_ = true;
 };
 }  // namespace internal
 }  // namespace v8

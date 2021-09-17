@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --logfile='+' --log --log-maps --log-ic --log-code
-// Flags: --log-function-events --no-stress-opt
+// Flags: --log-function-events --no-stress-opt --no-predictable
 
 import { Processor } from "../../../tools/system-analyzer/processor.mjs";
 
