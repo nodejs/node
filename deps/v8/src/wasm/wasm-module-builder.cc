@@ -687,7 +687,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
 
   // Emit event section.
   if (exceptions_.size() > 0) {
-    size_t start = EmitSection(kExceptionSectionCode, buffer);
+    size_t start = EmitSection(kTagSectionCode, buffer);
     buffer->write_size(exceptions_.size());
     for (int type : exceptions_) {
       buffer->write_u32v(kExceptionAttribute);
@@ -730,7 +730,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           // yet, so there is no index offset to add.
           buffer->write_size(ex.index);
           break;
-        case kExternalException:
+        case kExternalTag:
           UNREACHABLE();
       }
     }

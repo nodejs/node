@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --interrupt-budget=200 --stack-size=200 --budget-for-feedback-vector-allocation=100 --expose-gc --stress-flush-bytecode
+// Flags: --interrupt-budget=200 --stack-size=200
+// Flags: --budget-for-feedback-vector-allocation=100 --expose-gc
+// Flags: --stress-flush-code --flus-bytecode
 
 var i = 0;
 function main() {
@@ -30,7 +32,7 @@ function v0() {
    const v21 = Object.defineProperty([].__proto__,"e",{set:v10});
 }
 const v26 = v0();
-// With --stress-flush-bytecode GC flushes the bytecode for v0 and v10
+// With --stress-flush-code GC flushes the bytecode for v0 and v10
 gc();
 assertThrows(v0, TypeError);
 }

@@ -19,6 +19,8 @@
 (function () {
   const err = Error('message');
   assertEquals(undefined, err.cause);
+  assertFalse('cause' in err);
+  assertFalse('cause' in Error.prototype);
 })();
 
 // Chained errors

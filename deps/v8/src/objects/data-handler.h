@@ -18,17 +18,8 @@ namespace internal {
 
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
-class DataHandler : public Struct {
+class DataHandler : public TorqueGeneratedDataHandler<DataHandler, Struct> {
  public:
-  // [smi_handler]: A Smi which encodes a handler or Code object (we still
-  // use code handlers for accessing lexical environment variables, but soon
-  // only smi handlers will remain). See LoadHandler and StoreHandler for
-  // details about encoding.
-  DECL_ACCESSORS(smi_handler, Object)
-
-  // [validity_cell]: A validity Cell that guards prototype chain modifications.
-  DECL_ACCESSORS(validity_cell, Object)
-
   // Returns number of optional data fields available in the object.
   inline int data_field_count() const;
 
@@ -38,21 +29,16 @@ class DataHandler : public Struct {
   DECL_ACCESSORS(data2, MaybeObject)
   DECL_ACCESSORS(data3, MaybeObject)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_DATA_HANDLER_FIELDS)
-
   static const int kSizeWithData0 = kData1Offset;
   static const int kSizeWithData1 = kData2Offset;
   static const int kSizeWithData2 = kData3Offset;
   static const int kSizeWithData3 = kHeaderSize;
 
-  DECL_CAST(DataHandler)
-
   DECL_VERIFIER(DataHandler)
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(DataHandler, Struct);
+  TQ_OBJECT_CONSTRUCTORS(DataHandler)
 };
 
 }  // namespace internal

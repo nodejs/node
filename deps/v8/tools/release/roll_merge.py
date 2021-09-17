@@ -250,8 +250,6 @@ class RollMerge(ScriptsBase):
         print("You must specify a merge comment if no patches are specified")
         return False
     options.bypass_upload_hooks = True
-    # CC ulan to make sure that fixes are merged to Google3.
-    options.cc = "ulan@chromium.org"
 
     # Make sure to use git hashes in the new workflows.
     for revision in options.revisions:

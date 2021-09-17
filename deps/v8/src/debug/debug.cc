@@ -1301,12 +1301,13 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         JavaScriptFrame* frame = it.frame();
         Address pc = frame->pc();
         Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
-        if (builtin == Builtin::kBaselineEnterAtBytecode ||
-            builtin == Builtin::kBaselineEnterAtNextBytecode) {
+        if (builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+            builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode) {
           Address* pc_addr = frame->pc_address();
-          Builtin advance = builtin == Builtin::kBaselineEnterAtBytecode
-                                ? Builtin::kInterpreterEnterAtBytecode
-                                : Builtin::kInterpreterEnterAtNextBytecode;
+          Builtin advance =
+              builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode
+                  ? Builtin::kInterpreterEnterAtBytecode
+                  : Builtin::kInterpreterEnterAtNextBytecode;
           Address advance_pc =
               isolate->builtins()->code(advance).InstructionStart();
           PointerAuthentication::ReplacePC(pc_addr, advance_pc,
@@ -1973,7 +1974,7 @@ base::Optional<Object> Debug::OnThrow(Handle<Object> exception) {
               maybe_promise->IsJSPromise() ? v8::debug::kPromiseRejection
                                            : v8::debug::kException);
   if (!scheduled_exception.is_null()) {
-    isolate_->thread_local_top()->scheduled_exception_ = *scheduled_exception;
+    isolate_->set_scheduled_exception(*scheduled_exception);
   }
   PrepareStepOnThrow();
   // If the OnException handler requested termination, then indicated this to
@@ -2298,6 +2299,7 @@ void Debug::UpdateState() {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->DisableScriptAndEval();
+    isolate_->CollectSourcePositionsForAllBytecodeArrays();
     is_active = true;
     feature_tracker()->Track(DebugFeatureTracker::kActive);
   } else {

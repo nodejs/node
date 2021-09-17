@@ -22622,25 +22622,86 @@ TEST(ChainSignatureCheck) {
 
 
 static const char* last_event_message;
-static int last_event_status;
+// See v8::LogEventStatus
+static v8::LogEventStatus last_event_status;
+static int event_count = 0;
 void StoringEventLoggerCallback(const char* message, int status) {
     last_event_message = message;
-    last_event_status = status;
+    last_event_status = static_cast<v8::LogEventStatus>(status);
+    event_count++;
 }
 
 
 TEST(EventLogging) {
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetEventLogger(StoringEventLoggerCallback);
-  v8::internal::HistogramTimer histogramTimer(
-      "V8.Test", 0, 10000, v8::internal::HistogramTimerResolution::MILLISECOND,
+  v8::internal::NestedTimedHistogram histogram(
+      "V8.Test", 0, 10000, v8::internal::TimedHistogramResolution::MILLISECOND,
       50, reinterpret_cast<v8::internal::Isolate*>(isolate)->counters());
-  histogramTimer.Start();
+  event_count = 0;
+  int count = 0;
+  {
+    CHECK_EQ(0, event_count);
+    {
+      CHECK_EQ(0, event_count);
+      v8::internal::NestedTimedHistogramScope scope0(&histogram);
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+      CHECK_EQ(++count, event_count);
+    }
+    CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+    CHECK_EQ(++count, event_count);
+
+    v8::internal::NestedTimedHistogramScope scope1(&histogram);
+    CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+    CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+    CHECK_EQ(++count, event_count);
+    {
+      CHECK_EQ(count, event_count);
+      v8::internal::NestedTimedHistogramScope scope2(&histogram);
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+      CHECK_EQ(++count, event_count);
+      {
+        CHECK_EQ(count, event_count);
+        v8::internal::NestedTimedHistogramScope scope3(&histogram);
+        CHECK_EQ(++count, event_count);
+        v8::internal::PauseNestedTimedHistogramScope scope4(&histogram);
+        // The outer timer scope is just paused, no event is emited yet.
+        CHECK_EQ(count, event_count);
+        {
+          CHECK_EQ(count, event_count);
+          v8::internal::NestedTimedHistogramScope scope5(&histogram);
+          v8::internal::NestedTimedHistogramScope scope5_1(&histogram);
+          CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+          CHECK_EQ(v8::LogEventStatus::kStart, last_event_status);
+          count++;
+          CHECK_EQ(++count, event_count);
+        }
+        CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+        CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+        count++;
+        CHECK_EQ(++count, event_count);
+      }
+      CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+      CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+      CHECK_EQ(++count, event_count);
+      v8::internal::PauseNestedTimedHistogramScope scope6(&histogram);
+      // The outer timer scope is just paused, no event is emited yet.
+      CHECK_EQ(count, event_count);
+      {
+        v8::internal::PauseNestedTimedHistogramScope scope7(&histogram);
+        CHECK_EQ(count, event_count);
+      }
+      CHECK_EQ(count, event_count);
+    }
+    CHECK_EQ(0, strcmp("V8.Test", last_event_message));
+    CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+    CHECK_EQ(++count, event_count);
+  }
   CHECK_EQ(0, strcmp("V8.Test", last_event_message));
-  CHECK_EQ(0, last_event_status);
-  histogramTimer.Stop();
-  CHECK_EQ(0, strcmp("V8.Test", last_event_message));
-  CHECK_EQ(1, last_event_status);
+  CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
+  CHECK_EQ(++count, event_count);
 }
 
 TEST(PropertyDescriptor) {
@@ -24378,7 +24439,7 @@ TEST(CreateSyntheticModule) {
             .IsUndefined());
   CHECK_EQ(i_module->export_names().length(), 1);
   CHECK(i::String::cast(i_module->export_names().get(0)).Equals(*default_name));
-  CHECK_EQ(i_module->status(), i::Module::kInstantiated);
+  CHECK_EQ(i_module->status(), i::Module::kLinked);
   CHECK(module->IsSyntheticModule());
   CHECK(!module->IsSourceTextModule());
   CHECK_EQ(module->GetModuleRequests()->Length(), 0);
@@ -28737,7 +28798,7 @@ TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
 namespace {
 void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
-                             v8::FastApiTypedArray<double> arg1) {
+                             const v8::FastApiTypedArray<double>& arg1) {
   // TODO(mslekova): Use the TypedArray parameter
 }
 
@@ -29250,4 +29311,58 @@ TEST(TestSetSabConstructorEnabledCallback) {
 
   sab_constructor_enabled_value = true;
   CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
+}
+
+namespace {
+void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(v8::Number::New(isolate, 1));
+}
+}  // namespace
+
+TEST(EmbedderInstanceTypes) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::FLAG_embedder_instance_types = true;
+  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
+  Local<FunctionTemplate> nodeType = v8::FunctionTemplate::New(
+      isolate, NodeTypeCallback, Local<Value>(),
+      v8::Signature::New(isolate, node), 0, v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasSideEffect, nullptr, 0, 1, 3);
+  proto_template->SetAccessorProperty(
+      String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
+
+  Local<FunctionTemplate> element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 1);
+  element->Inherit(node);
+
+  Local<FunctionTemplate> html_element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 2);
+  html_element->Inherit(element);
+
+  Local<FunctionTemplate> div_element = FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      nullptr, 3);
+  div_element->Inherit(html_element);
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("div"),
+                  div_element->GetFunction(env.local())
+                      .ToLocalChecked()
+                      ->NewInstance(env.local())
+                      .ToLocalChecked())
+            .FromJust());
+
+  CompileRun("var x = div.nodeType;");
+
+  Local<Value> res =
+      env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked();
+  CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
 }

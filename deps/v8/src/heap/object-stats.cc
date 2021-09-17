@@ -93,6 +93,12 @@ class FieldStatsCollector : public ObjectVisitor {
     *tagged_fields_count_ += (end - start);
   }
 
+  V8_INLINE void VisitCodePointer(HeapObject host,
+                                  CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    *tagged_fields_count_ += 1;
+  }
+
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     // Code target is most likely encoded as a relative 32-bit offset and not
     // as a full tagged value, so there's nothing to count.

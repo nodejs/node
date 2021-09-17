@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --opt --stack-limit=100
 
 function foo() {}
-for (let i = 0; i < 100000; ++i) {
+for (let i = 0; i < 10000; ++i) {
   foo = foo.bind();
 }
 

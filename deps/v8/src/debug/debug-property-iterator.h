@@ -45,6 +45,7 @@ class DebugPropertyIterator final : public debug::PropertyIterator {
   bool should_move_to_next_stage() const;
   void CalculateNativeAccessorFlags();
   Handle<Name> raw_name() const;
+  void AdvanceToPrototype();
   V8_WARN_UNUSED_RESULT bool AdvanceInternal();
 
   Isolate* isolate_;
@@ -59,6 +60,7 @@ class DebugPropertyIterator final : public debug::PropertyIterator {
   bool calculated_native_accessor_flags_ = false;
   int native_accessor_flags_ = 0;
   bool is_own_ = true;
+  bool is_done_ = false;
 };
 }  // namespace internal
 }  // namespace v8

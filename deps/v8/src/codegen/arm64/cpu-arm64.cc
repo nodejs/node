@@ -13,6 +13,10 @@
 #include <libkern/OSCacheControl.h>
 #endif
 
+#if V8_OS_WIN
+#include <windows.h>
+#endif
+
 namespace v8 {
 namespace internal {
 

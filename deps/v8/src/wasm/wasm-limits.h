@@ -31,7 +31,7 @@ constexpr size_t kV8MaxWasmFunctions = 1000000;
 constexpr size_t kV8MaxWasmImports = 100000;
 constexpr size_t kV8MaxWasmExports = 100000;
 constexpr size_t kV8MaxWasmGlobals = 1000000;
-constexpr size_t kV8MaxWasmExceptions = 1000000;
+constexpr size_t kV8MaxWasmTags = 1000000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
 // This indicates the maximum memory size our implementation supports.

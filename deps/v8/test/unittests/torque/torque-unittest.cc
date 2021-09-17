@@ -49,6 +49,7 @@ type TaggedIndex extends StrongTagged;
 type TaggedZeroPattern extends TaggedIndex;
 
 @abstract
+@doNotGenerateCppClass
 extern class HeapObject extends StrongTagged {
   map: Map;
 }

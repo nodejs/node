@@ -189,15 +189,23 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
 
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWriteExecute));
-    SwitchMemoryPermissionsToWritable();
-    FloodWithInc(isolate, buffer.get());
-    FlushInstructionCache(buffer->start(), buffer->size());
-    SwitchMemoryPermissionsToExecutable();
+    {
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+      // Make sure to switch memory to writable on M1 hardware.
+      wasm::CodeSpaceWriteScope code_space_write_scope(nullptr);
+#endif
+      FloodWithInc(isolate, buffer.get());
+      FlushInstructionCache(buffer->start(), buffer->size());
+    }
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
-    SwitchMemoryPermissionsToWritable();
-    FloodWithNop(isolate, buffer.get());
-    FlushInstructionCache(buffer->start(), buffer->size());
-    SwitchMemoryPermissionsToExecutable();
+    {
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+      // Make sure to switch memory to writable on M1 hardware.
+      wasm::CodeSpaceWriteScope code_space_write_scope(nullptr);
+#endif
+      FloodWithNop(isolate, buffer.get());
+      FlushInstructionCache(buffer->start(), buffer->size());
+    }
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
   }
 }

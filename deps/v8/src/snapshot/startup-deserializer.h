@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 // Initializes an isolate with context-independent data from a given snapshot.
-class StartupDeserializer final : public Deserializer {
+class StartupDeserializer final : public Deserializer<Isolate> {
  public:
   explicit StartupDeserializer(Isolate* isolate,
                                const SnapshotData* startup_data,

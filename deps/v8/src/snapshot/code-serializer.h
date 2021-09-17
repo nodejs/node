@@ -12,20 +12,24 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE ScriptData {
+class PersistentHandles;
+
+class V8_EXPORT_PRIVATE AlignedCachedData {
  public:
-  ScriptData(const byte* data, int length);
-  ~ScriptData() {
+  AlignedCachedData(const byte* data, int length);
+  ~AlignedCachedData() {
     if (owns_data_) DeleteArray(data_);
   }
-  ScriptData(const ScriptData&) = delete;
-  ScriptData& operator=(const ScriptData&) = delete;
+  AlignedCachedData(const AlignedCachedData&) = delete;
+  AlignedCachedData& operator=(const AlignedCachedData&) = delete;
 
   const byte* data() const { return data_; }
   int length() const { return length_; }
   bool rejected() const { return rejected_; }
 
   void Reject() { rejected_ = true; }
+
+  bool HasDataOwnership() const { return owns_data_; }
 
   void AcquireDataOwnership() {
     DCHECK(!owns_data_);
@@ -46,16 +50,35 @@ class V8_EXPORT_PRIVATE ScriptData {
 
 class CodeSerializer : public Serializer {
  public:
+  struct OffThreadDeserializeData {
+   private:
+    friend class CodeSerializer;
+    MaybeHandle<SharedFunctionInfo> maybe_result;
+    std::vector<Handle<Script>> scripts;
+    std::unique_ptr<PersistentHandles> persistent_handles;
+  };
+
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
       Handle<SharedFunctionInfo> info);
 
-  ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+  AlignedCachedData* SerializeSharedFunctionInfo(
+      Handle<SharedFunctionInfo> info);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
-      Isolate* isolate, ScriptData* cached_data, Handle<String> source,
+      Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
       ScriptOriginOptions origin_options);
+
+  V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
+  StartDeserializeOffThread(LocalIsolate* isolate,
+                            AlignedCachedData* cached_data);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  FinishOffThreadDeserialize(Isolate* isolate, OffThreadDeserializeData&& data,
+                             AlignedCachedData* cached_data,
+                             Handle<String> source,
+                             ScriptOriginOptions origin_options);
 
   uint32_t source_hash() const { return source_hash_; }
 
@@ -106,16 +129,18 @@ class SerializedCodeData : public SerializedData {
   static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
-  static SerializedCodeData FromCachedData(ScriptData* cached_data,
+  static SerializedCodeData FromCachedData(AlignedCachedData* cached_data,
                                            uint32_t expected_source_hash,
                                            SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedDataWithoutSource(
+      AlignedCachedData* cached_data, SanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const std::vector<byte>* payload,
                      const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
-  ScriptData* GetScriptData();
+  AlignedCachedData* GetScriptData();
 
   base::Vector<const byte> Payload() const;
 
@@ -123,7 +148,7 @@ class SerializedCodeData : public SerializedData {
                              ScriptOriginOptions origin_options);
 
  private:
-  explicit SerializedCodeData(ScriptData* data);
+  explicit SerializedCodeData(AlignedCachedData* data);
   SerializedCodeData(const byte* data, int size)
       : SerializedData(const_cast<byte*>(data), size) {}
 
@@ -132,6 +157,7 @@ class SerializedCodeData : public SerializedData {
   }
 
   SanityCheckResult SanityCheck(uint32_t expected_source_hash) const;
+  SanityCheckResult SanityCheckWithoutSource() const;
 };
 
 }  // namespace internal

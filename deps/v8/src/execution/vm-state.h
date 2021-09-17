@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/common/globals.h"
+#include "src/logging/counters-scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -46,6 +47,8 @@ class V8_NODISCARD ExternalCallbackScope {
   Isolate* isolate_;
   Address callback_;
   ExternalCallbackScope* previous_scope_;
+  VMState<EXTERNAL> vm_state_;
+  PauseNestedTimedHistogramScope pause_timed_histogram_scope_;
 #ifdef USE_SIMULATOR
   Address scope_address_;
 #endif

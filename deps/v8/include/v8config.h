@@ -86,51 +86,80 @@ path. Add it with -I<path> to the command line
 # define V8_OS_ANDROID 1
 # define V8_OS_LINUX 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "android"
+
 #elif defined(__APPLE__)
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
 # if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #  define V8_OS_IOS 1
+#  define V8_OS_STRING "ios"
+# else
+#  define V8_OS_STRING "macos"
 # endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "cygwin"
+
 #elif defined(__linux__)
 # define V8_OS_LINUX 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "linux"
+
 #elif defined(__sun)
 # define V8_OS_POSIX 1
 # define V8_OS_SOLARIS 1
+# define V8_OS_STRING "sun"
+
 #elif defined(STARBOARD)
 # define V8_OS_STARBOARD 1
+# define V8_OS_STRING "starboard"
+
 #elif defined(_AIX)
-#define V8_OS_POSIX 1
-#define V8_OS_AIX 1
+# define V8_OS_POSIX 1
+# define V8_OS_AIX 1
+# define V8_OS_STRING "aix"
+
 #elif defined(__FreeBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_FREEBSD 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "freebsd"
+
 #elif defined(__Fuchsia__)
 # define V8_OS_FUCHSIA 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "fuchsia"
+
 #elif defined(__DragonFly__)
 # define V8_OS_BSD 1
 # define V8_OS_DRAGONFLYBSD 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "dragonflybsd"
+
 #elif defined(__NetBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_NETBSD 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "netbsd"
+
 #elif defined(__OpenBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_OPENBSD 1
 # define V8_OS_POSIX 1
+# define V8_OS_STRING "openbsd"
+
 #elif defined(__QNXNTO__)
 # define V8_OS_POSIX 1
 # define V8_OS_QNX 1
+# define V8_OS_STRING "qnx"
+
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
+# define V8_OS_STRING "windows"
 #endif
 
 // -----------------------------------------------------------------------------
@@ -194,6 +223,22 @@ path. Add it with -I<path> to the command line
 #endif
 
 #endif  // V8_HAVE_TARGET_OS
+
+#if defined(V8_TARGET_OS_ANDROID)
+# define V8_TARGET_OS_STRING "android"
+#elif defined(V8_TARGET_OS_FUCHSIA)
+# define V8_TARGET_OS_STRING "fuchsia"
+#elif defined(V8_TARGET_OS_IOS)
+# define V8_TARGET_OS_STRING "ios"
+#elif defined(V8_TARGET_OS_LINUX)
+# define V8_TARGET_OS_STRING "linux"
+#elif defined(V8_TARGET_OS_MACOSX)
+# define V8_TARGET_OS_STRING "macos"
+#elif defined(V8_TARGET_OS_WINDOWS)
+# define V8_TARGET_OS_STRING "windows"
+#else
+# define V8_TARGET_OS_STRING "unknown"
+#endif
 
 // -----------------------------------------------------------------------------
 // C library detection

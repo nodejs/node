@@ -37,34 +37,21 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   }
 
   DCHECK(shared.HasBytecodeArray());
-  if (!broker->IsSerializedForCompilation(shared, feedback_vector)) {
-    TRACE_BROKER_MISSING(
-        broker, "data for " << shared << " (not serialized for compilation)");
-    TRACE("Cannot consider " << shared << " for inlining with "
-                             << feedback_vector << " (missing data)");
-    return false;
-  }
   TRACE("Considering " << shared << " for inlining with " << feedback_vector);
   return true;
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
                             JSFunctionRef const& function) {
-  if (!function.has_feedback_vector()) {
+  if (!function.has_feedback_vector(broker->dependencies())) {
     TRACE("Cannot consider " << function
                              << " for inlining (no feedback vector)");
     return false;
   }
 
-  if (!function.serialized() || !function.serialized_code_and_feedback()) {
-    TRACE_BROKER_MISSING(
-        broker, "data for " << function << " (cannot consider for inlining)");
-    TRACE("Cannot consider " << function << " for inlining (missing data)");
-    return false;
-  }
-
-  return CanConsiderForInlining(broker, function.shared(),
-                                function.feedback_vector());
+  return CanConsiderForInlining(
+      broker, function.shared(),
+      function.feedback_vector(broker->dependencies()));
 }
 
 }  // namespace
@@ -124,7 +111,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     JSCreateClosureNode n(callee);
     CreateClosureParameters const& p = n.Parameters();
     FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-    SharedFunctionInfoRef shared_info = MakeRef(broker(), p.shared_info());
+    SharedFunctionInfoRef shared_info = p.shared_info(broker());
     out.shared_info = shared_info;
     if (feedback_cell.value().has_value() &&
         CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {
@@ -818,6 +805,10 @@ void JSInliningHeuristic::PrintCandidates() {
 }
 
 Graph* JSInliningHeuristic::graph() const { return jsgraph()->graph(); }
+
+CompilationDependencies* JSInliningHeuristic::dependencies() const {
+  return broker()->dependencies();
+}
 
 CommonOperatorBuilder* JSInliningHeuristic::common() const {
   return jsgraph()->common();

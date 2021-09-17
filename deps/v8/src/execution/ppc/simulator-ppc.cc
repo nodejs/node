@@ -2523,7 +2523,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-#if V8_TARGET_ARCH_PPC64
     case CNTLZDX: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
@@ -2549,7 +2548,42 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-#endif
+    case CNTTZWX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint32_t rs_val = static_cast<uint32_t>(get_register(rs));
+      uintptr_t count = __builtin_ctz(rs_val);
+      set_register(ra, count);
+      if (instr->Bit(0)) {  // RC Bit set
+        int bf = 0;
+        if (count > 0) {
+          bf |= 0x40000000;
+        }
+        if (count == 0) {
+          bf |= 0x20000000;
+        }
+        condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
+      }
+      break;
+    }
+    case CNTTZDX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint64_t rs_val = get_register(rs);
+      uintptr_t count = __builtin_ctz(rs_val);
+      set_register(ra, count);
+      if (instr->Bit(0)) {  // RC Bit set
+        int bf = 0;
+        if (count > 0) {
+          bf |= 0x40000000;
+        }
+        if (count == 0) {
+          bf |= 0x20000000;
+        }
+        condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
+      }
+      break;
+    }
     case ANDX: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
@@ -3643,6 +3677,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
+    case FCPSGN: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      int fra = instr->RAValue();
+      double frb_val = get_double_from_d_register(frb);
+      double fra_val = get_double_from_d_register(fra);
+      double frt_val = std::copysign(fra_val, frb_val);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
     case FMR: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
@@ -4117,6 +4161,21 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VINSERT
+#define VINSERT_IMMEDIATE(type)                   \
+  uint8_t uim = instr->Bits(19, 16);              \
+  int vrt = instr->RTValue();                     \
+  int rb = instr->RBValue();                      \
+  type src = static_cast<type>(get_register(rb)); \
+  set_simd_register_bytes<type>(vrt, uim, src);
+    case VINSD: {
+      VINSERT_IMMEDIATE(int64_t)
+      break;
+    }
+    case VINSW: {
+      VINSERT_IMMEDIATE(int32_t)
+      break;
+    }
+#undef VINSERT_IMMEDIATE
 #define VEXTRACT(type, element)                       \
   uint8_t uim = instr->Bits(19, 16);                  \
   int vrt = instr->RTValue();                         \
@@ -4216,6 +4275,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
     case VSUBUDM: {
       VECTOR_ARITHMETIC_OP(int64_t, -)
+      break;
+    }
+    case VMULLD: {
+      VECTOR_ARITHMETIC_OP(int64_t, *)
       break;
     }
     case VADDUWM: {
@@ -4345,6 +4408,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     type b_val = get_simd_register_by_lane<type>(b, i);                    \
     set_simd_register_by_lane<type>(t, i, a_val op b_val ? a_val : b_val); \
   }
+    case XSMINDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      double a_val = get_double_from_d_register(a);
+      double b_val = get_double_from_d_register(b);
+      set_d_register_from_double(t, VSXFPMin<double>(a_val, b_val));
+      break;
+    }
+    case XSMAXDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      double a_val = get_double_from_d_register(a);
+      double b_val = get_double_from_d_register(b);
+      set_d_register_from_double(t, VSXFPMax<double>(a_val, b_val));
+      break;
+    }
     case XVMINDP: {
       DECODE_VX_INSTRUCTION(t, a, b, T)
       FOR_EACH_LANE(i, double) {
@@ -5010,6 +5087,32 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+#define EXTRACT_MASK(type)                                           \
+  int rt = instr->RTValue();                                         \
+  int vrb = instr->RBValue();                                        \
+  uint64_t result = 0;                                               \
+  FOR_EACH_LANE(i, type) {                                           \
+    if (i > 0) result <<= 1;                                         \
+    result |= std::signbit(get_simd_register_by_lane<type>(vrb, i)); \
+  }                                                                  \
+  set_register(rt, result);
+    case VEXTRACTDM: {
+      EXTRACT_MASK(int64_t)
+      break;
+    }
+    case VEXTRACTWM: {
+      EXTRACT_MASK(int32_t)
+      break;
+    }
+    case VEXTRACTHM: {
+      EXTRACT_MASK(int16_t)
+      break;
+    }
+    case VEXTRACTBM: {
+      EXTRACT_MASK(int8_t)
+      break;
+    }
+#undef EXTRACT_MASK
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
 #undef GET_ADDRESS

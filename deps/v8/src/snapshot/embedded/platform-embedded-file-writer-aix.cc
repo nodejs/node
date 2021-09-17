@@ -29,7 +29,7 @@ const char* DirectiveAsString(DataDirective directive) {
 }  // namespace
 
 void PlatformEmbeddedFileWriterAIX::SectionText() {
-  fprintf(fp_, ".csect .text[PR]\n");
+  fprintf(fp_, ".csect [GL], 5\n");
 }
 
 void PlatformEmbeddedFileWriterAIX::SectionData() {

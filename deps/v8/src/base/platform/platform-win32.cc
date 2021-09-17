@@ -15,9 +15,15 @@
 #endif  // MINGW_HAS_SECURE_API
 #endif  // __MINGW32__
 
-#include <limits>
+#include <windows.h>
 
-#include "src/base/win32-headers.h"
+// This has to come after windows.h.
+#include <VersionHelpers.h>
+#include <dbghelp.h>   // For SymLoadModule64 and al.
+#include <mmsystem.h>  // For timeGetTime().
+#include <tlhelp32.h>  // For Module32First and al.
+
+#include <limits>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
@@ -26,12 +32,33 @@
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
-
-#include <VersionHelpers.h>
+#include "src/base/win32-headers.h"
 
 #if defined(_MSC_VER)
 #include <crtdbg.h>
 #endif               // defined(_MSC_VER)
+
+// Check that type sizes and alignments match.
+STATIC_ASSERT(sizeof(V8_CONDITION_VARIABLE) == sizeof(CONDITION_VARIABLE));
+STATIC_ASSERT(alignof(V8_CONDITION_VARIABLE) == alignof(CONDITION_VARIABLE));
+STATIC_ASSERT(sizeof(V8_SRWLOCK) == sizeof(SRWLOCK));
+STATIC_ASSERT(alignof(V8_SRWLOCK) == alignof(SRWLOCK));
+STATIC_ASSERT(sizeof(V8_CRITICAL_SECTION) == sizeof(CRITICAL_SECTION));
+STATIC_ASSERT(alignof(V8_CRITICAL_SECTION) == alignof(CRITICAL_SECTION));
+
+// Check that CRITICAL_SECTION offsets match.
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, DebugInfo) ==
+              offsetof(CRITICAL_SECTION, DebugInfo));
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockCount) ==
+              offsetof(CRITICAL_SECTION, LockCount));
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, RecursionCount) ==
+              offsetof(CRITICAL_SECTION, RecursionCount));
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, OwningThread) ==
+              offsetof(CRITICAL_SECTION, OwningThread));
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockSemaphore) ==
+              offsetof(CRITICAL_SECTION, LockSemaphore));
+STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, SpinCount) ==
+              offsetof(CRITICAL_SECTION, SpinCount));
 
 // Extra functions for MinGW. Most of these are the _s functions which are in
 // the Microsoft Visual Studio C++ CRT.

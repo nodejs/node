@@ -227,6 +227,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   block_buffer_growth_ = false;
 }
 
+void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
+Assembler::~Assembler() { CHECK(constpool_.IsEmpty()); }
+
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
@@ -272,7 +275,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+    NOP();
   }
 }
 
@@ -1126,9 +1129,9 @@ void Assembler::GenInstrCB(uint8_t funct3, Opcode opcode, Register rs1,
 }
 
 void Assembler::GenInstrCBA(uint8_t funct3, uint8_t funct2, Opcode opcode,
-                            Register rs1, uint8_t uimm6) {
-  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_uint6(uimm6));
-  ShortInstr instr = opcode | ((uimm6 & 0x1f) << 2) | ((uimm6 & 0x20) << 7) |
+                            Register rs1, int8_t imm6) {
+  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_int6(imm6));
+  ShortInstr instr = opcode | ((imm6 & 0x1f) << 2) | ((imm6 & 0x20) << 7) |
                      ((rs1.code() & 0x7) << kRvcRs1sShift) |
                      (funct3 << kRvcFunct3Shift) | (funct2 << 10);
   emit(instr);
@@ -1264,7 +1267,10 @@ uint64_t Assembler::jump_address(Label* L) {
     }
   }
   uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
-  DCHECK_EQ(imm & 3, 0);
+  if (FLAG_riscv_c_extension)
+    DCHECK_EQ(imm & 1, 0);
+  else
+    DCHECK_EQ(imm & 3, 0);
 
   return imm;
 }
@@ -1292,7 +1298,10 @@ uint64_t Assembler::branch_long_offset(Label* L) {
     }
   }
   int64_t offset = target_pos - pc_offset();
-  DCHECK_EQ(offset & 3, 0);
+  if (FLAG_riscv_c_extension)
+    DCHECK_EQ(offset & 1, 0);
+  else
+    DCHECK_EQ(offset & 3, 0);
 
   return static_cast<uint64_t>(offset);
 }
@@ -2104,9 +2113,9 @@ void Assembler::c_lui(Register rd, int8_t imm6) {
   GenInstrCI(0b011, C1, rd, imm6);
 }
 
-void Assembler::c_slli(Register rd, uint8_t uimm6) {
-  DCHECK(rd != zero_reg && uimm6 != 0);
-  GenInstrCIU(0b000, C2, rd, uimm6);
+void Assembler::c_slli(Register rd, uint8_t shamt6) {
+  DCHECK(rd != zero_reg && shamt6 != 0);
+  GenInstrCIU(0b000, C2, rd, shamt6);
 }
 
 void Assembler::c_fldsp(FPURegister rd, uint16_t uimm9) {
@@ -2210,7 +2219,8 @@ void Assembler::c_fsdsp(FPURegister rs2, uint16_t uimm9) {
 
 void Assembler::c_lw(Register rd, Register rs1, uint16_t uimm7) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7) &&
+         ((uimm7 & 0x3) == 0));
   uint8_t uimm5 =
       ((uimm7 & 0x4) >> 1) | ((uimm7 & 0x40) >> 6) | ((uimm7 & 0x38) >> 1);
   GenInstrCL(0b010, C0, rd, rs1, uimm5);
@@ -2218,14 +2228,16 @@ void Assembler::c_lw(Register rd, Register rs1, uint16_t uimm7) {
 
 void Assembler::c_ld(Register rd, Register rs1, uint16_t uimm8) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCL(0b011, C0, rd, rs1, uimm5);
 }
 
 void Assembler::c_fld(FPURegister rd, Register rs1, uint16_t uimm8) {
   DCHECK(((rd.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCL(0b001, C0, rd, rs1, uimm5);
 }
@@ -2234,7 +2246,8 @@ void Assembler::c_fld(FPURegister rd, Register rs1, uint16_t uimm8) {
 
 void Assembler::c_sw(Register rs2, Register rs1, uint16_t uimm7) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint7(uimm7) &&
+         ((uimm7 & 0x3) == 0));
   uint8_t uimm5 =
       ((uimm7 & 0x4) >> 1) | ((uimm7 & 0x40) >> 6) | ((uimm7 & 0x38) >> 1);
   GenInstrCS(0b110, C0, rs2, rs1, uimm5);
@@ -2242,14 +2255,16 @@ void Assembler::c_sw(Register rs2, Register rs1, uint16_t uimm7) {
 
 void Assembler::c_sd(Register rs2, Register rs1, uint16_t uimm8) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCS(0b111, C0, rs2, rs1, uimm5);
 }
 
 void Assembler::c_fsd(FPURegister rs2, Register rs1, uint16_t uimm8) {
   DCHECK(((rs2.code() & 0b11000) == 0b01000) &&
-         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8));
+         ((rs1.code() & 0b11000) == 0b01000) && is_uint8(uimm8) &&
+         ((uimm8 & 0x7) == 0));
   uint8_t uimm5 = ((uimm8 & 0x38) >> 1) | ((uimm8 & 0xc0) >> 6);
   GenInstrCS(0b101, C0, rs2, rs1, uimm5);
 }
@@ -2282,19 +2297,35 @@ void Assembler::c_beqz(Register rs1, int16_t imm9) {
   GenInstrCB(0b110, C1, rs1, uimm8);
 }
 
-void Assembler::c_srli(Register rs1, uint8_t uimm6) {
-  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
-  GenInstrCBA(0b100, 0b00, C1, rs1, uimm6);
+void Assembler::c_srli(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b00, C1, rs1, shamt6);
 }
 
-void Assembler::c_srai(Register rs1, uint8_t uimm6) {
-  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
-  GenInstrCBA(0b100, 0b01, C1, rs1, uimm6);
+void Assembler::c_srai(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b01, C1, rs1, shamt6);
 }
 
-void Assembler::c_andi(Register rs1, uint8_t uimm6) {
-  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_uint6(uimm6));
-  GenInstrCBA(0b100, 0b10, C1, rs1, uimm6);
+void Assembler::c_andi(Register rs1, int8_t imm6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(imm6));
+  GenInstrCBA(0b100, 0b10, C1, rs1, imm6);
+}
+
+// Definitions for using compressed vs non compressed
+
+void Assembler::NOP() {
+  if (FLAG_riscv_c_extension)
+    c_nop();
+  else
+    nop();
+}
+
+void Assembler::EBREAK() {
+  if (FLAG_riscv_c_extension)
+    c_ebreak();
+  else
+    ebreak();
 }
 
 // Privileged
@@ -2755,8 +2786,28 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  if (!update_embedded_objects) return;
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    set_target_value_at(address, object->ptr());
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
+    set_target_value_at(address, p.second);
+  }
+  saved_handles_for_raw_object_ptr_.clear();
+}
+
 void Assembler::GrowBuffer() {
   DEBUG_PRINTF("GrowBuffer: %p -> ", buffer_start_);
+  bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
+
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -2798,6 +2849,16 @@ void Assembler::GrowBuffer() {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
+
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
+  }
+
   DCHECK(!overflow());
 }
 
@@ -2809,7 +2870,8 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();
@@ -2819,7 +2881,8 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();

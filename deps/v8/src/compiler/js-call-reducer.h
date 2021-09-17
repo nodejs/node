@@ -48,14 +48,12 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   using Flags = base::Flags<Flag>;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
-                Zone* temp_zone, Flags flags,
-                CompilationDependencies* dependencies)
+                Zone* temp_zone, Flags flags)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         broker_(broker),
         temp_zone_(temp_zone),
-        flags_(flags),
-        dependencies_(dependencies) {}
+        flags_(flags) {}
 
   const char* reducer_name() const override { return "JSCallReducer"; }
 
@@ -71,6 +69,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
   bool has_wasm_calls() const { return has_wasm_calls_; }
+
+  CompilationDependencies* dependencies() const;
 
  private:
   Reduction ReduceBooleanConstructor(Node* node);
@@ -256,13 +256,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
-  CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   Zone* const temp_zone_;
   Flags const flags_;
-  CompilationDependencies* const dependencies_;
   std::set<Node*> waitlist_;
 
   // For preventing infinite recursion via ReduceJSCallWithArrayLikeOrSpread.

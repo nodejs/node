@@ -80,16 +80,16 @@ struct WasmGlobal {
   bool exported;  // true if exported.
 };
 
-// Note: An exception signature only uses the params portion of a
-// function signature.
-using WasmExceptionSig = FunctionSig;
+// Note: An exception tag signature only uses the params portion of a function
+// signature.
+using WasmTagSig = FunctionSig;
 
-// Static representation of a wasm exception type.
-struct WasmException {
-  explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
+// Static representation of a wasm tag type.
+struct WasmTag {
+  explicit WasmTag(const WasmTagSig* sig) : sig(sig) {}
   const FunctionSig* ToFunctionSig() const { return sig; }
 
-  const WasmExceptionSig* sig;  // type signature of the exception.
+  const WasmTagSig* sig;  // type signature of the tag.
 };
 
 // Static representation of a wasm data segment.
@@ -342,7 +342,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmTable> tables;
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
-  std::vector<WasmException> exceptions;
+  std::vector<WasmTag> tags;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
@@ -396,8 +396,11 @@ size_t EstimateStoredSize(const WasmModule* module);
 V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 
 // Returns the wrapper index for a function in {module} with signature {sig}
-// and origin defined by {is_import}.
+// or {sig_index} and origin defined by {is_import}.
+// Prefer to use the {sig_index} consuming version, as it is much faster.
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
+                          bool is_import);
+int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
                           bool is_import);
 
 // Return the byte offset of the function identified by the given index.
@@ -469,7 +472,8 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig);
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
+                                    bool for_exception = false);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,

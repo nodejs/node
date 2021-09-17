@@ -644,8 +644,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           Local<Value> name, PrintResult print_result,
                           ReportExceptions report_exceptions,
                           ProcessMessageQueue process_message_queue) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i::FLAG_parse_only) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::VMState<PARSER> state(i_isolate);
     i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
@@ -680,6 +680,15 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(report_exceptions == kReportExceptions);
+
+  // Explicitly check for stack overflows. This method can be called
+  // recursively, and since we consume quite some stack space for the C++
+  // frames, the stack check in the called frame might be too late.
+  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+    i_isolate->StackOverflow();
+    i_isolate->OptionalRescheduleException(false);
+    return false;
+  }
 
   MaybeLocal<Value> maybe_result;
   bool success = true;
@@ -2832,19 +2841,8 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_template);
-#if defined(V8_TARGET_OS_LINUX)
-  const char os_name[] = "linux";
-#elif defined(V8_TARGET_OS_WIN)
-  const char os_name[] = "windows";
-#elif defined(V8_TARGET_OS_MACOSX)
-  const char os_name[] = "macos";
-#elif defined(V8_TARGET_OS_ANDROID)
-  const char os_name[] = "android";
-#else
-  const char os_name[] = "unknown";
-#endif
   os_template->Set(isolate, "name",
-                   v8::String::NewFromUtf8Literal(isolate, os_name),
+                   v8::String::NewFromUtf8Literal(isolate, V8_TARGET_OS_STRING),
                    PropertyAttribute::ReadOnly);
   os_template->Set(
       isolate, "d8Path",

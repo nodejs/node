@@ -18,6 +18,10 @@
 namespace v8 {
 namespace internal {
 
+bool FunctionTemplateInfo::HasInstanceType() {
+  return instance_type() != kNoJSApiObjectType;
+}
+
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     Isolate* isolate, Handle<FunctionTemplateInfo> info,
     MaybeHandle<Name> maybe_name) {
@@ -61,6 +65,17 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
 
   // There is a constraint on the object; check.
   if (!map.IsJSObjectMap()) return false;
+
+  if (FLAG_embedder_instance_types) {
+    DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
+                   allowed_receiver_instance_type_range_end() == 0);
+    if (base::IsInRange(map.instance_type(),
+                        allowed_receiver_instance_type_range_start(),
+                        allowed_receiver_instance_type_range_end())) {
+      return true;
+    }
+  }
+
   // Fetch the constructor function of the object.
   Object cons_obj = map.GetConstructor();
   Object type;

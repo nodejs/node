@@ -110,7 +110,7 @@ transitioning builtin CallIteratorWithFeedback(
       iteratorMethod, %MakeLazy<JSAny, JSAny>('GetLazyReceiver', receiver),
       context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
-      otherwise ThrowCalledNonCallable(iteratorMethod);
+      otherwise ThrowIteratorError(receiver);
   return Call(context, iteratorCallable, receiver);
 }
 

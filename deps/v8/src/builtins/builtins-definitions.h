@@ -170,8 +170,8 @@ namespace internal {
   ASM(BaselineOutOfLinePrologue, BaselineOutOfLinePrologue)                    \
   ASM(BaselineOnStackReplacement, Void)                                        \
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
-  ASM(BaselineEnterAtBytecode, Void)                                           \
-  ASM(BaselineEnterAtNextBytecode, Void)                                       \
+  ASM(BaselineOrInterpreterEnterAtBytecode, Void)                              \
+  ASM(BaselineOrInterpreterEnterAtNextBytecode, Void)                          \
   ASM(InterpreterOnStackReplacement_ToBaseline, Void)                          \
                                                                                \
   /* Code life-cycle */                                                        \
@@ -394,6 +394,8 @@ namespace internal {
   CPP(ArrayBufferConstructor)                                                  \
   CPP(ArrayBufferConstructor_DoNotInitialize)                                  \
   CPP(ArrayBufferPrototypeSlice)                                               \
+  /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
+  CPP(ArrayBufferPrototypeResize)                                              \
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
@@ -799,11 +801,6 @@ namespace internal {
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
   ASM(RegExpExperimentalTrampoline, CCall)                                     \
                                                                                \
-  /* ResizableArrayBuffer & GrowableSharedArrayBuffer */                       \
-  CPP(ResizableArrayBufferPrototypeResize)                                     \
-  CPP(GrowableSharedArrayBufferPrototypeGrow)                                  \
-  CPP(GrowableSharedArrayBufferPrototypeGetByteLength)                         \
-                                                                               \
   /* Set */                                                                    \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, 1, kReceiver, kKey)                                     \
@@ -823,7 +820,11 @@ namespace internal {
   TFS(SetOrSetIteratorToList, kSource)                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \
+  CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
   CPP(SharedArrayBufferPrototypeSlice)                                         \
+  /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
+  CPP(SharedArrayBufferPrototypeGrow)                                          \
+                                                                               \
   TFJ(AtomicsLoad, 2, kReceiver, kArray, kIndex)                               \
   TFJ(AtomicsStore, 3, kReceiver, kArray, kIndex, kValue)                      \
   TFJ(AtomicsExchange, 3, kReceiver, kArray, kIndex, kValue)                   \

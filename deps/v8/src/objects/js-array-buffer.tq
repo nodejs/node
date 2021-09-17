@@ -11,7 +11,6 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_resizable: bool: 1 bit;
 }
 
-@generateCppClass
 extern class JSArrayBuffer extends JSObject {
   byte_length: uintptr;
   max_byte_length: uintptr;
@@ -42,7 +41,6 @@ macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
 }
 
 @abstract
-@generateCppClass
 extern class JSArrayBufferView extends JSObject {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
@@ -59,7 +57,6 @@ bitfield struct JSTypedArrayFlags extends uint32 {
   is_backed_by_rab: bool: 1 bit;
 }
 
-@generateCppClass
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
   external_pointer: ExternalPointer;
@@ -80,7 +77,6 @@ macro IsLengthTrackingTypedArray(array: JSTypedArray): bool {
   return array.bit_field.is_length_tracking;
 }
 
-@generateCppClass
 extern class JSDataView extends JSArrayBufferView {
   data_pointer: ExternalPointer;
 }

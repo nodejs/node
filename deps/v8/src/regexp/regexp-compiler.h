@@ -424,7 +424,8 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpNode* node);
+RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
+                          JSRegExp::Flags flags, RegExpNode* node);
 
 class FrequencyCollator {
  public:
@@ -474,7 +475,7 @@ class FrequencyCollator {
 class RegExpCompiler {
  public:
   RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                 bool is_one_byte);
+                 JSRegExp::Flags flags, bool is_one_byte);
 
   int AllocateRegister() {
     if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
@@ -531,8 +532,7 @@ class RegExpCompiler {
 
   // If the regexp matching starts within a surrogate pair, step back to the
   // lead surrogate and start matching from there.
-  RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpNode* on_success,
-                                                JSRegExp::Flags flags);
+  RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpNode* on_success);
 
   inline void AddWork(RegExpNode* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
@@ -552,6 +552,8 @@ class RegExpCompiler {
   inline int recursion_depth() { return recursion_depth_; }
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
+
+  JSRegExp::Flags flags() const { return flags_; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
 
@@ -583,6 +585,7 @@ class RegExpCompiler {
   int unicode_lookaround_position_register_;
   ZoneVector<RegExpNode*>* work_list_;
   int recursion_depth_;
+  const JSRegExp::Flags flags_;
   RegExpMacroAssembler* macro_assembler_;
   bool one_byte_;
   bool reg_exp_too_big_;

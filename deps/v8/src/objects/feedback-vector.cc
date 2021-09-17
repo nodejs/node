@@ -4,6 +4,8 @@
 
 #include "src/objects/feedback-vector.h"
 
+#include "src/common/globals.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
@@ -204,6 +206,12 @@ bool FeedbackMetadata::HasTypeProfileSlot() const {
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
   DCHECK(!is_empty());
   return metadata().GetKind(slot);
+}
+
+FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
+                                         AcquireLoadTag tag) const {
+  DCHECK(!is_empty());
+  return metadata(tag).GetKind(slot);
 }
 
 FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
@@ -561,7 +569,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
                              const NexusConfig& config)
     : vector_handle_(vector),
       slot_(slot),
-      kind_(vector->GetKind(slot)),
+      kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
 Handle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
@@ -1019,7 +1027,7 @@ CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
 float FeedbackNexus::ComputeCallFrequency() {
   DCHECK(IsCallICKind(kind()));
 
-  double const invocation_count = vector().invocation_count();
+  double const invocation_count = vector().invocation_count(kRelaxedLoad);
   double const call_count = GetCallCount();
   if (invocation_count == 0.0) {  // Prevent division by 0.
     return 0.0f;
@@ -1243,14 +1251,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         continue;
       } else {
         Code code = FromCodeT(CodeT::cast(data_handler->smi_handler()));
-        handler = handle(code, vector().GetIsolate());
+        handler = config()->NewHandle(code);
       }
 
     } else if (maybe_code_handler.object()->IsSmi()) {
       // Skip for Proxy Handlers.
-      if (*(maybe_code_handler.object()) ==
-          *StoreHandler::StoreProxy(GetIsolate()))
+      if (*maybe_code_handler.object() == StoreHandler::StoreProxy()) {
         continue;
+      }
       // Decode the KeyedAccessStoreMode information from the Handler.
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
       if (mode != STANDARD_STORE) return mode;
@@ -1259,7 +1267,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       // Element store without prototype chain check.
       if (V8_EXTERNAL_CODE_SPACE_BOOL) {
         Code code = FromCodeT(CodeT::cast(*maybe_code_handler.object()));
-        handler = handle(code, vector().GetIsolate());
+        handler = config()->NewHandle(code);
       } else {
         handler = Handle<Code>::cast(maybe_code_handler.object());
       }

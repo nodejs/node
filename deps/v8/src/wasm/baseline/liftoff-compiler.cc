@@ -310,12 +310,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   return;
 #endif
 
-  // TODO(11235): On arm and arm64 there is still a limit on the size of
-  // supported stack frames.
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-  if (strstr(detail, "Stack limited to 512 bytes")) return;
-#endif
-
 #define LIST_FEATURE(name, ...) kFeature_##name,
   constexpr WasmFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
@@ -747,8 +741,6 @@ class LiftoffCompiler {
               Register::from_code(
                   descriptor_->GetInputLocation(kInstanceParameterIndex)
                       .AsRegister()));
-    // Store the instance parameter to a special stack slot.
-    __ SpillInstance(kWasmInstanceRegister);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     if (for_debugging_) __ ResetOSRTarget();
 
@@ -855,7 +847,7 @@ class LiftoffCompiler {
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
     CODE_COMMENT(
-        (std::string("out of line: ") + GetRuntimeStubName(ool->stub)).c_str());
+        (std::string("OOL: ") + GetRuntimeStubName(ool->stub)).c_str());
     __ bind(ool->label.get());
     const bool is_stack_check = ool->stub == WasmCode::kWasmStackGuard;
 
@@ -954,7 +946,8 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     DCHECK_EQ(frame_size, __ GetTotalFrameSize());
-    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_);
+    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
+                              &safepoint_table_builder_);
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
     // Emit the handler table.
@@ -1148,8 +1141,8 @@ class LiftoffCompiler {
   }
 
   void CatchException(FullDecoder* decoder,
-                      const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, base::Vector<Value> values) {
+                      const TagIndexImmediate<validate>& imm, Control* block,
+                      base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
     __ emit_jump(block->label.get());
 
@@ -1178,7 +1171,7 @@ class LiftoffCompiler {
 
     CODE_COMMENT("load expected exception tag");
     Register imm_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, ExceptionsTable, pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
     __ LoadTaggedPointer(
         imm_tag, imm_tag, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), {});
@@ -1196,8 +1189,7 @@ class LiftoffCompiler {
       block->try_info->in_handler = true;
       num_exceptions_++;
     }
-    GetExceptionValues(decoder, __ cache_state()->stack_state.back(),
-                       imm.exception);
+    GetExceptionValues(decoder, __ cache_state()->stack_state.back(), imm.tag);
   }
 
   void Rethrow(FullDecoder* decoder,
@@ -4234,18 +4226,18 @@ class LiftoffCompiler {
 
   void GetExceptionValues(FullDecoder* decoder,
                           LiftoffAssembler::VarState& exception_var,
-                          const WasmException* exception) {
+                          const WasmTag* tag) {
     LiftoffRegList pinned;
     CODE_COMMENT("get exception values");
     LiftoffRegister values_array = GetExceptionProperty(
         exception_var, RootIndex::kwasm_exception_values_symbol);
     pinned.set(values_array);
     uint32_t index = 0;
-    const WasmExceptionSig* sig = exception->sig;
+    const WasmTagSig* sig = tag->sig;
     for (ValueType param : sig->parameters()) {
       LoadExceptionValue(param.kind(), values_array, &index, pinned);
     }
-    DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
+    DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(tag));
   }
 
   void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
@@ -4280,12 +4272,12 @@ class LiftoffCompiler {
     __ DropValues(1);
   }
 
-  void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
+  void Throw(FullDecoder* decoder, const TagIndexImmediate<validate>& imm,
              const base::Vector<Value>& /* args */) {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
-    int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.exception);
+    int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
     LiftoffRegister encoded_size_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(encoded_size_reg, WasmValue(encoded_size));
@@ -4307,7 +4299,7 @@ class LiftoffCompiler {
     // first value, such that we can just pop them from the value stack.
     CODE_COMMENT("fill values array");
     int index = encoded_size;
-    auto* sig = imm.exception->sig;
+    auto* sig = imm.tag->sig;
     for (size_t param_idx = sig->parameter_count(); param_idx > 0;
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
@@ -4319,7 +4311,7 @@ class LiftoffCompiler {
     CODE_COMMENT("load exception tag");
     LiftoffRegister exception_tag =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(exception_tag.gp(), ExceptionsTable, pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(exception_tag.gp(), TagsTable, pinned);
     __ LoadTaggedPointer(
         exception_tag.gp(), exception_tag.gp(), no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), {});
@@ -6283,10 +6275,7 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body, int func_index,
-    ForDebugging for_debugging, Counters* counters, WasmFeatures* detected,
-    base::Vector<const int> breakpoints,
-    std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint,
-    int32_t* max_steps, int32_t* nondeterminism) {
+    ForDebugging for_debugging, const LiftoffOptions& compiler_options) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
@@ -6302,20 +6291,25 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   // have to grow more often.
   int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
-  if (debug_sidetable) {
+  if (compiler_options.debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
   }
-  DCHECK_IMPLIES(max_steps, for_debugging == kForDebugging);
+  DCHECK_IMPLIES(compiler_options.max_steps, for_debugging == kForDebugging);
+  WasmFeatures unused_detected_features;
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
-      &zone, env->module, env->enabled_features, detected, func_body,
-      call_descriptor, env, &zone, NewAssemblerBuffer(initial_buffer_size),
-      debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
-      dead_breakpoint, max_steps, nondeterminism);
+      &zone, env->module, env->enabled_features,
+      compiler_options.detected_features ? compiler_options.detected_features
+                                         : &unused_detected_features,
+      func_body, call_descriptor, env, &zone,
+      NewAssemblerBuffer(initial_buffer_size), debug_sidetable_builder.get(),
+      for_debugging, func_index, compiler_options.breakpoints,
+      compiler_options.dead_breakpoint, compiler_options.max_steps,
+      compiler_options.nondeterminism);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
 
-  if (counters) {
+  if (auto* counters = compiler_options.counters) {
     // Check that the histogram for the bailout reasons has the correct size.
     DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
     DCHECK_EQ(kNumBailoutReasons - 1,
@@ -6339,7 +6333,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
   result.for_debugging = for_debugging;
-  if (debug_sidetable) {
+  if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
 

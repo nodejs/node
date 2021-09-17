@@ -510,6 +510,8 @@ template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
 
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                StringTableInsertionKey* key);
+template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
+                                               StringTableInsertionKey* key);
 
 StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
                                                int additional_elements) {

@@ -74,13 +74,21 @@ bool ZipWriter::OpenNewFileEntry(const base::FilePath& path,
                                  bool is_directory,
                                  base::Time last_modified) {
   std::string str_path = path.AsUTF8Unsafe();
+
 #if defined(OS_WIN)
   base::ReplaceSubstringsAfterOffset(&str_path, 0u, "\\", "/");
 #endif
-  if (is_directory)
-    str_path += "/";
 
-  return zip::internal::ZipOpenNewFileInZip(zip_file_, str_path, last_modified);
+  Compression compression = kDeflated;
+
+  if (is_directory) {
+    str_path += "/";
+  } else {
+    compression = GetCompressionMethod(path);
+  }
+
+  return zip::internal::ZipOpenNewFileInZip(zip_file_, str_path, last_modified,
+                                            compression);
 }
 
 bool ZipWriter::CloseNewFileEntry() {

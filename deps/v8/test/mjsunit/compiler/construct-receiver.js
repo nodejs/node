@@ -25,5 +25,5 @@ new class extends C { constructor() { super(); this.c = 1 } }
 new class extends C { constructor() { super(); this.d = 1 } }
 
 foo();
-%OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionForTopTier(foo);
 foo();

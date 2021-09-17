@@ -1,4 +1,4 @@
-wasm-function[0]:0x2e: RuntimeError: wasm exception
-RuntimeError: wasm exception
-    at throw0 (<anonymous>:wasm-function[0]:0x2e)
+wasm-function[0]:0x2e: WebAssembly.Exception: wasm exception
+WebAssembly.Exception: wasm exception
+    at throw0 (wasm://wasm/e4cabeba:wasm-function[0]:0x2e)
     at *%(basename)s:17:18

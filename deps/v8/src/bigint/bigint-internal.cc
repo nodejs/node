@@ -7,6 +7,15 @@
 namespace v8 {
 namespace bigint {
 
+// Used for checking consistency between library and public header.
+#if DEBUG
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+bool kAdvancedAlgorithmsEnabledInLibrary = true;
+#else
+bool kAdvancedAlgorithmsEnabledInLibrary = false;
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+#endif  // DEBUG
+
 ProcessorImpl::ProcessorImpl(Platform* platform) : platform_(platform) {}
 
 ProcessorImpl::~ProcessorImpl() { delete platform_; }
@@ -58,7 +67,16 @@ void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
   if (B.len() < kBurnikelThreshold) {
     return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
   }
+#if !V8_ADVANCED_BIGINT_ALGORITHMS
   return DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
+#else
+  if (B.len() < kBarrettThreshold || A.len() == B.len()) {
+    DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
+  } else {
+    ScratchDigits R(B.len());
+    DivideBarrett(Q, R, A, B);
+  }
+#endif
 }
 
 void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
@@ -84,7 +102,15 @@ void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
   }
   int q_len = DivideResultLength(A, B);
   ScratchDigits Q(q_len);
+#if !V8_ADVANCED_BIGINT_ALGORITHMS
   return DivideBurnikelZiegler(Q, R, A, B);
+#else
+  if (B.len() < kBarrettThreshold || A.len() == B.len()) {
+    DivideBurnikelZiegler(Q, R, A, B);
+  } else {
+    DivideBarrett(Q, R, A, B);
+  }
+#endif
 }
 
 Status Processor::Multiply(RWDigits Z, Digits X, Digits Y) {

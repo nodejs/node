@@ -147,8 +147,8 @@ size_t hash_value(StoreLaneParameters params) {
 }
 
 std::ostream& operator<<(std::ostream& os, StoreLaneParameters params) {
-  return os << "(" << params.kind << " " << params.rep << " " << params.laneidx
-            << ")";
+  return os << "(" << params.kind << " " << params.rep << " "
+            << static_cast<unsigned int>(params.laneidx) << ")";
 }
 
 StoreLaneParameters const& StoreLaneParametersOf(Operator const* op) {

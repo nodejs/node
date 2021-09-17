@@ -68,7 +68,11 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
     int position = GetSourcePosition(info);
-    return Script::GetLineNumber(script, position) + 1;
+    int line_number = Script::GetLineNumber(script, position) + 1;
+    if (script->HasSourceURLComment()) {
+      line_number -= script->line_offset();
+    }
+    return line_number;
   }
   return Message::kNoLineNumberInfo;
 }
@@ -84,7 +88,13 @@ int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
-    return Script::GetColumnNumber(script, position) + 1;
+    int column_number = Script::GetColumnNumber(script, position) + 1;
+    if (script->HasSourceURLComment()) {
+      if (Script::GetLineNumber(script, position) == script->line_offset()) {
+        column_number -= script->column_offset();
+      }
+    }
+    return column_number;
   }
   return Message::kNoColumnInfo;
 }
@@ -708,12 +718,6 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool IsAnonymousWasmScript(Isolate* isolate, Handle<Object> url) {
-  Handle<String> prefix =
-      isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
-  return StringIndexOf(isolate, Handle<String>::cast(url), prefix) == 0;
-}
-
 void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
                              IncrementalStringBuilder* builder) {
   Handle<Object> module_name = StackFrameInfo::GetWasmModuleName(frame);
@@ -733,7 +737,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
   }
 
   Handle<Object> url(frame->GetScriptNameOrSourceURL(), isolate);
-  if (IsNonEmptyString(url) && !IsAnonymousWasmScript(isolate, url)) {
+  if (IsNonEmptyString(url)) {
     builder->AppendString(Handle<String>::cast(url));
   } else {
     builder->AppendCString("<anonymous>");

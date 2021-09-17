@@ -224,6 +224,13 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
         << "'";
   } else if (rmode == RelocInfo::DEOPT_ID) {
     out << "    ;; debug: deopt index " << static_cast<int>(relocinfo->data());
+  } else if (rmode == RelocInfo::DEOPT_NODE_ID) {
+#ifdef DEBUG
+    out << "    ;; debug: deopt node id "
+        << static_cast<uint32_t>(relocinfo->data());
+#else   // DEBUG
+    UNREACHABLE();
+#endif  // DEBUG
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
@@ -319,13 +326,25 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
         pc += 4;
       } else if (it != nullptr && !it->done() &&
                  it->rinfo()->pc() == reinterpret_cast<Address>(pc) &&
-                 it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
+                 (it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE ||
+                  it->rinfo()->rmode() == RelocInfo::LITERAL_CONSTANT ||
+                  it->rinfo()->rmode() == RelocInfo::DATA_EMBEDDED_OBJECT)) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr =
             base::ReadUnalignedValue<byte*>(reinterpret_cast<Address>(pc));
-        SNPrintF(decode_buffer, "%08" V8PRIxPTR "      jump table entry %4zu",
-                 reinterpret_cast<intptr_t>(ptr),
-                 static_cast<size_t>(ptr - begin));
+        if (RelocInfo::IsInternalReference(it->rinfo()->rmode())) {
+          SNPrintF(decode_buffer,
+                   "%08" V8PRIxPTR "       jump table entry %4zu",
+                   reinterpret_cast<intptr_t>(ptr),
+                   static_cast<size_t>(ptr - begin));
+        } else {
+          const char* kType = RelocInfo::IsLiteralConstant(it->rinfo()->rmode())
+                                  ? "    literal constant"
+                                  : "embedded data object";
+          SNPrintF(decode_buffer, "%08" V8PRIxPTR "       %s 0x%08" V8PRIxPTR,
+                   reinterpret_cast<intptr_t>(ptr), kType,
+                   reinterpret_cast<intptr_t>(ptr));
+        }
         pc += sizeof(ptr);
       } else {
         decode_buffer[0] = '\0';

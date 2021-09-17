@@ -126,10 +126,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
       MutableBigInt result_storage = MutableBigInt());
 
-  static void InternalMultiplyAdd(BigIntBase source, digit_t factor,
-                                  digit_t summand, int n, MutableBigInt result);
-  void InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand);
-
   // Specialized helpers for shift operations.
   static MaybeHandle<BigInt> LeftShiftByAbsolute(Isolate* isolate,
                                                  Handle<BigIntBase> x,
@@ -152,7 +148,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   // Digit arithmetic helpers.
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
   static inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow);
-  static inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high);
   static inline bool digit_ismax(digit_t x) {
     return static_cast<digit_t>(~x) == 0;
   }
@@ -1411,50 +1406,6 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteXor(Isolate* isolate,
                            [](digit_t a, digit_t b) { return a ^ b; });
 }
 
-// Multiplies {source} with {factor} and adds {summand} to the result.
-// {result} and {source} may be the same BigInt for inplace modification.
-void MutableBigInt::InternalMultiplyAdd(BigIntBase source, digit_t factor,
-                                        digit_t summand, int n,
-                                        MutableBigInt result) {
-  DCHECK(source.length() >= n);
-  DCHECK(result.length() >= n);
-  digit_t carry = summand;
-  digit_t high = 0;
-  for (int i = 0; i < n; i++) {
-    digit_t current = source.digit(i);
-    digit_t new_carry = 0;
-    // Compute this round's multiplication.
-    digit_t new_high = 0;
-    current = digit_mul(current, factor, &new_high);
-    // Add last round's carryovers.
-    current = digit_add(current, high, &new_carry);
-    current = digit_add(current, carry, &new_carry);
-    // Store result and prepare for next round.
-    result.set_digit(i, current);
-    carry = new_carry;
-    high = new_high;
-  }
-  if (result.length() > n) {
-    result.set_digit(n++, carry + high);
-    // Current callers don't pass in such large results, but let's be robust.
-    while (n < result.length()) {
-      result.set_digit(n++, 0);
-    }
-  } else {
-    CHECK_EQ(carry + high, 0);
-  }
-}
-
-// Multiplies {x} with {factor} and then adds {summand} to it.
-void BigInt::InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
-                                uintptr_t summand) {
-  STATIC_ASSERT(sizeof(factor) == sizeof(digit_t));
-  STATIC_ASSERT(sizeof(summand) == sizeof(digit_t));
-  MutableBigInt bigint = MutableBigInt::cast(x);
-  MutableBigInt::InternalMultiplyAdd(bigint, factor, summand, bigint.length(),
-                                     bigint);
-}
-
 MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
                                                        Handle<BigIntBase> x,
                                                        Handle<BigIntBase> y) {
@@ -1591,71 +1542,33 @@ Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
   return Just(value);
 }
 
-// Lookup table for the maximum number of bits required per character of a
-// base-N string representation of a number. To increase accuracy, the array
-// value is the actual value multiplied by 32. To generate this table:
-// for (var i = 0; i <= 36; i++) { print(Math.ceil(Math.log2(i) * 32) + ","); }
-constexpr uint8_t kMaxBitsPerChar[] = {
-    0,   0,   32,  51,  64,  75,  83,  90,  96,  // 0..8
-    102, 107, 111, 115, 119, 122, 126, 128,      // 9..16
-    131, 134, 136, 139, 141, 143, 145, 147,      // 17..24
-    149, 151, 153, 154, 156, 158, 159, 160,      // 25..32
-    162, 163, 165, 166,                          // 33..36
-};
-
-static const int kBitsPerCharTableShift = 5;
-static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
+void Terminate(Isolate* isolate) { isolate->TerminateExecution(); }
+// {LocalIsolate} doesn't support interruption or termination.
+void Terminate(LocalIsolate* isolate) { UNREACHABLE(); }
 
 template <typename IsolateT>
-MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    IsolateT* isolate, int radix, int charcount, ShouldThrow should_throw,
-    AllocationType allocation) {
-  DCHECK(2 <= radix && radix <= 36);
-  DCHECK_GE(charcount, 0);
-  size_t bits_per_char = kMaxBitsPerChar[radix];
-  uint64_t chars = static_cast<uint64_t>(charcount);
-  const int roundup = kBitsPerCharTableMultiplier - 1;
-  if (chars <=
-      (std::numeric_limits<uint64_t>::max() - roundup) / bits_per_char) {
-    uint64_t bits_min = bits_per_char * chars;
-    // Divide by 32 (see table), rounding up.
-    bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
-    if (bits_min <= static_cast<uint64_t>(kMaxInt)) {
-      // Divide by kDigitsBits, rounding up.
-      int length = static_cast<int>((bits_min + kDigitBits - 1) / kDigitBits);
-      if (length <= kMaxLength) {
-        Handle<MutableBigInt> result =
-            MutableBigInt::New(isolate, length, allocation).ToHandleChecked();
-        result->InitializeDigits(length);
-        return result;
-      }
-    }
+MaybeHandle<BigInt> BigInt::Allocate(IsolateT* isolate,
+                                     bigint::FromStringAccumulator* accumulator,
+                                     bool negative, AllocationType allocation) {
+  int digits = accumulator->ResultLength();
+  DCHECK_LE(digits, kMaxLength);
+  Handle<MutableBigInt> result =
+      MutableBigInt::New(isolate, digits, allocation).ToHandleChecked();
+  bigint::Status status =
+      isolate->bigint_processor()->FromString(GetRWDigits(result), accumulator);
+  if (status == bigint::Status::kInterrupted) {
+    Terminate(isolate);
+    return {};
   }
-  // All the overflow/maximum checks above fall through to here.
-  if (should_throw == kThrowOnError) {
-    return ThrowBigIntTooBig<FreshlyAllocatedBigInt>(isolate);
-  } else {
-    return MaybeHandle<FreshlyAllocatedBigInt>();
-  }
+  if (digits > 0) result->set_sign(negative);
+  return MutableBigInt::MakeImmutable(result);
 }
-template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-    AllocationType allocation);
-template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-    AllocationType allocation);
-
-template <typename IsolateT>
-Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
-  Handle<MutableBigInt> bigint = Handle<MutableBigInt>::cast(x);
-  bigint->set_sign(sign);
-  return MutableBigInt::MakeImmutable<Isolate>(bigint);
-}
-
-template Handle<BigInt> BigInt::Finalize<Isolate>(
-    Handle<FreshlyAllocatedBigInt>, bool);
-template Handle<BigInt> BigInt::Finalize<LocalIsolate>(
-    Handle<FreshlyAllocatedBigInt>, bool);
+template MaybeHandle<BigInt> BigInt::Allocate(Isolate*,
+                                              bigint::FromStringAccumulator*,
+                                              bool, AllocationType);
+template MaybeHandle<BigInt> BigInt::Allocate(LocalIsolate*,
+                                              bigint::FromStringAccumulator*,
+                                              bool, AllocationType);
 
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
@@ -2053,43 +1966,6 @@ inline BigInt::digit_t MutableBigInt::digit_sub(digit_t a, digit_t b,
   digit_t result = a - b;
   if (result > a) *borrow += 1;
   return static_cast<digit_t>(result);
-#endif
-}
-
-// Returns the low half of the result. High half is in {high}.
-inline BigInt::digit_t MutableBigInt::digit_mul(digit_t a, digit_t b,
-                                                digit_t* high) {
-#if HAVE_TWODIGIT_T
-  twodigit_t result = static_cast<twodigit_t>(a) * static_cast<twodigit_t>(b);
-  *high = result >> kDigitBits;
-  return static_cast<digit_t>(result);
-#else
-  // Multiply in half-pointer-sized chunks.
-  // For inputs [AH AL]*[BH BL], the result is:
-  //
-  //            [AL*BL]  // r_low
-  //    +    [AL*BH]     // r_mid1
-  //    +    [AH*BL]     // r_mid2
-  //    + [AH*BH]        // r_high
-  //    = [R4 R3 R2 R1]  // high = [R4 R3], low = [R2 R1]
-  //
-  // Where of course we must be careful with carries between the columns.
-  digit_t a_low = a & kHalfDigitMask;
-  digit_t a_high = a >> kHalfDigitBits;
-  digit_t b_low = b & kHalfDigitMask;
-  digit_t b_high = b >> kHalfDigitBits;
-
-  digit_t r_low = a_low * b_low;
-  digit_t r_mid1 = a_low * b_high;
-  digit_t r_mid2 = a_high * b_low;
-  digit_t r_high = a_high * b_high;
-
-  digit_t carry = 0;
-  digit_t low = digit_add(r_low, r_mid1 << kHalfDigitBits, &carry);
-  low = digit_add(low, r_mid2 << kHalfDigitBits, &carry);
-  *high =
-      (r_mid1 >> kHalfDigitBits) + (r_mid2 >> kHalfDigitBits) + r_high + carry;
-  return low;
 #endif
 }
 

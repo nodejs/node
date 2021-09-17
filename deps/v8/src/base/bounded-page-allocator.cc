@@ -14,9 +14,9 @@ BoundedPageAllocator::BoundedPageAllocator(v8::PageAllocator* page_allocator,
       commit_page_size_(page_allocator->CommitPageSize()),
       page_allocator_(page_allocator),
       region_allocator_(start, size, allocate_page_size_) {
-  CHECK_NOT_NULL(page_allocator);
-  CHECK(IsAligned(allocate_page_size, page_allocator->AllocatePageSize()));
-  CHECK(IsAligned(allocate_page_size_, commit_page_size_));
+  DCHECK_NOT_NULL(page_allocator);
+  DCHECK(IsAligned(allocate_page_size, page_allocator->AllocatePageSize()));
+  DCHECK(IsAligned(allocate_page_size_, commit_page_size_));
 }
 
 BoundedPageAllocator::Address BoundedPageAllocator::begin() const {
@@ -29,11 +29,11 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
                                           size_t alignment,
                                           PageAllocator::Permission access) {
   MutexGuard guard(&mutex_);
-  CHECK(IsAligned(alignment, region_allocator_.page_size()));
+  DCHECK(IsAligned(alignment, region_allocator_.page_size()));
 
   // Region allocator does not support alignments bigger than it's own
   // allocation alignment.
-  CHECK_LE(alignment, allocate_page_size_);
+  DCHECK_LE(alignment, allocate_page_size_);
 
   // TODO(ishell): Consider using randomized version here.
   Address address = region_allocator_.AllocateRegion(size);
@@ -47,13 +47,18 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
                                            PageAllocator::Permission access) {
-  CHECK(IsAligned(address, allocate_page_size_));
-  CHECK(IsAligned(size, allocate_page_size_));
-  CHECK(region_allocator_.contains(address, size));
+  DCHECK(IsAligned(address, allocate_page_size_));
+  DCHECK(IsAligned(size, allocate_page_size_));
 
-  if (!region_allocator_.AllocateRegionAt(address, size)) {
-    return false;
+  {
+    MutexGuard guard(&mutex_);
+    DCHECK(region_allocator_.contains(address, size));
+
+    if (!region_allocator_.AllocateRegionAt(address, size)) {
+      return false;
+    }
   }
+
   CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
                                         access));
   return true;
@@ -62,16 +67,20 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
 bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
                                                          size_t size) {
   Address address = reinterpret_cast<Address>(ptr);
-  CHECK(IsAligned(address, allocate_page_size_));
-  CHECK(IsAligned(size, commit_page_size_));
-  CHECK(region_allocator_.contains(address, size));
+  DCHECK(IsAligned(address, allocate_page_size_));
+  DCHECK(IsAligned(size, commit_page_size_));
 
-  // Region allocator requires page size rather than commit size so just over-
-  // allocate there since any extra space couldn't be used anyway.
-  size_t region_size = RoundUp(size, allocate_page_size_);
-  if (!region_allocator_.AllocateRegionAt(
-          address, region_size, RegionAllocator::RegionState::kExcluded)) {
-    return false;
+  {
+    MutexGuard guard(&mutex_);
+    DCHECK(region_allocator_.contains(address, size));
+
+    // Region allocator requires page size rather than commit size so just over-
+    // allocate there since any extra space couldn't be used anyway.
+    size_t region_size = RoundUp(size, allocate_page_size_);
+    if (!region_allocator_.AllocateRegionAt(
+            address, region_size, RegionAllocator::RegionState::kExcluded)) {
+      return false;
+    }
   }
 
   CHECK(page_allocator_->SetPermissions(ptr, size,
@@ -93,7 +102,7 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
 bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
                                         size_t new_size) {
   Address address = reinterpret_cast<Address>(raw_address);
-  CHECK(IsAligned(address, allocate_page_size_));
+  DCHECK(IsAligned(address, allocate_page_size_));
 
   DCHECK_LT(new_size, size);
   DCHECK(IsAligned(size - new_size, commit_page_size_));
@@ -107,7 +116,7 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
     // There must be an allocated region at given |address| of a size not
     // smaller than |size|.
     MutexGuard guard(&mutex_);
-    CHECK_EQ(allocated_size, region_allocator_.CheckRegion(address));
+    DCHECK_EQ(allocated_size, region_allocator_.CheckRegion(address));
   }
 #endif
 

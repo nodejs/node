@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"

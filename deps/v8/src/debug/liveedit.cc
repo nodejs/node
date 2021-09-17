@@ -950,7 +950,8 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
   code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
                  CodeLinePosInfoRecordEvent(code->GetFirstBytecodeAddress(),
-                                            *new_source_position_table));
+                                            *new_source_position_table,
+                                            JitCodeEvent::BYTE_CODE));
 }
 
 void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,

@@ -19,6 +19,11 @@
 #include <ostream>
 
 #if V8_OS_WIN
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <mmsystem.h>  // For timeGetTime().
+
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
@@ -69,19 +74,22 @@ int64_t ComputeThreadTicks() {
 V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #if (defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
   defined(V8_OS_BSD) || defined(V8_OS_ANDROID)
-// On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
-// resolution of 10ms. thread_cputime API provides the time in ns
 #if defined(V8_OS_AIX)
-  thread_cputime_t tc;
+  // On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
+  // resolution of 10ms. thread_cputime API provides the time in ns.
   if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
 #if defined(__PASE__)  // CLOCK_THREAD_CPUTIME_ID clock not supported on IBMi
     return 0;
-#endif
+#else
+    thread_cputime_t tc;
     if (thread_cputime(-1, &tc) != 0) {
       UNREACHABLE();
     }
+    return (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond)
+           + (tc.utime / v8::base::Time::kNanosecondsPerMicrosecond);
+#endif  // defined(__PASE__)
   }
-#endif
+#endif  // defined(V8_OS_AIX)
   struct timespec ts;
   if (clock_gettime(clk_id, &ts) != 0) {
     UNREACHABLE();
@@ -94,15 +102,7 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
       1;
   CHECK_GT(kSecondsLimit, ts.tv_sec);
   int64_t result = int64_t{ts.tv_sec} * v8::base::Time::kMicrosecondsPerSecond;
-#if defined(V8_OS_AIX)
-  if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
-    result += (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond);
-  } else {
-    result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
-  }
-#else
   result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
-#endif
   return result;
 #else  // Monotonic clock not supported.
   return 0;

@@ -111,13 +111,11 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 
 AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
                                                  AllocationOrigin origin) {
-  Address top = allocation_info_.top();
-  if (allocation_info_.limit() < top + size_in_bytes) {
+  if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Retry(NEW_SPACE);
   }
-
-  HeapObject obj = HeapObject::FromAddress(top);
-  allocation_info_.set_top(top + size_in_bytes);
+  HeapObject obj =
+      HeapObject::FromAddress(allocation_info_.IncrementTop(size_in_bytes));
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
@@ -136,13 +134,11 @@ AllocationResult NewSpace::AllocateFastAligned(
   int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (allocation_info_.limit() - top <
-      static_cast<uintptr_t>(aligned_size_in_bytes)) {
+  if (!allocation_info_.CanIncrementTop(aligned_size_in_bytes)) {
     return AllocationResult::Retry(NEW_SPACE);
   }
-
-  HeapObject obj = HeapObject::FromAddress(top);
-  allocation_info_.set_top(top + aligned_size_in_bytes);
+  HeapObject obj = HeapObject::FromAddress(
+      allocation_info_.IncrementTop(aligned_size_in_bytes));
   if (result_aligned_size_in_bytes)
     *result_aligned_size_in_bytes = aligned_size_in_bytes;
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);

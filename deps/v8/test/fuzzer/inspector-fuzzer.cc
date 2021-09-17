@@ -254,9 +254,6 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     inspector->Set(ToV8String(isolate, "callWithScheduledBreak"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::CallWithScheduledBreak));
-    inspector->Set(ToV8String(isolate, "allowAccessorFormatting"),
-                   v8::FunctionTemplate::New(
-                       isolate, &InspectorExtension::AllowAccessorFormatting));
     inspector->Set(
         ToV8String(isolate, "markObjectAsNotInspectable"),
         v8::FunctionTemplate::New(
@@ -387,21 +384,6 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     result = args[0].As<v8::Function>()->Call(context, context->Global(), 0,
                                               nullptr);
     data->CancelPauseOnNextStatement(context_group_id);
-  }
-
-  static void AllowAccessorFormatting(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsObject()) {
-      return;
-    }
-    v8::Local<v8::Object> object = args[0].As<v8::Object>();
-    v8::Isolate* isolate = args.GetIsolate();
-    v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
-        isolate, ToV8String(isolate, "allowAccessorFormatting"));
-    object
-        ->SetPrivate(isolate->GetCurrentContext(), shouldFormatAccessorsPrivate,
-                     v8::Null(isolate))
-        .ToChecked();
   }
 
   static void MarkObjectAsNotInspectable(

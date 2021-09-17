@@ -67,6 +67,12 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // version and performs the steps 1-6.
   Handle<Map> Update();
 
+  // As above but does not mutate maps; instead, we attempt to replay existing
+  // transitions to find an updated map. No lock is taken.
+  static base::Optional<Map> TryUpdateNoLock(Isolate* isolate, Map old_map,
+                                             ConcurrencyMode cmode)
+      V8_WARN_UNUSED_RESULT;
+
   static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
                                                  Handle<Map> map,
                                                  InternalIndex descriptor,

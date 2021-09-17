@@ -89,6 +89,23 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+V8_INLINE void
+MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
+    HeapObject host, CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // TODO(v8:11880): support external code space.
+  PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
+  Object object = slot.Relaxed_Load(code_cage_base);
+  HeapObject heap_object;
+  if (object.GetHeapObjectIfStrong(&heap_object)) {
+    // If the reference changes concurrently from strong to weak, the write
+    // barrier will treat the weak reference as strong, so we won't miss the
+    // weak reference.
+    ProcessStrongHeapObject(host, HeapObjectSlot(slot), heap_object);
+  }
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
@@ -132,12 +149,20 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
 
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
-    Map map, JSFunction object) {
-  int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
-  // Check if the JSFunction needs reset due to bytecode being flushed.
-  if (bytecode_flush_mode_ != BytecodeFlushMode::kDoNotFlushBytecode &&
-      object.NeedsResetDueToFlushedBytecode()) {
-    weak_objects_->flushed_js_functions.Push(task_id_, object);
+    Map map, JSFunction js_function) {
+  int size = concrete_visitor()->VisitJSObjectSubclass(map, js_function);
+  if (js_function.ShouldFlushBaselineCode(code_flush_mode_)) {
+    DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
+    weak_objects_->baseline_flushing_candidates.Push(task_id_, js_function);
+  } else {
+    VisitPointer(js_function, js_function.RawField(JSFunction::kCodeOffset));
+    // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
+    // also include cases where there is old bytecode even when there is no
+    // baseline code and remove this check here.
+    if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
+        js_function.NeedsResetDueToFlushedBytecode()) {
+      weak_objects_->flushed_js_functions.Push(task_id_, js_function);
+    }
   }
   return size;
 }
@@ -151,13 +176,25 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
   this->VisitMapPointer(shared_info);
   SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
 
-  // If the SharedFunctionInfo has old bytecode, mark it as flushable,
-  // otherwise visit the function data field strongly.
-  if (shared_info.ShouldFlushBytecode(bytecode_flush_mode_)) {
-    weak_objects_->bytecode_flushing_candidates.Push(task_id_, shared_info);
-  } else {
+  if (!shared_info.ShouldFlushCode(code_flush_mode_)) {
+    // If the SharedFunctionInfo doesn't have old bytecode visit the function
+    // data strongly.
     VisitPointer(shared_info,
                  shared_info.RawField(SharedFunctionInfo::kFunctionDataOffset));
+  } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
+    // If bytecode flushing is disabled but baseline code flushing is enabled
+    // then we have to visit the bytecode but not the baseline code.
+    DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
+    BaselineData baseline_data =
+        BaselineData::cast(shared_info.function_data(kAcquireLoad));
+    // Visit the bytecode hanging off baseline data.
+    VisitPointer(baseline_data,
+                 baseline_data.RawField(BaselineData::kDataOffset));
+    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
+  } else {
+    // In other cases, record as a flushing candidate since we have old
+    // bytecode.
+    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
   }
   return size;
 }

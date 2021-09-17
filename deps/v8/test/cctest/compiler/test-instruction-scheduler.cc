@@ -77,8 +77,8 @@ TEST(DeoptInMiddleOfBasicBlock) {
   Node* node = Node::New(zone, 0, nullptr, 0, nullptr, false);
   FeedbackSource feedback;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeKind::kEager, DeoptimizeReason::kUnknown, feedback,
-      node);
+      kEqual, DeoptimizeKind::kEager, DeoptimizeReason::kUnknown, node->id(),
+      feedback, node);
   jmp_opcode = cont.Encode(jmp_opcode);
   Instruction* jmp_inst = Instruction::New(zone, jmp_opcode);
   tester.CheckIsDeopt(jmp_inst);

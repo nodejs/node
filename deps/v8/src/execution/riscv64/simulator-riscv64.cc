@@ -1271,7 +1271,7 @@ T Simulator::ReadMem(int64_t addr, Instruction* instr) {
   }
 #ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
-  if ((addr & (sizeof(T) - 1)) != 0) {
+  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -1293,7 +1293,7 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   }
 #ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
-  if ((addr & (sizeof(T) - 1)) != 0) {
+  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -2826,6 +2826,14 @@ void Simulator::DecodeRVR4Type() {
   }
 }
 
+Builtin Simulator::LookUp(Address pc) {
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    if (builtins_.code(builtin).contains(isolate_, pc)) return builtin;
+  }
+  return Builtin::kNoBuiltinId;
+}
+
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
@@ -2834,29 +2842,34 @@ void Simulator::DecodeRVIType() {
       int64_t next_pc = (rs1() + imm12()) & ~reg_t(1);
       set_pc(next_pc);
       if (::v8::internal::FLAG_trace_sim) {
-        if ((rs1_reg() != ra || imm12() != 0)) {
-          const char* name = builtins_.Lookup((Address)next_pc);
-          if (name != nullptr) {
-            int64_t arg0 = get_register(a0);
-            int64_t arg1 = get_register(a1);
-            int64_t arg2 = get_register(a2);
-            int64_t arg3 = get_register(a3);
-            int64_t arg4 = get_register(a4);
-            int64_t arg5 = get_register(a5);
-            int64_t arg6 = get_register(a6);
-            int64_t arg7 = get_register(a7);
-            int64_t* stack_pointer =
-                reinterpret_cast<int64_t*>(get_register(sp));
-            int64_t arg8 = stack_pointer[0];
-            int64_t arg9 = stack_pointer[1];
-            PrintF(
-                "Call to Builtin at %s "
-                "a0 %08" PRIx64 " ,a1 %08" PRIx64 " ,a2 %08" PRIx64
-                " ,a3 %08" PRIx64 " ,a4 %08" PRIx64 " ,a5 %08" PRIx64
-                " ,a6 %08" PRIx64 " ,a7 %08" PRIx64 " ,0(sp) %08" PRIx64
-                " ,8(sp) %08" PRIx64 " ,sp %08" PRIx64 ",fp %08" PRIx64 " \n",
-                name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8,
-                arg9, get_register(sp), get_register(fp));
+        Builtin builtin = LookUp((Address)get_pc());
+        if (builtin != Builtin::kNoBuiltinId) {
+          auto code = builtins_.code(builtin);
+          if ((rs1_reg() != ra || imm12() != 0)) {
+            if ((Address)get_pc() == code.InstructionStart()) {
+              int64_t arg0 = get_register(a0);
+              int64_t arg1 = get_register(a1);
+              int64_t arg2 = get_register(a2);
+              int64_t arg3 = get_register(a3);
+              int64_t arg4 = get_register(a4);
+              int64_t arg5 = get_register(a5);
+              int64_t arg6 = get_register(a6);
+              int64_t arg7 = get_register(a7);
+              int64_t* stack_pointer =
+                  reinterpret_cast<int64_t*>(get_register(sp));
+              int64_t arg8 = stack_pointer[0];
+              int64_t arg9 = stack_pointer[1];
+              PrintF(
+                  "Call to Builtin at %s "
+                  "a0 %08" PRIx64 " ,a1 %08" PRIx64 " ,a2 %08" PRIx64
+                  " ,a3 %08" PRIx64 " ,a4 %08" PRIx64 " ,a5 %08" PRIx64
+                  " ,a6 %08" PRIx64 " ,a7 %08" PRIx64 " ,0(sp) %08" PRIx64
+                  " ,8(sp) %08" PRIx64 " ,sp %08" PRIx64 ",fp %08" PRIx64 " \n",
+                  builtins_.name(builtin), arg0, arg1, arg2, arg3, arg4, arg5,
+                  arg6, arg7, arg8, arg9, get_register(sp), get_register(fp));
+            }
+          } else if (rd_reg() == zero_reg) {
+            PrintF("Return to Builtin at %s \n", builtins_.name(builtin));
           }
         }
       }
@@ -3303,20 +3316,22 @@ void Simulator::DecodeCLType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_LW: {
       int64_t addr = rvc_rs1s() + rvc_imm5_w();
-      auto val = ReadMem<int32_t>(addr, instr_.instr());
+      int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
       break;
     }
     case RO_C_LD: {
       int64_t addr = rvc_rs1s() + rvc_imm5_d();
-      auto val = ReadMem<int64_t>(addr, instr_.instr());
+      int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
       break;
     }
     case RO_C_FLD: {
       int64_t addr = rvc_rs1s() + rvc_imm5_d();
-      auto val = ReadMem<double>(addr, instr_.instr());
-      set_rvc_drs2s(sext_xlen(val), false);
+      double val = ReadMem<double>(addr, instr_.instr());
+      set_rvc_drs2s(val, false);
       break;
     }
     default:
@@ -3468,8 +3483,8 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   if (::v8::internal::FLAG_trace_sim) {
-    PrintF("  0x%012" PRIxPTR "  %ld    %-44s   %s\n",
-           reinterpret_cast<intptr_t>(instr), icount_, buffer.begin(),
+    PrintF("  0x%012" PRIxPTR "      %-44s   %s\n",
+           reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
   }
 

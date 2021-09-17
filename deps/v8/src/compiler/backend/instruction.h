@@ -1449,24 +1449,35 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
 // frame state descriptor that we have to go back to.
 class DeoptimizationEntry final {
  public:
-  DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-                      DeoptimizeReason reason, FeedbackSource const& feedback)
+                      DeoptimizeReason reason, NodeId node_id,
+                      FeedbackSource const& feedback)
       : descriptor_(descriptor),
         kind_(kind),
         reason_(reason),
-        feedback_(feedback) {}
+#ifdef DEBUG
+        node_id_(node_id),
+#endif  // DEBUG
+        feedback_(feedback) {
+    USE(node_id);
+  }
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+#ifdef DEBUG
+  NodeId node_id() const { return node_id_; }
+#endif  // DEBUG
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  FrameStateDescriptor* descriptor_ = nullptr;
-  DeoptimizeKind kind_ = DeoptimizeKind::kEager;
-  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
-  FeedbackSource feedback_ = FeedbackSource();
+  FrameStateDescriptor* const descriptor_;
+  const DeoptimizeKind kind_;
+  const DeoptimizeReason reason_;
+#ifdef DEBUG
+  const NodeId node_id_;
+#endif  // DEBUG
+  const FeedbackSource feedback_;
 };
 
 using DeoptimizationVector = ZoneVector<DeoptimizationEntry>;
@@ -1537,7 +1548,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
   inline bool IsSwitchTarget() const { return switch_target_; }
-  inline bool ShouldAlign() const { return alignment_; }
+  inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
+  inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
 
   using Predecessors = ZoneVector<RpoNumber>;
   Predecessors& predecessors() { return predecessors_; }
@@ -1560,7 +1572,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
-  void set_alignment(bool val) { alignment_ = val; }
+  void set_code_target_alignment(bool val) { code_target_alignment_ = val; }
+  void set_loop_header_alignment(bool val) { loop_header_alignment_ = val; }
 
   void set_switch_target(bool val) { switch_target_ = val; }
 
@@ -1588,7 +1601,10 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const bool deferred_ : 1;   // Block contains deferred code.
   bool handler_ : 1;          // Block is a handler entry point.
   bool switch_target_ : 1;
-  bool alignment_ : 1;  // insert alignment before this block
+  bool code_target_alignment_ : 1;  // insert code target alignment before this
+                                    // block
+  bool loop_header_alignment_ : 1;  // insert loop header alignment before this
+                                    // block
   bool needs_frame_ : 1;
   bool must_construct_frame_ : 1;
   bool must_deconstruct_frame_ : 1;
@@ -1770,7 +1786,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
                              DeoptimizeKind kind, DeoptimizeReason reason,
-                             FeedbackSource const& feedback);
+                             NodeId node_id, FeedbackSource const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

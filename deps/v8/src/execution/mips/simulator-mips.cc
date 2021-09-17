@@ -1169,7 +1169,7 @@ void Simulator::set_fpu_register_invalid_result64(float original,
   if (FCSR_ & kFCSRNaN2008FlagMask) {
     // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
     // loading the most accurate representation into max_int64, which is 2^63.
-    double max_int64 = std::numeric_limits<int64_t>::max();
+    double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
@@ -1228,7 +1228,7 @@ void Simulator::set_fpu_register_invalid_result64(double original,
   if (FCSR_ & kFCSRNaN2008FlagMask) {
     // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
     // loading the most accurate representation into max_int64, which is 2^63.
-    double max_int64 = std::numeric_limits<int64_t>::max();
+    double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
@@ -1288,7 +1288,7 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   bool ret = false;
   // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
   // loading the most accurate representation into max_int64, which is 2^63.
-  double max_int64 = std::numeric_limits<int64_t>::max();
+  double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
   double min_int64 = std::numeric_limits<int64_t>::min();
 
   clear_fcsr_cause();
@@ -1366,7 +1366,7 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
   bool ret = false;
   // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
   // loading the most accurate representation into max_int64, which is 2^63.
-  double max_int64 = std::numeric_limits<int64_t>::max();
+  double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
   double min_int64 = std::numeric_limits<int64_t>::min();
 
   clear_fcsr_cause();
@@ -5978,8 +5978,8 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element >= max_int || element <= min_int) {
-        *dst = element >= max_int ? max_int : min_int;
+      } else if (element >= static_cast<T_fp>(max_int) || element <= min_int) {
+        *dst = element >= static_cast<T_fp>(max_int) ? max_int : min_int;
       } else {
         *dst = static_cast<T_int>(std::trunc(element));
       }
@@ -5990,8 +5990,8 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       const T_uint max_int = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element >= max_int || element <= 0) {
-        *dst = element >= max_int ? max_int : 0;
+      } else if (element >= static_cast<T_fp>(max_int) || element <= 0) {
+        *dst = element >= static_cast<T_fp>(max_int) ? max_int : 0;
       } else {
         *dst = static_cast<T_uint>(std::trunc(element));
       }
@@ -6066,8 +6066,8 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element < min_int || element > max_int) {
-        *dst = element > max_int ? max_int : min_int;
+      } else if (element < min_int || element > static_cast<T_fp>(max_int)) {
+        *dst = element > static_cast<T_fp>(max_int) ? max_int : min_int;
       } else {
         sim->round_according_to_msacsr<T_fp, T_int>(element, &element, dst);
       }
@@ -6078,8 +6078,8 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       const T_uint max_uint = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element < 0 || element > max_uint) {
-        *dst = element > max_uint ? max_uint : 0;
+      } else if (element < 0 || element > static_cast<T_fp>(max_uint)) {
+        *dst = element > static_cast<T_fp>(max_uint) ? max_uint : 0;
       } else {
         T_uint res;
         sim->round_according_to_msacsr<T_fp, T_uint>(element, &element, &res);

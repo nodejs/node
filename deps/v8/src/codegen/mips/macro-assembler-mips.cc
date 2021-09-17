@@ -16,6 +16,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
@@ -1393,6 +1394,18 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
         ori(rd, rd, (j.immediate() & kImm16Mask));
       }
     }
+  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
+    BlockGrowBufferScope block_growbuffer(this);
+    int offset = pc_offset();
+    Address address = j.immediate();
+    saved_handles_for_raw_object_ptr_.push_back(
+        std::make_pair(offset, address));
+    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
+    int32_t immediate = object->ptr();
+    RecordRelocInfo(j.rmode(), immediate);
+    lui(rd, (immediate >> kLuiShift) & kImm16Mask);
+    ori(rd, rd, (immediate & kImm16Mask));
+    DCHECK(EmbeddedObjectMatches(offset, object));
   } else {
     int32_t immediate;
     if (j.IsHeapObjectRequest()) {
@@ -4052,6 +4065,16 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
+void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT && (is_int26(offset))) {
+    BranchShortHelperR6(offset, nullptr);
+  } else {
+    // Generate position independent long branch.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    GenPCRelativeJump(t8, t9, offset, RelocInfo::NONE, bdslot);
+  }
+}
+
 void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
       (!L->is_bound() || is_near_r6(L))) {
@@ -4284,52 +4307,6 @@ void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
 
 // -----------------------------------------------------------------------------
 // JavaScript invokes.
-
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch0;
-  Lsa(dst_reg, fp, caller_args_count, kPointerSizeLog2);
-  Addu(dst_reg, dst_reg,
-       Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = caller_args_count;
-  // Calculate the end of source area. +kPointerSize is for the receiver.
-  Lsa(src_reg, sp, callee_args_count, kPointerSizeLog2);
-  Addu(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    Check(lo, AbortReason::kStackAccessBelowStackPointer, src_reg,
-          Operand(dst_reg));
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  lw(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  lw(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch1;
-  Label loop, entry;
-  Branch(&entry);
-  bind(&loop);
-  Subu(src_reg, src_reg, Operand(kPointerSize));
-  Subu(dst_reg, dst_reg, Operand(kPointerSize));
-  lw(tmp_reg, MemOperand(src_reg));
-  sw(tmp_reg, MemOperand(dst_reg));
-  bind(&entry);
-  Branch(&loop, ne, sp, Operand(src_reg));
-
-  // Leave current frame.
-  mov(sp, dst_reg);
-}
 
 void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
   DCHECK(root_array_available());
@@ -4833,6 +4810,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     li(kScratchReg, Operand(StackFrame::TypeToMarker(type)));
     Push(kScratchReg);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {

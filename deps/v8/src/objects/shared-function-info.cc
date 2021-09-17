@@ -670,8 +670,7 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
 // static
 void SharedFunctionInfo::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
-  if (FLAG_enable_lazy_source_positions && shared_info->HasBytecodeArray() &&
-      !shared_info->GetBytecodeArray(isolate).HasSourcePositionTable()) {
+  if (shared_info->CanCollectSourcePosition(isolate)) {
     Compiler::CollectSourcePositions(isolate, shared_info);
   }
 }

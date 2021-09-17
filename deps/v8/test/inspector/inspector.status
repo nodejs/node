@@ -43,12 +43,6 @@
 }],  # 'system == android'
 
 ##############################################################################
-['system == macos', {
-  # Bug(v8:11399): Deadlock on Mac.
-  'cpu-profiler/console-profile-wasm': [SKIP],
-}],
-
-##############################################################################
 ['variant != default', {
   # Issue 6167.
   'debugger/eval-scopes': [PASS, FAIL],
@@ -531,5 +525,11 @@
   'type-profiler/type-profile-with-to-string-tag': [SKIP],
   'regress/regress-crbug-1195927': [SKIP],
 }], # third_party_heap
+
+##############################################################################
+['variant == turboprop or variant == turboprop_as_toptier or variant == future or (tsan and not concurrent_marking)', {
+
+  'cpu-profiler/coverage-block': [SKIP],
+}],  # variant == turboprop or variant = turboprop_as_toptier
 
 ]

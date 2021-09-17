@@ -62,6 +62,10 @@
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
+#define DECL_RELAXED_INT32_ACCESSORS(name)   \
+  inline int32_t name(RelaxedLoadTag) const; \
+  inline void set_##name(int32_t value, RelaxedStoreTag);
+
 #define DECL_UINT16_ACCESSORS(name) \
   inline uint16_t name() const;     \
   inline void set_##name(int value);
@@ -159,12 +163,21 @@
   int32_t holder::name() const { return ReadField<int32_t>(offset); } \
   void holder::set_##name(int32_t value) { WriteField<int32_t>(offset, value); }
 
-#define RELAXED_INT32_ACCESSORS(holder, name, offset) \
-  int32_t holder::name() const {                      \
-    return RELAXED_READ_INT32_FIELD(*this, offset);   \
-  }                                                   \
-  void holder::set_##name(int32_t value) {            \
-    RELAXED_WRITE_INT32_FIELD(*this, offset, value);  \
+// TODO(solanes): Use the non-implicit one, and change the uses to use the tag.
+#define IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(holder, name, offset) \
+  int32_t holder::name() const {                                   \
+    return RELAXED_READ_INT32_FIELD(*this, offset);                \
+  }                                                                \
+  void holder::set_##name(int32_t value) {                         \
+    RELAXED_WRITE_INT32_FIELD(*this, offset, value);               \
+  }
+
+#define RELAXED_INT32_ACCESSORS(holder, name, offset)       \
+  int32_t holder::name(RelaxedLoadTag) const {              \
+    return RELAXED_READ_INT32_FIELD(*this, offset);         \
+  }                                                         \
+  void holder::set_##name(int32_t value, RelaxedStoreTag) { \
+    RELAXED_WRITE_INT32_FIELD(*this, offset, value);        \
   }
 
 #define UINT16_ACCESSORS(holder, name, offset)                          \

@@ -6,6 +6,7 @@
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
 #include "src/common/globals.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/types.h"
@@ -219,9 +220,9 @@ class V8_EXPORT_PRIVATE NodeProperties {
     kUnreliableMaps  // Maps might have changed (side-effect).
   };
   // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
-  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* object,
-                                         Node* effect,
-                                         ZoneHandleSet<Map>* maps);
+  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* receiver,
+                                         Effect effect,
+                                         ZoneRefUnorderedSet<MapRef>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
   static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
@@ -236,12 +237,12 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
   static bool CanBePrimitive(JSHeapBroker* broker, Node* receiver,
-                             Node* effect);
+                             Effect effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
   static bool CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
-                                   Node* effect);
+                                   Effect effect);
 
   // ---------------------------------------------------------------------------
   // Context.

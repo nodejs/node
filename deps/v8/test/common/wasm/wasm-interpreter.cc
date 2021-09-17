@@ -607,7 +607,7 @@ class SideTable : public ZoneObject {
         const int32_t stack_height;
       };
       struct CatchTarget {
-        int exception_index;
+        int tag_index;
         int target_control_index;
         const byte* pc;
       };
@@ -628,8 +628,8 @@ class SideTable : public ZoneObject {
         target = pc;
       }
 
-      void Bind(const byte* pc, int exception_index, int target_control_index) {
-        catch_targets.push_back({exception_index, target_control_index, pc});
+      void Bind(const byte* pc, int tag_index, int target_control_index) {
+        catch_targets.push_back({tag_index, target_control_index, pc});
       }
 
       // Reference this label from the given location.
@@ -665,12 +665,12 @@ class SideTable : public ZoneObject {
                   "control transfer @%zu: Δpc %d, stack %u->%u, exn: %d = "
                   "-%u\n",
                   offset, pcdiff, ref.stack_height, target_stack_height,
-                  p.exception_index, spdiff);
+                  p.tag_index, spdiff);
               CatchControlTransferEntry entry;
               entry.pc_diff = pcdiff;
               entry.sp_diff = spdiff;
               entry.target_arity = arity;
-              entry.exception_index = p.exception_index;
+              entry.tag_index = p.tag_index;
               entry.target_control_index = p.target_control_index;
               catch_entries.emplace_back(entry);
             }
@@ -731,10 +731,9 @@ class SideTable : public ZoneObject {
     };
     int max_exception_arity = 0;
     if (module) {
-      for (auto& exception : module->exceptions) {
-        max_exception_arity =
-            std::max(max_exception_arity,
-                     static_cast<int>(exception.sig->parameter_count()));
+      for (auto& tag : module->tags) {
+        max_exception_arity = std::max(
+            max_exception_arity, static_cast<int>(tag.sig->parameter_count()));
       }
     }
     for (BytecodeIterator i(code->start, code->end, &code->locals);
@@ -898,7 +897,7 @@ class SideTable : public ZoneObject {
             // Only pop the exception stack once when we enter the first catch.
             exception_stack.pop_back();
           }
-          ExceptionIndexImmediate<Decoder::kNoValidation> imm(&i, i.pc() + 1);
+          TagIndexImmediate<Decoder::kNoValidation> imm(&i, i.pc() + 1);
           Control* c = &control_stack.back();
           copy_unreachable();
           TRACE("control @%u: Catch\n", i.pc_offset());
@@ -911,9 +910,8 @@ class SideTable : public ZoneObject {
 
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
-          const FunctionSig* exception_sig = module->exceptions[imm.index].sig;
-          int catch_in_arity =
-              static_cast<int>(exception_sig->parameter_count());
+          const FunctionSig* tag_sig = module->tags[imm.index].sig;
+          int catch_in_arity = static_cast<int>(tag_sig->parameter_count());
           stack_height = c->end_label->target_stack_height + catch_in_arity;
           break;
         }
@@ -1459,24 +1457,22 @@ class WasmInterpreterInternals {
     }
     CatchControlTransferEntry* handler = nullptr;
     for (auto& entry : it->second) {
-      if (entry.exception_index < 0) {
+      if (entry.tag_index < 0) {
         ResetStack(StackHeight() - entry.sp_diff);
         *pc += entry.pc_diff;
-        if (entry.exception_index == kRethrowOrDelegateExceptionIndex) {
+        if (entry.tag_index == kRethrowOrDelegateExceptionIndex) {
           // Recursively try to find a handler in the next enclosing try block
           // (for the implicit rethrow) or in the delegate target.
           return JumpToHandlerDelta(code, exception_object, pc);
         }
         handler = &entry;
         break;
-      } else if (MatchingExceptionTag(exception_object,
-                                      entry.exception_index)) {
+      } else if (MatchingExceptionTag(exception_object, entry.tag_index)) {
         handler = &entry;
-        const WasmException* exception =
-            &module()->exceptions[entry.exception_index];
-        const FunctionSig* sig = exception->sig;
+        const WasmTag* tag = &module()->tags[entry.tag_index];
+        const FunctionSig* sig = tag->sig;
         int catch_in_arity = static_cast<int>(sig->parameter_count());
-        DoUnpackException(exception, exception_object);
+        DoUnpackException(tag, exception_object);
         DoStackTransfer(entry.sp_diff + catch_in_arity, catch_in_arity);
         *pc += handler->pc_diff;
         break;
@@ -2169,7 +2165,7 @@ class WasmInterpreterInternals {
         *len += 1;
         break;
       case kExprI32AtomicWait: {
-        if (!module()->has_shared_memory) {
+        if (!module()->has_shared_memory || !isolate_->allow_atomics_wait()) {
           DoTrap(kTrapUnreachable, pc);
           return false;
         }
@@ -2189,7 +2185,7 @@ class WasmInterpreterInternals {
         break;
       }
       case kExprI64AtomicWait: {
-        if (!module()->has_shared_memory) {
+        if (!module()->has_shared_memory || !isolate_->allow_atomics_wait()) {
           DoTrap(kTrapUnreachable, pc);
           return false;
         }
@@ -3083,30 +3079,16 @@ class WasmInterpreterInternals {
     return false;
   }
 
-  void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint32_t value) {
-    encoded_values->set((*encoded_index)++, Smi::FromInt(value >> 16));
-    encoded_values->set((*encoded_index)++, Smi::FromInt(value & 0xffff));
-  }
-
-  void EncodeI64ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint64_t value) {
-    EncodeI32ExceptionValue(encoded_values, encoded_index,
-                            static_cast<uint32_t>(value >> 32));
-    EncodeI32ExceptionValue(encoded_values, encoded_index,
-                            static_cast<uint32_t>(value));
-  }
-
   // Allocate, initialize and throw a new exception. The exception values are
   // being popped off the operand stack. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
-  bool DoThrowException(const WasmException* exception,
+  bool DoThrowException(const WasmTag* tag,
                         uint32_t index) V8_WARN_UNUSED_RESULT {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     Handle<WasmExceptionTag> exception_tag(
-        WasmExceptionTag::cast(instance_object_->exceptions_table().get(index)),
+        WasmExceptionTag::cast(instance_object_->tags_table().get(index)),
         isolate_);
-    uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
+    uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(tag);
     Handle<WasmExceptionPackage> exception_object =
         WasmExceptionPackage::New(isolate_, exception_tag, encoded_size);
     Handle<FixedArray> encoded_values = Handle<FixedArray>::cast(
@@ -3114,7 +3096,7 @@ class WasmInterpreterInternals {
     // Encode the exception values on the operand stack into the exception
     // package allocated above. This encoding has to be in sync with other
     // backends so that exceptions can be passed between them.
-    const WasmExceptionSig* sig = exception->sig;
+    const WasmTagSig* sig = tag->sig;
     uint32_t encoded_index = 0;
     sp_t base_index = StackHeight() - sig->parameter_count();
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
@@ -3199,38 +3181,22 @@ class WasmInterpreterInternals {
     Handle<Object> caught_tag = WasmExceptionPackage::GetExceptionTag(
         isolate_, Handle<WasmExceptionPackage>::cast(exception_object));
     Handle<Object> expected_tag =
-        handle(instance_object_->exceptions_table().get(index), isolate_);
+        handle(instance_object_->tags_table().get(index), isolate_);
     DCHECK(expected_tag->IsWasmExceptionTag());
     return expected_tag.is_identical_to(caught_tag);
-  }
-
-  void DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint32_t* value) {
-    uint32_t msb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
-    uint32_t lsb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
-    *value = (msb << 16) | (lsb & 0xffff);
-  }
-
-  void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint64_t* value) {
-    uint32_t lsb = 0, msb = 0;
-    DecodeI32ExceptionValue(encoded_values, encoded_index, &msb);
-    DecodeI32ExceptionValue(encoded_values, encoded_index, &lsb);
-    *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
   }
 
   // Unpack the values encoded in the given exception. The exception values are
   // pushed onto the operand stack. Callers must perform a tag check to ensure
   // the encoded values match the expected signature of the exception.
-  void DoUnpackException(const WasmException* exception,
-                         Handle<Object> exception_object) {
+  void DoUnpackException(const WasmTag* tag, Handle<Object> exception_object) {
     Handle<FixedArray> encoded_values =
         Handle<FixedArray>::cast(WasmExceptionPackage::GetExceptionValues(
             isolate_, Handle<WasmExceptionPackage>::cast(exception_object)));
     // Decode the exception values from the given exception package and push
     // them onto the operand stack. This encoding has to be in sync with other
     // backends so that exceptions can be passed between them.
-    const WasmExceptionSig* sig = exception->sig;
+    const WasmTagSig* sig = tag->sig;
     uint32_t encoded_index = 0;
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
       WasmValue value;
@@ -3299,7 +3265,7 @@ class WasmInterpreterInternals {
       }
       Push(value);
     }
-    DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(exception), encoded_index);
+    DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(tag), encoded_index);
   }
 
   void Execute(InterpreterCode* code, pc_t pc, int max) {
@@ -3389,11 +3355,11 @@ class WasmInterpreterInternals {
           break;
         }
         case kExprThrow: {
-          ExceptionIndexImmediate<Decoder::kNoValidation> imm(&decoder,
-                                                              code->at(pc + 1));
+          TagIndexImmediate<Decoder::kNoValidation> imm(&decoder,
+                                                        code->at(pc + 1));
           CommitPc(pc);  // Needed for local unwinding.
-          const WasmException* exception = &module()->exceptions[imm.index];
-          if (!DoThrowException(exception, imm.index)) return;
+          const WasmTag* tag = &module()->tags[imm.index];
+          if (!DoThrowException(tag, imm.index)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
           continue;  // Do not bump pc.
         }

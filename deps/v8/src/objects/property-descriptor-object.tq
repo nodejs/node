@@ -16,7 +16,6 @@ bitfield struct PropertyDescriptorObjectFlags extends uint31 {
   has_set: bool: 1 bit;
 }
 
-@generateCppClass
 @generatePrint
 extern class PropertyDescriptorObject extends Struct {
   flags: SmiTagged<PropertyDescriptorObjectFlags>;

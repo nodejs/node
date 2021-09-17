@@ -92,7 +92,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // -----------------------------------
 
   Label stack_overflow;
-  __ StackOverflowCheck(rax, rcx, &stack_overflow, Label::kFar);
+  __ StackOverflowCheck(rax, &stack_overflow, Label::kFar);
 
   // Enter a construct frame.
   {
@@ -129,10 +129,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ PopReturnAddressTo(rcx);
-  SmiIndex index = masm->SmiToIndex(rbx, rbx, kSystemPointerSizeLog2);
-  __ leaq(rsp, Operand(rsp, index.reg, index.scale, 1 * kSystemPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ DropArguments(rbx, rcx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
 
   __ ret(0);
 
@@ -228,9 +226,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ SmiUntag(rax, Operand(rbp, ConstructFrameConstants::kLengthOffset));
 
   // Check if we have enough stack space to push all arguments.
-  // Argument count in rax. Clobbers rcx.
+  // Argument count in rax.
   Label stack_overflow;
-  __ StackOverflowCheck(rax, rcx, &stack_overflow);
+  __ StackOverflowCheck(rax, &stack_overflow);
 
   // TODO(victorgomes): When the arguments adaptor is completely removed, we
   // should get the formal parameter count and copy the arguments in its
@@ -281,10 +279,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, ConstructFrameConstants::kLengthOffset));
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ PopReturnAddressTo(rcx);
-  SmiIndex index = masm->SmiToIndex(rbx, rbx, kSystemPointerSizeLog2);
-  __ leaq(rsp, Operand(rsp, index.reg, index.scale, 1 * kSystemPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ DropArguments(rbx, rcx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -599,9 +595,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r9  : receiver
 
     // Check if we have enough stack space to push all arguments.
-    // Argument count in rax. Clobbers rcx.
+    // Argument count in rax.
     Label enough_stack_space, stack_overflow;
-    __ StackOverflowCheck(rax, rcx, &stack_overflow, Label::kNear);
+    __ StackOverflowCheck(rax, &stack_overflow, Label::kNear);
     __ jmp(&enough_stack_space, Label::kNear);
 
     __ bind(&stack_overflow);
@@ -880,10 +876,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  Register return_pc = scratch2;
-  __ PopReturnAddressTo(return_pc);
-  __ addq(rsp, params_size);
-  __ PushReturnAddressFrom(return_pc);
+  __ DropArguments(params_size, scratch2, TurboAssembler::kCountIsBytes,
+                   TurboAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1187,10 +1181,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                       BytecodeArray::kOsrNestingLevelOffset),
+                       BytecodeArray::kOsrLoopNestingLevelOffset),
           Immediate(0));
 
   // Load initial bytecode offset.
@@ -1396,7 +1390,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   __ leal(rcx, Operand(rax, 1));  // Add one for receiver.
 
   // Add a stack check before pushing arguments.
-  __ StackOverflowCheck(rcx, rdx, &stack_overflow);
+  __ StackOverflowCheck(rcx, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -1457,7 +1451,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   Label stack_overflow;
 
   // Add a stack check before pushing arguments.
-  __ StackOverflowCheck(rax, r8, &stack_overflow);
+  __ StackOverflowCheck(rax, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -1704,11 +1698,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // are 8-bit fields next to each other, so we could just optimize by
       // writing a 16-bit. These static asserts guard our assumption is valid.
       STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                    BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                    BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
       STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-      __ movw(
-          FieldOperand(bytecode_array, BytecodeArray::kOsrNestingLevelOffset),
-          Immediate(0));
+      __ movw(FieldOperand(bytecode_array,
+                           BytecodeArray::kOsrLoopNestingLevelOffset),
+              Immediate(0));
       __ Push(bytecode_array);
 
       // Baseline code frames store the feedback vector where interpreter would
@@ -1899,11 +1893,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(rdx);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2006,11 +1998,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(rdx);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2059,11 +2049,10 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rdx, args[3]);  // new.target
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(
+        rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx,
+        TurboAssembler::kCountIsInteger,
+        TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2120,7 +2109,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   }
 
   Label stack_overflow;
-  __ StackOverflowCheck(rcx, r8, &stack_overflow, Label::kNear);
+  __ StackOverflowCheck(rcx, &stack_overflow, Label::kNear);
 
   // Push additional arguments onto the stack.
   // Move the arguments already in the stack,
@@ -2222,7 +2211,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // -----------------------------------
 
     // Check for stack overflow.
-    __ StackOverflowCheck(r8, r12, &stack_overflow, Label::kNear);
+    __ StackOverflowCheck(r8, &stack_overflow, Label::kNear);
 
     // Forward the arguments from the caller frame.
     // Move the arguments already in the stack,
@@ -3345,16 +3334,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // expected to be on the top of the stack).
   // We cannot use just the ret instruction for this, because we cannot pass the
   // number of slots to remove in a Register as an argument.
-  Register return_addr = rbx;
-  __ popq(return_addr);
-  Register caller_frame_slots_count = param_count;
-  // Add one to also pop the receiver. The receiver is passed to a JSFunction
-  // over the stack but is neither included in the number of parameters passed
-  // to this function nor in the number of parameters expected in this function.
-  __ addq(caller_frame_slots_count, Immediate(1));
-  __ shlq(caller_frame_slots_count, Immediate(kSystemPointerSizeLog2));
-  __ addq(rsp, caller_frame_slots_count);
-  __ pushq(return_addr);
+  __ DropArguments(param_count, rbx, TurboAssembler::kCountIsInteger,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   // --------------------------------------------------------------------------
@@ -4377,12 +4358,13 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 
 namespace {
 
-// Converts an interpreter frame into a baseline frame and continues execution
-// in baseline code (baseline code has to exist on the shared function info),
-// either at the current or next (in execution order) bytecode.
-void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
-                            bool is_osr = false) {
-  __ pushq(kInterpreterAccumulatorRegister);
+// Restarts execution either at the current or next (in execution order)
+// bytecode. If there is baseline code on the shared function info, converts an
+// interpreter frame into a baseline frame and continues execution in baseline
+// code. Otherwise execution continues with bytecode.
+void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
+                                         bool next_bytecode,
+                                         bool is_osr = false) {
   Label start;
   __ bind(&start);
 
@@ -4390,8 +4372,44 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
   Register closure = rdi;
   __ movq(closure, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
 
+  // Get the Code object from the shared function info.
+  Register code_obj = rbx;
+  __ LoadTaggedPointerField(
+      code_obj, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      code_obj,
+      FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+
+  // Check if we have baseline code. For OSR entry it is safe to assume we
+  // always have baseline code.
+  if (!is_osr) {
+    Label start_with_baseline;
+    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE, kScratchRegister);
+    __ j(equal, &start_with_baseline);
+
+    // Start with bytecode as there is no baseline code.
+    Builtin builtin_id = next_bytecode
+                             ? Builtin::kInterpreterEnterAtNextBytecode
+                             : Builtin::kInterpreterEnterAtBytecode;
+    __ Jump(masm->isolate()->builtins()->code_handle(builtin_id),
+            RelocInfo::CODE_TARGET);
+
+    // Start with baseline code.
+    __ bind(&start_with_baseline);
+  } else if (FLAG_debug_code) {
+    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kExpectedBaselineData);
+  }
+
+  // Load baseline code from baseline data.
+  __ LoadTaggedPointerField(
+      code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  }
+
   // Load the feedback vector.
-  Register feedback_vector = rbx;
+  Register feedback_vector = r11;
   __ LoadTaggedPointerField(
       feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
@@ -4412,19 +4430,6 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
           feedback_vector);
   feedback_vector = no_reg;
 
-  // Get the Code object from the shared function info.
-  Register code_obj = rbx;
-  __ LoadTaggedPointerField(
-      code_obj, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTaggedPointerField(
-      code_obj,
-      FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
-  __ LoadTaggedPointerField(
-      code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
-  }
-
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
   if (next_bytecode || is_osr) {
@@ -4434,7 +4439,7 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
     get_baseline_pc_extref =
         ExternalReference::baseline_pc_for_bytecode_offset();
   }
-  Register get_baseline_pc = rax;
+  Register get_baseline_pc = r11;
   __ LoadAddress(get_baseline_pc, get_baseline_pc_extref);
 
   // If the code deoptimizes during the implicit function entry stack interrupt
@@ -4457,6 +4462,7 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
   // Get bytecode array from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           MemOperand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ pushq(kInterpreterAccumulatorRegister);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PrepareCallCFunction(3);
@@ -4474,7 +4480,7 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
     // Sparkplug here.
     __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                         BytecodeArray::kOsrNestingLevelOffset),
+                         BytecodeArray::kOsrLoopNestingLevelOffset),
             Immediate(0));
     Generate_OSREntry(masm, code_obj);
   } else {
@@ -4497,8 +4503,10 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
   __ bind(&install_baseline_code);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ pushq(kInterpreterAccumulatorRegister);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    __ popq(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ jmp(&start);
@@ -4506,17 +4514,19 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
 
 }  // namespace
 
-void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, false);
+void Builtins::Generate_BaselineOrInterpreterEnterAtBytecode(
+    MacroAssembler* masm) {
+  Generate_BaselineOrInterpreterEntry(masm, false);
 }
 
-void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, true);
+void Builtins::Generate_BaselineOrInterpreterEnterAtNextBytecode(
+    MacroAssembler* masm) {
+  Generate_BaselineOrInterpreterEntry(masm, true);
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, false, true);
+  Generate_BaselineOrInterpreterEntry(masm, false, true);
 }
 
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {

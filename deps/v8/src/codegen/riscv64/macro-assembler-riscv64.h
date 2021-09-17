@@ -209,8 +209,21 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
-  inline void GenPCRelativeJump(Register rd, int64_t imm32);
-  inline void GenPCRelativeJumpAndLink(Register rd, int64_t imm32);
+  inline void GenPCRelativeJump(Register rd, int64_t imm32) {
+    DCHECK(is_int32(imm32));
+    int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+    auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+    jr(rd, Lo12);     // jump PC + Hi20 + Lo12
+  }
+
+  inline void GenPCRelativeJumpAndLink(Register rd, int64_t imm32) {
+    DCHECK(is_int32(imm32));
+    int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+    auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+    jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
+  }
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS                              \
   Condition cond = al, Register rs = zero_reg, \
@@ -407,6 +420,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void instr(Register rs, Register rt) { instr(rs, Operand(rt)); } \
   void instr(Register rs, int32_t j) { instr(rs, Operand(j)); }
 
+#define DEFINE_INSTRUCTION3(instr) void instr(Register rd, int64_t imm);
+
   DEFINE_INSTRUCTION(Add32)
   DEFINE_INSTRUCTION(Add64)
   DEFINE_INSTRUCTION(Div32)
@@ -457,6 +472,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   DEFINE_INSTRUCTION(Ror)
   DEFINE_INSTRUCTION(Dror)
+
+  DEFINE_INSTRUCTION3(Li)
+  DEFINE_INSTRUCTION2(Mv)
+
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
@@ -472,15 +491,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void SmiUntag(Register reg) { SmiUntag(reg, reg); }
-
-  // Removes current frame and its arguments from the stack preserving
-  // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count| do not include
-  // receiver. |callee_args_count| is not modified. |caller_args_count|
-  // is trashed.
-  void PrepareForTailCall(Register callee_args_count,
-                          Register caller_args_count, Register scratch0,
-                          Register scratch1);
 
   int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 

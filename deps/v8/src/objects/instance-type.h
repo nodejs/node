@@ -149,7 +149,8 @@ constexpr InstanceType LAST_STRING_TYPE =
 
 STATIC_ASSERT((FIRST_NONSTRING_TYPE & kIsNotStringMask) != kStringTag);
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
-STATIC_ASSERT(JS_API_OBJECT_TYPE == Internals::kJSApiObjectType);
+STATIC_ASSERT(FIRST_JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
+STATIC_ASSERT(LAST_JS_API_OBJECT_TYPE == Internals::kLastJSApiObjectType);
 STATIC_ASSERT(JS_SPECIAL_API_OBJECT_TYPE == Internals::kJSSpecialApiObjectType);
 STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);

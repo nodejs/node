@@ -157,7 +157,7 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
   Node* const control = graph()->start();
   Reduction const r = Reduce(graph()->NewNode(
       javascript()->CreateFunctionContext(
-          handle(ScopeInfo::Empty(isolate()), isolate()), 8, FUNCTION_SCOPE),
+          MakeRef(broker(), ScopeInfo::Empty(isolate())), 8, FUNCTION_SCOPE),
       context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
@@ -171,8 +171,8 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 // JSCreateWithContext
 
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
-  Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate()).empty_function_scope_info_handle();
+  ScopeInfoRef scope_info =
+      MakeRef(broker(), ReadOnlyRoots(isolate()).empty_function_scope_info());
   Node* const object = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -193,8 +193,8 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
 // JSCreateCatchContext
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
-  Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate()).empty_function_scope_info_handle();
+  ScopeInfoRef scope_info =
+      MakeRef(broker(), ReadOnlyRoots(isolate()).empty_function_scope_info());
   Node* const exception = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();

@@ -2358,7 +2358,7 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   const v8::HeapGraphNode* hidden_props =
-      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "<symbol>");
+      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol key>");
   CHECK(!hidden_props);
 
   v8::Local<v8::Value> cHandle =
@@ -2377,10 +2377,32 @@ TEST(HiddenPropertiesFastCase) {
   c = GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   hidden_props =
-      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol>");
+      GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "<symbol key>");
   CHECK(hidden_props);
 }
 
+TEST(SymbolsAndPrivateClassFields) {
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  CompileRun(
+      "class C { #private = this; [Symbol('MySymbol')] = this; };\n"
+      "c = new C;\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* c =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK(c);
+  const v8::HeapGraphNode* prop;
+  prop = GetProperty(isolate, c, v8::HeapGraphEdge::kProperty, "#private");
+  CHECK(prop);
+  prop = GetProperty(isolate, c, v8::HeapGraphEdge::kProperty,
+                     "<symbol MySymbol>");
+  CHECK(prop);
+}
 
 TEST(AccessorInfo) {
   LocalContext env;

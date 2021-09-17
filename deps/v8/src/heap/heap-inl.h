@@ -45,6 +45,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-hasher.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {
@@ -84,16 +85,29 @@ Address AllocationResult::ToAddress() {
 }
 
 // static
-BytecodeFlushMode Heap::GetBytecodeFlushMode(Isolate* isolate) {
+base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   if (isolate->disable_bytecode_flushing()) {
-    return BytecodeFlushMode::kDoNotFlushBytecode;
+    return base::EnumSet<CodeFlushMode>();
   }
-  if (FLAG_stress_flush_bytecode) {
-    return BytecodeFlushMode::kStressFlushBytecode;
-  } else if (FLAG_flush_bytecode) {
-    return BytecodeFlushMode::kFlushBytecode;
+
+  base::EnumSet<CodeFlushMode> code_flush_mode;
+  if (FLAG_flush_bytecode) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
   }
-  return BytecodeFlushMode::kDoNotFlushBytecode;
+
+  if (FLAG_flush_baseline_code) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
+  }
+
+  if (FLAG_stress_flush_code) {
+    // This is to check tests accidentally don't miss out on adding either flush
+    // bytecode or flush code along with stress flush code. stress_flush_code
+    // doesn't do anything if either one of them isn't enabled.
+    DCHECK(FLAG_fuzzing || FLAG_flush_baseline_code || FLAG_flush_bytecode);
+    code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
+  }
+
+  return code_flush_mode;
 }
 
 Isolate* Heap::isolate() {
@@ -335,14 +349,11 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   UNREACHABLE();
 }
 
-Address Heap::DeserializerAllocate(AllocationType type, int size_in_bytes) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    AllocationResult allocation = tp_heap_->Allocate(
-        size_in_bytes, type, AllocationAlignment::kDoubleAligned);
-    return allocation.ToObjectChecked().ptr();
-  } else {
-    UNIMPLEMENTED();  // unimplemented
-  }
+Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
+                                AllocationOrigin origin,
+                                AllocationAlignment alignment) {
+  return AllocateRawWith<kRetryOrFail>(size, allocation, origin, alignment)
+      .address();
 }
 
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
@@ -492,13 +503,6 @@ bool Heap::InOldSpace(Object object) {
   return old_space_->Contains(object);
 }
 
-bool Heap::InCodeSpace(HeapObject object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return third_party_heap::Heap::InCodeSpace(object.ptr());
-  }
-  return code_space_->Contains(object) || code_lo_space_->Contains(object);
-}
-
 // static
 Heap* Heap::FromWritableHeapObject(HeapObject obj) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -613,7 +617,7 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
   (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
 }
 
-bool Heap::IsPendingAllocation(HeapObject object) {
+bool Heap::IsPendingAllocationInternal(HeapObject object) {
   DCHECK(deserialization_complete());
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -663,6 +667,15 @@ bool Heap::IsPendingAllocation(HeapObject object) {
   }
 
   UNREACHABLE();
+}
+
+bool Heap::IsPendingAllocation(HeapObject object) {
+  bool result = IsPendingAllocationInternal(object);
+  if (FLAG_trace_pending_allocations && result) {
+    StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
+                   << "\n";
+  }
+  return result;
 }
 
 bool Heap::IsPendingAllocation(Object object) {

@@ -66,7 +66,7 @@ class V8_BASE_EXPORT Mutex final {
 #if V8_OS_POSIX
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  using NativeHandle = SRWLOCK;
+  using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
   using NativeHandle = SbMutex;
 #endif
@@ -171,7 +171,7 @@ class V8_BASE_EXPORT RecursiveMutex final {
 #if V8_OS_POSIX
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  using NativeHandle = CRITICAL_SECTION;
+  using NativeHandle = V8_CRITICAL_SECTION;
 #elif V8_OS_STARBOARD
   using NativeHandle = starboard::RecursiveMutex;
 #endif
@@ -265,10 +265,15 @@ class V8_BASE_EXPORT SharedMutex final {
 
  private:
   // The implementation-defined native handle type.
-#if V8_OS_POSIX
+#if V8_OS_MACOSX
+  // pthread_rwlock_t is broken on MacOS when signals are being sent to the
+  // process (see https://crbug.com/v8/11399). Until Apple fixes that in the OS,
+  // we have to fall back to a non-shared mutex.
+  using NativeHandle = pthread_mutex_t;
+#elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
-  using NativeHandle = SRWLOCK;
+  using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
   using NativeHandle = starboard::RWLock;
 #endif

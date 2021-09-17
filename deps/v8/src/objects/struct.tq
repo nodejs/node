@@ -4,24 +4,20 @@
 
 @abstract
 @generatePrint
-@generateCppClass
 extern class Struct extends HeapObject {
 }
 
 @generatePrint
-@generateCppClass
 extern class Tuple2 extends Struct {
   value1: Object;
   value2: Object;
 }
 
-@generateCppClass
 extern class ClassPositions extends Struct {
   start: Smi;
   end: Smi;
 }
 
-@generateCppClass
 extern class AccessorPair extends Struct {
   getter: Object;
   setter: Object;

@@ -9,7 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -168,9 +168,10 @@ UnoptimizedCompileState::UnoptimizedCompileState(Isolate* isolate)
       allocator_(isolate->allocator()),
       ast_string_constants_(isolate->ast_string_constants()),
       logger_(isolate->logger()),
-      parallel_tasks_(isolate->compiler_dispatcher()->IsEnabled()
-                          ? new ParallelTasks(isolate->compiler_dispatcher())
-                          : nullptr) {}
+      parallel_tasks_(
+          isolate->lazy_compile_dispatcher()->IsEnabled()
+              ? new ParallelTasks(isolate->lazy_compile_dispatcher())
+              : nullptr) {}
 
 UnoptimizedCompileState::UnoptimizedCompileState(
     const UnoptimizedCompileState& other) V8_NOEXCEPT
@@ -332,7 +333,7 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
 void UnoptimizedCompileState::ParallelTasks::Enqueue(
     ParseInfo* outer_parse_info, const AstRawString* function_name,
     FunctionLiteral* literal) {
-  base::Optional<CompilerDispatcher::JobId> job_id =
+  base::Optional<LazyCompileDispatcher::JobId> job_id =
       dispatcher_->Enqueue(outer_parse_info, function_name, literal);
   if (job_id) {
     enqueued_jobs_.emplace_front(std::make_pair(literal, *job_id));

@@ -41,13 +41,20 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   Handle<String> name(constructor->shared().Name(), isolate);
+
+  Handle<Context> context = handle(constructor->native_context(), isolate);
+  DCHECK(context->IsNativeContext());
+  Handle<JSFunction> realm_type_error_function(
+      JSFunction::cast(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
+      isolate);
   if (name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kAnonymousConstructorNonCallable));
+        isolate, NewError(realm_type_error_function,
+                          MessageTemplate::kAnonymousConstructorNonCallable));
   }
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
+      isolate, NewError(realm_type_error_function,
+                        MessageTemplate::kConstructorNonCallable, name));
 }
 
 

@@ -34,10 +34,6 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
-  // TODO(jgruber): Remove this method once GetPropertyAccessInfo no longer
-  // uses the two-phase approach between serialization and compilation.
-  void ClearForConcurrentGetPropertyAccessInfo() { dependencies_.clear(); }
-
   // Return the initial map of {function} and record the assumption that it
   // stays the initial map.
   MapRef DependOnInitialMap(const JSFunctionRef& function);
@@ -116,14 +112,15 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
-  template <class MapContainer>
   void DependOnStablePrototypeChains(
-      MapContainer const& receiver_maps, WhereToStart start,
+      ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
       base::Optional<JSObjectRef> last_prototype =
           base::Optional<JSObjectRef>());
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
+
+  void DependOnConsistentJSFunctionView(const JSFunctionRef& function);
 
   // Predict the final instance size for {function}'s initial map and record
   // the assumption that this prediction is correct. In addition, register
@@ -148,12 +145,14 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Gather the assumption that the field representation of a field does not
   // change. The field is identified by the arguments.
   CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
+      const MapRef& map, InternalIndex descriptor,
+      Representation representation) const;
 
   // Gather the assumption that the field type of a field does not change. The
   // field is identified by the arguments.
   CompilationDependency const* FieldTypeDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
+      const MapRef& map, InternalIndex descriptor,
+      const ObjectRef& /* Contains a FieldType underneath. */ type) const;
 
  private:
   Zone* const zone_;
