@@ -3990,7 +3990,7 @@ These stat objects are instances of `fs.Stat`. If the `bigint` option is `true`,
 the numeric values in these objects are specified as `BigInt`s.
 
 To be notified when the file was modified, not just accessed, it is necessary
-to compare `curr.mtime` and `prev.mtime`.
+to compare `curr.mtimeMs` and `prev.mtimeMs`.
 
 When an `fs.watchFile` operation results in an `ENOENT` error, it
 will invoke the listener once, with all the fields zeroed (or, for dates, the
