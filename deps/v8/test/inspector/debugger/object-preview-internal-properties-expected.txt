@@ -74,6 +74,11 @@ expression: (function* foo() { yield 1 })()
 
 Running test: entriesInMapAndSet
 expression: new Map([[1,2]])
+{
+    name : size
+    type : number
+    value : 1
+}
 [[Entries]]:
 [
     [0] : {
@@ -95,6 +100,11 @@ expression: new Map([[1,2]])
 ]
 
 expression: new Set([1])
+{
+    name : size
+    type : number
+    value : 1
+}
 [[Entries]]:
 [
     [0] : {

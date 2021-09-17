@@ -89,8 +89,6 @@ v8_source_set("cctest_sources") {
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
     "compiler/node-observer-tester.h",
-    "compiler/serializer-tester.cc",
-    "compiler/serializer-tester.h",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
     "compiler/test-calls-with-arraylike-or-spread.cc",

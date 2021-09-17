@@ -197,6 +197,12 @@ inline bool IsTypedArrayOrRabGsabTypedArrayElementsKind(ElementsKind kind) {
                          LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 }
 
+inline bool IsBigIntTypedArrayElementsKind(ElementsKind kind) {
+  return kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS ||
+         kind == RAB_GSAB_BIGINT64_ELEMENTS ||
+         kind == RAB_GSAB_BIGUINT64_ELEMENTS;
+}
+
 inline bool IsWasmArrayElementsKind(ElementsKind kind) {
   return kind == WASM_ARRAY_ELEMENTS;
 }

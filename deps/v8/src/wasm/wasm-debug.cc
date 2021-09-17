@@ -280,12 +280,13 @@ class DebugInfoImpl {
 
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
-    Counters* counters = nullptr;
-    WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
-        &env, body, func_index, for_debugging, counters, &unused_detected,
-        offsets, generate_debug_sidetable ? &debug_sidetable : nullptr,
-        dead_breakpoint);
+        &env, body, func_index, for_debugging,
+        LiftoffOptions{}
+            .set_breakpoints(offsets)
+            .set_dead_breakpoint(dead_breakpoint)
+            .set_debug_sidetable(generate_debug_sidetable ? &debug_sidetable
+                                                          : nullptr));
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");

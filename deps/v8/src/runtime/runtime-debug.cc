@@ -12,6 +12,7 @@
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -193,13 +194,17 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                                     Handle<Object> object) {
   auto result = ArrayList::New(isolate, 8 * 2);
   if (object->IsJSObject()) {
-    PrototypeIterator iter(isolate, Handle<JSObject>::cast(object));
-    Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
-    if (!prototype->IsNull(isolate)) {
-      result = ArrayList::Add(
-          isolate, result,
-          isolate->factory()->NewStringFromStaticChars("[[Prototype]]"),
-          prototype);
+    PrototypeIterator iter(isolate, Handle<JSObject>::cast(object),
+                           kStartAtReceiver);
+    if (iter.HasAccess()) {
+      iter.Advance();
+      Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
+      if (!prototype->IsNull(isolate)) {
+        result = ArrayList::Add(
+            isolate, result,
+            isolate->factory()->NewStringFromStaticChars("[[Prototype]]"),
+            prototype);
+      }
     }
   }
   if (object->IsJSBoundFunction()) {

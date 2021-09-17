@@ -12,89 +12,38 @@
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
 
+d8.file.execute('test/mjsunit/compiler/fast-api-helpers.js');
+
 const fast_c_api = new d8.test.FastCAPI();
 
 // ----------- add_all_sequence -----------
 // `add_all_sequence` has the following signature:
 // double add_all_sequence(bool /*should_fallback*/, Local<Array>)
 
-const max_safe_float = 2**24 - 1;
-const add_all_result_full = -42 + 45 +
-  Number.MIN_SAFE_INTEGER + Number.MAX_SAFE_INTEGER +
-  max_safe_float * 0.5 + Math.PI;
-const full_array = [-42, 45,
-  Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER,
-  max_safe_float * 0.5, Math.PI];
+// Smi only test - regular call hits the fast path.
+(function () {
+  function add_all_sequence() {
+    const arr = [-42, 45];
+    return fast_c_api.add_all_sequence(false /* should_fallback */, arr);
+  }
+  ExpectFastCall(add_all_sequence, 3);
+})();
 
-function add_all_sequence_smi(arg) {
-  return fast_c_api.add_all_sequence(false /* should_fallback */, arg);
-}
+(function () {
+  function add_all_sequence_mismatch(arg) {
+    return fast_c_api.add_all_sequence(false /*should_fallback*/, arg);
+  }
 
-%PrepareFunctionForOptimization(add_all_sequence_smi);
-assertEquals(3, add_all_sequence_smi([-42, 45]));
-%OptimizeFunctionOnNextCall(add_all_sequence_smi);
+  %PrepareFunctionForOptimization(add_all_sequence_mismatch);
+  add_all_sequence_mismatch();
+  %OptimizeFunctionOnNextCall(add_all_sequence_mismatch);
 
-function add_all_sequence_full(arg) {
-  return fast_c_api.add_all_sequence(false /* should_fallback */, arg);
-}
-
-%PrepareFunctionForOptimization(add_all_sequence_full);
-if (fast_c_api.supports_fp_params) {
-  assertEquals(add_all_result_full, add_all_sequence_full(full_array));
-} else {
-  assertEquals(3, add_all_sequence_smi([-42, 45]));
-}
-%OptimizeFunctionOnNextCall(add_all_sequence_full);
-
-if (fast_c_api.supports_fp_params) {
-  // Test that regular call hits the fast path.
-  fast_c_api.reset_counts();
-  assertEquals(add_all_result_full, add_all_sequence_full(full_array));
-  assertOptimized(add_all_sequence_full);
-  assertEquals(1, fast_c_api.fast_call_count());
-  assertEquals(0, fast_c_api.slow_call_count());
-} else {
-  // Smi only test - regular call hits the fast path.
-  fast_c_api.reset_counts();
-  assertEquals(3, add_all_sequence_smi([-42, 45]));
-  assertOptimized(add_all_sequence_smi);
-  assertEquals(1, fast_c_api.fast_call_count());
-  assertEquals(0, fast_c_api.slow_call_count());
-}
-
-function add_all_sequence_mismatch(arg) {
-  return fast_c_api.add_all_sequence(false /*should_fallback*/, arg);
-}
-
-%PrepareFunctionForOptimization(add_all_sequence_mismatch);
-assertThrows(() => add_all_sequence_mismatch());
-%OptimizeFunctionOnNextCall(add_all_sequence_mismatch);
-
-// Test that passing non-array arguments falls down the slow path.
-fast_c_api.reset_counts();
-assertThrows(() => add_all_sequence_mismatch(42));
-assertOptimized(add_all_sequence_mismatch);
-assertEquals(0, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
-
-fast_c_api.reset_counts();
-assertThrows(() => add_all_sequence_mismatch({}));
-assertOptimized(add_all_sequence_mismatch);
-assertEquals(0, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
-
-fast_c_api.reset_counts();
-assertThrows(() => add_all_sequence_mismatch('string'));
-assertOptimized(add_all_sequence_mismatch);
-assertEquals(0, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
-
-fast_c_api.reset_counts();
-assertThrows(() => add_all_sequence_mismatch(Symbol()));
-assertOptimized(add_all_sequence_mismatch);
-assertEquals(0, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
-
+  // Test that passing non-array arguments falls down the slow path.
+  assert_throws_and_optimized(add_all_sequence_mismatch, 42);
+  assert_throws_and_optimized(add_all_sequence_mismatch, {});
+  assert_throws_and_optimized(add_all_sequence_mismatch, 'string');
+  assert_throws_and_optimized(add_all_sequence_mismatch, Symbol());
+})();
 
 //----------- Test function overloads with same arity. -----------
 //Only overloads between JSArray and TypedArray are supported
@@ -102,21 +51,26 @@ assertEquals(1, fast_c_api.slow_call_count());
 // Test with TypedArray.
 (function () {
   function overloaded_test(should_fallback = false) {
-    let typed_array = new Uint32Array([1, 2, 3]);
+    let typed_array = new Uint32Array([1,2,3]);
     return fast_c_api.add_all_overload(false /* should_fallback */,
         typed_array);
   }
+  ExpectFastCall(overloaded_test, 6);
+})();
 
-  %PrepareFunctionForOptimization(overloaded_test);
-  let result = overloaded_test();
-  assertEquals(0, result);
+let large_array = [];
+for (let i = 0; i < 100; i++) {
+  large_array.push(i);
+}
 
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(overloaded_test);
-  result = overloaded_test();
-  assertEquals(0, result);
-  assertOptimized(overloaded_test);
-  assertEquals(1, fast_c_api.fast_call_count());
+// Non-externalized TypedArray.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    let typed_array = new Uint32Array(large_array);
+    return fast_c_api.add_all_overload(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectFastCall(overloaded_test, 4950);
 })();
 
 // Mismatched TypedArray.
@@ -126,17 +80,7 @@ assertEquals(1, fast_c_api.slow_call_count());
     return fast_c_api.add_all_overload(false /* should_fallback */,
         typed_array);
   }
-
-  %PrepareFunctionForOptimization(overloaded_test);
-  let result = overloaded_test();
-  assertEquals(0, result);
-
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(overloaded_test);
-  result = overloaded_test();
-  assertEquals(0, result);
-  assertOptimized(overloaded_test);
-  assertEquals(0, fast_c_api.fast_call_count());
+  ExpectSlowCall(overloaded_test, 6.6);
 })();
 
 // Test with JSArray.
@@ -145,17 +89,7 @@ assertEquals(1, fast_c_api.slow_call_count());
     let js_array = [26, -6, 42];
     return fast_c_api.add_all_overload(false /* should_fallback */, js_array);
   }
-
-  %PrepareFunctionForOptimization(overloaded_test);
-  let result = overloaded_test();
-  assertEquals(62, result);
-
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(overloaded_test);
-  result = overloaded_test();
-  assertEquals(62, result);
-  assertOptimized(overloaded_test);
-  assertEquals(1, fast_c_api.fast_call_count());
+  ExpectFastCall(overloaded_test, 62);
 })();
 
 // Test function overloads with undefined.
@@ -163,15 +97,7 @@ assertEquals(1, fast_c_api.slow_call_count());
   function overloaded_test(should_fallback = false) {
     return fast_c_api.add_all_overload(false /* should_fallback */, undefined);
   }
-
-  %PrepareFunctionForOptimization(overloaded_test);
-  assertThrows(() => overloaded_test());
-
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(overloaded_test);
-  assertThrows(() => overloaded_test());
-  assertOptimized(overloaded_test);
-  assertEquals(0, fast_c_api.fast_call_count());
+  ExpectSlowCall(overloaded_test, 0);
 })();
 
 // Test function with invalid overloads.
@@ -196,4 +122,95 @@ assertEquals(1, fast_c_api.slow_call_count());
   // (SimplifiedLowering takes the type from the first overloaded function).
   assertUnoptimized(overloaded_test);
   assertEquals(0, fast_c_api.fast_call_count());
+})();
+
+//----------- Test different TypedArray functions. -----------
+// ----------- add_all_<TYPE>_typed_array -----------
+// `add_all_<TYPE>_typed_array` have the following signature:
+// double add_all_<TYPE>_typed_array(bool /*should_fallback*/, FastApiTypedArray<TYPE>)
+
+(function () {
+  function int32_test(should_fallback = false) {
+    let typed_array = new Int32Array([-42, 1, 2, 3]);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectFastCall(int32_test, -36);
+})();
+
+(function () {
+  function uint32_test(should_fallback = false) {
+    let typed_array = new Uint32Array([1, 2, 3]);
+    return fast_c_api.add_all_uint32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectFastCall(uint32_test, 6);
+})();
+
+(function () {
+  function detached_typed_array_test(should_fallback = false) {
+    let typed_array = new Int32Array([-42, 1, 2, 3]);
+    %ArrayBufferDetach(typed_array.buffer);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectSlowCall(detached_typed_array_test, 0);
+})();
+
+(function () {
+  function detached_non_ext_typed_array_test(should_fallback = false) {
+    let typed_array = new Int32Array(large_array);
+    %ArrayBufferDetach(typed_array.buffer);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectSlowCall(detached_non_ext_typed_array_test, 0);
+})();
+
+(function () {
+  function shared_array_buffer_ta_test(should_fallback = false) {
+    let sab = new SharedArrayBuffer(16);
+    let typed_array = new Int32Array(sab);
+    typed_array.set([-42, 1, 2, 3]);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectSlowCall(shared_array_buffer_ta_test, -36);
+})();
+
+(function () {
+  function shared_array_buffer_ext_ta_test(should_fallback = false) {
+    let sab = new SharedArrayBuffer(400);
+    let typed_array = new Int32Array(sab);
+    typed_array.set(large_array);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectSlowCall(shared_array_buffer_ext_ta_test, 4950);
+})();
+
+// Empty TypedArray.
+(function () {
+  function int32_test(should_fallback = false) {
+    let typed_array = new Int32Array(0);
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  ExpectFastCall(int32_test, 0);
+})();
+
+// Invalid argument types instead of a TypedArray.
+(function () {
+  function invalid_test(arg) {
+    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+      arg);
+  }
+  %PrepareFunctionForOptimization(invalid_test);
+  invalid_test(new Int32Array(0));
+  %OptimizeFunctionOnNextCall(invalid_test);
+
+  assert_throws_and_optimized(invalid_test, 42);
+  assert_throws_and_optimized(invalid_test, {});
+  assert_throws_and_optimized(invalid_test, 'string');
+  assert_throws_and_optimized(invalid_test, Symbol());
 })();

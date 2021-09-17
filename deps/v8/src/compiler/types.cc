@@ -258,7 +258,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_PROMISE_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
-    case WASM_EXCEPTION_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:

@@ -214,7 +214,7 @@ extern class GlobalDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
-    generates 'TNode<ObjectHashTable>';
+    generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
@@ -552,8 +552,20 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // but not their own class definitions:
 
 // Like JSObject, but created from API function.
-@apiExposedInstanceTypeValue(0x420)
+@apiExposedInstanceTypeValue(0x422)
+@doNotGenerateCast
+@noVerifier
 extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
+
+// TODO(gsathya): This only exists to make JSApiObject instance type into a
+// range.
+@apiExposedInstanceTypeValue(0x80A)
+@doNotGenerateCast
+@highestInstanceTypeWithinParentClassRange
+@noVerifier
+extern class JSLastDummyApiObject extends JSApiObject
+    generates 'TNode<JSObject>';
+
 // Like JSApiObject, but requires access checks and/or has interceptors.
 @apiExposedInstanceTypeValue(0x410)
 extern class JSSpecialApiObject extends JSSpecialObject
@@ -669,6 +681,8 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
+extern transitioning runtime ThrowIteratorError(implicit context: Context)(
+    JSAny): never;
 extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
     JSAny): never;
 
@@ -1198,6 +1212,7 @@ extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
 extern macro IsNoElementsProtectorCellInvalid(): bool;
 extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
+extern macro IsIsConcatSpreadableProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;

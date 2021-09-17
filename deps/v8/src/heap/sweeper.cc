@@ -227,13 +227,6 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
-void Sweeper::DrainSweepingWorklists() {
-  if (!sweeping_in_progress_) return;
-
-  ForAllSweepingSpaces(
-      [this](AllocationSpace space) { DrainSweepingWorklistForSpace(space); });
-}
-
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
   if (!sweeping_in_progress_) return;
   ParallelSweepSpace(space, 0);

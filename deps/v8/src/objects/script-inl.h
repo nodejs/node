@@ -175,6 +175,16 @@ bool Script::HasValidSource() {
   return true;
 }
 
+bool Script::HasSourceURLComment() const {
+  return source_url().IsString() && String::cast(source_url()).length() != 0;
+}
+
+bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
+  // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
+  // value.
+  return source().IsUndefined(isolate) || String::cast(source()).length() == 0;
+}
+
 }  // namespace internal
 }  // namespace v8
 

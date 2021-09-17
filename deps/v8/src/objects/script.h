@@ -142,6 +142,14 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
+  // If the script has a non-empty sourceURL comment.
+  inline bool HasSourceURLComment() const;
+
+  // Streaming compilation only attaches the source to the Script upon
+  // finalization. This predicate returns true, if this script may still be
+  // unfinalized.
+  inline bool IsMaybeUnfinalized(Isolate* isolate) const;
+
   Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.

@@ -16,7 +16,10 @@ function inline_polymorphic(f) {
 %PrepareFunctionForOptimization(inline_polymorphic);
 inline_polymorphic(make_closure());
 inline_polymorphic(make_closure());
-%OptimizeFunctionOnNextCall(inline_polymorphic);
+// Compile using top tier since we need value numbering phase for the
+// TurbofanStaticAssert to deduce answer is 42 at compile time. In Turboprop
+// this phase is disabled.
+%OptimizeFunctionForTopTier(inline_polymorphic);
 inline_polymorphic(make_closure());
 
 try {

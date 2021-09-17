@@ -1033,8 +1033,6 @@ class InstructionGetters : public T {
     DCHECK(this->IsShortInstruction());
     // | funct3 | imm[5] | rs1/rd | imm[4:0] | opcode |
     //  15         12              6        2
-    // | funct3 | nzimm[17] | rs1/rd | nzimm[16:12] | opcode |
-    //  15         12                 6            2
     uint32_t Bits = this->InstructionBits();
     int32_t imm6 = ((Bits & 0x1000) >> 7) | ((Bits & 0x7c) >> 2);
     return imm6 << 26 >> 26;

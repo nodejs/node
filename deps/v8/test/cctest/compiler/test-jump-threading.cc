@@ -736,7 +736,7 @@ TEST(Rewire1_deferred) {
   code.Defer();
   int j3 = code.Jump(3);
   // B3
-  code.End();
+  code.Return(0);
 
   static int forward[] = {3, 3, 3, 3};
   ApplyForwarding(&code, kBlockCount, forward);
@@ -774,6 +774,29 @@ TEST(Rewire2_deferred) {
   CheckAssemblyOrder(&code, kBlockCount, assembly);
 }
 
+TEST(Rewire_deferred_diamond) {
+  constexpr size_t kBlockCount = 4;
+  TestCode code(kBlockCount);
+
+  // B0
+  int b1 = code.Branch(1, 2);
+  // B1
+  code.Fallthru();  // To B3
+  // B2
+  code.Defer();
+  int j1 = code.Jump(3);
+  // B3
+  code.Return(0);
+
+  static int forward[] = {0, 3, 3, 3};
+  VerifyForwarding(&code, kBlockCount, forward);
+  ApplyForwarding(&code, kBlockCount, forward);
+  CheckBranch(&code, b1, 3, 3);
+  CheckNop(&code, j1);
+
+  static int assembly[] = {0, 1, 2, 1};
+  CheckAssemblyOrder(&code, kBlockCount, assembly);
+}
 
 TEST(Rewire_diamond) {
   constexpr size_t kBlockCount = 5;

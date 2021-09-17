@@ -45,6 +45,15 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   size_t SizeInBytes() final { return name_.name_was_hidden ? 0 : size_; }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
+    // An embedder node may only be merged with a single wrapper node, as
+    // consumers of the graph may merge a node and its wrapper node.
+    //
+    // TODO(chromium:1218404): Add a DCHECK() to avoid overriding an already
+    // set `wrapper_node_`. This can currently happen with global proxies that
+    // are rewired (and still kept alive) after reloading a page, see
+    // `AddEdge`. We accept overriding the wrapper node in such cases,
+    // leading to a random merged node and separated nodes for all other
+    // proxies.
     wrapper_node_ = wrapper_node;
   }
   Node* WrapperNode() final { return wrapper_node_; }
@@ -119,6 +128,7 @@ class StateBase {
 
   void set_node(EmbedderNode* node) {
     CHECK_EQ(Visibility::kVisible, GetVisibility());
+    DCHECK_NULL(node_);
     node_ = node;
   }
 
@@ -452,16 +462,21 @@ class CppGraphBuilderImpl final {
           reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
           v8_value);
       if (back_reference_object) {
+        auto& back_header = HeapObjectHeader::FromObject(back_reference_object);
+        auto& back_state = states_.GetExistingState(back_header);
+
         // Generally the back reference will point to `parent.header()`. In the
         // case of global proxy set up the backreference will point to a
-        // different object. Merge the nodes nevertheless as Window objects need
-        // to be able to query their detachedness state.
+        // different object, which may not have a node at t his point. Merge the
+        // nodes nevertheless as Window objects need to be able to query their
+        // detachedness state.
         //
         // TODO(chromium:1218404): See bug description on how to fix this
         // inconsistency and only merge states when the backref points back
         // to the same object.
-        auto& back_state = states_.GetExistingState(
-            HeapObjectHeader::FromObject(back_reference_object));
+        if (!back_state.get_node()) {
+          back_state.set_node(AddNode(back_header));
+        }
         back_state.get_node()->SetWrapperNode(v8_node);
 
         auto* profiler =
@@ -496,6 +511,12 @@ class CppGraphBuilderImpl final {
   class WorkstackItemBase;
   class VisitationItem;
   class VisitationDoneItem;
+
+  struct MergedNodeItem {
+    EmbedderGraph::Node* node_;
+    v8::Local<v8::Value> value_;
+    uint16_t wrapper_class_id_;
+  };
 
   CppHeap& cpp_heap_;
   v8::EmbedderGraph& graph_;
@@ -733,7 +754,7 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
   } else {
     // No need to mark/unmark pending as the node is immediately processed.
     current.MarkVisible();
-    // In case the names are visible, the graph is no traversed in this phase.
+    // In case the names are visible, the graph is not traversed in this phase.
     // Explicitly trace one level to handle weak containers.
     WeakVisitor weak_visitor(*this);
     header.Trace(&weak_visitor);

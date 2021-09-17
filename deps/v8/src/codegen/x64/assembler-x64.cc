@@ -443,6 +443,10 @@ void Assembler::CodeTargetAlign() {
   Align(16);  // Preferred alignment of jump targets on x64.
 }
 
+void Assembler::LoopHeaderAlign() {
+  Align(64);  // Preferred alignment of loop header on x64.
+}
+
 bool Assembler::IsNop(Address addr) {
   byte* a = reinterpret_cast<byte*>(addr);
   while (*a == 0x66) a++;
@@ -533,10 +537,38 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   return !!(bitmap[idx / 32] & (1 << (idx & 31)));
 }
 
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  if (update_embedded_objects) {
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+      WriteUnalignedValue(base + p.first, *object);
+    }
+  }
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    Address pc = base + p.first;
+    Address target = p.second + options().code_range_start;
+    WriteUnalignedValue<uint32_t>(pc, relative_target_offset(target, pc));
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    WriteUnalignedValue(base + p.first, p.second);
+  }
+  saved_handles_for_raw_object_ptr_.clear();
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+  }
+  saved_offsets_for_runtime_entries_.clear();
+}
+
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
 
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   DCHECK_EQ(buffer_start_, buffer_->start());
@@ -575,14 +607,12 @@ void Assembler::GrowBuffer() {
     WriteUnalignedValue(p, ReadUnalignedValue<intptr_t>(p) + pc_delta);
   }
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    Address base = reinterpret_cast<Address>(buffer_->start());
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      WriteUnalignedValue(base + p.first, p.second);
-    }
-    for (auto p : saved_offsets_for_runtime_entries_) {
-      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
+    } else {
+      FixOnHeapReferencesToHandles();
     }
   }
 
@@ -4302,7 +4332,8 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emitl(data);
@@ -4311,7 +4342,8 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emitq(data);

@@ -157,9 +157,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // assembler is used on existing code directly (e.g. JumpTableAssembler)
   // without any buffer to hold reloc information.
   bool disable_reloc_info_for_patching = false;
-  // Enables access to exrefs by computing a delta from the root array.
-  // Only valid if code will not survive the process.
-  bool enable_root_array_delta_access = false;
+  // Enables root-relative access to arbitrary untagged addresses (usually
+  // external references). Only valid if code will not survive the process.
+  bool enable_root_relative_access = false;
   // Enables specific assembler sequences only used for the simulator.
   bool enable_simulator_code = false;
   // Enables use of isolate-independent constants, indirected through the
@@ -204,6 +204,9 @@ class AssemblerBuffer {
       V8_WARN_UNUSED_RESULT = 0;
   virtual bool IsOnHeap() const { return false; }
   virtual MaybeHandle<Code> code() const { return MaybeHandle<Code>(); }
+  // Return the GC count when the buffer was allocated (only if the buffer is on
+  // the GC heap).
+  virtual int OnHeapGCCount() const { return 0; }
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
@@ -282,6 +285,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   bool IsOnHeap() const { return buffer_->IsOnHeap(); }
+
+  int OnHeapGCCount() const { return buffer_->OnHeapGCCount(); }
 
   MaybeHandle<Code> code() const {
     DCHECK(IsOnHeap());
@@ -404,6 +409,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
         !options().record_reloc_info_for_serialization && !FLAG_debug_code) {
       return false;
     }
+#ifndef ENABLE_DISASSEMBLER
+    if (RelocInfo::IsLiteralConstant(rmode)) return false;
+#endif
     return true;
   }
 

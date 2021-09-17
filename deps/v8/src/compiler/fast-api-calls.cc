@@ -28,7 +28,6 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kV8Value:
     case CTypeInfo::Type::kApiObject:
       UNREACHABLE();
-      break;
   }
 }
 

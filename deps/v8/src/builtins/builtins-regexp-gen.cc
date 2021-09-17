@@ -1085,6 +1085,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
+    CASE_FOR_FLAG("hasIndices", JSRegExp::kHasIndices);
 #undef CASE_FOR_FLAG
 
 #define CASE_FOR_FLAG(NAME, V8_FLAG_EXTERN_REF, FLAG)                      \
@@ -1106,10 +1107,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     BIND(&next);                                                           \
   } while (false)
 
-    CASE_FOR_FLAG(
-        "hasIndices",
-        ExternalReference::address_of_harmony_regexp_match_indices_flag(),
-        JSRegExp::kHasIndices);
     CASE_FOR_FLAG(
         "linear",
         ExternalReference::address_of_enable_experimental_regexp_engine(),

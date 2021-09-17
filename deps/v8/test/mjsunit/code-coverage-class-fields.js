@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt --harmony-public-fields
-// Flags: --harmony-static-fields --no-stress-flush-bytecode
+// Flags: --harmony-static-fields --no-stress-flush-code
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);

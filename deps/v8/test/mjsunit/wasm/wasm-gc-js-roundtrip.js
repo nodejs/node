@@ -57,7 +57,7 @@ let instance = (() => {
         .addBody([kExprLocalGet, 0])
         .exportFunc();
     builder.addFunction(key + '_null', makeSig([], [type]))
-        .addBody([kExprRefNull, test_types[key]])
+        .addBody([kExprRefNull, ...wasmSignedLeb(test_types[key])])
         .exportFunc();
   }
 

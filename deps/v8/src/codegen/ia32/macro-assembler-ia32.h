@@ -203,19 +203,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     SmiUntag(output);
   }
 
-  // Removes current frame and its arguments from the stack preserving the
-  // arguments and a return address pushed to the stack for the next call. Both
-  // |callee_args_count| and |caller_args_count| do not include receiver.
-  // |callee_args_count| is not modified. |caller_args_count| is trashed.
-  // |number_of_temp_values_after_return_address| specifies the number of words
-  // pushed to the stack after the return address. This is to allow "allocation"
-  // of scratch registers that this function requires by saving their values on
-  // the stack.
-  void PrepareForTailCall(Register callee_args_count,
-                          Register caller_args_count, Register scratch0,
-                          Register scratch1,
-                          int number_of_temp_values_after_return_address);
-
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
   // etc., not pushed. The argument count assumes all arguments are word sized.
@@ -244,6 +231,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void StubPrologue(StackFrame::Type type);
   void Prologue();
 
+  // Helpers for argument handling
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, Register scratch, ArgumentsCountType type,
+                     ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, Operand src);
 
@@ -269,6 +270,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   void InitializeRootRegister();
 
+  Operand RootAsOperand(RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
 
   // Indirect root-relative loads.
@@ -490,6 +492,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void ExceptionHandler() {}
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
+
+ protected:
+  // Drops arguments assuming that the return address was already popped.
+  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

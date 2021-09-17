@@ -62,10 +62,14 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
  private:
   class Decorator;
 
+  static SourcePosition UnknownSourcePosition(Zone* zone) {
+    return SourcePosition::Unknown();
+  }
+
   Graph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
-  NodeAuxData<SourcePosition, SourcePosition::Unknown> table_;
+  NodeAuxData<SourcePosition, UnknownSourcePosition> table_;
 };
 
 }  // namespace compiler

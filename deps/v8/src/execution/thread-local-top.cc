@@ -20,7 +20,7 @@ void ThreadLocalTop::Clear() {
   pending_handler_fp_ = kNullAddress;
   pending_handler_sp_ = kNullAddress;
   last_api_entry_ = kNullAddress;
-  pending_message_obj_ = Object();
+  pending_message_ = Object();
   rethrowing_message_ = false;
   external_caught_exception_ = false;
   c_entry_fp_ = kNullAddress;

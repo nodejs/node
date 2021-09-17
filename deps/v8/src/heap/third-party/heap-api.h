@@ -34,8 +34,6 @@ class Heap {
 
   static bool InOldSpace(Address address);
 
-  static bool InCodeSpace(Address address);
-
   static bool InReadOnlySpace(Address address);
 
   static bool InLargeObjectSpace(Address address);
@@ -43,6 +41,8 @@ class Heap {
   static bool IsValidHeapObject(HeapObject object);
 
   static bool IsImmovable(HeapObject object);
+
+  static bool IsValidCodeObject(HeapObject object);
 
   void ResetIterator();
   HeapObject NextObject();

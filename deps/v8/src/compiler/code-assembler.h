@@ -125,7 +125,7 @@ class SymbolWrapper;
 class Undetectable;
 class UniqueName;
 class WasmCapiFunctionData;
-class WasmExceptionObject;
+class WasmTagObject;
 class WasmExceptionPackage;
 class WasmExceptionTag;
 class WasmExportedFunctionData;

@@ -57,7 +57,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   const bool generating_embedded_builtin =
       isolate->IsGeneratingEmbeddedBuiltins();
   options.record_reloc_info_for_serialization = serializer;
-  options.enable_root_array_delta_access =
+  options.enable_root_relative_access =
       !serializer && !generating_embedded_builtin;
 #ifdef USE_SIMULATOR
   // Even though the simulator is enabled, we may still need to generate code
@@ -142,8 +142,9 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
 
 class OnHeapAssemblerBuffer : public AssemblerBuffer {
  public:
-  OnHeapAssemblerBuffer(Handle<Code> code, int size)
-      : code_(code), size_(size) {}
+  OnHeapAssemblerBuffer(Isolate* isolate, Handle<Code> code, int size,
+                        int gc_count)
+      : isolate_(isolate), code_(code), size_(size), gc_count_(gc_count) {}
 
   byte* start() const override {
     return reinterpret_cast<byte*>(code_->raw_instruction_start());
@@ -153,20 +154,32 @@ class OnHeapAssemblerBuffer : public AssemblerBuffer {
 
   std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
     DCHECK_LT(size(), new_size);
+    Heap* heap = isolate_->heap();
+    if (Code::SizeFor(new_size) <
+        heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
+      MaybeHandle<Code> code =
+          isolate_->factory()->NewEmptyCode(CodeKind::BASELINE, new_size);
+      if (!code.is_null()) {
+        return std::make_unique<OnHeapAssemblerBuffer>(
+            isolate_, code.ToHandleChecked(), new_size, heap->gc_count());
+      }
+    }
     // We fall back to the slow path using the default assembler buffer and
-    // compile the code off the GC heap. Compiling directly on heap makes less
-    // sense now, since we will need to allocate a new Code object, copy the
-    // content generated so far and relocate.
+    // compile the code off the GC heap.
     return std::make_unique<DefaultAssemblerBuffer>(new_size);
   }
 
   bool IsOnHeap() const override { return true; }
 
+  int OnHeapGCCount() const override { return gc_count_; }
+
   MaybeHandle<Code> code() const override { return code_; }
 
  private:
+  Isolate* isolate_;
   Handle<Code> code_;
   const int size_;
+  const int gc_count_;
 };
 
 static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
@@ -211,7 +224,8 @@ std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
   MaybeHandle<Code> code =
       isolate->factory()->NewEmptyCode(CodeKind::BASELINE, size);
   if (code.is_null()) return {};
-  return std::make_unique<OnHeapAssemblerBuffer>(code.ToHandleChecked(), size);
+  return std::make_unique<OnHeapAssemblerBuffer>(
+      isolate, code.ToHandleChecked(), size, isolate->heap()->gc_count());
 }
 
 // -----------------------------------------------------------------------------
@@ -281,13 +295,16 @@ HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(DeoptimizeReason reason,
+void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                                   SourcePosition position, int id) {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
   RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
   RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
   RecordRelocInfo(RelocInfo::DEOPT_ID, id);
+#ifdef DEBUG
+  RecordRelocInfo(RelocInfo::DEOPT_NODE_ID, node_id);
+#endif  // DEBUG
 }
 
 void Assembler::DataAlign(int m) {

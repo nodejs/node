@@ -31,8 +31,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
     result = table;
   }
   DCHECK(script_context->IsScriptContext());
-  result->set(used + kFirstContextSlotIndex, *script_context);
-
+  result->set(used + kFirstContextSlotIndex, *script_context, kReleaseStore);
   result->set_used(used + 1, kReleaseStore);
   return result;
 }

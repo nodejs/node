@@ -50,6 +50,9 @@ enum ValueTypeCode : uint8_t {
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmFunctionExtendingTypeCode = 0x5d;
+constexpr uint8_t kWasmStructExtendingTypeCode = 0x5c;
+constexpr uint8_t kWasmArrayExtendingTypeCode = 0x5b;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -57,7 +60,7 @@ enum ImportExportKindCode : uint8_t {
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalException = 4
+  kExternalTag = 4
 };
 
 enum LimitsFlags : uint8_t {
@@ -91,7 +94,7 @@ enum SectionCode : int8_t {
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
   kDataCountSectionCode = 12,  // Number of data segments
-  kExceptionSectionCode = 13,  // Exception section
+  kTagSectionCode = 13,        // Tag section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed

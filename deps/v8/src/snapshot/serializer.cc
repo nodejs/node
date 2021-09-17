@@ -890,6 +890,26 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
   }
 }
 
+void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
+                                                    CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // A version of VisitPointers() customized for CodeObjectSlot.
+  HandleScope scope(isolate());
+  DisallowGarbageCollection no_gc;
+
+  // TODO(v8:11880): support external code space.
+  PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
+  Object contents = slot.load(code_cage_base);
+  DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(contents.ptr()));
+  DCHECK(contents.IsCode());
+
+  Handle<HeapObject> obj = handle(HeapObject::cast(contents), isolate());
+  if (!serializer_->SerializePendingObject(obj)) {
+    serializer_->SerializeObject(obj);
+  }
+  bytes_processed_so_far_ += kTaggedSize;
+}
+
 void Serializer::ObjectSerializer::OutputExternalReference(Address target,
                                                            int target_size,
                                                            bool sandboxify) {

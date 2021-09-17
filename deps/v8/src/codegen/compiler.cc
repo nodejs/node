@@ -19,11 +19,12 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/codegen/script-details.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
@@ -43,7 +44,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/counters.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -582,7 +583,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
-    shared_info->set_feedback_metadata(*feedback_metadata);
+    shared_info->set_feedback_metadata(*feedback_metadata, kReleaseStore);
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
@@ -590,7 +591,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK((std::is_same<IsolateT, Isolate>::value));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
-        ReadOnlyRoots(isolate).empty_feedback_metadata());
+        ReadOnlyRoots(isolate).empty_feedback_metadata(), kReleaseStore);
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1284,10 +1285,10 @@ void FinalizeUnoptimizedScriptCompilation(
   UnoptimizedCompileState::ParallelTasks* parallel_tasks =
       compile_state->parallel_tasks();
   if (parallel_tasks) {
-    CompilerDispatcher* dispatcher = parallel_tasks->dispatcher();
+    LazyCompileDispatcher* dispatcher = parallel_tasks->dispatcher();
     for (auto& it : *parallel_tasks) {
       FunctionLiteral* literal = it.first;
-      CompilerDispatcher::JobId job_id = it.second;
+      LazyCompileDispatcher::JobId job_id = it.second;
       MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
           Script::FindSharedFunctionInfo(script, isolate, literal);
       Handle<SharedFunctionInfo> shared_for_task;
@@ -1353,10 +1354,10 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
-  HistogramTimer* rate = parse_info->flags().is_eval()
-                             ? isolate->counters()->compile_eval()
-                             : isolate->counters()->compile();
-  HistogramTimerScope timer(rate);
+  NestedTimedHistogram* rate = parse_info->flags().is_eval()
+                                   ? isolate->counters()->compile_eval()
+                                   : isolate->counters()->compile();
+  NestedTimedHistogramScope timer(rate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                parse_info->flags().is_eval() ? "V8.CompileEval" : "V8.Compile");
 
@@ -1680,6 +1681,37 @@ Handle<Script> BackgroundCompileTask::GetScript(Isolate* isolate) {
   return handle(*script_, isolate);
 }
 
+BackgroundDeserializeTask::BackgroundDeserializeTask(
+    Isolate* isolate, std::unique_ptr<ScriptCompiler::CachedData> cached_data)
+    : isolate_for_local_isolate_(isolate),
+      cached_data_(cached_data->data, cached_data->length) {
+  // If the passed in cached data has ownership of the buffer, move it to the
+  // task.
+  if (cached_data->buffer_policy == ScriptCompiler::CachedData::BufferOwned &&
+      !cached_data_.HasDataOwnership()) {
+    cached_data->buffer_policy = ScriptCompiler::CachedData::BufferNotOwned;
+    cached_data_.AcquireDataOwnership();
+  }
+}
+
+void BackgroundDeserializeTask::Run() {
+  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
+  UnparkedScope unparked_scope(&isolate);
+  LocalHandleScope handle_scope(&isolate);
+
+  Handle<SharedFunctionInfo> inner_result;
+  off_thread_data_ =
+      CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
+}
+
+MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
+    Isolate* isolate, Handle<String> source,
+    ScriptOriginOptions origin_options) {
+  return CodeSerializer::FinishOffThreadDeserialize(
+      isolate, std::move(off_thread_data_), &cached_data_, source,
+      origin_options);
+}
+
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
@@ -1710,6 +1742,13 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
     return false;
   }
 
+  // Unfinalized scripts don't yet have the proper source string attached and
+  // thus can't be reparsed.
+  if (Script::cast(shared_info->script()).IsMaybeUnfinalized(isolate)) {
+    bytecode->SetSourcePositionsFailedToCollect();
+    return false;
+  }
+
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_pending_exception());
@@ -1718,7 +1757,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CollectSourcePositions");
-  HistogramTimerScope timer(isolate->counters()->collect_source_positions());
+  NestedTimedHistogramScope timer(
+      isolate->counters()->collect_source_positions());
 
   // Set up parse info.
   UnoptimizedCompileFlags flags =
@@ -1803,7 +1843,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   ParseInfo parse_info(isolate, flags, &compile_state);
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
-  CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
+  LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
   if (dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
       return FailWithPendingException(isolate, script, &parse_info, flag);
@@ -1862,7 +1902,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
   // flushed.
-  function->ResetIfBytecodeFlushed();
+  function->ResetIfCodeFlushed();
 
   Handle<SharedFunctionInfo> shared_info = handle(function->shared(), isolate);
 
@@ -2240,14 +2280,14 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 // (via v8::Isolate::SetAllowCodeGenerationFromStringsCallback)
 bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
                                       Handle<String> source) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
   DCHECK(isolate->allow_code_gen_callback());
-
-  // Callback set. Let it decide if code generation is allowed.
-  VMState<EXTERNAL> state(isolate);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
+  ExternalCallbackScope external_callback(isolate,
+                                          reinterpret_cast<Address>(callback));
+  // Callback set. Let it decide if code generation is allowed.
   return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
 }
 
@@ -2431,8 +2471,7 @@ struct ScriptCompileTimerScope {
   explicit ScriptCompileTimerScope(
       Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason)
       : isolate_(isolate),
-        all_scripts_histogram_scope_(isolate->counters()->compile_script(),
-                                     true),
+        all_scripts_histogram_scope_(isolate->counters()->compile_script()),
         no_cache_reason_(no_cache_reason),
         hit_isolate_cache_(false),
         producing_code_cache_(false),
@@ -2471,7 +2510,7 @@ struct ScriptCompileTimerScope {
   LazyTimedHistogramScope histogram_scope_;
   // TODO(leszeks): This timer is the sum of the other times, consider removing
   // it to save space.
-  HistogramTimerScope all_scripts_histogram_scope_;
+  NestedTimedHistogramScope all_scripts_histogram_scope_;
   ScriptCompiler::NoCacheReason no_cache_reason_;
   bool hit_isolate_cache_;
   bool producing_code_cache_;
@@ -2600,7 +2639,7 @@ struct ScriptCompileTimerScope {
 };
 
 void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
-                                Compiler::ScriptDetails script_details,
+                                ScriptDetails script_details,
                                 DisallowGarbageCollection* no_gc) {
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
@@ -2625,12 +2664,12 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
 
 Handle<Script> NewScript(
     Isolate* isolate, ParseInfo* parse_info, Handle<String> source,
-    Compiler::ScriptDetails script_details, ScriptOriginOptions origin_options,
-    NativesFlag natives,
+    ScriptDetails script_details, NativesFlag natives,
     MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script = parse_info->CreateScript(
-      isolate, source, maybe_wrapped_arguments, origin_options, natives);
+  Handle<Script> script =
+      parse_info->CreateScript(isolate, source, maybe_wrapped_arguments,
+                               script_details.origin_options, natives);
   DisallowGarbageCollection no_gc;
   SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
@@ -2639,16 +2678,15 @@ Handle<Script> NewScript(
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     const UnoptimizedCompileFlags flags, Handle<String> source,
-    const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, NativesFlag natives,
+    const ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
   parse_info.set_extension(extension);
 
-  Handle<Script> script = NewScript(isolate, &parse_info, source,
-                                    script_details, origin_options, natives);
+  Handle<Script> script =
+      NewScript(isolate, &parse_info, source, script_details, natives);
   DCHECK_IMPLIES(parse_info.flags().collect_type_profile(),
                  script->IsUserJavaScript());
   DCHECK_EQ(parse_info.flags().is_repl_mode(), script->is_repl_mode());
@@ -2704,14 +2742,13 @@ class StressBackgroundCompileThread : public base::Thread {
   v8::ScriptCompiler::StreamedSource streamed_source_;
 };
 
-bool CanBackgroundCompile(const Compiler::ScriptDetails& script_details,
-                          ScriptOriginOptions origin_options,
+bool CanBackgroundCompile(const ScriptDetails& script_details,
                           v8::Extension* extension,
                           ScriptCompiler::CompileOptions compile_options,
                           NativesFlag natives) {
   // TODO(leszeks): Remove the module check once background compilation of
   // modules is supported.
-  return !origin_options.IsModule() && !extension &&
+  return !script_details.origin_options.IsModule() && !extension &&
          script_details.repl_mode == REPLMode::kNo &&
          compile_options == ScriptCompiler::kNoCompileOptions &&
          natives == NOT_NATIVES_CODE;
@@ -2728,13 +2765,13 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
 }
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
-    Handle<String> source, const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, Isolate* isolate,
-    IsCompiledScope* is_compiled_scope) {
+    Handle<String> source, const ScriptDetails& script_details,
+    Isolate* isolate, IsCompiledScope* is_compiled_scope) {
   // Start a background thread compiling the script.
   StressBackgroundCompileThread background_compile_thread(
       isolate, source,
-      origin_options.IsModule() ? ScriptType::kModule : ScriptType::kClassic);
+      script_details.origin_options.IsModule() ? ScriptType::kModule
+                                               : ScriptType::kClassic);
 
   UnoptimizedCompileFlags flags_copy =
       background_compile_thread.data()->task->flags();
@@ -2752,8 +2789,8 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     TryCatch ignore_try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     flags_copy.set_script_id(Script::kTemporaryScriptId);
     main_thread_maybe_result = CompileScriptOnMainThread(
-        flags_copy, source, script_details, origin_options, NOT_NATIVES_CODE,
-        nullptr, isolate, &inner_is_compiled_scope);
+        flags_copy, source, script_details, NOT_NATIVES_CODE, nullptr, isolate,
+        &inner_is_compiled_scope);
     if (main_thread_maybe_result.is_null()) {
       // Assume all range errors are stack overflows.
       main_thread_had_stack_overflow = CompilationExceptionIsRangeError(
@@ -2770,8 +2807,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 
   MaybeHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
-          isolate, source, script_details, origin_options,
-          background_compile_thread.data());
+          isolate, source, script_details, background_compile_thread.data());
 
   // Either both compiles should succeed, or both should fail. The one exception
   // to this is that the main-thread compilation might stack overflow while the
@@ -2799,9 +2835,9 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 // static
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
-    const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, v8::Extension* extension,
-    ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
+    const ScriptDetails& script_details, v8::Extension* extension,
+    AlignedCachedData* cached_data,
+    ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
@@ -2834,21 +2870,21 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     // First check per-isolate compilation cache.
-    maybe_result = compilation_cache->LookupScript(
-        source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, language_mode);
+    maybe_result =
+        compilation_cache->LookupScript(source, script_details, language_mode);
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
-      HistogramTimerScope timer(isolate->counters()->compile_deserialize());
+      NestedTimedHistogramScope timer(
+          isolate->counters()->compile_deserialize());
       RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> inner_result;
       if (CodeSerializer::Deserialize(isolate, cached_data, source,
-                                      origin_options)
+                                      script_details.origin_options)
               .ToHandle(&inner_result) &&
           inner_result->is_compiled()) {
         // Promote to per-isolate compilation cache.
@@ -2866,26 +2902,26 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   if (maybe_result.is_null()) {
     // No cache entry found compile the script.
     if (FLAG_stress_background_compile &&
-        CanBackgroundCompile(script_details, origin_options, extension,
-                             compile_options, natives)) {
+        CanBackgroundCompile(script_details, extension, compile_options,
+                             natives)) {
       // If the --stress-background-compile flag is set, do the actual
       // compilation on a background thread, and wait for its result.
       maybe_result = CompileScriptOnBothBackgroundAndMainThread(
-          source, script_details, origin_options, isolate, &is_compiled_scope);
+          source, script_details, isolate, &is_compiled_scope);
     } else {
       UnoptimizedCompileFlags flags =
           UnoptimizedCompileFlags::ForToplevelCompile(
               isolate, natives == NOT_NATIVES_CODE, language_mode,
               script_details.repl_mode,
-              origin_options.IsModule() ? ScriptType::kModule
-                                        : ScriptType::kClassic,
+              script_details.origin_options.IsModule() ? ScriptType::kModule
+                                                       : ScriptType::kClassic,
               FLAG_lazy);
 
       flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
 
-      maybe_result = CompileScriptOnMainThread(
-          flags, source, script_details, origin_options, natives, extension,
-          isolate, &is_compiled_scope);
+      maybe_result =
+          CompileScriptOnMainThread(flags, source, script_details, natives,
+                                    extension, isolate, &is_compiled_scope);
     }
 
     // Add the result to the isolate cache.
@@ -2904,8 +2940,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 // static
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, Handle<FixedArray> arguments,
-    Handle<Context> context, const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, ScriptData* cached_data,
+    Handle<Context> context, const ScriptDetails& script_details,
+    AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
@@ -2930,12 +2966,12 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   if (can_consume_code_cache) {
     compile_timer.set_consuming_code_cache();
     // Then check cached code provided by embedder.
-    HistogramTimerScope timer(isolate->counters()->compile_deserialize());
+    NestedTimedHistogramScope timer(isolate->counters()->compile_deserialize());
     RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");
     maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
-                                               origin_options);
+                                               script_details.origin_options);
     if (maybe_result.is_null()) {
       // Deserializer failed. Fall through to compile.
       compile_timer.set_consuming_code_cache_failed();
@@ -2966,7 +3002,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     }
 
     script = NewScript(isolate, &parse_info, source, script_details,
-                       origin_options, NOT_NATIVES_CODE, arguments);
+                       NOT_NATIVES_CODE, arguments);
 
     Handle<SharedFunctionInfo> top_level;
     maybe_result = v8::internal::CompileToplevel(&parse_info, script,
@@ -2999,8 +3035,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
-    const ScriptDetails& script_details, ScriptOriginOptions origin_options,
-    ScriptStreamingData* streaming_data) {
+    const ScriptDetails& script_details, ScriptStreamingData* streaming_data) {
+  ScriptOriginOptions origin_options = script_details.origin_options;
   DCHECK(!origin_options.IsWasm());
 
   ScriptCompileTimerScope compile_timer(
@@ -3020,9 +3056,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.StreamingFinalization.CheckCache");
-    maybe_result = compilation_cache->LookupScript(
-        source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, task->language_mode());
+    maybe_result = compilation_cache->LookupScript(source, script_details,
+                                                   task->language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }

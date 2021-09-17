@@ -307,6 +307,7 @@ class JSTypedArray
   DECL_BOOLEAN_ACCESSORS(is_length_tracking)
   DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
   inline bool IsVariableLength() const;
+  inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
 
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
@@ -364,6 +365,7 @@ class JSTypedArray
 #endif
 
  private:
+  template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
 

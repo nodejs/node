@@ -622,6 +622,11 @@ DEF_GETTER(JSObject, HasTypedArrayElements, bool) {
   return map(cage_base).has_typed_array_elements();
 }
 
+DEF_GETTER(JSObject, HasTypedArrayOrRabGsabTypedArrayElements, bool) {
+  DCHECK(!elements(cage_base).is_null());
+  return map(cage_base).has_typed_array_or_rab_gsab_typed_array_elements();
+}
+
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)   \
   DEF_GETTER(JSObject, HasFixed##Type##Elements, bool) {      \
     return map(cage_base).elements_kind() == TYPE##_ELEMENTS; \

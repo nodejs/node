@@ -6,6 +6,8 @@
 
 #if V8_OS_MACOSX
 #include <dispatch/dispatch.h>
+#elif V8_OS_WIN
+#include <windows.h>
 #endif
 
 #include <errno.h>

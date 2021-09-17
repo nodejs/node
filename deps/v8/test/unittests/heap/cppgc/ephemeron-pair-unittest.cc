@@ -162,9 +162,12 @@ TEST_F(EphemeronPairTest, EmptyKey) {
 using EphemeronPairGCTest = testing::TestWithHeap;
 
 TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
+  GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  Persistent<EphemeronHolder> holder = MakeGarbageCollected<EphemeronHolder>(
-      GetAllocationHandle(), nullptr, value);
+  Persistent<EphemeronHolder> holder =
+      MakeGarbageCollected<EphemeronHolder>(GetAllocationHandle(), key, value);
+  // The precise GC will not find the `key` anywhere and thus clear the
+  // ephemeron.
   PreciseGC();
   EXPECT_EQ(nullptr, holder->ephemeron_pair().value.Get());
 }

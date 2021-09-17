@@ -82,6 +82,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       std::unique_ptr<PersistentHandles> persistent_handles);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
+  bool HasPersistentHandles() { return !!persistent_handles_; }
   bool ContainsPersistentHandle(Address* location);
   bool ContainsLocalHandle(Address* location);
   bool IsHandleDereferenceAllowed();
@@ -130,7 +131,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
+  inline void CreateFillerObjectAt(Address addr, int size,
+                                   ClearRecordedSlots clear_slots_mode);
+
   bool is_main_thread() const { return is_main_thread_; }
+  bool deserialization_complete() const {
+    return heap_->deserialization_complete();
+  }
+  ReadOnlySpace* read_only_space() { return heap_->read_only_space(); }
 
   // Requests GC and blocks until the collection finishes.
   bool TryPerformCollection();

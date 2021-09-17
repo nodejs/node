@@ -509,7 +509,7 @@ class AddInfoVisitor : public TqObjectVisitor {
     // On JSObject instances, this value is the start of in-object properties.
     // The constructor function index option is only for primitives.
     auto start_offset =
-        map.GetInObjectPropertiesStartOrConstructorFunctionIndexValue(
+        map.GetInobjectPropertiesStartOrConstructorFunctionIndexValue(
             accessor_);
 
     // The total size of the object in memory. This may include over-allocated

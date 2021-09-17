@@ -12,6 +12,8 @@
 #endif
 
 #if V8_OS_WIN
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 #endif
 
@@ -377,6 +379,115 @@ TEST(TimeTicks, IsMonotonic) {
   }
 }
 
+namespace {
+void Sleep(TimeDelta wait_time) {
+  ElapsedTimer waiter;
+  waiter.Start();
+  while (!waiter.HasExpired(wait_time)) {
+    OS::Sleep(TimeDelta::FromMilliseconds(1));
+  }
+}
+}  // namespace
+
+TEST(ElapsedTimer, StartStop) {
+  TimeDelta wait_time = TimeDelta::FromMilliseconds(100);
+  TimeDelta noise = TimeDelta::FromMilliseconds(100);
+  ElapsedTimer timer;
+  DCHECK(!timer.IsStarted());
+
+  timer.Start();
+  DCHECK(timer.IsStarted());
+
+  Sleep(wait_time);
+  TimeDelta delta = timer.Elapsed();
+  DCHECK(timer.IsStarted());
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  DCHECK(!timer.IsPaused());
+  timer.Pause();
+  DCHECK(timer.IsPaused());
+  Sleep(wait_time);
+
+  timer.Resume();
+  DCHECK(timer.IsStarted());
+  delta = timer.Elapsed();
+  DCHECK(!timer.IsPaused());
+  timer.Pause();
+  DCHECK(timer.IsPaused());
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  Sleep(wait_time);
+  timer.Resume();
+  DCHECK(!timer.IsPaused());
+  DCHECK(timer.IsStarted());
+  delta = timer.Elapsed();
+  EXPECT_GE(delta, wait_time);
+  EXPECT_LT(delta, wait_time + noise);
+
+  timer.Stop();
+  DCHECK(!timer.IsStarted());
+}
+
+TEST(ElapsedTimer, StartStopArgs) {
+  TimeDelta wait_time = TimeDelta::FromMilliseconds(100);
+  ElapsedTimer timer1;
+  ElapsedTimer timer2;
+  DCHECK(!timer1.IsStarted());
+  DCHECK(!timer2.IsStarted());
+
+  TimeTicks now = TimeTicks::HighResolutionNow();
+  timer1.Start(now);
+  timer2.Start(now);
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+
+  Sleep(wait_time);
+  now = TimeTicks::HighResolutionNow();
+  TimeDelta delta1 = timer1.Elapsed(now);
+  Sleep(wait_time);
+  TimeDelta delta2 = timer2.Elapsed(now);
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+  EXPECT_GE(delta1, delta2);
+  Sleep(wait_time);
+  EXPECT_NE(delta1, timer2.Elapsed());
+
+  TimeTicks now2 = TimeTicks::HighResolutionNow();
+  EXPECT_NE(timer1.Elapsed(now), timer1.Elapsed(now2));
+  EXPECT_NE(delta1, timer1.Elapsed(now2));
+  EXPECT_NE(delta2, timer2.Elapsed(now2));
+  EXPECT_GE(timer1.Elapsed(now2), timer2.Elapsed(now2));
+
+  now = TimeTicks::HighResolutionNow();
+  timer1.Pause(now);
+  timer2.Pause(now);
+  DCHECK(timer1.IsPaused());
+  DCHECK(timer2.IsPaused());
+  Sleep(wait_time);
+
+  now = TimeTicks::HighResolutionNow();
+  timer1.Resume(now);
+  DCHECK(!timer1.IsPaused());
+  DCHECK(timer2.IsPaused());
+  Sleep(wait_time);
+  timer2.Resume(now);
+  DCHECK(!timer1.IsPaused());
+  DCHECK(!timer2.IsPaused());
+  DCHECK(timer1.IsStarted());
+  DCHECK(timer2.IsStarted());
+
+  delta1 = timer1.Elapsed(now);
+  Sleep(wait_time);
+  delta2 = timer2.Elapsed(now);
+  EXPECT_GE(delta1, delta2);
+
+  timer1.Stop();
+  timer2.Stop();
+  DCHECK(!timer1.IsStarted());
+  DCHECK(!timer2.IsStarted());
+}
 
 #if V8_OS_ANDROID
 #define MAYBE_ThreadNow DISABLED_ThreadNow

@@ -102,6 +102,8 @@ class V8_EXPORT_PRIVATE CppHeap final
       std::vector<cppgc::CustomSpaceIndex>,
       std::unique_ptr<CustomSpaceStatisticsReceiver>);
 
+  void FinishSweepingIfRunning();
+
   // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) final;

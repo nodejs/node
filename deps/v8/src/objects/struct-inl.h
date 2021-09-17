@@ -40,13 +40,17 @@ void AccessorPair::set(AccessorComponent component, Object value) {
   }
 }
 
-DEF_GETTER(AccessorPair, getter, Object) {
-  return TorqueGeneratedClass::getter(cage_base);
+void AccessorPair::set(AccessorComponent component, Object value,
+                       ReleaseStoreTag tag) {
+  if (component == ACCESSOR_GETTER) {
+    set_getter(value, tag);
+  } else {
+    set_setter(value, tag);
+  }
 }
 
-DEF_RELAXED_GETTER(AccessorPair, getter, Object) {
-  return TaggedField<Object, kGetterOffset>::Relaxed_Load(cage_base, *this);
-}
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
 void AccessorPair::SetComponents(Object getter, Object setter) {
   if (!getter.IsNull()) set_getter(getter);

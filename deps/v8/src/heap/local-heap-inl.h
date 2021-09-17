@@ -10,6 +10,7 @@
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
 namespace v8 {
@@ -51,6 +52,13 @@ Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
   if (!result.IsRetry()) return result.ToObject().address();
   return PerformCollectionAndAllocateAgain(object_size, type, origin,
                                            alignment);
+}
+
+void LocalHeap::CreateFillerObjectAt(Address addr, int size,
+                                     ClearRecordedSlots clear_slots_mode) {
+  DCHECK_EQ(clear_slots_mode, ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAtBackground(
+      addr, size, ClearFreedMemoryMode::kDontClearFreedMemory);
 }
 
 }  // namespace internal

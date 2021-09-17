@@ -280,8 +280,7 @@ class RegExpAssertion final : public RegExpTree {
     NON_BOUNDARY = 5,
     LAST_TYPE = NON_BOUNDARY,
   };
-  RegExpAssertion(AssertionType type, JSRegExp::Flags flags)
-      : assertion_type_(type), flags_(flags) {}
+  explicit RegExpAssertion(AssertionType type) : assertion_type_(type) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAssertion* AsAssertion() override;
@@ -291,11 +290,9 @@ class RegExpAssertion final : public RegExpTree {
   int min_match() override { return 0; }
   int max_match() override { return 0; }
   AssertionType assertion_type() const { return assertion_type_; }
-  JSRegExp::Flags flags() const { return flags_; }
 
  private:
   const AssertionType assertion_type_;
-  const JSRegExp::Flags flags_;
 };
 
 
@@ -312,21 +309,17 @@ class RegExpCharacterClass final : public RegExpTree {
   using CharacterClassFlags = base::Flags<Flag>;
 
   RegExpCharacterClass(
-      Zone* zone, ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,
+      Zone* zone, ZoneList<CharacterRange>* ranges,
       CharacterClassFlags character_class_flags = CharacterClassFlags())
-      : set_(ranges),
-        flags_(flags),
-        character_class_flags_(character_class_flags) {
+      : set_(ranges), character_class_flags_(character_class_flags) {
     // Convert the empty set of ranges to the negated Everything() range.
     if (ranges->is_empty()) {
       ranges->Add(CharacterRange::Everything(), zone);
       character_class_flags_ ^= NEGATED;
     }
   }
-  RegExpCharacterClass(base::uc16 type, JSRegExp::Flags flags)
-      : set_(type),
-        flags_(flags),
-        character_class_flags_(CharacterClassFlags()) {}
+  explicit RegExpCharacterClass(base::uc16 type)
+      : set_(type), character_class_flags_(CharacterClassFlags()) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpCharacterClass* AsCharacterClass() override;
@@ -356,23 +349,19 @@ class RegExpCharacterClass final : public RegExpTree {
   base::uc16 standard_type() const { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
   bool is_negated() const { return (character_class_flags_ & NEGATED) != 0; }
-  JSRegExp::Flags flags() const { return flags_; }
   bool contains_split_surrogate() const {
     return (character_class_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
   }
 
  private:
   CharacterSet set_;
-  const JSRegExp::Flags flags_;
   CharacterClassFlags character_class_flags_;
 };
 
 
 class RegExpAtom final : public RegExpTree {
  public:
-  explicit RegExpAtom(base::Vector<const base::uc16> data,
-                      JSRegExp::Flags flags)
-      : data_(data), flags_(flags) {}
+  explicit RegExpAtom(base::Vector<const base::uc16> data) : data_(data) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAtom* AsAtom() override;
@@ -383,12 +372,9 @@ class RegExpAtom final : public RegExpTree {
   void AppendToText(RegExpText* text, Zone* zone) override;
   base::Vector<const base::uc16> data() { return data_; }
   int length() { return data_.length(); }
-  JSRegExp::Flags flags() const { return flags_; }
-  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
 
  private:
   base::Vector<const base::uc16> data_;
-  const JSRegExp::Flags flags_;
 };
 
 

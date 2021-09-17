@@ -2790,7 +2790,7 @@ void InstructionSelector::EmitPrepareResults(
 
 void InstructionSelector::VisitLoadLane(Node* node) {
   // We should never reach here, see http://crrev.com/c/2577820
-  UNIMPLEMENTED();
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitLoadTransform(Node* node) {
@@ -2800,7 +2800,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
 
 void InstructionSelector::VisitStoreLane(Node* node) {
   // We should never reach here, see http://crrev.com/c/2577820
-  UNIMPLEMENTED();
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {

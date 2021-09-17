@@ -77,28 +77,18 @@ void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
+void TimedHistogram::Stop(base::ElapsedTimer* timer) {
+  DCHECK(Enabled());
+  AddTimedSample(timer->Elapsed());
+  timer->Stop();
+}
+
 void TimedHistogram::AddTimedSample(base::TimeDelta sample) {
   if (Enabled()) {
-    int64_t sample_int = resolution_ == HistogramTimerResolution::MICROSECOND
+    int64_t sample_int = resolution_ == TimedHistogramResolution::MICROSECOND
                              ? sample.InMicroseconds()
                              : sample.InMilliseconds();
     AddSample(static_cast<int>(sample_int));
-  }
-}
-
-void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
-  if (Enabled()) timer->Start();
-  if (isolate) Logger::CallEventLogger(isolate, name(), Logger::START, true);
-}
-
-void TimedHistogram::Stop(base::ElapsedTimer* timer, Isolate* isolate) {
-  if (Enabled()) {
-    base::TimeDelta delta = timer->Elapsed();
-    timer->Stop();
-    AddTimedSample(delta);
-  }
-  if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), Logger::END, true);
   }
 }
 
@@ -107,15 +97,27 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
   if (Enabled()) {
     DCHECK(timer->IsStarted());
     timer->Stop();
-    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
+    int64_t sample = resolution_ == TimedHistogramResolution::MICROSECOND
                          ? base::TimeDelta::Max().InMicroseconds()
                          : base::TimeDelta::Max().InMilliseconds();
     AddSample(static_cast<int>(sample));
   }
   if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), Logger::END, true);
+    Logger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd, true);
   }
 }
+
+#ifdef DEBUG
+bool TimedHistogram::ToggleRunningState(bool expect_to_run) const {
+  static thread_local base::LazyInstance<
+      std::unordered_map<const TimedHistogram*, bool>>::type active_timer =
+      LAZY_INSTANCE_INITIALIZER;
+  bool is_running = (*active_timer.Pointer())[this];
+  DCHECK_NE(is_running, expect_to_run);
+  (*active_timer.Pointer())[this] = !is_running;
+  return true;
+}
+#endif
 
 Counters::Counters(Isolate* isolate)
     :
@@ -149,29 +151,30 @@ Counters::Counters(Isolate* isolate)
   const int DefaultTimedHistogramNumBuckets = 50;
 
   static const struct {
-    HistogramTimer Counters::*member;
+    NestedTimedHistogram Counters::*member;
     const char* caption;
     int max;
-    HistogramTimerResolution res;
-  } kHistogramTimers[] = {
+    TimedHistogramResolution res;
+  } kNestedTimedHistograms[] = {
 #define HT(name, caption, max, res) \
-  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
-      HISTOGRAM_TIMER_LIST(HT)
+  {&Counters::name##_, #caption, max, TimedHistogramResolution::res},
+      NESTED_TIMED_HISTOGRAM_LIST(HT) NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
   };
-  for (const auto& timer : kHistogramTimers) {
-    this->*timer.member = HistogramTimer(timer.caption, 0, timer.max, timer.res,
-                                         DefaultTimedHistogramNumBuckets, this);
+  for (const auto& timer : kNestedTimedHistograms) {
+    this->*timer.member =
+        NestedTimedHistogram(timer.caption, 0, timer.max, timer.res,
+                             DefaultTimedHistogramNumBuckets, this);
   }
 
   static const struct {
     TimedHistogram Counters::*member;
     const char* caption;
     int max;
-    HistogramTimerResolution res;
+    TimedHistogramResolution res;
   } kTimedHistograms[] = {
 #define HT(name, caption, max, res) \
-  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
+  {&Counters::name##_, #caption, max, TimedHistogramResolution::res},
       TIMED_HISTOGRAM_LIST(HT)
 #undef HT
   };
@@ -297,7 +300,11 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 #undef HR
 
 #define HT(name, caption, max, res) name##_.Reset();
-  HISTOGRAM_TIMER_LIST(HT)
+  NESTED_TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+
+#define HT(name, caption, max, res) name##_.Reset(FLAG_slow_histograms);
+  NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) name##_.Reset();

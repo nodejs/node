@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "include/v8-unwinder-state.h"
+#include "include/v8.h"
 #include "src/diagnostics/unwinder.h"
 #include "src/execution/frame-constants.h"
 

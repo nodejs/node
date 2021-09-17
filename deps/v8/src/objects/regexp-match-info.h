@@ -27,7 +27,8 @@ class String;
 // that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
 // After creation the result must be treated as a FixedArray in all regards.
-class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
+class RegExpMatchInfo
+    : public TorqueGeneratedRegExpMatchInfo<RegExpMatchInfo, FixedArray> {
  public:
   // Returns the number of captures, which is defined as the length of the
   // matchIndices objects of the last match. matchIndices contains two indices
@@ -57,21 +58,16 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static Handle<RegExpMatchInfo> ReserveCaptures(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count);
 
-  DECL_CAST(RegExpMatchInfo)
-
   static const int kNumberOfCapturesIndex = 0;
   static const int kLastSubjectIndex = 1;
   static const int kLastInputIndex = 2;
   static const int kFirstCaptureIndex = 3;
   static const int kLastMatchOverhead = kFirstCaptureIndex;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArray::kHeaderSize,
-                                TORQUE_GENERATED_REG_EXP_MATCH_INFO_FIELDS)
-
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 
-  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(RegExpMatchInfo)
 };
 
 }  // namespace internal

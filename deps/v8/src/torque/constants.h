@@ -88,7 +88,8 @@ static const char* const ANNOTATION_NO_VERIFIER = "@noVerifier";
 static const char* const ANNOTATION_ABSTRACT = "@abstract";
 static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
-static const char* const ANNOTATION_GENERATE_CPP_CLASS = "@generateCppClass";
+static const char* const ANNOTATION_DO_NOT_GENERATE_CPP_CLASS =
+    "@doNotGenerateCppClass";
 static const char* const ANNOTATION_CUSTOM_MAP = "@customMap";
 static const char* const ANNOTATION_CUSTOM_CPP_CLASS = "@customCppClass";
 static const char* const ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT =

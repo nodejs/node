@@ -119,8 +119,8 @@ class FastCApiObject {
     }
 
     Type buffer[1024];
-    bool result =
-        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
+    bool result = TryCopyAndConvertArrayToCppBuffer<&type_info, Type>(
+        seq_arg, buffer, 1024);
     if (!result) {
       options.fallback = 1;
       return 0;
@@ -140,16 +140,20 @@ class FastCApiObject {
 
     FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
-    self->slow_call_count_++;
 
     HandleScope handle_scope(isolate);
 
     if (args.Length() < 2) {
+      self->slow_call_count_++;
       isolate->ThrowError("This method expects at least 2 arguments.");
       return;
     }
     if (args[1]->IsTypedArray()) {
-      // Not supported yet.
+      AddAllTypedArraySlowCallback(args);
+      return;
+    }
+    self->slow_call_count_++;
+    if (args[1]->IsUndefined()) {
       Type dummy_result = 0;
       args.GetReturnValue().Set(Number::New(isolate, dummy_result));
       return;
@@ -166,28 +170,33 @@ class FastCApiObject {
           "Invalid length of array, must be between 0 and 1024.");
       return;
     }
-    Type buffer[1024];
-    bool result =
-        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
-    if (!result) {
-      isolate->ThrowError("Array conversion unsuccessful.");
-      return;
-    }
-    DCHECK_EQ(seq_arg->Length(), length);
 
     Type sum = 0;
     for (uint32_t i = 0; i < length; ++i) {
-      sum += buffer[i];
+      v8::Local<v8::Value> element =
+          seq_arg
+              ->Get(isolate->GetCurrentContext(),
+                    v8::Integer::NewFromUnsigned(isolate, i))
+              .ToLocalChecked();
+      if (element->IsNumber()) {
+        double value = element->ToNumber(isolate->GetCurrentContext())
+                           .ToLocalChecked()
+                           ->Value();
+        sum += value;
+      } else if (element->IsUndefined()) {
+        // Hole: ignore the element.
+      } else {
+        isolate->ThrowError("unexpected element type in JSArray");
+        return;
+      }
     }
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
-
-  // TODO(mslekova) - The typed array param should be a
-  //                  {size_t length, uint32_t* data}
-  static Type AddAllTypedArrayFastCallback(Local<Object> receiver,
-                                           bool should_fallback,
-                                           Local<Uint32Array> typed_array_arg,
-                                           FastApiCallbackOptions& options) {
+  template <typename T>
+  static Type AddAllTypedArrayFastCallback(
+      Local<Object> receiver, bool should_fallback,
+      const FastApiTypedArray<T>& typed_array_arg,
+      FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_FALLBACK(0);
     self->fast_call_count_++;
@@ -197,12 +206,67 @@ class FastCApiObject {
       return 0;
     }
 
-    // Not implemented.
-    return 0;
+    T sum = 0;
+    for (unsigned i = 0; i < typed_array_arg.length(); ++i) {
+      sum += typed_array_arg.get(i);
+    }
+    return static_cast<Type>(sum);
   }
   static void AddAllTypedArraySlowCallback(
       const FunctionCallbackInfo<Value>& args) {
-    // Not implemented.
+    Isolate* isolate = args.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(args.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (args.Length() < 2) {
+      isolate->ThrowError("This method expects at least 2 arguments.");
+      return;
+    }
+    if (!args[1]->IsTypedArray()) {
+      isolate->ThrowError(
+          "This method expects a TypedArray as a second argument.");
+      return;
+    }
+
+    Local<TypedArray> typed_array_arg = args[1].As<TypedArray>();
+    size_t length = typed_array_arg->Length();
+
+    void* data = typed_array_arg->Buffer()->GetBackingStore()->Data();
+    if (typed_array_arg->IsInt32Array() || typed_array_arg->IsUint32Array() ||
+        typed_array_arg->IsBigInt64Array() ||
+        typed_array_arg->IsBigUint64Array()) {
+      int64_t sum = 0;
+      for (unsigned i = 0; i < length; ++i) {
+        if (typed_array_arg->IsInt32Array()) {
+          sum += static_cast<int32_t*>(data)[i];
+        } else if (typed_array_arg->IsUint32Array()) {
+          sum += static_cast<uint32_t*>(data)[i];
+        } else if (typed_array_arg->IsBigInt64Array()) {
+          sum += static_cast<int64_t*>(data)[i];
+        } else if (typed_array_arg->IsBigUint64Array()) {
+          sum += static_cast<uint64_t*>(data)[i];
+        }
+      }
+      args.GetReturnValue().Set(Number::New(isolate, sum));
+    } else if (typed_array_arg->IsFloat32Array() ||
+               typed_array_arg->IsFloat64Array()) {
+      double sum = 0;
+      for (unsigned i = 0; i < length; ++i) {
+        if (typed_array_arg->IsFloat32Array()) {
+          sum += static_cast<float*>(data)[i];
+        } else if (typed_array_arg->IsFloat64Array()) {
+          sum += static_cast<double*>(data)[i];
+        }
+      }
+      args.GetReturnValue().Set(Number::New(isolate, sum));
+    } else {
+      isolate->ThrowError("TypedArray type is not supported.");
+      return;
+    }
   }
 
   static int32_t AddAllIntInvalidCallback(Local<Object> receiver,
@@ -403,7 +467,8 @@ class FastCApiObject {
   static bool IsValidApiObject(Local<Object> object) {
     i::Address addr = *reinterpret_cast<i::Address*>(*object);
     auto instance_type = i::Internals::GetInstanceType(addr);
-    return (instance_type == i::Internals::kJSApiObjectType ||
+    return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
+                            i::Internals::kLastJSApiObjectType) ||
             instance_type == i::Internals::kJSSpecialApiObjectType);
   }
   static FastCApiObject* UnwrapObject(Local<Object> object) {
@@ -472,17 +537,46 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_seq_c_func));
 
-    CFunction add_all_typed_array_c_func =
-        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback);
+    CFunction add_all_int32_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<int32_t>);
     api_obj_ctor->PrototypeTemplate()->Set(
-        isolate, "add_all_typed_array",
+        isolate, "add_all_int32_typed_array",
         FunctionTemplate::New(
             isolate, FastCApiObject::AddAllTypedArraySlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, &add_all_typed_array_c_func));
+            SideEffectType::kHasSideEffect, &add_all_int32_typed_array_c_func));
+
+    CFunction add_all_int64_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<int64_t>);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_int64_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &add_all_int64_typed_array_c_func));
+
+    CFunction add_all_uint64_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<uint64_t>);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_uint64_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_uint64_typed_array_c_func));
+
+    CFunction add_all_uint32_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<uint32_t>);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_uint32_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_uint32_typed_array_c_func));
 
     const CFunction add_all_overloads[] = {
-        add_all_typed_array_c_func,
+        add_all_uint32_typed_array_c_func,
         add_all_seq_c_func,
     };
     api_obj_ctor->PrototypeTemplate()->Set(

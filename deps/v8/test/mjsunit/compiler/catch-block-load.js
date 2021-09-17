@@ -31,7 +31,7 @@ function boom() {
 
   foo();
   foo();
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   foo();
 })();
 
@@ -62,6 +62,6 @@ function boom() {
 
   foo();
   foo();
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   foo();
 })();

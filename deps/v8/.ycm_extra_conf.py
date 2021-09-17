@@ -114,7 +114,7 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
       # should contain most/all of the interesting flags for other targets too.
       filename = os.path.join(v8_root, 'src', 'utils', 'utils.cc')
 
-  sys.path.append(os.path.join(v8_root, 'tools', 'ninja'))
+  sys.path.append(os.path.join(v8_root, 'tools', 'vim'))
   from ninja_output import GetNinjaOutputDirectory
   out_dir = os.path.realpath(GetNinjaOutputDirectory(v8_root))
 
@@ -133,7 +133,7 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
   # Ninja might execute several commands to build something. We want the last
   # clang command.
   clang_line = None
-  for line in reversed(stdout.split('\n')):
+  for line in reversed(stdout.decode('utf-8').splitlines()):
     if 'clang' in line:
       clang_line = line
       break

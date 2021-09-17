@@ -99,8 +99,9 @@ inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
-  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
-  return 0;
+  int offset = pc_offset();
+  addi(sp, sp, Operand::Zero());
+  return offset;
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -110,8 +111,28 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
 void LiftoffAssembler::AlignFrameSize() {}
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
-  bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
+                                              SafepointTableBuilder*) {
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+
+#ifdef USE_SIMULATOR
+  // When using the simulator, deal with Liftoff which allocates the stack
+  // before checking it.
+  // TODO(arm): Remove this when the stack check mechanism will be updated.
+  if (frame_size > KB / 2) {
+    bailout(kOtherReason,
+            "Stack limited to 512 bytes to avoid a bug in StackCheck");
+    return;
+  }
+#endif
+  if (!is_int16(-frame_size)) {
+    bailout(kOtherReason, "PPC subi overflow");
+    return;
+  }
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + offset, kInstrSize + kGap));
+  patching_assembler.addi(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() { EmitConstantPool(); }
@@ -155,7 +176,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
     case kF64: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      mov(scratch, Operand(value.to_f32_boxed().get_scalar()));
+      mov(scratch, Operand(value.to_f64_boxed().get_scalar()));
       MovInt64ToDouble(reg.fp(), scratch);
       break;
     }
@@ -227,7 +248,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   Label write_barrier;
   Label exit;
-  CheckPageFlag(dst_addr, r0, MemoryChunk::kPointersFromHereAreInterestingMask,
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 ne, &write_barrier);
   b(&exit);
   bind(&write_barrier);
@@ -235,7 +256,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTaggedPointer(src.gp(), src.gp());
   }
-  CheckPageFlag(src.gp(), r0, MemoryChunk::kPointersToHereAreInterestingMask,
+  CheckPageFlag(src.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
@@ -321,6 +342,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       }
       break;
     case LoadType::kS128Load:
+      bailout(kUnsupportedArchitecture, "SIMD");
+      break;
     default:
       UNREACHABLE();
   }
@@ -688,158 +711,44 @@ void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
 
 void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
-  DCHECK_EQ(0, size % 4);
+  DCHECK_EQ(0, size % 8);
   RecordUsedSpillOffset(start + size);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.
-  push(r0);
-  mov(r0, Operand(0));
 
   if (size <= 36) {
     // Special straight-line code for up to nine words. Generates one
     // instruction per word.
-    for (int offset = 4; offset <= size; offset += 4) {
-      StoreU64(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
+    mov(ip, Operand::Zero());
+    uint32_t remainder = size;
+    for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
+      StoreU64(ip, liftoff::GetStackSlot(start + remainder), r0);
+    }
+    DCHECK(remainder == 4 || remainder == 0);
+    if (remainder) {
+      StoreU32(ip, liftoff::GetStackSlot(start + remainder), r0);
     }
   } else {
-    // General case for bigger counts (9 instructions).
-    // Use r4 for start address (inclusive), r5 for end address (exclusive).
-    push(r4);
-    push(r5);
-    SubS64(r4, fp, Operand(start + size), r0);
-    SubS64(r5, fp, Operand(start), r0);
-
     Label loop;
+    push(r4);
+
+    mov(r4, Operand(size / kSystemPointerSize));
+    mtctr(r4);
+
+    SubS64(r4, fp, Operand(start + size + kSystemPointerSize), r0);
+    mov(r0, Operand::Zero());
+
     bind(&loop);
-    StoreU64(r0, MemOperand(r0));
-    addi(r0, r0, Operand(kSystemPointerSize));
-    CmpS64(r4, r5);
-    bne(&loop);
+    StoreU64WithUpdate(r0, MemOperand(r4, kSystemPointerSize));
+    bdnz(&loop);
 
     pop(r4);
-    pop(r5);
   }
-
-  pop(r0);
 }
 
-#define UNIMPLEMENTED_I32_BINOP(name)                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     Register rhs) {             \
-    bailout(kUnsupportedArchitecture, "i32 binop:: " #name);     \
-  }
-#define UNIMPLEMENTED_I32_BINOP_I(name)                             \
-  UNIMPLEMENTED_I32_BINOP(name)                                     \
-  void LiftoffAssembler::emit_##name##i(Register dst, Register lhs, \
-                                        int32_t imm) {              \
-    bailout(kUnsupportedArchitecture, "i32 binop_i: " #name);       \
-  }
-#define UNIMPLEMENTED_I64_BINOP(name)                                          \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
-                                     LiftoffRegister rhs) {                    \
-    bailout(kUnsupportedArchitecture, "i64 binop: " #name);                    \
-  }
-#define UNIMPLEMENTED_I64_BINOP_I(name)                                     \
-  UNIMPLEMENTED_I64_BINOP(name)                                             \
-  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                \
-                                        LiftoffRegister lhs, int32_t imm) { \
-    bailout(kUnsupportedArchitecture, "i64_i binop: " #name);               \
-  }
-#define UNIMPLEMENTED_GP_UNOP(name)                                \
-  void LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    bailout(kUnsupportedArchitecture, "gp unop: " #name);          \
-  }
-#define UNIMPLEMENTED_FP_BINOP(name)                                         \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
-                                     DoubleRegister rhs) {                   \
-    bailout(kUnsupportedArchitecture, "fp binop: " #name);                   \
-  }
-#define UNIMPLEMENTED_FP_UNOP(name)                                            \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
-  }
-#define UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(name)                                \
-  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
-    return true;                                                               \
-  }
-#define UNIMPLEMENTED_I32_SHIFTOP(name)                             \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,    \
-                                     Register amount) {             \
-    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);       \
-  }                                                                 \
-  void LiftoffAssembler::emit_##name##i(Register dst, Register src, \
-                                        int32_t amount) {           \
-    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);       \
-  }
-#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     Register amount) {                        \
-    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
-  }                                                                            \
-  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                   \
-                                        LiftoffRegister src, int32_t amount) { \
-    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
-  }
-
-UNIMPLEMENTED_I32_BINOP_I(i32_add)
-UNIMPLEMENTED_I32_BINOP_I(i32_sub)
-UNIMPLEMENTED_I32_BINOP(i32_mul)
-UNIMPLEMENTED_I32_BINOP_I(i32_and)
-UNIMPLEMENTED_I32_BINOP_I(i32_or)
-UNIMPLEMENTED_I32_BINOP_I(i32_xor)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
-UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_mul)
-#ifdef V8_TARGET_ARCH_PPC64
-UNIMPLEMENTED_I64_BINOP_I(i64_and)
-UNIMPLEMENTED_I64_BINOP_I(i64_or)
-UNIMPLEMENTED_I64_BINOP_I(i64_xor)
-#endif
-UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
-UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_copysign)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
-UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_copysign)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
-
-#undef UNIMPLEMENTED_I32_BINOP
-#undef UNIMPLEMENTED_I32_BINOP_I
-#undef UNIMPLEMENTED_I64_BINOP
-#undef UNIMPLEMENTED_I64_BINOP_I
-#undef UNIMPLEMENTED_GP_UNOP
-#undef UNIMPLEMENTED_FP_BINOP
-#undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
-#undef UNIMPLEMENTED_I32_SHIFTOP
-#undef UNIMPLEMENTED_I64_SHIFTOP
-
 #define SIGN_EXT(r) extsw(r, r)
+#define ROUND_F64_TO_F32(fpr) frsp(fpr, fpr)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
 #define REGISTER_AND_WITH_1F    \
   ([&](Register rhs) {          \
@@ -850,9 +759,46 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #define LFR_TO_REG(reg) reg.gp()
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
-#define UNOP_LIST(V)                                                    \
-  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)      \
-  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+#define UNOP_LIST(V)                                                         \
+  V(f32_abs, fabs, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
+    void)                                                                    \
+  V(f32_neg, fneg, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
+    void)                                                                    \
+  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, , \
+    void)                                                                    \
+  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
+  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,    \
+    true, bool)                                                              \
+  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
+  V(f32_nearest_int, frin, DoubleRegister, DoubleRegister, , ,               \
+    ROUND_F64_TO_F32, true, bool)                                            \
+  V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
+  V(f64_floor, frim, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f64_ceil, frip, DoubleRegister, DoubleRegister, , , USE, true, bool)     \
+  V(f64_trunc, friz, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f64_nearest_int, frin, DoubleRegister, DoubleRegister, , , USE, true,    \
+    bool)                                                                    \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)      \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)     \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,         \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
+  V(u32_to_intptr, ZeroExtWord32, Register, Register, , , USE, , void)       \
+  V(i32_signextend_i8, extsb, Register, Register, , , USE, , void)           \
+  V(i32_signextend_i16, extsh, Register, Register, , , USE, , void)          \
+  V(i64_signextend_i8, extsb, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i64_signextend_i16, extsh, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i64_signextend_i32, extsw, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)           \
+  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,      \
     LFR_TO_REG, USE, true, bool)
 
 #define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
@@ -870,21 +816,90 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 
 // V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast,
 // return_val, return_type)
-#define BINOP_LIST(V)                                                        \
-  V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE, , void)                                                             \
-  V(f32_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE, , void)                                                             \
-  V(f64_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE, , void)                                                             \
-  V(f64_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE, , void)                                                             \
-  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
-  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
-  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
-    LFR_TO_REG, Operand, USE, , void)
+#define BINOP_LIST(V)                                                         \
+  V(f32_copysign, fcpsgn, DoubleRegister, DoubleRegister, DoubleRegister, , , \
+    , ROUND_F64_TO_F32, , void)                                               \
+  V(f64_copysign, fcpsgn, DoubleRegister, DoubleRegister, DoubleRegister, , , \
+    , USE, , void)                                                            \
+  V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f32_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f64_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f64_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,       \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,       \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG,  \
+    LFR_TO_REG, Operand, USE, , void)                                         \
+  V(i32_sub, SubS32, Register, Register, Register, , , , USE, , void)         \
+  V(i32_add, AddS32, Register, Register, Register, , , , USE, , void)         \
+  V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, USE, , void)  \
+  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, USE, , void)  \
+  V(i32_mul, MulS32, Register, Register, Register, , , , USE, , void)         \
+  V(i64_mul, MulS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,       \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i32_andi, AndU32, Register, Register, int32_t, , , Operand, USE, , void)  \
+  V(i32_ori, OrU32, Register, Register, int32_t, , , Operand, USE, , void)    \
+  V(i32_xori, XorU32, Register, Register, int32_t, , , Operand, USE, , void)  \
+  V(i32_and, AndU32, Register, Register, Register, , , , USE, , void)         \
+  V(i32_or, OrU32, Register, Register, Register, , , , USE, , void)           \
+  V(i32_xor, XorU32, Register, Register, Register, , , , USE, , void)         \
+  V(i64_and, AndU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,       \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i64_or, OrU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,         \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i64_xor, XorU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,       \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                          \
+  V(i64_andi, AndU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,  \
+    LFR_TO_REG, Operand, USE, , void)                                         \
+  V(i64_ori, OrU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,    \
+    LFR_TO_REG, Operand, USE, , void)                                         \
+  V(i64_xori, XorU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,  \
+    LFR_TO_REG, Operand, USE, , void)                                         \
+  V(i32_shli, ShiftLeftU32, Register, Register, int32_t, , ,                  \
+    INT32_AND_WITH_1F, USE, , void)                                           \
+  V(i32_sari, ShiftRightS32, Register, Register, int32_t, , ,                 \
+    INT32_AND_WITH_1F, USE, , void)                                           \
+  V(i32_shri, ShiftRightU32, Register, Register, int32_t, , ,                 \
+    INT32_AND_WITH_1F, USE, , void)                                           \
+  V(i32_shl, ShiftLeftU32, Register, Register, Register, , ,                  \
+    REGISTER_AND_WITH_1F, USE, , void)                                        \
+  V(i32_sar, ShiftRightS32, Register, Register, Register, , ,                 \
+    REGISTER_AND_WITH_1F, USE, , void)                                        \
+  V(i32_shr, ShiftRightU32, Register, Register, Register, , ,                 \
+    REGISTER_AND_WITH_1F, USE, , void)                                        \
+  V(i64_shl, ShiftLeftU64, LiftoffRegister, LiftoffRegister, Register,        \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+  V(i64_sar, ShiftRightS64, LiftoffRegister, LiftoffRegister, Register,       \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+  V(i64_shr, ShiftRightU64, LiftoffRegister, LiftoffRegister, Register,       \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+  V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,        \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+  V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,       \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+  V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,       \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+  V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f64_mul, MulF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f64_div, DivF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f32_add, AddF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f32_sub, SubF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f32_mul, MulF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)                                                              \
+  V(f32_div, DivF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
+    USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
                             scast2, rcast, ret, return_type)                   \
@@ -956,50 +971,11 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
-void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_clz");
-}
-
-void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_ctz");
-}
-
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-#ifdef V8_TARGET_ARCH_PPC64
-  bailout(kUnsupportedArchitecture, "emit_u32_to_intptr");
-#else
-// This is a nop on ppc32.
-#endif
-}
-
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
   bailout(kUnsupportedArchitecture, "emit_type_conversion");
   return true;
-}
-
-void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i8");
-}
-
-void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i8");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { b(al, label); }

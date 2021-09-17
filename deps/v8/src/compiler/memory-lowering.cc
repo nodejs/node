@@ -15,6 +15,10 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/roots/roots-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects.h"
+#endif
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -100,6 +104,32 @@ Reduction MemoryLowering::Reduce(Node* node) {
   }
 }
 
+void MemoryLowering::EnsureAllocateOperator() {
+  if (allocate_operator_.is_set()) return;
+
+  auto descriptor = AllocateDescriptor{};
+  StubCallMode mode = isolate_ != nullptr ? StubCallMode::kCallCodeObject
+                                          : StubCallMode::kCallBuiltinPointer;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph_zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kCanUseRoots, Operator::kNoThrow, mode);
+  allocate_operator_.set(common()->Call(call_descriptor));
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+Node* MemoryLowering::GetWasmInstanceNode() {
+  if (wasm_instance_node_.is_set()) return wasm_instance_node_.get();
+  for (Node* use : graph()->start()->uses()) {
+    if (use->opcode() == IrOpcode::kParameter &&
+        ParameterIndexOf(use->op()) == wasm::kWasmInstanceParameterIndex) {
+      wasm_instance_node_.set(use);
+      return use;
+    }
+  }
+  UNREACHABLE();  // The instance node must have been created before.
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #define __ gasm()->
 
 Reduction MemoryLowering::ReduceAllocateRaw(
@@ -123,29 +153,82 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   gasm()->InitializeEffectControl(effect, control);
 
   Node* allocate_builtin;
-  if (allocation_type == AllocationType::kYoung) {
-    if (allow_large_objects == AllowLargeObjects::kTrue) {
-      allocate_builtin = __ AllocateInYoungGenerationStubConstant();
+  if (isolate_ != nullptr) {
+    if (allocation_type == AllocationType::kYoung) {
+      if (allow_large_objects == AllowLargeObjects::kTrue) {
+        allocate_builtin = __ AllocateInYoungGenerationStubConstant();
+      } else {
+        allocate_builtin = __ AllocateRegularInYoungGenerationStubConstant();
+      }
     } else {
-      allocate_builtin = __ AllocateRegularInYoungGenerationStubConstant();
+      if (allow_large_objects == AllowLargeObjects::kTrue) {
+        allocate_builtin = __ AllocateInOldGenerationStubConstant();
+      } else {
+        allocate_builtin = __ AllocateRegularInOldGenerationStubConstant();
+      }
     }
   } else {
-    if (allow_large_objects == AllowLargeObjects::kTrue) {
-      allocate_builtin = __ AllocateInOldGenerationStubConstant();
+    // This lowering is used by Wasm, where we compile isolate-independent
+    // code. Builtin calls simply encode the target builtin ID, which will
+    // be patched to the builtin's address later.
+#if V8_ENABLE_WEBASSEMBLY
+    Builtin builtin;
+    if (allocation_type == AllocationType::kYoung) {
+      if (allow_large_objects == AllowLargeObjects::kTrue) {
+        builtin = Builtin::kAllocateInYoungGeneration;
+      } else {
+        builtin = Builtin::kAllocateRegularInYoungGeneration;
+      }
     } else {
-      allocate_builtin = __ AllocateRegularInOldGenerationStubConstant();
+      if (allow_large_objects == AllowLargeObjects::kTrue) {
+        builtin = Builtin::kAllocateInOldGeneration;
+      } else {
+        builtin = Builtin::kAllocateRegularInOldGeneration;
+      }
     }
+    static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+    allocate_builtin =
+        graph()->NewNode(common()->NumberConstant(static_cast<int>(builtin)));
+#else
+    UNREACHABLE();
+#endif
   }
 
   // Determine the top/limit addresses.
-  Node* top_address = __ ExternalConstant(
-      allocation_type == AllocationType::kYoung
-          ? ExternalReference::new_space_allocation_top_address(isolate())
-          : ExternalReference::old_space_allocation_top_address(isolate()));
-  Node* limit_address = __ ExternalConstant(
-      allocation_type == AllocationType::kYoung
-          ? ExternalReference::new_space_allocation_limit_address(isolate())
-          : ExternalReference::old_space_allocation_limit_address(isolate()));
+  Node* top_address;
+  Node* limit_address;
+  if (isolate_ != nullptr) {
+    top_address = __ ExternalConstant(
+        allocation_type == AllocationType::kYoung
+            ? ExternalReference::new_space_allocation_top_address(isolate())
+            : ExternalReference::old_space_allocation_top_address(isolate()));
+    limit_address = __ ExternalConstant(
+        allocation_type == AllocationType::kYoung
+            ? ExternalReference::new_space_allocation_limit_address(isolate())
+            : ExternalReference::old_space_allocation_limit_address(isolate()));
+  } else {
+    // Wasm mode: producing isolate-independent code, loading the isolate
+    // address at runtime.
+#if V8_ENABLE_WEBASSEMBLY
+    Node* instance_node = GetWasmInstanceNode();
+    int top_address_offset =
+        allocation_type == AllocationType::kYoung
+            ? WasmInstanceObject::kNewAllocationTopAddressOffset
+            : WasmInstanceObject::kOldAllocationTopAddressOffset;
+    int limit_address_offset =
+        allocation_type == AllocationType::kYoung
+            ? WasmInstanceObject::kNewAllocationLimitAddressOffset
+            : WasmInstanceObject::kOldAllocationLimitAddressOffset;
+    top_address =
+        __ Load(MachineType::Pointer(), instance_node,
+                __ IntPtrConstant(top_address_offset - kHeapObjectTag));
+    limit_address =
+        __ Load(MachineType::Pointer(), instance_node,
+                __ IntPtrConstant(limit_address_offset - kHeapObjectTag));
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
 
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
@@ -216,13 +299,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
       __ Bind(&call_runtime);
       {
-        if (!allocate_operator_.is_set()) {
-          auto descriptor = AllocateDescriptor{};
-          auto call_descriptor = Linkage::GetStubCallDescriptor(
-              graph_zone(), descriptor, descriptor.GetStackParameterCount(),
-              CallDescriptor::kCanUseRoots, Operator::kNoThrow);
-          allocate_operator_.set(common()->Call(call_descriptor));
-        }
+        EnsureAllocateOperator();
         Node* vfalse = __ BitcastTaggedToWord(
             __ Call(allocate_operator_.get(), allocate_builtin, size));
         vfalse = __ IntSub(vfalse, __ IntPtrConstant(kHeapObjectTag));
@@ -277,13 +354,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
                        __ IntAdd(top, __ IntPtrConstant(kHeapObjectTag))));
 
     __ Bind(&call_runtime);
-    if (!allocate_operator_.is_set()) {
-      auto descriptor = AllocateDescriptor{};
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          graph_zone(), descriptor, descriptor.GetStackParameterCount(),
-          CallDescriptor::kCanUseRoots, Operator::kNoThrow);
-      allocate_operator_.set(common()->Call(call_descriptor));
-    }
+    EnsureAllocateOperator();
     __ Goto(&done, __ Call(allocate_operator_.get(), allocate_builtin, size));
 
     __ Bind(&done);

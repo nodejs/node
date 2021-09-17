@@ -194,9 +194,6 @@ class V8_EXPORT V8InspectorClient {
       v8::Local<v8::Context>, v8::Local<v8::Value>) {
     return nullptr;
   }
-  virtual bool formatAccessorsAsProperties(v8::Local<v8::Value>) {
-    return false;
-  }
   virtual bool isInspectableHeapObject(v8::Local<v8::Object>) { return true; }
 
   virtual v8::Local<v8::Context> ensureDefaultContextInGroup(

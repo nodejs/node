@@ -136,7 +136,10 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   NodeOrigin current_origin_;
 
   const char* current_phase_name_;
-  NodeAuxData<NodeOrigin, NodeOrigin::Unknown> table_;
+  static NodeOrigin UnknownNodeOrigin(Zone* zone) {
+    return NodeOrigin::Unknown();
+  }
+  NodeAuxData<NodeOrigin, UnknownNodeOrigin> table_;
 };
 
 }  // namespace compiler

@@ -5,6 +5,7 @@
 #include "src/debug/debug-frames.h"
 
 #include "src/builtins/accessors.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY

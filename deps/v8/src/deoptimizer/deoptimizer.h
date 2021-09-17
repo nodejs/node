@@ -31,11 +31,15 @@ class Deoptimizer : public Malloced {
  public:
   struct DeoptInfo {
     DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
-              int deopt_id)
-        : position(position), deopt_reason(deopt_reason), deopt_id(deopt_id) {}
+              uint32_t node_id, int deopt_id)
+        : position(position),
+          deopt_reason(deopt_reason),
+          node_id(node_id),
+          deopt_id(deopt_id) {}
 
     const SourcePosition position;
     const DeoptimizeReason deopt_reason;
+    const uint32_t node_id;
     const int deopt_id;
   };
 

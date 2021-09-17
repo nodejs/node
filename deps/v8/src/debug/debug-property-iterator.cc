@@ -21,10 +21,9 @@ std::unique_ptr<DebugPropertyIterator> DebugPropertyIterator::Create(
       new DebugPropertyIterator(isolate, receiver));
 
   if (receiver->IsJSProxy()) {
-    iterator->is_own_ = false;
-    iterator->prototype_iterator_.AdvanceIgnoringProxies();
+    iterator->AdvanceToPrototype();
   }
-  if (iterator->prototype_iterator_.IsAtEnd()) return iterator;
+  if (iterator->Done()) return iterator;
 
   if (!iterator->FillKeysForCurrentPrototypeAndStage()) return nullptr;
   if (iterator->should_move_to_next_stage() && !iterator->AdvanceInternal()) {
@@ -40,8 +39,14 @@ DebugPropertyIterator::DebugPropertyIterator(Isolate* isolate,
       prototype_iterator_(isolate, receiver, kStartAtReceiver,
                           PrototypeIterator::END_AT_NULL) {}
 
-bool DebugPropertyIterator::Done() const {
-  return prototype_iterator_.IsAtEnd();
+bool DebugPropertyIterator::Done() const { return is_done_; }
+
+void DebugPropertyIterator::AdvanceToPrototype() {
+  stage_ = kExoticIndices;
+  is_own_ = false;
+  if (!prototype_iterator_.HasAccess()) is_done_ = true;
+  prototype_iterator_.AdvanceIgnoringProxies();
+  if (prototype_iterator_.IsAtEnd()) is_done_ = true;
 }
 
 bool DebugPropertyIterator::AdvanceInternal() {
@@ -56,9 +61,7 @@ bool DebugPropertyIterator::AdvanceInternal() {
         stage_ = Stage::kAllProperties;
         break;
       case Stage::kAllProperties:
-        stage_ = kExoticIndices;
-        is_own_ = false;
-        prototype_iterator_.AdvanceIgnoringProxies();
+        AdvanceToPrototype();
         break;
     }
     if (!FillKeysForCurrentPrototypeAndStage()) return false;
@@ -145,7 +148,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   current_key_index_ = 0;
   exotic_length_ = 0;
   keys_ = Handle<FixedArray>::null();
-  if (prototype_iterator_.IsAtEnd()) return true;
+  if (is_done_) return true;
   Handle<JSReceiver> receiver =
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
   bool has_exotic_indices = receiver->IsJSTypedArray();
@@ -169,7 +172,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
 }
 
 bool DebugPropertyIterator::should_move_to_next_stage() const {
-  if (prototype_iterator_.IsAtEnd()) return false;
+  if (is_done_) return false;
   if (stage_ == kExoticIndices) return current_key_index_ >= exotic_length_;
   return keys_.is_null() ||
          current_key_index_ >= static_cast<size_t>(keys_->length());

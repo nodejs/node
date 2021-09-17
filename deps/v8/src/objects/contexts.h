@@ -132,8 +132,6 @@ enum ContextLookupFlags {
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ASYNC_GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map,                           \
     async_generator_object_prototype_map)                                      \
-  V(GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction,                        \
-    growable_shared_array_buffer_fun)                                          \
   V(INITIAL_ARRAY_ITERATOR_MAP_INDEX, Map, initial_array_iterator_map)         \
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
     initial_array_iterator_prototype)                                          \
@@ -245,7 +243,6 @@ enum ContextLookupFlags {
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
-  V(RESIZABLE_ARRAY_BUFFER_FUN_INDEX, JSFunction, resizable_array_buffer_fun)  \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
@@ -294,6 +291,7 @@ enum ContextLookupFlags {
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(WASM_EXPORTED_FUNCTION_MAP_INDEX, Map, wasm_exported_function_map)         \
+  V(WASM_TAG_CONSTRUCTOR_INDEX, JSFunction, wasm_tag_constructor)              \
   V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
@@ -339,6 +337,8 @@ enum ContextLookupFlags {
   V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function)      \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction,                             \
     wasm_runtime_error_function)                                               \
+  V(WASM_EXCEPTION_ERROR_FUNCTION_INDEX, JSFunction,                           \
+    wasm_exception_error_function)                                             \
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
@@ -365,6 +365,7 @@ class ScriptContextTable : public FixedArray {
                                            Handle<ScriptContextTable> table,
                                            int i);
   inline Context get_context(int i) const;
+  inline Context get_context(int i, AcquireLoadTag tag) const;
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
@@ -435,6 +436,10 @@ class ScriptContextTable : public FixedArray {
 class Context : public TorqueGeneratedContext<Context, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
+
+  using TorqueGeneratedContext::length;      // Non-atomic.
+  using TorqueGeneratedContext::set_length;  // Non-atomic.
+  DECL_RELAXED_SMI_ACCESSORS(length)
 
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.

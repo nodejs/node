@@ -435,6 +435,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_D_FORM_LIST(DECODE_VX_D_FORM__INSTRUCTIONS)
 #undef DECODE_VX_D_FORM__INSTRUCTIONS
+#define DECODE_VX_F_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'rt, 'Vb");                                   \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_F_FORM_LIST(DECODE_VX_F_FORM__INSTRUCTIONS)
+#undef DECODE_VX_F_FORM__INSTRUCTIONS
   }
   // Some encodings are 5-0 bits, handle those first
   switch (EXT0 | (instr->BitField(5, 0))) {
@@ -485,6 +492,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_E_FORM_LIST(DECODE_VX_E_FORM__INSTRUCTIONS)
 #undef DECODE_VX_E_FORM__INSTRUCTIONS
+#define DECODE_VX_G_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'rb, 'UIM");                             \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_G_FORM_LIST(DECODE_VX_G_FORM__INSTRUCTIONS)
+#undef DECODE_VX_G_FORM__INSTRUCTIONS
   }
 }
 
@@ -891,12 +905,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "cntlzw'. 'ra, 'rs");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case CNTLZDX: {
       Format(instr, "cntlzd'. 'ra, 'rs");
       return;
     }
-#endif
+    case CNTTZWX: {
+      Format(instr, "cnttzw'. 'ra, 'rs");
+      return;
+    }
+    case CNTTZDX: {
+      Format(instr, "cnttzd'. 'ra, 'rs");
+      return;
+    }
     case ANDX: {
       Format(instr, "and'.    'ra, 'rs, 'rb");
       return;
@@ -1111,7 +1131,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case MTVSRDD: {
-      Format(instr, "mtvsrdd 'Xt, 'ra");
+      Format(instr, "mtvsrdd 'Xt, 'ra, 'rb");
       return;
     }
     case LDBRX: {
@@ -1289,6 +1309,10 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fneg'.   'Dt, 'Db");
       break;
     }
+    case FCPSGN: {
+      Format(instr, "fcpsgn'.   'Dt, 'Da, 'Db");
+      break;
+    }
     case MCRFS: {
       Format(instr, "mcrfs   ?,?");
       break;
@@ -1343,13 +1367,20 @@ void Decoder::DecodeExt6(Instruction* instr) {
     }
   }
   switch (EXT6 | (instr->BitField(10, 3))) {
-#define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                            \
-    Format(instr, #name " 'Xt, 'Xa, 'Xb");                       \
-    return;                                                      \
+#define DECODE_XX3_VECTOR_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Xt, 'Xa, 'Xb");                              \
+    return;                                                             \
   }
-    PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
-#undef DECODE_XX3_INSTRUCTIONS
+    PPC_XX3_OPCODE_VECTOR_LIST(DECODE_XX3_VECTOR_INSTRUCTIONS)
+#undef DECODE_XX3_VECTOR_INSTRUCTIONS
+#define DECODE_XX3_SCALAR_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Dt, 'Da, 'Db");                              \
+    return;                                                             \
+  }
+    PPC_XX3_OPCODE_SCALAR_LIST(DECODE_XX3_SCALAR_INSTRUCTIONS)
+#undef DECODE_XX3_SCALAR_INSTRUCTIONS
   }
   // Some encodings have integers hard coded in the middle, handle those first.
   switch (EXT6 | (instr->BitField(20, 16)) | (instr->BitField(10, 2))) {

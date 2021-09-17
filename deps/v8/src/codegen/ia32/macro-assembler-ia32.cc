@@ -81,11 +81,15 @@ void TurboAssembler::InitializeRootRegister() {
   Move(kRootRegister, Immediate(isolate_root));
 }
 
+Operand TurboAssembler::RootAsOperand(RootIndex index) {
+  DCHECK(root_array_available());
+  return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
-    mov(destination,
-        Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    mov(destination, RootAsOperand(index));
     return;
   }
 
@@ -123,7 +127,7 @@ void TurboAssembler::CompareRoot(Register with, Register scratch,
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
-    cmp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmp(with, RootAsOperand(index));
     return;
   }
 
@@ -140,7 +144,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
     DCHECK(RootsTable::IsImmortalImmovable(index));
-    push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    push(RootAsOperand(index));
     return;
   }
 
@@ -195,7 +199,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
 
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
-  // TODO(jgruber): Add support for enable_root_array_delta_access.
+  // TODO(jgruber): Add support for enable_root_relative_access.
   if (root_array_available() && options().isolate_independent_code) {
     if (IsAddressableThroughRootRegister(isolate(), reference)) {
       // Some external references can be efficiently loaded as an offset from
@@ -234,7 +238,7 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
   Builtin builtin;
   RootIndex root_index;
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
-    return Operand(kRootRegister, RootRegisterOffsetForRootIndex(root_index));
+    return RootAsOperand(root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin)) {
     return Operand(kRootRegister, RootRegisterOffsetForBuiltin(builtin));
   } else if (object.is_identical_to(code_object_) &&
@@ -276,7 +280,7 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  // TODO(jgruber): Add support for enable_root_array_delta_access.
+  // TODO(jgruber): Add support for enable_root_relative_access.
   if (root_array_available() && options().isolate_independent_code) {
     IndirectLoadExternalReference(destination, source);
     return;
@@ -1157,6 +1161,70 @@ void TurboAssembler::Prologue() {
   push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 }
 
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  int receiver_bytes =
+      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
+  switch (type) {
+    case kCountIsInteger: {
+      lea(esp, Operand(esp, count, times_system_pointer_size, receiver_bytes));
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      // SMIs are stored shifted left by 1 byte with the tag being 0.
+      // This is equivalent to multiplying by 2. To convert SMIs to bytes we
+      // can therefore just multiply the stored value by half the system pointer
+      // size.
+      lea(esp,
+          Operand(esp, count, times_half_system_pointer_size, receiver_bytes));
+      break;
+    }
+    case kCountIsBytes: {
+      if (receiver_bytes == 0) {
+        add(esp, count);
+      } else {
+        lea(esp, Operand(esp, count, times_1, receiver_bytes));
+      }
+      break;
+    }
+  }
+}
+
+void TurboAssembler::DropArguments(Register count, Register scratch,
+                                   ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(count, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(count, type, mode);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, receiver, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Operand receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, scratch));
+  DCHECK(!receiver.is_reg(scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
+  PushReturnAddressFrom(scratch);
+}
+
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
   push(ebp);
@@ -1164,6 +1232,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   if (!StackFrame::IsJavaScript(type)) {
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
@@ -1429,60 +1500,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
   jmp(entry, RelocInfo::OFF_HEAP_TARGET);
-}
-
-void TurboAssembler::PrepareForTailCall(
-    Register callee_args_count, Register caller_args_count, Register scratch0,
-    Register scratch1, int number_of_temp_values_after_return_address) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the destination address where we will put the return address
-  // after we drop current frame.
-  Register new_sp_reg = scratch0;
-  sub(caller_args_count, callee_args_count);
-  lea(new_sp_reg, Operand(ebp, caller_args_count, times_system_pointer_size,
-                          StandardFrameConstants::kCallerPCOffset -
-                              number_of_temp_values_after_return_address *
-                                  kSystemPointerSize));
-
-  if (FLAG_debug_code) {
-    cmp(esp, new_sp_reg);
-    Check(below, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Copy return address from caller's frame to current frame's return address
-  // to avoid its trashing and let the following loop copy it to the right
-  // place.
-  Register tmp_reg = scratch1;
-  mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-  mov(Operand(esp,
-              number_of_temp_values_after_return_address * kSystemPointerSize),
-      tmp_reg);
-
-  // Restore caller's frame pointer now as it could be overwritten by
-  // the copying loop.
-  mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-
-  // +2 here is to copy both receiver and return address.
-  Register count_reg = caller_args_count;
-  lea(count_reg, Operand(callee_args_count,
-                         2 + number_of_temp_values_after_return_address));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-  Label loop, entry;
-  jmp(&entry, Label::kNear);
-  bind(&loop);
-  dec(count_reg);
-  mov(tmp_reg, Operand(esp, count_reg, times_system_pointer_size, 0));
-  mov(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
-  bind(&entry);
-  cmp(count_reg, Immediate(0));
-  j(not_equal, &loop, Label::kNear);
-
-  // Leave current frame.
-  mov(esp, new_sp_reg);
 }
 
 void MacroAssembler::CompareStackLimit(Register with, StackLimitKind kind) {

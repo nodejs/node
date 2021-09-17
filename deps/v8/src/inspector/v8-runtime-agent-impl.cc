@@ -915,9 +915,10 @@ void V8RuntimeAgentImpl::reportExecutionContextDestroyed(
 
 void V8RuntimeAgentImpl::inspect(
     std::unique_ptr<protocol::Runtime::RemoteObject> objectToInspect,
-    std::unique_ptr<protocol::DictionaryValue> hints) {
+    std::unique_ptr<protocol::DictionaryValue> hints, int executionContextId) {
   if (m_enabled)
-    m_frontend.inspectRequested(std::move(objectToInspect), std::move(hints));
+    m_frontend.inspectRequested(std::move(objectToInspect), std::move(hints),
+                                executionContextId);
 }
 
 void V8RuntimeAgentImpl::messageAdded(V8ConsoleMessage* message) {

@@ -453,6 +453,14 @@ void ScavengeVisitor::VisitPointers(HeapObject host, MaybeObjectSlot start,
   return VisitPointersImpl(host, start, end);
 }
 
+void ScavengeVisitor::VisitCodePointer(HeapObject host, CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Code slots never appear in new space because CodeDataContainers, the
+  // only object that can contain code pointers, are always allocated in
+  // the old space.
+  UNREACHABLE();
+}
+
 void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
 #ifdef DEBUG

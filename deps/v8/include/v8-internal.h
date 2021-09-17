@@ -15,9 +15,12 @@
 
 namespace v8 {
 
+class Array;
 class Context;
 class Data;
 class Isolate;
+template <typename T>
+class Local;
 
 namespace internal {
 
@@ -185,6 +188,8 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
 
+V8_EXPORT bool CanHaveInternalField(int instance_type);
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -263,8 +268,9 @@ class Internals {
   static const int kOddballType = 0x43;
   static const int kForeignType = 0x46;
   static const int kJSSpecialApiObjectType = 0x410;
-  static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;
+  static const int kFirstJSApiObjectType = 0x422;
+  static const int kLastJSApiObjectType = 0x80A;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -505,6 +511,15 @@ V8_INLINE void PerformCastCheck(T* data) {
 class BackingStoreBase {};
 
 }  // namespace internal
+
+V8_EXPORT bool CopyAndConvertArrayToCppBufferInt32(Local<Array> src,
+                                                   int32_t* dst,
+                                                   uint32_t max_length);
+
+V8_EXPORT bool CopyAndConvertArrayToCppBufferFloat64(Local<Array> src,
+                                                     double* dst,
+                                                     uint32_t max_length);
+
 }  // namespace v8
 
 #endif  // INCLUDE_V8_INTERNAL_H_

@@ -29,5 +29,5 @@ bar({aaaa:1});
 bar({aaaaa:1});
 foo();
 foo();
-%OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionForTopTier(foo);
 foo();

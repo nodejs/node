@@ -139,13 +139,11 @@ bool PlatformCanRepresent(T x) {
 // Returns true for very small and very large numbers. We skip these test
 // values for the approximation instructions, which don't work at the extremes.
 bool IsExtreme(float x);
-bool IsSameNan(float expected, float actual);
 bool IsCanonical(float actual);
 void CheckFloatResult(float x, float y, float expected, float actual,
                       bool exact = true);
 
 bool IsExtreme(double x);
-bool IsSameNan(double expected, double actual);
 bool IsCanonical(double actual);
 void CheckDoubleResult(double x, double y, double expected, double actual,
                        bool exact = true);

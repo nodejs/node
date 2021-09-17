@@ -7,9 +7,8 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_MIPS
+#include "src/flags/flags.h"
+#if ENABLE_SPARKPLUG
 
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
@@ -160,7 +159,7 @@ class BaselineCompiler {
 
   const interpreter::BytecodeArrayIterator& iterator() { return iterator_; }
 
-  Isolate* isolate_;
+  LocalIsolate* local_isolate_;
   RuntimeCallStats* stats_;
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<BytecodeArray> bytecode_;
@@ -197,6 +196,6 @@ class BaselineCompiler {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // ENABLE_SPARKPLUG
 
 #endif  // V8_BASELINE_BASELINE_COMPILER_H_

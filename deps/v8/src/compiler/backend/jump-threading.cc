@@ -206,7 +206,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
 
   // Skip empty blocks when the previous block doesn't fall through.
   bool prev_fallthru = true;
-  for (auto const block : code->instruction_blocks()) {
+  for (auto const block : code->ao_blocks()) {
     RpoNumber block_rpo = block->rpo_number();
     int block_num = block_rpo.ToInt();
     RpoNumber result_rpo = result[block_num];

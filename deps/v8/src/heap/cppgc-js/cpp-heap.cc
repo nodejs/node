@@ -401,8 +401,7 @@ bool ShouldReduceMemory(CppHeap::TraceFlags flags) {
 }  // namespace
 
 void CppHeap::TracePrologue(TraceFlags flags) {
-  // Finish sweeping in case it is still running.
-  sweeper_.FinishIfRunning();
+  CHECK(!sweeper_.IsSweepingInProgress());
 
   current_flags_ = flags;
   const UnifiedHeapMarker::MarkingConfig marking_config{
@@ -481,6 +480,9 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
         stats_collector_->marked_bytes(),
         stats_collector_->marking_time().InMillisecondsF());
   }
+  // The allocated bytes counter in v8 was reset to the current marked bytes, so
+  // any pending allocated bytes updates should be discarded.
+  buffered_allocated_bytes_ = 0;
   ExecutePreFinalizers();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
@@ -684,6 +686,8 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
   return static_cast<MetricRecorderAdapter*>(
       stats_collector_->GetMetricRecorder());
 }
+
+void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
 
 }  // namespace internal
 }  // namespace v8

@@ -38,7 +38,7 @@
     assertTrue(sum_js_got_interpreted);
 
     // Compile function foo; inlines 'sum_js' into 'foo'.
-    %OptimizeFunctionOnNextCall(foo);
+    %OptimizeFunctionForTopTier(foo);
     assertEquals(78, foo(26, 6, 46, null));
     assertOptimized(foo);
 

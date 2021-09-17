@@ -92,7 +92,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 // just update status.
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
                                         Handle<SyntheticModule> module) {
-  module->SetStatus(kInstantiated);
+  module->SetStatus(kLinked);
   return true;
 }
 

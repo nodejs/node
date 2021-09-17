@@ -1050,8 +1050,12 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
     Branch(condition, &ok, &interrupt_check);
 
     BIND(&interrupt_check);
-    CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, GetContext(),
-                function);
+    // JumpLoop should do a stack check as part of the interrupt.
+    CallRuntime(
+        bytecode() == Bytecode::kJumpLoop
+            ? Runtime::kBytecodeBudgetInterruptWithStackCheckFromBytecode
+            : Runtime::kBytecodeBudgetInterruptFromBytecode,
+        GetContext(), function);
     Goto(&done);
 
     BIND(&ok);
@@ -1291,7 +1295,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
 
 TNode<Int8T> InterpreterAssembler::LoadOsrNestingLevel() {
   return LoadObjectField<Int8T>(BytecodeArrayTaggedPointer(),
-                                BytecodeArray::kOsrNestingLevelOffset);
+                                BytecodeArray::kOsrLoopNestingLevelOffset);
 }
 
 void InterpreterAssembler::Abort(AbortReason abort_reason) {

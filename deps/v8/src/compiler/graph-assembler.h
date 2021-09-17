@@ -276,6 +276,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   TNode<Map> UnpackMapWord(Node* map_word);
 #endif
   TNode<Map> LoadMap(Node* object);
+  void StoreMap(Node* object, TNode<Map> map);
 
   Node* DebugBreak();
 

@@ -148,6 +148,7 @@ namespace internal {
 V8_EXPORT void Abort();
 
 }  // namespace internal
+
 }  // namespace cppgc
 
 #endif  // INCLUDE_CPPGC_PLATFORM_H_

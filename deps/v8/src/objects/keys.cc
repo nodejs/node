@@ -100,10 +100,6 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   if (keys_.is_null()) {
     return isolate_->factory()->empty_fixed_array();
   }
-  if (mode_ == KeyCollectionMode::kOwnOnly &&
-      keys_->map() == ReadOnlyRoots(isolate_).fixed_array_map()) {
-    return Handle<FixedArray>::cast(keys_);
-  }
   USE(ContainsOnlyValidKeys);
   Handle<FixedArray> result =
       OrderedHashSet::ConvertToKeysArray(isolate(), keys(), convert);
@@ -224,14 +220,12 @@ Maybe<bool> KeyAccumulator::AddKeysFromJSProxy(Handle<JSProxy> proxy,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, keys, FilterProxyKeys(this, proxy, keys, filter_),
         Nothing<bool>());
-    if (mode_ == KeyCollectionMode::kOwnOnly) {
-      // If we collect only the keys from a JSProxy do not sort or deduplicate.
-      keys_ = keys;
-      return Just(true);
-    }
   }
-  RETURN_NOTHING_IF_NOT_SUCCESSFUL(
-      AddKeys(keys, is_for_in_ ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT));
+  // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
+  // As of 10.5.11.9 says, the keys collected from Proxy should not contain
+  // any duplicates. And the order of the keys is preserved by the
+  // OrderedHashTable.
+  RETURN_NOTHING_IF_NOT_SUCCESSFUL(AddKeys(keys, CONVERT_TO_ARRAY_INDEX));
   return Just(true);
 }
 

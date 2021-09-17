@@ -85,7 +85,7 @@ void StartupDeserializer::DeserializeStringTable() {
   // TODO(leszeks): Consider pre-sizing the string table.
   for (int i = 0; i < string_table_size; ++i) {
     Handle<String> string = Handle<String>::cast(ReadObject());
-    StringTableInsertionKey key(string);
+    StringTableInsertionKey key(isolate(), string);
     Handle<String> result =
         isolate()->string_table()->LookupKey(isolate(), &key);
     USE(result);

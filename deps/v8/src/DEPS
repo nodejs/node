@@ -58,6 +58,7 @@ include_rules = [
   "+src/trap-handler/handler-inside-posix.h",
   "+src/trap-handler/handler-inside-win.h",
   "+src/trap-handler/trap-handler.h",
+  "+src/trap-handler/trap-handler-simulator.h",
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform",

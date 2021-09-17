@@ -160,12 +160,6 @@ void V8::InitializeOncePerProcessImpl() {
     DISABLE_FLAG(trace_turbo_stack_accesses);
   }
 
-  if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
-    // Turning off the tier-up strategy, because the --regexp-interpret-all and
-    // --regexp-tier-up flags are incompatible.
-    DISABLE_FLAG(regexp_tier_up);
-  }
-
   // The --jitless and --interpreted-frames-native-stack flags are incompatible
   // since the latter requires code generation while the former prohibits code
   // generation.

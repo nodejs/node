@@ -11,7 +11,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestRethrowInCatch() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
+  let except = builder.addTag(kSig_v_v);
   builder.addFunction("rethrow0", kSig_v_v)
       .addBody([
         kExprTry, kWasmVoid,
@@ -44,7 +44,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestRethrowInCatchAll() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
+  let except = builder.addTag(kSig_v_v);
   builder.addFunction("rethrow0", kSig_v_v)
       .addBody([
         kExprTry, kWasmVoid,
@@ -78,8 +78,8 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestRethrowNested() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except1 = builder.addException(kSig_v_v);
-  let except2 = builder.addException(kSig_v_v);
+  let except1 = builder.addTag(kSig_v_v);
+  let except2 = builder.addTag(kSig_v_v);
   builder.addFunction("rethrow_nested", kSig_i_i)
       .addBody([
         kExprTry, kWasmI32,
@@ -116,7 +116,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestRethrowRecatch() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
+  let except = builder.addTag(kSig_v_v);
   builder.addFunction("rethrow_recatch", kSig_i_i)
       .addBody([
         kExprTry, kWasmI32,

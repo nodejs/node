@@ -39,9 +39,23 @@
 #include "src/trap-handler/trap-handler-internal.h"
 #include "src/trap-handler/trap-handler.h"
 
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
+#include "src/trap-handler/trap-handler-simulator.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace trap_handler {
+
+#if V8_OS_LINUX
+#define CONTEXT_REG(reg, REG) &uc->uc_mcontext.gregs[REG_##REG]
+#elif V8_OS_MACOSX
+#define CONTEXT_REG(reg, REG) &uc->uc_mcontext->__ss.__##reg
+#elif V8_OS_FREEBSD
+#define CONTEXT_REG(reg, REG) &uc->uc_mcontext.mc_##reg
+#else
+#error "Unsupported platform."
+#endif
 
 bool IsKernelGeneratedSignal(siginfo_t* info) {
   // On macOS, only `info->si_code > 0` is relevant, because macOS leaves
@@ -72,11 +86,17 @@ class UnmaskOobSignalScope {
   sigset_t old_mask_;
 };
 
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
+// This is the address where we continue on a failed "ProbeMemory". It's defined
+// in "handler-outside-simulators.cc".
+extern "C" char v8_probe_memory_continuation[];
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
+
 bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
   // Ensure the faulting thread was actually running Wasm code. This should be
-  // the first check in the trap handler to guarantee that the IsThreadInWasm
-  // flag is only set in wasm code. Otherwise a later signal handler is executed
-  // with the flag set.
+  // the first check in the trap handler to guarantee that the
+  // g_thread_in_wasm_code flag is only set in wasm code. Otherwise a later
+  // signal handler is executed with the flag set.
   if (!g_thread_in_wasm_code) return false;
 
   // Clear g_thread_in_wasm_code, primarily to protect against nested faults.
@@ -102,23 +122,38 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     UnmaskOobSignalScope unmask_oob_signal;
 
     ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64
-    auto* context_ip = &uc->uc_mcontext.gregs[REG_RIP];
-#elif V8_OS_MACOSX && V8_TARGET_ARCH_ARM64
-    auto* context_ip = &uc->uc_mcontext->__ss.__pc;
-#elif V8_OS_MACOSX && V8_TARGET_ARCH_X64
-    auto* context_ip = &uc->uc_mcontext->__ss.__rip;
-#elif V8_OS_FREEBSD && V8_TARGET_ARCH_X64
-    auto* context_ip = &uc->uc_mcontext.mc_rip;
+#if V8_HOST_ARCH_X64
+    auto* context_ip = CONTEXT_REG(rip, RIP);
+#elif V8_HOST_ARCH_ARM64
+    auto* context_ip = CONTEXT_REG(pc, PC);
 #else
-#error Unsupported platform
+#error "Unsupported architecture."
 #endif
+
     uintptr_t fault_addr = *context_ip;
     uintptr_t landing_pad = 0;
+
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
+    // Only handle signals triggered by the load in {ProbeMemory}.
+    if (fault_addr != reinterpret_cast<uintptr_t>(&ProbeMemory)) {
+      return false;
+    }
+
+    // The simulated ip will be in the second parameter register (%rsi).
+    auto* simulated_ip_reg = CONTEXT_REG(rsi, RSI);
+    if (!TryFindLandingPad(*simulated_ip_reg, &landing_pad)) return false;
+    TH_DCHECK(landing_pad != 0);
+
+    auto* return_reg = CONTEXT_REG(rax, RAX);
+    *return_reg = landing_pad;
+    // Continue at the memory probing continuation.
+    *context_ip = reinterpret_cast<uintptr_t>(&v8_probe_memory_continuation);
+#else
     if (!TryFindLandingPad(fault_addr, &landing_pad)) return false;
 
     // Tell the caller to return to the landing pad.
     *context_ip = landing_pad;
+#endif
   }
   // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
   // This should only be done once the signal is blocked again (outside the

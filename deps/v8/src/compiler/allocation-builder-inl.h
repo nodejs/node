@@ -17,6 +17,7 @@ namespace compiler {
 
 void AllocationBuilder::Allocate(int size, AllocationType allocation,
                                  Type type) {
+  CHECK_GT(size, 0);
   DCHECK_LE(size, isolate()->heap()->MaxRegularHeapObjectSize(allocation));
   effect_ = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect_);

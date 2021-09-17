@@ -289,6 +289,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       StoreHandler::cast(*this).StoreHandlerVerify(isolate);
       break;
 
+    case BIG_INT_BASE_TYPE:
+      BigIntBase::cast(*this).BigIntBaseVerify(isolate);
+      break;
+
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -298,6 +302,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       JSFunction::cast(*this).JSFunctionVerify(isolate);
       break;
+    case JS_LAST_DUMMY_API_OBJECT_TYPE:
+      UNREACHABLE();
   }
 }
 
@@ -311,7 +317,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
 // static
 void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
-  CHECK(isolate->heap()->InCodeSpace(HeapObject::cast(p)));
+  CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
   CHECK(HeapObject::cast(p).IsCode());
 }
 
@@ -330,15 +336,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
-  CHECK(IsBytecodeArray(isolate));
-  CHECK(constant_pool(isolate).IsFixedArray(isolate));
-  VerifyHeapPointer(isolate, constant_pool(isolate));
-  {
-    Object table = source_position_table(isolate, kAcquireLoad);
-    CHECK(table.IsUndefined(isolate) || table.IsException(isolate) ||
-          table.IsByteArray(isolate));
-  }
-  CHECK(handler_table(isolate).IsByteArray(isolate));
+  TorqueGeneratedClassVerifiers::BytecodeArrayVerify(*this, isolate);
   for (int i = 0; i < constant_pool(isolate).length(); ++i) {
     // No ThinStrings in the constant pool.
     CHECK(!constant_pool(isolate).get(isolate, i).IsThinString(isolate));
@@ -1490,7 +1488,6 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
 }
 
 void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::BigIntBaseVerify(*this, isolate);
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }
@@ -1512,7 +1509,7 @@ void Module::ModuleVerify(Isolate* isolate) {
   CHECK(module_namespace().IsUndefined(isolate) ||
         module_namespace().IsJSModuleNamespace());
   if (module_namespace().IsJSModuleNamespace()) {
-    CHECK_LE(Module::kInstantiating, status());
+    CHECK_LE(Module::kLinking, status());
     CHECK_EQ(JSModuleNamespace::cast(module_namespace()).module(), *this);
   }
 
@@ -1545,13 +1542,13 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   } else if (status() == kEvaluating || status() == kEvaluated) {
     CHECK(code().IsJSGeneratorObject());
   } else {
-    if (status() == kInstantiated) {
+    if (status() == kLinked) {
       CHECK(code().IsJSGeneratorObject());
-    } else if (status() == kInstantiating) {
+    } else if (status() == kLinking) {
       CHECK(code().IsJSFunction());
-    } else if (status() == kPreInstantiating) {
+    } else if (status() == kPreLinking) {
       CHECK(code().IsSharedFunctionInfo());
-    } else if (status() == kUninstantiated) {
+    } else if (status() == kUnlinked) {
       CHECK(code().IsSharedFunctionInfo());
     }
     CHECK(!AsyncParentModuleCount());
@@ -1750,8 +1747,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
     VerifyPointer(isolate, child);
   }
 }
-
-USE_TORQUE_VERIFIER(InterpreterData)
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);

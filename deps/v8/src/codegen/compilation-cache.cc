@@ -4,6 +4,7 @@
 
 #include "src/codegen/compilation-cache.h"
 
+#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
@@ -104,42 +105,64 @@ void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
 CompilationCacheScript::CompilationCacheScript(Isolate* isolate)
     : CompilationSubCache(isolate, 1) {}
 
+namespace {
+
 // We only re-use a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
-bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
-                                       MaybeHandle<Object> maybe_name,
-                                       int line_offset, int column_offset,
-                                       ScriptOriginOptions resource_options) {
+bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
+               const ScriptDetails& script_details) {
   Handle<Script> script =
-      Handle<Script>(Script::cast(function_info->script()), isolate());
+      Handle<Script>(Script::cast(function_info->script()), isolate);
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   Handle<Object> name;
-  if (!maybe_name.ToHandle(&name)) {
-    return script->name().IsUndefined(isolate());
+  if (!script_details.name_obj.ToHandle(&name)) {
+    return script->name().IsUndefined(isolate);
   }
   // Do the fast bailout checks first.
-  if (line_offset != script->line_offset()) return false;
-  if (column_offset != script->column_offset()) return false;
+  if (script_details.line_offset != script->line_offset()) return false;
+  if (script_details.column_offset != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
   if (!name->IsString() || !script->name().IsString()) return false;
   // Are the origin_options same?
-  if (resource_options.Flags() != script->origin_options().Flags())
+  if (script_details.origin_options.Flags() !=
+      script->origin_options().Flags()) {
     return false;
+  }
   // Compare the two name strings for equality.
-  return String::Equals(
-      isolate(), Handle<String>::cast(name),
-      Handle<String>(String::cast(script->name()), isolate()));
+  if (!String::Equals(isolate, Handle<String>::cast(name),
+                      Handle<String>(String::cast(script->name()), isolate))) {
+    return false;
+  }
+
+  Handle<FixedArray> host_defined_options;
+  if (!script_details.host_defined_options.ToHandle(&host_defined_options)) {
+    host_defined_options = isolate->factory()->empty_fixed_array();
+  }
+
+  Handle<FixedArray> script_options(script->host_defined_options(), isolate);
+  int length = host_defined_options->length();
+  if (length != script_options->length()) return false;
+
+  for (int i = 0; i < length; i++) {
+    // host-defined options is a v8::PrimitiveArray.
+    DCHECK(host_defined_options->get(i).IsPrimitive());
+    DCHECK(script_options->get(i).IsPrimitive());
+    if (!host_defined_options->get(i).StrictEquals(script_options->get(i))) {
+      return false;
+    }
+  }
+  return true;
 }
+}  // namespace
 
 // TODO(245): Need to allow identical code from different contexts to
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
 // won't.
 MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
-    Handle<String> source, MaybeHandle<Object> name, int line_offset,
-    int column_offset, ScriptOriginOptions resource_options,
+    Handle<String> source, const ScriptDetails& script_details,
     LanguageMode language_mode) {
   MaybeHandle<SharedFunctionInfo> result;
 
@@ -156,8 +179,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
       // matches the origin.
-      if (HasOrigin(function_info, name, line_offset, column_offset,
-                    resource_options)) {
+      if (HasOrigin(isolate(), function_info, script_details)) {
         result = scope.CloseAndEscape(function_info);
       }
     }
@@ -168,12 +190,9 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   // handle created in the caller's handle scope.
   Handle<SharedFunctionInfo> function_info;
   if (result.ToHandle(&function_info)) {
-#ifdef DEBUG
     // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
     // with handles during the call.
-    DCHECK(HasOrigin(function_info, name, line_offset, column_offset,
-                     resource_options));
-#endif
+    DCHECK(HasOrigin(isolate(), function_info, script_details));
     isolate()->counters()->compilation_cache_hits()->Increment();
     LOG(isolate(), CompilationCacheEvent("hit", "script", *function_info));
   } else {
@@ -271,13 +290,10 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 }
 
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
-    Handle<String> source, MaybeHandle<Object> name, int line_offset,
-    int column_offset, ScriptOriginOptions resource_options,
+    Handle<String> source, const ScriptDetails& script_details,
     LanguageMode language_mode) {
   if (!IsEnabledScriptAndEval()) return MaybeHandle<SharedFunctionInfo>();
-
-  return script_.Lookup(source, name, line_offset, column_offset,
-                        resource_options, language_mode);
+  return script_.Lookup(source, script_details, language_mode);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,

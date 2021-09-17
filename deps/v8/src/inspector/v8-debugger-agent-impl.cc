@@ -1618,7 +1618,7 @@ void V8DebuggerAgentImpl::didParseSource(
       hasSourceURLComment ? &hasSourceURLComment : nullptr;
   const bool* isModuleParam = isModule ? &isModule : nullptr;
   std::unique_ptr<V8StackTraceImpl> stack =
-      V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
+      V8StackTraceImpl::capture(m_inspector->debugger(), 1);
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
       stack && !stack->isEmpty()
           ? stack->buildInspectorObjectImpl(m_debugger, 0)

@@ -89,7 +89,7 @@ var p = new Proxy({}, {
 });
 assertThrows(() => { var { ...y } = p });
 
-var z = { b: 1}
+var z = { b: 1};
 var p = new Proxy(z, {
   ownKeys() { return Object.keys(z); },
   get(_, prop) { return z[prop]; },
@@ -97,8 +97,19 @@ var p = new Proxy(z, {
     return Object.getOwnPropertyDescriptor(z, prop);
   },
 });
-var { ...y } = p ;
+var { ...y } = p;
 assertEquals(z, y);
+
+var z = { 1: 1, 2: 2, 3: 3 };
+var p = new Proxy(z, {
+  ownKeys() { return ['1', '2']; },
+  getOwnPropertyDescriptor(_, prop) {
+    return Object.getOwnPropertyDescriptor(z, prop);
+  },
+});
+var { 1: x, ...y } = p;
+assertEquals(1, x);
+assertEquals({ 2: 2 }, y);
 
 var z = { b: 1}
 var { ...y } =  { ...z} ;

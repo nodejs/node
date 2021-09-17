@@ -14,7 +14,6 @@ bitfield struct ScriptFlags extends uint31 {
   break_on_entry: bool: 1 bit;
 }
 
-@generateCppClass
 extern class Script extends Struct {
   // [source]: the script source.
   source: String|Undefined;

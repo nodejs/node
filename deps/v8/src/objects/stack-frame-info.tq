@@ -14,7 +14,6 @@ bitfield struct StackFrameInfoFlags extends uint31 {
   is_source_position_computed: bool: 1 bit;
 }
 
-@generateCppClass
 extern class StackFrameInfo extends Struct {
   receiver_or_instance: JSAny;
   function: JSFunction|Smi;

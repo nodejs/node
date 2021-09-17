@@ -14,7 +14,10 @@
 namespace v8 {
 namespace internal {
 
-class PropertyCell : public HeapObject {
+#include "torque-generated/src/objects/property-cell-tq.inc"
+
+class PropertyCell
+    : public TorqueGeneratedPropertyCell<PropertyCell, HeapObject> {
  public:
   // [name]: the name of the global property.
   DECL_GETTER(name, Name)
@@ -65,16 +68,12 @@ class PropertyCell : public HeapObject {
   // approximation with false positives.
   static bool CheckDataIsCompatible(PropertyDetails details, Object value);
 
-  DECL_CAST(PropertyCell)
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_PROPERTY_CELL_FIELDS)
-
   using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
-  OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(PropertyCell)
 
  private:
   friend class Factory;

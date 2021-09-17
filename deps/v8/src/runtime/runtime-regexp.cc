@@ -961,8 +961,6 @@ RUNTIME_FUNCTION(
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpBuildIndices) {
-  DCHECK(FLAG_harmony_regexp_match_indices);
-
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, match_info, 1);

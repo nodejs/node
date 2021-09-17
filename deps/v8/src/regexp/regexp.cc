@@ -225,7 +225,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
         isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
-    if (!IgnoreCase(atom->flags()) && !HasFewDifferentCharacters(atom_string)) {
+    if (!IgnoreCase(flags) && !HasFewDifferentCharacters(atom_string)) {
       RegExpImpl::AtomCompile(isolate, re, pattern, flags, atom_string);
       has_been_compiled = true;
     }
@@ -802,7 +802,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     return false;
   }
 
-  RegExpCompiler compiler(isolate, zone, data->capture_count, is_one_byte);
+  RegExpCompiler compiler(isolate, zone, data->capture_count, flags,
+                          is_one_byte);
 
   if (compiler.optimize()) {
     compiler.set_optimize(!TooMuchRegExpCode(isolate, pattern));
@@ -821,7 +822,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   data->node = compiler.PreprocessRegExp(data, flags, is_one_byte);
-  data->error = AnalyzeRegExp(isolate, is_one_byte, data->node);
+  data->error = AnalyzeRegExp(isolate, is_one_byte, flags, data->node);
   if (data->error != RegExpError::kNone) {
     return false;
   }

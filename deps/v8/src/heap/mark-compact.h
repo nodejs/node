@@ -376,11 +376,11 @@ class MainMarkingVisitor final
                      MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
-                     BytecodeFlushMode bytecode_flush_mode,
+                     base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             kMainThreadTask, local_marking_worklists, weak_objects, heap,
-            mark_compact_epoch, bytecode_flush_mode, embedder_tracing_enabled,
+            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             is_forced_gc),
         marking_state_(marking_state),
         revisiting_object_(false) {}
@@ -515,7 +515,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void EnsurePageIsSwept(Page* page);
 
-  void DrainSweepingWorklists();
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
   // Checks if sweeping is in progress right now on any space.
@@ -570,7 +569,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
-  BytecodeFlushMode bytecode_flush_mode() const { return bytecode_flush_mode_; }
+  base::EnumSet<CodeFlushMode> code_flush_mode() const {
+    return code_flush_mode_;
+  }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
@@ -591,7 +592,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // is drained until it is empty.
   template <MarkingWorklistProcessingMode mode =
                 MarkingWorklistProcessingMode::kDefault>
-  size_t ProcessMarkingWorklist(size_t bytes_to_process);
+  std::pair<size_t, size_t> ProcessMarkingWorklist(size_t bytes_to_process);
 
  private:
   void ComputeEvacuationHeuristics(size_t area_size,
@@ -637,8 +638,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool ProcessEphemeron(HeapObject key, HeapObject value);
 
   // Marks ephemerons and drains marking worklist iteratively
-  // until a fixpoint is reached.
-  void ProcessEphemeronsUntilFixpoint();
+  // until a fixpoint is reached. Returns false if too many iterations have been
+  // tried and the linear approach should be used.
+  bool ProcessEphemeronsUntilFixpoint();
 
   // Drains ephemeron and marking worklists. Single iteration of the
   // fixpoint iteration.
@@ -668,9 +670,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Flushes a weakly held bytecode array from a shared function info.
   void FlushBytecodeFromSFI(SharedFunctionInfo shared_info);
 
-  // Clears bytecode arrays that have not been executed for multiple
-  // collections.
-  void ClearOldBytecodeCandidates();
+  // Marks the BaselineData as live and records the slots of baseline data
+  // fields. This assumes that the objects in the data fields are alive.
+  void MarkBaselineDataAsLive(BaselineData baseline_data);
+
+  // Clears bytecode arrays / baseline code that have not been executed for
+  // multiple collections.
+  void ProcessOldCodeCandidates();
+  void ProcessFlushedBaselineCandidates();
 
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();
@@ -791,9 +798,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Bytecode flushing is disabled when the code coverage mode is changed. Since
   // that can happen while a GC is happening and we need the
-  // bytecode_flush_mode_ to remain the same through out a GC, we record this at
+  // code_flush_mode_ to remain the same through out a GC, we record this at
   // the start of each GC.
-  BytecodeFlushMode bytecode_flush_mode_;
+  base::EnumSet<CodeFlushMode> code_flush_mode_;
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;

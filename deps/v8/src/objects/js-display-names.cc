@@ -238,6 +238,12 @@ class CalendarNames : public KeyValueDisplayNames {
   ~CalendarNames() override = default;
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
+    std::string code_str(code);
+    if (!Intl::IsWellFormedCalendar(code_str)) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewRangeError(MessageTemplate::kInvalidArgument),
+          Nothing<icu::UnicodeString>());
+    }
     return KeyValueDisplayNames::of(isolate, strcmp(code, "gregory") == 0
                                                  ? "gregorian"
                                                  : strcmp(code, "ethioaa") == 0
@@ -300,9 +306,7 @@ class DateTimeFieldNames : public DisplayNamesInternal {
  public:
   DateTimeFieldNames(const icu::Locale& locale, JSDisplayNames::Style style,
                      bool fallback)
-      : locale_(locale),
-        width_(StyleToUDateTimePGDisplayWidth(style)),
-        fallback_(fallback) {
+      : locale_(locale), width_(StyleToUDateTimePGDisplayWidth(style)) {
     UErrorCode status = U_ZERO_ERROR;
     generator_.reset(
         icu::DateTimePatternGenerator::createInstance(locale_, status));
@@ -315,9 +319,6 @@ class DateTimeFieldNames : public DisplayNamesInternal {
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);
     if (field == UDATPG_FIELD_COUNT) {
-      if (fallback_) {
-        return Just(icu::UnicodeString(code, -1, US_INV));
-      }
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate, NewRangeError(MessageTemplate::kInvalidArgument),
           Nothing<icu::UnicodeString>());
@@ -329,7 +330,6 @@ class DateTimeFieldNames : public DisplayNamesInternal {
   icu::Locale locale_;
   UDateTimePGDisplayWidth width_;
   std::unique_ptr<icu::DateTimePatternGenerator> generator_;
-  bool fallback_;
 };
 
 DisplayNamesInternal* CreateInternal(const icu::Locale& locale,

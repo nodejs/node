@@ -4,6 +4,7 @@
 
 @abstract
 @doNotGenerateCast
+@doNotGenerateCppClass
 extern class HeapObject extends StrongTagged {
   const map: Map;
 }

@@ -45,7 +45,7 @@ assertOptimized(bar);
 
 // Instead we trigger optimization of foo, which will inline bar (this time
 // based on the new PACKED_ELEMENTS map.
-%OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionForTopTier(foo);
 foo(a);
 assertOptimized(foo);
 %PrepareFunctionForOptimization(foo);
@@ -61,6 +61,6 @@ assertOptimized(bar);
 // Now ensure there is no deopt-loop. There used to be a deopt-loop because, as
 // a result of over-eager checkpoint elimination, we used to deopt into foo
 // (right before the call to bar) rather than into bar (right before the load).
-%OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionForTopTier(foo);
 foo(b);
 assertOptimized(foo);

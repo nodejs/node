@@ -28,6 +28,8 @@
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 
 #elif V8_OS_FUCHSIA

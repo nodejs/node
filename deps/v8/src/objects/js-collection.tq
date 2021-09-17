@@ -3,30 +3,20 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class JSCollection extends JSObject {
   // The backing hash table.
   table: Object;
 }
-@generateCppClass
-extern class JSSet extends JSCollection {
-}
-@generateCppClass
-extern class JSMap extends JSCollection {
-}
+extern class JSSet extends JSCollection {}
+extern class JSMap extends JSCollection {}
 
 @abstract
-@generateCppClass
 extern class JSWeakCollection extends JSObject {
   // The backing hash table mapping keys to values.
   table: Object;
 }
-@generateCppClass
-extern class JSWeakSet extends JSWeakCollection {
-}
-@generateCppClass
-extern class JSWeakMap extends JSWeakCollection {
-}
+extern class JSWeakSet extends JSWeakCollection {}
+extern class JSWeakMap extends JSWeakCollection {}
 
 @abstract extern class JSMapIterator extends JSCollectionIterator;
 extern class JSMapKeyIterator extends JSMapIterator

@@ -492,9 +492,14 @@ ExternalReference ExternalReference::scheduled_exception_address(
   return ExternalReference(isolate->scheduled_exception_address());
 }
 
-ExternalReference ExternalReference::address_of_pending_message_obj(
+ExternalReference ExternalReference::address_of_pending_message(
     Isolate* isolate) {
-  return ExternalReference(isolate->pending_message_obj_address());
+  return ExternalReference(isolate->pending_message_address());
+}
+
+ExternalReference ExternalReference::address_of_pending_message(
+    LocalIsolate* local_isolate) {
+  return ExternalReference(local_isolate->pending_message_address());
 }
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
@@ -510,11 +515,6 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
-}
-
-ExternalReference
-ExternalReference::address_of_harmony_regexp_match_indices_flag() {
-  return ExternalReference(&FLAG_harmony_regexp_match_indices);
 }
 
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
@@ -817,6 +817,13 @@ void relaxed_memcpy(volatile base::Atomic8* dest,
 }
 
 FUNCTION_REFERENCE(relaxed_memcpy_function, relaxed_memcpy)
+
+void relaxed_memmove(volatile base::Atomic8* dest,
+                     volatile const base::Atomic8* src, size_t n) {
+  base::Relaxed_Memmove(dest, src, n);
+}
+
+FUNCTION_REFERENCE(relaxed_memmove_function, relaxed_memmove)
 
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));

@@ -10,6 +10,10 @@
 #include <unordered_set>
 #endif  // DEBUG
 
+#if V8_OS_WIN
+#include <windows.h>
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -218,6 +222,37 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
+#if V8_OS_MACOSX
+
+SharedMutex::SharedMutex() { InitializeNativeHandle(&native_handle_); }
+
+SharedMutex::~SharedMutex() { DestroyNativeHandle(&native_handle_); }
+
+void SharedMutex::LockShared() { LockExclusive(); }
+
+void SharedMutex::LockExclusive() {
+  DCHECK(TryHoldSharedMutex(this));
+  LockNativeHandle(&native_handle_);
+}
+
+void SharedMutex::UnlockShared() { UnlockExclusive(); }
+
+void SharedMutex::UnlockExclusive() {
+  DCHECK(TryReleaseSharedMutex(this));
+  UnlockNativeHandle(&native_handle_);
+}
+
+bool SharedMutex::TryLockShared() { return TryLockExclusive(); }
+
+bool SharedMutex::TryLockExclusive() {
+  DCHECK(SharedMutexNotHeld(this));
+  if (!TryLockNativeHandle(&native_handle_)) return false;
+  DCHECK(TryHoldSharedMutex(this));
+  return true;
+}
+
+#else  // !V8_OS_MACOSX
+
 SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
 
 SharedMutex::~SharedMutex() {
@@ -266,6 +301,8 @@ bool SharedMutex::TryLockExclusive() {
   return result;
 }
 
+#endif  // !V8_OS_MACOSX
+
 #elif V8_OS_WIN
 
 Mutex::Mutex() : native_handle_(SRWLOCK_INIT) {
@@ -281,19 +318,19 @@ Mutex::~Mutex() {
 
 
 void Mutex::Lock() {
-  AcquireSRWLockExclusive(&native_handle_);
+  AcquireSRWLockExclusive(V8ToWindowsType(&native_handle_));
   AssertUnheldAndMark();
 }
 
 
 void Mutex::Unlock() {
   AssertHeldAndUnmark();
-  ReleaseSRWLockExclusive(&native_handle_);
+  ReleaseSRWLockExclusive(V8ToWindowsType(&native_handle_));
 }
 
 
 bool Mutex::TryLock() {
-  if (!TryAcquireSRWLockExclusive(&native_handle_)) {
+  if (!TryAcquireSRWLockExclusive(V8ToWindowsType(&native_handle_))) {
     return false;
   }
   AssertUnheldAndMark();
@@ -302,7 +339,7 @@ bool Mutex::TryLock() {
 
 
 RecursiveMutex::RecursiveMutex() {
-  InitializeCriticalSection(&native_handle_);
+  InitializeCriticalSection(V8ToWindowsType(&native_handle_));
 #ifdef DEBUG
   level_ = 0;
 #endif
@@ -310,13 +347,13 @@ RecursiveMutex::RecursiveMutex() {
 
 
 RecursiveMutex::~RecursiveMutex() {
-  DeleteCriticalSection(&native_handle_);
+  DeleteCriticalSection(V8ToWindowsType(&native_handle_));
   DCHECK_EQ(0, level_);
 }
 
 
 void RecursiveMutex::Lock() {
-  EnterCriticalSection(&native_handle_);
+  EnterCriticalSection(V8ToWindowsType(&native_handle_));
 #ifdef DEBUG
   DCHECK_LE(0, level_);
   level_++;
@@ -329,12 +366,12 @@ void RecursiveMutex::Unlock() {
   DCHECK_LT(0, level_);
   level_--;
 #endif
-  LeaveCriticalSection(&native_handle_);
+  LeaveCriticalSection(V8ToWindowsType(&native_handle_));
 }
 
 
 bool RecursiveMutex::TryLock() {
-  if (!TryEnterCriticalSection(&native_handle_)) {
+  if (!TryEnterCriticalSection(V8ToWindowsType(&native_handle_))) {
     return false;
   }
 #ifdef DEBUG
@@ -350,34 +387,34 @@ SharedMutex::~SharedMutex() {}
 
 void SharedMutex::LockShared() {
   DCHECK(TryHoldSharedMutex(this));
-  AcquireSRWLockShared(&native_handle_);
+  AcquireSRWLockShared(V8ToWindowsType(&native_handle_));
 }
 
 void SharedMutex::LockExclusive() {
   DCHECK(TryHoldSharedMutex(this));
-  AcquireSRWLockExclusive(&native_handle_);
+  AcquireSRWLockExclusive(V8ToWindowsType(&native_handle_));
 }
 
 void SharedMutex::UnlockShared() {
   DCHECK(TryReleaseSharedMutex(this));
-  ReleaseSRWLockShared(&native_handle_);
+  ReleaseSRWLockShared(V8ToWindowsType(&native_handle_));
 }
 
 void SharedMutex::UnlockExclusive() {
   DCHECK(TryReleaseSharedMutex(this));
-  ReleaseSRWLockExclusive(&native_handle_);
+  ReleaseSRWLockExclusive(V8ToWindowsType(&native_handle_));
 }
 
 bool SharedMutex::TryLockShared() {
   DCHECK(SharedMutexNotHeld(this));
-  bool result = TryAcquireSRWLockShared(&native_handle_);
+  bool result = TryAcquireSRWLockShared(V8ToWindowsType(&native_handle_));
   if (result) DCHECK(TryHoldSharedMutex(this));
   return result;
 }
 
 bool SharedMutex::TryLockExclusive() {
   DCHECK(SharedMutexNotHeld(this));
-  bool result = TryAcquireSRWLockExclusive(&native_handle_);
+  bool result = TryAcquireSRWLockExclusive(V8ToWindowsType(&native_handle_));
   if (result) DCHECK(TryHoldSharedMutex(this));
   return result;
 }

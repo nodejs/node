@@ -367,17 +367,6 @@ std::vector<int> IsolateData::GetSessionIds(int context_group_id) {
   return result;
 }
 
-bool IsolateData::formatAccessorsAsProperties(v8::Local<v8::Value> object) {
-  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
-  v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
-      isolate(),
-      v8::String::NewFromUtf8Literal(isolate(), "allowAccessorFormatting"));
-  CHECK(object->IsObject());
-  return object.As<v8::Object>()
-      ->HasPrivate(context, shouldFormatAccessorsPrivate)
-      .FromMaybe(false);
-}
-
 bool IsolateData::isInspectableHeapObject(v8::Local<v8::Object> object) {
   v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::MicrotasksScope microtasks_scope(

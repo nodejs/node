@@ -188,7 +188,7 @@ InspectorTest.ContextGroup = class {
         "PropertyDescriptor","object","get","set","value","configurable",
         "enumerable","symbol","getPrototypeOf","nativeAccessorDescriptor",
         "isBuiltin","hasGetter","hasSetter","getOwnPropertyDescriptor",
-        "description","formatAccessorsAsProperties","isOwn","name",
+        "description","isOwn","name",
         "typedArrayProperties","keys","getOwnPropertyNames",
         "getOwnPropertySymbols","isPrimitiveValue","com","toLowerCase",
         "ELEMENT","trim","replace","DOCUMENT","size","byteLength","toString",

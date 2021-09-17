@@ -53,16 +53,18 @@ ALL_VARIANT_FLAGS = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
-              "--validate-asm", "--sparkplug", "--always-sparkplug"],
+              "--validate-asm", "--sparkplug", "--always-sparkplug",
+              "--regexp-tier-up"],
   "nooptimization": ["--always-opt"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
-  "stress_concurrent_inlining": ["--single-threaded", "--predictable"],
+  "stress_concurrent_inlining": ["--single-threaded", "--predictable", "--turboprop"],
+  "turboprop": ["--stress_concurrent_inlining"],
   # The fast API tests initialize an embedder object that never needs to be
   # serialized to the snapshot, so we don't have a
   # SerializeInternalFieldsCallback for it, so they are incompatible with
   # stress_snapshot.
-  "stress_snapshot": [["--turbo-fast-api-calls"]],
+  "stress_snapshot": ["--turbo-fast-api-calls"],
   "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",

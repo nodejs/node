@@ -11,6 +11,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-feature-flags.h"
@@ -59,12 +60,12 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
        ++i) {
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    WasmFeatures unused_detected_features;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
     auto result = ExecuteLiftoffCompilation(
-        &env, func_body, func.func_index, kForDebugging, isolate->counters(),
-        &unused_detected_features, {}, nullptr, 0, max_steps, nondeterminism);
+        &env, func_body, func.func_index, kForDebugging,
+        LiftoffOptions{}.set_max_steps(max_steps).set_nondeterminism(
+            nondeterminism));
     native_module->PublishCode(
         native_module->AddCompiledCode(std::move(result)));
   }
@@ -198,7 +199,7 @@ PrintSig PrintParameters(const FunctionSig* sig) {
 PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
-const char* ValueTypeToConstantName(ValueType type) {
+std::string ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
     case kI32:
       return "kWasmI32";
@@ -216,17 +217,44 @@ const char* ValueTypeToConstantName(ValueType type) {
           return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
+        case HeapType::kEq:
+          return "kWasmEqRef";
         case HeapType::kAny:
+          return "kWasmAnyRef";
+        case HeapType::kData:
+          return "wasmOptRefType(kWasmDataRef)";
         case HeapType::kI31:
+          return "wasmOptRefType(kWasmI31Ref)";
         case HeapType::kBottom:
         default:
-          // TODO(7748): Implement these if fuzzing for them is enabled.
-          UNREACHABLE();
+          return "wasmOptRefType(" + std::to_string(type.ref_index()) + ")";
       }
     default:
       UNREACHABLE();
   }
 }
+
+std::string HeapTypeToConstantName(HeapType heap_type) {
+  switch (heap_type.representation()) {
+    case HeapType::kFunc:
+      return "kWasmFuncRef";
+    case HeapType::kExtern:
+      return "kWasmExternRef";
+    case HeapType::kEq:
+      return "kWasmEqRef";
+    case HeapType::kI31:
+      return "kWasmI31Ref";
+    case HeapType::kData:
+      return "kWasmDataRef";
+    case HeapType::kAny:
+      return "kWasmAnyRef";
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      return std::to_string(heap_type.ref_index());
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const PrintSig& print) {
   os << "[";
   for (size_t i = 0; i < print.num; ++i) {
@@ -292,10 +320,28 @@ void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
       os << "F64Const(" << bit_cast<double>(result);
       break;
     }
+    case kSimdPrefix: {
+      DCHECK_LE(2 + kSimd128Size, expr.length());
+      DCHECK_EQ(static_cast<WasmOpcode>(pc[1]), kExprS128Const & 0xff);
+      os << "S128Const([";
+      for (int i = 0; i < kSimd128Size; i++) {
+        os << int(decoder.read_u8<Decoder::kNoValidation>(pc + 2 + i));
+        if (i + 1 < kSimd128Size) os << ", ";
+      }
+      os << "]";
+      break;
+    }
     case kExprRefFunc:
       os << "RefFunc("
          << decoder.read_u32v<Decoder::kNoValidation>(pc + 1, &length);
       break;
+    case kExprRefNull: {
+      HeapType heap_type =
+          value_type_reader::read_heap_type<Decoder::kNoValidation>(
+              &decoder, pc + 1, &length, nullptr, WasmFeatures::All());
+      os << "RefNull(" << HeapTypeToConstantName(heap_type);
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -334,7 +380,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "can be\n"
         "// found in the LICENSE file.\n"
         "\n"
-        "// Flags: --wasm-staging\n"
+        "// Flags: --wasm-staging --experimental-wasm-gc\n"
         "\n"
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
@@ -361,16 +407,38 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << ");\n";
   }
 
-  // TODO(7748): Support array/struct types.
 #if DEBUG
   for (uint8_t kind : module->type_kinds) {
-    DCHECK_EQ(kWasmFunctionTypeCode, kind);
+    DCHECK(kWasmArrayTypeCode == kind || kWasmStructTypeCode == kind ||
+           kWasmFunctionTypeCode == kind);
   }
 #endif
-  for (TypeDefinition type : module->types) {
-    const FunctionSig* sig = type.function_sig;
-    os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
-       << PrintReturns(sig) << "));\n";
+
+  for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
+    if (module->has_struct(i)) {
+      const StructType* struct_type = module->types[i].struct_type;
+      os << "builder.addStruct([";
+      int field_count = struct_type->field_count();
+      for (int index = 0; index < field_count; index++) {
+        os << "makeField(" << ValueTypeToConstantName(struct_type->field(index))
+           << ", " << (struct_type->mutability(index) ? "true" : "false")
+           << ")";
+        if (index + 1 < field_count)
+          os << ", ";
+        else
+          os << "]);\n";
+      }
+    } else if (module->has_array(i)) {
+      const ArrayType* array_type = module->types[i].array_type;
+      os << "builder.addArray("
+         << ValueTypeToConstantName(array_type->element_type()) << ","
+         << (array_type->mutability() ? "true" : "false") << ");\n";
+    } else {
+      DCHECK(module->has_signature(i));
+      const FunctionSig* sig = module->types[i].function_sig;
+      os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
+         << PrintReturns(sig) << "));\n";
+    }
   }
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
@@ -521,7 +589,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   bool liftoff_as_reference = false;
 #endif
   if (!data.empty()) data += 1;
-  if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
+  if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
   }
 
@@ -529,6 +597,10 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
+
+  if (require_valid && FLAG_wasm_fuzzer_gen_test) {
+    GenerateTestCase(i_isolate, wire_bytes, true);
+  }
 
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
@@ -544,8 +616,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
-
-  if (FLAG_wasm_fuzzer_gen_test) {
+  if (!require_valid && FLAG_wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 

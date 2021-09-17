@@ -100,6 +100,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }
+  CompilationDependencies* dependencies() const;
   Isolate* isolate() const { return jsgraph_->isolate(); }
   SimplifiedOperatorBuilder* simplified() const;
   Mode mode() const { return mode_; }

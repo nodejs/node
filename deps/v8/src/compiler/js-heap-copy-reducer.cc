@@ -27,26 +27,16 @@ JSHeapBroker* JSHeapCopyReducer::broker() { return broker_; }
 
 Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kCheckClosure: {
-      FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(node->op()));
-      base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
-      if (feedback_vector.has_value()) {
-        feedback_vector->Serialize();
-      }
-      break;
-    }
     case IrOpcode::kHeapConstant: {
       ObjectRef object = MakeRef(broker(), HeapConstantOf(node->op()));
-      if (object.IsJSFunction()) object.AsJSFunction().Serialize();
       if (object.IsJSObject()) {
-        object.AsJSObject().SerializeObjectCreateMap();
+        object.AsJSObject().SerializeObjectCreateMap(
+            NotConcurrentInliningTag{broker()});
       }
       break;
     }
     case IrOpcode::kJSCreateArray: {
-      CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
-      Handle<AllocationSite> site;
-      if (p.site().ToHandle(&site)) MakeRef(broker(), site);
+      CreateArrayParametersOf(node->op()).site(broker());
       break;
     }
     case IrOpcode::kJSCreateArguments: {
@@ -56,29 +46,29 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateBlockContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSCreateBoundFunction: {
       CreateBoundFunctionParameters const& p =
           CreateBoundFunctionParametersOf(node->op());
-      MakeRef(broker(), p.map());
+      p.map(broker());
       break;
     }
     case IrOpcode::kJSCreateCatchContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSCreateClosure: {
       CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-      MakeRef(broker(), p.shared_info());
-      MakeRef(broker(), p.code());
+      p.shared_info(broker());
+      p.code(broker());
       break;
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForArrayOrObjectLiteral(p.feedback());
+        broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
       }
       break;
     }
@@ -90,7 +80,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
       if (p.feedback().IsValid()) {
         // Unary ops are treated as binary ops with respect to feedback.
-        broker()->ProcessFeedbackForBinaryOperation(p.feedback());
+        broker()->GetFeedbackForBinaryOperation(p.feedback());
       }
       break;
     }
@@ -109,7 +99,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSShiftRightLogical: {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForBinaryOperation(p.feedback());
+        broker()->GetFeedbackForBinaryOperation(p.feedback());
       }
       break;
     }
@@ -122,64 +112,64 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSStrictEqual: {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForCompareOperation(p.feedback());
+        broker()->GetFeedbackForCompareOperation(p.feedback());
       }
       break;
     }
     case IrOpcode::kJSCreateFunctionContext: {
       CreateFunctionContextParameters const& p =
           CreateFunctionContextParametersOf(node->op());
-      MakeRef(broker(), p.scope_info());
+      p.scope_info(broker());
       break;
     }
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForArrayOrObjectLiteral(p.feedback());
+        broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
       }
       break;
     }
     case IrOpcode::kJSCreateLiteralRegExp: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForRegExpLiteral(p.feedback());
+        broker()->GetFeedbackForRegExpLiteral(p.feedback());
       }
       break;
     }
     case IrOpcode::kJSGetTemplateObject: {
       GetTemplateObjectParameters const& p =
           GetTemplateObjectParametersOf(node->op());
-      MakeRef(broker(), p.shared());
-      MakeRef(broker(), p.description());
-      broker()->ProcessFeedbackForTemplateObject(p.feedback());
+      p.shared(broker());
+      p.description(broker());
+      broker()->GetFeedbackForTemplateObject(p.feedback());
       break;
     }
     case IrOpcode::kJSCreateWithContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSLoadNamed: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      NameRef name = MakeRef(broker(), p.name());
+      NameRef name = p.name(broker());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForPropertyAccess(p.feedback(),
-                                                   AccessMode::kLoad, name);
+        broker()->GetFeedbackForPropertyAccess(p.feedback(), AccessMode::kLoad,
+                                               name);
       }
       break;
     }
     case IrOpcode::kJSLoadNamedFromSuper: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      NameRef name = MakeRef(broker(), p.name());
+      NameRef name = p.name(broker());
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForPropertyAccess(p.feedback(),
-                                                   AccessMode::kLoad, name);
+        broker()->GetFeedbackForPropertyAccess(p.feedback(), AccessMode::kLoad,
+                                               name);
       }
       break;
     }
     case IrOpcode::kJSStoreNamed: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      MakeRef(broker(), p.name());
+      p.name(broker());
       break;
     }
     case IrOpcode::kStoreField:
@@ -220,8 +210,8 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       PropertyAccess const& p = PropertyAccessOf(node->op());
       AccessMode access_mode = AccessMode::kLoad;
       if (p.feedback().IsValid()) {
-        broker()->ProcessFeedbackForPropertyAccess(p.feedback(), access_mode,
-                                                   base::nullopt);
+        broker()->GetFeedbackForPropertyAccess(p.feedback(), access_mode,
+                                               base::nullopt);
       }
       break;
     }

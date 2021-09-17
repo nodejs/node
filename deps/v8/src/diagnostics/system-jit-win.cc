@@ -4,6 +4,7 @@
 
 #include "src/diagnostics/system-jit-win.h"
 
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"

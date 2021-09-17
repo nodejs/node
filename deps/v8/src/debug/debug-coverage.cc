@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -516,7 +517,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
         SharedFunctionInfo shared = vector.shared_function_info();
         DCHECK(shared.IsSubjectToDebugging());
         uint32_t count = static_cast<uint32_t>(vector.invocation_count());
-        if (reset_count) vector.clear_invocation_count();
+        if (reset_count) vector.clear_invocation_count(kRelaxedStore);
         counter_map->Add(shared, count);
       }
       break;
@@ -793,7 +794,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
             shared.set_has_reported_binary_coverage(false);
           } else if (o.IsFeedbackVector()) {
             // In any case, clear any collected invocation counts.
-            FeedbackVector::cast(o).clear_invocation_count();
+            FeedbackVector::cast(o).clear_invocation_count(kRelaxedStore);
           }
         }
       }

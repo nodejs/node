@@ -4,7 +4,6 @@
 
 #include 'src/objects/js-collator.h'
 
-@generateCppClass
 extern class JSCollator extends JSObject {
   icu_collator: Foreign;  // Managed<icu::Collator>
   bound_compare: Undefined|JSFunction;

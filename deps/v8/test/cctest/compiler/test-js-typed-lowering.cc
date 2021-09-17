@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-heap-copy-reducer.h"
@@ -37,7 +38,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
-        context_node(nullptr) {
+        context_node(nullptr),
+        deps(&js_heap_broker, main_zone()) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -56,6 +58,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
+  CompilationDependencies deps;
 
   Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());

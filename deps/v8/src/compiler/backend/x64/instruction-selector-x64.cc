@@ -3298,11 +3298,17 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  // Use fixed to rcx, to use sarq_cl in codegen.
-  Emit(kX64I64x2ShrS, g.DefineSameAsFirst(node),
-       g.UseUniqueRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), rcx),
-       arraysize(temps), temps);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    Emit(kX64I64x2ShrS, dst, g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(node->InputAt(1)));
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kX64I64x2ShrS, dst, g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitI64x2Mul(Node* node) {

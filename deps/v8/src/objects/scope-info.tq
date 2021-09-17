@@ -97,7 +97,6 @@ struct ModuleVariable {
   properties: SmiTagged<VariableProperties>;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 extern class ScopeInfo extends HeapObject {
   const flags: SmiTagged<ScopeFlags>;

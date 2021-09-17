@@ -15,6 +15,11 @@
 #include "src/heap/local-heap.h"
 
 namespace v8 {
+
+namespace bigint {
+class Processor;
+}
+
 namespace internal {
 
 class Isolate;
@@ -48,11 +53,14 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
                                            OFFSET_OF(LocalIsolate, heap_));
   }
 
+  bool is_main_thread() { return heap()->is_main_thread(); }
+
   LocalHeap* heap() { return &heap_; }
 
   inline Address cage_base() const;
   inline ReadOnlyHeap* read_only_heap() const;
   inline Object root(RootIndex index) const;
+  inline Handle<Object> root_handle(RootIndex index) const;
 
   StringTable* string_table() const { return isolate_->string_table(); }
   base::SharedMutex* internalized_string_access() {
@@ -66,6 +74,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
 
   bool has_pending_exception() const { return false; }
+
+  void RegisterDeserializerStarted();
+  void RegisterDeserializerFinished();
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
@@ -86,13 +97,29 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
   RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  bigint::Processor* bigint_processor() {
+    if (!bigint_processor_) InitializeBigIntProcessor();
+    return bigint_processor_;
+  }
 
   bool is_main_thread() const { return heap_.is_main_thread(); }
 
+  // AsIsolate is only allowed on the main-thread.
+  Isolate* AsIsolate() {
+    DCHECK(is_main_thread());
+    DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+    return isolate_;
+  }
   LocalIsolate* AsLocalIsolate() { return this; }
+
+  Object* pending_message_address() {
+    return isolate_->pending_message_address();
+  }
 
  private:
   friend class v8::internal::LocalFactory;
+
+  void InitializeBigIntProcessor();
 
   LocalHeap heap_;
 
@@ -105,6 +132,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   Address const stack_limit_;
 
   RuntimeCallStats* runtime_call_stats_;
+  bigint::Processor* bigint_processor_{nullptr};
 };
 
 template <base::MutexSharedType kIsShared>

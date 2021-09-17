@@ -54,7 +54,9 @@ VMState<Tag>::~VMState() {
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate),
       callback_(callback),
-      previous_scope_(isolate->external_callback_scope()) {
+      previous_scope_(isolate->external_callback_scope()),
+      vm_state_(isolate),
+      pause_timed_histogram_scope_(isolate->counters()->execute_precise()) {
 #ifdef USE_SIMULATOR
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif

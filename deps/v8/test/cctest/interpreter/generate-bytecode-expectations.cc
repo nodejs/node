@@ -19,6 +19,8 @@
 
 #ifdef V8_OS_POSIX
 #include <dirent.h>
+#elif V8_OS_WIN
+#include <windows.h>
 #endif
 
 using v8::internal::interpreter::BytecodeExpectationsPrinter;

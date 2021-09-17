@@ -1078,7 +1078,7 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
-  ResetIfBytecodeFlushed();
+  ResetIfCodeFlushed();
   if (has_feedback_vector()) {
     FeedbackVector vector = feedback_vector();
     Isolate* isolate = GetIsolate();

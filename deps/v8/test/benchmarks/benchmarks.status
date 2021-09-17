@@ -39,7 +39,7 @@
   'octane/typescript': [PASS, SLOW],
 
   # https://crbug.com/v8/11905
-  'kraken/stanford-crypto-pbkdf2': [PASS, SLOW, ['tsan', SKIP]],
+  'kraken/stanford-crypto-pbkdf2': [PASS, SLOW],
 
   # https://crbug.com/v8/11222
   'octane/raytrace': [PASS, SLOW],
@@ -117,6 +117,7 @@
   'kraken/audio-dft': [SLOW],
   'kraken/audio-fft': [SLOW],
   'kraken/audio-oscillator': [SLOW],
+  'octane/pdfjs': [SLOW],
 }],  # 'tsan'
 
 ]

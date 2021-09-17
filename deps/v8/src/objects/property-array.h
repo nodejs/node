@@ -14,7 +14,10 @@
 namespace v8 {
 namespace internal {
 
-class PropertyArray : public HeapObject {
+#include "torque-generated/src/objects/property-array-tq.inc"
+
+class PropertyArray
+    : public TorqueGeneratedPropertyArray<PropertyArray, HeapObject> {
  public:
   // [length]: length of the array.
   inline int length() const;
@@ -47,12 +50,8 @@ class PropertyArray : public HeapObject {
   }
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST(PropertyArray)
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_PROPERTY_ARRAY_FIELDS)
 
   // Garbage collection support.
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
@@ -70,7 +69,7 @@ class PropertyArray : public HeapObject {
 
   DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length_and_hash)
 
-  OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(PropertyArray)
 };
 
 }  // namespace internal

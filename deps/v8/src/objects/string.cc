@@ -10,6 +10,8 @@
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
@@ -93,26 +95,32 @@ void MigrateExternalStringResource(Isolate* isolate, ExternalString from,
   }
 }
 
+void MigrateExternalString(Isolate* isolate, String string,
+                           String internalized) {
+  if (internalized.IsExternalOneByteString()) {
+    MigrateExternalStringResource(isolate, ExternalString::cast(string),
+                                  ExternalOneByteString::cast(internalized));
+  } else if (internalized.IsExternalTwoByteString()) {
+    MigrateExternalStringResource(isolate, ExternalString::cast(string),
+                                  ExternalTwoByteString::cast(internalized));
+  } else {
+    // If the external string is duped into an existing non-external
+    // internalized string, free its resource (it's about to be rewritten
+    // into a ThinString below).
+    isolate->heap()->FinalizeExternalString(string);
+  }
+}
+
 }  // namespace
 
-void String::MakeThin(Isolate* isolate, String internalized) {
+template <typename IsolateT>
+void String::MakeThin(IsolateT* isolate, String internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
 
   if (this->IsExternalString()) {
-    if (internalized.IsExternalOneByteString()) {
-      MigrateExternalStringResource(isolate, ExternalString::cast(*this),
-                                    ExternalOneByteString::cast(internalized));
-    } else if (internalized.IsExternalTwoByteString()) {
-      MigrateExternalStringResource(isolate, ExternalString::cast(*this),
-                                    ExternalTwoByteString::cast(internalized));
-    } else {
-      // If the external string is duped into an existing non-external
-      // internalized string, free its resource (it's about to be rewritten
-      // into a ThinString below).
-      isolate->heap()->FinalizeExternalString(*this);
-    }
+    MigrateExternalString(isolate->AsIsolate(), *this, internalized);
   }
 
   bool has_pointers = StringShape(*this).IsIndirect();
@@ -131,9 +139,8 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
-    Heap* heap = isolate->heap();
-    if (!heap->IsLargeObject(thin)) {
-      heap->CreateFillerObjectAt(
+    if (!Heap::IsLargeObject(thin)) {
+      isolate->heap()->CreateFillerObjectAt(
           thin_end, size_delta,
           has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
     } else {
@@ -143,6 +150,9 @@ void String::MakeThin(Isolate* isolate, String internalized) {
     }
   }
 }
+
+template void String::MakeThin(Isolate* isolate, String internalized);
+template void String::MakeThin(LocalIsolate* isolate, String internalized);
 
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
@@ -633,6 +643,7 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
+// static
 template <typename sinkchar>
 void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(source));
@@ -640,6 +651,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
                      SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
+// static
 template <typename sinkchar>
 void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
                          const SharedStringAccessGuardIfNeeded& access_guard) {
@@ -794,6 +806,13 @@ template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                                       bool include_ending_line);
 
 bool String::SlowEquals(String other) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(other));
+  return SlowEquals(other, SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+bool String::SlowEquals(
+    String other, const SharedStringAccessGuardIfNeeded& access_guard) const {
   DisallowGarbageCollection no_gc;
   // Fast check: negative check with lengths.
   int len = length();
@@ -833,16 +852,18 @@ bool String::SlowEquals(String other) const {
 
   // We know the strings are both non-empty. Compare the first chars
   // before we try to flatten the strings.
-  if (this->Get(0) != other.Get(0)) return false;
+  if (this->Get(0, access_guard) != other.Get(0, access_guard)) return false;
 
   if (IsSeqOneByteString() && other.IsSeqOneByteString()) {
-    const uint8_t* str1 = SeqOneByteString::cast(*this).GetChars(no_gc);
-    const uint8_t* str2 = SeqOneByteString::cast(other).GetChars(no_gc);
+    const uint8_t* str1 =
+        SeqOneByteString::cast(*this).GetChars(no_gc, access_guard);
+    const uint8_t* str2 =
+        SeqOneByteString::cast(other).GetChars(no_gc, access_guard);
     return CompareCharsEqual(str1, str2, len);
   }
 
   StringComparator comparator;
-  return comparator.Equals(*this, other);
+  return comparator.Equals(*this, other, access_guard);
 }
 
 // static
@@ -1326,7 +1347,8 @@ bool String::HasOneBytePrefix(base::Vector<const char> str) {
 namespace {
 
 template <typename Char>
-uint32_t HashString(String string, size_t start, int length, uint64_t seed) {
+uint32_t HashString(String string, size_t start, int length, uint64_t seed,
+                    const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
 
   if (length > String::kMaxHashCalcLength) {
@@ -1340,10 +1362,10 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed) {
     DCHECK_EQ(0, start);
     DCHECK(!string.IsFlat());
     buffer.reset(new Char[length]);
-    String::WriteToFlat(string, buffer.get(), 0, length);
+    String::WriteToFlat(string, buffer.get(), 0, length, access_guard);
     chars = buffer.get();
   } else {
-    chars = string.GetChars<Char>(no_gc) + start;
+    chars = string.GetChars<Char>(no_gc, access_guard) + start;
   }
 
   return StringHasher::HashSequentialString<Char>(chars, length, seed);
@@ -1352,6 +1374,11 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed) {
 }  // namespace
 
 uint32_t String::ComputeAndSetHash() {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return ComputeAndSetHash(SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+uint32_t String::ComputeAndSetHash(
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   // Should only be called if hash code has not yet been computed.
   DCHECK(!HasHashCode());
@@ -1377,8 +1404,8 @@ uint32_t String::ComputeAndSetHash() {
   }
   uint32_t raw_hash_field =
       string.IsOneByteRepresentation()
-          ? HashString<uint8_t>(string, start, length(), seed)
-          : HashString<uint16_t>(string, start, length(), seed);
+          ? HashString<uint8_t>(string, start, length(), seed, access_guard)
+          : HashString<uint16_t>(string, start, length(), seed, access_guard);
   set_raw_hash_field(raw_hash_field);
 
   // Check the hash code is there.

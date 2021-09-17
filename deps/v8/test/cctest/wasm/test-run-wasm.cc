@@ -1053,35 +1053,41 @@ WASM_EXEC_TEST(BrTable_loop_target) {
   CHECK_EQ(1, r.Call(0));
 }
 
-WASM_EXEC_TEST(F32ReinterpretI32) {
+WASM_EXEC_TEST(I32ReinterpretF32) {
   WasmRunner<int32_t> r(execution_tier);
-  int32_t* memory =
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
 
   BUILD(r, WASM_I32_REINTERPRET_F32(
                WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)));
 
-  FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    r.builder().WriteMemory(&memory[0], expected);
+  FOR_FLOAT32_INPUTS(i) {
+    float input = i;
+    int32_t expected = bit_cast<int32_t, float>(input);
+    r.builder().WriteMemory(&memory[0], input);
     CHECK_EQ(expected, r.Call());
   }
 }
 
-WASM_EXEC_TEST(I32ReinterpretF32) {
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+WASM_EXEC_TEST(F32ReinterpretI32) {
+  WasmRunner<float> r(execution_tier);
   int32_t* memory =
       r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
 
-  BUILD(r,
-        WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO,
-                       WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0))),
-        WASM_I32V_2(107));
+  BUILD(r, WASM_F32_REINTERPRET_I32(
+               WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)));
 
   FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    CHECK_EQ(107, r.Call(expected));
-    CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+    int32_t input = i;
+    float expected = bit_cast<float, int32_t>(input);
+    r.builder().WriteMemory(&memory[0], input);
+    float result = r.Call();
+    if (std::isnan(expected)) {
+      CHECK(std::isnan(result));
+      CHECK(IsSameNan(expected, result));
+    } else {
+      CHECK_EQ(expected, result);
+    }
   }
 }
 

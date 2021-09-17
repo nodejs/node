@@ -37,11 +37,11 @@ void PrintModuleName(Module module, std::ostream& os) {
 #endif  // OBJECT_PRINT
 }
 
-void PrintStatusTransition(Module module, Module::Status new_status) {
+void PrintStatusTransition(Module module, Module::Status old_status) {
   if (!FLAG_trace_module_status) return;
   StdoutStream os;
-  os << "Changing module status from " << module.status() << " to "
-     << new_status << " for ";
+  os << "Changing module status from " << old_status << " to "
+     << module.status() << " for ";
   PrintModuleName(module, os);
 }
 
@@ -56,9 +56,12 @@ void PrintStatusMessage(Module module, const char* message) {
 void SetStatusInternal(Module module, Module::Status new_status) {
   DisallowGarbageCollection no_gc;
 #ifdef DEBUG
-  PrintStatusTransition(module, new_status);
-#endif  // DEBUG
+  Module::Status old_status = static_cast<Module::Status>(module.status());
   module.set_status(new_status);
+  PrintStatusTransition(module, old_status);
+#else
+  module.set_status(new_status);
+#endif  // DEBUG
 }
 
 }  // end namespace
@@ -100,8 +103,7 @@ void Module::RecordError(Isolate* isolate, Handle<Module> module,
 
 void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   DCHECK_NE(module->status(), kEvaluating);
-  if (module->status() != kPreInstantiating &&
-      module->status() != kInstantiating) {
+  if (module->status() != kPreLinking && module->status() != kLinking) {
     return;
   }
 
@@ -127,8 +129,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
 }
 
 void Module::Reset(Isolate* isolate, Handle<Module> module) {
-  DCHECK(module->status() == kPreInstantiating ||
-         module->status() == kInstantiating);
+  DCHECK(module->status() == kPreLinking || module->status() == kLinking);
   DCHECK(module->exception().IsTheHole(isolate));
   // The namespace object cannot exist, because it would have been created
   // by RunInitializationCode, which is called only after this module's SCC
@@ -145,7 +146,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   }
 
   module->set_exports(*exports);
-  SetStatusInternal(*module, kUninstantiated);
+  SetStatusInternal(*module, kUnlinked);
 }
 
 Object Module::GetException() {
@@ -160,7 +161,7 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
                                         Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
-  DCHECK_GE(module->status(), kPreInstantiating);
+  DCHECK_GE(module->status(), kPreLinking);
   DCHECK_NE(module->status(), kEvaluating);
 
   if (module->IsSourceTextModule()) {
@@ -185,7 +186,7 @@ bool Module::Instantiate(
   if (!PrepareInstantiate(isolate, module, context, callback,
                           callback_without_import_assertions)) {
     ResetGraph(isolate, module);
-    DCHECK_EQ(module->status(), kUninstantiated);
+    DCHECK_EQ(module->status(), kUnlinked);
     return false;
   }
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -193,10 +194,10 @@ bool Module::Instantiate(
   unsigned dfs_index = 0;
   if (!FinishInstantiate(isolate, module, &stack, &dfs_index, &zone)) {
     ResetGraph(isolate, module);
-    DCHECK_EQ(module->status(), kUninstantiated);
+    DCHECK_EQ(module->status(), kUnlinked);
     return false;
   }
-  DCHECK(module->status() == kInstantiated || module->status() == kEvaluated ||
+  DCHECK(module->status() == kLinked || module->status() == kEvaluated ||
          module->status() == kErrored);
   DCHECK(stack.empty());
   return true;
@@ -207,9 +208,9 @@ bool Module::PrepareInstantiate(
     v8::Module::ResolveModuleCallback callback,
     DeprecatedResolveCallback callback_without_import_assertions) {
   DCHECK_NE(module->status(), kEvaluating);
-  DCHECK_NE(module->status(), kInstantiating);
-  if (module->status() >= kPreInstantiating) return true;
-  module->SetStatus(kPreInstantiating);
+  DCHECK_NE(module->status(), kLinking);
+  if (module->status() >= kPreLinking) return true;
+  module->SetStatus(kPreLinking);
   STACK_CHECK(isolate, false);
 
   if (module->IsSourceTextModule()) {
@@ -226,8 +227,8 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
                                ZoneForwardList<Handle<SourceTextModule>>* stack,
                                unsigned* dfs_index, Zone* zone) {
   DCHECK_NE(module->status(), kEvaluating);
-  if (module->status() >= kInstantiating) return true;
-  DCHECK_EQ(module->status(), kPreInstantiating);
+  if (module->status() >= kLinking) return true;
+  DCHECK_EQ(module->status(), kPreLinking);
   STACK_CHECK(isolate, false);
 
   if (module->IsSourceTextModule()) {
@@ -273,7 +274,7 @@ MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
 
   // Start of Evaluate () Concrete Method
   // 2. Assert: module.[[Status]] is "linked" or "evaluated".
-  CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
+  CHECK(module->status() == kLinked || module->status() == kEvaluated);
 
   // 3. If module.[[Status]] is "evaluated", set module to
   //    module.[[CycleRoot]].
@@ -313,7 +314,7 @@ MaybeHandle<Object> Module::InnerEvaluate(Isolate* isolate,
   //
   // However, SyntheticModules transition directly to 'Evaluated,' so we should
   // never see an 'Evaluating' module at this point.
-  CHECK_EQ(module->status(), kInstantiated);
+  CHECK_EQ(module->status(), kLinked);
 
   if (module->IsSourceTextModule()) {
     return SourceTextModule::Evaluate(isolate,
@@ -443,7 +444,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   do {
     SourceTextModule current = worklist.back();
     worklist.pop_back();
-    DCHECK_GE(current.status(), kInstantiated);
+    DCHECK_GE(current.status(), kLinked);
 
     if (current.async()) return true;
     FixedArray requested_modules = current.requested_modules();

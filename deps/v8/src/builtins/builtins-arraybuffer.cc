@@ -50,16 +50,11 @@ bool RoundUpToPageSize(size_t byte_length, size_t page_size,
 Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                        Handle<JSReceiver> new_target, Handle<Object> length,
                        Handle<Object> max_length, InitializedFlag initialized) {
-  SharedFlag shared =
-      (*target != target->native_context().array_buffer_fun() &&
-       *target != target->native_context().resizable_array_buffer_fun())
-          ? SharedFlag::kShared
-          : SharedFlag::kNotShared;
-  ResizableFlag resizable =
-      (*target == target->native_context().resizable_array_buffer_fun() ||
-       *target == target->native_context().growable_shared_array_buffer_fun())
-          ? ResizableFlag::kResizable
-          : ResizableFlag::kNotResizable;
+  SharedFlag shared = *target != target->native_context().array_buffer_fun()
+                          ? SharedFlag::kShared
+                          : SharedFlag::kNotShared;
+  ResizableFlag resizable = max_length.is_null() ? ResizableFlag::kNotResizable
+                                                 : ResizableFlag::kResizable;
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -83,12 +78,9 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   if (resizable == ResizableFlag::kNotResizable) {
     backing_store =
         BackingStore::Allocate(isolate, byte_length, shared, initialized);
+    max_byte_length = byte_length;
   } else {
-    Handle<Object> number_max_length;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_max_length,
-                                       Object::ToInteger(isolate, max_length));
-
-    if (!TryNumberToSize(*number_max_length, &max_byte_length)) {
+    if (!TryNumberToSize(*max_length, &max_byte_length)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
           NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
@@ -116,8 +108,8 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
     }
     constexpr bool kIsWasmMemory = false;
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
-        isolate, byte_length, page_size, initial_pages, max_pages,
-        kIsWasmMemory, shared);
+        isolate, byte_length, max_byte_length, page_size, initial_pages,
+        max_pages, kIsWasmMemory, shared);
   }
   if (!backing_store) {
     // Allocation of backing store failed.
@@ -137,10 +129,7 @@ BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
   DCHECK(*target == target->native_context().array_buffer_fun() ||
-         *target == target->native_context().shared_array_buffer_fun() ||
-         *target == target->native_context().resizable_array_buffer_fun() ||
-         *target ==
-             target->native_context().growable_shared_array_buffer_fun());
+         *target == target->native_context().shared_array_buffer_fun());
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
@@ -158,9 +147,22 @@ BUILTIN(ArrayBufferConstructor) {
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
 
-  Handle<Object> max_length = args.atOrUndefined(isolate, 2);
-  return ConstructBuffer(isolate, target, new_target, number_length, max_length,
-                         InitializedFlag::kZeroInitialized);
+  Handle<Object> number_max_length;
+  if (FLAG_harmony_rab_gsab) {
+    Handle<Object> max_length;
+    Handle<Object> options = args.atOrUndefined(isolate, 2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, max_length,
+        JSObject::ReadFromOptionsBag(
+            options, isolate->factory()->max_byte_length_string(), isolate));
+
+    if (!max_length->IsUndefined(isolate)) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, number_max_length, Object::ToInteger(isolate, max_length));
+    }
+  }
+  return ConstructBuffer(isolate, target, new_target, number_length,
+                         number_max_length, InitializedFlag::kZeroInitialized);
 }
 
 // This is a helper to construct an ArrayBuffer with uinitialized memory.
@@ -462,45 +464,48 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// ES #sec-get-growablesharedarraybuffer.prototype.bytelength
-// get GrowableSharedArrayBuffer.prototype.byteLength
-BUILTIN(GrowableSharedArrayBufferPrototypeGetByteLength) {
-  const char* const kMethodName =
-      "get GrowableSharedArrayBuffer.prototype.byteLength";
+// ES #sec-get-sharedarraybuffer.prototype.bytelength
+// get SharedArrayBuffer.prototype.byteLength
+BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
+  const char* const kMethodName = "get SharedArrayBuffer.prototype.byteLength";
   HandleScope scope(isolate);
-
   // 1. Let O be the this value.
-  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferMaxLength]]).
+  // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-  CHECK_RESIZABLE(true, array_buffer, kMethodName);
   // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
   CHECK_SHARED(true, array_buffer, kMethodName);
 
+  DCHECK_EQ(array_buffer->max_byte_length(),
+            array_buffer->GetBackingStore()->max_byte_length());
+
   // 4. Let length be ArrayBufferByteLength(O, SeqCst).
+  size_t byte_length;
+  if (array_buffer->is_resizable()) {
+    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
+    // BackingStore).
+    DCHECK_EQ(0, array_buffer->byte_length());
 
-  // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-  // BackingStore).
-  DCHECK_EQ(0, array_buffer->byte_length());
-
-  size_t byte_length =
-      array_buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
-
-  // 5. Return length.
+    byte_length =
+        array_buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  } else {
+    byte_length = array_buffer->byte_length();
+  }
+  // 5. Return F(length).
   return *isolate->factory()->NewNumberFromSize(byte_length);
 }
 
-// ES #sec-resizablearraybuffer.prototype.resize
-// ResizableArrayBuffer.prototype.resize(new_size))
-BUILTIN(ResizableArrayBufferPrototypeResize) {
-  const char* const kMethodName = "ResizableArrayBuffer.prototype.resize";
+// ES #sec-arraybuffer.prototype.resize
+// ArrayBuffer.prototype.resize(new_size))
+BUILTIN(ArrayBufferPrototypeResize) {
+  const char* const kMethodName = "ArrayBuffer.prototype.resize";
   constexpr bool kIsShared = false;
   return ResizeHelper(args, isolate, kMethodName, kIsShared);
 }
 
-// ES #sec-growablesharedarraybuffer.prototype.grow
-// GrowableSharedArrayBuffer.prototype.grow(new_size))
-BUILTIN(GrowableSharedArrayBufferPrototypeGrow) {
-  const char* const kMethodName = "GrowableSharedArrayBuffer.prototype.grow";
+// ES #sec-sharedarraybuffer.prototype.grow
+// SharedArrayBuffer.prototype.grow(new_size))
+BUILTIN(SharedArrayBufferPrototypeGrow) {
+  const char* const kMethodName = "SharedArrayBuffer.prototype.grow";
   constexpr bool kIsShared = true;
   return ResizeHelper(args, isolate, kMethodName, kIsShared);
 }

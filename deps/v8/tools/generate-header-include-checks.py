@@ -33,6 +33,8 @@ AUTO_EXCLUDE = [
   'src/flags/flag-definitions.h',
   # recorder.h should only be included conditionally.
   'src/libplatform/tracing/recorder.h',
+  # trap-handler-simulator.h can only be included in simulator builds.
+  'src/trap-handler/trap-handler-simulator.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',

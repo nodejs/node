@@ -367,16 +367,5 @@ TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
   EXPECT_DEATH_IF_SUPPORTED(Heap::From(GetHeap())->Terminate(), "");
 }
 
-TEST_F(GCHeapTest, IsHeapObjectAliveForConstPointer) {
-  // Regression test: http://crbug.com/661363.
-  GCed<64>* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-  HeapObjectHeader& header = HeapObjectHeader::FromObject(object);
-  LivenessBroker broker = internal::LivenessBrokerFactory::Create();
-  EXPECT_TRUE(header.TryMarkAtomic());
-  EXPECT_TRUE(broker.IsHeapObjectAlive(object));
-  const GCed<64>* const_object = const_cast<const GCed<64>*>(object);
-  EXPECT_TRUE(broker.IsHeapObjectAlive(const_object));
-}
-
 }  // namespace internal
 }  // namespace cppgc

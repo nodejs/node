@@ -15,7 +15,6 @@
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
-#include "src/compiler/serializer-hints.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
@@ -119,23 +118,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_isolate_bootstrapping() const { return is_isolate_bootstrapping_; }
-  bool is_native_context_independent() const {
-    // TODO(jgruber,v8:8888): Remove dependent code.
-    return false;
-  }
-  bool generate_full_feedback_collection() const {
-    // NCI code currently collects full feedback.
-    DCHECK_IMPLIES(is_native_context_independent(),
-                   CollectFeedbackInGenericLowering());
-    return is_native_context_independent();
-  }
   bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
-    // TODO(mvstanton): when the broker gathers feedback on the background
-    // thread, this should return a local NexusConfig object which points
-    // to the associated LocalHeap.
-    return NexusConfig::FromMainThread(isolate());
+    return IsMainThread() ? NexusConfig::FromMainThread(isolate())
+                          : NexusConfig::FromBackgroundThread(
+                                isolate(), local_isolate()->heap());
   }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
@@ -183,12 +171,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool HasFeedback(FeedbackSource const& source) const;
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);
-  ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
   FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
   // TODO(neis): Move these into serializer when we're always in the background.
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
-      MapHandles const& maps, KeyedAccessMode const& keyed_mode,
+      ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
 
   // Binary, comparison and for-in hints can be fully expressed via
@@ -216,70 +203,24 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   ProcessedFeedback const& ProcessFeedbackForBinaryOperation(
       FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForCall(FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForCompareOperation(
       FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForForIn(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForGlobalAccess(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForInstanceOf(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForPropertyAccess(
-      FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
-  ProcessedFeedback const& ProcessFeedbackForArrayOrObjectLiteral(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForRegExpLiteral(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForTemplateObject(
       FeedbackSource const& source);
 
   bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
-  // If {policy} is {kAssumeSerialized} and the broker doesn't know about the
-  // combination of {map}, {name}, and {access_mode}, returns Invalid.
   PropertyAccessInfo GetPropertyAccessInfo(
       MapRef map, NameRef name, AccessMode access_mode,
-      CompilationDependencies* dependencies = nullptr,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+      CompilationDependencies* dependencies);
 
   MinimorphicLoadPropertyAccessInfo GetPropertyAccessInfo(
       MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
-  // Used to separate the problem of a concurrent GetPropertyAccessInfo (GPAI)
-  // from serialization. GPAI is currently called both during the serialization
-  // phase, and on the background thread. While some crucial objects (like
-  // JSObject) still must be serialized, we do the following:
-  // - Run GPAI during serialization to discover and serialize required objects.
-  // - After the serialization phase, clear cached property access infos.
-  // - On the background thread, rerun GPAI in a concurrent setting. The cache
-  //   has been cleared, thus the actual logic runs again.
-  // Once all required object kinds no longer require serialization, this
-  // should be removed together with all GPAI calls during serialization.
-  void ClearCachedPropertyAccessInfos() {
-    CHECK(FLAG_turbo_concurrent_get_property_access_info);
-    property_access_infos_.clear();
-  }
-
-  // As above, clear cached ObjectData that can be reconstructed, i.e. is
-  // either never-serialized or background-serialized.
-  void ClearReconstructibleData();
+      FeedbackSource const& source);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
-
-  bool ShouldBeSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                        const FeedbackVectorRef& feedback,
-                                        const HintsVector& arguments) const;
-  void SetSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                   const FeedbackVectorRef& feedback,
-                                   const HintsVector& arguments);
-  bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                  const FeedbackVectorRef& feedback) const;
 
   bool IsMainThread() const {
     return local_isolate() == nullptr || local_isolate()->is_main_thread();
@@ -404,13 +345,23 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool ObjectMayBeUninitialized(Object object) const;
   bool ObjectMayBeUninitialized(HeapObject object) const;
 
+  void set_dependencies(CompilationDependencies* dependencies) {
+    DCHECK_NOT_NULL(dependencies);
+    DCHECK_NULL(dependencies_);
+    dependencies_ = dependencies;
+  }
+  CompilationDependencies* dependencies() const {
+    DCHECK_NOT_NULL(dependencies_);
+    return dependencies_;
+  }
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
   friend class PropertyCellData;
 
-  bool CanUseFeedback(const FeedbackNexus& nexus) const;
+  ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
 
   // Bottleneck FeedbackNexus access here, for storage in the broker
@@ -497,21 +448,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   ZoneVector<ObjectData*> typed_array_string_tags_;
 
-  struct SerializedFunction {
-    SharedFunctionInfoRef shared;
-    FeedbackVectorRef feedback;
-
-    bool operator<(const SerializedFunction& other) const {
-      if (shared.object().address() < other.shared.object().address()) {
-        return true;
-      }
-      if (shared.object().address() == other.shared.object().address()) {
-        return feedback.object().address() < other.feedback.object().address();
-      }
-      return false;
-    }
-  };
-  ZoneMultimap<SerializedFunction, HintsVector> serialized_functions_;
+  CompilationDependencies* dependencies_ = nullptr;
 
   // The MapUpdater mutex is used in recursive patterns; for example,
   // ComputePropertyAccessInfo may call itself recursively. Thus we need to

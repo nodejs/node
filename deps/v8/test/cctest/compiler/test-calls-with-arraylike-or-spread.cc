@@ -126,6 +126,57 @@ TEST(ReduceJSCreateBoundFunction) {
       IrOpcode::kPhi);
 }
 
+static void SumF(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ApiTestFuzzer::Fuzz();
+  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+  int this_x = args.This()
+                   ->Get(context, v8_str("x"))
+                   .ToLocalChecked()
+                   ->Int32Value(context)
+                   .FromJust();
+  args.GetReturnValue().Set(v8_num(
+      args[0]->Int32Value(args.GetIsolate()->GetCurrentContext()).FromJust() +
+      args[1]->Int32Value(args.GetIsolate()->GetCurrentContext()).FromJust() +
+      this_x));
+}
+
+TEST(ReduceCAPICallWithArrayLike) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  FLAG_allow_natives_syntax = true;
+  FLAG_turbo_optimize_apply = true;
+
+  Local<v8::FunctionTemplate> sum = v8::FunctionTemplate::New(isolate, SumF);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("sum"),
+                  sum->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
+  Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::String> class_name = v8_str("the_class_name");
+  fun->SetClassName(class_name);
+  Local<ObjectTemplate> templ1 = ObjectTemplate::New(isolate, fun);
+  templ1->Set(isolate, "x", v8_num(42));
+  templ1->Set(isolate, "foo", sum);
+  Local<v8::Object> instance1 =
+      templ1->NewInstance(env.local()).ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("p"), instance1).FromJust());
+
+  std::string js_code =
+      "function bar(a, b) { return sum.apply(p, [a, b]); }"
+      "%PrepareFunctionForOptimization(bar);"
+      "bar(20, 22);"
+      "%OptimizeFunctionOnNextCall(bar);"
+      "bar(20, 22);";
+  v8::Local<v8::Value> result_value = CompileRun(js_code.c_str());
+  CHECK(result_value->IsNumber());
+  int32_t result =
+      ConvertJSValue<int32_t>::Get(result_value, env.local()).ToChecked();
+  CHECK_EQ(result, 84);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

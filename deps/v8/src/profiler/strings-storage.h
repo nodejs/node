@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 class Name;
+class Symbol;
 
 // Provides a storage of strings allocated in C++ heap, to hold them
 // forever, even if they disappear from JS heap or external storage.
@@ -57,6 +58,7 @@ class V8_EXPORT_PRIVATE StringsStorage {
   base::CustomMatcherHashMap::Entry* GetEntry(const char* str, int len);
   PRINTF_FORMAT(2, 0)
   const char* GetVFormatted(const char* format, va_list args);
+  const char* GetSymbol(Symbol sym);
 
   base::CustomMatcherHashMap names_;
   base::Mutex mutex_;

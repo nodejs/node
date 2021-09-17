@@ -5172,10 +5172,28 @@ void Assembler::RecordConstPool(int size) {
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  if (!update_embedded_objects) return;
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    WriteUnalignedValue(base + p.first, *object);
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    WriteUnalignedValue(base + p.first, p.second);
+  }
+  saved_handles_for_raw_object_ptr_.clear();
+}
+
 void Assembler::GrowBuffer() {
   DCHECK_EQ(buffer_start_, buffer_->start());
 
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -5209,11 +5227,12 @@ void Assembler::GrowBuffer() {
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    Address base = reinterpret_cast<Address>(buffer_->start());
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      WriteUnalignedValue(base + p.first, p.second);
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
+    } else {
+      FixOnHeapReferencesToHandles();
     }
   }
 
@@ -5237,7 +5256,8 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
@@ -5250,7 +5270,8 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNone(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
+           RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
@@ -5450,13 +5471,12 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
                    SetLdrRegisterImmediateOffset(instr, delta));
       if (!entry.is_merged()) {
         if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
+          int offset = pc_offset();
           saved_handles_for_raw_object_ptr_.push_back(
-              std::make_pair(pc_offset(), entry.value()));
-          Handle<HeapObject> handle(reinterpret_cast<Address*>(entry.value()));
-          emit(handle->ptr());
-          // We must ensure that `emit` is not growing the assembler buffer
-          // and falling back to off-heap compilation.
-          DCHECK(IsOnHeap());
+              std::make_pair(offset, entry.value()));
+          Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
+          emit(object->ptr());
+          DCHECK(EmbeddedObjectMatches(offset, object));
         } else {
           emit(entry.value());
         }

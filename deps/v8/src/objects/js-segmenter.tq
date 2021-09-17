@@ -10,7 +10,6 @@ bitfield struct JSSegmenterFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }
 
-@generateCppClass
 extern class JSSegmenter extends JSObject {
   locale: String;
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>

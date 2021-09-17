@@ -20,21 +20,13 @@ namespace internal {
 
 #include "torque-generated/src/objects/module-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
 NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
 NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
-
-CAST_ACCESSOR(Module)
-ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
-ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
-ACCESSORS(Module, exception, Object, kExceptionOffset)
-ACCESSORS(Module, top_level_capability, HeapObject, kTopLevelCapabilityOffset)
-SMI_ACCESSORS(Module, status, kStatusOffset)
-SMI_ACCESSORS(Module, hash, kHashOffset)
 
 BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluating_ordinal,

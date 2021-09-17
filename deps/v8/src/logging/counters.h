@@ -214,7 +214,7 @@ class Histogram {
   // Returns true if this histogram is enabled.
   bool Enabled() { return histogram_ != nullptr; }
 
-  const char* name() { return name_; }
+  const char* name() const { return name_; }
 
   int min() const { return min_; }
   int max() const { return max_; }
@@ -242,7 +242,9 @@ class Histogram {
   Counters* counters() const { return counters_; }
 
   // Reset the cached internal pointer.
-  void Reset() { histogram_ = CreateHistogram(); }
+  void Reset(bool create_new = true) {
+    histogram_ = create_new ? CreateHistogram() : nullptr;
+  }
 
  private:
   friend class Counters;
@@ -257,204 +259,74 @@ class Histogram {
   Counters* counters_;
 };
 
-enum class HistogramTimerResolution { MILLISECOND, MICROSECOND };
+enum class TimedHistogramResolution { MILLISECOND, MICROSECOND };
 
 // A thread safe histogram timer. It also allows distributions of
 // nested timed results.
 class TimedHistogram : public Histogram {
  public:
-  // Start the timer. Log if isolate non-null.
-  V8_EXPORT_PRIVATE void Start(base::ElapsedTimer* timer, Isolate* isolate);
-
-  // Stop the timer and record the results. Log if isolate non-null.
-  V8_EXPORT_PRIVATE void Stop(base::ElapsedTimer* timer, Isolate* isolate);
-
   // Records a TimeDelta::Max() result. Useful to record percentage of tasks
   // that never got to run in a given scenario. Log if isolate non-null.
   void RecordAbandon(base::ElapsedTimer* timer, Isolate* isolate);
 
   // Add a single sample to this histogram.
-  void AddTimedSample(base::TimeDelta sample);
+  V8_EXPORT_PRIVATE void AddTimedSample(base::TimeDelta sample);
+
+#ifdef DEBUG
+  // Ensures that we don't have nested timers for TimedHistogram per thread, use
+  // NestedTimedHistogram which correctly pause and resume timers.
+  // This method assumes that each timer is alternating between stopped and
+  // started on a single thread. Multiple timers can be active on different
+  // threads.
+  bool ToggleRunningState(bool expected_is_running) const;
+#endif  // DEBUG
 
  protected:
+  void Stop(base::ElapsedTimer* timer);
+  void LogStart(Isolate* isolate);
+  void LogEnd(Isolate* isolate);
+
   friend class Counters;
-  HistogramTimerResolution resolution_;
+  TimedHistogramResolution resolution_;
 
   TimedHistogram() = default;
   TimedHistogram(const char* name, int min, int max,
-                 HistogramTimerResolution resolution, int num_buckets,
+                 TimedHistogramResolution resolution, int num_buckets,
                  Counters* counters)
       : Histogram(name, min, max, num_buckets, counters),
         resolution_(resolution) {}
-  void AddTimeSample();
 };
 
-// Helper class for scoping a TimedHistogram.
-class V8_NODISCARD TimedHistogramScope {
- public:
-  explicit TimedHistogramScope(TimedHistogram* histogram,
-                               Isolate* isolate = nullptr)
-      : histogram_(histogram), isolate_(isolate) {
-    histogram_->Start(&timer_, isolate);
-  }
+class NestedTimedHistogramScope;
+class PauseNestedTimedHistogramScope;
 
-  ~TimedHistogramScope() { histogram_->Stop(&timer_, isolate_); }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-  Isolate* isolate_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
-};
-
-enum class OptionalTimedHistogramScopeMode { TAKE_TIME, DONT_TAKE_TIME };
-
-// Helper class for scoping a TimedHistogram.
-// It will not take time for mode = DONT_TAKE_TIME.
-class V8_NODISCARD OptionalTimedHistogramScope {
- public:
-  OptionalTimedHistogramScope(TimedHistogram* histogram, Isolate* isolate,
-                              OptionalTimedHistogramScopeMode mode)
-      : histogram_(histogram), isolate_(isolate), mode_(mode) {
-    if (mode == OptionalTimedHistogramScopeMode::TAKE_TIME) {
-      histogram_->Start(&timer_, isolate);
-    }
-  }
-
-  ~OptionalTimedHistogramScope() {
-    if (mode_ == OptionalTimedHistogramScopeMode::TAKE_TIME) {
-      histogram_->Stop(&timer_, isolate_);
-    }
-  }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* const histogram_;
-  Isolate* const isolate_;
-  const OptionalTimedHistogramScopeMode mode_;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OptionalTimedHistogramScope);
-};
-
-// Helper class for recording a TimedHistogram asynchronously with manual
-// controls (it will not generate a report if destroyed without explicitly
-// triggering a report). |async_counters| should be a shared_ptr to
-// |histogram->counters()|, making it is safe to report to an
-// AsyncTimedHistogram after the associated isolate has been destroyed.
-// AsyncTimedHistogram can be moved/copied to avoid computing Now() multiple
-// times when the times of multiple tasks are identical; each copy will generate
-// its own report.
-class AsyncTimedHistogram {
- public:
-  explicit AsyncTimedHistogram(TimedHistogram* histogram,
-                               std::shared_ptr<Counters> async_counters)
-      : histogram_(histogram), async_counters_(std::move(async_counters)) {
-    histogram_->AssertReportsToCounters(async_counters_.get());
-    histogram_->Start(&timer_, nullptr);
-  }
-
-  // Records the time elapsed to |histogram_| and stops |timer_|.
-  void RecordDone() { histogram_->Stop(&timer_, nullptr); }
-
-  // Records TimeDelta::Max() to |histogram_| and stops |timer_|.
-  void RecordAbandon() { histogram_->RecordAbandon(&timer_, nullptr); }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-  std::shared_ptr<Counters> async_counters_;
-};
-
-// Helper class for scoping a TimedHistogram, where the histogram is selected at
-// stop time rather than start time.
-// TODO(leszeks): This is heavily reliant on TimedHistogram::Start() doing
-// nothing but starting the timer, and TimedHistogram::Stop() logging the sample
-// correctly even if Start() was not called. This happens to be true iff Stop()
-// is passed a null isolate, but that's an implementation detail of
-// TimedHistogram, and we shouldn't rely on it.
-class V8_NODISCARD LazyTimedHistogramScope {
- public:
-  LazyTimedHistogramScope() : histogram_(nullptr) { timer_.Start(); }
-  ~LazyTimedHistogramScope() {
-    // We should set the histogram before this scope exits.
-    DCHECK_NOT_NULL(histogram_);
-    histogram_->Stop(&timer_, nullptr);
-  }
-
-  void set_histogram(TimedHistogram* histogram) { histogram_ = histogram; }
-
- private:
-  base::ElapsedTimer timer_;
-  TimedHistogram* histogram_;
-};
-
-// A HistogramTimer allows distributions of non-nested timed results
-// to be created. WARNING: This class is not thread safe and can only
-// be run on the foreground thread.
-class HistogramTimer : public TimedHistogram {
+// A NestedTimedHistogram allows distributions of nested timed results.
+class NestedTimedHistogram : public TimedHistogram {
  public:
   // Note: public for testing purposes only.
-  HistogramTimer(const char* name, int min, int max,
-                 HistogramTimerResolution resolution, int num_buckets,
-                 Counters* counters)
+  NestedTimedHistogram(const char* name, int min, int max,
+                       TimedHistogramResolution resolution, int num_buckets,
+                       Counters* counters)
       : TimedHistogram(name, min, max, resolution, num_buckets, counters) {}
-
-  inline void Start();
-  inline void Stop();
-
-  // Returns true if the timer is running.
-  bool Running() { return Enabled() && timer_.IsStarted(); }
-
-  // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
-#ifdef DEBUG
-  base::ElapsedTimer* timer() { return &timer_; }
-#endif
 
  private:
   friend class Counters;
+  friend class NestedTimedHistogramScope;
+  friend class PauseNestedTimedHistogramScope;
 
-  base::ElapsedTimer timer_;
-
-  HistogramTimer() = default;
-};
-
-// Helper class for scoping a HistogramTimer.
-// TODO(bmeurer): The ifdeffery is an ugly hack around the fact that the
-// Parser is currently reentrant (when it throws an error, we call back
-// into JavaScript and all bets are off), but ElapsedTimer is not
-// reentry-safe. Fix this properly and remove |allow_nesting|.
-class V8_NODISCARD HistogramTimerScope {
- public:
-  explicit HistogramTimerScope(HistogramTimer* timer,
-                               bool allow_nesting = false)
-#ifdef DEBUG
-      : timer_(timer), skipped_timer_start_(false) {
-    if (timer_->timer()->IsStarted() && allow_nesting) {
-      skipped_timer_start_ = true;
-    } else {
-      timer_->Start();
-    }
-  }
-#else
-      : timer_(timer) {
-    timer_->Start();
-  }
-#endif
-  ~HistogramTimerScope() {
-#ifdef DEBUG
-    if (!skipped_timer_start_) {
-      timer_->Stop();
-    }
-#else
-    timer_->Stop();
-#endif
+  inline NestedTimedHistogramScope* Enter(NestedTimedHistogramScope* next) {
+    NestedTimedHistogramScope* previous = current_;
+    current_ = next;
+    return previous;
   }
 
- private:
-  HistogramTimer* timer_;
-#ifdef DEBUG
-  bool skipped_timer_start_;
-#endif
+  inline void Leave(NestedTimedHistogramScope* previous) {
+    current_ = previous;
+  }
+
+  NestedTimedHistogramScope* current_ = nullptr;
+
+  NestedTimedHistogram() = default;
 };
 
 // A histogram timer that can aggregate events within a larger scope.
@@ -672,8 +544,9 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef HR
 
 #define HT(name, caption, max, res) \
-  HistogramTimer* name() { return &name##_; }
-  HISTOGRAM_TIMER_LIST(HT)
+  NestedTimedHistogram* name() { return &name##_; }
+  NESTED_TIMED_HISTOGRAM_LIST(HT)
+  NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) \
@@ -711,7 +584,8 @@ class Counters : public std::enable_shared_from_this<Counters> {
   // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
-    HISTOGRAM_TIMER_LIST(RATE_ID)
+    NESTED_TIMED_HISTOGRAM_LIST(RATE_ID)
+    NESTED_TIMED_HISTOGRAM_LIST_SLOW(RATE_ID)
     TIMED_HISTOGRAM_LIST(RATE_ID)
 #undef RATE_ID
 #define AGGREGATABLE_ID(name, caption) k_##name,
@@ -762,7 +636,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
   friend class StatsTable;
   friend class StatsCounterBase;
   friend class Histogram;
-  friend class HistogramTimer;
+  friend class NestedTimedHistogramScope;
 
   int* FindLocation(const char* name) {
     return stats_table_.FindLocation(name);
@@ -782,8 +656,9 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption, max, res) HistogramTimer name##_;
-  HISTOGRAM_TIMER_LIST(HT)
+#define HT(name, caption, max, res) NestedTimedHistogram name##_;
+  NESTED_TIMED_HISTOGRAM_LIST(HT)
+  NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) TimedHistogram name##_;
@@ -840,13 +715,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-void HistogramTimer::Start() {
-  TimedHistogram::Start(&timer_, counters()->isolate());
-}
-
-void HistogramTimer::Stop() {
-  TimedHistogram::Stop(&timer_, counters()->isolate());
-}
 
 }  // namespace internal
 }  // namespace v8

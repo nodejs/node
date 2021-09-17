@@ -385,7 +385,7 @@ void SpaceWithLinearArea::AdvanceAllocationObservers() {
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocation_info_.MoveStartToTop();
+  allocation_info_.ResetStart();
   if (identity() == NEW_SPACE) {
     heap()->new_space()->MoveOriginalTopForward();
 

@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
-let except = builder.addException(kSig_v_i);
+let except = builder.addTag(kSig_v_i);
 builder.addFunction("rethrow0", kSig_v_v)
     .addBody([
       kExprTry, kWasmVoid,

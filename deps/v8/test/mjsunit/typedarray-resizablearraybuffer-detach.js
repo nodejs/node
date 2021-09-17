@@ -22,8 +22,12 @@ const ctors = [
   MyUint8Array
 ];
 
+function CreateResizableArrayBuffer(byteLength, maxByteLength) {
+  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
 (function ConstructorThrowsIfBufferDetached() {
-  const rab = new ResizableArrayBuffer(40, 80);
+  const rab = CreateResizableArrayBuffer(40, 80);
   %ArrayBufferDetach(rab);
 
   for (let ctor of ctors) {
@@ -34,7 +38,7 @@ const ctors = [
 })();
 
 (function TypedArrayLengthAndByteLength() {
-  const rab = new ResizableArrayBuffer(40, 80);
+  const rab = CreateResizableArrayBuffer(40, 80);
 
   let tas = [];
   for (let ctor of ctors) {
@@ -53,7 +57,7 @@ const ctors = [
 })();
 
 (function AccessDetachedTypedArray() {
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
 
@@ -90,7 +94,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(ReadElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
   assertEquals(0, ReadElement2(i8a));
@@ -114,7 +118,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(WriteElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
   assertEquals(0, i8a[2]);

@@ -528,12 +528,14 @@ MaybeHandle<JSFunction> InstantiateFunction(
                                   Handle<HeapObject>::cast(parent_prototype));
     }
   }
-  InstanceType function_type =
-      (!data->needs_access_check() &&
-       data->GetNamedPropertyHandler().IsUndefined(isolate) &&
-       data->GetIndexedPropertyHandler().IsUndefined(isolate))
-          ? JS_API_OBJECT_TYPE
-          : JS_SPECIAL_API_OBJECT_TYPE;
+  InstanceType function_type = JS_SPECIAL_API_OBJECT_TYPE;
+  if (!data->needs_access_check() &&
+      data->GetNamedPropertyHandler().IsUndefined(isolate) &&
+      data->GetIndexedPropertyHandler().IsUndefined(isolate)) {
+    function_type = FLAG_embedder_instance_types && data->HasInstanceType()
+                        ? static_cast<InstanceType>(data->InstanceType())
+                        : JS_API_OBJECT_TYPE;
+  }
 
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
       isolate, native_context, data, prototype, function_type, maybe_name);

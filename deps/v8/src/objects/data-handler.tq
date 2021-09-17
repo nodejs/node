@@ -4,12 +4,18 @@
 
 @abstract
 extern class DataHandler extends Struct {
+  // [smi_handler]: A Smi which encodes a handler or Code object (we still
+  // use code handlers for accessing lexical environment variables, but soon
+  // only smi handlers will remain). See LoadHandler and StoreHandler for
+  // details about encoding.
   @if(V8_EXTERNAL_CODE_SPACE) smi_handler: Smi|CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) smi_handler: Smi|Code;
+
+  // [validity_cell]: A validity Cell that guards prototype chain modifications.
   validity_cell: Smi|Cell;
 
   // Space for the following fields may or may not be allocated.
-  @noVerifier data_1: MaybeObject;
-  @noVerifier data_2: MaybeObject;
-  @noVerifier data_3: MaybeObject;
+  @noVerifier data1: MaybeObject;
+  @noVerifier data2: MaybeObject;
+  @noVerifier data3: MaybeObject;
 }

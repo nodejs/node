@@ -2215,62 +2215,6 @@ void TurboAssembler::CallForDeoptimization(
   }
 }
 
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kSystemPointerSize to count the
-  // receiver argument which is not included into formal parameters count.
-  Register dst_reg = scratch0;
-  Add(dst_reg, fp, Operand(caller_args_count, LSL, kSystemPointerSizeLog2));
-  Add(dst_reg, dst_reg,
-      StandardFrameConstants::kCallerSPOffset + kSystemPointerSize);
-  // Round dst_reg up to a multiple of 16 bytes, so that we overwrite any
-  // potential padding.
-  Add(dst_reg, dst_reg, 15);
-  Bic(dst_reg, dst_reg, 15);
-
-  Register src_reg = caller_args_count;
-  // Calculate the end of source area. +kSystemPointerSize is for the receiver.
-  Add(src_reg, sp, Operand(callee_args_count, LSL, kSystemPointerSizeLog2));
-  Add(src_reg, src_reg, kSystemPointerSize);
-
-  // Round src_reg up to a multiple of 16 bytes, so we include any potential
-  // padding in the copy.
-  Add(src_reg, src_reg, 15);
-  Bic(src_reg, src_reg, 15);
-
-  if (FLAG_debug_code) {
-    Cmp(src_reg, dst_reg);
-    Check(lo, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  RestoreFPAndLR();
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch1;
-  Label loop, entry;
-  B(&entry);
-  bind(&loop);
-  Ldr(tmp_reg, MemOperand(src_reg, -kSystemPointerSize, PreIndex));
-  Str(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize, PreIndex));
-  bind(&entry);
-  Cmp(sp, src_reg);
-  B(ne, &loop);
-
-  // Leave current frame.
-  Mov(sp, dst_reg);
-}
-
 void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(root_array_available());
@@ -2659,11 +2603,11 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push<TurboAssembler::kSignLR>(lr, fp);
     Mov(fp, sp);
-    Push(type_reg, padreg);
+    Push(type_reg, kWasmInstanceRegister);
     // sp[3] : lr
     // sp[2] : fp
     // sp[1] : type
-    // sp[0] : for alignment
+    // sp[0] : wasm instance
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (type == StackFrame::CONSTRUCT) {
     Register type_reg = temps.AcquireX();

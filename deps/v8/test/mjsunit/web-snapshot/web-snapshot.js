@@ -13,13 +13,13 @@ function use(exports) {
 function takeAndUseWebSnapshot(createObjects, exports) {
   // Take a snapshot in Realm r1.
   const r1 = Realm.create();
-  Realm.eval(r1, createObjects, {type: 'function'});
+  Realm.eval(r1, createObjects, { type: 'function' });
   const snapshot = Realm.takeWebSnapshot(r1, exports);
   // Use the snapshot in Realm r2.
   const r2 = Realm.create();
   const success = Realm.useWebSnapshot(r2, snapshot);
   assertTrue(success);
-  return Realm.eval(r2, use, {type: 'function', arguments: [exports]});
+  return Realm.eval(r2, use, { type: 'function', arguments: [exports] });
 }
 
 (function TestMinimal() {
@@ -191,7 +191,7 @@ function takeAndUseWebSnapshot(createObjects, exports) {
 (function TestObjectReferencingObject() {
   function createObjects() {
     globalThis.foo = {
-      bar: {baz: 11525}
+      bar: { baz: 11525 }
     };
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
@@ -201,7 +201,7 @@ function takeAndUseWebSnapshot(createObjects, exports) {
 (function TestContextReferencingObject() {
   function createObjects() {
     function outer() {
-      let o = {value: 11525};
+      let o = { value: 11525 };
       function inner() { return o; }
       return inner;
     }
@@ -259,7 +259,7 @@ function takeAndUseWebSnapshot(createObjects, exports) {
 (function TestArrayContainingObject() {
   function createObjects() {
     globalThis.foo = {
-      array: [{a: 1}, {b: 2}]
+      array: [{ a: 1 }, { b: 2 }]
     };
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
@@ -270,13 +270,12 @@ function takeAndUseWebSnapshot(createObjects, exports) {
 (function TestArrayContainingFunction() {
   function createObjects() {
     globalThis.foo = {
-      array: [function() { return 5; }]
+      array: [function () { return 5; }]
     };
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals(5, foo.array[0]());
 })();
-
 
 (function TestContextReferencingArray() {
   function createObjects() {
@@ -291,4 +290,47 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals(11525, foo.func()[0]);
+})();
+
+(function TestEmptyClass() {
+  function createObjects() {
+    globalThis.Foo = class Foo { };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  const x = new Foo();
+})();
+
+(function TestClassWithConstructor() {
+  function createObjects() {
+    globalThis.Foo = class {
+      constructor() {
+        this.n = 42;
+      }
+    };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  const x = new Foo(2);
+  assertEquals(42, x.n);
+})();
+
+(function TestClassWithMethods() {
+  function createObjects() {
+    globalThis.Foo = class {
+      f() { return 7; };
+    };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  const x = new Foo();
+  assertEquals(7, x.f());
+})();
+
+(async function TestClassWithAsyncMethods() {
+  function createObjects() {
+    globalThis.Foo = class {
+      async g() { return 6; };
+    };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  const x = new Foo();
+  assertEquals(6, await x.g());
 })();

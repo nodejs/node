@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 extern class PromiseCapability extends Struct {
   promise: JSReceiver|Undefined;
   // TODO(joshualitt): Can these be typed more specifically.
@@ -25,7 +24,6 @@ const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
 const kPromiseReactionContinuationPreservedEmbedderDataOffset: constexpr int31
     generates 'PromiseReaction::kContinuationPreservedEmbedderDataOffset';
 
-@generateCppClass
 extern class PromiseReaction extends Struct {
   next: PromiseReaction|Zero;
   reject_handler: Callable|Undefined;
@@ -49,7 +47,6 @@ const kPromiseReactionJobTaskContinuationPreservedEmbedderDataOffset:
     ;
 
 @abstract
-@generateCppClass
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
@@ -60,15 +57,10 @@ extern class PromiseReactionJobTask extends Microtask {
   continuation_preserved_embedder_data: Object|Undefined;
 }
 
-@generateCppClass
-extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {
-}
+extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}
 
-@generateCppClass
-extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {
-}
+extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {}
 
-@generateCppClass
 extern class PromiseResolveThenableJobTask extends Microtask {
   context: Context;
   promise_to_resolve: JSPromise;

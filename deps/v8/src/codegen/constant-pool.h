@@ -192,7 +192,8 @@ class ConstantPoolKey {
            rmode_ != RelocInfo::VENEER_POOL &&
            rmode_ != RelocInfo::DEOPT_SCRIPT_OFFSET &&
            rmode_ != RelocInfo::DEOPT_INLINING_ID &&
-           rmode_ != RelocInfo::DEOPT_REASON && rmode_ != RelocInfo::DEOPT_ID);
+           rmode_ != RelocInfo::DEOPT_REASON && rmode_ != RelocInfo::DEOPT_ID &&
+           rmode_ != RelocInfo::DEOPT_NODE_ID);
     // CODE_TARGETs can be shared because they aren't patched anymore,
     // and we make sure we emit only one reloc info for them (thus delta
     // patching) will apply the delta only once. At the moment, we do not dedup

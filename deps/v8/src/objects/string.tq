@@ -5,7 +5,6 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 @abstract
-@generateCppClass
 @reserveBitsInInstanceType(6)
 extern class String extends Name {
   macro StringInstanceType(): StringInstanceType {
@@ -31,7 +30,6 @@ bitfield struct StringInstanceType extends uint16 {
   is_not_internalized: bool: 1 bit;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class ConsString extends String {
@@ -92,30 +90,25 @@ extern class ExternalTwoByteString extends ExternalString {
   }
 }
 
-@generateCppClass
 @doNotGenerateCast
 extern class InternalizedString extends String {
 }
 
 @abstract
-@generateCppClass
 @doNotGenerateCast
 extern class SeqString extends String {
 }
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqOneByteString extends SeqString {
   const chars[length]: char8;
 }
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqTwoByteString extends SeqString {
   const chars[length]: char16;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SlicedString extends String {
@@ -123,7 +116,6 @@ extern class SlicedString extends String {
   offset: Smi;
 }
 
-@generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class ThinString extends String {

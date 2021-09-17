@@ -460,13 +460,21 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
+#ifdef DEBUG
+    os << " index  bytecode-offset  node-id    pc";
+#else   // DEBUG
     os << " index  bytecode-offset    pc";
+#endif  // DEBUG
     if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << GetBytecodeOffset(i).ToInt() << "  " << std::setw(4);
+       << GetBytecodeOffset(i).ToInt() << "  "
+#ifdef DEBUG
+       << std::setw(7) << NodeId(i).value() << "  "
+#endif  // DEBUG
+       << std::setw(4);
     print_pc(os, Pc(i).value());
     os << std::setw(2);
 

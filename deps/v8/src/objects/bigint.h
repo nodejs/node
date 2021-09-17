@@ -14,6 +14,11 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+namespace bigint {
+class FromStringAccumulator;
+}  // namespace bigint
+
 namespace internal {
 
 void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
@@ -252,13 +257,9 @@ class BigInt : public BigIntBase {
   static Handle<BigInt> Zero(
       IsolateT* isolate, AllocationType allocation = AllocationType::kYoung);
   template <typename IsolateT>
-  static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
-      IsolateT* isolate, int radix, int charcount, ShouldThrow should_throw,
-      AllocationType allocation);
-  static void InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
-                                 uintptr_t summand);
-  template <typename IsolateT>
-  static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
+  static MaybeHandle<BigInt> Allocate(
+      IsolateT* isolate, bigint::FromStringAccumulator* accumulator,
+      bool negative, AllocationType allocation);
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;

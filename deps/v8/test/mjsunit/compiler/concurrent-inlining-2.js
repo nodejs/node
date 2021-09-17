@@ -22,5 +22,5 @@ function foo(obj) { obj.gaga; %TurbofanStaticAssert(bar(obj)); }
 
 bar({gaga() {}});
 foo(global);
-%OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionForTopTier(foo);
 foo(global);

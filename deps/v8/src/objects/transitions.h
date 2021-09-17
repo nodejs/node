@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TRANSITIONS_H_
 
 #include "src/common/checks.h"
+#include "src/execution/isolate.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/map.h"
@@ -45,12 +46,12 @@ using ForEachTransitionCallback = std::function<void(Map)>;
 // cleared when the map they refer to is not otherwise reachable.
 class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
-  // For concurrent access, use the other constructor.
-  inline TransitionsAccessor(Isolate* isolate, Map map,
-                             DisallowGarbageCollection* no_gc);
   // {concurrent_access} signals that the TransitionsAccessor will only be used
   // in background threads. It acquires a reader lock for critical paths, as
   // well as blocking the accessor from modifying the TransitionsArray.
+  inline TransitionsAccessor(Isolate* isolate, Map map,
+                             DisallowGarbageCollection* no_gc,
+                             bool concurrent_access = false);
   inline TransitionsAccessor(Isolate* isolate, Handle<Map> map,
                              bool concurrent_access = false);
   // Insert a new transition into |map|'s transition array, extending it
@@ -106,10 +107,12 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // ===== ITERATION =====
   using TraverseCallback = std::function<void(Map)>;
 
-  // Traverse the transition tree in postorder.
-  void TraverseTransitionTree(TraverseCallback callback) {
+  // Traverse the transition tree in preorder.
+  void TraverseTransitionTree(const TraverseCallback& callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
+    base::SharedMutexGuardIf<base::kShared> scope(
+        isolate_->full_transition_array_access(), concurrent_access_);
     TraverseTransitionTreeInternal(callback, &no_gc);
   }
 
@@ -172,6 +175,9 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   friend class third_party_heap::Impl;
   friend class TransitionArray;
 
+  static inline Encoding GetEncoding(Isolate* isolate,
+                                     MaybeObject raw_transitions);
+
   inline PropertyDetails GetSimpleTargetDetails(Map transition);
 
   static inline Name GetSimpleTransitionKey(Map transition);
@@ -197,7 +203,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
   WeakFixedArray GetPrototypeTransitions();
 
-  void TraverseTransitionTreeInternal(TraverseCallback callback,
+  void TraverseTransitionTreeInternal(const TraverseCallback& callback,
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
@@ -329,9 +335,11 @@ class TransitionArray : public WeakFixedArray {
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
-  inline int SearchSpecial(Symbol symbol, int* out_insertion_index = nullptr);
+  inline int SearchSpecial(Symbol symbol, bool concurrent_search = false,
+                           int* out_insertion_index = nullptr);
   // Search a first transition for a given property name.
-  inline int SearchName(Name name, int* out_insertion_index = nullptr);
+  inline int SearchName(Name name, bool concurrent_search = false,
+                        int* out_insertion_index = nullptr);
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
   Map SearchDetailsAndGetTarget(int transition, PropertyKind kind,

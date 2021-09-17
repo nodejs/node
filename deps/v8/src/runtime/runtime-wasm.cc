@@ -168,18 +168,8 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<WasmExceptionTag> tag(tag_raw, isolate);
   Handle<FixedArray> values(values_raw, isolate);
-
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplate::kWasmExceptionError);
-  Object::SetProperty(
-      isolate, exception, isolate->factory()->wasm_exception_tag_symbol(), tag,
-      StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
-      .Check();
-  Object::SetProperty(
-      isolate, exception, isolate->factory()->wasm_exception_values_symbol(),
-      values, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
-      .Check();
-
+  Handle<WasmExceptionPackage> exception =
+      WasmExceptionPackage::New(isolate, tag, values);
   wasm::GetWasmEngine()->SampleThrowEvent(isolate);
   return isolate->Throw(*exception);
 }
@@ -238,7 +228,7 @@ void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
       WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
                                                   function_index)
           .ToHandleChecked();
-  exported_function->set_code(*wrapper_code);
+  exported_function->set_code(*wrapper_code, kReleaseStore);
   WasmExportedFunctionData function_data =
       exported_function->shared().wasm_exported_function_data();
   function_data.set_wrapper_code(*wrapper_code);
@@ -559,7 +549,13 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Stepping can repeatedly create code, and code GC requires stack guards to
   // be executed on all involved isolates. Proactively do this here.
   StackLimitCheck check(isolate);
-  if (check.InterruptRequested()) isolate->stack_guard()->HandleInterrupts();
+  if (check.InterruptRequested()) {
+    Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
+    // Interrupt handling can create an exception, including the
+    // termination exception.
+    if (interrupt_object.IsException(isolate)) return interrupt_object;
+    DCHECK(interrupt_object.IsUndefined(isolate));
+  }
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
@@ -657,7 +653,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   CONVERT_UINT32_ARG_CHECKED(length, 4);
   bool overlapping_ranges =
       dst_array->ptr() == src_array->ptr() &&
-      (dst_index + length > src_index || src_index + length > dst_index);
+      (dst_index < src_index ? dst_index + length > src_index
+                             : src_index + length > dst_index);
   wasm::ValueType element_type = src_array->type()->element_type();
   if (element_type.is_reference()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);

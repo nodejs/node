@@ -167,7 +167,7 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
       Mutability mutability = global.mutability ? VAR : CONST;
       return GlobalType::make(std::move(content), mutability);
     }
-    case i::wasm::kExternalException:
+    case i::wasm::kExternalTag:
       UNREACHABLE();
   }
 }

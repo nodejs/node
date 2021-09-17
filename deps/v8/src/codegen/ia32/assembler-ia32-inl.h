@@ -186,13 +186,11 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNone(rmode)) {
     RecordRelocInfo(rmode);
     if (rmode == RelocInfo::FULL_EMBEDDED_OBJECT && IsOnHeap()) {
+      int offset = pc_offset();
       Handle<HeapObject> object(reinterpret_cast<Address*>(x));
-      saved_handles_for_raw_object_ptr_.push_back(
-          std::make_pair(pc_offset(), x));
+      saved_handles_for_raw_object_ptr_.push_back(std::make_pair(offset, x));
       emit(object->ptr());
-      // We must ensure that `emit` is not growing the assembler buffer
-      // and falling back to off-heap compilation.
-      DCHECK(IsOnHeap());
+      DCHECK(EmbeddedObjectMatches(offset, object));
       return;
     }
   }
@@ -216,12 +214,11 @@ void Assembler::emit(const Immediate& x) {
     return;
   }
   if (x.is_embedded_object() && IsOnHeap()) {
+    int offset = pc_offset();
     saved_handles_for_raw_object_ptr_.push_back(
-        std::make_pair(pc_offset(), x.immediate()));
+        std::make_pair(offset, x.immediate()));
     emit(x.embedded_object()->ptr());
-    // We must ensure that `emit` is not growing the assembler buffer
-    // and falling back to off-heap compilation.
-    DCHECK(IsOnHeap());
+    DCHECK(EmbeddedObjectMatches(offset, x.embedded_object()));
     return;
   }
   emit(x.immediate());

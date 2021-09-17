@@ -1170,43 +1170,6 @@ std::unique_ptr<ValueMirror> createNativeSetter(v8::Local<v8::Context> context,
   return ValueMirror::create(context, function);
 }
 
-bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
-                                                v8::Local<v8::Object> object,
-                                                v8::Local<v8::Name> name) {
-  // TODO(dgozman): we should remove this, annotate more embedder properties as
-  // side-effect free, and call all getters which do not produce side effects.
-  if (!name->IsString()) return false;
-  v8::Isolate* isolate = context->GetIsolate();
-  if (!name.As<v8::String>()->StringEquals(toV8String(isolate, "body"))) {
-    return false;
-  }
-
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::Value> request;
-  if (context->Global()
-          ->GetRealNamedProperty(context, toV8String(isolate, "Request"))
-          .ToLocal(&request)) {
-    if (request->IsObject() &&
-        object->InstanceOf(context, request.As<v8::Object>())
-            .FromMaybe(false)) {
-      return true;
-    }
-  }
-  if (tryCatch.HasCaught()) tryCatch.Reset();
-
-  v8::Local<v8::Value> response;
-  if (context->Global()
-          ->GetRealNamedProperty(context, toV8String(isolate, "Response"))
-          .ToLocal(&response)) {
-    if (response->IsObject() &&
-        object->InstanceOf(context, response.As<v8::Object>())
-            .FromMaybe(false)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 }  // anonymous namespace
 
 ValueMirror::~ValueMirror() = default;
@@ -1238,8 +1201,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     }
   }
 
-  bool formatAccessorsAsProperties =
-      clientFor(context)->formatAccessorsAsProperties(object);
   auto iterator = v8::debug::PropertyIterator::Create(context, object);
   if (!iterator) {
     CHECK(tryCatch.HasCaught());
@@ -1309,25 +1270,23 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           if (!descriptor.value.IsEmpty()) {
             valueMirror = ValueMirror::create(context, descriptor.value);
           }
-          bool getterIsNativeFunction = false;
+          v8::Local<v8::Function> getterFunction;
           if (!descriptor.get.IsEmpty()) {
             v8::Local<v8::Value> get = descriptor.get;
             getterMirror = ValueMirror::create(context, get);
-            getterIsNativeFunction =
-                get->IsFunction() && get.As<v8::Function>()->ScriptId() ==
-                                         v8::UnboundScript::kNoScriptId;
+            if (get->IsFunction()) getterFunction = get.As<v8::Function>();
           }
           if (!descriptor.set.IsEmpty()) {
             setterMirror = ValueMirror::create(context, descriptor.set);
           }
           isAccessorProperty = getterMirror || setterMirror;
-          if (name != "__proto__" && getterIsNativeFunction &&
-              formatAccessorsAsProperties &&
-              !doesAttributeHaveObservableSideEffectOnGet(context, object,
-                                                          v8Name)) {
+          if (name != "__proto__" && !getterFunction.IsEmpty() &&
+              getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId) {
             v8::TryCatch tryCatch(isolate);
             v8::Local<v8::Value> value;
-            if (object->Get(context, v8Name).ToLocal(&value)) {
+            if (v8::debug::CallFunctionOn(context, getterFunction, object, 0,
+                                          nullptr, true)
+                    .ToLocal(&value)) {
               valueMirror = ValueMirror::create(context, value);
               isOwn = true;
               setterMirror = nullptr;

@@ -18,6 +18,8 @@ namespace internal {
 
 #include "torque-generated/src/objects/name-tq.inc"
 
+class SharedStringAccessGuardIfNeeded;
+
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
@@ -27,7 +29,11 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.
+  //
+  // The overload without SharedStringAccessGuardIfNeeded can only be called on
+  // the main thread.
   inline uint32_t EnsureHash();
+  inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
 
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.

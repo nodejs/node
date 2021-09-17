@@ -364,6 +364,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayElements, bool)
+  DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
 
   DECL_GETTER(HasFixedUint8ClampedElements, bool)
   DECL_GETTER(HasFixedArrayElements, bool)
@@ -715,6 +716,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   static bool IsExtensible(Handle<JSObject> object);
 
+  static MaybeHandle<Object> ReadFromOptionsBag(Handle<Object> options,
+                                                Handle<String> option_name,
+                                                Isolate* isolate);
+
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
   DECL_PRINTER(JSObject)
@@ -792,6 +797,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
   static const int kMaxInstanceSize = 255 * kTaggedSize;
+
+  static const int kMapCacheSize = 128;
 
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields

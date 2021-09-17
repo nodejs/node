@@ -761,7 +761,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Simulation helpers.
   template <typename T>
   void set_pc(T new_pc) {
-    DCHECK(sizeof(T) == sizeof(pc_));
+    STATIC_ASSERT(sizeof(T) == sizeof(pc_));
     memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
@@ -1501,6 +1501,18 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   void NEONLoadStoreSingleStructHelper(const Instruction* instr,
                                        AddrMode addr_mode);
   void CheckMemoryAccess(uintptr_t address, uintptr_t stack);
+
+  // "Probe" if an address range can be read. This is currently implemented
+  // by doing a 1-byte read of the last accessed byte, since the assumption is
+  // that if the last byte is accessible, also all lower bytes are accessible
+  // (which holds true for Wasm).
+  // Returns true if the access was successful, false if the access raised a
+  // signal which was then handled by the trap handler (also see
+  // {trap_handler::ProbeMemory}). If the access raises a signal which is not
+  // handled by the trap handler (e.g. because the current PC is not registered
+  // as a protected instruction), the signal will propagate and make the process
+  // crash. If no trap handler is available, this always returns true.
+  bool ProbeMemory(uintptr_t address, uintptr_t access_size);
 
   // Memory read helpers.
   template <typename T, typename A>

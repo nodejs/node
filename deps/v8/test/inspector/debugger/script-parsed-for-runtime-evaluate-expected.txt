@@ -164,7 +164,7 @@ Runtime.evaluate compiled script with stack trace
                 [0] : {
                     columnNumber : 2
                     functionName : fooTop
-                    lineNumber : 10
+                    lineNumber : 2
                     scriptId : <scriptId>
                     url : top-frame.js
                 }
@@ -247,7 +247,7 @@ Runtime.evaluate compile script error with stack trace
                 [0] : {
                     columnNumber : 2
                     functionName : fooTopFail
-                    lineNumber : 20
+                    lineNumber : 2
                     scriptId : <scriptId>
                     url : top-frame-fail.js
                 }

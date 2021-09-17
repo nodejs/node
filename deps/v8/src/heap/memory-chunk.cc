@@ -115,6 +115,10 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
 
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_CODE],
+                                         nullptr);
+  }
   base::AsAtomicPointer::Release_Store(&chunk->sweeping_slot_set_, nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
                                        nullptr);
@@ -122,6 +126,10 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
                                        nullptr);
   chunk->invalidated_slots_[OLD_TO_NEW] = nullptr;
   chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // Not actually used but initialize anyway for predictability.
+    chunk->invalidated_slots_[OLD_TO_CODE] = nullptr;
+  }
   chunk->progress_bar_ = 0;
   chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
@@ -224,6 +232,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSweepingSlotSet();
   ReleaseSlotSet<OLD_TO_OLD>();
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
   ReleaseInvalidatedSlots<OLD_TO_NEW>();
@@ -243,6 +252,9 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
 
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
+#ifdef V8_EXTERNAL_CODE_SPACE
+template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
@@ -267,6 +279,9 @@ SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
 
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
+#ifdef V8_EXTERNAL_CODE_SPACE
+template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {

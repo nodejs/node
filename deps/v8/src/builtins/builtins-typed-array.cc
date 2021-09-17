@@ -99,7 +99,12 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   count = count * element_size;
 
   uint8_t* data = static_cast<uint8_t*>(array->DataPtr());
-  std::memmove(data + to, data + from, count);
+  if (array->buffer().is_shared()) {
+    base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(data + to),
+                          reinterpret_cast<base::Atomic8*>(data + from), count);
+  } else {
+    std::memmove(data + to, data + from, count);
+  }
 
   return *array;
 }
@@ -114,7 +119,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   ElementsKind kind = array->GetElementsKind();
 
   Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
-  if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
+  if (IsBigIntTypedArrayElementsKind(kind)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
                                        BigInt::FromObject(isolate, obj_value));
   } else {
@@ -122,7 +127,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                        Object::ToNumber(isolate, obj_value));
   }
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   int64_t start = 0;
   int64_t end = len;
 
@@ -142,10 +147,21 @@ BUILTIN(TypedArrayPrototypeFill) {
     }
   }
 
+  if (V8_UNLIKELY(array->IsVariableLength())) {
+    bool out_of_bounds = false;
+    array->GetLengthOrOutOfBounds(out_of_bounds);
+    if (out_of_bounds) {
+      const MessageTemplate message = MessageTemplate::kDetachedOperation;
+      Handle<String> operation =
+          isolate->factory()->NewStringFromAsciiChecked(method);
+      THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
+    }
+  } else if (V8_UNLIKELY(array->WasDetached())) {
+    return *array;
+  }
+
   int64_t count = end - start;
   if (count <= 0) return *array;
-
-  if (V8_UNLIKELY(array->WasDetached())) return *array;
 
   // Ensure processed indexes are within array bounds
   DCHECK_GE(start, 0);

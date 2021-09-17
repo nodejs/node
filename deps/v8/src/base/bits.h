@@ -194,7 +194,9 @@ inline size_t RoundUpToPowerOfTwo(size_t value) {
   if (sizeof(size_t) == sizeof(uint64_t)) {
     return RoundUpToPowerOfTwo64(value);
   } else {
-    return RoundUpToPowerOfTwo32(value);
+    // Without windows.h included this line triggers a truncation warning on
+    // 64-bit builds. Presumably windows.h disables the relevant warning.
+    return RoundUpToPowerOfTwo32(static_cast<uint32_t>(value));
   }
 }
 

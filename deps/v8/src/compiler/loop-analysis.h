@@ -179,16 +179,19 @@ class V8_EXPORT_PRIVATE LoopFinder {
 
   static bool HasMarkedExits(LoopTree* loop_tree_, const LoopTree::Loop* loop);
 
-  // Find all nodes of a loop given its header node. Will exit early once the
-  // current loop size exceed {max_size}. This is a very restricted version of
-  // BuildLoopTree.
-  // Assumptions:
+#if V8_ENABLE_WEBASSEMBLY
+  // Find all nodes of a loop given headed by {loop_header}. Returns {nullptr}
+  // if the loop size in Nodes exceeds {max_size}. In that context, function
+  // calls are considered to have unbounded size, so if the loop contains a
+  // function call, {nullptr} is always returned.
+  // This is a very restricted version of BuildLoopTree and makes the following
+  // assumptions:
   // 1) All loop exits of the loop are marked with LoopExit, LoopExitEffect,
   //    and LoopExitValue nodes.
   // 2) There are no nested loops within this loop.
-  static ZoneUnorderedSet<Node*>* FindUnnestedLoopFromHeader(Node* loop_header,
-                                                             Zone* zone,
-                                                             size_t max_size);
+  static ZoneUnorderedSet<Node*>* FindSmallUnnestedLoopFromHeader(
+      Node* loop_header, Zone* zone, size_t max_size);
+#endif
 };
 
 // Copies a range of nodes any number of times.

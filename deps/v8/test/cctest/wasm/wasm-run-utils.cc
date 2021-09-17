@@ -21,6 +21,25 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// Helper Functions.
+bool IsSameNan(float expected, float actual) {
+  // Sign is non-deterministic.
+  uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
+  uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
+  // Some implementations convert signaling NaNs to quiet NaNs.
+  return (expected_bits == actual_bits) ||
+         ((expected_bits | 0x00400000) == actual_bits);
+}
+
+bool IsSameNan(double expected, double actual) {
+  // Sign is non-deterministic.
+  uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
+  uint64_t actual_bits = bit_cast<uint64_t>(actual) & ~0x8000000000000000;
+  // Some implementations convert signaling NaNs to quiet NaNs.
+  return (expected_bits == actual_bits) ||
+         ((expected_bits | 0x0008000000000000) == actual_bits);
+}
+
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
@@ -246,12 +265,12 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
 
 uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
-  uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
-  test_module_->exceptions.push_back(WasmException{sig});
+  uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
+  test_module_->tags.push_back(WasmTag{sig});
   Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  Handle<FixedArray> table(instance_object_->exceptions_table(), isolate_);
+  Handle<FixedArray> table(instance_object_->tags_table(), isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
-  instance_object_->set_exceptions_table(*table);
+  instance_object_->set_tags_table(*table);
   table->set(index, *tag);
   return index;
 }
@@ -351,7 +370,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   auto instance = WasmInstanceObject::New(isolate_, module_object);
-  instance->set_exceptions_table(*isolate_->factory()->empty_fixed_array());
+  instance->set_tags_table(*isolate_->factory()->empty_fixed_array());
   instance->set_globals_start(globals_data_);
   return instance;
 }
@@ -549,21 +568,20 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   ForDebugging for_debugging =
       native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
 
-  WasmFeatures unused_detected_features;
-
   base::Optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
         &env, func_body, function_->func_index, kForDebugging,
-        isolate()->counters(), &unused_detected_features, {}, nullptr, 0,
-        builder_->max_steps_ptr(), builder_->non_determinism_ptr()));
+        LiftoffOptions{}
+            .set_max_steps(builder_->max_steps_ptr())
+            .set_nondeterminism(builder_->non_determinism_ptr())));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        isolate()->counters(), &unused_detected_features));
+        nullptr, nullptr));
   }
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));

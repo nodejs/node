@@ -747,7 +747,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     __ LoadU64(r4, MemOperand(frame_pointer(), kStartIndex));
     __ subi(r3, current_input_offset(), Operand(char_size()));
     if (mode_ == UC16) {
-      __ ShiftLeftImm(r0, r4, Operand(1));
+      __ ShiftLeftU64(r0, r4, Operand(1));
       __ sub(r3, r3, r0);
     } else {
       __ sub(r3, r3, r4);
@@ -810,7 +810,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ sub(r4, end_of_input_address(), r4);
         // r4 is length of input in bytes.
         if (mode_ == UC16) {
-          __ ShiftRightImm(r4, r4, Operand(1));
+          __ ShiftRightU64(r4, r4, Operand(1));
         }
         // r4 is length of input in characters.
         __ add(r4, r4, r5);
@@ -828,9 +828,9 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
             __ mr(r25, r5);
           }
           if (mode_ == UC16) {
-            __ ShiftRightArithImm(r5, r5, 1);
+            __ ShiftRightS64(r5, r5, Operand(1));
             __ add(r5, r4, r5);
-            __ ShiftRightArithImm(r6, r6, 1);
+            __ ShiftRightS64(r6, r6, Operand(1));
             __ add(r6, r4, r6);
           } else {
             __ add(r5, r4, r5);

@@ -1,0 +1,49 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+
+extern builtin ArrayConcat(Context, JSFunction, JSAny, int32): JSAny;
+
+transitioning javascript builtin
+ArrayPrototypeConcat(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // Fast path if we invoke as `x.concat()`.
+  if (arguments.length == 0) {
+    typeswitch (receiver) {
+      case (a: FastJSArrayForConcat): {
+        return CloneFastJSArray(context, a);
+      }
+      case (JSAny): {
+        // Fallthrough.
+      }
+    }
+  }
+
+  // Fast path if we invoke as `[].concat(x)`.
+  try {
+    const receiverAsArray: FastJSArrayForConcat =
+        Cast<FastJSArrayForConcat>(receiver)
+        otherwise ReceiverIsNotFastJSArrayForConcat;
+    if (receiverAsArray.IsEmpty() && arguments.length == 1) {
+      typeswitch (arguments[0]) {
+        case (a: FastJSArrayForCopy): {
+          return CloneFastJSArray(context, a);
+        }
+        case (JSAny): {
+          // Fallthrough.
+        }
+      }
+    }
+  } label ReceiverIsNotFastJSArrayForConcat {
+    // Fallthrough.
+  }
+
+  // TODO(victorgomes): Implement slow path ArrayConcat in Torque.
+  tail ArrayConcat(
+      context, LoadTargetFromFrame(), Undefined,
+      Convert<int32>(arguments.length));
+}
+
+}  // namespace array

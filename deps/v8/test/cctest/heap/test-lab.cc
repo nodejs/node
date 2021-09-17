@@ -95,11 +95,8 @@ TEST(SimpleAllocate) {
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());
-    intptr_t sum = 0;
     for (auto size : sizes) {
-      if (AllocateFromLab(heap, &lab, size)) {
-        sum += size;
-      }
+      AllocateFromLab(heap, &lab, size);
     }
   }
   VerifyIterable(base, limit, expected_sizes);

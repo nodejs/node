@@ -116,7 +116,7 @@ class ThreadLocalTop {
   Address last_api_entry_;
 
   // Communication channel between Isolate::Throw and message consumers.
-  Object pending_message_obj_;
+  Object pending_message_;
   bool rethrowing_message_;
 
   // Use a separate value for scheduled exceptions to preserve the

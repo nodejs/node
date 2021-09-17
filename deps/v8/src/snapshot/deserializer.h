@@ -8,7 +8,10 @@
 #include <utility>
 #include <vector>
 
+#include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/execution/local-isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
@@ -39,7 +42,8 @@ class Object;
 #endif
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
+template <typename IsolateT>
+class Deserializer : public SerializerDeserializer {
  public:
   ~Deserializer() override;
   Deserializer(const Deserializer&) = delete;
@@ -49,7 +53,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(Isolate* isolate, base::Vector<const byte> payload,
+  Deserializer(IsolateT* isolate, base::Vector<const byte> payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 
@@ -79,7 +83,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     CHECK_EQ(new_off_heap_array_buffers().size(), 0);
   }
 
-  Isolate* isolate() const { return isolate_; }
+  IsolateT* isolate() const { return isolate_; }
+
+  Isolate* main_thread_isolate() const { return isolate_->AsIsolate(); }
 
   SnapshotByteSource* source() { return &source_; }
   const std::vector<Handle<AllocationSite>>& new_allocation_sites() const {
@@ -120,7 +126,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   Handle<HeapObject> ReadObject();
 
  private:
-  class RelocInfoVisitor;
+  friend class DeserializerRelocInfoVisitor;
   // A circular queue of hot objects. This is added to in the same order as in
   // Serializer::HotObjectsList, but this stores the objects as a vector of
   // existing handles. This allows us to add Handles to the queue without having
@@ -196,7 +202,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
                       AllocationAlignment alignment);
 
   // Cached current isolate.
-  Isolate* isolate_;
+  IsolateT* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
@@ -253,19 +259,27 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 #endif  // DEBUG
 };
 
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Deserializer<Isolate>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Deserializer<LocalIsolate>;
+
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey final : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(Handle<String> string);
+  explicit StringTableInsertionKey(Isolate* isolate, Handle<String> string);
+  explicit StringTableInsertionKey(LocalIsolate* isolate,
+                                   Handle<String> string);
 
-  bool IsMatch(Isolate* isolate, String string);
+  template <typename IsolateT>
+  bool IsMatch(IsolateT* isolate, String string);
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
+  template <typename IsolateT>
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(IsolateT* isolate) {
+    return string_;
+  }
 
  private:
-  uint32_t ComputeRawHashField(String string);
-
   Handle<String> string_;
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };

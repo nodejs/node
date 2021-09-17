@@ -133,14 +133,29 @@ void WeakObjects::UpdateWeakCells(WeakObjectWorklist<WeakCell>& weak_cells) {
   DCHECK(!ContainsYoungObjects(weak_cells));
 }
 
-void WeakObjects::UpdateBytecodeFlushingCandidates(
-    WeakObjectWorklist<SharedFunctionInfo>& bytecode_flushing_candidates) {
-  DCHECK(!ContainsYoungObjects(bytecode_flushing_candidates));
+void WeakObjects::UpdateCodeFlushingCandidates(
+    WeakObjectWorklist<SharedFunctionInfo>& code_flushing_candidates) {
+  DCHECK(!ContainsYoungObjects(code_flushing_candidates));
 }
 
 void WeakObjects::UpdateFlushedJSFunctions(
     WeakObjectWorklist<JSFunction>& flushed_js_functions) {
   flushed_js_functions.Update(
+      [](JSFunction slot_in, JSFunction* slot_out) -> bool {
+        JSFunction forwarded = ForwardingAddress(slot_in);
+
+        if (!forwarded.is_null()) {
+          *slot_out = forwarded;
+          return true;
+        }
+
+        return false;
+      });
+}
+
+void WeakObjects::UpdateBaselineFlushingCandidates(
+    WeakObjectWorklist<JSFunction>& baseline_flush_candidates) {
+  baseline_flush_candidates.Update(
       [](JSFunction slot_in, JSFunction* slot_out) -> bool {
         JSFunction forwarded = ForwardingAddress(slot_in);
 

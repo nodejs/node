@@ -60,10 +60,24 @@ zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag);
 zipFile OpenFdForZipping(int zip_fd, int append_flag);
 #endif
 
-// Wrapper around zipOpenNewFileInZip4 which passes most common options.
+// Compression methods.
+enum Compression {
+  kStored = 0,             // Stored (no compression)
+  kDeflated = Z_DEFLATED,  // Deflated
+};
+
+// Adds a file (or directory) entry to the ZIP archive.
 bool ZipOpenNewFileInZip(zipFile zip_file,
                          const std::string& str_path,
-                         base::Time last_modified_time);
+                         base::Time last_modified_time,
+                         Compression compression);
+
+// Selects the best compression method for the given file. The heuristic is
+// based on the filename extension. By default, the compression method is
+// kDeflated. But if the given path has an extension indicating a well known
+// file format which is likely to be already compressed (eg ZIP, RAR, JPG,
+// PNG...) then the compression method is simply kStored.
+Compression GetCompressionMethod(const base::FilePath& path);
 
 const int kZipMaxPath = 256;
 const int kZipBufSize = 8192;

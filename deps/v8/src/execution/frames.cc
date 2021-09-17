@@ -230,8 +230,8 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
       (builtin == Builtin::kInterpreterEntryTrampoline ||
        builtin == Builtin::kInterpreterEnterAtBytecode ||
        builtin == Builtin::kInterpreterEnterAtNextBytecode ||
-       builtin == Builtin::kBaselineEnterAtBytecode ||
-       builtin == Builtin::kBaselineEnterAtNextBytecode)) {
+       builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+       builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(

@@ -26,6 +26,7 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator_;
+  create_params.allow_atomics_wait = false;
   isolate_ = v8::Isolate::New(create_params);
 
   {

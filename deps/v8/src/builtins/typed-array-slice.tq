@@ -36,7 +36,12 @@ macro FastCopy(
   assert(countBytes <= dest.byte_length);
   assert(countBytes <= src.byte_length - startOffset);
 
-  typed_array::CallCMemmove(dest.data_ptr, srcPtr, countBytes);
+  if (IsSharedArrayBuffer(src.buffer)) {
+    // SABs need a relaxed memmove to preserve atomicity.
+    typed_array::CallCRelaxedMemmove(dest.data_ptr, srcPtr, countBytes);
+  } else {
+    typed_array::CallCMemmove(dest.data_ptr, srcPtr, countBytes);
+  }
 }
 
 macro SlowCopy(implicit context: Context)(

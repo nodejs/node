@@ -42,6 +42,11 @@ V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+V8_WARN_UNUSED_RESULT bool CrashUnlessFuzzingReturnFalse(Isolate* isolate) {
+  CHECK(FLAG_fuzzing);
+  return false;
+}
+
 // Returns |value| unless correctness-fuzzer-supressions is enabled,
 // otherwise returns undefined_value.
 V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
@@ -212,42 +217,35 @@ namespace {
 
 enum class TierupKind { kTierupBytecode, kTierupBytecodeOrMidTier };
 
-Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
-                                  TierupKind tierup_kind) {
-  if (args.length() != 1 && args.length() != 2) {
-    return CrashUnlessFuzzing(isolate);
-  }
-
-  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
+bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
+                         TierupKind tierup_kind,
+                         IsCompiledScope* is_compiled_scope) {
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
   if (!function->shared().allows_lazy_compilation()) {
-    return CrashUnlessFuzzing(isolate);
+    return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
-  if (!is_compiled_scope.is_compiled() &&
+  if (!is_compiled_scope->is_compiled() &&
       !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
-    return CrashUnlessFuzzing(isolate);
+                         is_compiled_scope)) {
+    return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (!FLAG_opt) return ReadOnlyRoots(isolate).undefined_value();
+  if (!FLAG_opt) return false;
 
   if (function->shared().optimization_disabled() &&
       function->shared().disable_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzing(isolate);
+    return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (function->shared().HasAsmWasmData()) return CrashUnlessFuzzing(isolate);
+  if (function->shared().HasAsmWasmData()) {
+    return CrashUnlessFuzzingReturnFalse(isolate);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (FLAG_testing_d8_test_runner) {
@@ -263,6 +261,26 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
     if (FLAG_testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
+    return false;
+  }
+
+  return true;
+}
+
+Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
+                                  TierupKind tierup_kind) {
+  if (args.length() != 1 && args.length() != 2) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
+  if (!CanOptimizeFunction(function, isolate, tierup_kind,
+                           &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -417,6 +435,32 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
         isolate, function, allow_heuristic_optimization);
   }
 
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_OptimizeFunctionForTopTier) {
+  // TODO(rmcilroy): Ideally this should be rolled into
+  // OptimizeFunctionOnNextCall, but there is no way to mark the tier to be
+  // optimized using the regular optimization marking system.
+  HandleScope scope(isolate);
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
+  if (!CanOptimizeFunction(function, isolate,
+                           TierupKind::kTierupBytecodeOrMidTier,
+                           &is_compiled_scope)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kNotConcurrent,
+                             CodeKindForTopTier());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -631,6 +675,34 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   CHECK(FLAG_block_concurrent_recompilation);
   CHECK(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compile_dispatcher()->Unblock();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->set_finalize(true);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

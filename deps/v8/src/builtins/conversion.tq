@@ -138,7 +138,7 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
       }
       case (o: JSAnyNotSmi): {
         const index: intptr = Convert<intptr>(
-            o.map.in_object_properties_start_or_constructor_function_index);
+            o.map.inobject_properties_start_or_constructor_function_index);
         if (index != kNoConstructorFunctionIndex)
           goto WrapPrimitive(
               %RawDownCast<Slot<NativeContext, JSFunction>>(index));

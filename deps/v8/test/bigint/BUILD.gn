@@ -22,8 +22,4 @@ v8_executable("bigint_shell") {
   configs = [ "../..:internal_config_base" ]
 
   sources = [ "bigint-shell.cc" ]
-
-  if (v8_advanced_bigint_algorithms) {
-    defines = [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
-  }
 }

@@ -5,8 +5,6 @@
 #ifndef V8_DIAGNOSTICS_GDB_JIT_H_
 #define V8_DIAGNOSTICS_GDB_JIT_H_
 
-#include "include/v8.h"
-
 //
 // GDB has two ways of interacting with JIT code.  With the "JIT compilation
 // interface", V8 can tell GDB when it emits JIT code.  Unfortunately to do so,
@@ -25,6 +23,9 @@
 //
 
 namespace v8 {
+
+struct JitCodeEvent;
+
 namespace internal {
 namespace GDBJITInterface {
 #ifdef ENABLE_GDB_JIT_INTERFACE

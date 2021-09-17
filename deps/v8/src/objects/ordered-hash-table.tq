@@ -16,6 +16,7 @@ const kSmallOrderedHashTableLoadFactor: constexpr int31
 
 @noVerifier
 @abstract
+@doNotGenerateCppClass
 extern class SmallOrderedHashTable extends HeapObject
     generates 'TNode<HeapObject>' {
 }
@@ -23,6 +24,7 @@ extern class SmallOrderedHashTable extends HeapObject
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();
 
+@doNotGenerateCppClass
 extern class SmallOrderedHashSet extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -61,6 +63,7 @@ struct HashMapEntry {
 extern macro SmallOrderedHashMapMapConstant(): Map;
 const kSmallOrderedHashMapMap: Map = SmallOrderedHashMapMapConstant();
 
+@doNotGenerateCppClass
 extern class SmallOrderedHashMap extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -97,6 +100,7 @@ struct NameDictionaryEntry {
   property_details: Smi|TheHole;
 }
 
+@doNotGenerateCppClass
 extern class SmallOrderedNameDictionary extends SmallOrderedHashTable {
   hash: int32;
   @if(TAGGED_SIZE_8_BYTES) padding_0: int32;

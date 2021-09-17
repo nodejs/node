@@ -26,6 +26,7 @@ class SlotSet;
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
+  OLD_TO_CODE = V8_EXTERNAL_CODE_SPACE_BOOL ? OLD_TO_OLD + 1 : OLD_TO_OLD,
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
 

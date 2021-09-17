@@ -171,7 +171,7 @@ void CodeGenerator::AssembleDeoptImmediateArgs(
 
     switch (constant.type()) {
       case Constant::kInt32:
-        tasm()->dp(constant.ToInt32());
+        tasm()->dp(constant.ToInt32(), RelocInfo::LITERAL_CONSTANT);
         break;
 #ifdef V8_TARGET_ARCH_64_BIT
       case Constant::kInt64:
@@ -181,7 +181,7 @@ void CodeGenerator::AssembleDeoptImmediateArgs(
       case Constant::kFloat64: {
         int smi;
         CHECK(DoubleToSmiInteger(constant.ToFloat64().value(), &smi));
-        tasm()->dp(Smi::FromInt(smi).ptr());
+        tasm()->dp(Smi::FromInt(smi).ptr(), RelocInfo::LITERAL_CONSTANT);
         break;
       }
       case Constant::kCompressedHeapObject:
@@ -221,8 +221,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
         &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   }
   if (info()->source_positions()) {
-    tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
-                              deoptimization_id);
+    tasm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
+                              exit->pos(), deoptimization_id);
   }
 
   if (deopt_kind == DeoptimizeKind::kLazy) {
@@ -320,8 +320,12 @@ void CodeGenerator::AssembleCode() {
   offsets_info_.blocks_start = tasm()->pc_offset();
   for (const InstructionBlock* block : instructions()->ao_blocks()) {
     // Align loop headers on vendor recommended boundaries.
-    if (block->ShouldAlign() && !tasm()->jump_optimization_info()) {
-      tasm()->CodeTargetAlign();
+    if (!tasm()->jump_optimization_info()) {
+      if (block->ShouldAlignLoopHeader()) {
+        tasm()->LoopHeaderAlign();
+      } else if (block->ShouldAlignCodeTarget()) {
+        tasm()->CodeTargetAlign();
+      }
     }
     if (info->trace_turbo_json()) {
       block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();
@@ -597,9 +601,9 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   isolate()->counters()->total_compiled_code_size()->Increment(
       code->raw_body_size());
 
-  LOG_CODE_EVENT(isolate(),
-                 CodeLinePosInfoRecordEvent(code->raw_instruction_start(),
-                                            *source_positions));
+  LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
+                                code->raw_instruction_start(),
+                                *source_positions, JitCodeEvent::JIT_CODE));
 
   return code;
 }
@@ -1055,6 +1059,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_exit->translation_id()));
     data->SetPc(i, Smi::FromInt(deoptimization_exit->pc_offset()));
+#ifdef DEBUG
+    data->SetNodeId(i, Smi::FromInt(deoptimization_exit->node_id()));
+#endif  // DEBUG
   }
 
   return data;
@@ -1242,8 +1249,12 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
 
   DeoptimizationExit* const exit = zone()->New<DeoptimizationExit>(
       current_source_position_, descriptor->bailout_id(), translation_index,
-      pc_offset, entry.kind(), entry.reason());
-
+      pc_offset, entry.kind(), entry.reason(),
+#ifdef DEBUG
+      entry.node_id());
+#else   // DEBUG
+      0);
+#endif  // DEBUG
   if (!Deoptimizer::kSupportsFixedDeoptExitSizes) {
     exit->set_deoptimization_id(next_deoptimization_id_++);
   }

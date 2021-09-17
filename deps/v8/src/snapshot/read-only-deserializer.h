@@ -14,7 +14,7 @@ namespace internal {
 
 // Deserializes the read-only blob, creating the read-only roots and the
 // Read-only object cache used by the other deserializers.
-class ReadOnlyDeserializer final : public Deserializer {
+class ReadOnlyDeserializer final : public Deserializer<Isolate> {
  public:
   explicit ReadOnlyDeserializer(Isolate* isolate, const SnapshotData* data,
                                 bool can_rehash)

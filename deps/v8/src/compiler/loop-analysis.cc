@@ -543,8 +543,9 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
   return loop_tree;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 // static
-ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
+ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
     Node* loop_header, Zone* zone, size_t max_size) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
@@ -580,6 +581,12 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
                   loop_header);
         // All uses are outside the loop, do nothing.
         break;
+      case IrOpcode::kCall:
+      case IrOpcode::kTailCall:
+      case IrOpcode::kJSWasmCall:
+      case IrOpcode::kJSCall:
+        // Call nodes are considered to have unbounded size, i.e. >max_size.
+        return nullptr;
       default:
         for (Node* use : node->uses()) {
           if (visited->count(use) == 0) queue.push_back(use);
@@ -614,6 +621,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
 
   return visited;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
                                 const LoopTree::Loop* loop) {

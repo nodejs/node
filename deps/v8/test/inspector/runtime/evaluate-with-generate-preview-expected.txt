@@ -121,6 +121,27 @@ Running test: testShortTypedArrayPropertiesPreview
             type : number
             value : 0
         }
+        [3] : {
+            name : buffer
+            subtype : arraybuffer
+            type : object
+            value : ArrayBuffer(3)
+        }
+        [4] : {
+            name : byteLength
+            type : number
+            value : 3
+        }
+        [5] : {
+            name : byteOffset
+            type : number
+            value : 0
+        }
+        [6] : {
+            name : length
+            type : number
+            value : 3
+        }
     ]
     subtype : typedarray
     type : object
@@ -670,6 +691,11 @@ Running test: testSetPropertiesPreview
     ]
     overflow : false
     properties : [
+        [0] : {
+            name : size
+            type : number
+            value : 3
+        }
     ]
     subtype : set
     type : object
@@ -727,6 +753,11 @@ Running test: testBigSetPropertiesPreview
     ]
     overflow : true
     properties : [
+        [0] : {
+            name : size
+            type : number
+            value : 10
+        }
     ]
     subtype : set
     type : object
@@ -811,20 +842,6 @@ Running test: testMixedSetPropertiesPreview
         }
     ]
     subtype : set
-    type : object
-}
-
-Running test: testObjInheritsGetterProperty
-{
-    description : Object
-    overflow : false
-    properties : [
-        [0] : {
-            name : propNotNamedProto
-            type : number
-            value : NaN
-        }
-    ]
     type : object
 }
 

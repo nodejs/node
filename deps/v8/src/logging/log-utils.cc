@@ -66,6 +66,8 @@ void Log::WriteLogHeader() {
   }
   msg << kNext << Version::IsCandidate();
   msg.WriteToLogFile();
+  msg << "v8-platform" << kNext << V8_OS_STRING << kNext << V8_TARGET_OS_STRING;
+  msg.WriteToLogFile();
 }
 
 std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {

@@ -21,7 +21,7 @@
   %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), Promise);
   assertInstanceof(foo(), Promise);
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   assertInstanceof(foo(), Promise);
   assertOptimized(foo);
 
@@ -57,7 +57,7 @@
   %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), Promise);
   assertInstanceof(foo(), Promise);
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   assertInstanceof(foo(), Promise);
   assertOptimized(foo);
 

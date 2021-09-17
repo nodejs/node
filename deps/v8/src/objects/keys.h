@@ -141,10 +141,7 @@ class KeyAccumulator final {
   void set_may_have_elements(bool value) { may_have_elements_ = value; }
 
   Isolate* isolate_;
-  // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy
-  // keys a Handle<FixedArray>. The OrderedHashSet is in-place converted to the
-  // result list, a FixedArray containing all collected keys.
-  Handle<FixedArray> keys_;
+  Handle<OrderedHashSet> keys_;
   Handle<Map> first_prototype_map_;
   Handle<JSReceiver> receiver_;
   Handle<JSReceiver> last_non_empty_prototype_;

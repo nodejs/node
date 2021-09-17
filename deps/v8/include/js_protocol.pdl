@@ -1672,6 +1672,8 @@ domain Runtime
     parameters
       RemoteObject object
       object hints
+      # Identifier of the context where the call was made.
+      experimental optional ExecutionContextId executionContextId
 
 # This domain is deprecated.
 deprecated domain Schema

@@ -433,9 +433,7 @@ test_tag
     # The version file on master has build level 5.
     self.WriteFakeVersionFile(build=5)
 
-    commit_msg = """Version 3.22.5
-
-TBR=reviewer@chromium.org"""
+    commit_msg = """Version 3.22.5"""
 
     def CheckVersionCommit():
       commit = FileToText(TEST_CONFIG["COMMITMSG_FILE"])
@@ -469,7 +467,7 @@ TBR=reviewer@chromium.org"""
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail "
-          "-f --bypass-hooks --no-autocc --message-file "
+          "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
           "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
@@ -776,7 +774,7 @@ BUG=123,234,345,456,567,v8:123
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+          "--bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -912,7 +910,7 @@ NOTREECHECKS=true
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+          "--bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),

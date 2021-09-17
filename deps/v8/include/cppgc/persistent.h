@@ -41,7 +41,7 @@ class PersistentBase {
     node_ = nullptr;
   }
 
- private:
+ protected:
   mutable const void* raw_ = nullptr;
   mutable PersistentNode* node_ = nullptr;
 
@@ -257,6 +257,12 @@ class BasicPersistent final : public PersistentBase,
       WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
       PersistentBase::ClearFromGC();
     }
+  }
+
+  // Set Get() for details.
+  V8_CLANG_NO_SANITIZE("cfi-unrelated-cast")
+  T* GetFromGC() const {
+    return static_cast<T*>(const_cast<void*>(GetValue()));
   }
 
   friend class cppgc::Visitor;

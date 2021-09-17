@@ -116,10 +116,10 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     }
   }
 
-  void CheckPageRemoved(const BasePage* page) {
+  bool PageInBackend(const BasePage* page) {
     const Heap* heap = Heap::From(GetHeap());
     const PageBackend* backend = heap->page_backend();
-    EXPECT_EQ(nullptr, backend->Lookup(reinterpret_cast<ConstAddress>(page)));
+    return backend->Lookup(reinterpret_cast<ConstAddress>(page));
   }
 
   bool FreeListContains(const BaseSpace& space,
@@ -179,7 +179,8 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 }
 
 TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
-  // Non finalizable objects are swept right away.
+  // Non finalizable objects are swept right away but the page is only returned
+  // from the main thread.
   using GCedType = LargeNonFinalizable;
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
@@ -205,14 +206,17 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
   EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
 #endif
 
+  // The page should not have been removed on the background threads.
+  EXPECT_TRUE(PageInBackend(unmarked_page));
+
+  FinishSweeping();
+
   // Check that free list entries are created right away for non-finalizable
   // objects, but not immediately returned to the space's freelist.
-  CheckPageRemoved(unmarked_page);
+  EXPECT_FALSE(PageInBackend(unmarked_page));
 
   // Check that marked pages are returned to space right away.
   EXPECT_NE(space.end(), std::find(space.begin(), space.end(), marked_page));
-
-  FinishSweeping();
 }
 
 TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
@@ -279,7 +283,29 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfLargePage) {
   // Check that the destructor was executed.
   EXPECT_EQ(1u, g_destructor_callcount);
   // Check that page was unmapped.
-  CheckPageRemoved(page);
+  EXPECT_FALSE(PageInBackend(page));
+}
+
+TEST_F(ConcurrentSweeperTest, DestroyLargePageOnMainThread) {
+  // This test fails with TSAN when large pages are destroyed concurrently
+  // without proper support by the backend.
+  using GCedType = LargeNonFinalizable;
+
+  auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
+  auto* page = BasePage::FromPayload(object);
+
+  StartSweeping();
+
+  // Allocating another large object should not race here.
+  MakeGarbageCollected<GCedType>(GetAllocationHandle());
+
+  // Wait for concurrent sweeping to finish.
+  WaitForConcurrentSweeping();
+
+  FinishSweeping();
+
+  // Check that page was unmapped.
+  EXPECT_FALSE(PageInBackend(page));
 }
 
 TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {

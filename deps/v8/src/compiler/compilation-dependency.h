@@ -26,6 +26,7 @@ class CompilationDependency : public ZoneObject {
       Handle<Map> const& receiver_map) const {
     return false;
   }
+  virtual bool IsConsistentJSFunctionViewDependency() const { return false; }
 #endif
 };
 

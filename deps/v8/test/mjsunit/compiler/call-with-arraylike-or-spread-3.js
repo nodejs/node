@@ -34,7 +34,7 @@
   assertEquals('AundefinedB', foo('A', 'B'));
   assertTrue(sum_js_got_interpreted);
 
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   assertEquals('AundefinedB', foo('A', 'B'));
   assertFalse(sum_js_got_interpreted);
   assertOptimized(foo);
@@ -45,7 +45,7 @@
 
   // Now the call will not be inlined.
   %PrepareFunctionForOptimization(foo);
-  %OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionForTopTier(foo);
   assertEquals('AxB', foo('A', 'B'));
   assertTrue(sum_js_got_interpreted);
   assertOptimized(foo);

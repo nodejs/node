@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboprop --no-analyze-environment-liveness
-// Flags:--interrupt-budget=100
+// Flags: --allow-natives-syntax --no-analyze-environment-liveness
+// Flags: --interrupt-budget=100
 
 var val = {};
 try {

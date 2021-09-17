@@ -32,6 +32,7 @@ class V8_EXPORT_PRIVATE HeapRegistry final {
 
   static HeapBase* TryFromManagedPointer(const void* needle);
 
+  // Does not take the registry mutex and is thus only useful for testing.
   static const Storage& GetRegisteredHeapsForTesting();
 
  private:

@@ -561,6 +561,9 @@ void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
       safepoint.DefineRegister(slot.reg().gp().code());
     }
   }
+  if (cached_instance != no_reg) {
+    safepoint.DefineRegister(cached_instance.code());
+  }
 }
 
 int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {

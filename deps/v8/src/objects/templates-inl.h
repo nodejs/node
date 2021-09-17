@@ -38,10 +38,12 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
 
-BIT_FIELD_ACCESSORS(FunctionTemplateInfo, flag, allowed_receiver_range_start,
-                    FunctionTemplateInfo::AllowedReceiverRangeStartBits)
-BIT_FIELD_ACCESSORS(FunctionTemplateInfo, flag, allowed_receiver_range_end,
-                    FunctionTemplateInfo::AllowedReceiverRangeEndBits)
+BIT_FIELD_ACCESSORS(
+    FunctionTemplateInfo, flag, allowed_receiver_instance_type_range_start,
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits)
+BIT_FIELD_ACCESSORS(
+    FunctionTemplateInfo, flag, allowed_receiver_instance_type_range_end,
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits)
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
@@ -85,10 +87,23 @@ RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
                GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
 
-int FunctionTemplateInfo::InstanceType() const { return instance_type(); }
+int FunctionTemplateInfo::InstanceType() const {
+  int type = instance_type();
+  DCHECK(type == kNoJSApiObjectType ||
+         (type >= Internals::kFirstJSApiObjectType &&
+          type <= Internals::kLastJSApiObjectType));
+  return type;
+}
 
 void FunctionTemplateInfo::SetInstanceType(int instance_type) {
-  set_instance_type(instance_type);
+  if (instance_type == 0) {
+    set_instance_type(kNoJSApiObjectType);
+  } else {
+    DCHECK_GT(instance_type, 0);
+    DCHECK_LT(Internals::kFirstJSApiObjectType + instance_type,
+              Internals::kLastJSApiObjectType);
+    set_instance_type(Internals::kFirstJSApiObjectType + instance_type);
+  }
 }
 
 bool TemplateInfo::should_cache() const {

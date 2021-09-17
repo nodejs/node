@@ -5,7 +5,10 @@
 #include <memory>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/explicit-management.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/heap-consistency.h"
+#include "include/cppgc/internal/api-constants.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/platform.h"
 #include "include/cppgc/testing.h"
@@ -131,6 +134,43 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
   EXPECT_EQ(kMagicAddress,
             wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
 }
+
+#if DEBUG
+namespace {
+class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {
+ public:
+  void Trace(cppgc::Visitor*) const {}
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  auto* unreferenced = cppgc::MakeGarbageCollected<Unreferenced>(
+      allocation_handle(),
+      cppgc::AdditionalBytes(cppgc::internal::api_constants::kMB));
+  // Force safepoint to force flushing of cached allocated/freed sizes in cppgc.
+  cpp_heap().stats_collector()->NotifySafePointForTesting();
+  {
+    cppgc::subtle::NoGarbageCollectionScope scope(cpp_heap());
+    cppgc::internal::FreeUnreferencedObject(cpp_heap(), unreferenced);
+    // Force safepoint to make sure allocated size decrease due to freeing
+    // unreferenced object is reported to CppHeap. Due to
+    // NoGarbageCollectionScope, CppHeap will cache the reported decrease and
+    // won't report it further.
+    cpp_heap().stats_collector()->NotifySafePointForTesting();
+  }
+  // Running a GC resets the allocated size counters to the current marked bytes
+  // counter.
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  // If CppHeap didn't clear it's cached values when the counters were reset,
+  // the next safepoint will try to decrease the cached value from the last
+  // marked bytes (which is smaller than the cached value) and crash.
+  cppgc::MakeGarbageCollected<Unreferenced>(allocation_handle());
+  cpp_heap().stats_collector()->NotifySafePointForTesting();
+}
+#endif  // DEBUG
 
 #if !V8_OS_FUCHSIA
 TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {

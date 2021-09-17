@@ -12,6 +12,7 @@
 #include "cppgc/internal/pointer-policies.h"
 #include "cppgc/liveness-broker.h"
 #include "cppgc/member.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
 #include "cppgc/trace-trait.h"
 #include "cppgc/type-traits.h"
@@ -318,10 +319,10 @@ class V8_EXPORT Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
+    auto* raw_ptr = weak->GetFromGC();
     // Sentinel values are preserved for weak pointers.
-    if (*weak == kSentinelPointer) return;
-    const auto* raw = weak->Get();
-    if (!info.IsHeapObjectAlive(raw)) {
+    if (raw_ptr == kSentinelPointer) return;
+    if (!info.IsHeapObjectAlive(raw_ptr)) {
       weak->ClearFromGC();
     }
   }
@@ -335,11 +336,11 @@ class V8_EXPORT Visitor {
     static_assert(internal::IsGarbageCollectedOrMixinType<PointeeType>::value,
                   "Persistent's pointee type must be GarbageCollected or "
                   "GarbageCollectedMixin");
-    if (!p.Get()) {
+    auto* ptr = p.GetFromGC();
+    if (!ptr) {
       return;
     }
-    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
-              loc);
+    VisitRoot(ptr, TraceTrait<PointeeType>::GetTraceDescriptor(ptr), loc);
   }
 
   template <
@@ -354,7 +355,8 @@ class V8_EXPORT Visitor {
                   "GarbageCollectedMixin");
     static_assert(!internal::IsAllocatedOnCompactableSpace<PointeeType>::value,
                   "Weak references to compactable objects are not allowed");
-    VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
+    auto* ptr = p.GetFromGC();
+    VisitWeakRoot(ptr, TraceTrait<PointeeType>::GetTraceDescriptor(ptr),
                   &HandleWeak<WeakPersistent>, &p, loc);
   }
 

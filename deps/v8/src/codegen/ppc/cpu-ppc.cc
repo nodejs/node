@@ -8,7 +8,7 @@
 
 #include "src/codegen/cpu-features.h"
 
-#define INSTR_AND_DATA_CACHE_COHERENCY LWSYNC
+#define INSTR_AND_DATA_CACHE_COHERENCY PPC_6_PLUS
 
 namespace v8 {
 namespace internal {

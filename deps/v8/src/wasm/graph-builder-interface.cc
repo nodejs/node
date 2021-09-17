@@ -715,16 +715,16 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Simd8x16ShuffleOp(imm.value, input_nodes);
   }
 
-  void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
+  void Throw(FullDecoder* decoder, const TagIndexImmediate<validate>& imm,
              const base::Vector<Value>& value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    CheckForException(
-        decoder, builder_->Throw(imm.index, imm.exception, base::VectorOf(args),
-                                 decoder->position()));
+    CheckForException(decoder,
+                      builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
+                                      decoder->position()));
     TerminateThrow(decoder);
   }
 
@@ -737,8 +737,8 @@ class WasmGraphBuildingInterface {
   }
 
   void CatchException(FullDecoder* decoder,
-                      const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, base::Vector<Value> values) {
+                      const TagIndexImmediate<validate>& imm, Control* block,
+                      base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
@@ -756,7 +756,7 @@ class WasmGraphBuildingInterface {
 
     // Get the exception tag and see if it matches the expected one.
     TFNode* caught_tag = builder_->GetExceptionTag(exception);
-    TFNode* exception_tag = builder_->LoadExceptionTagFromTable(imm.index);
+    TFNode* exception_tag = builder_->LoadTagFromTable(imm.index);
     TFNode* compare = builder_->ExceptionTagEqual(caught_tag, exception_tag);
     builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
 
@@ -773,7 +773,7 @@ class WasmGraphBuildingInterface {
     SetEnv(if_catch_env);
     NodeVector caught_values(values.size());
     base::Vector<TFNode*> caught_vector = base::VectorOf(caught_values);
-    builder_->GetExceptionValues(exception, imm.exception, caught_vector);
+    builder_->GetExceptionValues(exception, imm.tag, caught_vector);
     for (size_t i = 0, e = values.size(); i < e; ++i) {
       values[i].node = caught_values[i];
     }
@@ -948,6 +948,9 @@ class WasmGraphBuildingInterface {
     result->node = builder_->ArrayNewWithRtt(imm.index, imm.array_type,
                                              length.node, initial_value.node,
                                              rtt.node, decoder->position());
+    // array.new_with_rtt introduces a loop. Therefore, we have to mark the
+    // immediately nesting loop (if any) as non-innermost.
+    if (!loop_infos_.empty()) loop_infos_.back().is_innermost = false;
   }
 
   void ArrayNewDefault(FullDecoder* decoder,

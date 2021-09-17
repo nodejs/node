@@ -14,6 +14,7 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/build_config.h"
+#include "src/base/enum-set.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -750,11 +751,15 @@ struct SlotTraits {
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
+  // TODO(v8:11880): switch to OffHeapCompressedObjectSlot.
+  using TCodeObjectSlot = CompressedObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
+  // TODO(v8:11880): switch to OffHeapFullObjectSlot.
+  using TCodeObjectSlot = FullObjectSlot;
 #endif
 };
 
@@ -775,6 +780,12 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 // holding an Object value (smi or strong heap object), whose slot location is
 // off-heap.
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
+
+// A CodeObjectSlot instance describes a kTaggedSize-sized field ("slot")
+// holding a strong pointer to a Code object. The Code object slots might be
+// compressed and since code space might be allocated off the main heap
+// the load operations require explicit cage base value for code space.
+using CodeObjectSlot = SlotTraits::TCodeObjectSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
@@ -869,11 +880,27 @@ enum class CompactionSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum class BytecodeFlushMode {
-  kDoNotFlushBytecode,
+enum class CodeFlushMode {
   kFlushBytecode,
-  kStressFlushBytecode,
+  kFlushBaselineCode,
+  kStressFlushCode,
 };
+
+bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
+  return mode.contains(CodeFlushMode::kFlushBaselineCode);
+}
+
+bool inline IsByteCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
+  return mode.contains(CodeFlushMode::kFlushBytecode);
+}
+
+bool inline IsStressFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
+  return mode.contains(CodeFlushMode::kStressFlushCode);
+}
+
+bool inline IsFlushingDisabled(base::EnumSet<CodeFlushMode> mode) {
+  return mode.empty();
+}
 
 // Indicates whether a script should be parsed and compiled in REPL mode.
 enum class REPLMode {

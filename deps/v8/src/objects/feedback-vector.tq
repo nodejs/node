@@ -12,7 +12,6 @@ bitfield struct FeedbackVectorFlags extends uint32 {
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;

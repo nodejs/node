@@ -11,6 +11,7 @@
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/atomic-entry-flag.h"
+#include "cppgc/platform.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -66,6 +67,8 @@ class V8_EXPORT WriteBarrier final {
   template <typename HeapHandleCallback>
   static V8_INLINE Type GetWriteBarrierType(const void* slot, Params& params,
                                             HeapHandleCallback callback);
+  // Returns the required write barrier for a given  `value`.
+  static V8_INLINE Type GetWriteBarrierType(const void* value, Params& params);
 
   template <typename HeapHandleCallback>
   static V8_INLINE Type GetWriteBarrierTypeForExternallyReferencedObject(
@@ -147,9 +150,27 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
   }
 
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
+    return GetNoSlot(value, params, callback);
+  }
+
   template <typename HeapHandleCallback>
   static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
-      const void* value, WriteBarrier::Params& params, HeapHandleCallback) {
+      const void* value, WriteBarrier::Params& params,
+      HeapHandleCallback callback) {
+    return GetNoSlot(value, params, callback);
+  }
+
+ private:
+  WriteBarrierTypeForCagedHeapPolicy() = delete;
+
+  template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type GetNoSlot(const void* value,
+                                                WriteBarrier::Params& params,
+                                                HeapHandleCallback) {
     if (!TryGetCagedHeap(value, value, params)) {
       return WriteBarrier::Type::kNone;
     }
@@ -159,14 +180,14 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     return SetAndReturnType<WriteBarrier::Type::kNone>(params);
   }
 
- private:
-  WriteBarrierTypeForCagedHeapPolicy() = delete;
-
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
 
   static V8_INLINE bool TryGetCagedHeap(const void* slot, const void* value,
                                         WriteBarrier::Params& params) {
+    // TODO(chromium:1056170): Check if the null check can be folded in with
+    // the rest of the write barrier.
+    if (!value) return false;
     params.start = reinterpret_cast<uintptr_t>(value) &
                    ~(api_constants::kCagedHeapReservationAlignment - 1);
     const uintptr_t slot_offset =
@@ -257,6 +278,15 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
     return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
   }
 
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
+    // The slot will never be used in `Get()` below.
+    return Get<WriteBarrier::ValueMode::kValuePresent>(nullptr, value, params,
+                                                       callback);
+  }
+
   template <typename HeapHandleCallback>
   static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
       const void* value, WriteBarrier::Params& params,
@@ -328,6 +358,13 @@ WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
     HeapHandleCallback callback) {
   return WriteBarrierTypePolicy::Get<ValueMode::kNoValuePresent>(
       slot, nullptr, params, callback);
+}
+
+// static
+WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
+    const void* value, WriteBarrier::Params& params) {
+  return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(value, params,
+                                                               []() {});
 }
 
 // static

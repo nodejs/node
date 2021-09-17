@@ -94,10 +94,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(BaselineData)
 
-OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 
-CAST_ACCESSOR(InterpreterData)
-ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS(InterpreterData, raw_interpreter_trampoline, CodeT,
           kInterpreterTrampolineOffset)
 
@@ -124,13 +122,21 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
 RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
                         raw_outer_scope_info_or_feedback_metadata,
                         outer_scope_info_or_feedback_metadata, HeapObject)
+DEF_ACQUIRE_GETTER(SharedFunctionInfo,
+                   raw_outer_scope_info_or_feedback_metadata, HeapObject) {
+  HeapObject value =
+      TaggedField<HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset>::
+          Acquire_Load(cage_base, *this);
+  return value;
+}
+
 RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
                                internal_formal_parameter_count,
                                formal_parameter_count)
 RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                                function_token_offset)
 
-RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
@@ -166,13 +172,13 @@ void SharedFunctionInfo::SetName(String name) {
 }
 
 bool SharedFunctionInfo::is_script() const {
-  return scope_info().is_script_scope() &&
+  return scope_info(kAcquireLoad).is_script_scope() &&
          Script::cast(script()).compilation_type() ==
              Script::COMPILATION_TYPE_HOST;
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
-  return is_script() && scope_info().ContextLocalCount() > 0;
+  return is_script() && scope_info(kAcquireLoad).ContextLocalCount() > 0;
 }
 
 template <typename IsolateT>
@@ -377,12 +383,16 @@ void SharedFunctionInfo::DontAdaptArguments() {
 
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
-ScopeInfo SharedFunctionInfo::scope_info() const {
-  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
+ScopeInfo SharedFunctionInfo::scope_info(AcquireLoadTag tag) const {
+  Object maybe_scope_info = name_or_scope_info(tag);
   if (maybe_scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
+}
+
+ScopeInfo SharedFunctionInfo::scope_info() const {
+  return scope_info(kAcquireLoad);
 }
 
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
@@ -419,8 +429,9 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
     if (!outer_scope_info().IsScopeInfo()) return false;
     outer_info = ScopeInfo::cast(outer_scope_info());
   } else {
-    if (!scope_info().HasOuterScopeInfo()) return false;
-    outer_info = scope_info().OuterScopeInfo();
+    ScopeInfo info = scope_info(kAcquireLoad);
+    if (!info.HasOuterScopeInfo()) return false;
+    outer_info = info.OuterScopeInfo();
   }
   return !outer_info.IsEmpty();
 }
@@ -428,7 +439,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
 ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
-  return scope_info().OuterScopeInfo();
+  return scope_info(kAcquireLoad).OuterScopeInfo();
 }
 
 void SharedFunctionInfo::set_outer_scope_info(HeapObject value,
@@ -443,17 +454,21 @@ bool SharedFunctionInfo::HasFeedbackMetadata() const {
   return raw_outer_scope_info_or_feedback_metadata().IsFeedbackMetadata();
 }
 
+bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
+  return raw_outer_scope_info_or_feedback_metadata(tag).IsFeedbackMetadata();
+}
+
 FeedbackMetadata SharedFunctionInfo::feedback_metadata() const {
   DCHECK(HasFeedbackMetadata());
   return FeedbackMetadata::cast(raw_outer_scope_info_or_feedback_metadata());
 }
 
-void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata value,
-                                               WriteBarrierMode mode) {
-  DCHECK(!HasFeedbackMetadata());
-  DCHECK(value.IsFeedbackMetadata());
-  set_raw_outer_scope_info_or_feedback_metadata(value, mode);
-}
+RELEASE_ACQUIRE_ACCESSORS_CHECKED2(SharedFunctionInfo, feedback_metadata,
+                                   FeedbackMetadata,
+                                   kOuterScopeInfoOrFeedbackMetadataOffset,
+                                   HasFeedbackMetadata(kAcquireLoad),
+                                   !HasFeedbackMetadata(kAcquireLoad) &&
+                                       value.IsFeedbackMetadata())
 
 bool SharedFunctionInfo::is_compiled() const {
   Object data = function_data(kAcquireLoad);
@@ -468,25 +483,40 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  Isolate* isolate)
-    : retain_bytecode_(shared.HasBytecodeArray()
-                           ? handle(shared.GetBytecodeArray(isolate), isolate)
-                           : MaybeHandle<BytecodeArray>()),
-      is_compiled_(shared.is_compiled()) {
-  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+    : is_compiled_(shared.is_compiled()) {
+  if (shared.HasBaselineData()) {
+    retain_code_ = handle(shared.baseline_data(), isolate);
+  } else if (shared.HasBytecodeArray()) {
+    retain_code_ = handle(shared.GetBytecodeArray(isolate), isolate);
+  } else {
+    retain_code_ = MaybeHandle<HeapObject>();
+  }
+
+  DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
 }
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  LocalIsolate* isolate)
-    : retain_bytecode_(shared.HasBytecodeArray()
-                           ? isolate->heap()->NewPersistentHandle(
-                                 shared.GetBytecodeArray(isolate))
-                           : MaybeHandle<BytecodeArray>()),
-      is_compiled_(shared.is_compiled()) {
-  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+    : is_compiled_(shared.is_compiled()) {
+  if (shared.HasBaselineData()) {
+    retain_code_ = isolate->heap()->NewPersistentHandle(shared.baseline_data());
+  } else if (shared.HasBytecodeArray()) {
+    retain_code_ =
+        isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray(isolate));
+  } else {
+    retain_code_ = MaybeHandle<HeapObject>();
+  }
+
+  DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {
-  return scope_info().HasSimpleParameters();
+  return scope_info(kAcquireLoad).HasSimpleParameters();
+}
+
+bool SharedFunctionInfo::CanCollectSourcePosition(Isolate* isolate) {
+  return FLAG_enable_lazy_source_positions && HasBytecodeArray() &&
+         !GetBytecodeArray(isolate).HasSourcePositionTable();
 }
 
 bool SharedFunctionInfo::IsApiFunction() const {
@@ -575,8 +605,9 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   set_function_data(bytecode, kReleaseStore);
 }
 
-bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
-  if (mode == BytecodeFlushMode::kDoNotFlushBytecode) return false;
+bool SharedFunctionInfo::ShouldFlushCode(
+    base::EnumSet<CodeFlushMode> code_flush_mode) {
+  if (IsFlushingDisabled(code_flush_mode)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
   if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
@@ -587,9 +618,20 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
+  if (data.IsBaselineData()) {
+    // If baseline code flushing isn't enabled and we have baseline data on SFI
+    // we cannot flush baseline / bytecode.
+    if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
+    data =
+        ACQUIRE_READ_FIELD(BaselineData::cast(data), BaselineData::kDataOffset);
+  } else if (!IsByteCodeFlushingEnabled(code_flush_mode)) {
+    // If bytecode flushing isn't enabled and there is no baseline code there is
+    // nothing to flush.
+    return false;
+  }
   if (!data.IsBytecodeArray()) return false;
 
-  if (mode == BytecodeFlushMode::kStressFlushBytecode) return true;
+  if (IsStressFlushingEnabled(code_flush_mode)) return true;
 
   BytecodeArray bytecode = BytecodeArray::cast(data);
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/register-arch.h"
 #if V8_TARGET_ARCH_IA32
 
 #include "src/api/api-arguments.h"
@@ -128,11 +129,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
-                      1 * kSystemPointerSize));  // 1 ~ receiver
-  __ PushReturnAddressFrom(ecx);
+  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   __ bind(&stack_overflow);
@@ -283,11 +281,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
-                      1 * kSystemPointerSize));  // 1 ~ receiver
-  __ push(ecx);
+  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -776,10 +771,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  Register return_pc = scratch2;
-  __ PopReturnAddressTo(return_pc);
-  __ add(esp, params_size);
-  __ PushReturnAddressFrom(return_pc);
+  __ DropArguments(params_size, scratch2, TurboAssembler::kCountIsBytes,
+                   TurboAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1102,10 +1095,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
-                        BytecodeArray::kOsrNestingLevelOffset),
+                        BytecodeArray::kOsrLoopNestingLevelOffset),
            Immediate(0));
 
   // Push bytecode array.
@@ -1725,10 +1718,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // are 8-bit fields next to each other, so we could just optimize by writing
     // a 16-bit. These static asserts guard our assumption is valid.
     STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                  BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
     STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
     __ mov_w(
-        FieldOperand(bytecode_array, BytecodeArray::kOsrNestingLevelOffset),
+        FieldOperand(bytecode_array, BytecodeArray::kOsrLoopNestingLevelOffset),
         Immediate(0));
     __ Push(bytecode_array);
 
@@ -1915,11 +1908,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(edi);
-    __ PushReturnAddressFrom(ecx);
+    __ DropArgumentsAndPushNewReceiver(eax, edi, ecx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
 
     // Restore receiver to edi.
     __ movd(edi, xmm0);
@@ -2026,11 +2017,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     // Spill argumentsList to use edx as a scratch register.
     __ movd(xmm0, edx);
 
-    __ PopReturnAddressTo(edx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(ecx);
-    __ PushReturnAddressFrom(edx);
+    __ DropArgumentsAndPushNewReceiver(eax, ecx, edx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
 
     // Restore argumentsList.
     __ movd(edx, xmm0);
@@ -2086,11 +2075,10 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     // Spill argumentsList to use ecx as a scratch register.
     __ movd(xmm0, ecx);
 
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ PushReturnAddressFrom(ecx);
+    __ DropArgumentsAndPushNewReceiver(
+        eax, masm->RootAsOperand(RootIndex::kUndefinedValue), ecx,
+        TurboAssembler::kCountIsInteger,
+        TurboAssembler::kCountExcludesReceiver);
 
     // Restore argumentsList.
     __ movd(ecx, xmm0);
@@ -3986,16 +3974,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ movsd(Operand(esi, dst_offset), xmm0);
   }
 
-  if (FLAG_debug_code) {
-    const int kTopMask = 0x3800;
-    __ push(eax);
-    __ fwait();
-    __ fnstsw_ax();
-    __ test(eax, Immediate(kTopMask));
-    __ Assert(zero, AbortReason::kFpuTopIsNotZeroInDeoptimizer);
-    __ pop(eax);
-  }
   // Clear FPU all exceptions.
+  // TODO(ulan): Find out why the TOP register is not zero here in some cases,
+  // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
@@ -4115,18 +4096,56 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 
 namespace {
 
-// Converts an interpreter frame into a baseline frame and continues execution
-// in baseline code (baseline code has to exist on the shared function info),
-// either at the current or next (in execution order) bytecode.
-void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
-                            bool is_osr = false) {
-  __ push(kInterpreterAccumulatorRegister);
+// Restarts execution either at the current or next (in execution order)
+// bytecode. If there is baseline code on the shared function info, converts an
+// interpreter frame into a baseline frame and continues execution in baseline
+// code. Otherwise execution continues with bytecode.
+void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
+                                         bool next_bytecode,
+                                         bool is_osr = false) {
   Label start;
   __ bind(&start);
+
+  // Spill the accumulator register; note that we're not within a frame, so we
+  // have to make sure to pop it before doing any GC-visible calls.
+  __ push(kInterpreterAccumulatorRegister);
 
   // Get function from the frame.
   Register closure = eax;
   __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
+
+  // Get the Code object from the shared function info.
+  Register code_obj = esi;
+  __ mov(code_obj,
+         FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(code_obj,
+         FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+
+  // Check if we have baseline code. For OSR entry it is safe to assume we
+  // always have baseline code.
+  if (!is_osr) {
+    Label start_with_baseline;
+    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE,
+                     kInterpreterBytecodeOffsetRegister);
+    __ j(equal, &start_with_baseline);
+
+    // Start with bytecode as there is no baseline code.
+    __ pop(kInterpreterAccumulatorRegister);
+    Builtin builtin_id = next_bytecode
+                             ? Builtin::kInterpreterEnterAtNextBytecode
+                             : Builtin::kInterpreterEnterAtBytecode;
+    __ Jump(masm->isolate()->builtins()->code_handle(builtin_id),
+            RelocInfo::CODE_TARGET);
+
+    __ bind(&start_with_baseline);
+  } else if (FLAG_debug_code) {
+    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE,
+                     kInterpreterBytecodeOffsetRegister);
+    __ Assert(equal, AbortReason::kExpectedBaselineData);
+  }
+
+  // Load baseline code from baseline data.
+  __ mov(code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
 
   // Load the feedback vector.
   Register feedback_vector = ecx;
@@ -4149,14 +4168,6 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
   __ mov(MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
          feedback_vector);
   feedback_vector = no_reg;
-
-  // Get the Code object from the shared function info.
-  Register code_obj = esi;
-  __ mov(code_obj,
-         FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(code_obj,
-         FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
-  __ mov(code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
@@ -4209,7 +4220,7 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
     // Sparkplug here.
     __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
-                          BytecodeArray::kOsrNestingLevelOffset),
+                          BytecodeArray::kOsrLoopNestingLevelOffset),
              Immediate(0));
     Generate_OSREntry(masm, code_obj);
   } else {
@@ -4230,10 +4241,23 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
   }
 
   __ bind(&install_baseline_code);
+  // Pop/re-push the accumulator so that it's spilled within the below frame
+  // scope, to keep the stack valid. Use ecx for this -- we can't save it in
+  // kInterpreterAccumulatorRegister because that aliases with closure.
+  DCHECK(!AreAliased(ecx, kContextRegister, closure));
+  __ pop(ecx);
+  // Restore the clobbered context register.
+  __ mov(kContextRegister,
+         Operand(ebp, StandardFrameConstants::kContextOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(ecx);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    // Now that we're restarting, we don't have to worry about closure and
+    // accumulator aliasing, so pop the spilled accumulator directly back into
+    // the right register.
+    __ Pop(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ jmp(&start);
@@ -4241,17 +4265,19 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
 
 }  // namespace
 
-void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, false);
+void Builtins::Generate_BaselineOrInterpreterEnterAtBytecode(
+    MacroAssembler* masm) {
+  Generate_BaselineOrInterpreterEntry(masm, false);
 }
 
-void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, true);
+void Builtins::Generate_BaselineOrInterpreterEnterAtNextBytecode(
+    MacroAssembler* masm) {
+  Generate_BaselineOrInterpreterEntry(masm, true);
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     MacroAssembler* masm) {
-  Generate_BaselineEntry(masm, false, true);
+  Generate_BaselineOrInterpreterEntry(masm, false, true);
 }
 
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {

@@ -109,13 +109,9 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(InternalizedString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ConsString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ThinString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SlicedString)
-OBJECT_CONSTRUCTORS_IMPL(ExternalString, String)
-OBJECT_CONSTRUCTORS_IMPL(ExternalOneByteString, ExternalString)
-OBJECT_CONSTRUCTORS_IMPL(ExternalTwoByteString, ExternalString)
-
-CAST_ACCESSOR(ExternalOneByteString)
-CAST_ACCESSOR(ExternalString)
-CAST_ACCESSOR(ExternalTwoByteString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalOneByteString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalTwoByteString)
 
 StringShape::StringShape(const String str)
     : type_(str.map(kAcquireLoad).instance_type()) {

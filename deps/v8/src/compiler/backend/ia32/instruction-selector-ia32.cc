@@ -2417,16 +2417,16 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
-  if (IsSupported(AVX)) {
-    Emit(kIA32I64x2ShrS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-         arraysize(temps), temps);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    Emit(kIA32I64x2ShrS, dst, g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(node->InputAt(1)));
   } else {
-    Emit(kIA32I64x2ShrS, g.DefineSameAsFirst(node),
-         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-         arraysize(temps), temps);
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    Emit(kIA32I64x2ShrS, dst, g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
 
@@ -2989,9 +2989,6 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   }
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
-#else
-void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   InstructionCode op = kIA32I8x16Swizzle;
@@ -3012,6 +3009,10 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 void VisitPminOrPmax(InstructionSelector* selector, Node* node,

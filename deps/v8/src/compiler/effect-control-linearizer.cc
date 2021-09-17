@@ -197,6 +197,9 @@ class EffectControlLinearizer {
   void LowerTransitionElementsKind(Node* node);
   Node* LowerLoadFieldByIndex(Node* node);
   Node* LowerLoadMessage(Node* node);
+  Node* AdaptFastCallTypedArrayArgument(Node* node,
+                                        ElementsKind expected_elements_kind,
+                                        GraphAssemblerLabel<0>* bailout);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
 
@@ -5004,16 +5007,102 @@ MachineType MachineTypeFor(CTypeInfo::Type type) {
 }
 }  // namespace
 
+Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
+    Node* node, ElementsKind expected_elements_kind,
+    GraphAssemblerLabel<0>* bailout) {
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* value_is_typed_array = __ Word32Equal(
+      value_instance_type, __ Int32Constant(JS_TYPED_ARRAY_TYPE));
+  __ GotoIfNot(value_is_typed_array, bailout);
+
+  Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), value_map);
+  Node* mask = __ Int32Constant(Map::Bits2::ElementsKindBits::kMask);
+  Node* andit = __ Word32And(bit_field2, mask);
+  Node* shift = __ Int32Constant(Map::Bits2::ElementsKindBits::kShift);
+  Node* kind = __ Word32Shr(andit, shift);
+
+  Node* value_is_expected_elements_kind =
+      __ Word32Equal(kind, __ Int32Constant(expected_elements_kind));
+  __ GotoIfNot(value_is_expected_elements_kind, bailout);
+
+  Node* buffer =
+      __ LoadField(AccessBuilder::ForJSArrayBufferViewBuffer(), node);
+  Node* buffer_bit_field =
+      __ LoadField(AccessBuilder::ForJSArrayBufferBitField(), buffer);
+
+  // Go to the slow path if the {buffer} was detached.
+  Node* buffer_is_not_detached = __ Word32Equal(
+      __ Word32And(buffer_bit_field,
+                   __ Int32Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+      __ ZeroConstant());
+  __ GotoIfNot(buffer_is_not_detached, bailout);
+
+  // Go to the slow path if the {buffer} is shared.
+  Node* buffer_is_not_shared = __ Word32Equal(
+      __ Word32And(buffer_bit_field,
+                   __ Int32Constant(JSArrayBuffer::IsSharedBit::kMask)),
+      __ ZeroConstant());
+  __ GotoIfNot(buffer_is_not_shared, bailout);
+
+  // Unpack the store and length, and store them to a struct
+  // FastApiTypedArray.
+  Node* external_pointer =
+      __ LoadField(AccessBuilder::ForJSTypedArrayExternalPointer(), node);
+
+  // Load the base pointer for the buffer. This will always be Smi
+  // zero unless we allow on-heap TypedArrays, which is only the case
+  // for Chrome. Node and Electron both set this limit to 0. Setting
+  // the base to Smi zero here allows the BuildTypedArrayDataPointer
+  // to optimize away the tricky part of the access later.
+  Node* base_pointer =
+      __ LoadField(AccessBuilder::ForJSTypedArrayBasePointer(), node);
+  if (JSTypedArray::kMaxSizeInHeap == 0) {
+    base_pointer = jsgraph()->ZeroConstant();
+  }
+  Node* data_ptr = BuildTypedArrayDataPointer(base_pointer, external_pointer);
+  Node* length_in_bytes =
+      __ LoadField(AccessBuilder::ForJSTypedArrayLength(), node);
+
+  // We hard-code int32_t here, because all specializations of
+  // FastApiTypedArray have the same size.
+  constexpr int kAlign = alignof(FastApiTypedArray<int32_t>);
+  constexpr int kSize = sizeof(FastApiTypedArray<int32_t>);
+  static_assert(kAlign == alignof(FastApiTypedArray<double>),
+                "Alignment mismatch between different specializations of "
+                "FastApiTypedArray");
+  static_assert(kSize == sizeof(FastApiTypedArray<double>),
+                "Size mismatch between different specializations of "
+                "FastApiTypedArray");
+  static_assert(
+      kSize == sizeof(uintptr_t) + sizeof(size_t),
+      "The size of "
+      "FastApiTypedArray isn't equal to the sum of its expected members.");
+  Node* stack_slot = __ StackSlot(kSize, kAlign);
+
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           stack_slot, 0, length_in_bytes);
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           stack_slot, sizeof(size_t), data_ptr);
+  static_assert(sizeof(uintptr_t) == sizeof(size_t),
+                "The buffer length can't "
+                "fit the PointerRepresentation used to store it.");
+
+  return stack_slot;
+}
+
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
+  int kAlign = alignof(uintptr_t);
+  int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
       switch (arg_type.GetType()) {
         case CTypeInfo::Type::kV8Value: {
-          int kAlign = alignof(uintptr_t);
-          int kSize = sizeof(uintptr_t);
           Node* stack_slot = __ StackSlot(kSize, kAlign);
-
           __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                        kNoWriteBarrier),
                    stack_slot, 0, node);
@@ -5035,10 +5124,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       Node* value_is_smi = ObjectIsSmi(node);
       __ GotoIf(value_is_smi, if_error);
 
-      int kAlign = alignof(uintptr_t);
-      int kSize = sizeof(uintptr_t);
       Node* stack_slot = __ StackSlot(kSize, kAlign);
-
       __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                    kNoWriteBarrier),
                stack_slot, 0, node);
@@ -5053,9 +5139,15 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
 
       return stack_slot;
     }
-    case CTypeInfo::SequenceType::kIsTypedArray:
-      // TODO(mslekova): Implement typed arrays.
-      return node;
+    case CTypeInfo::SequenceType::kIsTypedArray: {
+      // Check that the value is a HeapObject.
+      Node* value_is_smi = ObjectIsSmi(node);
+      __ GotoIf(value_is_smi, if_error);
+
+      return AdaptFastCallTypedArrayArgument(
+          node, fast_api_call::GetTypedArrayElementsKind(arg_type.GetType()),
+          if_error);
+    }
     default: {
       UNREACHABLE();
     }
@@ -5069,14 +5161,8 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
     GraphAssemblerLabel<0>* if_error) {
   static constexpr int kReceiver = 1;
 
-  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-
-  int kAlign = alignof(uintptr_t);
-  int kSize = sizeof(uintptr_t);
-  Node* stack_slot = __ StackSlot(kSize, kAlign);
-  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                               kNoWriteBarrier),
-           stack_slot, 0, node);
+  auto merge = __ MakeLabel(MachineRepresentation::kTagged,
+                            MachineRepresentation::kTagged);
 
   for (size_t func_index = 0; func_index < c_functions.size(); func_index++) {
     const CFunctionInfo* c_signature = c_functions[func_index].signature;
@@ -5101,34 +5187,31 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
             value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
         __ GotoIfNot(value_is_js_array, &next);
 
+        int kAlign = alignof(uintptr_t);
+        int kSize = sizeof(uintptr_t);
+        Node* stack_slot = __ StackSlot(kSize, kAlign);
+
+        __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                     kNoWriteBarrier),
+                 stack_slot, 0, node);
+
         Node* target_address = __ ExternalConstant(
             ExternalReference::Create(c_functions[func_index].address));
-        __ Goto(&merge, target_address);
+        __ Goto(&merge, target_address, stack_slot);
         break;
       }
 
       case CTypeInfo::SequenceType::kIsTypedArray: {
         // Check that the value is a TypedArray with a type that matches the
         // type declared in the c-function.
-        ElementsKind typed_array_elements_kind =
+        Node* stack_slot = AdaptFastCallTypedArrayArgument(
+            node,
             fast_api_call::GetTypedArrayElementsKind(
-                overloads_resolution_result.element_type);
-
-        Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
-        Node* value_bit_field2 =
-            __ LoadField(AccessBuilder::ForMapBitField2(), value_map);
-        Node* value_elements_kind = __ WordShr(
-            __ WordAnd(value_bit_field2,
-                       __ Int32Constant(Map::Bits2::ElementsKindBits::kMask)),
-            __ Int32Constant(Map::Bits2::ElementsKindBits::kShift));
-        Node* is_same_kind = __ Word32Equal(
-            value_elements_kind,
-            __ Int32Constant(GetPackedElementsKind(typed_array_elements_kind)));
-        __ GotoIfNot(is_same_kind, &next);
-
+                overloads_resolution_result.element_type),
+            &next);
         Node* target_address = __ ExternalConstant(
             ExternalReference::Create(c_functions[func_index].address));
-        __ Goto(&merge, target_address);
+        __ Goto(&merge, target_address, stack_slot);
         break;
       }
 
@@ -5142,7 +5225,7 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
   __ Goto(if_error);
 
   __ Bind(&merge);
-  return {merge.PhiAt(0), stack_slot};
+  return {merge.PhiAt(0), merge.PhiAt(1)};
 }
 
 Node* EffectControlLinearizer::WrapFastCall(

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 @apiExposedInstanceTypeValue(0x46)
-@generateCppClass
 extern class Foreign extends HeapObject {
   foreign_address: ExternalPointer;
 }

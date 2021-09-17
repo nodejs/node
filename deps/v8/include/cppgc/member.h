@@ -218,6 +218,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 
   void ClearFromGC() const { MemberBase::ClearFromGC(); }
 
+  T* GetFromGC() const { return Get(); }
+
   friend class cppgc::Visitor;
   template <typename U>
   friend struct cppgc::TraceTrait;

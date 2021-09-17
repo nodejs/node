@@ -33,6 +33,22 @@ NativeContext Isolate::raw_native_context() {
   return context().native_context();
 }
 
+void Isolate::set_pending_message(Object message_obj) {
+  thread_local_top()->pending_message_ = message_obj;
+}
+
+Object Isolate::pending_message() {
+  return thread_local_top()->pending_message_;
+}
+
+void Isolate::clear_pending_message() {
+  set_pending_message(ReadOnlyRoots(this).the_hole_value());
+}
+
+bool Isolate::has_pending_message() {
+  return !pending_message().IsTheHole(this);
+}
+
 Object Isolate::pending_exception() {
   DCHECK(has_pending_exception());
   DCHECK(!thread_local_top()->pending_exception_.IsException(this));
@@ -54,11 +70,6 @@ bool Isolate::has_pending_exception() {
   return !thread_local_top()->pending_exception_.IsTheHole(this);
 }
 
-void Isolate::clear_pending_message() {
-  thread_local_top()->pending_message_obj_ =
-      ReadOnlyRoots(this).the_hole_value();
-}
-
 Object Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
   DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
@@ -73,8 +84,11 @@ bool Isolate::has_scheduled_exception() {
 
 void Isolate::clear_scheduled_exception() {
   DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
-  thread_local_top()->scheduled_exception_ =
-      ReadOnlyRoots(this).the_hole_value();
+  set_scheduled_exception(ReadOnlyRoots(this).the_hole_value());
+}
+
+void Isolate::set_scheduled_exception(Object exception) {
+  thread_local_top()->scheduled_exception_ = exception;
 }
 
 bool Isolate::is_catchable_by_javascript(Object exception) {

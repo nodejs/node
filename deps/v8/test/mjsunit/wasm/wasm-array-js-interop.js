@@ -9,9 +9,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kIterationsCountForICProgression = 20;
 
-// TODO(ishell): remove once leaked maps could keep NativeModule alive.
-let instances = [];
-
 function createArray_i() {
   let builder = new WasmModuleBuilder();
 
@@ -49,7 +46,6 @@ function createArray_i() {
     .exportAs("array_set");
 
   let instance = builder.instantiate();
-  instances.push(instance);
   let new_array = instance.exports.new_array;
   let array_get = instance.exports.array_get;
   let array_set = instance.exports.array_set;

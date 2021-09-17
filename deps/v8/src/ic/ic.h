@@ -337,7 +337,8 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 
-  void Store(Handle<JSArray> array, Handle<Object> index, Handle<Object> value);
+  MaybeHandle<Object> Store(Handle<JSArray> array, Handle<Object> index,
+                            Handle<Object> value);
 };
 
 }  // namespace internal

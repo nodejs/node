@@ -477,6 +477,7 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
+  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)

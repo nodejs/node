@@ -952,11 +952,13 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
+  const ProfileStackTrace empty_path;
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
-    if (profile->context_filter().Accept(native_context_address)) {
-      profile->AddPath(timestamp, path, src_line, update_stats,
-                       sampling_interval);
-    }
+    // If the context filter check failed, omit the contents of the stack.
+    bool accepts_context =
+        profile->context_filter().Accept(native_context_address);
+    profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
+                     update_stats, sampling_interval);
   }
   current_profiles_semaphore_.Signal();
 }

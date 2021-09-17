@@ -16,6 +16,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
@@ -1913,6 +1914,20 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     } else {
       li_optimized(rd, j, mode);
     }
+  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
+    BlockGrowBufferScope block_growbuffer(this);
+    int offset = pc_offset();
+    Address address = j.immediate();
+    saved_handles_for_raw_object_ptr_.push_back(
+        std::make_pair(offset, address));
+    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
+    int64_t immediate = object->ptr();
+    RecordRelocInfo(j.rmode(), immediate);
+    lui(rd, (immediate >> 32) & kImm16Mask);
+    ori(rd, rd, (immediate >> 16) & kImm16Mask);
+    dsll(rd, rd, 16);
+    ori(rd, rd, immediate & kImm16Mask);
+    DCHECK(EmbeddedObjectMatches(offset, object));
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
     if (j.IsHeapObjectRequest()) {
@@ -4555,6 +4570,25 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
+void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
+  if (kArchVariant == kMips64r6 && bdslot == PROTECT && (is_int26(offset))) {
+    BranchShortHelperR6(offset, nullptr);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    or_(t8, ra, zero_reg);
+    nal();                                         // Read PC into ra register.
+    lui(t9, (offset & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
+    ori(t9, t9, (offset & kImm16Mask));
+    daddu(t9, ra, t9);
+    if (bdslot == USE_DELAY_SLOT) {
+      or_(ra, t8, zero_reg);
+    }
+    jr(t9);
+    // Emit a or_ in the branch delay slot if it's protected.
+    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
+  }
+}
+
 void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   if (kArchVariant == kMips64r6 && bdslot == PROTECT &&
       (!L->is_bound() || is_near_r6(L))) {
@@ -4797,52 +4831,6 @@ void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
 
 // -----------------------------------------------------------------------------
 // JavaScript invokes.
-
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch0;
-  Dlsa(dst_reg, fp, caller_args_count, kPointerSizeLog2);
-  Daddu(dst_reg, dst_reg,
-        Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = caller_args_count;
-  // Calculate the end of source area. +kPointerSize is for the receiver.
-  Dlsa(src_reg, sp, callee_args_count, kPointerSizeLog2);
-  Daddu(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    Check(lo, AbortReason::kStackAccessBelowStackPointer, src_reg,
-          Operand(dst_reg));
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  Ld(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  Ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch1;
-  Label loop, entry;
-  Branch(&entry);
-  bind(&loop);
-  Dsubu(src_reg, src_reg, Operand(kPointerSize));
-  Dsubu(dst_reg, dst_reg, Operand(kPointerSize));
-  Ld(tmp_reg, MemOperand(src_reg));
-  Sd(tmp_reg, MemOperand(dst_reg));
-  bind(&entry);
-  Branch(&loop, ne, sp, Operand(src_reg));
-
-  // Leave current frame.
-  mov(sp, dst_reg);
-}
 
 void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
   DCHECK(root_array_available());
@@ -5353,6 +5341,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     li(kScratchReg, Operand(StackFrame::TypeToMarker(type)));
     Push(kScratchReg);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {

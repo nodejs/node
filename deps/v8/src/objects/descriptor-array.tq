@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 @generatePrint
-@generateCppClass
 extern class EnumCache extends Struct {
   keys: FixedArray;
   indices: FixedArray;

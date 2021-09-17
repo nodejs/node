@@ -4,7 +4,6 @@
 
 #include 'src/objects/js-number-format.h'
 
-@generateCppClass
 extern class JSNumberFormat extends JSObject {
   locale: String;
   icu_number_formatter:

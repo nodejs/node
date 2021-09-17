@@ -40,6 +40,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -53,6 +54,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -65,6 +67,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -77,6 +80,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             copyToClipboard : true
         }
@@ -97,6 +101,7 @@ Running test: testInspect
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
         }
         object : {
@@ -123,6 +128,7 @@ Running test: testQueryObjects
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -138,6 +144,7 @@ Is Promise.prototype: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -153,6 +160,7 @@ Is Promise.prototype: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }
@@ -168,6 +176,7 @@ Is p: true
 {
     method : Runtime.inspectRequested
     params : {
+        executionContextId : <executionContextId>
         hints : {
             queryObjects : true
         }

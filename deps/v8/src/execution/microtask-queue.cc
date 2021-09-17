@@ -74,7 +74,7 @@ Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
   Microtask microtask = Microtask::cast(Object(raw_microtask));
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
-  return ReadOnlyRoots(isolate).undefined_value().ptr();
+  return Smi::zero().ptr();
 }
 
 void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
@@ -110,23 +110,21 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   ++size_;
 }
 
-void MicrotaskQueue::PerformCheckpoint(v8::Isolate* v8_isolate) {
-  if (!IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
-      !HasMicrotasksSuppressions()) {
-    std::unique_ptr<MicrotasksScope> microtasks_scope;
-    if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
-      // If we're using microtask scopes to schedule microtask execution, V8
-      // API calls will check that there's always a microtask scope on the
-      // stack. As the microtasks we're about to execute could invoke embedder
-      // callbacks which then calls back into V8, we create an artificial
-      // microtask scope here to avoid running into the CallDepthScope check.
-      microtasks_scope.reset(new v8::MicrotasksScope(
-          v8_isolate, this, v8::MicrotasksScope::kDoNotRunMicrotasks));
-    }
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    RunMicrotasks(isolate);
-    isolate->ClearKeptObjects();
+void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
+  DCHECK(ShouldPerfomCheckpoint());
+  std::unique_ptr<MicrotasksScope> microtasks_scope;
+  if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
+    // If we're using microtask scopes to schedule microtask execution, V8
+    // API calls will check that there's always a microtask scope on the
+    // stack. As the microtasks we're about to execute could invoke embedder
+    // callbacks which then calls back into V8, we create an artificial
+    // microtask scope here to avoid running into the CallDepthScope check.
+    microtasks_scope.reset(new v8::MicrotasksScope(
+        v8_isolate, this, v8::MicrotasksScope::kDoNotRunMicrotasks));
   }
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  RunMicrotasks(isolate);
+  isolate->ClearKeptObjects();
 }
 
 namespace {
@@ -226,10 +224,6 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   }
 }
 
-int MicrotaskQueue::GetMicrotasksScopeDepth() const {
-  return microtasks_depth_;
-}
-
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
   CallbackWithData callback_with_data(callback, data);
@@ -250,7 +244,7 @@ void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
   microtasks_completed_callbacks_.erase(pos);
 }
 
-void MicrotaskQueue::FireMicrotasksCompletedCallback(Isolate* isolate) const {
+void MicrotaskQueue::OnCompleted(Isolate* isolate) const {
   std::vector<CallbackWithData> callbacks(microtasks_completed_callbacks_);
   for (auto& callback : callbacks) {
     callback.first(reinterpret_cast<v8::Isolate*>(isolate), callback.second);
@@ -261,10 +255,6 @@ Microtask MicrotaskQueue::get(intptr_t index) const {
   DCHECK_LT(index, size_);
   Object microtask(ring_buffer_[(index + start_) % capacity_]);
   return Microtask::cast(microtask);
-}
-
-void MicrotaskQueue::OnCompleted(Isolate* isolate) {
-  FireMicrotasksCompletedCallback(isolate);
 }
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {

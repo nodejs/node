@@ -30,10 +30,11 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -57,7 +58,7 @@
 #include "src/init/v8.h"
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
-#include "src/logging/counters.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/tracing-flags.h"
@@ -130,8 +131,10 @@
 #endif
 
 #if V8_OS_WIN
-#include <versionhelpers.h>
 #include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>
 
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
@@ -1223,8 +1226,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
     const MemorySpan<const CFunction>& c_function_overloads = {},
-    uint8_t instance_type = 0, uint8_t allowed_receiver_range_start = 0,
-    uint8_t allowed_receiver_range_end = 0) {
+    uint8_t instance_type = 0,
+    uint8_t allowed_receiver_instance_type_range_start = 0,
+    uint8_t allowed_receiver_instance_type_range_end = 0) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1247,8 +1251,10 @@ static Local<FunctionTemplate> FunctionTemplateNew(
             : *Utils::OpenHandle(*cached_property_name));
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
     raw.SetInstanceType(instance_type);
-    raw.set_allowed_receiver_range_start(allowed_receiver_range_start);
-    raw.set_allowed_receiver_range_end(allowed_receiver_range_end);
+    raw.set_allowed_receiver_instance_type_range_start(
+        allowed_receiver_instance_type_range_start);
+    raw.set_allowed_receiver_instance_type_range_end(
+        allowed_receiver_instance_type_range_end);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1261,8 +1267,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type, const CFunction* c_function,
-    uint8_t instance_type, uint8_t allowed_receiver_range_start,
-    uint8_t allowed_receiver_range_end) {
+    uint16_t instance_type, uint16_t allowed_receiver_instance_type_range_start,
+    uint16_t allowed_receiver_instance_type_range_end) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1273,7 +1279,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
       Local<Private>(), side_effect_type,
       c_function ? MemorySpan<const CFunction>{c_function, 1}
                  : MemorySpan<const CFunction>{},
-      instance_type, allowed_receiver_range_start, allowed_receiver_range_end);
+      instance_type, allowed_receiver_instance_type_range_start,
+      allowed_receiver_instance_type_range_end);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
@@ -1874,10 +1881,6 @@ bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
 
 void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
 
-ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
-                                               Encoding encoding)
-    : StreamedSource(std::unique_ptr<ExternalSourceStream>(stream), encoding) {}
-
 ScriptCompiler::StreamedSource::StreamedSource(
     std::unique_ptr<ExternalSourceStream> stream, Encoding encoding)
     : impl_(new i::ScriptStreamingData(std::move(stream), encoding)) {}
@@ -1964,10 +1967,11 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Script, Run, MaybeLocal<Value>(),
            InternalEscapableScope);
-  i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
+  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
   i::AggregatingHistogramTimerScope histogram_timer(
       isolate->counters()->compile_lazy());
-  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
   // TODO(crbug.com/1193459): remove once ablation study is completed
@@ -2102,14 +2106,15 @@ Local<FixedArray> ModuleRequest::GetImportAssertions() const {
 Module::Status Module::GetStatus() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   switch (self->status()) {
-    case i::Module::kUninstantiated:
-    case i::Module::kPreInstantiating:
+    case i::Module::kUnlinked:
+    case i::Module::kPreLinking:
       return kUninstantiated;
-    case i::Module::kInstantiating:
+    case i::Module::kLinking:
       return kInstantiating;
-    case i::Module::kInstantiated:
+    case i::Module::kLinked:
       return kInstantiated;
     case i::Module::kEvaluating:
+    case i::Module::kEvaluatingAsync:
       return kEvaluating;
     case i::Module::kEvaluated:
       return kEvaluated;
@@ -2290,13 +2295,14 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Module, Evaluate, MaybeLocal<Value>(),
            InternalEscapableScope);
-  i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
-  i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
+  i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  Utils::ApiCheck(self->status() >= i::Module::kInstantiated,
-                  "Module::Evaluate", "Expected instantiated module");
+  Utils::ApiCheck(self->status() >= i::Module::kLinked, "Module::Evaluate",
+                  "Expected instantiated module");
 
   Local<Value> result;
   has_pending_exception = !ToLocal(i::Module::Evaluate(isolate, self), &result);
@@ -2345,31 +2351,17 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* isolate,
   return Just(true);
 }
 
-void Module::SetSyntheticModuleExport(Local<String> export_name,
-                                      Local<v8::Value> export_value) {
-  i::Handle<i::String> i_export_name = Utils::OpenHandle(*export_name);
-  i::Handle<i::Object> i_export_value = Utils::OpenHandle(*export_value);
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(self->GetIsolate());
-  Utils::ApiCheck(self->IsSyntheticModule(),
-                  "v8::Module::SetSyntheticModuleExport",
-                  "v8::Module::SetSyntheticModuleExport must only be called on "
-                  "a SyntheticModule");
-  i::SyntheticModule::SetExportStrict(self->GetIsolate(),
-                                      i::Handle<i::SyntheticModule>::cast(self),
-                                      i_export_name, i_export_value);
-}
-
 namespace {
 
-i::Compiler::ScriptDetails GetScriptDetails(
-    i::Isolate* isolate, Local<Value> resource_name, int resource_line_offset,
-    int resource_column_offset, Local<Value> source_map_url,
-    Local<PrimitiveArray> host_defined_options) {
-  i::Compiler::ScriptDetails script_details;
-  if (!resource_name.IsEmpty()) {
-    script_details.name_obj = Utils::OpenHandle(*(resource_name));
-  }
+i::ScriptDetails GetScriptDetails(i::Isolate* isolate,
+                                  Local<Value> resource_name,
+                                  int resource_line_offset,
+                                  int resource_column_offset,
+                                  Local<Value> source_map_url,
+                                  Local<PrimitiveArray> host_defined_options,
+                                  ScriptOriginOptions origin_options) {
+  i::ScriptDetails script_details(Utils::OpenHandle(*(resource_name), true),
+                                  origin_options);
   script_details.line_offset = resource_line_offset;
   script_details.column_offset = resource_column_offset;
   script_details.host_defined_options =
@@ -2393,29 +2385,44 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
                      CompileUnbound, MaybeLocal<UnboundScript>(),
                      InternalEscapableScope);
 
-  i::ScriptData* script_data = nullptr;
+  i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
+
+  std::unique_ptr<i::AlignedCachedData> cached_data;
   if (options == kConsumeCodeCache) {
-    DCHECK(source->cached_data);
-    // ScriptData takes care of pointer-aligning the data.
-    script_data = new i::ScriptData(source->cached_data->data,
-                                    source->cached_data->length);
+    if (source->consume_cache_task) {
+      // If there's a cache consume task, finish it
+      i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+          source->consume_cache_task->impl_->Finish(isolate, str,
+                                                    source->resource_options);
+      i::Handle<i::SharedFunctionInfo> result;
+      if (maybe_function_info.ToHandle(&result)) {
+        RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
+      }
+      // If the above failed, then we must have rejected the cache. Continue
+      // with normal compilation, disabling the code cache consumption.
+      source->cached_data->rejected = true;
+      options = kNoCompileOptions;
+    } else {
+      DCHECK(source->cached_data);
+      // AlignedCachedData takes care of pointer-aligning the data.
+      cached_data.reset(new i::AlignedCachedData(source->cached_data->data,
+                                                 source->cached_data->length));
+    }
   }
 
-  i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
   i::Handle<i::SharedFunctionInfo> result;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
-  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+  i::ScriptDetails script_details = GetScriptDetails(
       isolate, source->resource_name, source->resource_line_offset,
       source->resource_column_offset, source->source_map_url,
-      source->host_defined_options);
+      source->host_defined_options, source->resource_options);
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForScript(
-          isolate, str, script_details, source->resource_options, nullptr,
-          script_data, options, no_cache_reason, i::NOT_NATIVES_CODE);
+          isolate, str, script_details, nullptr, cached_data.get(), options,
+          no_cache_reason, i::NOT_NATIVES_CODE);
   if (options == kConsumeCodeCache) {
-    source->cached_data->rejected = script_data->rejected();
+    source->cached_data->rejected = cached_data->rejected();
   }
-  delete script_data;
   has_pending_exception = !maybe_function_info.ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(UnboundScript);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
@@ -2532,30 +2539,28 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
           extension);
     }
 
-    i::Compiler::ScriptDetails script_details = GetScriptDetails(
+    i::ScriptDetails script_details = GetScriptDetails(
         isolate, source->resource_name, source->resource_line_offset,
         source->resource_column_offset, source->source_map_url,
-        source->host_defined_options);
+        source->host_defined_options, source->resource_options);
 
-    i::ScriptData* script_data = nullptr;
+    std::unique_ptr<i::AlignedCachedData> cached_data;
     if (options == kConsumeCodeCache) {
       DCHECK(source->cached_data);
       // ScriptData takes care of pointer-aligning the data.
-      script_data = new i::ScriptData(source->cached_data->data,
-                                      source->cached_data->length);
+      cached_data.reset(new i::AlignedCachedData(source->cached_data->data,
+                                                 source->cached_data->length));
     }
 
     i::Handle<i::JSFunction> scoped_result;
     has_pending_exception =
         !i::Compiler::GetWrappedFunction(
              Utils::OpenHandle(*source->source_string), arguments_list, context,
-             script_details, source->resource_options, script_data, options,
-             no_cache_reason)
+             script_details, cached_data.get(), options, no_cache_reason)
              .ToHandle(&scoped_result);
     if (options == kConsumeCodeCache) {
-      source->cached_data->rejected = script_data->rejected();
+      source->cached_data->rejected = cached_data->rejected();
     }
-    delete script_data;
     RETURN_ON_FAILED_EXECUTION(Function);
     result = handle_scope.Escape(Utils::CallableToLocal(scoped_result));
   }
@@ -2574,14 +2579,6 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
 
 void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
 
-ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
-    Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
-  // We don't support other compile options on streaming background compiles.
-  // TODO(rmcilroy): remove CompileOptions from the API.
-  CHECK(options == ScriptCompiler::kNoCompileOptions);
-  return StartStreaming(v8_isolate, source);
-}
-
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
     Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type) {
   if (!i::FLAG_script_streaming) return nullptr;
@@ -2594,18 +2591,36 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
   return new ScriptCompiler::ScriptStreamingTask(data);
 }
 
+ScriptCompiler::ConsumeCodeCacheTask::ConsumeCodeCacheTask(
+    std::unique_ptr<i::BackgroundDeserializeTask> impl)
+    : impl_(std::move(impl)) {}
+
+ScriptCompiler::ConsumeCodeCacheTask::~ConsumeCodeCacheTask() = default;
+
+void ScriptCompiler::ConsumeCodeCacheTask::Run() { impl_->Run(); }
+
+ScriptCompiler::ConsumeCodeCacheTask* ScriptCompiler::StartConsumingCodeCache(
+    Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
+  if (!i::FLAG_concurrent_cache_deserialization) return nullptr;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
+  return new ScriptCompiler::ConsumeCodeCacheTask(
+      std::make_unique<i::BackgroundDeserializeTask>(isolate,
+                                                     std::move(cached_data)));
+}
+
 namespace {
 i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
     i::Isolate* isolate, ScriptCompiler::StreamedSource* v8_source,
     Local<String> full_source_string, const ScriptOrigin& origin) {
   i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-  i::Compiler::ScriptDetails script_details =
+  i::ScriptDetails script_details =
       GetScriptDetails(isolate, origin.ResourceName(), origin.LineOffset(),
                        origin.ColumnOffset(), origin.SourceMapUrl(),
-                       origin.HostDefinedOptions());
+                       origin.HostDefinedOptions(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
-      isolate, str, script_details, origin.Options(), data);
+      isolate, str, script_details, data);
 }
 
 }  // namespace
@@ -3674,6 +3689,13 @@ i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
 bool i::ShouldThrowOnError(i::Isolate* isolate) {
   return i::GetShouldThrow(isolate, Nothing<i::ShouldThrow>()) ==
          i::ShouldThrow::kThrowOnError;
+}
+
+bool i::CanHaveInternalField(int instance_type) {
+  return instance_type == i::Internals::kJSObjectType ||
+         instance_type == i::Internals::kJSSpecialApiObjectType ||
+         v8::internal::InstanceTypeChecker::IsJSApiObject(
+             static_cast<v8::internal::InstanceType>(instance_type));
 }
 
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
@@ -4947,6 +4969,8 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   ENTER_V8(isolate, context, Object, CallAsFunction, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
@@ -4965,6 +4989,8 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   ENTER_V8(isolate, context, Object, CallAsConstructor, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -5002,6 +5028,8 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   ENTER_V8(isolate, context, Function, NewInstance, MaybeLocal<Object>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   bool should_set_has_no_side_effect =
@@ -5051,6 +5079,8 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   ENTER_V8(isolate, context, Function, Call, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  i::NestedTimedHistogramScope execute_timer(
+      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   Utils::ApiCheck(!self.is_null(), "v8::Function::Call",
                   "Function to be called is a null pointer");
@@ -5859,29 +5889,17 @@ bool v8::V8::Initialize(const int build_config) {
 #if V8_OS_LINUX || V8_OS_MACOSX
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
-  // When the target code runs on the V8 arm simulator, the trap handler does
-  // not behave as expected: the instruction pointer points inside the simulator
-  // code rather than the wasm code, so the trap handler cannot find the landing
-  // pad and lets the process crash. Therefore, only enable trap handlers if
-  // the host and target arch are the same.
-#if V8_ENABLE_WEBASSEMBLY &&                   \
-    ((V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
-     (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX))
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;
 #endif
 }
-
-bool V8::TryHandleSignal(int signum, void* info, void* context) {
-  return TryHandleWebAssemblyTrapPosix(
-      signum, reinterpret_cast<siginfo_t*>(info), context);
-}
 #endif
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
   return i::trap_handler::TryHandleWasmTrap(exception);
 #else
   return false;
@@ -5983,8 +6001,6 @@ const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
   i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
 }
-
-void V8::SetIsCrossOriginIsolated() {}
 
 template <typename ObjectType>
 struct InvokeBootstrapper;
@@ -8684,11 +8700,6 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
   return true;
 }
 
-v8::MaybeLocal<v8::Promise> Isolate::MeasureMemory(
-    v8::Local<v8::Context> context, MeasureMemoryMode mode) {
-  return v8::MaybeLocal<v8::Promise>();
-}
-
 bool Isolate::MeasureMemory(std::unique_ptr<MeasureMemoryDelegate> delegate,
                             MeasureMemoryExecution execution) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8888,7 +8899,7 @@ bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
 void Isolate::LowMemoryNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   {
-    i::HistogramTimerScope idle_notification_scope(
+    i::NestedTimedHistogramScope idle_notification_scope(
         isolate->counters()->gc_low_memory_notification());
     TRACE_EVENT0("v8", "V8.GCLowMemoryNotification");
     isolate->heap()->CollectAllAvailableGarbage(
@@ -9631,7 +9642,7 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)
-      ->set_detailed_source_positions_for_profiling(true);
+      ->SetDetailedSourcePositionsForProfiling(true);
 }
 
 uintptr_t CodeEvent::GetCodeStartAddress() {
@@ -10034,6 +10045,10 @@ const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
   return arg_info_[index];
 }
 
+void FastApiTypedArrayBase::ValidateIndex(size_t index) const {
+  DCHECK_LT(index, length_);
+}
+
 RegisterState::RegisterState()
     : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
 RegisterState::~RegisterState() = default;
@@ -10234,7 +10249,6 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(getter);
-  VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, getter_address);
   getter(property, info);
 }
@@ -10244,7 +10258,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   Address callback_address = reinterpret_cast<Address>(callback);
-  VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);
   callback(info);
 }
@@ -10322,6 +10335,7 @@ bool ConvertDouble(double d) {
 #undef CALLBACK_SETTER
 
 }  // namespace internal
+
 }  // namespace v8
 
 #undef TRACE_BS

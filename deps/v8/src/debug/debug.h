@@ -42,14 +42,16 @@ enum StepAction : int8_t {
 // Type of exception break. NOTE: These values are in macros.py as well.
 enum ExceptionBreakType { BreakException = 0, BreakUncaughtException = 1 };
 
+// Type of debug break. NOTE: The order matters for the predicates
+// below inside BreakLocation, so be careful when adding / removing.
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
   DEBUGGER_STATEMENT,
+  DEBUG_BREAK_AT_ENTRY,
   DEBUG_BREAK_SLOT,
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
   DEBUG_BREAK_SLOT_AT_SUSPEND,
-  DEBUG_BREAK_AT_ENTRY,
 };
 
 enum IgnoreBreakMode {
@@ -67,25 +69,18 @@ class BreakLocation {
                                     JavaScriptFrame* frame,
                                     std::vector<BreakLocation>* result_out);
 
-  inline bool IsSuspend() const { return type_ == DEBUG_BREAK_SLOT_AT_SUSPEND; }
-  inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
-  inline bool IsReturnOrSuspend() const {
-    return type_ >= DEBUG_BREAK_SLOT_AT_RETURN;
-  }
-  inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
-  inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
-  inline bool IsDebuggerStatement() const {
-    return type_ == DEBUGGER_STATEMENT;
-  }
-  inline bool IsDebugBreakAtEntry() const {
-    bool result = type_ == DEBUG_BREAK_AT_ENTRY;
-    return result;
-  }
+  bool IsSuspend() const { return type_ == DEBUG_BREAK_SLOT_AT_SUSPEND; }
+  bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
+  bool IsReturnOrSuspend() const { return type_ >= DEBUG_BREAK_SLOT_AT_RETURN; }
+  bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
+  bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
+  bool IsDebuggerStatement() const { return type_ == DEBUGGER_STATEMENT; }
+  bool IsDebugBreakAtEntry() const { return type_ == DEBUG_BREAK_AT_ENTRY; }
 
   bool HasBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info) const;
 
-  inline int generator_suspend_id() { return generator_suspend_id_; }
-  inline int position() const { return position_; }
+  int generator_suspend_id() { return generator_suspend_id_; }
+  int position() const { return position_; }
 
   debug::BreakLocationType type() const;
 

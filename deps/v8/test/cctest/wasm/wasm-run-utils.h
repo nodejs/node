@@ -96,6 +96,10 @@ struct ManuallyImportedJSFunction {
   Handle<JSFunction> js_function;
 };
 
+// Helper Functions.
+bool IsSameNan(float expected, float actual);
+bool IsSameNan(double expected, double actual);
+
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmModuleObject} and, if necessary,
@@ -439,7 +443,8 @@ class WasmRunnerBase : public InitializedHandleScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
-    builder().AddSignature(sig);
+    byte sig_index = builder().AddSignature(sig);
+    functions_.back()->SetSigIndex(sig_index);
     return *functions_.back();
   }
 

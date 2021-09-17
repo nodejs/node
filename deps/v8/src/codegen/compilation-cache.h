@@ -16,6 +16,7 @@ template <typename T>
 class Handle;
 
 class RootVisitor;
+struct ScriptDetails;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
@@ -82,9 +83,7 @@ class CompilationCacheScript : public CompilationSubCache {
   explicit CompilationCacheScript(Isolate* isolate);
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         MaybeHandle<Object> name,
-                                         int line_offset, int column_offset,
-                                         ScriptOriginOptions resource_options,
+                                         const ScriptDetails& script_details,
                                          LanguageMode language_mode);
 
   void Put(Handle<String> source, LanguageMode language_mode,
@@ -93,10 +92,6 @@ class CompilationCacheScript : public CompilationSubCache {
   void Age() override;
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 MaybeHandle<Object> name, int line_offset, int column_offset,
-                 ScriptOriginOptions resource_options);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
 
@@ -163,8 +158,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
   MaybeHandle<SharedFunctionInfo> LookupScript(
-      Handle<String> source, MaybeHandle<Object> name, int line_offset,
-      int column_offset, ScriptOriginOptions resource_options,
+      Handle<String> source, const ScriptDetails& script_details,
       LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a

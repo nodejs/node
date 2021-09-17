@@ -57,8 +57,8 @@ class TransitionArray;
   F(HeapObjectAndCode, weak_objects_in_code, WeakObjectsInCode)              \
   F(JSWeakRef, js_weak_refs, JSWeakRefs)                                     \
   F(WeakCell, weak_cells, WeakCells)                                         \
-  F(SharedFunctionInfo, bytecode_flushing_candidates,                        \
-    BytecodeFlushingCandidates)                                              \
+  F(SharedFunctionInfo, code_flushing_candidates, CodeFlushingCandidates)    \
+  F(JSFunction, baseline_flushing_candidates, BaselineFlushingCandidates)    \
   F(JSFunction, flushed_js_functions, FlushedJSFunctions)
 
 class WeakObjects {

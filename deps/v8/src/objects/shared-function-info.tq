@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
@@ -15,7 +14,6 @@ extern class InterpreterData extends Struct {
   @ifnot(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: Code;
 }
 
-@generateCppClass
 @generatePrint
 extern class BaselineData extends Struct {
   @if(V8_EXTERNAL_CODE_SPACE) baseline_code: CodeDataContainer;
@@ -57,6 +55,10 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
 @customCppClass
 @customMap  // Just to place the map at the beginning of the roots array.
 class SharedFunctionInfo extends HeapObject {
+  // function_data field is treated as a custom weak pointer. We visit this
+  // field as a weak pointer if there is aged bytecode. If there is no bytecode
+  // or if the bytecode is young then we treat it as a strong pointer. This is
+  // done to support flushing of bytecode.
   weak function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;

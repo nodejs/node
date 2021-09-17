@@ -106,6 +106,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-statistics-collector-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
     "heap/cppgc/incremental-marking-schedule-unittest.cc",
+    "heap/cppgc/liveness-broker-unittest.cc",
     "heap/cppgc/logging-unittest.cc",
     "heap/cppgc/marker-unittest.cc",
     "heap/cppgc/marking-verifier-unittest.cc",
@@ -201,6 +202,7 @@ v8_source_set("unittests_sources") {
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",
+    "api/deserialize-unittest.cc",
     "api/exception-unittest.cc",
     "api/interceptor-unittest.cc",
     "api/isolate-unittest.cc",
@@ -300,6 +302,7 @@ v8_source_set("unittests_sources") {
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
     "date/date-cache-unittest.cc",
+    "debug/debug-property-iterator-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "execution/microtask-queue-unittest.cc",
@@ -369,6 +372,7 @@ v8_source_set("unittests_sources") {
     "regress/regress-crbug-1056054-unittest.cc",
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
+    "runtime/runtime-debug-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
@@ -486,6 +490,12 @@ v8_source_set("unittests_sources") {
 
   if (is_win && v8_enable_webassembly) {
     sources += [ "wasm/trap-handler-win-unittest.cc" ]
+  }
+
+  # Include this test only on arm64 simulator builds on x64 on Linux.
+  if (current_cpu == "x64" && v8_current_cpu == "arm64" && is_linux &&
+      v8_enable_webassembly) {
+    sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
   }
 
   configs = [

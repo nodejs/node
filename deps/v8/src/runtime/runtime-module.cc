@@ -28,7 +28,9 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   Handle<Script> script(Script::cast(function->shared().script()), isolate);
 
   while (script->has_eval_from_shared()) {
-    script = handle(Script::cast(script->eval_from_shared().script()), isolate);
+    Object maybe_script = script->eval_from_shared().script();
+    CHECK(maybe_script.IsScript());
+    script = handle(Script::cast(maybe_script), isolate);
   }
 
   RETURN_RESULT_OR_FAILURE(isolate,

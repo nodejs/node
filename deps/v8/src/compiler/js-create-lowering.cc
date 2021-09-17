@@ -389,12 +389,12 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     DCHECK(closure_type.AsHeapConstant()->Ref().IsJSFunction());
     JSFunctionRef js_function =
         closure_type.AsHeapConstant()->Ref().AsJSFunction();
-    if (!js_function.has_initial_map()) return NoChange();
+    if (!js_function.has_initial_map(dependencies())) return NoChange();
 
     SlackTrackingPrediction slack_tracking_prediction =
         dependencies()->DependOnInitialMapInstanceSizePrediction(js_function);
 
-    MapRef initial_map = js_function.initial_map();
+    MapRef initial_map = js_function.initial_map(dependencies());
     DCHECK(initial_map.instance_type() == JS_GENERATOR_OBJECT_TYPE ||
            initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
@@ -618,13 +618,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  base::Optional<AllocationSiteRef> site_ref;
-  {
-    Handle<AllocationSite> site;
-    if (p.site().ToHandle(&site)) {
-      site_ref = MakeRef(broker(), site);
-    }
-  }
+  base::Optional<AllocationSiteRef> site_ref = p.site(broker());
   AllocationType allocation = AllocationType::kYoung;
 
   base::Optional<MapRef> initial_map =
@@ -652,7 +646,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   } else {
     PropertyCellRef array_constructor_protector =
         MakeRef(broker(), factory()->array_constructor_protector());
-    array_constructor_protector.SerializeAsProtector();
+    array_constructor_protector.CacheAsProtector();
     can_inline_call = array_constructor_protector.value().AsSmi() ==
                       Protectors::kProtectorValid;
   }
@@ -879,7 +873,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   CreateBoundFunctionParameters const& p =
       CreateBoundFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  MapRef const map = MakeRef(broker(), p.map());
+  MapRef const map = p.map(broker());
   Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
   Node* bound_this = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -920,9 +914,9 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
   CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared = MakeRef(broker(), p.shared_info());
+  SharedFunctionInfoRef shared = p.shared_info(broker());
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-  HeapObjectRef code = MakeRef(broker(), p.code());
+  HeapObjectRef code = p.code(broker());
   Effect effect = n.effect();
   Control control = n.control();
   Node* context = n.context();
@@ -1060,7 +1054,8 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  MapRef promise_map = native_context().promise_function().initial_map();
+  MapRef promise_map =
+      native_context().promise_function().initial_map(dependencies());
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(promise_map.instance_size());
@@ -1140,7 +1135,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Retrieve the initial map for the object.
-  MapRef map = native_context().object_function().initial_map();
+  MapRef map = native_context().object_function().initial_map(dependencies());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   Node* js_object_map = jsgraph()->Constant(map);
@@ -1203,7 +1198,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  ScopeInfoRef scope_info = MakeRef(broker(), parameters.scope_info());
+  ScopeInfoRef scope_info = parameters.scope_info(broker());
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
 
@@ -1243,7 +1238,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
   Node* extension = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1264,7 +1259,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
-  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1285,7 +1280,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
   int const context_length = scope_info.ContextLength();
 
   // Use inline allocation for block contexts up to a size limit.
@@ -1313,10 +1308,12 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 namespace {
+
 base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
                                           HeapObjectRef prototype) {
   MapRef standard_map =
-      broker->target_native_context().object_function().initial_map();
+      broker->target_native_context().object_function().initial_map(
+          broker->dependencies());
   if (prototype.equals(standard_map.prototype().value())) {
     return standard_map;
   }
@@ -1329,6 +1326,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   }
   return base::Optional<MapRef>();
 }
+
 }  // namespace
 
 Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
@@ -1886,7 +1884,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
 
 Node* JSCreateLowering::AllocateLiteralRegExp(
     Node* effect, Node* control, RegExpBoilerplateDescriptionRef boilerplate) {
-  MapRef initial_map = native_context().regexp_function().initial_map();
+  MapRef initial_map =
+      native_context().regexp_function().initial_map(dependencies());
 
   // Sanity check that JSRegExp object layout hasn't changed.
   STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);

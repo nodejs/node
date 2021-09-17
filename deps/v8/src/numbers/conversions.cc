@@ -12,6 +12,7 @@
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/platform/wrappers.h"
+#include "src/bigint/bigint.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -310,15 +311,11 @@ class StringToIntHelper {
 
  protected:
   // Subclasses must implement these:
-  virtual void AllocateResult() = 0;
-  virtual void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) = 0;
+  virtual void ParseOneByte(const uint8_t* start) = 0;
+  virtual void ParseTwoByte(const base::uc16* start) = 0;
 
   // Subclasses must call this to do all the work.
   void ParseInt();
-
-  // Subclasses may override this.
-  virtual bool CheckTermination() { return false; }
-  virtual void HandleSpecialCases() {}
 
   // Subclass constructors should call these for configuration before calling
   // ParseInt().
@@ -326,22 +323,23 @@ class StringToIntHelper {
     allow_binary_and_octal_prefixes_ = true;
   }
   void set_disallow_trailing_junk() { allow_trailing_junk_ = false; }
+  bool allow_trailing_junk() { return allow_trailing_junk_; }
 
   bool IsOneByte() const {
     return raw_one_byte_subject_ != nullptr ||
            String::IsOneByteRepresentationUnderneath(*subject_);
   }
 
-  base::Vector<const uint8_t> GetOneByteVector() {
+  base::Vector<const uint8_t> GetOneByteVector(
+      const DisallowGarbageCollection& no_gc) {
     if (raw_one_byte_subject_ != nullptr) {
       return base::Vector<const uint8_t>(raw_one_byte_subject_, length_);
     }
-    DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToOneByteVector();
   }
 
-  base::Vector<const base::uc16> GetTwoByteVector() {
-    DisallowGarbageCollection no_gc;
+  base::Vector<const base::uc16> GetTwoByteVector(
+      const DisallowGarbageCollection& no_gc) {
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
@@ -357,8 +355,6 @@ class StringToIntHelper {
  private:
   template <class Char>
   void DetectRadixInternal(Char current, int length);
-  template <class Char>
-  bool ParseChunkInternal(Char start);
 
   IsolateT* isolate_;
   Handle<String> subject_;
@@ -375,46 +371,18 @@ class StringToIntHelper {
 
 template <typename IsolateT>
 void StringToIntHelper<IsolateT>::ParseInt() {
-  {
-    DisallowGarbageCollection no_gc;
-    if (IsOneByte()) {
-      base::Vector<const uint8_t> vector = GetOneByteVector();
-      DetectRadixInternal(vector.begin(), vector.length());
-    } else {
-      base::Vector<const base::uc16> vector = GetTwoByteVector();
-      DetectRadixInternal(vector.begin(), vector.length());
-    }
+  DisallowGarbageCollection no_gc;
+  if (IsOneByte()) {
+    base::Vector<const uint8_t> vector = GetOneByteVector(no_gc);
+    DetectRadixInternal(vector.begin(), vector.length());
+    if (state_ != State::kRunning) return;
+    ParseOneByte(vector.begin());
+  } else {
+    base::Vector<const base::uc16> vector = GetTwoByteVector(no_gc);
+    DetectRadixInternal(vector.begin(), vector.length());
+    if (state_ != State::kRunning) return;
+    ParseTwoByte(vector.begin());
   }
-  if (state_ != State::kRunning) return;
-  AllocateResult();
-  HandleSpecialCases();
-  if (state_ != State::kRunning) return;
-  do {
-    {
-      DisallowGarbageCollection no_gc;
-      if (IsOneByte()) {
-        base::Vector<const uint8_t> vector = GetOneByteVector();
-        DCHECK_EQ(length_, vector.length());
-        if (ParseChunkInternal(vector.begin())) {
-          break;
-        }
-      } else {
-        base::Vector<const base::uc16> vector = GetTwoByteVector();
-        DCHECK_EQ(length_, vector.length());
-        if (ParseChunkInternal(vector.begin())) {
-          break;
-        }
-      }
-    }
-
-    // The flat vector handle is temporarily released after parsing 10kb
-    // in order to invoke interrupts which may in turn invoke GC.
-    if (CheckTermination()) {
-      set_state(State::kError);
-      break;
-    }
-  } while (true);
-  DCHECK_NE(state_, State::kRunning);
 }
 
 template <typename IsolateT>
@@ -497,22 +465,118 @@ void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
   cursor_ = static_cast<int>(current - start);
 }
 
-template <typename IsolateT>
-template <class Char>
-bool StringToIntHelper<IsolateT>::ParseChunkInternal(Char start) {
-  const int kChunkSize = 10240;
-  Char current = start + cursor_;
-  Char end = start + length_;
-  Char break_pos = current + kChunkSize;
+class NumberParseIntHelper : public StringToIntHelper<Isolate> {
+ public:
+  NumberParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
+      : StringToIntHelper(isolate, string, radix) {}
 
+  template <class Char>
+  void ParseInternal(Char start) {
+    Char current = start + cursor();
+    Char end = start + length();
+
+    if (radix() == 10) return HandleBaseTenCase(current, end);
+    if (base::bits::IsPowerOfTwo(radix())) {
+      result_ = HandlePowerOfTwoCase(current, end);
+      set_state(State::kDone);
+      return;
+    }
+    return HandleGenericCase(current, end);
+  }
+  void ParseOneByte(const uint8_t* start) final { return ParseInternal(start); }
+  void ParseTwoByte(const base::uc16* start) final {
+    return ParseInternal(start);
+  }
+
+  double GetResult() {
+    ParseInt();
+    switch (state()) {
+      case State::kJunk:
+      case State::kEmpty:
+        return JunkStringValue();
+      case State::kZero:
+        return SignedZero(negative());
+      case State::kDone:
+        return negative() ? -result_ : result_;
+      case State::kError:
+      case State::kRunning:
+        break;
+    }
+    UNREACHABLE();
+  }
+
+ private:
+  template <class Char>
+  void HandleGenericCase(Char current, Char end);
+
+  template <class Char>
+  double HandlePowerOfTwoCase(Char current, Char end) {
+    const bool allow_trailing_junk = true;
+    // GetResult() will take care of the sign bit, so ignore it for now.
+    const bool negative = false;
+    switch (radix()) {
+      case 2:
+        return InternalStringToIntDouble<1>(current, end, negative,
+                                            allow_trailing_junk);
+      case 4:
+        return InternalStringToIntDouble<2>(current, end, negative,
+                                            allow_trailing_junk);
+      case 8:
+        return InternalStringToIntDouble<3>(current, end, negative,
+                                            allow_trailing_junk);
+
+      case 16:
+        return InternalStringToIntDouble<4>(current, end, negative,
+                                            allow_trailing_junk);
+
+      case 32:
+        return InternalStringToIntDouble<5>(current, end, negative,
+                                            allow_trailing_junk);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <class Char>
+  void HandleBaseTenCase(Char current, Char end) {
+    // Parsing with strtod.
+    const int kMaxSignificantDigits = 309;  // Doubles are less than 1.8e308.
+    // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
+    // end.
+    const int kBufferSize = kMaxSignificantDigits + 2;
+    char buffer[kBufferSize];
+    int buffer_pos = 0;
+    while (*current >= '0' && *current <= '9') {
+      if (buffer_pos <= kMaxSignificantDigits) {
+        // If the number has more than kMaxSignificantDigits it will be parsed
+        // as infinity.
+        DCHECK_LT(buffer_pos, kBufferSize);
+        buffer[buffer_pos++] = static_cast<char>(*current);
+      }
+      ++current;
+      if (current == end) break;
+    }
+
+    SLOW_DCHECK(buffer_pos < kBufferSize);
+    buffer[buffer_pos] = '\0';
+    base::Vector<const char> buffer_vector(buffer, buffer_pos);
+    result_ = Strtod(buffer_vector, 0);
+    set_state(State::kDone);
+  }
+
+  double result_ = 0;
+};
+
+template <class Char>
+void NumberParseIntHelper::HandleGenericCase(Char current, Char end) {
   // The following code causes accumulating rounding error for numbers greater
   // than ~2^56. It's explicitly allowed in the spec: "if R is not 2, 4, 8, 10,
   // 16, or 32, then mathInt may be an implementation-dependent approximation to
   // the mathematical integer value" (15.1.2.2).
 
-  int lim_0 = '0' + (radix_ < 10 ? radix_ : 10);
-  int lim_a = 'a' + (radix_ - 10);
-  int lim_A = 'A' + (radix_ - 10);
+  int lim_0 = '0' + (radix() < 10 ? radix() : 10);
+  int lim_a = 'a' + (radix() - 10);
+  int lim_A = 'A' + (radix() - 10);
 
   // NOTE: The code for computing the value may seem a bit complex at
   // first glance. It is structured to use 32-bit multiply-and-add
@@ -542,9 +606,9 @@ bool StringToIntHelper<IsolateT>::ParseChunkInternal(Char start) {
       // will not overflow the multiplier, we stop parsing the part
       // by leaving the loop.
       const uint32_t kMaximumMultiplier = 0xFFFFFFFFU / 36;
-      uint32_t m = multiplier * static_cast<uint32_t>(radix_);
+      uint32_t m = multiplier * static_cast<uint32_t>(radix());
       if (m > kMaximumMultiplier) break;
-      part = part * radix_ + d;
+      part = part * radix() + d;
       multiplier = m;
       DCHECK(multiplier > part);
 
@@ -554,132 +618,14 @@ bool StringToIntHelper<IsolateT>::ParseChunkInternal(Char start) {
         break;
       }
     }
-
-    // Update the value and skip the part in the string.
-    ResultMultiplyAdd(multiplier, part);
-
-    // Set final state
-    if (done) {
-      if (!allow_trailing_junk_ && AdvanceToNonspace(&current, end)) {
-        set_state(State::kJunk);
-      } else {
-        set_state(State::kDone);
-      }
-      return true;
-    }
-  } while (current < break_pos);
-
-  cursor_ = static_cast<int>(current - start);
-  return false;
-}
-
-class NumberParseIntHelper : public StringToIntHelper<Isolate> {
- public:
-  NumberParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
-      : StringToIntHelper(isolate, string, radix) {}
-
-  double GetResult() {
-    ParseInt();
-    switch (state()) {
-      case State::kJunk:
-      case State::kEmpty:
-        return JunkStringValue();
-      case State::kZero:
-        return SignedZero(negative());
-      case State::kDone:
-        return negative() ? -result_ : result_;
-      case State::kError:
-      case State::kRunning:
-        break;
-    }
-    UNREACHABLE();
-  }
-
- protected:
-  void AllocateResult() override {}
-  void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
     result_ = result_ * multiplier + part;
+  } while (!done);
+
+  if (!allow_trailing_junk() && AdvanceToNonspace(&current, end)) {
+    return set_state(State::kJunk);
   }
-
- private:
-  void HandleSpecialCases() override {
-    bool is_power_of_two = base::bits::IsPowerOfTwo(radix());
-    if (!is_power_of_two && radix() != 10) return;
-    DisallowGarbageCollection no_gc;
-    if (IsOneByte()) {
-      base::Vector<const uint8_t> vector = GetOneByteVector();
-      DCHECK_EQ(length(), vector.length());
-      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
-                                : HandleBaseTenCase(vector.begin());
-    } else {
-      base::Vector<const base::uc16> vector = GetTwoByteVector();
-      DCHECK_EQ(length(), vector.length());
-      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
-                                : HandleBaseTenCase(vector.begin());
-    }
-    set_state(State::kDone);
-  }
-
-  template <class Char>
-  double HandlePowerOfTwoCase(Char start) {
-    Char current = start + cursor();
-    Char end = start + length();
-    const bool allow_trailing_junk = true;
-    // GetResult() will take care of the sign bit, so ignore it for now.
-    const bool negative = false;
-    switch (radix()) {
-      case 2:
-        return InternalStringToIntDouble<1>(current, end, negative,
-                                            allow_trailing_junk);
-      case 4:
-        return InternalStringToIntDouble<2>(current, end, negative,
-                                            allow_trailing_junk);
-      case 8:
-        return InternalStringToIntDouble<3>(current, end, negative,
-                                            allow_trailing_junk);
-
-      case 16:
-        return InternalStringToIntDouble<4>(current, end, negative,
-                                            allow_trailing_junk);
-
-      case 32:
-        return InternalStringToIntDouble<5>(current, end, negative,
-                                            allow_trailing_junk);
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  template <class Char>
-  double HandleBaseTenCase(Char start) {
-    // Parsing with strtod.
-    Char current = start + cursor();
-    Char end = start + length();
-    const int kMaxSignificantDigits = 309;  // Doubles are less than 1.8e308.
-    // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
-    // end.
-    const int kBufferSize = kMaxSignificantDigits + 2;
-    char buffer[kBufferSize];
-    int buffer_pos = 0;
-    while (*current >= '0' && *current <= '9') {
-      if (buffer_pos <= kMaxSignificantDigits) {
-        // If the number has more than kMaxSignificantDigits it will be parsed
-        // as infinity.
-        DCHECK_LT(buffer_pos, kBufferSize);
-        buffer[buffer_pos++] = static_cast<char>(*current);
-      }
-      ++current;
-      if (current == end) break;
-    }
-
-    SLOW_DCHECK(buffer_pos < kBufferSize);
-    buffer[buffer_pos] = '\0';
-    base::Vector<const char> buffer_vector(buffer, buffer_pos);
-    return Strtod(buffer_vector, 0);
-  }
-
-  double result_ = 0;
-};
+  return set_state(State::kDone);
+}
 
 // Converts a string to a double value. Assumes the Iterator supports
 // the following operations:
@@ -989,6 +935,11 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
     this->set_allow_binary_and_octal_prefixes();
   }
 
+  void ParseOneByte(const uint8_t* start) final { return ParseInternal(start); }
+  void ParseTwoByte(const base::uc16* start) final {
+    return ParseInternal(start);
+  }
+
   MaybeHandle<BigInt> GetResult() {
     this->ParseInt();
     if (behavior_ == Behavior::kStringToBigInt && this->sign() != Sign::kNone &&
@@ -1009,7 +960,8 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
       case State::kZero:
         return BigInt::Zero(this->isolate(), allocation_type());
       case State::kDone:
-        return BigInt::Finalize<Isolate>(result_, this->negative());
+        return BigInt::Allocate(this->isolate(), &accumulator_,
+                                this->negative(), allocation_type());
       case State::kEmpty:
       case State::kRunning:
         break;
@@ -1017,27 +969,23 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
     UNREACHABLE();
   }
 
- protected:
-  void AllocateResult() override {
-    // We have to allocate a BigInt that's big enough to fit the result.
-    // Conseratively assume that all remaining digits are significant.
-    // Optimization opportunity: Would it makes sense to scan for trailing
-    // junk before allocating the result?
-    int charcount = this->length() - this->cursor();
-    MaybeHandle<FreshlyAllocatedBigInt> maybe =
-        BigInt::AllocateFor(this->isolate(), this->radix(), charcount,
-                            kDontThrow, allocation_type());
-    if (!maybe.ToHandle(&result_)) {
-      this->set_state(State::kError);
+ private:
+  template <class Char>
+  void ParseInternal(Char start) {
+    using Result = bigint::FromStringAccumulator::Result;
+    Char current = start + this->cursor();
+    Char end = start + this->length();
+    current = accumulator_.Parse(current, end, this->radix());
+
+    Result result = accumulator_.result();
+    if (result == Result::kMaxSizeExceeded) {
+      return this->set_state(State::kError);
     }
+    if (!this->allow_trailing_junk() && AdvanceToNonspace(&current, end)) {
+      return this->set_state(State::kJunk);
+    }
+    return this->set_state(State::kDone);
   }
-
-  void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
-    BigInt::InplaceMultiplyAdd(*result_, static_cast<uintptr_t>(multiplier),
-                               static_cast<uintptr_t>(part));
-  }
-
-  bool CheckTermination() override;
 
   AllocationType allocation_type() {
     // For literals, we pretenure the allocated BigInt, since it's about
@@ -1046,22 +994,9 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
                                            : AllocationType::kYoung;
   }
 
- private:
-  Handle<FreshlyAllocatedBigInt> result_;
+  bigint::FromStringAccumulator accumulator_{BigInt::kMaxLength};
   Behavior behavior_;
 };
-
-template <typename IsolateT>
-bool StringToBigIntHelper<IsolateT>::CheckTermination() {
-  return false;
-}
-
-template <>
-bool StringToBigIntHelper<Isolate>::CheckTermination() {
-  StackLimitCheck interrupt_check(isolate());
-  return interrupt_check.InterruptRequested() &&
-         isolate()->stack_guard()->HandleInterrupts().IsException(isolate());
-}
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
