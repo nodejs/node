@@ -29,8 +29,10 @@ See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of
 * [Notes](./doc/guides/contributing/pull-requests.md#notes)
 
 <a id="developers-certificate-of-origin"></a>
+
 ## Developer's Certificate of Origin 1.1
 
+<pre>
 By making a contribution to this project, I certify that:
 
  (a) The contribution was created in whole or in part by me and I
@@ -54,3 +56,4 @@ By making a contribution to this project, I certify that:
      personal information I submit with it, including my sign-off) is
      maintained indefinitely and may be redistributed consistent with
      this project or the open source license(s) involved.
+</pre>

@@ -153,8 +153,8 @@ the nomination fails.
 
 There are steps a nominator can take in advance to make a nomination as
 frictionless as possible. To request feedback from other collaborators in
- private, use the [collaborators discussion page][]
- (which only collaborators may view). A nominator may also work with the
+private, use the [collaborators discussion page][]
+(which only collaborators may view). A nominator may also work with the
 nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
