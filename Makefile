@@ -825,6 +825,9 @@ else
 ifeq ($(findstring s390,$(UNAME_M)),s390)
 DESTCPU ?= s390
 else
+ifeq ($(findstring arm64,$(UNAME_M)),arm64)
+DESTCPU ?= arm64
+else
 ifeq ($(findstring arm,$(UNAME_M)),arm)
 DESTCPU ?= arm
 else
@@ -835,6 +838,7 @@ ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
 DESTCPU ?= ppc64
 else
 DESTCPU ?= x86
+endif
 endif
 endif
 endif
