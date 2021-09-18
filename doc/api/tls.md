@@ -1493,6 +1493,7 @@ changes:
       or `null` to stop the negotiation process. `psk` must be
       compatible with the selected cipher's digest.
       `identity` must use UTF-8 encoding.
+
     When negotiating TLS-PSK (pre-shared keys), this function is called
     with optional identity `hint` provided by the server or `null`
     in case of TLS 1.3 where `hint` was removed.
@@ -1928,6 +1929,7 @@ changes:
     * Returns: {Buffer|TypedArray|DataView} pre-shared key that must either be
       a buffer or `null` to stop the negotiation process. Returned PSK must be
       compatible with the selected cipher's digest.
+
     When negotiating TLS-PSK (pre-shared keys), this function is called
     with the identity provided by the client.
     If the return value is `null` the negotiation process will stop and an
