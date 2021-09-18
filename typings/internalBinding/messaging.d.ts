@@ -1,9 +1,7 @@
-
 declare namespace InternalMessagingBinding {
   class MessageChannel {
     port1: MessagePort;
     port2: MessagePort;
-    constructor();
   }
 
   class MessagePort {
