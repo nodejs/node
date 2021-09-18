@@ -439,3 +439,6 @@ declare function InternalBinding(binding: 'config'): {
   bits: number,
   hasDtrace: boolean
 }
+declare function InternalBinding(binding: 'symbols'): {
+  [name: string]: symbol;
+}
