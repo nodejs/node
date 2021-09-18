@@ -227,7 +227,8 @@ export function preprocessElements({ filename }) {
               nextNode.lang !== node.lang) {
             // Saving the highlight code as value to be added in the next node.
             node.value = highlighted;
-          } else if (isJSFlavorSnippet(previousNode)) {
+          } else if (isJSFlavorSnippet(previousNode) &&
+                     previousNode.lang !== node.lang) {
             node.value = '<pre>' +
               '<input class="js-flavor-selector" type="checkbox"' +
               // If CJS comes in second, ESM should display by default.
