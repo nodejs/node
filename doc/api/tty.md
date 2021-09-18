@@ -184,8 +184,7 @@ Returns:
 * `1` for 2,
 * `4` for 16,
 * `8` for 256,
-* `24` for 16,777,216
-colors supported.
+* `24` for 16,777,216 colors supported.
 
 Use this to determine what colors the terminal supports. Due to the nature of
 colors in terminals it is possible to either have false positives or false

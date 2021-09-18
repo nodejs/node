@@ -798,7 +798,7 @@ added:
 * `evaluateCallback` {Function} Called when the module is evaluated.
 * `options`
   * `identifier` {string} String used in stack traces.
-   **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
+    **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
     index.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.

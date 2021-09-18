@@ -615,7 +615,7 @@ CommonJS modules loaded.
 * `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
   * `format` {string|null|undefined}
-  `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
+    `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
   * `url` {string} The absolute url to the import target (such as `file://…`)
 
 The `resolve` hook returns the resolved file URL for a given module specifier
@@ -686,7 +686,7 @@ export async function resolve(specifier, context, defaultResolve) {
 * `url` {string}
 * `context` {Object}
   * `format` {string|null|undefined} The format optionally supplied by the
-  `resolve` hook.
+    `resolve` hook.
 * `defaultLoad` {Function}
 * Returns: {Object}
   * `format` {string}
