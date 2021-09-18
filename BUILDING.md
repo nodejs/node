@@ -120,31 +120,31 @@ platforms. This is true regardless of entries in the table below.
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
 <em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
-  need the
-  [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
-  or similar to source a newer compiler.
+need the
+[Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
+or similar to source a newer compiler.
 
 <em id="fn2">2</em>: GCC 8 is not provided on the base platform. Users will
-  need the
-  [devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
-  or later to source a newer compiler.
+need the
+[devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
+or later to source a newer compiler.
 
 <em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
-  Node.js test infrastructure only tests >= 4.5.
+Node.js test infrastructure only tests >= 4.5.
 
 <em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
-  like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
-  for the tty channels to work (e.g. `winpty node.exe script.js`).
-  In "Git bash" if you call the node shell alias (`node` without the `.exe`
-  extension), `winpty` is used automatically.
+like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
+for the tty channels to work (e.g. `winpty node.exe script.js`).
+In "Git bash" if you call the node shell alias (`node` without the `.exe`
+extension), `winpty` is used automatically.
 
 <em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
-  supported, but the GNU/Linux build process and binaries should work. The
-  community will only address issues that reproduce on native GNU/Linux
-  systems. Issues that only reproduce on WSL should be reported in the
-  [WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
-  Windows binary (`node.exe`) in WSL is not recommended. It will not work
-  without workarounds such as stdio redirection.
+supported, but the GNU/Linux build process and binaries should work. The
+community will only address issues that reproduce on native GNU/Linux
+systems. Issues that only reproduce on WSL should be reported in the
+[WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
+Windows binary (`node.exe`) in WSL is not recommended. It will not work
+without workarounds such as stdio redirection.
 
 <em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
 are provided. However, tests in our infrastructure only run on WoW64.
@@ -195,7 +195,7 @@ Ubuntu 14.04 and Debian 8.
 #### OpenSSL asm support
 
 OpenSSL-1.1.1 requires the following assembler version for use of asm
-support on x86_64 and ia32.
+support on x86\_64 and ia32.
 
 For use of AVX-512,
 
@@ -212,9 +212,9 @@ For use of AVX2,
 * nasm version 2.10 or higher in Windows
 
 Please refer to
- <https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html> for details.
+<https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html> for details.
 
- If compiling without one of the above, use `configure` with the
+If compiling without one of the above, use `configure` with the
 `--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
 ### Previous versions of this document
@@ -232,6 +232,7 @@ Consult previous versions of this document for older versions of Node.js:
 ### Note about Python
 
 The Node.js project supports Python >= 3 for building and testing.
+
 ### Unix and macOS
 
 #### Unix prerequisites
@@ -480,7 +481,7 @@ release version is actually installed when you run `make install`.
 To use the debug build with all the normal dependencies overwrite the release
 version in the install directory:
 
-``` console
+```console
 $ make install PREFIX=/opt/node-debug/
 $ cp -a -f out/Debug/node /opt/node-debug/node
 ```
@@ -496,7 +497,7 @@ was captured on (i.e. 64-bit `gdb` for `node` built on a 64-bit system, Linux
 
 Example of generating a backtrace from the core dump:
 
-``` console
+```console
 $ gdb /opt/node-debug/node core.node.8.1535359906
 $ backtrace
 ```
@@ -507,12 +508,12 @@ $ backtrace
 related bugs. ASAN builds are currently only supported on linux.
 If you want to check it on Windows or macOS or you want a consistent toolchain
 on Linux, you can try [Docker](https://www.docker.com/products/docker-desktop)
- (using an image like `gengjiawen/node-build:2020-02-14`).
+(using an image like `gengjiawen/node-build:2020-02-14`).
 
 The `--debug` is not necessary and will slow down build and testing, but it can
 show clear stacktrace if ASAN hits an issue.
 
-``` console
+```console
 $  ./configure --debug --enable-asan && make -j4
 $ make test-only
 ```
@@ -521,6 +522,7 @@ $ make test-only
 
 If you plan to frequently rebuild Node.js, especially if using several branches,
 installing `ccache` can help to greatly reduce build times. Set up with:
+
 ```console
 $ sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
 $ ccache -o cache_dir=<tmp_dir>
@@ -528,13 +530,16 @@ $ ccache -o max_size=5.0G
 $ export CC="ccache gcc"    # add to your .profile
 $ export CXX="ccache g++"   # add to your .profile
 ```
+
 This will allow for near-instantaneous rebuilds even when switching branches.
 
 When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
+
 ```console
 $ ./configure --node-builtin-modules-path $(pwd)
 ```
+
 The resulting binary won't include any JS files and will try to load them from
 the specified directory. The JS debugger of Visual Studio Code supports this
 configuration since the November 2020 version and allows for setting
@@ -678,7 +683,7 @@ $ ./configure --with-intl=full-icu
 
 ### Trimmed: `small-icu` (English only) support
 
- In this configuration, only English data is included, but
+In this configuration, only English data is included, but
 the full `Intl` (ECMA-402) APIs.  It does not need to download
 any dependencies to function. You can add full data at runtime.
 
@@ -774,6 +779,7 @@ If you want to build Node.js using openssl-3.0.0+quic, you can follow these
 steps:
 
 **clone OpenSSL source and prepare build**
+
 ```bash
 git clone git@github.com:quictls/openssl.git
 
@@ -791,6 +797,7 @@ will publish the OpenSSL libraries and such. We will also use this path
 (and sub-paths) later when compiling Node.js.
 
 **compile and install OpenSSL**
+
 ```console
 make -j8
 make install
@@ -806,6 +813,7 @@ find the `fipsmodule.cnf` file - let's add the following to the end of the
 `openssl.cnf` file.
 
 **alter openssl.cnf**
+
 ```text
 .include fipsmodule.cnf
 
@@ -826,6 +834,7 @@ sure that you specify an absolute path for the `.include fipsmodule.cnf` line -
 using relative paths did not work on my system!
 
 **alter openssl.cnf using a script**
+
 ```console
 cat <<EOT >> /path/to/install/dir/ssl/openssl.cnf
 .include /path/to/install/dir/ssl/fipsmodule.cnf
@@ -845,12 +854,14 @@ EOT
 As you might have picked a non-custom path for your OpenSSL install dir, we
 have to export the following two environment variables in order for Node.js to
 find our OpenSSL modules we built beforehand:
+
 ```console
 export OPENSSL_CONF=/path/to/install/dir/ssl/openssl.cnf
 export OPENSSL_MODULES=/path/to/install/dir/lib/ossl-modules
 ```
 
 **build Node.js**
+
 ```console
 ./configure \
   --shared-openssl \
@@ -865,6 +876,7 @@ make -j8
 ```
 
 **verify the produced executable**
+
 ```console
 ldd ./node
     linux-vdso.so.1 (0x00007ffd7917b000)
@@ -884,12 +896,14 @@ If the `ldd` command says that `libcrypto` cannot be found one needs to set
 `--shared-openssl-libpath` (see previous step).
 
 **verify the OpenSSL version**
+
 ```console
 ./node -p process.versions.openssl
 3.0.0-alpha16+quic
 ```
 
 **verify that FIPS is available**
+
 ```console
 ./node -p 'process.config.variables.openssl_is_fips'
 true
@@ -905,13 +919,16 @@ executable. See sections
 [Enabling FIPS using OpenSSL config](#enabling-fips-using-openssl-config) below.
 
 ### Enabling FIPS using Node.js options
+
 This is done using one of the Node.js options `--enable-fips` or
 `--force-fips`, for example:
+
 ```console
 $ node --enable-fips -p 'crypto.getFips()'
 ```
 
 ### Enabling FIPS using OpenSSL config
+
 This example show that using OpenSSL's configuration file, FIPS can be enabled
 without specifying the `--enable-fips` or `--force-fips` options by setting
 `default_properties = fips=yes` in the FIPS configuration file. See
@@ -920,6 +937,7 @@ for details.
 
 For this to work the OpenSSL configuration file (default openssl.cnf) needs to
 be updated. The following shows an example:
+
 ```console
 openssl_conf = openssl_init
 
@@ -939,6 +957,7 @@ activate = 1
 [algorithm_sect]
 default_properties = fips=yes
 ```
+
 After this change Node.js can be run without the `--enable-fips` or `--force-fips`
 options.
 

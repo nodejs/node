@@ -51,12 +51,13 @@ onboarding session.
     [Publicizing or hiding organization membership][].
 
 * Notifications:
-  * Use [https://github.com/notifications](https://github.com/notifications) or
+  * Use <https://github.com/notifications> or
     set up email
   * Watching the main repository will flood your inbox (several hundred
     notifications on typical weekdays), so be prepared
 
 The project has two venues for real-time discussion:
+
 * [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
   the [OpenJS Foundation](https://slack-invite.openjsf.org/)
 
@@ -71,7 +72,7 @@ The project has two venues for real-time discussion:
   * The best outcome is for people who come to our issue tracker to feel like
     they can come back again.
 
-* You are expected to follow *and* hold others accountable to the
+* You are expected to follow _and_ hold others accountable to the
   [Code of Conduct][].
 
 ## Managing the issue tracker
@@ -88,7 +89,7 @@ The project has two venues for real-time discussion:
     not perfect, of course. Feel free to apply relevant labels and remove
     irrelevant labels from pull requests and issues.
   * `semver-{minor,major}`:
-    * If a change has the remote *chance* of breaking something, use the
+    * If a change has the remote _chance_ of breaking something, use the
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
@@ -113,20 +114,26 @@ The project has two venues for real-time discussion:
 ## Reviewing pull requests
 
 * The primary goal is for the codebase to improve.
+
 * Secondary (but not far off) is for the person submitting code to succeed. A
   pull request from a new contributor is an opportunity to grow the community.
+
 * Review a bit at a time. Do not overwhelm new contributors.
   * It is tempting to micro-optimize. Don't succumb to that temptation. We
     change V8 often. Techniques that provide improved performance today may be
     unnecessary in the future.
+
 * Be aware: Your opinion carries a lot of weight!
+
 * Nits (requests for small changes that are not essential) are fine, but try to
   avoid stalling the pull request.
   * Identify them as nits when you comment: `Nit: change foo() to bar().`
   * If they are stalling the pull request, fix them yourself on merge.
+
 * Insofar as possible, issues should be identified by tools rather than human
   reviewers. If you are leaving comments about issues that could be identified
   by tools but are not, consider implementing the necessary tooling.
+
 * Minimum wait for comments time
   * There is a minimum waiting time which we try to respect for non-trivial
     changes so that people who may have important input in such a distributed
@@ -134,6 +141,7 @@ The project has two venues for real-time discussion:
   * For non-trivial changes, leave the pull request open for at least 48 hours.
   * If a pull request is abandoned, check if they'd mind if you took it over
     (especially if it just has nits left).
+
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
     a pull request using GitHub’s approval interface
@@ -159,7 +167,7 @@ The project has two venues for real-time discussion:
     such as `async_hooks`.
 
 * Continuous Integration (CI) Testing:
-  * [https://ci.nodejs.org/](https://ci.nodejs.org/)
+  * <https://ci.nodejs.org/>
     * It is not automatically run. You need to start it manually.
   * Log in on CI is integrated with GitHub. Try to log in now!
   * You will be using `node-test-pull-request` most of the time. Go there now!
@@ -228,12 +236,12 @@ needs to be pointed out separately during the onboarding.
 * Almost any mistake you could make can be fixed or reverted.
 * The existing collaborators trust you and are grateful for your help!
 * Other repositories:
-  * [https://github.com/nodejs/TSC](https://github.com/nodejs/TSC)
-  * [https://github.com/nodejs/build](https://github.com/nodejs/build)
-  * [https://github.com/nodejs/nodejs.org](https://github.com/nodejs/nodejs.org)
-  * [https://github.com/nodejs/readable-stream](https://github.com/nodejs/readable-stream)
-  * [https://github.com/nodejs/LTS](https://github.com/nodejs/LTS)
-  * [https://github.com/nodejs/citgm](https://github.com/nodejs/citgm)
+  * <https://github.com/nodejs/TSC>
+  * <https://github.com/nodejs/build>
+  * <https://github.com/nodejs/nodejs.org>
+  * <https://github.com/nodejs/readable-stream>
+  * <https://github.com/nodejs/LTS>
+  * <https://github.com/nodejs/citgm>
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
   project. The Foundation has travel funds to cover participants' expenses
