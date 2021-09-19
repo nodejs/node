@@ -68,6 +68,7 @@ A number of concepts are involved in putting together Node.js on top of V8 and
 libuv. This section aims to explain some of them and how they work together.
 
 <a id="isolate"></a>
+
 ### `Isolate`
 
 The `v8::Isolate` class represents a single JavaScript engine instance, in
@@ -102,6 +103,7 @@ subclasses such as `v8::Number` (which in turn has subclasses like `v8::Int32`),
 of `v8::Object`, e.g. `v8::Uint8Array` or `v8::Date`.
 
 <a id="internal-fields"></a>
+
 ### Internal fields
 
 V8 provides the ability to store data in so-called “internal fields” inside
@@ -128,12 +130,14 @@ Typical ways of working with internal fields are:
 [`Context`][]s provide the same feature under the name “embedder data”.
 
 <a id="js-handles"></a>
+
 ### JavaScript value handles
 
 All JavaScript values are accessed through the V8 API through so-called handles,
 of which there are two types: [`Local`][]s and [`Global`][]s.
 
 <a id="local-handles"></a>
+
 #### `Local` handles
 
 A `v8::Local` handle is a temporary pointer to a JavaScript object, where
@@ -210,6 +214,7 @@ any functions that are called from the event loop and want to run or access
 JavaScript code to create `HandleScope`s.
 
 <a id="global-handles"></a>
+
 #### `Global` handles
 
 A `v8::Global` handle (sometimes also referred to by the name of its parent
@@ -246,6 +251,7 @@ the `v8::Eternal` itself is destroyed at some point. This type of handle
 is rarely used.
 
 <a id="context"></a>
+
 ### `Context`
 
 JavaScript allows multiple global objects and sets of built-in JavaScript
@@ -270,6 +276,7 @@ Typical ways of accessing the current `Context` in the Node.js code are:
   main context.
 
 <a id="event-loop"></a>
+
 ### Event loop
 
 The main abstraction for an event loop inside Node.js is the `uv_loop_t` struct.
@@ -284,6 +291,7 @@ could restructure Node.js to provide e.g. the ability to run parts of Node.js
 inside an event loop separate from the active thread’s event loop.
 
 <a id="environment"></a>
+
 ### `Environment`
 
 Node.js instances are represented by the `Environment` class.
@@ -315,6 +323,7 @@ Typical ways of accessing the current `Environment` in the Node.js code are:
   up the current [`Context`][] and then uses that.
 
 <a id="isolate-data"></a>
+
 ### `IsolateData`
 
 Every Node.js instance ([`Environment`][]) is associated with one `IsolateData`
@@ -346,6 +355,7 @@ The platform can be accessed through `isolate_data->platform()` given an
   and who passed this to Node.js.
 
 <a id="binding-functions"></a>
+
 ### Binding functions
 
 C++ functions exposed to JS follow a specific signature. The following example
@@ -463,6 +473,7 @@ Which explains that the unregistered external reference is
 `node::util::GetHiddenValue` defined in `node_util.cc`.
 
 <a id="per-binding-state"></a>
+
 #### Per-binding state
 
 Some internal bindings, such as the HTTP parser, maintain internal state that
@@ -519,6 +530,7 @@ of `SnapshotableObject` on how to implement its serialization and
 deserialization.
 
 <a id="exception-handling"></a>
+
 ### Exception handling
 
 The V8 engine provides multiple features to work with JavaScript exceptions,
@@ -554,7 +566,7 @@ The most common reasons for this are:
 * Calls to functions like `object->Get(...)` or `object->Set(...)` may fail on
   most objects, if the `Object.prototype` object has been modified from userland
   code that added getters or setters.
-* Calls that invoke *any* JavaScript code, including JavaScript code that is
+* Calls that invoke _any_ JavaScript code, including JavaScript code that is
   provided from Node.js internals or V8 internals, will fail when JavaScript
   execution is being terminated. This typically happens inside Workers when
   `worker.terminate()` is called, but it can also affect the main thread when
@@ -661,6 +673,7 @@ and the exception object will not be a meaningful JavaScript value.
 `try_catch.ReThrow()` should not be used in this case.
 
 <a id="libuv-handles-and-requests"></a>
+
 ### libuv handles and requests
 
 Two central concepts when working with libuv are handles and requests.
@@ -682,6 +695,7 @@ When a Node.js [`Environment`][] is destroyed, it generally needs to clean up
 any resources owned by it, e.g. memory or libuv requests/handles.
 
 <a id="cleanup-hooks"></a>
+
 #### Cleanup hooks
 
 Cleanup hooks are provided that run before the [`Environment`][]
@@ -690,7 +704,7 @@ is destroyed. They can be added and removed through by using
 `env->RemoveCleanupHook(callback, hint);`, where callback takes a `void* hint`
 argument.
 
-Inside these cleanup hooks, new asynchronous operations *may* be started on the
+Inside these cleanup hooks, new asynchronous operations _may_ be started on the
 event loop, although ideally that is avoided as much as possible.
 
 Every [`BaseObject`][] has its own cleanup hook that deletes it. For
@@ -742,6 +756,7 @@ This can be useful for debugging memory leaks.
 The [`memory_tracker.h`][] header file explains how to use this class.
 
 <a id="baseobject"></a>
+
 ### `BaseObject`
 
 A frequently recurring situation is that a JavaScript object and a C++ object
@@ -819,6 +834,7 @@ called. This can be useful when one `BaseObject` fully owns another
 `BaseObject`.
 
 <a id="asyncwrap"></a>
+
 ### `AsyncWrap`
 
 `AsyncWrap` is a subclass of `BaseObject` that additionally provides tracking
@@ -837,6 +853,7 @@ See the [`async_hooks` module][] documentation for more information about how
 this information is provided to async tracking tools.
 
 <a id="makecallback"></a>
+
 #### `MakeCallback`
 
 The `AsyncWrap` class has a set of methods called `MakeCallback()`, with the
@@ -876,6 +893,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 See [Callback scopes][] for more information.
 
 <a id="handlewrap"></a>
+
 ### `HandleWrap`
 
 `HandleWrap` is a subclass of `AsyncWrap` specifically designed to make working
@@ -890,6 +908,7 @@ current Node.js [`Environment`][] is destroyed, e.g. when a Worker thread stops.
 overview over libuv handles managed by Node.js.
 
 <a id="reqwrap"></a>
+
 ### `ReqWrap`
 
 `ReqWrap` is a subclass of `AsyncWrap` specifically designed to make working
@@ -902,6 +921,7 @@ track of the current count of active libuv requests.
 overview over libuv handles managed by Node.js.
 
 <a id="callback-scopes"></a>
+
 ### Callback scopes
 
 The public `CallbackScope` and the internally used `InternalCallbackScope`

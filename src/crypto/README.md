@@ -31,7 +31,7 @@ throughout the rest of the code.
 The rest of the files are structured by their function, as detailed in the
 following table:
 
-| File (*.h/*.cc)      | Description |
+| File (\*.h/\*.cc)    | Description |
 | -------------------- | ----------- |
 | `crypto_aes`         | AES Cipher support. |
 | `crypto_cipher`      | General Encryption/Decryption utilities. |
@@ -98,7 +98,7 @@ Examples of these being used are pervasive through the `src/crypto` code.
 
 ### `ByteSource`
 
-The `ByteSource` class is a helper utility representing a *read-only* byte
+The `ByteSource` class is a helper utility representing a _read-only_ byte
 array. Instances can either wrap external ("foreign") data sources, such as
 an `ArrayBuffer` (`v8::BackingStore`) or allocated data. If allocated data
 is used, then the allocation is freed automatically when the `ByteSource` is
@@ -119,9 +119,9 @@ specific to `src/crypto`. It is used extensively within `src/crypto` to hold
 allocated data that is intended to be output in response to various
 crypto functions (generated hash values, or ciphertext, for instance).
 
-*Currently, we are working to transition away from using `AllocatedBuffer`
+_Currently, we are working to transition away from using `AllocatedBuffer`
 to directly using the `v8::BackingStore` API. This will take some time.
-New uses of `AllocatedBuffer` should be avoided if possible.*
+New uses of `AllocatedBuffer` should be avoided if possible._
 
 ### Key objects
 
