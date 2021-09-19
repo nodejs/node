@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
+#include "allocated_buffer-inl.h"
 #include "callback_queue-inl.h"
 #include "env.h"
 #include "node.h"
@@ -969,6 +970,29 @@ inline performance::PerformanceState* Environment::performance_state() {
 
 inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
+}
+
+inline uv_buf_t Environment::allocate_managed_buffer(
+    const size_t suggested_size) {
+  NoArrayBufferZeroFillScope no_zero_fill_scope(isolate_data());
+  std::unique_ptr<v8::BackingStore> bs =
+      v8::ArrayBuffer::NewBackingStore(isolate(), suggested_size);
+  uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
+  released_allocated_buffers()->emplace(buf.base, std::move(bs));
+  return buf;
+}
+
+inline std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
+    const uv_buf_t& buf) {
+  std::unique_ptr<v8::BackingStore> bs;
+  if (buf.base != nullptr) {
+    auto map = released_allocated_buffers();
+    auto it = map->find(buf.base);
+    CHECK_NE(it, map->end());
+    bs = std::move(it->second);
+    map->erase(it);
+  }
+  return bs;
 }
 
 std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
