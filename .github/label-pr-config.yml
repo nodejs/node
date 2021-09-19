@@ -103,9 +103,9 @@ subSystemLabels:
   /^lib\/internal\/quic\/*/: quic, dont-land-on-v14.x, dont-land-on-v12.x
 
   # All other lib/ files map directly
-  /^lib\/_(\w+)_\w+\.js?$/: $1 # e.g. _(stream)_wrap
-  /^lib(\/internal)?\/(\w+)\.js?$/: $2 # other .js files
-  /^lib\/internal\/(\w+)(?:\/|$)/: $1 # internal subfolders
+  /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
+  /^lib(\/internal)?\/(\w+)\.js?$/: $2  # Other .js files
+  /^lib\/internal\/(\w+)(?:\/|$)/: $1  # internal subfolders
 
 exlusiveLabels:
   # more specific tests
@@ -125,26 +125,26 @@ exlusiveLabels:
 
   /^test\//: test
 
-    # specific map for webcrypto.md as it should be labeled 'crypto'
+  # Specific map for webcrypto.md as it should be labeled 'crypto'
   /^doc\/api\/webcrypto.md$/: doc, crypto
-    # specific map for modules.md as it should be labeled 'module' not 'modules'
+  # Specific map for modules.md as it should be labeled 'module' not 'modules'
   /^doc\/api\/modules.md$/: doc, module
-    # node-api is treated separately since it is not a JS core module but is still
-    # considered a subsystem of sorts
+  # node-api is treated separately since it is not a JS core module but is still
+  # considered a subsystem of sorts
   /^doc\/api\/n-api.md$/: doc, node-api
-    # quic
+  # quic
   /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
-    # add worker label to PRs that affect doc/api/worker_threads.md
+  # Add worker label to PRs that affect doc/api/worker_threads.md
   /^doc\/api\/worker_threads.md$/: doc, worker
-    # automatically tag JS subsystem-specific API doc changes
+  # Automatically tag JS subsystem-specific API doc changes
   /^doc\/api\/(\w+)\.md$/: doc, $1
-    # add deprecations label to PRs that affect doc/api/deprecations.md
+  # Add deprecations label to PRs that affect doc/api/deprecations.md
   /^doc\/api\/deprecations.md$/: doc, deprecations
   /^doc\/changelogs\//: release
 
   /^doc\//: doc
 
-    # more specific benchmarks
+  # More specific benchmarks
   /^benchmark\/buffers\//: benchmark, buffer
   /^benchmark\/(?:arrays|es)\//: benchmark, v8 engine
   /^benchmark\/_http/: benchmark, http
