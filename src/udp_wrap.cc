@@ -31,12 +31,16 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -314,7 +318,7 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsUint32());
   CHECK(args[1]->IsBoolean());
-  bool is_recv = args[1].As<v8::Boolean>()->Value();
+  bool is_recv = args[1].As<Boolean>()->Value();
   const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
                                        "uv_send_buffer_size";
 
@@ -679,7 +683,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
-  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
+  return env()->allocate_managed_buffer(suggested_size);
 }
 
 void UDPWrap::OnRecv(uv_udp_t* handle,
@@ -696,27 +700,32 @@ void UDPWrap::OnRecv(ssize_t nread,
                      const sockaddr* addr,
                      unsigned int flags) {
   Environment* env = this->env();
-  AllocatedBuffer buf(env, buf_);
+  Isolate* isolate = env->isolate();
+  std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
   if (nread == 0 && addr == nullptr) {
     return;
   }
 
-  HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-      Integer::New(env->isolate(), static_cast<int32_t>(nread)),
+      Integer::New(isolate, static_cast<int32_t>(nread)),
       object(),
-      Undefined(env->isolate()),
-      Undefined(env->isolate())};
+      Undefined(isolate),
+      Undefined(isolate)};
 
   if (nread < 0) {
     MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
+  } else if (nread == 0) {
+    bs = ArrayBuffer::NewBackingStore(isolate, 0);
+  } else {
+    bs = BackingStore::Reallocate(isolate, std::move(bs), nread);
   }
 
-  buf.Resize(nread);
-  argv[2] = buf.ToBuffer().ToLocalChecked();
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+  argv[2] = Buffer::New(env, ab, 0, ab->ByteLength()).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }

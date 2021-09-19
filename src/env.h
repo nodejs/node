@@ -1438,6 +1438,9 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
+  inline uv_buf_t allocate_managed_buffer(const size_t suggested_size);
+  inline std::unique_ptr<v8::BackingStore> release_managed_buffer(
+      const uv_buf_t& buf);
   inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
       released_allocated_buffers();
 
