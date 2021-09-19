@@ -6,7 +6,7 @@ rules:
   no-buffer-constructor: error
   no-mixed-operators:
     - error
-    - groups: [[ "&&", "||" ]]
+    - groups: [["&&", "||"]]
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error

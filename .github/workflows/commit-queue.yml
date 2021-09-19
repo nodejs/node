@@ -1,4 +1,3 @@
----
 # This action requires the following secrets to be set on the repository:
 #   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
 #   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
