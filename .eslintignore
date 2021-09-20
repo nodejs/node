@@ -4,8 +4,7 @@ test/addons/??_*
 test/fixtures
 test/message/esm_display_syntax_error.mjs
 tools/icu
-tools/lint-md.mjs
-tools/node-lint-md-cli-rollup/dist
+tools/lint-md/lint-md.mjs
 benchmark/tmp
 doc/**/*.js
 !.eslintrc.js

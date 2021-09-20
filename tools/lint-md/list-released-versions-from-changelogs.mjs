@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import { createInterface } from 'node:readline';
 
-const dataFolder = new URL('../../../doc/changelogs/', import.meta.url);
+const dataFolder = new URL('../../doc/changelogs/', import.meta.url);
 
 const result = [];
 async function getVersionsFromFile(file) {
