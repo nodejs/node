@@ -2911,7 +2911,7 @@ changes:
   * `localPort` {number} Local port to connect from.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `maxHeaderSize` {number} Optionally overrides the value of
-    [`--max-http-header-size`][] for requests received from the server, i.e.
+    [`--max-http-header-size`][] for responses received from the server, i.e.
     the maximum length of response headers in bytes.
     **Default:** 16384 (16 KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
