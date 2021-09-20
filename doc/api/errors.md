@@ -1,6 +1,7 @@
 # Errors
 
 <!--introduced_in=v4.0.0-->
+
 <!--type=misc-->
 
 Applications running in Node.js will generally experience four categories of

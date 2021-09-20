@@ -1,8 +1,6 @@
 # io.js ChangeLog
 
-<!--lint disable prohibited-strings-->
-<!--lint disable maximum-line-length-->
-<!--lint disable no-literal-urls-->
+<!--lint disable maximum-line-length no-literal-urls prohibited-strings-->
 
 <table>
 <tr>
