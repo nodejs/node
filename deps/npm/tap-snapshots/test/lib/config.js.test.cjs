@@ -146,7 +146,7 @@ exports[`test/lib/config.js TAP config list --json > output matches snapshot 1`]
   "unicode": false,
   "update-notifier": true,
   "usage": false,
-  "user-agent": "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false",
+  "user-agent": "npm/{npm-version} node/{node-version} {platform} {arch} workspaces/{workspaces} {ci}",
   "version": false,
   "versions": false,
   "viewer": "{VIEWER}",
@@ -296,7 +296,7 @@ umask = 0
 unicode = false
 update-notifier = true
 usage = false
-user-agent = "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false"
+user-agent = "npm/{npm-version} node/{node-version} {platform} {arch} workspaces/{workspaces} {ci}"
 ; userconfig = "{HOME}/.npmrc" ; overridden by cli
 version = false
 versions = false

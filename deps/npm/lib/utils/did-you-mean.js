@@ -3,25 +3,26 @@ const readJson = require('read-package-json-fast')
 const { cmdList } = require('./cmd-list.js')
 
 const didYouMean = async (npm, path, scmd) => {
-  const bestCmd = cmdList
+  let best = cmdList
     .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
     .map(str => `    npm ${str} # ${npm.commands[str].description}`)
 
-  const pkg = await readJson(`${path}/package.json`)
-  const { scripts } = pkg
   // We would already be suggesting this in `npm x` so omit them here
   const runScripts = ['stop', 'start', 'test', 'restart']
-  const bestRun = Object.keys(scripts || {})
-    .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 &&
-      !runScripts.includes(cmd))
-    .map(str => `    npm run ${str} # run the "${str}" package script`)
-
-  const { bin } = pkg
-  const bestBin = Object.keys(bin || {})
-    .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4)
-    .map(str => `    npm exec ${str} # run the "${str}" command from either this or a remote npm package`)
-
-  const best = [...bestCmd, ...bestRun, ...bestBin]
+  try {
+    const { bin, scripts } = await readJson(`${path}/package.json`)
+    best = best.concat(
+      Object.keys(scripts || {})
+        .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 &&
+          !runScripts.includes(cmd))
+        .map(str => `    npm run ${str} # run the "${str}" package script`),
+      Object.keys(bin || {})
+        .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4)
+        .map(str => `    npm exec ${str} # run the "${str}" command from either this or a remote npm package`)
+    )
+  } catch (_) {
+    // gracefully ignore not being in a folder w/ a package.json
+  }
 
   if (best.length === 0)
     return ''

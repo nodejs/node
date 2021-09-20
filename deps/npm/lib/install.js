@@ -135,7 +135,8 @@ class Install extends ArboristWorkspaceCmd {
     // be very strict about engines when trying to update npm itself
     const npmInstall = args.find(arg => arg.startsWith('npm@') || arg === 'npm')
     if (isGlobalInstall && npmInstall) {
-      const npmManifest = await pacote.manifest(npmInstall)
+      const npmOptions = this.npm.flatOptions
+      const npmManifest = await pacote.manifest(npmInstall, npmOptions)
       try {
         checks.checkEngine(npmManifest, npmManifest.version, process.version)
       } catch (e) {

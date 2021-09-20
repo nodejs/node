@@ -130,6 +130,37 @@ t.test('search <name> --json', (t) => {
   src.end()
 })
 
+t.test('search <invalid-module> --json', (t) => {
+  const src = new Minipass()
+  src.objectMode = true
+
+  npm.flatOptions.json = true
+  config.json = true
+  const libnpmsearch = {
+    stream () {
+      return src
+    },
+  }
+
+  const Search = t.mock('../../lib/search.js', {
+    ...mocks,
+    libnpmsearch,
+  })
+  const search = new Search(npm)
+
+  search.exec(['foo'], (err) => {
+    if (err)
+      throw err
+
+    t.equal(result, '\n[]\n', 'should have expected empty square brackets')
+
+    config.json = false
+    t.end()
+  })
+
+  src.end()
+})
+
 t.test('search <name> --searchexclude --searchopts', t => {
   npm.flatOptions.search = {
     ...flatOptions.search,

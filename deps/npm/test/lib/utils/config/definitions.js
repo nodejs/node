@@ -747,7 +747,7 @@ t.test('user-agent', t => {
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectNoCI)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
-  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+  t.not(obj['user-agent'], flat.userAgent, 'config user-agent template is not translated')
 
   obj['ci-name'] = 'foo'
   obj['user-agent'] = definitions['user-agent'].default
@@ -755,7 +755,7 @@ t.test('user-agent', t => {
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectCI)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
-  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+  t.not(obj['user-agent'], flat.userAgent, 'config user-agent template is not translated')
 
   delete obj['ci-name']
   obj.workspaces = true
@@ -764,7 +764,7 @@ t.test('user-agent', t => {
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectWorkspaces)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
-  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+  t.not(obj['user-agent'], flat.userAgent, 'config user-agent template is not translated')
 
   delete obj.workspaces
   obj.workspace = ['foo']
@@ -772,7 +772,7 @@ t.test('user-agent', t => {
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectWorkspaces)
   t.equal(process.env.npm_config_user_agent, flat.userAgent, 'npm_user_config environment is set')
-  t.equal(obj['user-agent'], flat.userAgent, 'config user-agent template is translated')
+  t.not(obj['user-agent'], flat.userAgent, 'config user-agent template is not translated')
   t.end()
 })
 
@@ -851,5 +851,27 @@ t.test('package-lock-only', t => {
   definitions['package-lock-only'].flatten('package-lock-only', obj, flat)
   definitions['package-lock'].flatten('package-lock', obj, flat)
   t.strictSame(flat, { packageLock: false, packageLockOnly: false })
+  t.end()
+})
+
+t.test('workspaces', t => {
+  const obj = {
+    workspaces: true,
+    'user-agent': definitions['user-agent'].default,
+  }
+  const flat = {}
+  definitions.workspaces.flatten('workspaces', obj, flat)
+  t.match(flat.userAgent, /workspaces\/true/)
+  t.end()
+})
+
+t.test('workspace', t => {
+  const obj = {
+    workspace: ['workspace-a'],
+    'user-agent': definitions['user-agent'].default,
+  }
+  const flat = {}
+  definitions.workspace.flatten('workspaces', obj, flat)
+  t.match(flat.userAgent, /workspaces\/true/)
   t.end()
 })

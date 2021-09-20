@@ -12,7 +12,6 @@ var read = require('read')
 
 // to validate the data object at the end as a worthwhile package
 // and assign default values for things.
-// readJson.extras(file, data, cb)
 var readJson = require('read-package-json')
 
 function yes (conf) {
@@ -23,8 +22,10 @@ function yes (conf) {
 }
 
 function init (dir, input, config, cb) {
-  if (typeof config === 'function')
-    cb = config, config = {}
+  if (typeof config === 'function') {
+    cb = config
+    config = {}
+  }
 
   // accept either a plain-jane object, or a config object
   // with a "get" method.
@@ -36,7 +37,7 @@ function init (dir, input, config, cb) {
       },
       toJSON: function () {
         return data
-      }
+      },
     }
   }
 
@@ -52,14 +53,18 @@ function init (dir, input, config, cb) {
   readJson(packageFile, function (er, d) {
     readJson.extraSet = es
 
-    if (er) pkg = {}
-    else pkg = d
+    if (er) {
+      pkg = {}
+    } else {
+      pkg = d
+    }
 
     ctx.filename = packageFile
     ctx.dirname = path.dirname(packageFile)
     ctx.basename = path.basename(ctx.dirname)
-    if (!pkg.version || !semver.valid(pkg.version))
+    if (!pkg.version || !semver.valid(pkg.version)) {
       delete pkg.version
+    }
 
     ctx.package = pkg
     ctx.config = config || {}
@@ -71,7 +76,9 @@ function init (dir, input, config, cb) {
     pz.on('error', cb)
     pz.on('data', function (data) {
       Object.keys(data).forEach(function (k) {
-        if (data[k] !== undefined && data[k] !== null) pkg[k] = data[k]
+        if (data[k] !== undefined && data[k] !== null) {
+          pkg[k] = data[k]
+        }
       })
 
       // only do a few of these.
@@ -81,8 +88,10 @@ function init (dir, input, config, cb) {
         return fn.name !== 'authors' && fn.name !== 'mans'
       })
       readJson.extras(packageFile, pkg, function (er, pkg) {
+        if (er) {
+          return cb(er, pkg)
+        }
         readJson.extraSet = es
-        if (er) return cb(er, pkg)
         pkg = unParsePeople(pkg)
         // no need for the readme now.
         delete pkg.readme
@@ -95,13 +104,15 @@ function init (dir, input, config, cb) {
         delete pkg.gitHead
 
         // if the repo is empty, remove it.
-        if (!pkg.repository)
+        if (!pkg.repository) {
           delete pkg.repository
+        }
 
         // readJson filters out empty descriptions, but init-package-json
         // traditionally leaves them alone
-        if (!pkg.description)
+        if (!pkg.description) {
           pkg.description = data.description
+        }
 
         var d = JSON.stringify(updateDeps(pkg), null, 2) + '\n'
         function write (yes) {
@@ -116,7 +127,7 @@ function init (dir, input, config, cb) {
           return write(true)
         }
         console.log('About to write to %s:\n\n%s\n', packageFile, d)
-        read({prompt:'Is this OK? ', default: 'yes'}, function (er, ok) {
+        read({prompt: 'Is this OK? ', default: 'yes'}, function (er, ok) {
           if (er) {
             return cb(er)
           }
@@ -129,18 +140,19 @@ function init (dir, input, config, cb) {
       })
     })
   })
-
 }
 
-function updateDeps(depsData) {
+function updateDeps (depsData) {
   // optionalDependencies don't need to be repeated in two places
   if (depsData.dependencies) {
     if (depsData.optionalDependencies) {
-      for (const name of Object.keys(depsData.optionalDependencies))
+      for (const name of Object.keys(depsData.optionalDependencies)) {
         delete depsData.dependencies[name]
+      }
     }
-    if (Object.keys(depsData.dependencies).length === 0)
+    if (Object.keys(depsData.dependencies).length === 0) {
       delete depsData.dependencies
+    }
   }
 
   return depsData
@@ -148,21 +160,25 @@ function updateDeps(depsData) {
 
 // turn the objects into somewhat more humane strings.
 function unParsePeople (data) {
-  if (data.author) data.author = unParsePerson(data.author)
-  ;["maintainers", "contributors"].forEach(function (set) {
-    if (!Array.isArray(data[set])) return;
+  if (data.author) {
+    data.author = unParsePerson(data.author)
+  }['maintainers', 'contributors'].forEach(function (set) {
+    if (!Array.isArray(data[set])) {
+      return
+    }
     data[set] = data[set].map(unParsePerson)
   })
   return data
 }
 
 function unParsePerson (person) {
-  if (typeof person === "string") return person
-  var name = person.name || ""
+  if (typeof person === 'string') {
+    return person
+  }
+  var name = person.name || ''
   var u = person.url || person.web
-  var url = u ? (" ("+u+")") : ""
+  var url = u ? (' (' + u + ')') : ''
   var e = person.email || person.mail
-  var email = e ? (" <"+e+">") : ""
-  return name+email+url
+  var email = e ? (' <' + e + '>') : ''
+  return name + email + url
 }
-

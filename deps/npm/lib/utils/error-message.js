@@ -367,7 +367,7 @@ module.exports = (er, npm) => {
         detail.push(['signal', er.signal])
 
       if (er.cmd && Array.isArray(er.args))
-        detail.push(['command', ...[er.cmd, ...er.args]])
+        detail.push(['command', ...[er.cmd, ...er.args.map(replaceInfo)]])
 
       if (er.stdout)
         detail.push(['', er.stdout.trim()])
