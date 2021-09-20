@@ -42,7 +42,7 @@ class JSONOutputStream extends Minipass {
   }
 
   end () {
-    super.write(this._didFirst ? ']\n' : '\n]\n')
+    super.write(this._didFirst ? ']\n' : '\n[]\n')
     super.end()
   }
 }

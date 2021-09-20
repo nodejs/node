@@ -180,6 +180,40 @@ Object {
 }
 `
 
+exports[`test/lib/utils/error-message.js TAP args are cleaned > must match snapshot 1`] = `
+Object {
+  "detail": Array [
+    Array [
+      "signal",
+      "SIGYOLO",
+    ],
+    Array [
+      "command",
+      "some command",
+      "a",
+      "r",
+      "g",
+      "s",
+      "https://evil:***@npmjs.org",
+    ],
+    Array [
+      "",
+      "stdout",
+    ],
+    Array [
+      "",
+      "stderr",
+    ],
+  ],
+  "summary": Array [
+    Array [
+      "",
+      "cmd err",
+    ],
+  ],
+}
+`
+
 exports[`test/lib/utils/error-message.js TAP bad engine with config loaded > must match snapshot 1`] = `
 Object {
   "detail": Array [

@@ -201,6 +201,17 @@ t.test('default message', t => {
   t.end()
 })
 
+t.test('args are cleaned', t => {
+  t.matchSnapshot(errorMessage(Object.assign(new Error('cmd err'), {
+    cmd: 'some command',
+    signal: 'SIGYOLO',
+    args: ['a', 'r', 'g', 's', 'https://evil:password@npmjs.org'],
+    stdout: 'stdout',
+    stderr: 'stderr',
+  }), npm))
+  t.end()
+})
+
 t.test('eacces/eperm', t => {
   const runTest = (windows, loaded, cachePath, cacheDest) => t => {
     if (windows)
