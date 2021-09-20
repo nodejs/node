@@ -115,7 +115,7 @@ async function moveCollaboratorToEmeritus(peopleToMove) {
     // the list, print out the remaining entries to be moved because they come
     // alphabetically after the last item.
     if (inCollaboratorEmeritusSection && line === '' &&
-        fileContents.endsWith('&gt;\n')) {
+        fileContents.endsWith('>\n')) {
       while (textToMove.length) {
         fileContents += textToMove.pop();
       }
