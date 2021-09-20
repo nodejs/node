@@ -1364,7 +1364,7 @@ before closing keep alive connection.
 
 A value of `null` will disable the limit.
 
-When limit is reach it will set `Connection` header value to `closed`,
+When the limit is reached it will set the `Connection` header value to `close`,
 but will not actually close the connection, subsequent requests sent
 after the limit is reached will get `503 Service Unavailable` as a response.
 
