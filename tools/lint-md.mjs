@@ -12852,13 +12852,13 @@ Object.defineProperty(identifier, "__esModule", {
 identifier.isIdentifierStart = isIdentifierStart;
 identifier.isIdentifierChar = isIdentifierChar;
 identifier.isIdentifierName = isIdentifierName;
-let nonASCIIidentifierStartChars = "\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u037f\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u052f\u0531-\u0556\u0559\u0560-\u0588\u05d0-\u05ea\u05ef-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u0860-\u086a\u08a0-\u08b4\u08b6-\u08c7\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0980\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u09fc\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0af9\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c39\u0c3d\u0c58-\u0c5a\u0c60\u0c61\u0c80\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d04-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d54-\u0d56\u0d5f-\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e86-\u0e8a\u0e8c-\u0ea3\u0ea5\u0ea7-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f5\u13f8-\u13fd\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f8\u1700-\u170c\u170e-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1878\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191e\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19b0-\u19c9\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4b\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1c80-\u1c88\u1c90-\u1cba\u1cbd-\u1cbf\u1ce9-\u1cec\u1cee-\u1cf3\u1cf5\u1cf6\u1cfa\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2118-\u211d\u2124\u2126\u2128\u212a-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2c2e\u2c30-\u2c5e\u2c60-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309b-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312f\u3131-\u318e\u31a0-\u31bf\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9ffc\ua000-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua69d\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua7bf\ua7c2-\ua7ca\ua7f5-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua8fd\ua8fe\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\ua9e0-\ua9e4\ua9e6-\ua9ef\ua9fa-\ua9fe\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa7e-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uab30-\uab5a\uab5c-\uab69\uab70-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc";
-let nonASCIIidentifierChars = "\u200c\u200d\xb7\u0300-\u036f\u0387\u0483-\u0487\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a\u064b-\u0669\u0670\u06d6-\u06dc\u06df-\u06e4\u06e7\u06e8\u06ea-\u06ed\u06f0-\u06f9\u0711\u0730-\u074a\u07a6-\u07b0\u07c0-\u07c9\u07eb-\u07f3\u07fd\u0816-\u0819\u081b-\u0823\u0825-\u0827\u0829-\u082d\u0859-\u085b\u08d3-\u08e1\u08e3-\u0903\u093a-\u093c\u093e-\u094f\u0951-\u0957\u0962\u0963\u0966-\u096f\u0981-\u0983\u09bc\u09be-\u09c4\u09c7\u09c8\u09cb-\u09cd\u09d7\u09e2\u09e3\u09e6-\u09ef\u09fe\u0a01-\u0a03\u0a3c\u0a3e-\u0a42\u0a47\u0a48\u0a4b-\u0a4d\u0a51\u0a66-\u0a71\u0a75\u0a81-\u0a83\u0abc\u0abe-\u0ac5\u0ac7-\u0ac9\u0acb-\u0acd\u0ae2\u0ae3\u0ae6-\u0aef\u0afa-\u0aff\u0b01-\u0b03\u0b3c\u0b3e-\u0b44\u0b47\u0b48\u0b4b-\u0b4d\u0b55-\u0b57\u0b62\u0b63\u0b66-\u0b6f\u0b82\u0bbe-\u0bc2\u0bc6-\u0bc8\u0bca-\u0bcd\u0bd7\u0be6-\u0bef\u0c00-\u0c04\u0c3e-\u0c44\u0c46-\u0c48\u0c4a-\u0c4d\u0c55\u0c56\u0c62\u0c63\u0c66-\u0c6f\u0c81-\u0c83\u0cbc\u0cbe-\u0cc4\u0cc6-\u0cc8\u0cca-\u0ccd\u0cd5\u0cd6\u0ce2\u0ce3\u0ce6-\u0cef\u0d00-\u0d03\u0d3b\u0d3c\u0d3e-\u0d44\u0d46-\u0d48\u0d4a-\u0d4d\u0d57\u0d62\u0d63\u0d66-\u0d6f\u0d81-\u0d83\u0dca\u0dcf-\u0dd4\u0dd6\u0dd8-\u0ddf\u0de6-\u0def\u0df2\u0df3\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0e50-\u0e59\u0eb1\u0eb4-\u0ebc\u0ec8-\u0ecd\u0ed0-\u0ed9\u0f18\u0f19\u0f20-\u0f29\u0f35\u0f37\u0f39\u0f3e\u0f3f\u0f71-\u0f84\u0f86\u0f87\u0f8d-\u0f97\u0f99-\u0fbc\u0fc6\u102b-\u103e\u1040-\u1049\u1056-\u1059\u105e-\u1060\u1062-\u1064\u1067-\u106d\u1071-\u1074\u1082-\u108d\u108f-\u109d\u135d-\u135f\u1369-\u1371\u1712-\u1714\u1732-\u1734\u1752\u1753\u1772\u1773\u17b4-\u17d3\u17dd\u17e0-\u17e9\u180b-\u180d\u1810-\u1819\u18a9\u1920-\u192b\u1930-\u193b\u1946-\u194f\u19d0-\u19da\u1a17-\u1a1b\u1a55-\u1a5e\u1a60-\u1a7c\u1a7f-\u1a89\u1a90-\u1a99\u1ab0-\u1abd\u1abf\u1ac0\u1b00-\u1b04\u1b34-\u1b44\u1b50-\u1b59\u1b6b-\u1b73\u1b80-\u1b82\u1ba1-\u1bad\u1bb0-\u1bb9\u1be6-\u1bf3\u1c24-\u1c37\u1c40-\u1c49\u1c50-\u1c59\u1cd0-\u1cd2\u1cd4-\u1ce8\u1ced\u1cf4\u1cf7-\u1cf9\u1dc0-\u1df9\u1dfb-\u1dff\u203f\u2040\u2054\u20d0-\u20dc\u20e1\u20e5-\u20f0\u2cef-\u2cf1\u2d7f\u2de0-\u2dff\u302a-\u302f\u3099\u309a\ua620-\ua629\ua66f\ua674-\ua67d\ua69e\ua69f\ua6f0\ua6f1\ua802\ua806\ua80b\ua823-\ua827\ua82c\ua880\ua881\ua8b4-\ua8c5\ua8d0-\ua8d9\ua8e0-\ua8f1\ua8ff-\ua909\ua926-\ua92d\ua947-\ua953\ua980-\ua983\ua9b3-\ua9c0\ua9d0-\ua9d9\ua9e5\ua9f0-\ua9f9\uaa29-\uaa36\uaa43\uaa4c\uaa4d\uaa50-\uaa59\uaa7b-\uaa7d\uaab0\uaab2-\uaab4\uaab7\uaab8\uaabe\uaabf\uaac1\uaaeb-\uaaef\uaaf5\uaaf6\uabe3-\uabea\uabec\uabed\uabf0-\uabf9\ufb1e\ufe00-\ufe0f\ufe20-\ufe2f\ufe33\ufe34\ufe4d-\ufe4f\uff10-\uff19\uff3f";
+let nonASCIIidentifierStartChars = "\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u037f\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u052f\u0531-\u0556\u0559\u0560-\u0588\u05d0-\u05ea\u05ef-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u0860-\u086a\u0870-\u0887\u0889-\u088e\u08a0-\u08c9\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0980\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u09fc\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0af9\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c39\u0c3d\u0c58-\u0c5a\u0c5d\u0c60\u0c61\u0c80\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cdd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d04-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d54-\u0d56\u0d5f-\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e86-\u0e8a\u0e8c-\u0ea3\u0ea5\u0ea7-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f5\u13f8-\u13fd\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f8\u1700-\u1711\u171f-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1878\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191e\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19b0-\u19c9\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4c\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1c80-\u1c88\u1c90-\u1cba\u1cbd-\u1cbf\u1ce9-\u1cec\u1cee-\u1cf3\u1cf5\u1cf6\u1cfa\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2118-\u211d\u2124\u2126\u2128\u212a-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309b-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312f\u3131-\u318e\u31a0-\u31bf\u31f0-\u31ff\u3400-\u4dbf\u4e00-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua69d\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua7ca\ua7d0\ua7d1\ua7d3\ua7d5-\ua7d9\ua7f2-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua8fd\ua8fe\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\ua9e0-\ua9e4\ua9e6-\ua9ef\ua9fa-\ua9fe\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa7e-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uab30-\uab5a\uab5c-\uab69\uab70-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc";
+let nonASCIIidentifierChars = "\u200c\u200d\xb7\u0300-\u036f\u0387\u0483-\u0487\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a\u064b-\u0669\u0670\u06d6-\u06dc\u06df-\u06e4\u06e7\u06e8\u06ea-\u06ed\u06f0-\u06f9\u0711\u0730-\u074a\u07a6-\u07b0\u07c0-\u07c9\u07eb-\u07f3\u07fd\u0816-\u0819\u081b-\u0823\u0825-\u0827\u0829-\u082d\u0859-\u085b\u0898-\u089f\u08ca-\u08e1\u08e3-\u0903\u093a-\u093c\u093e-\u094f\u0951-\u0957\u0962\u0963\u0966-\u096f\u0981-\u0983\u09bc\u09be-\u09c4\u09c7\u09c8\u09cb-\u09cd\u09d7\u09e2\u09e3\u09e6-\u09ef\u09fe\u0a01-\u0a03\u0a3c\u0a3e-\u0a42\u0a47\u0a48\u0a4b-\u0a4d\u0a51\u0a66-\u0a71\u0a75\u0a81-\u0a83\u0abc\u0abe-\u0ac5\u0ac7-\u0ac9\u0acb-\u0acd\u0ae2\u0ae3\u0ae6-\u0aef\u0afa-\u0aff\u0b01-\u0b03\u0b3c\u0b3e-\u0b44\u0b47\u0b48\u0b4b-\u0b4d\u0b55-\u0b57\u0b62\u0b63\u0b66-\u0b6f\u0b82\u0bbe-\u0bc2\u0bc6-\u0bc8\u0bca-\u0bcd\u0bd7\u0be6-\u0bef\u0c00-\u0c04\u0c3c\u0c3e-\u0c44\u0c46-\u0c48\u0c4a-\u0c4d\u0c55\u0c56\u0c62\u0c63\u0c66-\u0c6f\u0c81-\u0c83\u0cbc\u0cbe-\u0cc4\u0cc6-\u0cc8\u0cca-\u0ccd\u0cd5\u0cd6\u0ce2\u0ce3\u0ce6-\u0cef\u0d00-\u0d03\u0d3b\u0d3c\u0d3e-\u0d44\u0d46-\u0d48\u0d4a-\u0d4d\u0d57\u0d62\u0d63\u0d66-\u0d6f\u0d81-\u0d83\u0dca\u0dcf-\u0dd4\u0dd6\u0dd8-\u0ddf\u0de6-\u0def\u0df2\u0df3\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0e50-\u0e59\u0eb1\u0eb4-\u0ebc\u0ec8-\u0ecd\u0ed0-\u0ed9\u0f18\u0f19\u0f20-\u0f29\u0f35\u0f37\u0f39\u0f3e\u0f3f\u0f71-\u0f84\u0f86\u0f87\u0f8d-\u0f97\u0f99-\u0fbc\u0fc6\u102b-\u103e\u1040-\u1049\u1056-\u1059\u105e-\u1060\u1062-\u1064\u1067-\u106d\u1071-\u1074\u1082-\u108d\u108f-\u109d\u135d-\u135f\u1369-\u1371\u1712-\u1715\u1732-\u1734\u1752\u1753\u1772\u1773\u17b4-\u17d3\u17dd\u17e0-\u17e9\u180b-\u180d\u180f-\u1819\u18a9\u1920-\u192b\u1930-\u193b\u1946-\u194f\u19d0-\u19da\u1a17-\u1a1b\u1a55-\u1a5e\u1a60-\u1a7c\u1a7f-\u1a89\u1a90-\u1a99\u1ab0-\u1abd\u1abf-\u1ace\u1b00-\u1b04\u1b34-\u1b44\u1b50-\u1b59\u1b6b-\u1b73\u1b80-\u1b82\u1ba1-\u1bad\u1bb0-\u1bb9\u1be6-\u1bf3\u1c24-\u1c37\u1c40-\u1c49\u1c50-\u1c59\u1cd0-\u1cd2\u1cd4-\u1ce8\u1ced\u1cf4\u1cf7-\u1cf9\u1dc0-\u1dff\u203f\u2040\u2054\u20d0-\u20dc\u20e1\u20e5-\u20f0\u2cef-\u2cf1\u2d7f\u2de0-\u2dff\u302a-\u302f\u3099\u309a\ua620-\ua629\ua66f\ua674-\ua67d\ua69e\ua69f\ua6f0\ua6f1\ua802\ua806\ua80b\ua823-\ua827\ua82c\ua880\ua881\ua8b4-\ua8c5\ua8d0-\ua8d9\ua8e0-\ua8f1\ua8ff-\ua909\ua926-\ua92d\ua947-\ua953\ua980-\ua983\ua9b3-\ua9c0\ua9d0-\ua9d9\ua9e5\ua9f0-\ua9f9\uaa29-\uaa36\uaa43\uaa4c\uaa4d\uaa50-\uaa59\uaa7b-\uaa7d\uaab0\uaab2-\uaab4\uaab7\uaab8\uaabe\uaabf\uaac1\uaaeb-\uaaef\uaaf5\uaaf6\uabe3-\uabea\uabec\uabed\uabf0-\uabf9\ufb1e\ufe00-\ufe0f\ufe20-\ufe2f\ufe33\ufe34\ufe4d-\ufe4f\uff10-\uff19\uff3f";
 const nonASCIIidentifierStart = new RegExp("[" + nonASCIIidentifierStartChars + "]");
 const nonASCIIidentifier = new RegExp("[" + nonASCIIidentifierStartChars + nonASCIIidentifierChars + "]");
 nonASCIIidentifierStartChars = nonASCIIidentifierChars = null;
-const astralIdentifierStartCodes = [0, 11, 2, 25, 2, 18, 2, 1, 2, 14, 3, 13, 35, 122, 70, 52, 268, 28, 4, 48, 48, 31, 14, 29, 6, 37, 11, 29, 3, 35, 5, 7, 2, 4, 43, 157, 19, 35, 5, 35, 5, 39, 9, 51, 157, 310, 10, 21, 11, 7, 153, 5, 3, 0, 2, 43, 2, 1, 4, 0, 3, 22, 11, 22, 10, 30, 66, 18, 2, 1, 11, 21, 11, 25, 71, 55, 7, 1, 65, 0, 16, 3, 2, 2, 2, 28, 43, 28, 4, 28, 36, 7, 2, 27, 28, 53, 11, 21, 11, 18, 14, 17, 111, 72, 56, 50, 14, 50, 14, 35, 349, 41, 7, 1, 79, 28, 11, 0, 9, 21, 107, 20, 28, 22, 13, 52, 76, 44, 33, 24, 27, 35, 30, 0, 3, 0, 9, 34, 4, 0, 13, 47, 15, 3, 22, 0, 2, 0, 36, 17, 2, 24, 85, 6, 2, 0, 2, 3, 2, 14, 2, 9, 8, 46, 39, 7, 3, 1, 3, 21, 2, 6, 2, 1, 2, 4, 4, 0, 19, 0, 13, 4, 159, 52, 19, 3, 21, 2, 31, 47, 21, 1, 2, 0, 185, 46, 42, 3, 37, 47, 21, 0, 60, 42, 14, 0, 72, 26, 230, 43, 117, 63, 32, 7, 3, 0, 3, 7, 2, 1, 2, 23, 16, 0, 2, 0, 95, 7, 3, 38, 17, 0, 2, 0, 29, 0, 11, 39, 8, 0, 22, 0, 12, 45, 20, 0, 35, 56, 264, 8, 2, 36, 18, 0, 50, 29, 113, 6, 2, 1, 2, 37, 22, 0, 26, 5, 2, 1, 2, 31, 15, 0, 328, 18, 190, 0, 80, 921, 103, 110, 18, 195, 2749, 1070, 4050, 582, 8634, 568, 8, 30, 114, 29, 19, 47, 17, 3, 32, 20, 6, 18, 689, 63, 129, 74, 6, 0, 67, 12, 65, 1, 2, 0, 29, 6135, 9, 1237, 43, 8, 8952, 286, 50, 2, 18, 3, 9, 395, 2309, 106, 6, 12, 4, 8, 8, 9, 5991, 84, 2, 70, 2, 1, 3, 0, 3, 1, 3, 3, 2, 11, 2, 0, 2, 6, 2, 64, 2, 3, 3, 7, 2, 6, 2, 27, 2, 3, 2, 4, 2, 0, 4, 6, 2, 339, 3, 24, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 7, 2357, 44, 11, 6, 17, 0, 370, 43, 1301, 196, 60, 67, 8, 0, 1205, 3, 2, 26, 2, 1, 2, 0, 3, 0, 2, 9, 2, 3, 2, 0, 2, 0, 7, 0, 5, 0, 2, 0, 2, 0, 2, 2, 2, 1, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 1, 2, 0, 3, 3, 2, 6, 2, 3, 2, 3, 2, 0, 2, 9, 2, 16, 6, 2, 2, 4, 2, 16, 4421, 42717, 35, 4148, 12, 221, 3, 5761, 15, 7472, 3104, 541, 1507, 4938];
-const astralIdentifierCodes = [509, 0, 227, 0, 150, 4, 294, 9, 1368, 2, 2, 1, 6, 3, 41, 2, 5, 0, 166, 1, 574, 3, 9, 9, 370, 1, 154, 10, 176, 2, 54, 14, 32, 9, 16, 3, 46, 10, 54, 9, 7, 2, 37, 13, 2, 9, 6, 1, 45, 0, 13, 2, 49, 13, 9, 3, 2, 11, 83, 11, 7, 0, 161, 11, 6, 9, 7, 3, 56, 1, 2, 6, 3, 1, 3, 2, 10, 0, 11, 1, 3, 6, 4, 4, 193, 17, 10, 9, 5, 0, 82, 19, 13, 9, 214, 6, 3, 8, 28, 1, 83, 16, 16, 9, 82, 12, 9, 9, 84, 14, 5, 9, 243, 14, 166, 9, 71, 5, 2, 1, 3, 3, 2, 0, 2, 1, 13, 9, 120, 6, 3, 6, 4, 0, 29, 9, 41, 6, 2, 3, 9, 0, 10, 10, 47, 15, 406, 7, 2, 7, 17, 9, 57, 21, 2, 13, 123, 5, 4, 0, 2, 1, 2, 6, 2, 0, 9, 9, 49, 4, 2, 1, 2, 4, 9, 9, 330, 3, 19306, 9, 135, 4, 60, 6, 26, 9, 1014, 0, 2, 54, 8, 3, 82, 0, 12, 1, 19628, 1, 5319, 4, 4, 5, 9, 7, 3, 6, 31, 3, 149, 2, 1418, 49, 513, 54, 5, 49, 9, 0, 15, 0, 23, 4, 2, 14, 1361, 6, 2, 16, 3, 6, 2, 1, 2, 4, 262, 6, 10, 9, 419, 13, 1495, 6, 110, 6, 6, 9, 4759, 9, 787719, 239];
+const astralIdentifierStartCodes = [0, 11, 2, 25, 2, 18, 2, 1, 2, 14, 3, 13, 35, 122, 70, 52, 268, 28, 4, 48, 48, 31, 14, 29, 6, 37, 11, 29, 3, 35, 5, 7, 2, 4, 43, 157, 19, 35, 5, 35, 5, 39, 9, 51, 13, 10, 2, 14, 2, 6, 2, 1, 2, 10, 2, 14, 2, 6, 2, 1, 68, 310, 10, 21, 11, 7, 25, 5, 2, 41, 2, 8, 70, 5, 3, 0, 2, 43, 2, 1, 4, 0, 3, 22, 11, 22, 10, 30, 66, 18, 2, 1, 11, 21, 11, 25, 71, 55, 7, 1, 65, 0, 16, 3, 2, 2, 2, 28, 43, 28, 4, 28, 36, 7, 2, 27, 28, 53, 11, 21, 11, 18, 14, 17, 111, 72, 56, 50, 14, 50, 14, 35, 349, 41, 7, 1, 79, 28, 11, 0, 9, 21, 43, 17, 47, 20, 28, 22, 13, 52, 58, 1, 3, 0, 14, 44, 33, 24, 27, 35, 30, 0, 3, 0, 9, 34, 4, 0, 13, 47, 15, 3, 22, 0, 2, 0, 36, 17, 2, 24, 85, 6, 2, 0, 2, 3, 2, 14, 2, 9, 8, 46, 39, 7, 3, 1, 3, 21, 2, 6, 2, 1, 2, 4, 4, 0, 19, 0, 13, 4, 159, 52, 19, 3, 21, 2, 31, 47, 21, 1, 2, 0, 185, 46, 42, 3, 37, 47, 21, 0, 60, 42, 14, 0, 72, 26, 38, 6, 186, 43, 117, 63, 32, 7, 3, 0, 3, 7, 2, 1, 2, 23, 16, 0, 2, 0, 95, 7, 3, 38, 17, 0, 2, 0, 29, 0, 11, 39, 8, 0, 22, 0, 12, 45, 20, 0, 19, 72, 264, 8, 2, 36, 18, 0, 50, 29, 113, 6, 2, 1, 2, 37, 22, 0, 26, 5, 2, 1, 2, 31, 15, 0, 328, 18, 190, 0, 80, 921, 103, 110, 18, 195, 2637, 96, 16, 1070, 4050, 582, 8634, 568, 8, 30, 18, 78, 18, 29, 19, 47, 17, 3, 32, 20, 6, 18, 689, 63, 129, 74, 6, 0, 67, 12, 65, 1, 2, 0, 29, 6135, 9, 1237, 43, 8, 8936, 3, 2, 6, 2, 1, 2, 290, 46, 2, 18, 3, 9, 395, 2309, 106, 6, 12, 4, 8, 8, 9, 5991, 84, 2, 70, 2, 1, 3, 0, 3, 1, 3, 3, 2, 11, 2, 0, 2, 6, 2, 64, 2, 3, 3, 7, 2, 6, 2, 27, 2, 3, 2, 4, 2, 0, 4, 6, 2, 339, 3, 24, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 30, 2, 24, 2, 7, 1845, 30, 482, 44, 11, 6, 17, 0, 322, 29, 19, 43, 1269, 6, 2, 3, 2, 1, 2, 14, 2, 196, 60, 67, 8, 0, 1205, 3, 2, 26, 2, 1, 2, 0, 3, 0, 2, 9, 2, 3, 2, 0, 2, 0, 7, 0, 5, 0, 2, 0, 2, 0, 2, 2, 2, 1, 2, 0, 3, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 1, 2, 0, 3, 3, 2, 6, 2, 3, 2, 3, 2, 0, 2, 9, 2, 16, 6, 2, 2, 4, 2, 16, 4421, 42719, 33, 4152, 8, 221, 3, 5761, 15, 7472, 3104, 541, 1507, 4938];
+const astralIdentifierCodes = [509, 0, 227, 0, 150, 4, 294, 9, 1368, 2, 2, 1, 6, 3, 41, 2, 5, 0, 166, 1, 574, 3, 9, 9, 370, 1, 154, 10, 50, 3, 123, 2, 54, 14, 32, 10, 3, 1, 11, 3, 46, 10, 8, 0, 46, 9, 7, 2, 37, 13, 2, 9, 6, 1, 45, 0, 13, 2, 49, 13, 9, 3, 2, 11, 83, 11, 7, 0, 161, 11, 6, 9, 7, 3, 56, 1, 2, 6, 3, 1, 3, 2, 10, 0, 11, 1, 3, 6, 4, 4, 193, 17, 10, 9, 5, 0, 82, 19, 13, 9, 214, 6, 3, 8, 28, 1, 83, 16, 16, 9, 82, 12, 9, 9, 84, 14, 5, 9, 243, 14, 166, 9, 71, 5, 2, 1, 3, 3, 2, 0, 2, 1, 13, 9, 120, 6, 3, 6, 4, 0, 29, 9, 41, 6, 2, 3, 9, 0, 10, 10, 47, 15, 406, 7, 2, 7, 17, 9, 57, 21, 2, 13, 123, 5, 4, 0, 2, 1, 2, 6, 2, 0, 9, 9, 49, 4, 2, 1, 2, 4, 9, 9, 330, 3, 19306, 9, 87, 9, 39, 4, 60, 6, 26, 9, 1014, 0, 2, 54, 8, 3, 82, 0, 12, 1, 19628, 1, 4706, 45, 3, 22, 543, 4, 4, 5, 9, 7, 3, 6, 31, 3, 149, 2, 1418, 49, 513, 54, 5, 49, 9, 0, 15, 0, 23, 4, 2, 14, 1361, 6, 2, 16, 3, 6, 2, 1, 2, 4, 262, 6, 10, 9, 357, 0, 62, 13, 1495, 6, 110, 6, 6, 9, 4759, 9, 787719, 239];
 
 function isInAstralSet(code, set) {
   let pos = 0x10000;
@@ -20974,7 +20974,7 @@ findUp$1.exports.sync = (filename, opts = {}) => {
 
 var ini$1 = {};
 
-ini$1.parse = ini$1.decode = decode;
+ini$1.parse = ini$1.decode = decode$1;
 
 ini$1.stringify = ini$1.encode = encode$1;
 
@@ -21040,7 +21040,7 @@ function dotSplit (str) {
     })
 }
 
-function decode (str) {
+function decode$1 (str) {
   var out = {};
   var p = out;
   var section = null;
@@ -32620,7 +32620,7 @@ function options(flags, configuration) {
     rcPath: config.rcPath,
     detectConfig: config.config,
     settings: /** @type {Record<string, unknown>} */ (
-      settings(/** @type {string} */ (config.setting))
+      settings$1(/** @type {string} */ (config.setting))
     ),
     ignoreName: configuration.ignoreName,
     ignorePath: config.ignorePath,
@@ -32713,7 +32713,7 @@ function reporter(value) {
  * @param {string[]|string|null|undefined} value
  * @returns {Record<string, unknown>}
  */
-function settings(value) {
+function settings$1(value) {
   const normalized = normalize(value);
   let index = -1;
   /** @type {Record<string, unknown>} */
@@ -35282,7 +35282,7 @@ function exit$1(effects) {
  */
 
 /** @type {Construct} */
-const characterEscape$1 = {
+const characterEscape = {
   name: 'characterEscape',
   tokenize: tokenizeCharacterEscape
 };
@@ -37560,7 +37560,7 @@ function decodeEntity(characters) {
  */
 
 /** @type {Construct} */
-const characterReference$1 = {
+const characterReference = {
   name: 'characterReference',
   tokenize: tokenizeCharacterReference
 };
@@ -42171,8 +42171,8 @@ const flow = {
 /** @type {Extension['string']} */
 
 const string = {
-  [38]: characterReference$1,
-  [92]: characterEscape$1
+  [38]: characterReference,
+  [92]: characterEscape
 };
 /** @type {Extension['text']} */
 
@@ -42181,11 +42181,11 @@ const text$2 = {
   [-4]: lineEnding,
   [-3]: lineEnding,
   [33]: labelStartImage,
-  [38]: characterReference$1,
+  [38]: characterReference,
   [42]: attention,
   [60]: [autolink, htmlText],
   [91]: labelStartLink,
-  [92]: [hardBreakEscape, characterEscape$1],
+  [92]: [hardBreakEscape, characterEscape],
   [93]: labelEnd,
   [95]: attention,
   [96]: codeText
@@ -42442,6 +42442,45 @@ function decodeNumericCharacterReference(value, base) {
   return String.fromCharCode(code)
 }
 
+const characterEscapeOrReference =
+  /\\([!-/:-@[-`{-~])|&(#(?:\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});/gi;
+/**
+ * Utility to decode markdown strings (which occur in places such as fenced
+ * code info strings, destinations, labels, and titles).
+ * The “string” content type allows character escapes and -references.
+ * This decodes those.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+
+function decodeString(value) {
+  return value.replace(characterEscapeOrReference, decode)
+}
+/**
+ * @param {string} $0
+ * @param {string} $1
+ * @param {string} $2
+ * @returns {string}
+ */
+
+function decode($0, $1, $2) {
+  if ($1) {
+    // Escape.
+    return $1
+  } // Reference.
+
+  const head = $2.charCodeAt(0);
+
+  if (head === 35) {
+    const head = $2.charCodeAt(1);
+    const hex = head === 120 || head === 88;
+    return decodeNumericCharacterReference($2.slice(hex ? 2 : 1), hex ? 16 : 10)
+  }
+
+  return decodeEntity($2) || $0
+}
+
 /**
  * @typedef {import('micromark-util-types').Encoding} Encoding
  * @typedef {import('micromark-util-types').Event} Event
@@ -42449,9 +42488,12 @@ function decodeNumericCharacterReference(value, base) {
  * @typedef {import('micromark-util-types').Token} Token
  * @typedef {import('micromark-util-types').TokenizeContext} TokenizeContext
  * @typedef {import('micromark-util-types').Value} Value
- * @typedef {Root|Root['children'][number]} Node
- * @typedef {import('unist').Parent} Parent
+ * @typedef {import('unist').Parent} UnistParent
  * @typedef {import('unist').Point} Point
+ * @typedef {import('mdast').PhrasingContent} PhrasingContent
+ * @typedef {import('mdast').Content} Content
+ * @typedef {Root|Content} Node
+ * @typedef {Extract<Node, UnistParent>} Parent
  * @typedef {import('mdast').Break} Break
  * @typedef {import('mdast').Blockquote} Blockquote
  * @typedef {import('mdast').Code} Code
@@ -42460,8 +42502,10 @@ function decodeNumericCharacterReference(value, base) {
  * @typedef {import('mdast').Heading} Heading
  * @typedef {import('mdast').HTML} HTML
  * @typedef {import('mdast').Image} Image
+ * @typedef {import('mdast').ImageReference} ImageReference
  * @typedef {import('mdast').InlineCode} InlineCode
  * @typedef {import('mdast').Link} Link
+ * @typedef {import('mdast').LinkReference} LinkReference
  * @typedef {import('mdast').List} List
  * @typedef {import('mdast').ListItem} ListItem
  * @typedef {import('mdast').Paragraph} Paragraph
@@ -42469,6 +42513,8 @@ function decodeNumericCharacterReference(value, base) {
  * @typedef {import('mdast').Strong} Strong
  * @typedef {import('mdast').Text} Text
  * @typedef {import('mdast').ThematicBreak} ThematicBreak
+ *
+ * @typedef {UnistParent & {type: 'fragment', children: PhrasingContent[]}} Fragment
  */
 const own$4 = {}.hasOwnProperty;
 /**
@@ -42478,13 +42524,6 @@ const own$4 = {}.hasOwnProperty;
  */
 
 const fromMarkdown =
-  /**
-   * @type {(
-   *   ((value: Value, encoding: Encoding, options?: Options) => Root) &
-   *   ((value: Value, options?: Options) => Root)
-   * )}
-   */
-
   /**
    * @param {Value} value
    * @param {Encoding} [encoding]
@@ -42923,7 +42962,6 @@ function compiler(options = {}) {
   /** @type {CompileContext['buffer']} */
 
   function buffer() {
-    // @ts-expect-error: Custom node type to collect text.
     this.stack.push({
       type: 'fragment',
       children: []
@@ -42939,9 +42977,8 @@ function compiler(options = {}) {
    */
 
   function enter(node, token) {
-    /** @type {Parent} */
-    // @ts-expect-error: Assume parent.
     const parent = this.stack[this.stack.length - 1];
+    // @ts-expect-error: Assume `Node` can exist as a child of `parent`.
     parent.children.push(node);
     this.stack.push(node);
     this.tokenStack.push(token); // @ts-expect-error: `end` will be patched later.
@@ -43029,10 +43066,8 @@ function compiler(options = {}) {
 
   function onenterlistitemvalue(token) {
     if (getData('expectingFirstListItemValue')) {
-      this.stack[this.stack.length - 2].start = Number.parseInt(
-        this.sliceSerialize(token),
-        10
-      );
+      const ancestor = this.stack[this.stack.length - 2];
+      ancestor.start = Number.parseInt(this.sliceSerialize(token), 10);
       setData('expectingFirstListItemValue');
     }
   }
@@ -43040,13 +43075,15 @@ function compiler(options = {}) {
 
   function onexitcodefencedfenceinfo() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].lang = data;
+    const node = this.stack[this.stack.length - 1];
+    node.lang = data;
   }
   /** @type {Handle} */
 
   function onexitcodefencedfencemeta() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].meta = data;
+    const node = this.stack[this.stack.length - 1];
+    node.meta = data;
   }
   /** @type {Handle} */
 
@@ -43060,25 +43097,25 @@ function compiler(options = {}) {
 
   function onexitcodefenced() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].value = data.replace(
-      /^(\r?\n|\r)|(\r?\n|\r)$/g,
-      ''
-    );
+    const node = this.stack[this.stack.length - 1];
+    node.value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '');
     setData('flowCodeInside');
   }
   /** @type {Handle} */
 
   function onexitcodeindented() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].value = data.replace(/(\r?\n|\r)$/g, '');
+    const node = this.stack[this.stack.length - 1];
+    node.value = data.replace(/(\r?\n|\r)$/g, '');
   }
   /** @type {Handle} */
 
   function onexitdefinitionlabelstring(token) {
     // Discard label, use the source content instead.
     const label = this.resume();
-    this.stack[this.stack.length - 1].label = label;
-    this.stack[this.stack.length - 1].identifier = normalizeIdentifier(
+    const node = this.stack[this.stack.length - 1];
+    node.label = label;
+    node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
     ).toLowerCase();
   }
@@ -43086,20 +43123,24 @@ function compiler(options = {}) {
 
   function onexitdefinitiontitlestring() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].title = data;
+    const node = this.stack[this.stack.length - 1];
+    node.title = data;
   }
   /** @type {Handle} */
 
   function onexitdefinitiondestinationstring() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].url = data;
+    const node = this.stack[this.stack.length - 1];
+    node.url = data;
   }
   /** @type {Handle} */
 
   function onexitatxheadingsequence(token) {
-    if (!this.stack[this.stack.length - 1].depth) {
-      this.stack[this.stack.length - 1].depth =
-        this.sliceSerialize(token).length;
+    const node = this.stack[this.stack.length - 1];
+
+    if (!node.depth) {
+      const depth = this.sliceSerialize(token).length;
+      node.depth = depth;
     }
   }
   /** @type {Handle} */
@@ -43110,8 +43151,8 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitsetextheadinglinesequence(token) {
-    this.stack[this.stack.length - 1].depth =
-      this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
+    const node = this.stack[this.stack.length - 1];
+    node.depth = this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
   }
   /** @type {Handle} */
 
@@ -43121,11 +43162,8 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onenterdata(token) {
-    /** @type {Parent} */
-    // @ts-expect-error: assume parent.
     const parent = this.stack[this.stack.length - 1];
     /** @type {Node} */
-    // @ts-expect-error: assume child.
 
     let tail = parent.children[parent.children.length - 1];
 
@@ -43135,7 +43173,8 @@ function compiler(options = {}) {
 
       tail.position = {
         start: point(token.start)
-      };
+      }; // @ts-expect-error: Assume `parent` accepts `text`.
+
       parent.children.push(tail);
     }
 
@@ -43151,8 +43190,6 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitlineending(token) {
-    /** @type {Parent} */
-    // @ts-expect-error: supposed to be a parent.
     const context = this.stack[this.stack.length - 1];
 
     // If we’re at a hard break, include the line ending in there.
@@ -43180,19 +43217,22 @@ function compiler(options = {}) {
 
   function onexithtmlflow() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].value = data;
+    const node = this.stack[this.stack.length - 1];
+    node.value = data;
   }
   /** @type {Handle} */
 
   function onexithtmltext() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].value = data;
+    const node = this.stack[this.stack.length - 1];
+    node.value = data;
   }
   /** @type {Handle} */
 
   function onexitcodetext() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].value = data;
+    const node = this.stack[this.stack.length - 1];
+    node.value = data;
   }
   /** @type {Handle} */
 
@@ -43200,14 +43240,17 @@ function compiler(options = {}) {
     const context = this.stack[this.stack.length - 1]; // To do: clean.
 
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
+      context.type += 'Reference'; // @ts-expect-error: mutate.
+
+      context.referenceType = getData('referenceType') || 'shortcut'; // @ts-expect-error: mutate.
+
       delete context.url;
       delete context.title;
     } else {
-      delete context.identifier;
+      // @ts-expect-error: mutate.
+      delete context.identifier; // @ts-expect-error: mutate.
+
       delete context.label;
-      delete context.referenceType;
     }
 
     setData('referenceType');
@@ -43218,14 +43261,17 @@ function compiler(options = {}) {
     const context = this.stack[this.stack.length - 1]; // To do: clean.
 
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
+      context.type += 'Reference'; // @ts-expect-error: mutate.
+
+      context.referenceType = getData('referenceType') || 'shortcut'; // @ts-expect-error: mutate.
+
       delete context.url;
       delete context.title;
     } else {
-      delete context.identifier;
+      // @ts-expect-error: mutate.
+      delete context.identifier; // @ts-expect-error: mutate.
+
       delete context.label;
-      delete context.referenceType;
     }
 
     setData('referenceType');
@@ -43233,36 +43279,40 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitlabeltext(token) {
-    this.stack[this.stack.length - 2].identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
+    const ancestor = this.stack[this.stack.length - 2];
+    const string = this.sliceSerialize(token);
+    ancestor.label = decodeString(string);
+    ancestor.identifier = normalizeIdentifier(string).toLowerCase();
   }
   /** @type {Handle} */
 
   function onexitlabel() {
     const fragment = this.stack[this.stack.length - 1];
     const value = this.resume();
-    this.stack[this.stack.length - 1].label = value; // Assume a reference.
+    const node = this.stack[this.stack.length - 1]; // Assume a reference.
 
     setData('inReference', true);
 
-    if (this.stack[this.stack.length - 1].type === 'link') {
-      this.stack[this.stack.length - 1].children = fragment.children;
+    if (node.type === 'link') {
+      // @ts-expect-error: Assume static phrasing content.
+      node.children = fragment.children;
     } else {
-      this.stack[this.stack.length - 1].alt = value;
+      node.alt = value;
     }
   }
   /** @type {Handle} */
 
   function onexitresourcedestinationstring() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].url = data;
+    const node = this.stack[this.stack.length - 1];
+    node.url = data;
   }
   /** @type {Handle} */
 
   function onexitresourcetitlestring() {
     const data = this.resume();
-    this.stack[this.stack.length - 1].title = data;
+    const node = this.stack[this.stack.length - 1];
+    node.title = data;
   }
   /** @type {Handle} */
 
@@ -43278,8 +43328,9 @@ function compiler(options = {}) {
 
   function onexitreferencestring(token) {
     const label = this.resume();
-    this.stack[this.stack.length - 1].label = label;
-    this.stack[this.stack.length - 1].identifier = normalizeIdentifier(
+    const node = this.stack[this.stack.length - 1];
+    node.label = label;
+    node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
     ).toLowerCase();
     setData('referenceType', 'full');
@@ -43318,14 +43369,15 @@ function compiler(options = {}) {
 
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
-    this.stack[this.stack.length - 1].url = this.sliceSerialize(token);
+    const node = this.stack[this.stack.length - 1];
+    node.url = this.sliceSerialize(token);
   }
   /** @type {Handle} */
 
   function onexitautolinkemail(token) {
     onexitdata.call(this, token);
-    this.stack[this.stack.length - 1].url =
-      'mailto:' + this.sliceSerialize(token);
+    const node = this.stack[this.stack.length - 1];
+    node.url = 'mailto:' + this.sliceSerialize(token);
   } //
   // Creaters.
   //
@@ -43341,7 +43393,6 @@ function compiler(options = {}) {
   /** @returns {Code} */
 
   function codeFlow() {
-    // @ts-expect-error: we’ve always used `null`.
     return {
       type: 'code',
       lang: null,
@@ -43363,9 +43414,7 @@ function compiler(options = {}) {
     return {
       type: 'definition',
       identifier: '',
-      // @ts-expect-error: we’ve always used `null`.
       label: null,
-      // @ts-expect-error: we’ve always used `null`.
       title: null,
       url: ''
     }
@@ -43406,7 +43455,6 @@ function compiler(options = {}) {
   /** @returns {Image} */
 
   function image() {
-    // @ts-expect-error: we’ve always used `null`.
     return {
       type: 'image',
       title: null,
@@ -43417,7 +43465,6 @@ function compiler(options = {}) {
   /** @returns {Link} */
 
   function link() {
-    // @ts-expect-error: we’ve always used `null`.
     return {
       type: 'link',
       title: null,
@@ -43434,7 +43481,6 @@ function compiler(options = {}) {
     return {
       type: 'list',
       ordered: token.type === 'listOrdered',
-      // @ts-expect-error: we’ve always used `null`.
       start: null,
       // @ts-expect-error Patched.
       spread: token._spread,
@@ -43451,7 +43497,6 @@ function compiler(options = {}) {
       type: 'listItem',
       // @ts-expect-error Patched.
       spread: token._spread,
-      // @ts-expect-error: we’ve always used `null`.
       checked: null,
       children: []
     }
@@ -44206,9 +44251,6 @@ function map(line, _, blank) {
  * @typedef {import('mdast').Association} Association
  */
 
-const characterEscape = /\\([!-/:-@[-`{-~])/g;
-const characterReference = /&(#(\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});/gi;
-
 /**
  * The `label` of an association is the string value: character escapes and
  * references work, and casing is intact.
@@ -44229,18 +44271,7 @@ function association(node) {
     return node.label || ''
   }
 
-  return node.identifier
-    .replace(characterEscape, '$1')
-    .replace(characterReference, decodeIfPossible)
-}
-
-/**
- * @param {string} $0
- * @param {string} $1
- * @returns {string}
- */
-function decodeIfPossible($0, $1) {
-  return decodeEntity($1) || $0
+  return decodeString(node.identifier)
 }
 
 /**
@@ -45896,8 +45927,7 @@ const unsafe = [
   // Caret is not used in markdown for constructs.
   // An underscore can start emphasis, strong, or a thematic break.
   {atBreak: true, character: '_'},
-  {before: '[^A-Za-z]', character: '_', inConstruct: 'phrasing'},
-  {character: '_', after: '[^A-Za-z]', inConstruct: 'phrasing'},
+  {character: '_', inConstruct: 'phrasing'},
   // A grave accent can start code (fenced or text), or it can break out of
   // a grave accent code fence.
   {atBreak: true, character: '`'},
@@ -46992,6 +47022,10 @@ function lintMessageControl() {
  * @typedef {'warn'|'on'|'off'|'error'} Label
  * @typedef {[Severity, ...unknown[]]} SeverityTuple
  *
+ * @typedef RuleMeta
+ * @property {string} origin name of the lint rule
+ * @property {string} [url] link to documentation
+ *
  * @callback Rule
  * @param {Node} tree
  * @param {VFile} file
@@ -47002,10 +47036,12 @@ function lintMessageControl() {
 const primitives = new Set(['string', 'number', 'boolean']);
 
 /**
- * @param {string} id
+ * @param {string|RuleMeta} meta
  * @param {Rule} rule
  */
-function lintRule(id, rule) {
+function lintRule(meta, rule) {
+  const id = typeof meta === 'string' ? meta : meta.origin;
+  const url = typeof meta === 'string' ? undefined : meta.url;
   const parts = id.split(':');
   // Possibly useful if externalised later.
   /* c8 ignore next */
@@ -47041,7 +47077,7 @@ function lintRule(id, rule) {
         }
 
         while (++index < messages.length) {
-          Object.assign(messages[index], {ruleId, source, fatal});
+          Object.assign(messages[index], {ruleId, source, fatal, url});
         }
 
         next();
@@ -47165,7 +47201,10 @@ function coerce$1(name, value) {
  */
 
 const remarkLintFinalNewline = lintRule(
-  'remark-lint:final-newline',
+  {
+    origin: 'remark-lint:final-newline',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-final-newline#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
     const value = String(file);
@@ -47724,7 +47763,10 @@ var plural = pluralize.exports;
  */
 
 const remarkLintListItemBulletIndent = lintRule(
-  'remark-lint:list-item-bullet-indent',
+  {
+    origin: 'remark-lint:list-item-bullet-indent',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-list-item-bullet-indent#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'list', (list, _, grandparent) => {
@@ -47954,7 +47996,10 @@ function generated(node) {
  */
 
 const remarkLintListItemIndent = lintRule(
-  'remark-lint:list-item-indent',
+  {
+    origin: 'remark-lint:list-item-indent',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-list-item-indent#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'tab-size') => {
     const value = String(file);
@@ -48053,7 +48098,10 @@ var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 const protocol = /^[a-z][a-z+.-]+:\/?/i;
 
 const remarkLintNoAutoLinkWithoutProtocol = lintRule(
-  'remark-lint:no-auto-link-without-protocol',
+  {
+    origin: 'remark-lint:no-auto-link-without-protocol',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-auto-link-without-protocol#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'link', (node) => {
@@ -48130,7 +48178,10 @@ var remarkLintNoAutoLinkWithoutProtocol$1 = remarkLintNoAutoLinkWithoutProtocol;
  */
 
 const remarkLintNoBlockquoteWithoutMarker = lintRule(
-  'remark-lint:no-blockquote-without-marker',
+  {
+    origin: 'remark-lint:no-blockquote-without-marker',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-blockquote-without-marker#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -48206,7 +48257,10 @@ var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
  */
 
 const remarkLintNoLiteralUrls = lintRule(
-  'remark-lint:no-literal-urls',
+  {
+    origin: 'remark-lint:no-literal-urls',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-literal-urls#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'link', (node) => {
@@ -48285,7 +48339,10 @@ var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
  */
 
 const remarkLintOrderedListMarkerStyle = lintRule(
-  'remark-lint:ordered-list-marker-style',
+  {
+    origin: 'remark-lint:ordered-list-marker-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-ordered-list-marker-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -48357,7 +48414,10 @@ var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
  */
 
 const remarkLintHardBreakSpaces = lintRule(
-  'remark-lint:hard-break-spaces',
+  {
+    origin: 'remark-lint:hard-break-spaces',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-hard-break-spaces#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -48406,7 +48466,10 @@ var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
  */
 
 const remarkLintNoDuplicateDefinitions = lintRule(
-  'remark-lint:no-duplicate-definitions',
+  {
+    origin: 'remark-lint:no-duplicate-definitions',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-duplicate-definitions#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, string>} */
@@ -48547,7 +48610,10 @@ function consolidate(depth, relative) {
  */
 
 const remarkLintNoHeadingContentIndent = lintRule(
-  'remark-lint:no-heading-content-indent',
+  {
+    origin: 'remark-lint:no-heading-content-indent',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-heading-content-indent#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'heading', (node) => {
@@ -48630,7 +48696,10 @@ var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
  */
 
 const remarkLintNoInlinePadding = lintRule(
-  'remark-lint:no-inline-padding',
+  {
+    origin: 'remark-lint:no-inline-padding',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-inline-padding#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     // Note: `emphasis`, `strong`, `delete` (GFM) can’t have padding anymore
@@ -48687,7 +48756,10 @@ var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
  */
 
 const remarkLintNoShortcutReferenceImage = lintRule(
-  'remark-lint:no-shortcut-reference-image',
+  {
+    origin: 'remark-lint:no-shortcut-reference-image',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shortcut-reference-image#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'imageReference', (node) => {
@@ -48735,7 +48807,10 @@ var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
  */
 
 const remarkLintNoShortcutReferenceLink = lintRule(
-  'remark-lint:no-shortcut-reference-link',
+  {
+    origin: 'remark-lint:no-shortcut-reference-link',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shortcut-reference-link#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'linkReference', (node) => {
@@ -48817,7 +48892,10 @@ var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
  */
 
 const remarkLintNoUndefinedReferences = lintRule(
-  'remark-lint:no-undefined-references',
+  {
+    origin: 'remark-lint:no-undefined-references',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-undefined-references#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = {}) => {
     const contents = String(file);
@@ -49045,7 +49123,10 @@ var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 const own$1 = {}.hasOwnProperty;
 
 const remarkLintNoUnusedDefinitions = lintRule(
-  'remark-lint:no-unused-definitions',
+  {
+    origin: 'remark-lint:no-unused-definitions',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-unused-definitions#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     /** @type {Record<string, {node: DefinitionContent, used: boolean}>} */
@@ -49176,7 +49257,10 @@ var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
  */
 
 const remarkLintBlockquoteIndentation = lintRule(
-  'remark-lint:blockquote-indentation',
+  {
+    origin: 'remark-lint:blockquote-indentation',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-blockquote-indentation#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     visit$1(tree, 'blockquote', (node) => {
@@ -49297,7 +49381,10 @@ function check(node) {
  */
 
 const remarkLintCheckboxCharacterStyle = lintRule(
-  'remark-lint:checkbox-character-style',
+  {
+    origin: 'remark-lint:checkbox-character-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-checkbox-character-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -49412,7 +49499,10 @@ var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
  */
 
 const remarkLintCheckboxContentIndent = lintRule(
-  'remark-lint:checkbox-content-indent',
+  {
+    origin: 'remark-lint:checkbox-content-indent',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-checkbox-content-indent#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -49563,7 +49653,10 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  */
 
 const remarkLintCodeBlockStyle = lintRule(
-  'remark-lint:code-block-style',
+  {
+    origin: 'remark-lint:code-block-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-code-block-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -49631,7 +49724,10 @@ var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
 const label = /^\s*\[((?:\\[\s\S]|[^[\]])+)]/;
 
 const remarkLintDefinitionSpacing = lintRule(
-  'remark-lint:definition-spacing',
+  {
+    origin: 'remark-lint:definition-spacing',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-definition-spacing#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -49743,7 +49839,10 @@ var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
 const fence = /^ {0,3}([~`])\1{2,}/;
 
 const remarkLintFencedCodeFlag = lintRule(
-  'remark-lint:fenced-code-flag',
+  {
+    origin: 'remark-lint:fenced-code-flag',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-fenced-code-flag#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option) => {
     const value = String(file);
@@ -49878,7 +49977,10 @@ var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
  */
 
 const remarkLintFencedCodeMarker = lintRule(
-  'remark-lint:fenced-code-marker',
+  {
+    origin: 'remark-lint:fenced-code-marker',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-fenced-code-marker#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const contents = String(file);
@@ -49949,7 +50051,10 @@ var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
  */
 
 const remarkLintFileExtension = lintRule(
-  'remark-lint:file-extension',
+  {
+    origin: 'remark-lint:file-extension',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-file-extension#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (_, file, option = 'md') => {
     const ext = file.extname;
@@ -50005,7 +50110,10 @@ var remarkLintFileExtension$1 = remarkLintFileExtension;
  */
 
 const remarkLintFinalDefinition = lintRule(
-  'remark-lint:final-definition',
+  {
+    origin: 'remark-lint:final-definition',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-final-definition#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     let last = 0;
@@ -50139,7 +50247,10 @@ var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
 const re = /<h([1-6])/;
 
 const remarkLintFirstHeadingLevel = lintRule(
-  'remark-lint:first-heading-level',
+  {
+    origin: 'remark-lint:first-heading-level',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-first-heading-level#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
     visit$1(tree, (node) => {
@@ -50256,7 +50367,10 @@ function infer(node) {
  */
 
 const remarkLintHeadingStyle = lintRule(
-  'remark-lint:heading-style',
+  {
+    origin: 'remark-lint:heading-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-heading-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     if (
@@ -50387,7 +50501,10 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  */
 
 const remarkLintMaximumLineLength = lintRule(
-  'remark-lint:maximum-line-length',
+  {
+    origin: 'remark-lint:maximum-line-length',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-maximum-line-length#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 80) => {
     const value = String(file);
@@ -50526,7 +50643,10 @@ var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
  */
 
 const remarkLintNoConsecutiveBlankLines = lintRule(
-  'remark-lint:no-consecutive-blank-lines',
+  {
+    origin: 'remark-lint:no-consecutive-blank-lines',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-consecutive-blank-lines#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, (node) => {
@@ -50622,7 +50742,10 @@ var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
  */
 
 const remarkLintNoFileNameArticles = lintRule(
-  'remark-lint:no-file-name-articles',
+  {
+    origin: 'remark-lint:no-file-name-articles',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-file-name-articles#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
     const match = file.stem && file.stem.match(/^(the|teh|an?)\b/i);
@@ -50653,7 +50776,10 @@ var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
  */
 
 const remarkLintNoFileNameConsecutiveDashes = lintRule(
-  'remark-lint:no-file-name-consecutive-dashes',
+  {
+    origin: 'remark-lint:no-file-name-consecutive-dashes',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-file-name-consecutive-dashes#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
     if (file.stem && /-{2,}/.test(file.stem)) {
@@ -50687,7 +50813,10 @@ var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDas
  */
 
 const remarkLintNofileNameOuterDashes = lintRule(
-  'remark-lint:no-file-name-outer-dashes',
+  {
+    origin: 'remark-lint:no-file-name-outer-dashes',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-file-name-outer-dashes#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
     if (file.stem && /^-|-$/.test(file.stem)) {
@@ -50750,7 +50879,10 @@ var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
  */
 
 const remarkLintNoHeadingIndent = lintRule(
-  'remark-lint:no-heading-indent',
+  {
+    origin: 'remark-lint:no-heading-indent',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-heading-indent#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'heading', (node, _, parent) => {
@@ -50809,7 +50941,10 @@ var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
  */
 
 const remarkLintNoMultipleToplevelHeadings = lintRule(
-  'remark-lint:no-multiple-toplevel-headings',
+  {
+    origin: 'remark-lint:no-multiple-toplevel-headings',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-multiple-toplevel-headings#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 1) => {
     /** @type {string|undefined} */
@@ -50907,7 +51042,10 @@ const flags = new Set([
 ]);
 
 const remarkLintNoShellDollars = lintRule(
-  'remark-lint:no-shell-dollars',
+  {
+    origin: 'remark-lint:no-shell-dollars',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-shell-dollars#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     visit$1(tree, 'code', (node) => {
@@ -51005,7 +51143,10 @@ var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
  */
 
 const remarkLintNoTableIndentation = lintRule(
-  'remark-lint:no-table-indentation',
+  {
+    origin: 'remark-lint:no-table-indentation',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-table-indentation#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -51121,7 +51262,10 @@ var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
  */
 
 const remarkLintNoTabs = lintRule(
-  'remark-lint:no-tabs',
+  {
+    origin: 'remark-lint:no-tabs',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-tabs#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (_, file) => {
     const value = String(file);
@@ -52146,7 +52290,10 @@ function prohibitedStrings (ast, file, strings) {
  */
 
 const remarkLintRuleStyle = lintRule(
-  'remark-lint:rule-style',
+  {
+    origin: 'remark-lint:rule-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-rule-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -52237,7 +52384,10 @@ var remarkLintRuleStyle$1 = remarkLintRuleStyle;
  */
 
 const remarkLintStrongMarker = lintRule(
-  'remark-lint:strong-marker',
+  {
+    origin: 'remark-lint:strong-marker',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-strong-marker#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -52441,7 +52591,10 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  */
 
 const remarkLintTableCellPadding = lintRule(
-  'remark-lint:table-cell-padding',
+  {
+    origin: 'remark-lint:table-cell-padding',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-table-cell-padding#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     if (
@@ -52648,7 +52801,10 @@ const reasonStart = 'Missing initial pipe in table fence';
 const reasonEnd = 'Missing final pipe in table fence';
 
 const remarkLintTablePipes = lintRule(
-  'remark-lint:table-pipes',
+  {
+    origin: 'remark-lint:table-pipes',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-table-pipes#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, void>} */
   (tree, file) => {
     const value = String(file);
@@ -52759,7 +52915,10 @@ var remarkLintTablePipes$1 = remarkLintTablePipes;
 const markers = new Set(['-', '*', '+']);
 
 const remarkLintUnorderedListMarkerStyle = lintRule(
-  'remark-lint:unordered-list-marker-style',
+  {
+    origin: 'remark-lint:unordered-list-marker-style',
+    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-unordered-list-marker-style#readme'
+  },
   /** @type {import('unified-lint-rule').Rule<Root, Options>} */
   (tree, file, option = 'consistent') => {
     const value = String(file);
@@ -52882,7 +53041,13 @@ const plugins = [
   [remarkLintUnorderedListMarkerStyle$1, "*"],
 ];
 
-const remarkPresetLintNode = { plugins };
+const settings = {
+  emphasis: "_",
+  listItemIndent: 1,
+  tightDefinitions: true,
+};
+
+const remarkPresetLintNode = { plugins, settings };
 
 /**
  * @typedef {import('micromark-util-types').Extension} Extension
