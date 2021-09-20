@@ -1,6 +1,7 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+
 <!-- type=misc -->
 
 Node.js APIs might be deprecated for any of the following reasons:
