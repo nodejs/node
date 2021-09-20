@@ -1,5 +1,5 @@
 {
-  "version": "7.23.0",
+  "version": "7.24.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -74,7 +74,7 @@
     "graceful-fs": "^4.2.8",
     "hosted-git-info": "^4.0.2",
     "ini": "^2.0.0",
-    "init-package-json": "^2.0.4",
+    "init-package-json": "^2.0.5",
     "is-cidr": "^4.0.2",
     "json-parse-even-better-errors": "^2.3.1",
     "libnpmaccess": "^4.0.2",

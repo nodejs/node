@@ -17,6 +17,9 @@ const cleanLogs = () => {
   console.log = fn
 }
 
+// 25 hours ago
+const yesterday = new Date(Date.now() - 1000 * 60 * 60 * 25)
+
 const packument = (nv, opts) => {
   if (!opts.fullMetadata)
     throw new Error('must fetch fullMetadata')
@@ -40,7 +43,7 @@ const packument = (nv, opts) => {
         latest: '1.0.0',
       },
       time: {
-        '1.0.0': '2019-08-06T16:21:09.842Z',
+        '1.0.0': yesterday,
       },
       versions: {
         '1.0.0': {
@@ -327,6 +330,13 @@ t.test('should log package info', t => {
 
   t.test('package with no repo or homepage', t => {
     view.exec(['blue@1.0.0'], () => {
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('package with semver range', t => {
+    view.exec(['blue@^1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
