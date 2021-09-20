@@ -1,6 +1,7 @@
 # Process
 
 <!-- introduced_in=v0.10.0 -->
+
 <!-- type=global -->
 
 <!-- source_link=lib/process.js -->
@@ -665,6 +666,7 @@ A few of the warning types that are most common include:
 ### Signal events
 
 <!--type=event-->
+
 <!--name=SIGINT, SIGHUP, etc.-->
 
 Signal events will be emitted when the Node.js process receives a signal. Please

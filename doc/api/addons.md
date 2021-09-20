@@ -1,6 +1,7 @@
 # C++ addons
 
 <!--introduced_in=v0.10.0-->
+
 <!-- type=misc -->
 
 _Addons_ are dynamically-linked shared objects written in C++. The

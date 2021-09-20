@@ -280,6 +280,7 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 ## Core modules
 
 <!--type=misc-->
+
 <!-- YAML
 changes:
   - version: v16.0.0
@@ -773,6 +774,7 @@ added: v0.1.16
 -->
 
 <!-- type=var -->
+
 <!-- name=module -->
 
 * {Object}
