@@ -722,7 +722,7 @@ for /D %%D IN (doc\*) do (
     set "lint_md_files="%%F" !lint_md_files!"
   )
 )
-%node_exe% tools\lint-md.mjs -q -f %lint_md_files%
+%node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
 ENDLOCAL
 goto exit
 
