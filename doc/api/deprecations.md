@@ -2811,7 +2811,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 ### DEP0154: RSA-PSS generate key pair options
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Documentation-only deprecation.
 -->
@@ -2827,7 +2827,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/40117
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40039
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
