@@ -241,7 +241,7 @@ statements to pass on more information alongside the module specifier.
 
 ```js
 import json from './foo.json' assert { type: "json" };
-import('foo.json', { assert: { type: "json" } });
+await import('foo.json', { assert: { type: "json" } });
 ```
 
 Node.js supports the following `type` values:
@@ -540,8 +540,6 @@ Assuming an `index.mjs` with
 
 ```js
 import packageConfig from './package.json' assert { type: 'json' };
-// Or, without using import assertions:
-import subPackageConfig from './subPackage/package.json';
 ```
 
 The `--experimental-json-modules` flag is needed for the module
