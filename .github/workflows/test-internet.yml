@@ -5,10 +5,10 @@ on:
   schedule:
     - cron: 5 0 * * *
 
-pull_request:
-  types: [opened, synchronize, reopened, ready_for_review]
-  paths:
-    - test/internet/**
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - test/internet/**
   push:
     branches:
       - master
