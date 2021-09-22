@@ -726,6 +726,20 @@ for /D %%D IN (doc\*) do (
 ENDLOCAL
 goto exit
 
+:format-md
+if not defined lint_md goto exit
+echo Running Markdown formatter on docs...
+SETLOCAL ENABLEDELAYEDEXPANSION
+set lint_md_files=
+for /D %%D IN (doc\*) do (
+  for %%F IN (%%D\*.md) do (
+    set "lint_md_files="%%F" !lint_md_files!"
+  )
+)
+%node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
+ENDLOCAL
+goto exit
+
 :create-msvs-files-failed
 echo Failed to create vc project files.
 del .used_configure_flags

@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
@@ -8,6 +10,18 @@ import { reporter } from 'vfile-reporter';
 
 const paths = process.argv.slice(2);
 
+if (!paths.length) {
+  console.error('Usage: lint-md.mjs <path> [<path> ...]');
+  process.exit(1);
+}
+
+let format = false;
+
+if (paths[0] === '--format') {
+  paths.shift();
+  format = true;
+}
+
 const linter = unified()
   .use(remarkParse)
   .use(gfm)
@@ -17,9 +31,10 @@ const linter = unified()
 paths.forEach(async (path) => {
   const file = await read(path);
   const result = await linter.process(file);
-  if (result.messages.length) {
+  if (format) {
+    fs.writeFileSync(path, result.toString());
+  } else if (result.messages.length) {
     process.exitCode = 1;
     console.error(reporter(result));
   }
-  // TODO: allow reformatting by writing `String(result)` to the input file
 });
