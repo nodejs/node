@@ -1,60 +1,8 @@
-/* <copyright>
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
+/*
+  Copyright (C) 2005-2019 Intel Corporation
 
-  GPL LICENSE SUMMARY
-
-  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-  The full GNU General Public License is included in this distribution
-  in the file called LICENSE.GPL.
-
-  Contact Information:
-  http://software.intel.com/en-us/articles/intel-vtune-amplifier-xe/
-
-  BSD LICENSE
-
-  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-</copyright> */
+  SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
+*/
 
 #include "ittnotify_config.h"
 
@@ -81,8 +29,8 @@ ITT_STUB(ITTAPI, __itt_domain*, domain_createW, (const wchar_t *name), (ITT_FORM
 ITT_STUB(ITTAPI, __itt_domain*, domain_create,  (const char    *name), (ITT_FORMAT name), domain_create,  __itt_group_structure, "\"%s\"")
 #endif /* ITT_PLATFORM==ITT_PLATFORM_WIN */
 
-ITT_STUBV(ITTAPI, void, module_load_with_sections, (__itt_module_object* module_obj), (ITT_FORMAT module_obj), module_load_with_sections, __itt_group_none, "%p")
-ITT_STUBV(ITTAPI, void, module_unload_with_sections, (__itt_module_object* module_obj), (ITT_FORMAT module_obj), module_unload_with_sections, __itt_group_none, "%p")
+ITT_STUBV(ITTAPI, void, module_load_with_sections, (__itt_module_object* module_obj), (ITT_FORMAT module_obj), module_load_with_sections, __itt_group_module, "%p")
+ITT_STUBV(ITTAPI, void, module_unload_with_sections, (__itt_module_object* module_obj), (ITT_FORMAT module_obj), module_unload_with_sections, __itt_group_module, "%p")
 
 #if ITT_PLATFORM==ITT_PLATFORM_WIN
 ITT_STUB(ITTAPI, __itt_string_handle*, string_handle_createA, (const char    *name), (ITT_FORMAT name), string_handle_createA, __itt_group_structure, "\"%s\"")

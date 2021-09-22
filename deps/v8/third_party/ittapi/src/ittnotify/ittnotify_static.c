@@ -1,65 +1,15 @@
-/* <copyright>
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
+/*
+  Copyright (C) 2005-2019 Intel Corporation
 
-  GPL LICENSE SUMMARY
-
-  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-  The full GNU General Public License is included in this distribution
-  in the file called LICENSE.GPL.
-
-  Contact Information:
-  http://software.intel.com/en-us/articles/intel-vtune-amplifier-xe/
-
-  BSD LICENSE
-
-  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-</copyright> */
+  SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
+*/
 
 #include "ittnotify_config.h"
 
 #if ITT_PLATFORM==ITT_PLATFORM_WIN
+#if !defined(PATH_MAX)
 #define PATH_MAX 512
+#endif
 #else /* ITT_PLATFORM!=ITT_PLATFORM_WIN */
 #include <limits.h>
 #include <dlfcn.h>
@@ -80,6 +30,44 @@
 static const char api_version[] = API_VERSION "\0\n@(#) $Revision$\n";
 
 #define _N_(n) ITT_JOIN(INTEL_ITTNOTIFY_PREFIX,n)
+
+#ifndef HAS_CPP_ATTR
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#define HAS_CPP_ATTR(X) __has_cpp_attribute(X)
+#else
+#define HAS_CPP_ATTR(X) 0
+#endif
+#endif
+
+#ifndef HAS_C_ATTR
+#if defined(__STDC__) && defined(__has_c_attribute)
+#define HAS_C_ATTR(X) __has_c_attribute(X)
+#else
+#define HAS_C_ATTR(X) 0
+#endif
+#endif
+
+#ifndef HAS_GNU_ATTR
+#if defined(__has_attribute)
+#define HAS_GNU_ATTR(X) __has_attribute(X)
+#else
+#define HAS_GNU_ATTR(X) 0
+#endif
+#endif
+
+#ifndef ITT_ATTRIBUTE_FALLTHROUGH
+#if HAS_CPP_ATTR(fallthrough) || HAS_C_ATTR(fallthrough)
+#define ITT_ATTRIBUTE_FALLTHROUGH [[fallthrough]]
+#elif HAS_CPP_ATTR(gnu::fallthrough)
+#define ITT_ATTRIBUTE_FALLTHROUGH [[gnu::fallthrough]]
+#elif HAS_CPP_ATTR(clang::fallthrough)
+#define ITT_ATTRIBUTE_FALLTHROUGH [[clang::fallthrough]]
+#elif HAS_GNU_ATTR(fallthrough)
+#define ITT_ATTRIBUTE_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define ITT_ATTRIBUTE_FALLTHROUGH
+#endif
+#endif
 
 #if ITT_OS==ITT_OS_WIN
 static const char* ittnotify_lib_name = "libittnotify.dll";
@@ -153,8 +141,6 @@ static const char* ittnotify_lib_name = "libittnotify.dylib";
 }
 
 #define ITT_MODULE_OBJECT_VERSION 1
-
-const int _N_(err) = 0;
 
 typedef int (__itt_init_ittlib_t)(const char*, __itt_group_id);
 
@@ -296,6 +282,7 @@ __itt_global _N_(_ittapi_global) = {
 typedef void (__itt_api_init_t)(__itt_global*, __itt_group_id);
 typedef void (__itt_api_fini_t)(__itt_global*);
 
+static __itt_domain dummy_domain;
 /* ========================================================================= */
 
 #ifdef ITT_NOTIFY_EXT_REPORT
@@ -344,6 +331,11 @@ static __itt_domain* ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(domain_createW),_init))(
             __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
             return ITTNOTIFY_NAME(domain_createW)(name);
         }
+        else
+        {
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+            return &dummy_domain;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).domain_list; h != NULL; h_tail = h, h = h->next)
     {
@@ -385,6 +377,15 @@ static __itt_domain* ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(domain_create),_init))(c
             return ITTNOTIFY_NAME(domain_create)(name);
         }
 #endif
+        else
+        {
+#if ITT_PLATFORM==ITT_PLATFORM_WIN
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#else
+            if (PTHREAD_SYMBOLS) __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#endif
+            return &dummy_domain;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).domain_list; h != NULL; h_tail = h, h = h->next)
     {
@@ -448,12 +449,17 @@ static __itt_string_handle* ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(string_handle_cre
             __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
             return ITTNOTIFY_NAME(string_handle_createW)(name);
         }
+        else
+        {
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+            return NULL;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).string_list; h != NULL; h_tail = h, h = h->next)
     {
         if (h->strW != NULL && !wcscmp(h->strW, name)) break;
     }
-    if (h == NULL) 
+    if (h == NULL)
     {
         NEW_STRING_HANDLE_W(&_N_(_ittapi_global),h,h_tail,name);
     }
@@ -489,6 +495,15 @@ static __itt_string_handle* ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(string_handle_cre
             return ITTNOTIFY_NAME(string_handle_create)(name);
         }
 #endif
+        else
+        {
+#if ITT_PLATFORM==ITT_PLATFORM_WIN
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#else
+            if (PTHREAD_SYMBOLS) __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#endif
+            return NULL;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).string_list; h != NULL; h_tail = h, h = h->next)
     {
@@ -520,6 +535,11 @@ static __itt_counter ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(counter_createW),_init))
         {
             __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
             return ITTNOTIFY_NAME(counter_createW)(name, domain);
+        }
+        else
+        {
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+            return NULL;
         }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).counter_list; h != NULL; h_tail = h, h = h->next)
@@ -565,6 +585,15 @@ static __itt_counter ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(counter_create),_init))(
             return ITTNOTIFY_NAME(counter_create)(name, domain);
         }
 #endif
+        else
+        {
+#if ITT_PLATFORM==ITT_PLATFORM_WIN
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#else
+            if (PTHREAD_SYMBOLS) __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#endif
+            return NULL;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).counter_list; h != NULL; h_tail = h, h = h->next)
     {
@@ -596,6 +625,11 @@ static __itt_counter ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(counter_create_typedW),_
         {
             __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
             return ITTNOTIFY_NAME(counter_create_typedW)(name, domain, type);
+        }
+        else
+        {
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+            return NULL;
         }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).counter_list; h != NULL; h_tail = h, h = h->next)
@@ -640,6 +674,15 @@ static __itt_counter ITTAPI ITT_VERSIONIZE(ITT_JOIN(_N_(counter_create_typed),_i
             return ITTNOTIFY_NAME(counter_create_typed)(name, domain, type);
         }
 #endif
+        else
+        {
+#if ITT_PLATFORM==ITT_PLATFORM_WIN
+            __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#else
+            if (PTHREAD_SYMBOLS) __itt_mutex_unlock(&_N_(_ittapi_global).mutex);
+#endif
+            return NULL;
+        }
     }
     for (h_tail = NULL, h = _N_(_ittapi_global).counter_list; h != NULL; h_tail = h, h = h->next)
     {
@@ -834,7 +877,7 @@ static const char* __itt_fsplit(const char* s, const char* sep, const char** out
 
 /* This function return value of env variable that placed into static buffer.
  * !!! The same static buffer is used for subsequent calls. !!!
- * This was done to aviod dynamic allocation for few calls.
+ * This was done to avoid dynamic allocation for few calls.
  * Actually we need this function only four times.
  */
 static const char* __itt_get_env_var(const char* name)
@@ -858,7 +901,7 @@ static const char* __itt_get_env_var(const char* name)
         }
         else
         {
-            /* If environment variable is empty, GetEnvirornmentVariables()
+            /* If environment variable is empty, GetEnvironmentVariables()
              * returns zero (number of characters (not including terminating null),
              * and GetLastError() returns ERROR_SUCCESS. */
             DWORD err = GetLastError();
@@ -1009,11 +1052,11 @@ static const char* __itt_get_lib_name(void)
 }
 
 /* Avoid clashes with std::min, reported by tbb team */
-#define __itt_min(a,b) (a) < (b) ? (a) : (b)
+#define __itt_min(a,b) ((a) < (b) ? (a) : (b))
 
 static __itt_group_id __itt_get_groups(void)
 {
-    register int i;
+    int i;
     __itt_group_id res = __itt_group_none;
     const char* var_name  = "INTEL_ITTNOTIFY_GROUPS";
     const char* group_str = __itt_get_env_var(var_name);
@@ -1083,7 +1126,7 @@ static void __itt_reinit_all_pointers(void)
 
 static void __itt_nullify_all_pointers(void)
 {
-    register int i;
+    int i;
     /* Nulify all pointers except domain_create, string_handle_create  and counter_create */
     for (i = 0; _N_(_ittapi_global).api_list_ptr[i].name != NULL; i++)
         *_N_(_ittapi_global).api_list_ptr[i].func_ptr = _N_(_ittapi_global).api_list_ptr[i].null_func;
@@ -1134,7 +1177,7 @@ ITT_EXTERN_C void _N_(fini_ittlib)(void)
 
 ITT_EXTERN_C int _N_(init_ittlib)(const char* lib_name, __itt_group_id init_groups)
 {
-    register int i;
+    int i;
     __itt_group_id groups;
 #ifdef ITT_COMPLETE_GROUP
     __itt_group_id zero_group = __itt_group_none;
@@ -1166,9 +1209,11 @@ ITT_EXTERN_C int _N_(init_ittlib)(const char* lib_name, __itt_group_id init_grou
                         __itt_api_init_t* __itt_api_init_ptr;
                         int lib_version = __itt_lib_version(_N_(_ittapi_global).lib);
 
-                        switch (lib_version) {
+                        switch (lib_version)
+                        {
                         case 0:
                             groups = __itt_group_legacy;
+                            ITT_ATTRIBUTE_FALLTHROUGH;
                         case 1:
                             /* Fill all pointers from dynamic library */
                             for (i = 0; _N_(_ittapi_global).api_list_ptr[i].name != NULL; i++)

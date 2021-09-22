@@ -1,61 +1,9 @@
-﻿#/* <copyright>
-#  This file is provided under a dual BSD/GPLv2 license.  When using or
-#  redistributing this file, you may do so under either license.
+﻿#!/usr/bin/env python
 #
-#  GPL LICENSE SUMMARY
+# Copyright (C) 2005-2019 Intel Corporation
 #
-#  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 #
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of version 2 of the GNU General Public License as
-#  published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but
-#  WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#  General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-#  The full GNU General Public License is included in this distribution
-#  in the file called LICENSE.GPL.
-#
-#  Contact Information:
-#  http://software.intel.com/en-us/articles/intel-vtune-amplifier-xe/
-#
-#  BSD LICENSE
-#
-#  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-#  All rights reserved.
-#
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
-#
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in
-#      the documentation and/or other materials provided with the
-#      distribution.
-#    * Neither the name of Intel Corporation nor the names of its
-#      contributors may be used to endorse or promote products derived
-#      from this software without specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-#  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#</copyright> */
-#********************************************************************************************************************************************************************************************************************************************************************************************
 
 from __future__ import print_function
 import os
@@ -153,18 +101,28 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     vs_versions = get_vs_versions()
-    parser.add_argument("-d", "--debug", action="store_true")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-d", "--debug", help="specify debug build configuration (release by default)", action="store_true")
+    parser.add_argument("-c", "--clean", help="delete any intermediate and output files", action="store_true")
+    parser.add_argument("-v", "--verbose", help="enable verbose output from build process", action="store_true")
+    parser.add_argument("-pt", "--ptmark", help="enable anomaly detection support", action="store_true")
+    parser.add_argument("--force_bits", choices=["32", "64"], help="specify bit version for the target")
     if sys.platform == 'win32' and vs_versions:
-        parser.add_argument("--vs", choices=vs_versions, default=vs_versions[0])
+        parser.add_argument("--vs", help="specify visual studio version {default}", choices=vs_versions, default=vs_versions[0])
     args = parser.parse_args()
 
-    target_bits = ['64']
-    if (sys.platform != 'darwin'):  # on MAC OSX we produce FAT library including both 32 and 64 bits
-        target_bits.append('32')
+    if args.force_bits:
+        target_bits = [args.force_bits]
+    else:
+        target_bits = ['64']
+        if (sys.platform != 'darwin'):  # on MAC OSX we produce FAT library including both 32 and 64 bits
+            target_bits.append('32')
 
     print("target_bits", target_bits)
     work_dir = os.getcwd()
+    if args.clean:
+        bin_dir = os.path.join(work_dir, 'bin')
+        if os.path.exists(bin_dir):
+            shutil.rmtree(bin_dir)
     for bits in target_bits:
         work_folder = os.path.join(work_dir, "build_" + (sys.platform.replace('32', "")), bits)
         already_there = os.path.exists(work_folder)
@@ -175,6 +133,8 @@ def main():
             os.makedirs(work_folder)
         print("work_folder: ", work_folder)
         os.chdir(work_folder)
+        if args.clean:
+            continue
 
         cmake = detect_cmake()
         if not cmake:
@@ -191,7 +151,8 @@ def main():
         run_shell('%s "%s" -G"%s" %s' % (cmake, work_dir, generator, " ".join([
             ("-DFORCE_32=ON" if bits == '32' else ""),
             ("-DCMAKE_BUILD_TYPE=Debug" if args.debug else ""),
-            ('-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON' if args.verbose else '')
+            ('-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON' if args.verbose else ''),
+            ("-DITT_API_IPT_SUPPORT=1" if args.ptmark else "")
         ])))
         if sys.platform == 'win32':
             target_project = 'ALL_BUILD'

@@ -1,67 +1,15 @@
-#/* <copyright>
-#  This file is provided under a dual BSD/GPLv2 license.  When using or
-#  redistributing this file, you may do so under either license.
 #
-#  GPL LICENSE SUMMARY
+# Copyright (C) 2005-2019 Intel Corporation
 #
-#  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 #
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of version 2 of the GNU General Public License as
-#  published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but
-#  WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#  General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-#  The full GNU General Public License is included in this distribution
-#  in the file called LICENSE.GPL.
-#
-#  Contact Information:
-#  http://software.intel.com/en-us/articles/intel-vtune-amplifier-xe/
-#
-#  BSD LICENSE
-#
-#  Copyright (c) 2005-2017 Intel Corporation. All rights reserved.
-#  All rights reserved.
-#
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
-#
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in
-#      the documentation and/or other materials provided with the
-#      distribution.
-#    * Neither the name of Intel Corporation nor the names of its
-#      contributors may be used to endorse or promote products derived
-#      from this software without specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-#  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#</copyright> */
-#********************************************************************************************************************************************************************************************************************************************************************************************
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 
 project(ittapi)
 
 OPTION(FORCE_32 "Force a 32bit compile on 64bit" OFF)
+OPTION(ITT_API_IPT_SUPPORT "ptmarks support")
 
 IF(FORCE_32 AND UNIX)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
@@ -99,26 +47,36 @@ set(ITT_PUBLIC_HDRS
     include/libittnotify.h
 )
 
-file(GLOB ITT_SRCS "src/ittnotify/*.c" "src/ittnotify/*.h")
-
-add_library(ittnotify STATIC ${ITT_SRCS} ${ITT_PUBLIC_HDRS})
-
-if(APPLE)
-    SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME ittnotify)
+if (ITT_API_IPT_SUPPORT)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DITT_API_IPT_SUPPORT")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DITT_API_IPT_SUPPORT")
+    if (NOT WIN32)
+        enable_language(ASM)
+        if (ARCH_64)
+            set(ITT_PT src/ittnotify/ittptmark64.S)
+        else()
+            set(ASM_OPTIONS "-m32")
+            set(ITT_PT src/ittnotify/ittptmark32.S)
+        endif()
+        set(CMAKE_ASM_FLAGS "${CFLAGS} ${ASM_OPTIONS}" )
+    else()
+        enable_language(ASM_MASM)
+        if (ARCH_64)
+            set(ITT_PT src/ittnotify/ittptmark64.asm)
+	else()
+            set(ITT_PT src/ittnotify/ittptmark32.asm)
+        endif()
+    endif()
 endif()
 
+file(GLOB ITT_SRCS "src/ittnotify/*.c" "src/ittnotify/*.h")
+
+add_library(ittnotify STATIC ${ITT_SRCS} ${ITT_PUBLIC_HDRS} ${ITT_PT})
+
 if(WIN32)
-    if(ARCH_64)
-        SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME libittnotify64)
-    else()
-        SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME libittnotify32)
-    endif()
+    SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME libittnotify)
 else()
-    if(ARCH_64)
-        SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME ittnotify64)
-    else()
-        SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME ittnotify32)
-    endif()
+    SET_TARGET_PROPERTIES(ittnotify PROPERTIES OUTPUT_NAME ittnotify)
 endif()
 
 if (NOT WIN32)
