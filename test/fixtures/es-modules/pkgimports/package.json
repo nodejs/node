@@ -22,7 +22,7 @@
       },
       "default": "./test.js"
     },
-    "#subpath/nullshadow/": [null],
+    "#subpath/nullshadow/*": [null],
     "#": "./test.js",
     "#/initialslash": "./test.js",
     "#notfound": "./notfound.js",

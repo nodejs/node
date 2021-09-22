@@ -17,7 +17,7 @@ For the tests to run on Windows, be sure to clone Node.js source code with the
 | ---------------- | ---------- | --------------- |
 | `abort`          | Yes        | Tests that use `--abort-on-uncaught-exception` and other situations where we want to test something but avoid generating a core file. |
 | `addons`         | Yes        | Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon. |
-| `async-hooks`    | Yes       | Tests for [async_hooks](https://nodejs.org/api/async_hooks.html) functionality. |
+| `async-hooks`    | Yes       | Tests for [async\_hooks](https://nodejs.org/api/async\_hooks.html) functionality. |
 | `benchmark`      | Yes       | Test minimal functionality of benchmarks. |
 | `cctest`         | Yes       | C++ tests that are run as part of the build process. |
 | `code-cache`     | No        | Tests for a Node.js binary compiled with V8 code cache. |

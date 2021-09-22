@@ -8,6 +8,8 @@ rules:
     - properties: 'never'
       ignoreDestructuring: true
       allow: ['child_process']
-  no-unused-vars: [error, { args: 'after-used' }]
+  no-unused-vars:
+    - error
+    - args: 'after-used'
   prefer-arrow-callback: error
   no-var: error

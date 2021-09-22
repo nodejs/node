@@ -258,9 +258,7 @@ added: v10.0.0
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
   file data read.
 * `offset` {integer} The location in the buffer at which to start filling.
-  **Default:** `0`
-* `length` {integer} The number of bytes to read. **Default:**
-  `buffer.byteLength`
+* `length` {integer} The number of bytes to read.
 * `position` {integer} The location where to begin reading data from the
   file. If `null`, data will be read from the current file position, and
   the position will be updated. If `position` is an integer, the current
@@ -2884,11 +2882,9 @@ changes:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
-  written to. **Default:** `Buffer.alloc(16384)`
-* `offset` {integer} The position in `buffer` to write the data to. **Default:**
-  `0`
-* `length` {integer} The number of bytes to read. **Default:**
-  `buffer.byteLength`
+  written to.
+* `offset` {integer} The position in `buffer` to write the data to.
+* `length` {integer} The number of bytes to read.
 * `position` {integer|bigint} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is an

@@ -1,8 +1,15 @@
-extends: relaxed
+extends: default
 
 rules:
+  document-start:
+    present: false
   line-length: disable
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
 
 ignore: |
   /deps/
   node_modules/
+  /test/fixtures/wpt/
+  /tools/gyp/
+  /tools/pip/

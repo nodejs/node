@@ -1,6 +1,7 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+
 <!-- type=misc -->
 
 Node.js APIs might be deprecated for any of the following reasons:
@@ -2706,6 +2707,9 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40121
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37215
     description: Runtime deprecation.
@@ -2719,9 +2723,9 @@ changes:
 
 Type: Runtime
 
-Using a trailing `"/"` to define
-[subpath folder mappings][] in the [subpath exports][] or
-[subpath imports][] fields is deprecated. Use [subpath patterns][] instead.
+Using a trailing `"/"` to define subpath folder mappings in the
+[subpath exports][] or [subpath imports][] fields is deprecated. Use
+[subpath patterns][] instead.
 
 ### DEP0149: `http.IncomingMessage#connection`
 <!-- YAML
@@ -2964,6 +2968,5 @@ for package `"exports"` and `"imports"` pattern resolutions.
 [legacy `urlObject`]: url.md#legacy-urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports
-[subpath folder mappings]: packages.md#subpath-folder-mappings
 [subpath imports]: packages.md#subpath-imports
 [subpath patterns]: packages.md#subpath-patterns
