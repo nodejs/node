@@ -28936,7 +28936,7 @@ function reporter(files, options = {}) {
     files = [files];
   }
 
-  return format(transform(files, options), one, options)
+  return format$1(transform(files, options), one, options)
 }
 
 /**
@@ -29013,7 +29013,7 @@ function transform(files, options) {
  * @param {Options} options
  */
 // eslint-disable-next-line complexity
-function format(map, one, options) {
+function format$1(map, one, options) {
   /** @type {boolean} */
   const enabled =
     options.color === undefined || options.color === null
@@ -29155,6 +29155,18 @@ function size(value) {
 
 const paths = process.argv.slice(2);
 
+if (!paths.length) {
+  console.error('Usage: lint-md.mjs <path> [<path> ...]');
+  process.exit(1);
+}
+
+let format = false;
+
+if (paths[0] === '--format') {
+  paths.shift();
+  format = true;
+}
+
 const linter = unified()
   .use(remarkParse)
   .use(remarkGfm)
@@ -29164,9 +29176,10 @@ const linter = unified()
 paths.forEach(async (path) => {
   const file = await read(path);
   const result = await linter.process(file);
-  if (result.messages.length) {
+  if (format) {
+    fs.writeFileSync(path, result.toString());
+  } else if (result.messages.length) {
     process.exitCode = 1;
     console.error(reporter(result));
   }
-  // TODO: allow reformatting by writing `String(result)` to the input file
 });

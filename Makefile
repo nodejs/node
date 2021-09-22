@@ -1253,6 +1253,13 @@ tools/.mdlintstamp: $(LINT_MD_FILES)
 # Lints the markdown documents maintained by us in the codebase.
 lint-md: lint-js-doc | tools/.mdlintstamp
 
+run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
+.PHONY: format-md
+# Formats the markdown documents maintained by us in the codebase.
+format-md:
+	@$(call available-node,$(run-format-md))
+
+
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
