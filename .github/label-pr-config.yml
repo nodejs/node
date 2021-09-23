@@ -100,12 +100,11 @@ subSystemLabels:
   /^lib\/worker_threads.js$/: worker
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
-  /^lib\/internal\/quic\/*/: quic, dont-land-on-v14.x, dont-land-on-v12.x
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
-  /^lib(\/internal)?\/(\w+)\.js?$/: $2  # Other .js files
-  /^lib\/internal\/(\w+)(?:\/|$)/: $1  # internal subfolders
+  /^lib(?:\/internal)?\/(\w+)\.js?$/: $1  # Other .js files
+  /^lib(?:\/internal)?\/(\w+)(?:\/|$)/: $1  # Subfolders
 
 exlusiveLabels:
   # more specific tests
