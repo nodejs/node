@@ -1406,3 +1406,44 @@ const tsp = require('timers/promises');
   }));
   ac.abort();
 }
+
+{
+  async function run() {
+    let finished = false;
+    let text = '';
+    const write = new Writable({
+      write(data, enc, cb) {
+        text += data;
+        cb();
+      }
+    });
+    write.on('finish', () => {
+      finished = true;
+    });
+
+    await pipelinep([Readable.from('Hello World!'), write]);
+    assert(finished);
+    assert.strictEqual(text, 'Hello World!');
+  }
+
+  run();
+}
+
+{
+  let finished = false;
+  let text = '';
+  const write = new Writable({
+    write(data, enc, cb) {
+      text += data;
+      cb();
+    }
+  });
+  write.on('finish', () => {
+    finished = true;
+  });
+
+  pipeline([Readable.from('Hello World!'), write], common.mustSucceed(() => {
+    assert(finished);
+    assert.strictEqual(text, 'Hello World!');
+  }));
+}
