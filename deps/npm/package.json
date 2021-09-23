@@ -1,5 +1,5 @@
 {
-  "version": "7.24.0",
+  "version": "7.24.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -70,7 +70,7 @@
     "cli-table3": "^0.6.0",
     "columnify": "~1.5.4",
     "fastest-levenshtein": "^1.0.12",
-    "glob": "^7.1.7",
+    "glob": "^7.2.0",
     "graceful-fs": "^4.2.8",
     "hosted-git-info": "^4.0.2",
     "ini": "^2.0.0",

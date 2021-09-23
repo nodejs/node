@@ -138,7 +138,8 @@ Package descriptors have the following fields:
   the case of packages fetched from the registry, this will be a url to a
   tarball.  In the case of git dependencies, this will be the full git url
   with commit sha.  In the case of link dependencies, this will be the
-  location of the link target.
+  location of the link target. `registry.npmjs.org` is a magic value meaning
+  "the currently configured registry".
 
 * integrity: A `sha512` or `sha1` [Standard Subresource
   Integrity](https://w3c.github.io/webappsec/specs/subresourceintegrity/)
@@ -201,7 +202,8 @@ Dependency objects have the following fields:
 
 * resolved: For registry sources this is path of the tarball relative to
   the registry URL.  If the tarball URL isn't on the same server as the
-  registry URL then this is a complete URL.
+  registry URL then this is a complete URL. `registry.npmjs.org` is a magic
+  value meaning "the currently configured registry".
 
 * bundled:  If true, this is the bundled dependency and will be installed
   by the parent module.  When installing, this module will be extracted
