@@ -356,7 +356,7 @@ created, while `triggerAsyncId` shows *why* a resource was created.
 The following is a simple demonstration of `triggerAsyncId`:
 
 ```mjs
-import { createHook, executionASyncId } from 'async_hooks';
+import { createHook, executionAsyncId } from 'async_hooks';
 import { stdout } from 'process';
 import net from 'net';
 
