@@ -1357,12 +1357,12 @@ explicitly.
 added: v16.10.0
 -->
 
-* {number} Requests per socket. **Default:** null (no limit)
+* {number} Requests per socket. **Default:** 0 (no limit)
 
 The maximum number of requests socket can handle
 before closing keep alive connection.
 
-A value of `null` will disable the limit.
+A value of `0` will disable the limit.
 
 When the limit is reached it will set the `Connection` header value to `close`,
 but will not actually close the connection, subsequent requests sent
