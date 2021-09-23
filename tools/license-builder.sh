@@ -115,5 +115,6 @@ addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$(cat "${rootdir}"/deps/ngtcp2/LICE
 
 addlicense "node-fs-extra" "lib/internal/fs/cp" \
            "$(curl -sL https://raw.githubusercontent.com/jprichardson/node-fs-extra/b34da2762a4865b025cac06d02d6a2f1f1027b65/LICENSE)"
+addlicense "ittapi" "deps/v8/third_party/ittapi" "$(cat "${rootdir}"/deps/v8/third_party/ittapi/LICENSES/BSD-3-Clause.txt)"
 
 mv "$tmplicense" "$licensefile"
