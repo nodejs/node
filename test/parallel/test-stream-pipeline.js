@@ -1410,26 +1410,6 @@ const tsp = require('timers/promises');
 {
   async function run() {
     let finished = false;
-    const write = new Writable({
-      write(data, enc, cb) {
-        cb();
-      }
-    });
-    write.on('finish', () => {
-      finished = true;
-    });
-
-    await pipelinep([Readable.from('Hello World!'), write]);
-
-    assert(finished);
-  }
-
-  run();
-}
-
-{
-  async function run() {
-    let finished = false;
     let text = '';
     const write = new Writable({
       write(data, enc, cb) {
