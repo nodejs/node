@@ -135,8 +135,6 @@ typedef enum {
 } nghttp2_http_flag;
 
 struct nghttp2_stream {
-  /* Intrusive Map */
-  nghttp2_map_entry map_entry;
   /* Entry for dep_prev->obq */
   nghttp2_pq_entry pq_entry;
   /* Priority Queue storing direct descendant (nghttp2_stream).  Only
