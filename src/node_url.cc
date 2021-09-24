@@ -52,9 +52,6 @@ namespace {
 // https://url.spec.whatwg.org/#eof-code-point
 constexpr char kEOL = -1;
 
-// Used in ToUSVString().
-constexpr char16_t kUnicodeReplacementCharacter = 0xFFFD;
-
 // https://url.spec.whatwg.org/#concept-host
 class URLHost {
  public:
@@ -160,14 +157,6 @@ enum url_error_cb_args {
 #undef XX
 };
 
-#define CHAR_TEST(bits, name, expr)                                           \
-  template <typename T>                                                       \
-  bool name(const T ch) {                                              \
-    static_assert(sizeof(ch) >= (bits) / 8,                                   \
-                  "Character must be wider than " #bits " bits");             \
-    return (expr);                                                            \
-  }
-
 #define TWO_CHAR_STRING_TEST(bits, name, expr)                                \
   template <typename T>                                                       \
   bool name(const T ch1, const T ch2) {                                \
@@ -225,18 +214,7 @@ TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
 TWO_CHAR_STRING_TEST(8, IsNormalizedWindowsDriveLetter,
                      (IsASCIIAlpha(ch1) && ch2 == ':'))
 
-// If a UTF-16 character is a low/trailing surrogate.
-CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
-
-// If a UTF-16 character is a surrogate.
-CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
-
-// If a UTF-16 surrogate is a low/trailing one.
-CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
-
-#undef CHAR_TEST
 #undef TWO_CHAR_STRING_TEST
-
 
 bool BitAt(const uint8_t a[], const uint8_t i) {
   return !!(a[i >> 3] & (1 << (i & 7)));
@@ -1736,40 +1714,6 @@ void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(), output.c_str()).ToLocalChecked());
 }
 
-void ToUSVString(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 2);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsNumber());
-
-  TwoByteValue value(env->isolate(), args[0]);
-
-  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
-  CHECK_GE(start, 0);
-
-  for (size_t i = start; i < value.length(); i++) {
-    char16_t c = value[i];
-    if (!IsUnicodeSurrogate(c)) {
-      continue;
-    } else if (IsUnicodeSurrogateTrail(c) || i == value.length() - 1) {
-      value[i] = kUnicodeReplacementCharacter;
-    } else {
-      char16_t d = value[i + 1];
-      if (IsUnicodeTrail(d)) {
-        i++;
-      } else {
-        value[i] = kUnicodeReplacementCharacter;
-      }
-    }
-  }
-
-  args.GetReturnValue().Set(
-      String::NewFromTwoByte(env->isolate(),
-                             *value,
-                             NewStringType::kNormal,
-                             value.length()).ToLocalChecked());
-}
-
 void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
@@ -1820,7 +1764,6 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "parse", Parse);
   env->SetMethodNoSideEffect(target, "encodeAuth", EncodeAuthSet);
-  env->SetMethodNoSideEffect(target, "toUSVString", ToUSVString);
   env->SetMethodNoSideEffect(target, "domainToASCII", DomainToASCII);
   env->SetMethodNoSideEffect(target, "domainToUnicode", DomainToUnicode);
   env->SetMethod(target, "setURLConstructor", SetURLConstructor);
@@ -1838,7 +1781,6 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parse);
   registry->Register(EncodeAuthSet);
-  registry->Register(ToUSVString);
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
   registry->Register(SetURLConstructor);
