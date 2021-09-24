@@ -35,6 +35,18 @@ using v8::String;
 using v8::Uint32;
 using v8::Value;
 
+// Used in ToUSVString().
+constexpr char16_t kUnicodeReplacementCharacter = 0xFFFD;
+
+// If a UTF-16 character is a low/trailing surrogate.
+CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
+
+// If a UTF-16 character is a surrogate.
+CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
+
+// If a UTF-16 surrogate is a low/trailing one.
+CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
+
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -282,6 +294,40 @@ static void IsConstructor(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<v8::Function>()->IsConstructor());
 }
 
+static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsNumber());
+
+  TwoByteValue value(env->isolate(), args[0]);
+
+  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
+  CHECK_GE(start, 0);
+
+  for (size_t i = start; i < value.length(); i++) {
+    char16_t c = value[i];
+    if (!IsUnicodeSurrogate(c)) {
+      continue;
+    } else if (IsUnicodeSurrogateTrail(c) || i == value.length() - 1) {
+      value[i] = kUnicodeReplacementCharacter;
+    } else {
+      char16_t d = value[i + 1];
+      if (IsUnicodeTrail(d)) {
+        i++;
+      } else {
+        value[i] = kUnicodeReplacementCharacter;
+      }
+    }
+  }
+
+  args.GetReturnValue().Set(
+      String::NewFromTwoByte(env->isolate(),
+                             *value,
+                             v8::NewStringType::kNormal,
+                             value.length()).ToLocalChecked());
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHiddenValue);
   registry->Register(SetHiddenValue);
@@ -299,6 +345,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
   registry->Register(IsConstructor);
+  registry->Register(ToUSVString);
 }
 
 void Initialize(Local<Object> target,
@@ -370,6 +417,8 @@ void Initialize(Local<Object> target,
   env->SetConstructorFunction(target, "WeakReference", weak_ref);
 
   env->SetMethod(target, "guessHandleType", GuessHandleType);
+
+  env->SetMethodNoSideEffect(target, "toUSVString", ToUSVString);
 }
 
 }  // namespace util
