@@ -23,7 +23,7 @@ const testCases = [
   [ 'await 0;',
     '(async () => { return (await 0); })()' ],
   [ 'await 0;;;',
-    '(async () => { return (await 0); })()' ],
+    '(async () => { return (await 0);;; })()' ],
   [ `await ${surrogate};`,
     `(async () => { return (await ${surrogate}); })()` ],
   [ `await ${surrogate};`,
