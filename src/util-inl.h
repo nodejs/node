@@ -64,6 +64,14 @@
   (((x) & 0x00000000000000FFull) << 56)
 #endif
 
+#define CHAR_TEST(bits, name, expr)                                           \
+  template <typename T>                                                       \
+  bool name(const T ch) {                                                     \
+    static_assert(sizeof(ch) >= (bits) / 8,                                   \
+                  "Character must be wider than " #bits " bits");             \
+    return (expr);                                                            \
+  }
+
 namespace node {
 
 template <typename T>
