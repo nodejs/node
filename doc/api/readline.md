@@ -535,6 +535,8 @@ line prompts are included in the calculations.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 ### Class: `readlinePromises.Interface`
 <!-- YAML
 added: REPLACEME
