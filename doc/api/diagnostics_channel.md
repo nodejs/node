@@ -79,6 +79,12 @@ if (channel.hasSubscribers) {
 
 #### `diagnostics_channel.hasSubscribers(name)`
 
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
+
 * `name` {string|symbol} The channel name
 * Returns: {boolean} If there are active subscribers
 
@@ -106,6 +112,12 @@ if (diagnostics_channel.hasSubscribers('my-channel')) {
 
 #### `diagnostics_channel.channel(name)`
 
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
+
 * `name` {string|symbol} The channel name
 * Returns: {Channel} The named channel object
 
@@ -127,6 +139,12 @@ const channel = diagnostics_channel.channel('my-channel');
 
 ### Class: `Channel`
 
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
+
 The class `Channel` represents an individual named channel within the data
 pipeline. It is use to track subscribers and to publish messages when there
 are subscribers present. It exists as a separate object to avoid channel
@@ -136,6 +154,12 @@ for heavy use while incurring very minimal cost. Channels are created with
 with `new Channel(name)` is not supported.
 
 #### `channel.hasSubscribers`
+
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
 
 * Returns: {boolean} If there are active subscribers
 
@@ -167,6 +191,12 @@ if (channel.hasSubscribers) {
 
 #### `channel.publish(message)`
 
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
+
 * `message` {any} The message to send to the channel subscribers
 
 Publish a message to any subscribers to the channel. This will trigger
@@ -193,6 +223,12 @@ channel.publish({
 ```
 
 #### `channel.subscribe(onMessage)`
+
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
 
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
@@ -223,6 +259,12 @@ channel.subscribe((message, name) => {
 ```
 
 #### `channel.unsubscribe(onMessage)`
+
+<!-- YAML
+added:
+ - v15.1.0
+ - v14.17.0
+-->
 
 * `onMessage` {Function} The previous subscribed handler to remove
 
