@@ -666,7 +666,7 @@ int nghttp2_session_server_new3(nghttp2_session **session_ptr,
   return 0;
 }
 
-static int free_streams(nghttp2_map_entry *entry, void *ptr) {
+static int free_streams(void *entry, void *ptr) {
   nghttp2_session *session;
   nghttp2_stream *stream;
   nghttp2_outbound_item *item;
@@ -1102,7 +1102,7 @@ nghttp2_stream *nghttp2_session_open_stream(nghttp2_session *session,
                         (int32_t)session->local_settings.initial_window_size,
                         stream_user_data, mem);
 
-    rv = nghttp2_map_insert(&session->streams, &stream->map_entry);
+    rv = nghttp2_map_insert(&session->streams, stream_id, stream);
     if (rv != 0) {
       nghttp2_stream_free(stream);
       nghttp2_mem_free(mem, stream);
@@ -2424,7 +2424,7 @@ static int session_call_on_frame_send(nghttp2_session *session,
   return 0;
 }
 
-static int find_stream_on_goaway_func(nghttp2_map_entry *entry, void *ptr) {
+static int find_stream_on_goaway_func(void *entry, void *ptr) {
   nghttp2_close_stream_on_goaway_arg *arg;
   nghttp2_stream *stream;
 
@@ -4194,8 +4194,7 @@ static int session_process_rst_stream_frame(nghttp2_session *session) {
   return nghttp2_session_on_rst_stream_received(session, frame);
 }
 
-static int update_remote_initial_window_size_func(nghttp2_map_entry *entry,
-                                                  void *ptr) {
+static int update_remote_initial_window_size_func(void *entry, void *ptr) {
   int rv;
   nghttp2_update_window_size_arg *arg;
   nghttp2_stream *stream;
@@ -4248,8 +4247,7 @@ session_update_remote_initial_window_size(nghttp2_session *session,
                           update_remote_initial_window_size_func, &arg);
 }
 
-static int update_local_initial_window_size_func(nghttp2_map_entry *entry,
-                                                 void *ptr) {
+static int update_local_initial_window_size_func(void *entry, void *ptr) {
   int rv;
   nghttp2_update_window_size_arg *arg;
   nghttp2_stream *stream;
@@ -6432,8 +6430,9 @@ ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in,
 
       /* CONTINUATION won't bear NGHTTP2_PADDED flag */
 
-      iframe->frame.hd.flags = (uint8_t)(
-          iframe->frame.hd.flags | (cont_hd.flags & NGHTTP2_FLAG_END_HEADERS));
+      iframe->frame.hd.flags =
+          (uint8_t)(iframe->frame.hd.flags |
+                    (cont_hd.flags & NGHTTP2_FLAG_END_HEADERS));
       iframe->frame.hd.length += cont_hd.length;
 
       busy = 1;
