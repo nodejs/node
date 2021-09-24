@@ -352,6 +352,7 @@ class SocketAddressBlockListWrap : public BaseObject {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);

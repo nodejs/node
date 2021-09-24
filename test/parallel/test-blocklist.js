@@ -70,6 +70,23 @@ const util = require('util');
 
 {
   const blockList = new BlockList();
+  const sa = new SocketAddress({
+    address: '8592:757c:efae:4e45:fb5d:d62a:0d00:8e17',
+    family: 'ipv6'
+  });
+
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress(sa);
+
+  blockList.removeAddress('1.1.1.1');
+  blockList.removeAddress(sa);
+
+  assert(!blockList.check('1.1.1.1'));
+  assert(!blockList.check('8592:757c:efae:4e45:fb5d:d62a:0d00:8e17', 'ipv6'));
+}
+
+{
+  const blockList = new BlockList();
   const sa1 = new SocketAddress({ address: '1.1.1.1' });
   const sa2 = new SocketAddress({
     address: '8592:757c:efae:4e45:fb5d:d62a:0d00:8e17',

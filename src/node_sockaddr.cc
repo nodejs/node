@@ -604,6 +604,21 @@ void SocketAddressBlockListWrap::AddAddress(
   args.GetReturnValue().Set(true);
 }
 
+void SocketAddressBlockListWrap::RemoveAddress(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  SocketAddressBase* addr;
+  ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
+
+  wrap->blocklist_->RemoveSocketAddress(addr->address());
+
+  args.GetReturnValue().Set(true);
+}
+
 void SocketAddressBlockListWrap::AddRange(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -702,6 +717,7 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
     env->SetProtoMethod(tmpl, "addAddress", AddAddress);
+    env->SetProtoMethod(tmpl, "removeAddress", RemoveAddress);
     env->SetProtoMethod(tmpl, "addRange", AddRange);
     env->SetProtoMethod(tmpl, "addSubnet", AddSubnet);
     env->SetProtoMethod(tmpl, "check", Check);
