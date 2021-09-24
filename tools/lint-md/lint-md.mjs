@@ -27475,8 +27475,12 @@ function findUrl(_, protocol, domain, path, match) {
  * @param {RegExpMatchObject} match
  */
 function findEmail(_, atext, label, match) {
-  // Not an expected previous character.
-  if (!previous(match, true) || /[_-]$/.test(label)) {
+  if (
+    // Not an expected previous character.
+    !previous(match, true) ||
+    // Label ends in not allowed character.
+    /[_-\d]$/.test(label)
+  ) {
     return false
   }
 
