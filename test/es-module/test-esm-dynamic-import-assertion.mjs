@@ -1,4 +1,4 @@
-// Flags: --experimental-json-modules
+// Flags: --experimental-json-modules --experimental-import-non-javascript-without-assertion
 import '../common/index.mjs';
 import { rejects, strictEqual } from 'assert';
 

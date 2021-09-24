@@ -1,4 +1,4 @@
-// Flags: --experimental-json-modules
+// Flags: --experimental-json-modules --experimental-import-non-javascript-without-assertion
 'use strict';
 const common = require('../common');
 const assert = require('assert');

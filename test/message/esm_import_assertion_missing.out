@@ -1,0 +1,11 @@
+node:internal/errors:*
+    ErrorCaptureStackTrace(err);
+    ^
+
+TypeError [ERR_MISSING_IMPORT_ASSERTION]: Failed to load data:application/json,{}: Node.js requires modules of format "json" to be loaded using an assertion "type" with value "json"
+    at new NodeError (node:internal/errors:*:*)
+    at ESMLoader.moduleProvider (node:internal/modules/esm/loader:*:*) {
+  code: 'ERR_MISSING_IMPORT_ASSERTION'
+}
+
+Node.js *

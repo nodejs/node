@@ -315,6 +315,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental JSON interop support for the ES Module loader",
             &EnvironmentOptions::experimental_json_modules,
             kAllowedInEnvironment);
+  AddOption("--experimental-import-non-javascript-without-assertion",
+            "experimental support for importing non-JS modules without using "
+            "an import assertion",
+            &EnvironmentOptions::experimental_assertionless_non_js_imports,
+            kAllowedInEnvironment);
   AddOption("--experimental-loader",
             "use the specified module as a custom loader",
             &EnvironmentOptions::userland_loader,

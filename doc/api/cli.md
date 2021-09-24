@@ -251,6 +251,14 @@ added:
 
 Enable experimental `import.meta.resolve()` support.
 
+### `--experimental-import-non-javascript-without-assertion`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support importing non-JS modules without using an import
+assertion.
+
 ### `--experimental-json-modules`
 <!-- YAML
 added: v12.9.0

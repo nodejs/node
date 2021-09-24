@@ -1925,6 +1925,15 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_IMPORT_ASSERTION"></a>
+### `ERR_MISSING_IMPORT_ASSERTION`
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to impor without an assertion a module that requires a
+specific import assertion to be loaded.
+
 <a id="ERR_MISSING_OPTION"></a>
 ### `ERR_MISSING_OPTION`
 

@@ -104,6 +104,7 @@ class EnvironmentOptions : public Options {
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_json_modules = false;
+  bool experimental_assertionless_non_js_imports = false;
   bool experimental_modules = false;
   std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
