@@ -26,7 +26,9 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
@@ -562,11 +564,17 @@ MaybeLocal<Object> GetPubKey(Environment* env, const RSAPointer& rsa) {
   int size = i2d_RSA_PUBKEY(rsa.get(), nullptr);
   CHECK_GE(size, 0);
 
-  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
-  unsigned char* serialized =
-      reinterpret_cast<unsigned char*>(buffer.data());
-  i2d_RSA_PUBKEY(rsa.get(), &serialized);
-  return buffer.ToBuffer();
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
+  }
+
+  unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
+  CHECK_GE(i2d_RSA_PUBKEY(rsa.get(), &serialized), 0);
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
 MaybeLocal<Value> GetExponentString(
@@ -600,11 +608,17 @@ MaybeLocal<Value> GetModulusString(
 MaybeLocal<Object> GetRawDERCertificate(Environment* env, X509* cert) {
   int size = i2d_X509(cert, nullptr);
 
-  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
-  unsigned char* serialized =
-      reinterpret_cast<unsigned char*>(buffer.data());
-  i2d_X509(cert, &serialized);
-  return buffer.ToBuffer();
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
+  }
+
+  unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
+  CHECK_GE(i2d_X509(cert, &serialized), 0);
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
 MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
@@ -878,18 +892,26 @@ MaybeLocal<Object> ECPointToBuffer(Environment* env,
     if (error != nullptr) *error = "Failed to get public key length";
     return MaybeLocal<Object>();
   }
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
+
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
+  }
+
   len = EC_POINT_point2oct(group,
                            point,
                            form,
-                           reinterpret_cast<unsigned char*>(buf.data()),
-                           buf.size(),
+                           reinterpret_cast<unsigned char*>(bs->Data()),
+                           bs->ByteLength(),
                            nullptr);
   if (len == 0) {
     if (error != nullptr) *error = "Failed to get public key";
     return MaybeLocal<Object>();
   }
-  return buf.ToBuffer();
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
 MaybeLocal<Value> GetPeerCert(
