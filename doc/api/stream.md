@@ -962,8 +962,9 @@ changes:
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
-the stream. In some cases, attaching a listener for the `'readable'` event will
-cause some amount of data to be read into an internal buffer.
+the stream or when the end of the stream has been reached. Effectively, the
+`'readable'` event indicates that the stream has new information. If data is
+available, [`stream.read()`][stream-read] will return that data.
 
 ```js
 const readable = getReadableStreamSomehow();
@@ -977,14 +978,10 @@ readable.on('readable', function() {
 });
 ```
 
-The `'readable'` event will also be emitted once the end of the stream data
-has been reached but before the `'end'` event is emitted.
-
-Effectively, the `'readable'` event indicates that the stream has new
-information: either new data is available or the end of the stream has been
-reached. In the former case, [`stream.read()`][stream-read] will return the
-available data. In the latter case, [`stream.read()`][stream-read] will return
-`null`. For instance, in the following example, `foo.txt` is an empty file:
+If the end of the stream has been reached, calling
+[`stream.read()`][stream-read] will return `null` and trigger the `'end'`
+event. This is also true if there never was any data to be read. For instance,
+in the following example, `foo.txt` is an empty file:
 
 ```js
 const fs = require('fs');
@@ -1004,6 +1001,9 @@ $ node test.js
 readable: null
 end
 ```
+
+In some cases, attaching a listener for the `'readable'` event will cause some
+amount of data to be read into an internal buffer.
 
 In general, the `readable.pipe()` and `'data'` event mechanisms are easier to
 understand than the `'readable'` event. However, handling `'readable'` might
