@@ -262,6 +262,10 @@ class SocketAddressBlockList : public MemoryRetainer {
       const std::shared_ptr<SocketAddress>& address,
       int prefix);
 
+  void RemoveSocketAddressMask(
+      const std::shared_ptr<SocketAddress>& address,
+      int prefix);
+
   bool Apply(const std::shared_ptr<SocketAddress>& address);
 
   size_t size() const { return rules_.size(); }
@@ -330,7 +334,12 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   std::shared_ptr<SocketAddressBlockList> parent_;
   std::list<std::unique_ptr<Rule>> rules_;
+  std::list<std::unique_ptr<int>> prefixes_;
   SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> address_rules_;
+  SocketAddress::Map<
+    std::list<std::unique_ptr<int>>::iterator
+  > subnet_prefixes_;
+  SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> subnet_rules_;
 
   Mutex mutex_;
 };
@@ -355,6 +364,7 @@ class SocketAddressBlockListWrap : public BaseObject {
   static void RemoveAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
 

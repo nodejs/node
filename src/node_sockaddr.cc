@@ -428,6 +428,34 @@ void SocketAddressBlockList::AddSocketAddressMask(
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressMaskRule>(network, prefix);
   rules_.emplace_front(std::move(rule));
+  prefixes_.emplace_front(std::move(std::make_unique<int>(prefix)));
+
+  const SocketAddress addr_key = *network.get();
+  subnet_prefixes_[addr_key] = prefixes_.begin();
+  subnet_rules_[addr_key] = rules_.begin();
+}
+
+void SocketAddressBlockList::RemoveSocketAddressMask(
+    const std::shared_ptr<SocketAddress>& network,
+    int prefix) {
+  Mutex::ScopedLock lock(mutex_);
+
+  const SocketAddress addr_key = *network.get();
+  auto prefix_it = subnet_prefixes_.find(addr_key);
+
+  if (
+    prefix_it != std::end(subnet_prefixes_) &&
+    **prefix_it->second == prefix
+  ) {
+    auto rule_it = subnet_rules_.find(addr_key);
+
+    if (rule_it != std::end(subnet_rules_)) {
+      rules_.erase(rule_it->second);
+      prefixes_.erase(prefix_it->second);
+      subnet_prefixes_.erase(prefix_it);
+      subnet_rules_.erase(rule_it);
+    }
+  }
 }
 
 bool SocketAddressBlockList::Apply(
@@ -670,6 +698,32 @@ void SocketAddressBlockListWrap::AddSubnet(
   args.GetReturnValue().Set(true);
 }
 
+void SocketAddressBlockListWrap::RemoveSubnet(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  CHECK(args[1]->IsInt32());
+
+  SocketAddressBase* addr;
+  ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
+
+  int32_t prefix;
+  if (!args[1]->Int32Value(env->context()).To(&prefix)) {
+    return;
+  }
+
+  CHECK_IMPLIES(addr->address()->family() == AF_INET, prefix <= 32);
+  CHECK_IMPLIES(addr->address()->family() == AF_INET6, prefix <= 128);
+  CHECK_GE(prefix, 0);
+
+  wrap->blocklist_->RemoveSocketAddressMask(addr->address(), prefix);
+
+  args.GetReturnValue().Set(true);
+}
+
 void SocketAddressBlockListWrap::Check(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -720,6 +774,7 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "removeAddress", RemoveAddress);
     env->SetProtoMethod(tmpl, "addRange", AddRange);
     env->SetProtoMethod(tmpl, "addSubnet", AddSubnet);
+    env->SetProtoMethod(tmpl, "removeSubnet", RemoveSubnet);
     env->SetProtoMethod(tmpl, "check", Check);
     env->SetProtoMethod(tmpl, "getRules", GetRules);
     env->set_blocklist_constructor_template(tmpl);
