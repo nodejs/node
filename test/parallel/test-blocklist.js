@@ -91,9 +91,13 @@ const util = require('util');
   blockList.addAddress('1.1.1.1');
   blockList.addAddress('1.1.1.1');
 
+  assert.deepStrictEqual(blockList.rules, [
+    'Address: IPv4 1.1.1.1',
+  ]);
+
   blockList.removeAddress('1.1.1.1');
 
-  assert(blockList.check('1.1.1.1'));
+  assert(!blockList.check('1.1.1.1'));
 }
 
 {
@@ -207,22 +211,13 @@ const util = require('util');
 
 {
   const blockList = new BlockList();
-  blockList.addSubnet('1.1.1.0', 16);
   blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
   blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
-
-  blockList.removeSubnet('1.1.1.0', 16);
-  blockList.removeSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
 
   const rulesCheck = [
     'Subnet: IPv6 8592:757c:efae:4e45::/64',
   ];
   assert.deepStrictEqual(blockList.rules, rulesCheck);
-
-  assert(!blockList.check('1.1.0.1'));
-  assert(!blockList.check('1.1.1.1'));
-  assert(!blockList.check('1.2.0.1'));
-  assert(!blockList.check('::ffff:1.1.0.1', 'ipv6'));
 
   assert(blockList.check('8592:757c:efae:4e45:f::', 'ipv6'));
   assert(blockList.check('8592:757c:efae:4e45::f', 'ipv6'));

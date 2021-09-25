@@ -389,6 +389,42 @@ bool SocketAddress::is_in_network(
   return false;
 }
 
+bool SocketAddressMask::New(
+    SocketAddress* addr,
+    int prefix,
+    SocketAddressMask* mask) {
+  mask->address_ = *addr;
+  mask->prefix_ = prefix;
+
+  return mask;
+}
+
+size_t SocketAddressMask::Hash::operator()
+  (const SocketAddressMask& mask) const {
+  size_t hash = 0;
+  switch (mask->address_.family()) {
+    case AF_INET: {
+      const sockaddr_in* ipv4 =
+          reinterpret_cast<const sockaddr_in*>(mask->address_.raw());
+      // exclude port from hashing so SocketAddressMasks with otherwise
+      // identical SocketAddresses map to same value
+      hash_combine(&hash, ipv4->sin_addr.s_addr, mask->prefix_);
+      break;
+    }
+    case AF_INET6: {
+      const sockaddr_in6* ipv6 =
+          reinterpret_cast<const sockaddr_in6*>(mask->address_.raw());
+      const uint64_t* a =
+          reinterpret_cast<const uint64_t*>(&ipv6->sin6_addr);
+      hash_combine(&hash, a[0], a[1], mask->prefix_);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  return hash;
+}
+
 SocketAddressBlockList::SocketAddressBlockList(
     std::shared_ptr<SocketAddressBlockList> parent)
     : parent_(parent) {}
@@ -396,16 +432,23 @@ SocketAddressBlockList::SocketAddressBlockList(
 void SocketAddressBlockList::AddSocketAddress(
     const std::shared_ptr<SocketAddress>& address) {
   Mutex::ScopedLock lock(mutex_);
-  std::unique_ptr<Rule> rule =
+
+  auto it = address_rules_.find(*address.get());
+
+  if (it == std::end(address_rules_)) {
+    std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRule>(address);
-  rules_.emplace_front(std::move(rule));
-  address_rules_[*address.get()] = rules_.begin();
+    rules_.emplace_front(std::move(rule));
+    address_rules_[*address.get()] = rules_.begin();
+  }
 }
 
 void SocketAddressBlockList::RemoveSocketAddress(
     const std::shared_ptr<SocketAddress>& address) {
   Mutex::ScopedLock lock(mutex_);
+
   auto it = address_rules_.find(*address.get());
+
   if (it != std::end(address_rules_)) {
     rules_.erase(it->second);
     address_rules_.erase(it);
@@ -425,14 +468,19 @@ void SocketAddressBlockList::AddSocketAddressMask(
     const std::shared_ptr<SocketAddress>& network,
     int prefix) {
   Mutex::ScopedLock lock(mutex_);
-  std::unique_ptr<Rule> rule =
-      std::make_unique<SocketAddressMaskRule>(network, prefix);
-  rules_.emplace_front(std::move(rule));
-  prefixes_.emplace_front(std::move(std::make_unique<int>(prefix)));
 
-  const SocketAddress addr_key = *network.get();
-  subnet_prefixes_[addr_key] = prefixes_.begin();
-  subnet_rules_[addr_key] = rules_.begin();
+  SocketAddressMask mask;
+  SocketAddressMask::New(&*network, prefix, &mask);
+
+  auto it = subnet_rules_.find(mask);
+
+  if (it == std::end(subnet_rules_)) {
+    std::unique_ptr<Rule> rule =
+      std::make_unique<SocketAddressMaskRule>(network, prefix);
+
+    rules_.emplace_front(std::move(rule));
+    subnet_rules_[mask] = rules_.begin();
+  }
 }
 
 void SocketAddressBlockList::RemoveSocketAddressMask(
@@ -440,21 +488,14 @@ void SocketAddressBlockList::RemoveSocketAddressMask(
     int prefix) {
   Mutex::ScopedLock lock(mutex_);
 
-  const SocketAddress addr_key = *network.get();
-  auto prefix_it = subnet_prefixes_.find(addr_key);
+  SocketAddressMask mask;
+  SocketAddressMask::New(&*network, prefix, &mask);
 
-  if (
-    prefix_it != std::end(subnet_prefixes_) &&
-    **prefix_it->second == prefix
-  ) {
-    auto rule_it = subnet_rules_.find(addr_key);
+  auto it = subnet_rules_.find(mask);
 
-    if (rule_it != std::end(subnet_rules_)) {
-      rules_.erase(rule_it->second);
-      prefixes_.erase(prefix_it->second);
-      subnet_prefixes_.erase(prefix_it);
-      subnet_rules_.erase(rule_it);
-    }
+  if (it != std::end(subnet_rules_)) {
+    rules_.erase(it->second);
+    subnet_rules_.erase(it);
   }
 }
 

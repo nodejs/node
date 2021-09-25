@@ -148,6 +148,44 @@ class SocketAddress : public MemoryRetainer {
   sockaddr_storage address_;
 };
 
+class SocketAddressMask : public MemoryRetainer {
+ public:
+  struct Hash {
+    size_t operator()(const SocketAddressMask& addr) const;
+  };
+
+  inline bool operator==(const SocketAddressMask& other) const;
+  inline bool operator!=(const SocketAddressMask& other) const;
+
+  static bool New(
+      SocketAddress* addr,
+      int prefix,
+      SocketAddressMask* mask);
+
+  SocketAddressMask() = default;
+
+  inline SocketAddressMask& operator=(const SocketAddressMask& other);
+  inline const SocketAddressMask& operator*() const;
+  inline const SocketAddressMask* operator->() const;
+
+  inline v8::Local<v8::Object> ToJS(
+      Environment* env,
+      v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
+
+  inline std::string ToString() const;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SocketAddressMask)
+  SET_SELF_SIZE(SocketAddressMask)
+
+  template <typename T>
+  using Map = std::unordered_map<SocketAddressMask, T, Hash>;
+
+ private:
+  SocketAddress address_;
+  int prefix_;
+};
+
 class SocketAddressBase : public BaseObject {
  public:
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
@@ -334,12 +372,10 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   std::shared_ptr<SocketAddressBlockList> parent_;
   std::list<std::unique_ptr<Rule>> rules_;
-  std::list<std::unique_ptr<int>> prefixes_;
   SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> address_rules_;
-  SocketAddress::Map<
-    std::list<std::unique_ptr<int>>::iterator
-  > subnet_prefixes_;
-  SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> subnet_rules_;
+
+  SocketAddressMask::Map
+    <std::list<std::unique_ptr<Rule>>::iterator> subnet_rules_;
 
   Mutex mutex_;
 };

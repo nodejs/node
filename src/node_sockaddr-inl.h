@@ -190,6 +190,23 @@ bool SocketAddress::operator>=(const SocketAddress& other) const {
   return compare(other) >= CompareResult::SAME;
 }
 
+const SocketAddressMask& SocketAddressMask::operator*() const {
+  return *this;
+}
+
+const SocketAddressMask* SocketAddressMask::operator->() const {
+  return this;
+}
+
+bool SocketAddressMask::operator==(const SocketAddressMask& other) const {
+  return (this->address_ == other->address_ &&
+          this->prefix_ == other->prefix_);
+}
+
+bool SocketAddressMask::operator!=(const SocketAddressMask& other) const {
+  return !(*this == other);
+}
+
 template <typename T>
 SocketAddressLRU<T>::SocketAddressLRU(
     size_t max_size)
