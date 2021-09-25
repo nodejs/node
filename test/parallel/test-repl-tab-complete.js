@@ -31,9 +31,7 @@ const assert = require('assert');
 const path = require('path');
 const fixtures = require('../common/fixtures');
 const { builtinModules } = require('module');
-const publicModules = builtinModules.filter(
-  (lib) => !lib.startsWith('_') && !lib.includes('/'),
-);
+const publicModules = builtinModules.filter((lib) => !lib.startsWith('_'));
 
 const hasInspector = process.features.inspector;
 
