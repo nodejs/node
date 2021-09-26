@@ -20,6 +20,7 @@ declare function InternalBinding(binding: 'options'): {
     kAllowedInEnvironment: 0;
     kDisallowedInEnvironment: 1;
   };
+  noGlobalSearchPaths: boolean;
   shouldNotRegisterESMLoader: boolean;
   types: {
     kNoOp: 0;
