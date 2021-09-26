@@ -425,6 +425,10 @@ size_t SocketAddressMask::Hash::operator()
   return hash;
 }
 
+bool SocketAddressMask::contains_address(const SocketAddress& address) const {
+  return address.is_in_network(this->address_, this->prefix_);
+}
+
 SocketAddressBlockList::SocketAddressBlockList(
     std::shared_ptr<SocketAddressBlockList> parent)
     : parent_(parent) {}
@@ -469,17 +473,19 @@ void SocketAddressBlockList::AddSocketAddressMask(
     int prefix) {
   Mutex::ScopedLock lock(mutex_);
 
-  SocketAddressMask mask;
-  SocketAddressMask::New(&*network, prefix, &mask);
+  std::shared_ptr<SocketAddressMask> mask =
+    std::make_shared<SocketAddressMask>();
 
-  auto it = subnet_rules_.find(mask);
+  SocketAddressMask::New(&*network, prefix, &*mask);
+
+  auto it = subnet_rules_.find(*mask);
 
   if (it == std::end(subnet_rules_)) {
     std::unique_ptr<Rule> rule =
-      std::make_unique<SocketAddressMaskRule>(network, prefix);
+      std::make_unique<SocketAddressMaskRule>(mask);
 
     rules_.emplace_front(std::move(rule));
-    subnet_rules_[mask] = rules_.begin();
+    subnet_rules_[*mask] = rules_.begin();
   }
 }
 
@@ -520,10 +526,8 @@ SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
       end(end_) {}
 
 SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
-    const std::shared_ptr<SocketAddress>& network_,
-    int prefix_)
-    : network(network_),
-      prefix(prefix_) {}
+    const std::shared_ptr<SocketAddressMask>& mask_)
+    : mask(mask_) {}
 
 bool SocketAddressBlockList::SocketAddressRule::Apply(
     const std::shared_ptr<SocketAddress>& address) {
@@ -556,15 +560,15 @@ std::string SocketAddressBlockList::SocketAddressRangeRule::ToString() {
 
 bool SocketAddressBlockList::SocketAddressMaskRule::Apply(
     const std::shared_ptr<SocketAddress>& address) {
-  return address->is_in_network(*network.get(), prefix);
+  return mask->contains_address(*address);
 }
 
 std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
   std::string ret = "Subnet: ";
-  ret += network->family() == AF_INET ? "IPv4" : "IPv6";
+  ret += mask->family() == AF_INET ? "IPv4" : "IPv6";
   ret += " ";
-  ret += network->address();
-  ret += "/" + std::to_string(prefix);
+  ret += mask->address();
+  ret += "/" + std::to_string(mask->prefix());
   return ret;
 }
 
@@ -607,7 +611,7 @@ void SocketAddressBlockList::SocketAddressRangeRule::MemoryInfo(
 
 void SocketAddressBlockList::SocketAddressMaskRule::MemoryInfo(
     node::MemoryTracker* tracker) const {
-  tracker->TrackField("network", network);
+  tracker->TrackField("network", mask->socketAddress());
 }
 
 SocketAddressBlockListWrap::SocketAddressBlockListWrap(

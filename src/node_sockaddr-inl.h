@@ -207,6 +207,22 @@ bool SocketAddressMask::operator!=(const SocketAddressMask& other) const {
   return !(*this == other);
 }
 
+int SocketAddressMask::family() const {
+  return address_.family();
+}
+
+std::string SocketAddressMask::address() const {
+  return address_.address();
+}
+
+const SocketAddress* SocketAddressMask::socketAddress() const {
+  return &address_;
+}
+
+int SocketAddressMask::prefix() const {
+  return prefix_;
+}
+
 template <typename T>
 SocketAddressLRU<T>::SocketAddressLRU(
     size_t max_size)

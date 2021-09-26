@@ -168,6 +168,15 @@ class SocketAddressMask : public MemoryRetainer {
   inline const SocketAddressMask& operator*() const;
   inline const SocketAddressMask* operator->() const;
 
+  inline int family() const;
+  inline std::string address() const;
+  inline const SocketAddress* socketAddress() const;
+  inline int prefix() const;
+
+  // Returns true if the subnet specified by this SocketAddressMask
+  // contains the given SocketAddress
+  bool contains_address(const SocketAddress& address) const;
+
   inline v8::Local<v8::Object> ToJS(
       Environment* env,
       v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
@@ -346,12 +355,10 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressMaskRule final : Rule {
-    std::shared_ptr<SocketAddress> network;
-    int prefix;
+    std::shared_ptr<SocketAddressMask> mask;
 
     SocketAddressMaskRule(
-        const std::shared_ptr<SocketAddress>& address,
-        int prefix);
+        const std::shared_ptr<SocketAddressMask>& mask);
 
     bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
