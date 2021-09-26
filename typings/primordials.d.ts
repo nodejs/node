@@ -24,7 +24,7 @@ type StaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =
  * primordials.StringPrototypeStartsWith('thing', 'hello')
  * ```
  */
-declare namespace primordials {
+declare namespace Primordials {
   export function uncurryThis<
       T extends (...args: unknown[]) => unknown
     > (fn: T):
@@ -526,4 +526,8 @@ declare namespace primordials {
   export const PromisePrototypeThen: UncurryThis<typeof Promise.prototype.then>
   export const PromisePrototypeCatch: UncurryThis<typeof Promise.prototype.catch>
   export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
+}
+
+declare global {
+  const primordials: typeof Primordials;
 }
