@@ -494,7 +494,12 @@ MaybeLocal<Object> New(Environment* env,
                        size_t length) {
   if (length > 0) {
     CHECK_NOT_NULL(data);
-    CHECK(length <= kMaxLength);
+    // V8 currently only allows a maximum Typed Array index of max Smi.
+    if (length > kMaxLength) {
+      Isolate* isolate(env->isolate());
+      isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+      return Local<Object>();
+    }
   }
 
   auto free_callback = [](char* data, void* hint) { free(data); };
