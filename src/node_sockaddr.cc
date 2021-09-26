@@ -390,10 +390,10 @@ bool SocketAddress::is_in_network(
 }
 
 bool SocketAddressMask::New(
-    SocketAddress* addr,
+    SocketAddress* network,
     int prefix,
     SocketAddressMask* mask) {
-  mask->address_ = *addr;
+  mask->network_ = *network;
   mask->prefix_ = prefix;
 
   return mask;
@@ -402,10 +402,10 @@ bool SocketAddressMask::New(
 size_t SocketAddressMask::Hash::operator()
   (const SocketAddressMask& mask) const {
   size_t hash = 0;
-  switch (mask->address_.family()) {
+  switch (mask->network_.family()) {
     case AF_INET: {
       const sockaddr_in* ipv4 =
-          reinterpret_cast<const sockaddr_in*>(mask->address_.raw());
+          reinterpret_cast<const sockaddr_in*>(mask->network_.raw());
       // exclude port from hashing so SocketAddressMasks with otherwise
       // identical SocketAddresses map to same value
       hash_combine(&hash, ipv4->sin_addr.s_addr, mask->prefix_);
@@ -413,7 +413,7 @@ size_t SocketAddressMask::Hash::operator()
     }
     case AF_INET6: {
       const sockaddr_in6* ipv6 =
-          reinterpret_cast<const sockaddr_in6*>(mask->address_.raw());
+          reinterpret_cast<const sockaddr_in6*>(mask->network_.raw());
       const uint64_t* a =
           reinterpret_cast<const uint64_t*>(&ipv6->sin6_addr);
       hash_combine(&hash, a[0], a[1], mask->prefix_);
@@ -426,7 +426,60 @@ size_t SocketAddressMask::Hash::operator()
 }
 
 bool SocketAddressMask::contains_address(const SocketAddress& address) const {
-  return address.is_in_network(this->address_, this->prefix_);
+  return address.is_in_network(this->network_, this->prefix_);
+}
+
+bool SocketAddressRange::New(
+    SocketAddress* start,
+    SocketAddress* end,
+    SocketAddressRange* range) {
+  range->start_ = *start;
+  range->end_ = *end;
+
+  return range;
+}
+
+size_t SocketAddressRange::Hash::operator()
+  (const SocketAddressRange& range) const {
+  size_t hash = 0;
+  switch (range->start_.family()) {
+    case AF_INET: {
+      const sockaddr_in* ipv4_start =
+          reinterpret_cast<const sockaddr_in*>(range->start_.raw());
+
+      const sockaddr_in* ipv4_end =
+          reinterpret_cast<const sockaddr_in*>(range->end_.raw());
+
+      hash_combine(
+        &hash,
+        ipv4_start->sin_addr.s_addr,
+        ipv4_end->sin_addr.s_addr);
+      break;
+    }
+    case AF_INET6: {
+      const sockaddr_in6* ipv6_start =
+          reinterpret_cast<const sockaddr_in6*>(range->start_.raw());
+      const uint64_t* a_start =
+          reinterpret_cast<const uint64_t*>(&ipv6_start->sin6_addr);
+
+      const sockaddr_in6* ipv6_end =
+          reinterpret_cast<const sockaddr_in6*>(range->end_.raw());
+      const uint64_t* a_end =
+          reinterpret_cast<const uint64_t*>(&ipv6_end->sin6_addr);
+
+      hash_combine(&hash, a_start[0], a_start[1], a_end[0], a_end[1]);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return hash;
+}
+
+bool SocketAddressRange::contains_address(const SocketAddress& address) const {
+  return address >= this->start_ &&
+         address <= this->end_;
 }
 
 SocketAddressBlockList::SocketAddressBlockList(
@@ -463,9 +516,37 @@ void SocketAddressBlockList::AddSocketAddressRange(
     const std::shared_ptr<SocketAddress>& start,
     const std::shared_ptr<SocketAddress>& end) {
   Mutex::ScopedLock lock(mutex_);
-  std::unique_ptr<Rule> rule =
-      std::make_unique<SocketAddressRangeRule>(start, end);
-  rules_.emplace_front(std::move(rule));
+
+  std::shared_ptr<SocketAddressRange> range =
+    std::make_shared<SocketAddressRange>();
+
+  SocketAddressRange::New(&*start, &*end, &*range);
+
+  auto it = range_rules_.find(*range);
+
+  if (it == std::end(range_rules_)) {
+    std::unique_ptr<Rule> rule =
+      std::make_unique<SocketAddressRangeRule>(range);
+
+    rules_.emplace_front(std::move(rule));
+    range_rules_[*range] = rules_.begin();
+  }
+}
+
+void SocketAddressBlockList::RemoveSocketAddressRange(
+    const std::shared_ptr<SocketAddress>& start,
+    const std::shared_ptr<SocketAddress>& end) {
+  Mutex::ScopedLock lock(mutex_);
+
+  SocketAddressRange range;
+  SocketAddressRange::New(&*start, &*end, &range);
+
+  auto it = range_rules_.find(range);
+
+  if (it != std::end(range_rules_)) {
+    rules_.erase(it->second);
+    range_rules_.erase(it);
+  }
 }
 
 void SocketAddressBlockList::AddSocketAddressMask(
@@ -520,10 +601,8 @@ SocketAddressBlockList::SocketAddressRule::SocketAddressRule(
     : address(address_) {}
 
 SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
-    const std::shared_ptr<SocketAddress>& start_,
-    const std::shared_ptr<SocketAddress>& end_)
-    : start(start_),
-      end(end_) {}
+    const std::shared_ptr<SocketAddressRange>& range_)
+    : range(range_) {}
 
 SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
     const std::shared_ptr<SocketAddressMask>& mask_)
@@ -544,17 +623,16 @@ std::string SocketAddressBlockList::SocketAddressRule::ToString() {
 
 bool SocketAddressBlockList::SocketAddressRangeRule::Apply(
     const std::shared_ptr<SocketAddress>& address) {
-  return *address.get() >= *start.get() &&
-         *address.get() <= *end.get();
+  return range->contains_address(*address);
 }
 
 std::string SocketAddressBlockList::SocketAddressRangeRule::ToString() {
   std::string ret = "Range: ";
-  ret += start->family() == AF_INET ? "IPv4" : "IPv6";
+  ret += range->start()->family() == AF_INET ? "IPv4" : "IPv6";
   ret += " ";
-  ret += start->address();
+  ret += range->start()->address();
   ret += "-";
-  ret += end->address();
+  ret += range->end()->address();
   return ret;
 }
 
@@ -605,13 +683,13 @@ void SocketAddressBlockList::SocketAddressRule::MemoryInfo(
 
 void SocketAddressBlockList::SocketAddressRangeRule::MemoryInfo(
     node::MemoryTracker* tracker) const {
-  tracker->TrackField("start", start);
-  tracker->TrackField("end", end);
+  tracker->TrackField("start", range->start());
+  tracker->TrackField("end", range->end());
 }
 
 void SocketAddressBlockList::SocketAddressMaskRule::MemoryInfo(
     node::MemoryTracker* tracker) const {
-  tracker->TrackField("network", mask->socketAddress());
+  tracker->TrackField("network", mask->network());
 }
 
 SocketAddressBlockListWrap::SocketAddressBlockListWrap(
@@ -711,6 +789,31 @@ void SocketAddressBlockListWrap::AddRange(
     return args.GetReturnValue().Set(false);
 
   wrap->blocklist_->AddSocketAddressRange(
+      start_addr->address(),
+      end_addr->address());
+
+  args.GetReturnValue().Set(true);
+}
+
+void SocketAddressBlockListWrap::RemoveRange(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  CHECK(SocketAddressBase::HasInstance(env, args[1]));
+
+  SocketAddressBase* start_addr;
+  SocketAddressBase* end_addr;
+  ASSIGN_OR_RETURN_UNWRAP(&start_addr, args[0]);
+  ASSIGN_OR_RETURN_UNWRAP(&end_addr, args[1]);
+
+  // Starting address must come before the end address
+  if (*start_addr->address().get() > *end_addr->address().get())
+    return args.GetReturnValue().Set(false);
+
+  wrap->blocklist_->RemoveSocketAddressRange(
       start_addr->address(),
       end_addr->address());
 
@@ -818,6 +921,7 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "addAddress", AddAddress);
     env->SetProtoMethod(tmpl, "removeAddress", RemoveAddress);
     env->SetProtoMethod(tmpl, "addRange", AddRange);
+    env->SetProtoMethod(tmpl, "removeRange", RemoveRange);
     env->SetProtoMethod(tmpl, "addSubnet", AddSubnet);
     env->SetProtoMethod(tmpl, "removeSubnet", RemoveSubnet);
     env->SetProtoMethod(tmpl, "check", Check);

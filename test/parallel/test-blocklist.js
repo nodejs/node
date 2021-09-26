@@ -150,6 +150,62 @@ const util = require('util');
 
 {
   const blockList = new BlockList();
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('::1', '::f', 'ipv6');
+
+  {
+    const rulesCheck = [
+      'Range: IPv6 ::1-::f',
+      'Range: IPv4 1.1.1.1-1.1.1.10',
+    ];
+    assert.deepStrictEqual(blockList.rules, rulesCheck);
+  }
+
+  blockList.removeRange('1.1.1.1', '1.1.1.11');
+  blockList.removeRange('::1', '::f', 'ipv6');
+
+  {
+    const rulesCheck = [
+      'Range: IPv4 1.1.1.1-1.1.1.10',
+    ];
+    assert.deepStrictEqual(blockList.rules, rulesCheck);
+  }
+
+  assert(!blockList.check('1.1.1.0'));
+  for (let n = 1; n <= 10; n++)
+    assert(blockList.check(`1.1.1.${n}`));
+  assert(!blockList.check('1.1.1.11'));
+
+  for (let n = 0x1; n <= 0xf; n++) {
+    assert(!blockList.check(`::${n.toString(16)}`, 'ipv6'),
+           `::${n.toString(16)} check failed`);
+  }
+}
+
+{
+  const blockList = new BlockList();
+  const sa = new SocketAddress({ address: '1.1.1.10' });
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('1.1.1.1', sa);
+
+  const rulesCheck = [
+    'Range: IPv4 1.1.1.1-1.1.1.10',
+  ];
+  assert.deepStrictEqual(blockList.rules, rulesCheck);
+}
+
+{
+  const blockList = new BlockList();
+  const sa = new SocketAddress({ address: '1.1.1.10' });
+  blockList.addRange('1.1.1.1', '1.1.1.10');
+  blockList.addRange('1.1.1.1', sa);
+  blockList.removeRange('1.1.1.1', sa);
+
+  assert.deepStrictEqual(blockList.rules, []);
+}
+
+{
+  const blockList = new BlockList();
   const sa1 = new SocketAddress({ address: '1.1.1.1' });
   const sa2 = new SocketAddress({ address: '1.1.1.10' });
   const sa3 = new SocketAddress({ address: '::1', family: 'ipv6' });
