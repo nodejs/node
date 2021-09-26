@@ -77,7 +77,7 @@ Adds a rule to block the given IP address.
 
 ### `blockList.removeAddress(address[, type])`
 <!-- YAML
-added: v16.11.0
+added: REPLACEME
 -->
 
 * `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
@@ -100,7 +100,7 @@ Adds a rule to block a range of IP addresses from `start` (inclusive) to
 
 ### `blockList.removeRange(start, end[, type])`
 <!-- YAML
-added: v16.11.0
+added: REPLACEME
 -->
 
 * `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
@@ -126,7 +126,7 @@ Adds a rule to block a range of IP addresses specified as a subnet mask.
 
 ### `blockList.removeSubnet(net, prefix[, type])`
 <!-- YAML
-added: v16.11.0
+added: REPLACEME
 -->
 
 * `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
