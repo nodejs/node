@@ -345,6 +345,14 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 }
 
+void Sign::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(SignInit);
+  registry->Register(SignUpdate);
+  registry->Register(SignFinal);
+  SignJob::RegisterExternalReferences(registry);
+}
+
 void Sign::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   new Sign(env, args.This());
@@ -450,6 +458,13 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "verify", VerifyFinal);
 
   env->SetConstructorFunction(target, "Verify", t);
+}
+
+void Verify::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(VerifyInit);
+  registry->Register(VerifyUpdate);
+  registry->Register(VerifyFinal);
 }
 
 void Verify::New(const FunctionCallbackInfo<Value>& args) {

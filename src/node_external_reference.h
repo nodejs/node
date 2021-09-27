@@ -104,11 +104,18 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)
 #endif
 
+#if HAVE_OPENSSL
+#define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V) V(crypto) V(tls_wrap)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
+#endif  // HAVE_OPENSSL
+
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
   EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                      \
   EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
   EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)                                      \
-  EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)
+  EXTERNAL_REFERENCE_BINDING_LIST_DTRACE(V)                                    \
+  EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
 
 }  // namespace node
 

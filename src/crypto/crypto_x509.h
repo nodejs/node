@@ -43,6 +43,7 @@ class X509Certificate : public BaseObject {
   };
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static bool HasInstance(Environment* env, v8::Local<v8::Object> object);

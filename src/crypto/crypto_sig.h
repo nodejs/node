@@ -49,6 +49,7 @@ class SignBase : public BaseObject {
 class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   struct SignResult {
     Error error;
@@ -80,6 +81,7 @@ class Sign : public SignBase {
 class Verify : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   Error VerifyFinal(const ManagedEVPPKey& key,
                     const ByteSource& sig,

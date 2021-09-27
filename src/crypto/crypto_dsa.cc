@@ -167,6 +167,11 @@ void Initialize(Environment* env, Local<Object> target) {
   DsaKeyPairGenJob::Initialize(env, target);
   DSAKeyExportJob::Initialize(env, target);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  DsaKeyPairGenJob::RegisterExternalReferences(registry);
+  DSAKeyExportJob::RegisterExternalReferences(registry);
+}
 }  // namespace DSAAlg
 }  // namespace crypto
 }  // namespace node

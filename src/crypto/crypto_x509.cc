@@ -536,5 +536,31 @@ void X509Certificate::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS);
 }
 
+void X509Certificate::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(X509Certificate::Parse);
+  registry->Register(Subject);
+  registry->Register(SubjectAltName);
+  registry->Register(InfoAccess);
+  registry->Register(Issuer);
+  registry->Register(ValidTo);
+  registry->Register(ValidFrom);
+  registry->Register(Fingerprint);
+  registry->Register(Fingerprint256);
+  registry->Register(KeyUsage);
+  registry->Register(SerialNumber);
+  registry->Register(Pem);
+  registry->Register(Raw);
+  registry->Register(PublicKey);
+  registry->Register(CheckCA);
+  registry->Register(CheckHost);
+  registry->Register(CheckEmail);
+  registry->Register(CheckIP);
+  registry->Register(CheckIssued);
+  registry->Register(CheckPrivateKey);
+  registry->Register(Verify);
+  registry->Register(ToLegacy);
+  registry->Register(GetIssuerCert);
+}
 }  // namespace crypto
 }  // namespace node

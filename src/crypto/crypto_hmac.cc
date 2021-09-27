@@ -53,6 +53,14 @@ void Hmac::Initialize(Environment* env, Local<Object> target) {
   HmacJob::Initialize(env, target);
 }
 
+void Hmac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(HmacInit);
+  registry->Register(HmacUpdate);
+  registry->Register(HmacDigest);
+  HmacJob::RegisterExternalReferences(registry);
+}
+
 void Hmac::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   new Hmac(env, args.This());

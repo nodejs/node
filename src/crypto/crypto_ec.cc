@@ -83,6 +83,22 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_EXPLICIT_CURVE);
 }
 
+void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(GenerateKeys);
+  registry->Register(ComputeSecret);
+  registry->Register(GetPublicKey);
+  registry->Register(GetPrivateKey);
+  registry->Register(SetPublicKey);
+  registry->Register(SetPrivateKey);
+  registry->Register(ECDH::ConvertKey);
+  registry->Register(ECDH::GetCurves);
+
+  ECDHBitsJob::RegisterExternalReferences(registry);
+  ECKeyPairGenJob::RegisterExternalReferences(registry);
+  ECKeyExportJob::RegisterExternalReferences(registry);
+}
+
 void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);

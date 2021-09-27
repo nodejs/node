@@ -17,6 +17,7 @@ namespace crypto {
 class DiffieHellman : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   bool Init(int primeLength, int g);
   bool Init(const char* p, int p_len, int g);

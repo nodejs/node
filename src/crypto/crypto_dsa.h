@@ -68,6 +68,7 @@ v8::Maybe<bool> GetDsaKeyDetail(
 
 namespace DSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace DSAAlg
 }  // namespace crypto
 }  // namespace node

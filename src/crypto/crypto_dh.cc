@@ -108,6 +108,28 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   DHBitsJob::Initialize(env, target);
 }
 
+void DiffieHellman::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(DiffieHellmanGroup);
+
+  registry->Register(GenerateKeys);
+  registry->Register(ComputeSecret);
+  registry->Register(GetPrime);
+  registry->Register(GetGenerator);
+  registry->Register(GetPublicKey);
+  registry->Register(GetPrivateKey);
+  registry->Register(SetPublicKey);
+  registry->Register(SetPrivateKey);
+
+  registry->Register(DiffieHellman::VerifyErrorGetter);
+  registry->Register(DiffieHellman::Stateless);
+
+  DHKeyPairGenJob::RegisterExternalReferences(registry);
+  DHKeyExportJob::RegisterExternalReferences(registry);
+  DHBitsJob::RegisterExternalReferences(registry);
+}
+
 bool DiffieHellman::Init(int primeLength, int g) {
   dh_.reset(DH_new());
   if (!DH_generate_parameters_ex(dh_.get(), primeLength, g, nullptr))

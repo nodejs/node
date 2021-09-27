@@ -52,6 +52,7 @@ class TLSWrap : public AsyncWrap,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   ~TLSWrap() override;
 

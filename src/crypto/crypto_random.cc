@@ -246,6 +246,12 @@ void Initialize(Environment* env, Local<Object> target) {
   RandomPrimeJob::Initialize(env, target);
   CheckPrimeJob::Initialize(env, target);
 }
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  RandomBytesJob::RegisterExternalReferences(registry);
+  RandomPrimeJob::RegisterExternalReferences(registry);
+  CheckPrimeJob::RegisterExternalReferences(registry);
+}
 }  // namespace Random
 }  // namespace crypto
 }  // namespace node

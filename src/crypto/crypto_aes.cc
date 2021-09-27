@@ -603,5 +603,9 @@ void AES::Initialize(Environment* env, Local<Object> target) {
 #undef V
 }
 
+void AES::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  AESCryptoJob::RegisterExternalReferences(registry);
+}
+
 }  // namespace crypto
 }  // namespace node

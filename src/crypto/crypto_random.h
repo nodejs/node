@@ -122,6 +122,7 @@ using CheckPrimeJob = DeriveBitsJob<CheckPrimeTraits>;
 
 namespace Random {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Random
 }  // namespace crypto
 }  // namespace node

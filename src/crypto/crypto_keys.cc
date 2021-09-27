@@ -927,6 +927,20 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   return function;
 }
 
+void KeyObjectHandle::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Init);
+  registry->Register(GetSymmetricKeySize);
+  registry->Register(GetAsymmetricKeyType);
+  registry->Register(Export);
+  registry->Register(ExportJWK);
+  registry->Register(InitECRaw);
+  registry->Register(InitEDRaw);
+  registry->Register(InitJWK);
+  registry->Register(GetKeyDetail);
+}
+
 MaybeLocal<Object> KeyObjectHandle::Create(
     Environment* env,
     std::shared_ptr<KeyObjectData> data) {
@@ -1256,6 +1270,12 @@ void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {
                  NativeKeyObject::CreateNativeKeyObjectClass);
 }
 
+void NativeKeyObject::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(NativeKeyObject::CreateNativeKeyObjectClass);
+  registry->Register(NativeKeyObject::New);
+}
+
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
@@ -1404,6 +1424,10 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
   NODE_DEFINE_CONSTANT(target, kSigEncDER);
   NODE_DEFINE_CONSTANT(target, kSigEncP1363);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  KeyObjectHandle::RegisterExternalReferences(registry);
 }
 }  // namespace Keys
 

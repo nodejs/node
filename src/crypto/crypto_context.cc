@@ -339,6 +339,47 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                              IsExtraRootCertsFileLoaded);
 }
 
+void SecureContext::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Init);
+  registry->Register(SetKey);
+  registry->Register(SetCert);
+  registry->Register(AddCACert);
+  registry->Register(AddCRL);
+  registry->Register(AddRootCerts);
+  registry->Register(SetCipherSuites);
+  registry->Register(SetCiphers);
+  registry->Register(SetSigalgs);
+  registry->Register(SetECDHCurve);
+  registry->Register(SetDHParam);
+  registry->Register(SetMaxProto);
+  registry->Register(SetMinProto);
+  registry->Register(GetMaxProto);
+  registry->Register(GetMinProto);
+  registry->Register(SetOptions);
+  registry->Register(SetSessionIdContext);
+  registry->Register(SetSessionTimeout);
+  registry->Register(Close);
+  registry->Register(LoadPKCS12);
+  registry->Register(SetTicketKeys);
+  registry->Register(SetFreeListLength);
+  registry->Register(EnableTicketKeyCallback);
+  registry->Register(GetTicketKeys);
+  registry->Register(GetCertificate<true>);
+  registry->Register(GetCertificate<false>);
+
+#ifndef OPENSSL_NO_ENGINE
+  registry->Register(SetEngineKey);
+  registry->Register(SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
+
+  registry->Register(CtxGetter);
+
+  registry->Register(GetRootCertificates);
+  registry->Register(IsExtraRootCertsFileLoaded);
+}
+
 SecureContext* SecureContext::Create(Environment* env) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)

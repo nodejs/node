@@ -38,6 +38,7 @@ class SecureContext final : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static SecureContext* Create(Environment* env);
 
   SSL_CTX* operator*() const { return ctx_.get(); }
