@@ -359,6 +359,7 @@ module.exports = {
     MessagePort: 'readable',
     TextEncoder: 'readable',
     TextDecoder: 'readable',
+    WebAssembly: 'readonly',
     queueMicrotask: 'readable',
     globalThis: 'readable',
     btoa: 'readable',

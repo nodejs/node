@@ -152,6 +152,7 @@ rules:
       into: Safe
     - name: WeakSet
       into: Safe
+    - name: WebAssembly
 globals:
   Intl: false
   # Parameters passed to internal modules
