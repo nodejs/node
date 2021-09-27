@@ -509,7 +509,7 @@ For information about the governance of the Node.js project, see
 * [firedfox](https://github.com/firedfox) -
   **Daniel Wang** \<wangyang0123@gmail.com>
 * [gdams](https://github.com/gdams) -
-  **George Adams** \<george.adams@microsoft.com> (he/him)
+  **George Adams** \<gadams@microsoft.com> (he/him)
 * [gibfahn](https://github.com/gibfahn) -
   **Gibson Fahnestock** \<gibfahn@gmail.com> (he/him)
 * [glentiki](https://github.com/glentiki) -
