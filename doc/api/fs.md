@@ -740,6 +740,10 @@ the error raised if the file is not accessible.
 ### `fsPromises.appendFile(path, data[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
@@ -748,6 +752,8 @@ added: v10.0.0
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
@@ -1032,6 +1038,25 @@ Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
 by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
+
+### `fsPromises.open(path[, options])`
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object|string}
+  * `flags` {string|number} See [support of file system `flags`][].
+    **Default:** `'r'`.
+  * `mode` {string|integer} **Default:** `0o666` (readable and writable)
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
+
+Asynchronous file open that returns a `Promise` using `options` signature-form.
 
 ### `fsPromises.opendir(path[, options])`
 <!-- YAML
@@ -1440,6 +1465,9 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
@@ -1466,6 +1494,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
@@ -1718,6 +1748,9 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1740,6 +1773,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -2924,6 +2959,28 @@ a colon, Node.js will open a file system stream, as described by
 
 Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
+
+### `fs.open(path[, options], callback)`
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object|string}
+  * `flags` {string|number} See [support of file system `flags`][].
+    **Default:** `'r'`.
+  * `mode` {string|integer} **Default:** `0o666` (readable and writable)
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
+  * `callback` {Function}
+    * `err` {Error}
+    * `fd` {integer}
+
+Asynchronous file open using `options` signature-form.
 
 ### `fs.opendir(path[, options], callback)`
 <!-- YAML
@@ -4145,6 +4202,9 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -4189,6 +4249,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
   * `err` {Error|AggregateError}
@@ -4361,6 +4423,9 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7831
     description: The passed `options` object will never be modified.
@@ -4375,6 +4440,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
 
 Synchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
@@ -4874,6 +4941,25 @@ Returns an integer representing the file descriptor.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.open()`][].
 
+## `fs.openSync(path[, options])`
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object|string}
+  * `flags` {string|number} See [support of file system `flags`][].
+    **Default:** `'r'`.
+  * `mode` {string|integer} **Default:** `0o666` (readable and writable)
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
+
+Synchronous file open using `options` signature-form.
+
 ### `fs.readdirSync(path[, options])`
 <!-- YAML
 added: v0.1.21
@@ -5310,6 +5396,9 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/35775
+    description: add option `parents`.
   - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
@@ -5336,6 +5425,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `parents` {boolean} create parent-directories if they do not exist.
+    **Default:** `false`.
 
 Returns `undefined`.
 
