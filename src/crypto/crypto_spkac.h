@@ -12,6 +12,7 @@ namespace node {
 namespace crypto {
 namespace SPKAC {
 void Initialize(Environment* env, v8::Local<v8::Object>);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace SPKAC
 }  // namespace crypto
 }  // namespace node

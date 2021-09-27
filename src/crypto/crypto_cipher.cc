@@ -297,6 +297,38 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherDecrypt);
 }
 
+void CipherBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+
+  registry->Register(Init);
+  registry->Register(InitIv);
+  registry->Register(Update);
+  registry->Register(Final);
+  registry->Register(SetAutoPadding);
+  registry->Register(GetAuthTag);
+  registry->Register(SetAuthTag);
+  registry->Register(SetAAD);
+
+  registry->Register(GetSSLCiphers);
+  registry->Register(GetCiphers);
+
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                             EVP_PKEY_encrypt_init,
+                                             EVP_PKEY_encrypt>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                             EVP_PKEY_decrypt_init,
+                                             EVP_PKEY_decrypt>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                             EVP_PKEY_sign_init,
+                                             EVP_PKEY_sign>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                             EVP_PKEY_verify_recover_init,
+                                             EVP_PKEY_verify_recover>);
+
+  registry->Register(GetCipherInfo);
+}
+
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);

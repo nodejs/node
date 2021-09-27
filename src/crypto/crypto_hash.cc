@@ -57,6 +57,15 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   HashJob::Initialize(env, target);
 }
 
+void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(HashUpdate);
+  registry->Register(HashDigest);
+  registry->Register(GetHashes);
+
+  HashJob::RegisterExternalReferences(registry);
+}
+
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
