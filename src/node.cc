@@ -803,13 +803,6 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
     return 12;
   }
 
-  // TODO(mylesborins): remove this when the harmony-top-level-await flag
-  // is removed in V8
-  if (std::find(v8_args.begin(), v8_args.end(),
-                "--no-harmony-top-level-await") == v8_args.end()) {
-    v8_args.push_back("--harmony-top-level-await");
-  }
-
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
