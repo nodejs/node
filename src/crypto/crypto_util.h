@@ -7,6 +7,7 @@
 #include "async_wrap.h"
 #include "allocated_buffer.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "util.h"
 #include "v8.h"
@@ -88,6 +89,7 @@ extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 bool ProcessFipsOptions();
 
+bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
 
 void InitCrypto(v8::Local<v8::Object> target);
@@ -423,6 +425,12 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
   }
 
+  static void RegisterExternalReferences(v8::FunctionCallback new_fn,
+                                         ExternalReferenceRegistry* registry) {
+    registry->Register(new_fn);
+    registry->Register(Run);
+  }
+
  private:
   const CryptoJobMode mode_;
   CryptoErrorStore errors_;
@@ -455,6 +463,10 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
       Environment* env,
       v8::Local<v8::Object> target) {
     CryptoJob<DeriveBitsTraits>::Initialize(New, env, target);
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<DeriveBitsTraits>::RegisterExternalReferences(New, registry);
   }
 
   DeriveBitsJob(
@@ -727,6 +739,7 @@ v8::Maybe<bool> SetEncodedValue(
 
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Util
 
 }  // namespace crypto

@@ -81,6 +81,7 @@ using AESCryptoJob = CipherJob<AESCipherTraits>;
 
 namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
 }  // namespace crypto
 }  // namespace node

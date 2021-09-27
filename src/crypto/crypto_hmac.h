@@ -17,6 +17,7 @@ namespace crypto {
 class Hmac : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Hmac)

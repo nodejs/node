@@ -169,6 +169,7 @@ class KeyObjectData : public MemoryRetainer {
 class KeyObjectHandle : public BaseObject {
  public:
   static v8::Local<v8::Function> Initialize(Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static v8::MaybeLocal<v8::Object> Create(Environment* env,
                                            std::shared_ptr<KeyObjectData> data);
@@ -216,6 +217,7 @@ class KeyObjectHandle : public BaseObject {
 class NativeKeyObject : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateNativeKeyObjectClass(
@@ -316,6 +318,10 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
     CryptoJob<KeyExportTraits>::Initialize(New, env, target);
   }
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<KeyExportTraits>::RegisterExternalReferences(New, registry);
+  }
+
   KeyExportJob(
       Environment* env,
       v8::Local<v8::Object> object,
@@ -403,6 +409,7 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
 
 namespace Keys {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Keys
 
 }  // namespace crypto
