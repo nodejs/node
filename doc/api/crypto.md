@@ -3616,7 +3616,7 @@ const {
   generateKeySync
 } = await import('crypto');
 
-const key = generateKeySync('hmac', 64);
+const key = generateKeySync('hmac', { length: 64 });
 console.log(key.export().toString('hex'));  // e89..........41e
 ```
 
@@ -3625,7 +3625,7 @@ const {
   generateKeySync,
 } = require('crypto');
 
-const key = generateKeySync('hmac', 64);
+const key = generateKeySync('hmac', { length: 64 });
 console.log(key.export().toString('hex'));  // e89..........41e
 ```
 
