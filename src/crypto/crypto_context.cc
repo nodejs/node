@@ -1114,7 +1114,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
     return -1;
   }
 
-  argv[2] = v8::True(env->isolate());
+  argv[2] = enc != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
 
   Local<Value> ret;
   if (!node::MakeCallback(
