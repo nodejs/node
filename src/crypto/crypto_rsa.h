@@ -133,6 +133,7 @@ v8::Maybe<bool> GetRsaKeyDetail(
 
 namespace RSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace RSAAlg
 }  // namespace crypto
 }  // namespace node

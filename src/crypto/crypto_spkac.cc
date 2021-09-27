@@ -125,6 +125,11 @@ void Initialize(Environment* env, Local<Object> target) {
   env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(VerifySpkac);
+  registry->Register(ExportPublicKey);
+  registry->Register(ExportChallenge);
+}
 }  // namespace SPKAC
 }  // namespace crypto
 }  // namespace node
