@@ -82,8 +82,9 @@ added: REPLACEME
 
 * `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+* Returns: {boolean}
 
-Removes a rule to block the given IP address.
+Returns `true` if a rule to block the given IP address was removed.
 
 ### `blockList.addRange(start, end[, type])`
 <!-- YAML
@@ -107,9 +108,10 @@ added: REPLACEME
   range.
 * `end` {string|net.SocketAddress} The ending IPv4 or IPv6 address in the range.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+* Returns: {boolean}
 
-Removes a rule to block a range of IP addresses from `start` (inclusive) to
-`end` (inclusive).
+Returns `true` if a rule to block the given range of IP addresses
+was removed.
 
 ### `blockList.addSubnet(net, prefix[, type])`
 <!-- YAML
@@ -134,8 +136,9 @@ added: REPLACEME
   must be a value between `0` and `32`. For IPv6, this must be between
   `0` and `128`.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+* Returns: {boolean}
 
-Removes a rule to block a range of IP addresses specified as a subnet mask.
+Returns `true` if a rule to block the given IP subnet was removed.
 
 ### `blockList.check(address[, type])`
 <!-- YAML

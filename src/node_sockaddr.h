@@ -218,7 +218,7 @@ class SocketAddressRange : public MemoryRetainer {
   inline const SocketAddress* start() const;
   inline const SocketAddress* end() const;
 
-  // Returns true if the  given SocketAddress falls within
+  // Returns true if the given SocketAddress falls within
   // this SocketAddressRange
   bool contains_address(const SocketAddress& address) const;
 
