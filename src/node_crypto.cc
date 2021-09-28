@@ -32,7 +32,6 @@ namespace node {
 using v8::Context;
 using v8::Local;
 using v8::Object;
-using v8::TryCatch;
 using v8::Value;
 
 namespace crypto {

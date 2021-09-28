@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "string_bytes.h"
 
 #ifdef __MINGW32__
@@ -398,7 +399,23 @@ void Initialize(Local<Object> target,
               Boolean::New(env->isolate(), IsBigEndian())).Check();
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetHostname);
+  registry->Register(GetLoadAvg);
+  registry->Register(GetUptime);
+  registry->Register(GetTotalMemory);
+  registry->Register(GetFreeMemory);
+  registry->Register(GetCPUInfo);
+  registry->Register(GetInterfaceAddresses);
+  registry->Register(GetHomeDirectory);
+  registry->Register(GetUserInfo);
+  registry->Register(SetPriority);
+  registry->Register(GetPriority);
+  registry->Register(GetOSInformation);
+}
+
 }  // namespace os
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(os, node::os::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(os, node::os::RegisterExternalReferences)
