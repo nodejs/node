@@ -38,9 +38,9 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     env:
-      CC: clang
-      CXX: clang++
-      LINK: clang++
+      CC: clang-12
+      CXX: clang++-12
+      LINK: clang++-12
       CONFIG_FLAGS: --enable-asan
     steps:
       - uses: actions/checkout@v3
