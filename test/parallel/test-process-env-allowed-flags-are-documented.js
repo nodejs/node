@@ -45,8 +45,16 @@ const conditionalOpts = [
   {
     include: common.hasCrypto,
     filter: (opt) => {
-      return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
-              '--use-openssl-ca' ].includes(opt);
+      return [
+        '--openssl-config',
+        '--tls-cipher-list',
+        '--use-bundled-ca',
+        '--use-openssl-ca',
+        '--secure-heap',
+        '--secure-heap-min',
+        '--enable-fips',
+        '--force-fips',
+      ].includes(opt);
     }
   }, {
     include: common.hasIntl,
