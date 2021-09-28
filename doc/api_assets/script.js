@@ -1,6 +1,7 @@
 'use strict';
 
-const eqIsh = (a, b, fuzz = 2) => {
+{
+  const eqIsh = (a, b, fuzz = 2) => {
   return (Math.abs(a - b) <= fuzz);
 };
 
@@ -57,3 +58,4 @@ requestAnimationFrame(() => {
     );
   });
 });
+}
