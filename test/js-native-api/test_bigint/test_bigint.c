@@ -113,7 +113,7 @@ static napi_value TestWords(napi_env env, napi_callback_info info) {
 static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
   int sign_bit = 0;
   size_t word_count = SIZE_MAX;
-  uint64_t words[10];
+  uint64_t words[10] = {0};
 
   napi_value output;
 
@@ -125,7 +125,7 @@ static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
 
 // Test that we correctly forward exceptions from the engine.
 static napi_value MakeBigIntWordsThrow(napi_env env, napi_callback_info info) {
-  uint64_t words[10];
+  uint64_t words[10] = {0};
   napi_value output;
 
   napi_status status = napi_create_bigint_words(env,
