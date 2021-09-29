@@ -98,6 +98,7 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Null;
 using v8::Object;
+using v8::TryCatch;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::SideEffectType;
@@ -6884,10 +6885,9 @@ void InitCryptoOnce() {
     }
   }
   if (0 != err) {
-    fprintf(stderr,
-            "openssl fips failed: %s\n",
-            ERR_error_string(err, nullptr));
-    UNREACHABLE();
+    auto* isolate = Isolate::GetCurrent();
+    auto* env = Environment::GetCurrent(isolate);
+    return ThrowCryptoError(env, err);
   }
 
 
@@ -6986,10 +6986,16 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  Environment* env = Environment::GetCurrent(context);
   static uv_once_t init_once = UV_ONCE_INIT;
+  TryCatch try_catch{env->isolate()};
   uv_once(&init_once, InitCryptoOnce);
 
-  Environment* env = Environment::GetCurrent(context);
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return;
+  }
+
   SecureContext::Initialize(env, target);
   target->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObjectHandle"),
