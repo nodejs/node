@@ -7,6 +7,7 @@
 #include "async_wrap.h"
 #include "allocated_buffer.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "util.h"
 #include "v8.h"
