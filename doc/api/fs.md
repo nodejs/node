@@ -6752,7 +6752,7 @@ readFileSync(new URL('file:///tmp/hello'));
 
 On Windows, `file:` {URL}s with a host name convert to UNC paths, while `file:`
 {URL}s with drive letters convert to local absolute paths. `file:` {URL}s
-without a host name nor a drive letter will result in an error:
+with no host name and no drive letter will result in an error:
 
 ```mjs
 import { readFileSync } from 'fs';
