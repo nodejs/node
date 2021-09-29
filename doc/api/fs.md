@@ -6700,7 +6700,7 @@ a string, a {Buffer}, or a {URL} object using the `file:` protocol.
 
 #### String paths
 
-String form paths are interpreted as UTF-8 character sequences identifying
+String from paths are interpreted as UTF-8 character sequences identifying
 the absolute or relative filename. Relative paths will be resolved relative
 to the current working directory as determined by calling `process.cwd()`.
 
