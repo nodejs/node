@@ -15,12 +15,23 @@ jobs:
         with:
           fetch-depth: '0'  # This is required to actually get all the authors
       - run: "tools/update-authors.js"  # Run the AUTHORS tool
+      - name: "Check for duplicates"
+        run: |
+          PATTERN_FILE=`mktemp`;
+          git diff | egrep '^\+[^+]' | perl -pe 's/^\+(.+?) <.+\n/\1\n/g' > $PATTERN_FILE;
+          DUPLICATES=`grep -F -f $PATTERN_FILE AUTHORS | cut -d'<' -f1 | sort | uniq -c | sort -n | grep -v '^ *1 ' | perl -pe 's/^ *\d+ / /'`; # Last part here substitues a space at the start of each line
+          echo 'DUPLICATES<<EOF' >> $GITHUB_ENV
+          if [ ! -z "${DUPLICATES}" ]; then
+            echo "The following may be duplicates; consider adding a .mailmap entry for them:" >> $GITHUB_ENV;
+            echo "${DUPLICATES}" >> $GITHUB_ENV;
+          fi;
+          echo 'EOF' >> $GITHUB_ENV; # Each line of duplicates starts with a space, so it won't conflict with 'EOF'
       - uses: gr2m/create-or-update-pull-request-action@v1  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: "If this PR exists, there's presumably new additions to the AUTHORS file. This is an automatically generated PR by the `authors.yml` GitHub Action, which runs `tools/update-authors.js` and submits a new PR or updates an existing PR.\n\nPlease note that there might be duplicate entries. If there are, please remove them and add the duplicate emails to .mailmap directly to this PR."
+          body: "Here are some new additions to the AUTHORS file. This is an automatically generated PR by the `authors.yml` GitHub Action, which runs `tools/update-authors.js`.\n\n{{ env.DUPLICATES }}"
           branch: "actions/authors-update"  # Custom branch *just* for this Action.
           commit-message: "meta: update AUTHORS"
           labels: meta
