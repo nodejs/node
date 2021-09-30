@@ -138,7 +138,9 @@ class FixedArray
   inline void set(int index, Smi value);
 #else
   inline void set(int index, Smi value) {
+#if !defined(_WIN32)
     DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+#endif
     DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
     DCHECK(Object(value).IsSmi());
     int offset = OffsetOfElementAt(index);
