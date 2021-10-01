@@ -12505,6 +12505,7 @@ function toResult$1(value) {
  * @typedef {import('unist').Parent} Parent
  * @typedef {import('unist-util-is').Test} Test
  * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
+ * @typedef {import('./complex-types').Visitor} Visitor
  */
 
 /**
@@ -12518,15 +12519,15 @@ function toResult$1(value) {
 const visit$1 =
   /**
    * @type {(
-   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: Visitor<import('unist-util-visit-parents/complex-types').Matches<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>, Check>>, reverse?: boolean) => void) &
-   *   (<Tree extends Node>(tree: Tree, visitor: Visitor<import('unist-util-visit-parents/complex-types').InclusiveDescendant<Tree>>, reverse?: boolean) => void)
+   *   (<Tree extends Node, Check extends Test>(tree: Tree, test: Check, visitor: import('./complex-types').BuildVisitor<Tree, Check>, reverse?: boolean) => void) &
+   *   (<Tree extends Node>(tree: Tree, visitor: import('./complex-types').BuildVisitor<Tree>, reverse?: boolean) => void)
    * )}
    */
   (
     /**
      * @param {Node} tree
      * @param {Test} test
-     * @param {Visitor<Node>} visitor
+     * @param {import('./complex-types').Visitor} visitor
      * @param {boolean} [reverse]
      */
     function (tree, test, visitor, reverse) {
@@ -13784,84 +13785,2013 @@ function remarkStringify(options) {
 }
 
 /**
- * @typedef {import('unist').Point} Point
- * @typedef {import('vfile').VFile} VFile
+ * @typedef {import('micromark-util-types').Extension} Extension
+ * @typedef {import('micromark-util-types').ConstructRecord} ConstructRecord
+ * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
+ * @typedef {import('micromark-util-types').Previous} Previous
+ * @typedef {import('micromark-util-types').State} State
+ * @typedef {import('micromark-util-types').Event} Event
+ * @typedef {import('micromark-util-types').Code} Code
+ */
+const www = {
+  tokenize: tokenizeWww,
+  partial: true
+};
+const domain = {
+  tokenize: tokenizeDomain,
+  partial: true
+};
+const path = {
+  tokenize: tokenizePath,
+  partial: true
+};
+const punctuation = {
+  tokenize: tokenizePunctuation,
+  partial: true
+};
+const namedCharacterReference = {
+  tokenize: tokenizeNamedCharacterReference,
+  partial: true
+};
+const wwwAutolink = {
+  tokenize: tokenizeWwwAutolink,
+  previous: previousWww
+};
+const httpAutolink = {
+  tokenize: tokenizeHttpAutolink,
+  previous: previousHttp
+};
+const emailAutolink = {
+  tokenize: tokenizeEmailAutolink,
+  previous: previousEmail
+};
+/** @type {ConstructRecord} */
+
+const text = {};
+/** @type {Extension} */
+
+const gfmAutolinkLiteral = {
+  text
+};
+let code = 48; // Add alphanumerics.
+
+while (code < 123) {
+  text[code] = emailAutolink;
+  code++;
+  if (code === 58) code = 65;
+  else if (code === 91) code = 97;
+}
+
+text[43] = emailAutolink;
+text[45] = emailAutolink;
+text[46] = emailAutolink;
+text[95] = emailAutolink;
+text[72] = [emailAutolink, httpAutolink];
+text[104] = [emailAutolink, httpAutolink];
+text[87] = [emailAutolink, wwwAutolink];
+text[119] = [emailAutolink, wwwAutolink];
+/** @type {Tokenizer} */
+
+function tokenizeEmailAutolink(effects, ok, nok) {
+  const self = this;
+  /** @type {boolean} */
+
+  let hasDot;
+  /** @type {boolean|undefined} */
+
+  let hasDigitInLastSegment;
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    if (
+      !gfmAtext(code) ||
+      !previousEmail(self.previous) ||
+      previousUnbalanced(self.events)
+    ) {
+      return nok(code)
+    }
+
+    effects.enter('literalAutolink');
+    effects.enter('literalAutolinkEmail');
+    return atext(code)
+  }
+  /** @type {State} */
+
+  function atext(code) {
+    if (gfmAtext(code)) {
+      effects.consume(code);
+      return atext
+    }
+
+    if (code === 64) {
+      effects.consume(code);
+      return label
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function label(code) {
+    if (code === 46) {
+      return effects.check(punctuation, done, dotContinuation)(code)
+    }
+
+    if (code === 45 || code === 95) {
+      return effects.check(punctuation, nok, dashOrUnderscoreContinuation)(code)
+    }
+
+    if (asciiAlphanumeric(code)) {
+      if (!hasDigitInLastSegment && asciiDigit(code)) {
+        hasDigitInLastSegment = true;
+      }
+
+      effects.consume(code);
+      return label
+    }
+
+    return done(code)
+  }
+  /** @type {State} */
+
+  function dotContinuation(code) {
+    effects.consume(code);
+    hasDot = true;
+    hasDigitInLastSegment = undefined;
+    return label
+  }
+  /** @type {State} */
+
+  function dashOrUnderscoreContinuation(code) {
+    effects.consume(code);
+    return afterDashOrUnderscore
+  }
+  /** @type {State} */
+
+  function afterDashOrUnderscore(code) {
+    if (code === 46) {
+      return effects.check(punctuation, nok, dotContinuation)(code)
+    }
+
+    return label(code)
+  }
+  /** @type {State} */
+
+  function done(code) {
+    if (hasDot && !hasDigitInLastSegment) {
+      effects.exit('literalAutolinkEmail');
+      effects.exit('literalAutolink');
+      return ok(code)
+    }
+
+    return nok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeWwwAutolink(effects, ok, nok) {
+  const self = this;
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    if (
+      (code !== 87 && code !== 119) ||
+      !previousWww(self.previous) ||
+      previousUnbalanced(self.events)
+    ) {
+      return nok(code)
+    }
+
+    effects.enter('literalAutolink');
+    effects.enter('literalAutolinkWww'); // For `www.` we check instead of attempt, because when it matches, GH
+    // treats it as part of a domain (yes, it says a valid domain must come
+    // after `www.`, but that’s not how it’s implemented by them).
+
+    return effects.check(
+      www,
+      effects.attempt(domain, effects.attempt(path, done), nok),
+      nok
+    )(code)
+  }
+  /** @type {State} */
+
+  function done(code) {
+    effects.exit('literalAutolinkWww');
+    effects.exit('literalAutolink');
+    return ok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeHttpAutolink(effects, ok, nok) {
+  const self = this;
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    if (
+      (code !== 72 && code !== 104) ||
+      !previousHttp(self.previous) ||
+      previousUnbalanced(self.events)
+    ) {
+      return nok(code)
+    }
+
+    effects.enter('literalAutolink');
+    effects.enter('literalAutolinkHttp');
+    effects.consume(code);
+    return t1
+  }
+  /** @type {State} */
+
+  function t1(code) {
+    if (code === 84 || code === 116) {
+      effects.consume(code);
+      return t2
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function t2(code) {
+    if (code === 84 || code === 116) {
+      effects.consume(code);
+      return p
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function p(code) {
+    if (code === 80 || code === 112) {
+      effects.consume(code);
+      return s
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function s(code) {
+    if (code === 83 || code === 115) {
+      effects.consume(code);
+      return colon
+    }
+
+    return colon(code)
+  }
+  /** @type {State} */
+
+  function colon(code) {
+    if (code === 58) {
+      effects.consume(code);
+      return slash1
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function slash1(code) {
+    if (code === 47) {
+      effects.consume(code);
+      return slash2
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function slash2(code) {
+    if (code === 47) {
+      effects.consume(code);
+      return after
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function after(code) {
+    return code === null ||
+      asciiControl(code) ||
+      unicodeWhitespace(code) ||
+      unicodePunctuation(code)
+      ? nok(code)
+      : effects.attempt(domain, effects.attempt(path, done), nok)(code)
+  }
+  /** @type {State} */
+
+  function done(code) {
+    effects.exit('literalAutolinkHttp');
+    effects.exit('literalAutolink');
+    return ok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeWww(effects, ok, nok) {
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    effects.consume(code);
+    return w2
+  }
+  /** @type {State} */
+
+  function w2(code) {
+    if (code === 87 || code === 119) {
+      effects.consume(code);
+      return w3
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function w3(code) {
+    if (code === 87 || code === 119) {
+      effects.consume(code);
+      return dot
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function dot(code) {
+    if (code === 46) {
+      effects.consume(code);
+      return after
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function after(code) {
+    return code === null || markdownLineEnding(code) ? nok(code) : ok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeDomain(effects, ok, nok) {
+  /** @type {boolean|undefined} */
+  let hasUnderscoreInLastSegment;
+  /** @type {boolean|undefined} */
+
+  let hasUnderscoreInLastLastSegment;
+  return domain
+  /** @type {State} */
+
+  function domain(code) {
+    if (code === 38) {
+      return effects.check(
+        namedCharacterReference,
+        done,
+        punctuationContinuation
+      )(code)
+    }
+
+    if (code === 46 || code === 95) {
+      return effects.check(punctuation, done, punctuationContinuation)(code)
+    } // GH documents that only alphanumerics (other than `-`, `.`, and `_`) can
+    // occur, which sounds like ASCII only, but they also support `www.點看.com`,
+    // so that’s Unicode.
+    // Instead of some new production for Unicode alphanumerics, markdown
+    // already has that for Unicode punctuation and whitespace, so use those.
+
+    if (
+      code === null ||
+      asciiControl(code) ||
+      unicodeWhitespace(code) ||
+      (code !== 45 && unicodePunctuation(code))
+    ) {
+      return done(code)
+    }
+
+    effects.consume(code);
+    return domain
+  }
+  /** @type {State} */
+
+  function punctuationContinuation(code) {
+    if (code === 46) {
+      hasUnderscoreInLastLastSegment = hasUnderscoreInLastSegment;
+      hasUnderscoreInLastSegment = undefined;
+      effects.consume(code);
+      return domain
+    }
+
+    if (code === 95) hasUnderscoreInLastSegment = true;
+    effects.consume(code);
+    return domain
+  }
+  /** @type {State} */
+
+  function done(code) {
+    if (!hasUnderscoreInLastLastSegment && !hasUnderscoreInLastSegment) {
+      return ok(code)
+    }
+
+    return nok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizePath(effects, ok) {
+  let balance = 0;
+  return inPath
+  /** @type {State} */
+
+  function inPath(code) {
+    if (code === 38) {
+      return effects.check(
+        namedCharacterReference,
+        ok,
+        continuedPunctuation
+      )(code)
+    }
+
+    if (code === 40) {
+      balance++;
+    }
+
+    if (code === 41) {
+      return effects.check(
+        punctuation,
+        parenAtPathEnd,
+        continuedPunctuation
+      )(code)
+    }
+
+    if (pathEnd(code)) {
+      return ok(code)
+    }
+
+    if (trailingPunctuation(code)) {
+      return effects.check(punctuation, ok, continuedPunctuation)(code)
+    }
+
+    effects.consume(code);
+    return inPath
+  }
+  /** @type {State} */
+
+  function continuedPunctuation(code) {
+    effects.consume(code);
+    return inPath
+  }
+  /** @type {State} */
+
+  function parenAtPathEnd(code) {
+    balance--;
+    return balance < 0 ? ok(code) : continuedPunctuation(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeNamedCharacterReference(effects, ok, nok) {
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    effects.consume(code);
+    return inside
+  }
+  /** @type {State} */
+
+  function inside(code) {
+    if (asciiAlpha(code)) {
+      effects.consume(code);
+      return inside
+    }
+
+    if (code === 59) {
+      effects.consume(code);
+      return after
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function after(code) {
+    // If the named character reference is followed by the end of the path, it’s
+    // not continued punctuation.
+    return pathEnd(code) ? ok(code) : nok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizePunctuation(effects, ok, nok) {
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    effects.consume(code);
+    return after
+  }
+  /** @type {State} */
+
+  function after(code) {
+    // Check the next.
+    if (trailingPunctuation(code)) {
+      effects.consume(code);
+      return after
+    } // If the punctuation marker is followed by the end of the path, it’s not
+    // continued punctuation.
+
+    return pathEnd(code) ? ok(code) : nok(code)
+  }
+}
+/**
+ * @param {Code} code
+ * @returns {boolean}
+ */
+
+function trailingPunctuation(code) {
+  return (
+    code === 33 ||
+    code === 34 ||
+    code === 39 ||
+    code === 41 ||
+    code === 42 ||
+    code === 44 ||
+    code === 46 ||
+    code === 58 ||
+    code === 59 ||
+    code === 60 ||
+    code === 63 ||
+    code === 95 ||
+    code === 126
+  )
+}
+/**
+ * @param {Code} code
+ * @returns {boolean}
+ */
+
+function pathEnd(code) {
+  return code === null || code === 60 || markdownLineEndingOrSpace(code)
+}
+/**
+ * @param {Code} code
+ * @returns {boolean}
+ */
+
+function gfmAtext(code) {
+  return (
+    code === 43 ||
+    code === 45 ||
+    code === 46 ||
+    code === 95 ||
+    asciiAlphanumeric(code)
+  )
+}
+/** @type {Previous} */
+
+function previousWww(code) {
+  return (
+    code === null ||
+    code === 40 ||
+    code === 42 ||
+    code === 95 ||
+    code === 126 ||
+    markdownLineEndingOrSpace(code)
+  )
+}
+/** @type {Previous} */
+
+function previousHttp(code) {
+  return code === null || !asciiAlpha(code)
+}
+/** @type {Previous} */
+
+function previousEmail(code) {
+  return code !== 47 && previousHttp(code)
+}
+/**
+ * @param {Event[]} events
+ * @returns {boolean}
+ */
+
+function previousUnbalanced(events) {
+  let index = events.length;
+  let result = false;
+
+  while (index--) {
+    const token = events[index][1];
+
+    if (
+      (token.type === 'labelLink' || token.type === 'labelImage') &&
+      !token._balanced
+    ) {
+      result = true;
+      break
+    } // @ts-expect-error If we’ve seen this token, and it was marked as not
+    // having any unbalanced bracket before it, we can exit.
+
+    if (token._gfmAutolinkLiteralWalkedInto) {
+      result = false;
+      break
+    }
+  }
+
+  if (events.length > 0 && !result) {
+    // @ts-expect-error Mark the last token as “walked into” w/o finding
+    // anything.
+    events[events.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
+  }
+
+  return result
+}
+
+const characterReferences = {'"': 'quot', '&': 'amp', '<': 'lt', '>': 'gt'};
+
+/**
+ * Encode only the dangerous HTML characters.
  *
- * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
- * @typedef {Required<Point>} FullPoint
- * @typedef {NonNullable<Point['offset']>} Offset
+ * This ensures that certain characters which have special meaning in HTML are
+ * dealt with.
+ * Technically, we can skip `>` and `"` in many cases, but CM includes them.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function encode(value) {
+  return value.replace(/["&<>]/g, replace)
+
+  /**
+   * @param {string} value
+   * @returns {string}
+   */
+  function replace(value) {
+    // @ts-expect-error Hush, it’s fine.
+    return '&' + characterReferences[value] + ';'
+  }
+}
+
+/**
+ * Make a value safe for injection as a URL.
+ *
+ * This encodes unsafe characters with percent-encoding and skips already
+ * encoded sequences (see `normalizeUri` below).
+ * Further unsafe characters are encoded as character references (see
+ * `micromark-util-encode`).
+ *
+ * Then, a regex of allowed protocols can be given, in which case the URL is
+ * sanitized.
+ * For example, `/^(https?|ircs?|mailto|xmpp)$/i` can be used for `a[href]`,
+ * or `/^https?$/i` for `img[src]`.
+ * If the URL includes an unknown protocol (one not matched by `protocol`, such
+ * as a dangerous example, `javascript:`), the value is ignored.
+ *
+ * @param {string|undefined} url
+ * @param {RegExp} [protocol]
+ * @returns {string}
+ */
+function sanitizeUri(url, protocol) {
+  const value = encode(normalizeUri(url || ''));
+
+  if (!protocol) {
+    return value
+  }
+
+  const colon = value.indexOf(':');
+  const questionMark = value.indexOf('?');
+  const numberSign = value.indexOf('#');
+  const slash = value.indexOf('/');
+
+  if (
+    // If there is no protocol, it’s relative.
+    colon < 0 || // If the first colon is after a `?`, `#`, or `/`, it’s not a protocol.
+    (slash > -1 && colon > slash) ||
+    (questionMark > -1 && colon > questionMark) ||
+    (numberSign > -1 && colon > numberSign) || // It is a protocol, it should be allowed.
+    protocol.test(value.slice(0, colon))
+  ) {
+    return value
+  }
+
+  return ''
+}
+/**
+ * Normalize a URL (such as used in definitions).
+ *
+ * Encode unsafe characters with percent-encoding, skipping already encoded
+ * sequences.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+
+function normalizeUri(value) {
+  /** @type {string[]} */
+  const result = [];
+  let index = -1;
+  let start = 0;
+  let skip = 0;
+
+  while (++index < value.length) {
+    const code = value.charCodeAt(index);
+    /** @type {string} */
+
+    let replace = ''; // A correct percent encoded value.
+
+    if (
+      code === 37 &&
+      asciiAlphanumeric(value.charCodeAt(index + 1)) &&
+      asciiAlphanumeric(value.charCodeAt(index + 2))
+    ) {
+      skip = 2;
+    } // ASCII.
+    else if (code < 128) {
+      if (!/[!#$&-;=?-Z_a-z~]/.test(String.fromCharCode(code))) {
+        replace = String.fromCharCode(code);
+      }
+    } // Astral.
+    else if (code > 55295 && code < 57344) {
+      const next = value.charCodeAt(index + 1); // A correct surrogate pair.
+
+      if (code < 56320 && next > 56319 && next < 57344) {
+        replace = String.fromCharCode(code, next);
+        skip = 1;
+      } // Lone surrogate.
+      else {
+        replace = '\uFFFD';
+      }
+    } // Unicode.
+    else {
+      replace = String.fromCharCode(code);
+    }
+
+    if (replace) {
+      result.push(value.slice(start, index), encodeURIComponent(replace));
+      start = index + skip + 1;
+      replace = '';
+    }
+
+    if (skip) {
+      index += skip;
+      skip = 0;
+    }
+  }
+
+  return result.join('') + value.slice(start)
+}
+
+/**
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ * @typedef {import('micromark-util-types').Handle} Handle
+ * @typedef {import('micromark-util-types').CompileContext} CompileContext
+ * @typedef {import('micromark-util-types').Token} Token
+ */
+/** @type {HtmlExtension} */
+
+const gfmAutolinkLiteralHtml = {
+  exit: {
+    literalAutolinkEmail,
+    literalAutolinkHttp,
+    literalAutolinkWww
+  }
+};
+/** @type {Handle} */
+
+function literalAutolinkWww(token) {
+  anchorFromToken.call(this, token, 'http://');
+}
+/** @type {Handle} */
+
+function literalAutolinkEmail(token) {
+  anchorFromToken.call(this, token, 'mailto:');
+}
+/** @type {Handle} */
+
+function literalAutolinkHttp(token) {
+  anchorFromToken.call(this, token);
+}
+/**
+ * @this CompileContext
+ * @param {Token} token
+ * @param {string} [protocol]
+ * @returns {void}
+ */
+
+function anchorFromToken(token, protocol) {
+  const url = this.sliceSerialize(token);
+  this.tag('<a href="' + sanitizeUri((protocol || '') + url) + '">');
+  this.raw(this.encode(url));
+  this.tag('</a>');
+}
+
+/**
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ */
+
+/** @type {HtmlExtension} */
+const gfmStrikethroughHtml = {
+  enter: {
+    strikethrough() {
+      this.tag('<del>');
+    }
+  },
+  exit: {
+    strikethrough() {
+      this.tag('</del>');
+    }
+  }
+};
+
+/**
+ * @typedef {import('micromark-util-types').Extension} Extension
+ * @typedef {import('micromark-util-types').Resolver} Resolver
+ * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
+ * @typedef {import('micromark-util-types').State} State
+ * @typedef {import('micromark-util-types').Token} Token
+ * @typedef {import('micromark-util-types').Event} Event
  */
 
 /**
- * Get transform functions for the given `document`.
- *
- * @param {string|Uint8Array|VFile} file
+ * @param {Options} [options]
+ * @returns {Extension}
  */
-function location(file) {
-  var value = String(file);
-  /** @type {Array.<number>} */
-  var indices = [];
-  var search = /\r?\n|\r/g;
+function gfmStrikethrough(options = {}) {
+  let single = options.singleTilde;
+  const tokenizer = {
+    tokenize: tokenizeStrikethrough,
+    resolveAll: resolveAllStrikethrough
+  };
 
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
+  if (single === null || single === undefined) {
+    single = true;
   }
 
-  indices.push(value.length + 1);
-
-  return {toPoint, toOffset}
-
+  return {
+    text: {
+      [126]: tokenizer
+    },
+    insideSpan: {
+      null: [tokenizer]
+    },
+    attentionMarkers: {
+      null: [126]
+    }
+  }
   /**
-   * Get the line and column-based `point` for `offset` in the bound indices.
-   * Returns a point with `undefined` values when given invalid or out of bounds
-   * input.
+   * Take events and resolve strikethrough.
    *
-   * @param {Offset} offset
-   * @returns {FullPoint}
+   * @type {Resolver}
    */
-  function toPoint(offset) {
-    var index = -1;
 
-    if (offset > -1 && offset < indices[indices.length - 1]) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
-          return {
-            line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
-            offset
+  function resolveAllStrikethrough(events, context) {
+    let index = -1;
+    /** @type {Token} */
+
+    let strikethrough;
+    /** @type {Token} */
+
+    let text;
+    /** @type {number} */
+
+    let open;
+    /** @type {Event[]} */
+
+    let nextEvents; // Walk through all events.
+
+    while (++index < events.length) {
+      // Find a token that can close.
+      if (
+        events[index][0] === 'enter' &&
+        events[index][1].type === 'strikethroughSequenceTemporary' &&
+        events[index][1]._close
+      ) {
+        open = index; // Now walk back to find an opener.
+
+        while (open--) {
+          // Find a token that can open the closer.
+          if (
+            events[open][0] === 'exit' &&
+            events[open][1].type === 'strikethroughSequenceTemporary' &&
+            events[open][1]._open && // If the sizes are the same:
+            events[index][1].end.offset - events[index][1].start.offset ===
+              events[open][1].end.offset - events[open][1].start.offset
+          ) {
+            events[index][1].type = 'strikethroughSequence';
+            events[open][1].type = 'strikethroughSequence';
+            strikethrough = {
+              type: 'strikethrough',
+              start: Object.assign({}, events[open][1].start),
+              end: Object.assign({}, events[index][1].end)
+            };
+            text = {
+              type: 'strikethroughText',
+              start: Object.assign({}, events[open][1].end),
+              end: Object.assign({}, events[index][1].start)
+            }; // Opening.
+
+            nextEvents = [
+              ['enter', strikethrough, context],
+              ['enter', events[open][1], context],
+              ['exit', events[open][1], context],
+              ['enter', text, context]
+            ]; // Between.
+
+            splice(
+              nextEvents,
+              nextEvents.length,
+              0,
+              resolveAll(
+                context.parser.constructs.insideSpan.null,
+                events.slice(open + 1, index),
+                context
+              )
+            ); // Closing.
+
+            splice(nextEvents, nextEvents.length, 0, [
+              ['exit', text, context],
+              ['enter', events[index][1], context],
+              ['exit', events[index][1], context],
+              ['exit', strikethrough, context]
+            ]);
+            splice(events, open - 1, index - open + 3, nextEvents);
+            index = open + nextEvents.length - 2;
+            break
           }
         }
       }
     }
 
-    return {line: undefined, column: undefined, offset: undefined}
-  }
+    index = -1;
 
-  /**
-   * Get the `offset` for a line and column-based `point` in the bound indices.
-   * Returns `-1` when given invalid or out of bounds input.
-   *
-   * @param {PositionalPoint} point
-   * @returns {Offset}
-   */
-  function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    /** @type {number} */
-    var offset;
-
-    if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
-    ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
+    while (++index < events.length) {
+      if (events[index][1].type === 'strikethroughSequenceTemporary') {
+        events[index][1].type = 'data';
+      }
     }
 
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
+    return events
   }
+  /** @type {Tokenizer} */
+
+  function tokenizeStrikethrough(effects, ok, nok) {
+    const previous = this.previous;
+    const events = this.events;
+    let size = 0;
+    return start
+    /** @type {State} */
+
+    function start(code) {
+      if (
+        code !== 126 ||
+        (previous === 126 &&
+          events[events.length - 1][1].type !== 'characterEscape')
+      ) {
+        return nok(code)
+      }
+
+      effects.enter('strikethroughSequenceTemporary');
+      return more(code)
+    }
+    /** @type {State} */
+
+    function more(code) {
+      const before = classifyCharacter(previous);
+
+      if (code === 126) {
+        // If this is the third marker, exit.
+        if (size > 1) return nok(code)
+        effects.consume(code);
+        size++;
+        return more
+      }
+
+      if (size < 2 && !single) return nok(code)
+      const token = effects.exit('strikethroughSequenceTemporary');
+      const after = classifyCharacter(code);
+      token._open = !after || (after === 2 && Boolean(before));
+      token._close = !before || (before === 2 && Boolean(after));
+      return ok(code)
+    }
+  }
+}
+
+/**
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ */
+
+/**
+ * @typedef {import('./syntax.js').Align} Align
+ */
+const alignment = {
+  null: '',
+  left: ' align="left"',
+  right: ' align="right"',
+  center: ' align="center"'
+};
+/** @type {HtmlExtension} */
+
+const gfmTableHtml = {
+  enter: {
+    table(token) {
+      this.lineEndingIfNeeded();
+      this.tag('<table>'); // @ts-expect-error Custom.
+
+      this.setData('tableAlign', token._align);
+    },
+
+    tableBody() {
+      // Clear slurping line ending from the delimiter row.
+      this.setData('slurpOneLineEnding');
+      this.tag('<tbody>');
+    },
+
+    tableData() {
+      /** @type {string|undefined} */
+      const align = // @ts-expect-error Custom.
+        alignment[this.getData('tableAlign')[this.getData('tableColumn')]];
+
+      if (align === undefined) {
+        // Capture results to ignore them.
+        this.buffer();
+      } else {
+        this.lineEndingIfNeeded();
+        this.tag('<td' + align + '>');
+      }
+    },
+
+    tableHead() {
+      this.lineEndingIfNeeded();
+      this.tag('<thead>');
+    },
+
+    tableHeader() {
+      this.lineEndingIfNeeded();
+      this.tag(
+        '<th' + // @ts-expect-error Custom.
+          alignment[this.getData('tableAlign')[this.getData('tableColumn')]] +
+          '>'
+      );
+    },
+
+    tableRow() {
+      this.setData('tableColumn', 0);
+      this.lineEndingIfNeeded();
+      this.tag('<tr>');
+    }
+  },
+  exit: {
+    // Overwrite the default code text data handler to unescape escaped pipes when
+    // they are in tables.
+    codeTextData(token) {
+      let value = this.sliceSerialize(token);
+
+      if (this.getData('tableAlign')) {
+        value = value.replace(/\\([\\|])/g, replace$1);
+      }
+
+      this.raw(this.encode(value));
+    },
+
+    table() {
+      this.setData('tableAlign'); // If there was no table body, make sure the slurping from the delimiter row
+      // is cleared.
+
+      this.setData('slurpAllLineEndings');
+      this.lineEndingIfNeeded();
+      this.tag('</table>');
+    },
+
+    tableBody() {
+      this.lineEndingIfNeeded();
+      this.tag('</tbody>');
+    },
+
+    tableData() {
+      /** @type {number} */
+      // @ts-expect-error Custom.
+      const column = this.getData('tableColumn'); // @ts-expect-error Custom.
+
+      if (column in this.getData('tableAlign')) {
+        this.tag('</td>');
+        this.setData('tableColumn', column + 1);
+      } else {
+        // Stop capturing.
+        this.resume();
+      }
+    },
+
+    tableHead() {
+      this.lineEndingIfNeeded();
+      this.tag('</thead>');
+      this.setData('slurpOneLineEnding', true); // Slurp the line ending from the delimiter row.
+    },
+
+    tableHeader() {
+      this.tag('</th>'); // @ts-expect-error Custom.
+
+      this.setData('tableColumn', this.getData('tableColumn') + 1);
+    },
+
+    tableRow() {
+      /** @type {Align[]} */
+      // @ts-expect-error Custom.
+      const align = this.getData('tableAlign');
+      /** @type {number} */
+      // @ts-expect-error Custom.
+
+      let column = this.getData('tableColumn');
+
+      while (column < align.length) {
+        this.lineEndingIfNeeded(); // @ts-expect-error `null` is fine as an index.
+
+        this.tag('<td' + alignment[align[column]] + '></td>');
+        column++;
+      }
+
+      this.setData('tableColumn', column);
+      this.lineEndingIfNeeded();
+      this.tag('</tr>');
+    }
+  }
+};
+/**
+ * @param {string} $0
+ * @param {string} $1
+ * @returns {string}
+ */
+
+function replace$1($0, $1) {
+  // Pipes work, backslashes don’t (but can’t escape pipes).
+  return $1 === '|' ? $1 : $0
+}
+
+/**
+ * @typedef {import('micromark-util-types').Extension} Extension
+ * @typedef {import('micromark-util-types').Resolver} Resolver
+ * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
+ * @typedef {import('micromark-util-types').State} State
+ * @typedef {import('micromark-util-types').Token} Token
+ */
+
+/** @type {Extension} */
+const gfmTable = {
+  flow: {
+    null: {
+      tokenize: tokenizeTable,
+      resolve: resolveTable
+    }
+  }
+};
+const setextUnderlineMini = {
+  tokenize: tokenizeSetextUnderlineMini,
+  partial: true
+};
+const nextPrefixedOrBlank = {
+  tokenize: tokenizeNextPrefixedOrBlank,
+  partial: true
+};
+/** @type {Resolver} */
+
+function resolveTable(events, context) {
+  let index = -1;
+  /** @type {Token} */
+
+  let token;
+  /** @type {boolean|undefined} */
+
+  let inHead;
+  /** @type {boolean|undefined} */
+
+  let inDelimiterRow;
+  /** @type {boolean|undefined} */
+
+  let inRow;
+  /** @type {Token} */
+
+  let cell;
+  /** @type {Token} */
+
+  let content;
+  /** @type {Token} */
+
+  let text;
+  /** @type {number|undefined} */
+
+  let contentStart;
+  /** @type {number|undefined} */
+
+  let contentEnd;
+  /** @type {number|undefined} */
+
+  let cellStart;
+
+  while (++index < events.length) {
+    token = events[index][1];
+
+    if (inRow) {
+      if (token.type === 'temporaryTableCellContent') {
+        contentStart = contentStart || index;
+        contentEnd = index;
+      }
+
+      if (
+        // Combine separate content parts into one.
+        (token.type === 'tableCellDivider' || token.type === 'tableRow') &&
+        contentEnd
+      ) {
+        content = {
+          type: 'tableContent',
+          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
+          start: events[contentStart][1].start,
+          end: events[contentEnd][1].end
+        };
+        text = {
+          type: 'chunkText',
+          start: content.start,
+          end: content.end,
+          // @ts-expect-error It’s fine.
+          contentType: 'text'
+        };
+        events.splice(
+          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
+          contentStart, // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
+          contentEnd - contentStart + 1,
+          ['enter', content, context],
+          ['enter', text, context],
+          ['exit', text, context],
+          ['exit', content, context]
+        ); // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
+
+        index -= contentEnd - contentStart - 3;
+        contentStart = undefined;
+        contentEnd = undefined;
+      }
+    }
+
+    if (
+      events[index][0] === 'exit' &&
+      cellStart &&
+      cellStart + 1 < index &&
+      (token.type === 'tableCellDivider' ||
+        (token.type === 'tableRow' &&
+          (cellStart + 3 < index ||
+            events[cellStart][1].type !== 'whitespace')))
+    ) {
+      cell = {
+        type: inDelimiterRow
+          ? 'tableDelimiter'
+          : inHead
+          ? 'tableHeader'
+          : 'tableData',
+        start: events[cellStart][1].start,
+        end: events[index][1].end
+      };
+      events.splice(index + (token.type === 'tableCellDivider' ? 1 : 0), 0, [
+        'exit',
+        cell,
+        context
+      ]);
+      events.splice(cellStart, 0, ['enter', cell, context]);
+      index += 2;
+      cellStart = index + 1;
+    }
+
+    if (token.type === 'tableRow') {
+      inRow = events[index][0] === 'enter';
+
+      if (inRow) {
+        cellStart = index + 1;
+      }
+    }
+
+    if (token.type === 'tableDelimiterRow') {
+      inDelimiterRow = events[index][0] === 'enter';
+
+      if (inDelimiterRow) {
+        cellStart = index + 1;
+      }
+    }
+
+    if (token.type === 'tableHead') {
+      inHead = events[index][0] === 'enter';
+    }
+  }
+
+  return events
+}
+/** @type {Tokenizer} */
+
+function tokenizeTable(effects, ok, nok) {
+  const self = this;
+  /** @type {Align[]} */
+
+  const align = [];
+  let tableHeaderCount = 0;
+  /** @type {boolean|undefined} */
+
+  let seenDelimiter;
+  /** @type {boolean|undefined} */
+
+  let hasDash;
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    // @ts-expect-error Custom.
+    effects.enter('table')._align = align;
+    effects.enter('tableHead');
+    effects.enter('tableRow'); // If we start with a pipe, we open a cell marker.
+
+    if (code === 124) {
+      return cellDividerHead(code)
+    }
+
+    tableHeaderCount++;
+    effects.enter('temporaryTableCellContent'); // Can’t be space or eols at the start of a construct, so we’re in a cell.
+
+    return inCellContentHead(code)
+  }
+  /** @type {State} */
+
+  function cellDividerHead(code) {
+    effects.enter('tableCellDivider');
+    effects.consume(code);
+    effects.exit('tableCellDivider');
+    seenDelimiter = true;
+    return cellBreakHead
+  }
+  /** @type {State} */
+
+  function cellBreakHead(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return atRowEndHead(code)
+    }
+
+    if (markdownSpace(code)) {
+      effects.enter('whitespace');
+      effects.consume(code);
+      return inWhitespaceHead
+    }
+
+    if (seenDelimiter) {
+      seenDelimiter = undefined;
+      tableHeaderCount++;
+    }
+
+    if (code === 124) {
+      return cellDividerHead(code)
+    } // Anything else is cell content.
+
+    effects.enter('temporaryTableCellContent');
+    return inCellContentHead(code)
+  }
+  /** @type {State} */
+
+  function inWhitespaceHead(code) {
+    if (markdownSpace(code)) {
+      effects.consume(code);
+      return inWhitespaceHead
+    }
+
+    effects.exit('whitespace');
+    return cellBreakHead(code)
+  }
+  /** @type {State} */
+
+  function inCellContentHead(code) {
+    // EOF, whitespace, pipe
+    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
+      effects.exit('temporaryTableCellContent');
+      return cellBreakHead(code)
+    }
+
+    effects.consume(code);
+    return code === 92 ? inCellContentEscapeHead : inCellContentHead
+  }
+  /** @type {State} */
+
+  function inCellContentEscapeHead(code) {
+    if (code === 92 || code === 124) {
+      effects.consume(code);
+      return inCellContentHead
+    } // Anything else.
+
+    return inCellContentHead(code)
+  }
+  /** @type {State} */
+
+  function atRowEndHead(code) {
+    if (code === null) {
+      return nok(code)
+    }
+
+    effects.exit('tableRow');
+    effects.exit('tableHead');
+    return effects.attempt(
+      {
+        tokenize: tokenizeRowEnd,
+        partial: true
+      },
+      atDelimiterLineStart,
+      nok
+    )(code)
+  }
+  /** @type {State} */
+
+  function atDelimiterLineStart(code) {
+    // To do: is the lazy setext thing still needed?
+    return effects.check(
+      setextUnderlineMini,
+      nok, // Support an indent before the delimiter row.
+      factorySpace(effects, rowStartDelimiter, 'linePrefix', 4)
+    )(code)
+  }
+  /** @type {State} */
+
+  function rowStartDelimiter(code) {
+    // If there’s another space, or we’re at the EOL/EOF, exit.
+    if (code === null || markdownLineEndingOrSpace(code)) {
+      return nok(code)
+    }
+
+    effects.enter('tableDelimiterRow');
+    return atDelimiterRowBreak(code)
+  }
+  /** @type {State} */
+
+  function atDelimiterRowBreak(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return rowEndDelimiter(code)
+    }
+
+    if (markdownSpace(code)) {
+      effects.enter('whitespace');
+      effects.consume(code);
+      return inWhitespaceDelimiter
+    }
+
+    if (code === 45) {
+      effects.enter('tableDelimiterFiller');
+      effects.consume(code);
+      hasDash = true;
+      align.push(null);
+      return inFillerDelimiter
+    }
+
+    if (code === 58) {
+      effects.enter('tableDelimiterAlignment');
+      effects.consume(code);
+      effects.exit('tableDelimiterAlignment');
+      align.push('left');
+      return afterLeftAlignment
+    } // If we start with a pipe, we open a cell marker.
+
+    if (code === 124) {
+      effects.enter('tableCellDivider');
+      effects.consume(code);
+      effects.exit('tableCellDivider');
+      return atDelimiterRowBreak
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function inWhitespaceDelimiter(code) {
+    if (markdownSpace(code)) {
+      effects.consume(code);
+      return inWhitespaceDelimiter
+    }
+
+    effects.exit('whitespace');
+    return atDelimiterRowBreak(code)
+  }
+  /** @type {State} */
+
+  function inFillerDelimiter(code) {
+    if (code === 45) {
+      effects.consume(code);
+      return inFillerDelimiter
+    }
+
+    effects.exit('tableDelimiterFiller');
+
+    if (code === 58) {
+      effects.enter('tableDelimiterAlignment');
+      effects.consume(code);
+      effects.exit('tableDelimiterAlignment');
+      align[align.length - 1] =
+        align[align.length - 1] === 'left' ? 'center' : 'right';
+      return afterRightAlignment
+    }
+
+    return atDelimiterRowBreak(code)
+  }
+  /** @type {State} */
+
+  function afterLeftAlignment(code) {
+    if (code === 45) {
+      effects.enter('tableDelimiterFiller');
+      effects.consume(code);
+      hasDash = true;
+      return inFillerDelimiter
+    } // Anything else is not ok.
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function afterRightAlignment(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return rowEndDelimiter(code)
+    }
+
+    if (markdownSpace(code)) {
+      effects.enter('whitespace');
+      effects.consume(code);
+      return inWhitespaceDelimiter
+    } // `|`
+
+    if (code === 124) {
+      effects.enter('tableCellDivider');
+      effects.consume(code);
+      effects.exit('tableCellDivider');
+      return atDelimiterRowBreak
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function rowEndDelimiter(code) {
+    effects.exit('tableDelimiterRow'); // Exit if there was no dash at all, or if the header cell count is not the
+    // delimiter cell count.
+
+    if (!hasDash || tableHeaderCount !== align.length) {
+      return nok(code)
+    }
+
+    if (code === null) {
+      return tableClose(code)
+    }
+
+    return effects.check(
+      nextPrefixedOrBlank,
+      tableClose,
+      effects.attempt(
+        {
+          tokenize: tokenizeRowEnd,
+          partial: true
+        },
+        factorySpace(effects, bodyStart, 'linePrefix', 4),
+        tableClose
+      )
+    )(code)
+  }
+  /** @type {State} */
+
+  function tableClose(code) {
+    effects.exit('table');
+    return ok(code)
+  }
+  /** @type {State} */
+
+  function bodyStart(code) {
+    effects.enter('tableBody');
+    return rowStartBody(code)
+  }
+  /** @type {State} */
+
+  function rowStartBody(code) {
+    effects.enter('tableRow'); // If we start with a pipe, we open a cell marker.
+
+    if (code === 124) {
+      return cellDividerBody(code)
+    }
+
+    effects.enter('temporaryTableCellContent'); // Can’t be space or eols at the start of a construct, so we’re in a cell.
+
+    return inCellContentBody(code)
+  }
+  /** @type {State} */
+
+  function cellDividerBody(code) {
+    effects.enter('tableCellDivider');
+    effects.consume(code);
+    effects.exit('tableCellDivider');
+    return cellBreakBody
+  }
+  /** @type {State} */
+
+  function cellBreakBody(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return atRowEndBody(code)
+    }
+
+    if (markdownSpace(code)) {
+      effects.enter('whitespace');
+      effects.consume(code);
+      return inWhitespaceBody
+    } // `|`
+
+    if (code === 124) {
+      return cellDividerBody(code)
+    } // Anything else is cell content.
+
+    effects.enter('temporaryTableCellContent');
+    return inCellContentBody(code)
+  }
+  /** @type {State} */
+
+  function inWhitespaceBody(code) {
+    if (markdownSpace(code)) {
+      effects.consume(code);
+      return inWhitespaceBody
+    }
+
+    effects.exit('whitespace');
+    return cellBreakBody(code)
+  }
+  /** @type {State} */
+
+  function inCellContentBody(code) {
+    // EOF, whitespace, pipe
+    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
+      effects.exit('temporaryTableCellContent');
+      return cellBreakBody(code)
+    }
+
+    effects.consume(code);
+    return code === 92 ? inCellContentEscapeBody : inCellContentBody
+  }
+  /** @type {State} */
+
+  function inCellContentEscapeBody(code) {
+    if (code === 92 || code === 124) {
+      effects.consume(code);
+      return inCellContentBody
+    } // Anything else.
+
+    return inCellContentBody(code)
+  }
+  /** @type {State} */
+
+  function atRowEndBody(code) {
+    effects.exit('tableRow');
+
+    if (code === null) {
+      return tableBodyClose(code)
+    }
+
+    return effects.check(
+      nextPrefixedOrBlank,
+      tableBodyClose,
+      effects.attempt(
+        {
+          tokenize: tokenizeRowEnd,
+          partial: true
+        },
+        factorySpace(effects, rowStartBody, 'linePrefix', 4),
+        tableBodyClose
+      )
+    )(code)
+  }
+  /** @type {State} */
+
+  function tableBodyClose(code) {
+    effects.exit('tableBody');
+    return tableClose(code)
+  }
+  /** @type {Tokenizer} */
+
+  function tokenizeRowEnd(effects, ok, nok) {
+    return start
+    /** @type {State} */
+
+    function start(code) {
+      effects.enter('lineEnding');
+      effects.consume(code);
+      effects.exit('lineEnding');
+      return lineStart
+    }
+    /** @type {State} */
+
+    function lineStart(code) {
+      return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
+    }
+  }
+} // Based on micromark, but that won’t work as we’re in a table, and that expects
+// content.
+// <https://github.com/micromark/micromark/blob/main/lib/tokenize/setext-underline.js>
+
+/** @type {Tokenizer} */
+
+function tokenizeSetextUnderlineMini(effects, ok, nok) {
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    if (code !== 45) {
+      return nok(code)
+    }
+
+    effects.enter('setextUnderline');
+    return sequence(code)
+  }
+  /** @type {State} */
+
+  function sequence(code) {
+    if (code === 45) {
+      effects.consume(code);
+      return sequence
+    }
+
+    return whitespace(code)
+  }
+  /** @type {State} */
+
+  function whitespace(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return ok(code)
+    }
+
+    if (markdownSpace(code)) {
+      effects.consume(code);
+      return whitespace
+    }
+
+    return nok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function tokenizeNextPrefixedOrBlank(effects, ok, nok) {
+  let size = 0;
+  return start
+  /** @type {State} */
+
+  function start(code) {
+    // This is a check, so we don’t care about tokens, but we open a bogus one
+    // so we’re valid.
+    effects.enter('check'); // EOL.
+
+    effects.consume(code);
+    return whitespace
+  }
+  /** @type {State} */
+
+  function whitespace(code) {
+    if (code === -1 || code === 32) {
+      effects.consume(code);
+      size++;
+      return size === 4 ? ok : whitespace
+    } // EOF or whitespace
+
+    if (code === null || markdownLineEndingOrSpace(code)) {
+      return ok(code)
+    } // Anything else.
+
+    return nok(code)
+  }
+}
+
+/**
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ * @typedef {import('micromark-util-types').Token} Token
+ * @typedef {import('micromark-util-types').CompileContext} CompileContext
+ */
+
+/**
+ * An opening or closing tag, followed by a case-insensitive specific tag name,
+ * followed by HTML whitespace, a greater than, or a slash.
+ */
+const reFlow =
+  /<(\/?)(iframe|noembed|noframes|plaintext|script|style|title|textarea|xmp)(?=[\t\n\f\r />])/gi;
+
+/**
+ * As HTML (text) parses tags separately (and v. strictly), we don’t need to be
+ * global.
+ */
+const reText = new RegExp('^' + reFlow.source, 'i');
+
+/** @type {HtmlExtension} */
+const gfmTagfilterHtml = {
+  exit: {
+    htmlFlowData(token) {
+      exitHtmlData.call(this, token, reFlow);
+    },
+    htmlTextData(token) {
+      exitHtmlData.call(this, token, reText);
+    }
+  }
+};
+
+/**
+ * @this {CompileContext}
+ * @param {Token} token
+ * @param {RegExp} filter
+ */
+function exitHtmlData(token, filter) {
+  let value = this.sliceSerialize(token);
+
+  if (this.options.allowDangerousHtml) {
+    value = value.replace(filter, '&lt;$1$2');
+  }
+
+  this.raw(this.encode(value));
+}
+
+/**
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ */
+
+/** @type {HtmlExtension} */
+const gfmTaskListItemHtml = {
+  enter: {
+    taskListCheck() {
+      this.tag('<input ');
+    }
+  },
+  exit: {
+    taskListCheck() {
+      this.tag('disabled="" type="checkbox">');
+    },
+
+    taskListCheckValueChecked() {
+      this.tag('checked="" ');
+    }
+  }
+};
+
+/**
+ * @typedef {import('micromark-util-types').Extension} Extension
+ * @typedef {import('micromark-util-types').ConstructRecord} ConstructRecord
+ * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
+ * @typedef {import('micromark-util-types').Previous} Previous
+ * @typedef {import('micromark-util-types').State} State
+ * @typedef {import('micromark-util-types').Event} Event
+ * @typedef {import('micromark-util-types').Code} Code
+ */
+const tasklistCheck = {
+  tokenize: tokenizeTasklistCheck
+};
+const gfmTaskListItem = {
+  text: {
+    [91]: tasklistCheck
+  }
+};
+/** @type {Tokenizer} */
+
+function tokenizeTasklistCheck(effects, ok, nok) {
+  const self = this;
+  return open
+  /** @type {State} */
+
+  function open(code) {
+    if (
+      // Exit if there’s stuff before.
+      self.previous !== null || // Exit if not in the first content that is the first child of a list
+      // item.
+      !self._gfmTasklistFirstContentOfListItem
+    ) {
+      return nok(code)
+    }
+
+    effects.enter('taskListCheck');
+    effects.enter('taskListCheckMarker');
+    effects.consume(code);
+    effects.exit('taskListCheckMarker');
+    return inside
+  }
+  /** @type {State} */
+
+  function inside(code) {
+    if (markdownSpace(code)) {
+      effects.enter('taskListCheckValueUnchecked');
+      effects.consume(code);
+      effects.exit('taskListCheckValueUnchecked');
+      return close
+    }
+
+    if (code === 88 || code === 120) {
+      effects.enter('taskListCheckValueChecked');
+      effects.consume(code);
+      effects.exit('taskListCheckValueChecked');
+      return close
+    }
+
+    return nok(code)
+  }
+  /** @type {State} */
+
+  function close(code) {
+    if (code === 93) {
+      effects.enter('taskListCheckMarker');
+      effects.consume(code);
+      effects.exit('taskListCheckMarker');
+      effects.exit('taskListCheck');
+      return effects.check(
+        {
+          tokenize: spaceThenNonSpace
+        },
+        ok,
+        nok
+      )
+    }
+
+    return nok(code)
+  }
+}
+/** @type {Tokenizer} */
+
+function spaceThenNonSpace(effects, ok, nok) {
+  const self = this;
+  return factorySpace(effects, after, 'whitespace')
+  /** @type {State} */
+
+  function after(code) {
+    const tail = self.events[self.events.length - 1];
+    return tail &&
+      tail[1].type === 'whitespace' &&
+      code !== null &&
+      !markdownLineEndingOrSpace(code)
+      ? ok(code)
+      : nok(code)
+  }
+}
+
+/**
+ * @typedef {import('micromark-util-types').Extension} Extension
+ * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
+ * @typedef {import('micromark-extension-gfm-strikethrough').Options} Options
+ */
+
+/**
+ * Support GFM or markdown on github.com.
+ *
+ * @param {Options} [options]
+ * @returns {Extension}
+ */
+function gfm(options) {
+  return combineExtensions([
+    gfmAutolinkLiteral,
+    gfmStrikethrough(options),
+    gfmTable,
+    gfmTaskListItem
+  ])
+}
+
+/** @type {HtmlExtension} */
+combineHtmlExtensions([
+  gfmAutolinkLiteralHtml,
+  gfmStrikethroughHtml,
+  gfmTableHtml,
+  gfmTagfilterHtml,
+  gfmTaskListItemHtml
+]);
+
+/**
+ * Get the total count of `character` in `value`.
+ *
+ * @param {any} value Content, coerced to string
+ * @param {string} character Single character to look for
+ * @return {number} Number of times `character` occurred in `value`.
+ */
+function ccount(value, character) {
+  var source = String(value);
+  var count = 0;
+  var index;
+
+  if (typeof character !== 'string') {
+    throw new Error('Expected character')
+  }
+
+  index = source.indexOf(character);
+
+  while (index !== -1) {
+    count++;
+    index = source.indexOf(character, index + character.length);
+  }
+
+  return count
+}
+
+function escapeStringRegexp(string) {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+
+	// Escape characters with special meaning either inside or outside character sets.
+	// Use a simple backslash escape when it’s always valid, and a `\xnn` escape when the simpler form would be disallowed by Unicode patterns’ stricter grammar.
+	return string
+		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+		.replace(/-/g, '\\x2d');
 }
 
 /**
@@ -14010,6 +15940,1274 @@ function toResult(value) {
 }
 
 /**
+ * @typedef Options Configuration.
+ * @property {Test} [ignore] `unist-util-is` test used to assert parents
+ *
+ * @typedef {import('mdast').Root} Root
+ * @typedef {import('mdast').Content} Content
+ * @typedef {import('mdast').PhrasingContent} PhrasingContent
+ * @typedef {import('mdast').Text} Text
+ * @typedef {Content|Root} Node
+ * @typedef {Extract<Node, import('mdast').Parent>} Parent
+ *
+ * @typedef {import('unist-util-visit-parents').Test} Test
+ * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
+ *
+ * @typedef RegExpMatchObject
+ * @property {number} index
+ * @property {string} input
+ *
+ * @typedef {string|RegExp} Find
+ * @typedef {string|ReplaceFunction} Replace
+ *
+ * @typedef {[Find, Replace]} FindAndReplaceTuple
+ * @typedef {Object.<string, Replace>} FindAndReplaceSchema
+ * @typedef {Array.<FindAndReplaceTuple>} FindAndReplaceList
+ *
+ * @typedef {[RegExp, ReplaceFunction]} Pair
+ * @typedef {Array.<Pair>} Pairs
+ */
+
+const own$3 = {}.hasOwnProperty;
+
+/**
+ * @param tree mdast tree
+ * @param find Value to find and remove. When `string`, escaped and made into a global `RegExp`
+ * @param [replace] Value to insert.
+ *   * When `string`, turned into a Text node.
+ *   * When `Function`, called with the results of calling `RegExp.exec` as
+ *     arguments, in which case it can return a single or a list of `Node`,
+ *     a `string` (which is wrapped in a `Text` node), or `false` to not replace
+ * @param [options] Configuration.
+ */
+const findAndReplace =
+  /**
+   * @type {(
+   *   ((tree: Node, find: Find, replace?: Replace, options?: Options) => Node) &
+   *   ((tree: Node, schema: FindAndReplaceSchema|FindAndReplaceList, options?: Options) => Node)
+   * )}
+   **/
+  (
+    /**
+     * @param {Node} tree
+     * @param {Find|FindAndReplaceSchema|FindAndReplaceList} find
+     * @param {Replace|Options} [replace]
+     * @param {Options} [options]
+     */
+    function (tree, find, replace, options) {
+      /** @type {Options|undefined} */
+      let settings;
+      /** @type {FindAndReplaceSchema|FindAndReplaceList} */
+      let schema;
+
+      if (typeof find === 'string' || find instanceof RegExp) {
+        // @ts-expect-error don’t expect options twice.
+        schema = [[find, replace]];
+        settings = options;
+      } else {
+        schema = find;
+        // @ts-expect-error don’t expect replace twice.
+        settings = replace;
+      }
+
+      if (!settings) {
+        settings = {};
+      }
+
+      const ignored = convert(settings.ignore || []);
+      const pairs = toPairs(schema);
+      let pairIndex = -1;
+
+      while (++pairIndex < pairs.length) {
+        visitParents(tree, 'text', visitor);
+      }
+
+      return tree
+
+      /** @type {import('unist-util-visit-parents').Visitor<Text>} */
+      function visitor(node, parents) {
+        let index = -1;
+        /** @type {Parent|undefined} */
+        let grandparent;
+
+        while (++index < parents.length) {
+          const parent = /** @type {Parent} */ (parents[index]);
+
+          if (
+            ignored(
+              parent,
+              // @ts-expect-error mdast vs. unist parent.
+              grandparent ? grandparent.children.indexOf(parent) : undefined,
+              grandparent
+            )
+          ) {
+            return
+          }
+
+          grandparent = parent;
+        }
+
+        if (grandparent) {
+          return handler(node, grandparent)
+        }
+      }
+
+      /**
+       * @param {Text} node
+       * @param {Parent} parent
+       * @returns {VisitorResult}
+       */
+      function handler(node, parent) {
+        const find = pairs[pairIndex][0];
+        const replace = pairs[pairIndex][1];
+        let start = 0;
+        // @ts-expect-error: TS is wrong, some of these children can be text.
+        let index = parent.children.indexOf(node);
+        /** @type {Array.<PhrasingContent>} */
+        let nodes = [];
+        /** @type {number|undefined} */
+        let position;
+
+        find.lastIndex = 0;
+
+        let match = find.exec(node.value);
+
+        while (match) {
+          position = match.index;
+          // @ts-expect-error this is perfectly fine, typescript.
+          let value = replace(...match, {
+            index: match.index,
+            input: match.input
+          });
+
+          if (typeof value === 'string') {
+            value = value.length > 0 ? {type: 'text', value} : undefined;
+          }
+
+          if (value !== false) {
+            if (start !== position) {
+              nodes.push({
+                type: 'text',
+                value: node.value.slice(start, position)
+              });
+            }
+
+            if (Array.isArray(value)) {
+              nodes.push(...value);
+            } else if (value) {
+              nodes.push(value);
+            }
+
+            start = position + match[0].length;
+          }
+
+          if (!find.global) {
+            break
+          }
+
+          match = find.exec(node.value);
+        }
+
+        if (position === undefined) {
+          nodes = [node];
+          index--;
+        } else {
+          if (start < node.value.length) {
+            nodes.push({type: 'text', value: node.value.slice(start)});
+          }
+
+          parent.children.splice(index, 1, ...nodes);
+        }
+
+        return index + nodes.length + 1
+      }
+    }
+  );
+
+/**
+ * @param {FindAndReplaceSchema|FindAndReplaceList} schema
+ * @returns {Pairs}
+ */
+function toPairs(schema) {
+  /** @type {Pairs} */
+  const result = [];
+
+  if (typeof schema !== 'object') {
+    throw new TypeError('Expected array or object as schema')
+  }
+
+  if (Array.isArray(schema)) {
+    let index = -1;
+
+    while (++index < schema.length) {
+      result.push([
+        toExpression(schema[index][0]),
+        toFunction(schema[index][1])
+      ]);
+    }
+  } else {
+    /** @type {string} */
+    let key;
+
+    for (key in schema) {
+      if (own$3.call(schema, key)) {
+        result.push([toExpression(key), toFunction(schema[key])]);
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * @param {Find} find
+ * @returns {RegExp}
+ */
+function toExpression(find) {
+  return typeof find === 'string' ? new RegExp(escapeStringRegexp(find), 'g') : find
+}
+
+/**
+ * @param {Replace} replace
+ * @returns {ReplaceFunction}
+ */
+function toFunction(replace) {
+  return typeof replace === 'function' ? replace : () => replace
+}
+
+/**
+ * @typedef {import('mdast').Link} Link
+ * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
+ * @typedef {import('mdast-util-from-markdown').Transform} FromMarkdownTransform
+ * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
+ * @typedef {import('mdast-util-to-markdown/lib/types.js').Options} ToMarkdownExtension
+ * @typedef {import('mdast-util-find-and-replace').ReplaceFunction} ReplaceFunction
+ * @typedef {import('mdast-util-find-and-replace').RegExpMatchObject} RegExpMatchObject
+ * @typedef {import('mdast-util-find-and-replace').PhrasingContent} PhrasingContent
+ */
+
+const inConstruct = 'phrasing';
+const notInConstruct = ['autolink', 'link', 'image', 'label'];
+
+/** @type {FromMarkdownExtension} */
+const gfmAutolinkLiteralFromMarkdown = {
+  transforms: [transformGfmAutolinkLiterals],
+  enter: {
+    literalAutolink: enterLiteralAutolink,
+    literalAutolinkEmail: enterLiteralAutolinkValue,
+    literalAutolinkHttp: enterLiteralAutolinkValue,
+    literalAutolinkWww: enterLiteralAutolinkValue
+  },
+  exit: {
+    literalAutolink: exitLiteralAutolink,
+    literalAutolinkEmail: exitLiteralAutolinkEmail,
+    literalAutolinkHttp: exitLiteralAutolinkHttp,
+    literalAutolinkWww: exitLiteralAutolinkWww
+  }
+};
+
+/** @type {ToMarkdownExtension} */
+const gfmAutolinkLiteralToMarkdown = {
+  unsafe: [
+    {
+      character: '@',
+      before: '[+\\-.\\w]',
+      after: '[\\-.\\w]',
+      inConstruct,
+      notInConstruct
+    },
+    {
+      character: '.',
+      before: '[Ww]',
+      after: '[\\-.\\w]',
+      inConstruct,
+      notInConstruct
+    },
+    {character: ':', before: '[ps]', after: '\\/', inConstruct, notInConstruct}
+  ]
+};
+
+/** @type {FromMarkdownHandle} */
+function enterLiteralAutolink(token) {
+  this.enter({type: 'link', title: null, url: '', children: []}, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function enterLiteralAutolinkValue(token) {
+  this.config.enter.autolinkProtocol.call(this, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitLiteralAutolinkHttp(token) {
+  this.config.exit.autolinkProtocol.call(this, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitLiteralAutolinkWww(token) {
+  this.config.exit.data.call(this, token);
+  const node = /** @type {Link} */ (this.stack[this.stack.length - 1]);
+  node.url = 'http://' + this.sliceSerialize(token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitLiteralAutolinkEmail(token) {
+  this.config.exit.autolinkEmail.call(this, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitLiteralAutolink(token) {
+  this.exit(token);
+}
+
+/** @type {FromMarkdownTransform} */
+function transformGfmAutolinkLiterals(tree) {
+  findAndReplace(
+    tree,
+    [
+      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
+    ],
+    {ignore: ['link', 'linkReference']}
+  );
+}
+
+/**
+ * @type {ReplaceFunction}
+ * @param {string} _
+ * @param {string} protocol
+ * @param {string} domain
+ * @param {string} path
+ * @param {RegExpMatchObject} match
+ */
+// eslint-disable-next-line max-params
+function findUrl(_, protocol, domain, path, match) {
+  let prefix = '';
+
+  // Not an expected previous character.
+  if (!previous(match)) {
+    return false
+  }
+
+  // Treat `www` as part of the domain.
+  if (/^w/i.test(protocol)) {
+    domain = protocol + domain;
+    protocol = '';
+    prefix = 'http://';
+  }
+
+  if (!isCorrectDomain(domain)) {
+    return false
+  }
+
+  const parts = splitUrl(domain + path);
+
+  if (!parts[0]) return false
+
+  /** @type {PhrasingContent} */
+  const result = {
+    type: 'link',
+    title: null,
+    url: prefix + protocol + parts[0],
+    children: [{type: 'text', value: protocol + parts[0]}]
+  };
+
+  if (parts[1]) {
+    return [result, {type: 'text', value: parts[1]}]
+  }
+
+  return result
+}
+
+/**
+ * @type {ReplaceFunction}
+ * @param {string} _
+ * @param {string} atext
+ * @param {string} label
+ * @param {RegExpMatchObject} match
+ */
+function findEmail(_, atext, label, match) {
+  if (
+    // Not an expected previous character.
+    !previous(match, true) ||
+    // Label ends in not allowed character.
+    /[_-\d]$/.test(label)
+  ) {
+    return false
+  }
+
+  return {
+    type: 'link',
+    title: null,
+    url: 'mailto:' + atext + '@' + label,
+    children: [{type: 'text', value: atext + '@' + label}]
+  }
+}
+
+/**
+ * @param {string} domain
+ * @returns {boolean}
+ */
+function isCorrectDomain(domain) {
+  const parts = domain.split('.');
+
+  if (
+    parts.length < 2 ||
+    (parts[parts.length - 1] &&
+      (/_/.test(parts[parts.length - 1]) ||
+        !/[a-zA-Z\d]/.test(parts[parts.length - 1]))) ||
+    (parts[parts.length - 2] &&
+      (/_/.test(parts[parts.length - 2]) ||
+        !/[a-zA-Z\d]/.test(parts[parts.length - 2])))
+  ) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * @param {string} url
+ * @returns {[string, string|undefined]}
+ */
+function splitUrl(url) {
+  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
+  /** @type {number} */
+  let closingParenIndex;
+  /** @type {number} */
+  let openingParens;
+  /** @type {number} */
+  let closingParens;
+  /** @type {string|undefined} */
+  let trail;
+
+  if (trailExec) {
+    url = url.slice(0, trailExec.index);
+    trail = trailExec[0];
+    closingParenIndex = trail.indexOf(')');
+    openingParens = ccount(url, '(');
+    closingParens = ccount(url, ')');
+
+    while (closingParenIndex !== -1 && openingParens > closingParens) {
+      url += trail.slice(0, closingParenIndex + 1);
+      trail = trail.slice(closingParenIndex + 1);
+      closingParenIndex = trail.indexOf(')');
+      closingParens++;
+    }
+  }
+
+  return [url, trail]
+}
+
+/**
+ * @param {RegExpMatchObject} match
+ * @param {boolean} [email=false]
+ * @returns {boolean}
+ */
+function previous(match, email) {
+  const code = match.input.charCodeAt(match.index - 1);
+
+  return (
+    (match.index === 0 ||
+      unicodeWhitespace(code) ||
+      unicodePunctuation(code)) &&
+    (!email || code !== 47)
+  )
+}
+
+/**
+ * @typedef {import('mdast').Delete} Delete
+ * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
+ * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
+ * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
+ * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
+ */
+
+/** @type {FromMarkdownExtension} */
+const gfmStrikethroughFromMarkdown = {
+  canContainEols: ['delete'],
+  enter: {strikethrough: enterStrikethrough},
+  exit: {strikethrough: exitStrikethrough}
+};
+
+/** @type {ToMarkdownExtension} */
+const gfmStrikethroughToMarkdown = {
+  unsafe: [{character: '~', inConstruct: 'phrasing'}],
+  handlers: {delete: handleDelete}
+};
+
+handleDelete.peek = peekDelete;
+
+/** @type {FromMarkdownHandle} */
+function enterStrikethrough(token) {
+  this.enter({type: 'delete', children: []}, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitStrikethrough(token) {
+  this.exit(token);
+}
+
+/**
+ * @type {ToMarkdownHandle}
+ * @param {Delete} node
+ */
+function handleDelete(node, _, context) {
+  const exit = context.enter('emphasis');
+  const value = containerPhrasing(node, context, {before: '~', after: '~'});
+  exit();
+  return '~~' + value + '~~'
+}
+
+/** @type {ToMarkdownHandle} */
+function peekDelete() {
+  return '~'
+}
+
+/**
+ * @typedef MarkdownTableOptions
+ * @property {string|null|Array.<string|null|undefined>} [align]
+ * @property {boolean} [padding=true]
+ * @property {boolean} [delimiterStart=true]
+ * @property {boolean} [delimiterStart=true]
+ * @property {boolean} [delimiterEnd=true]
+ * @property {boolean} [alignDelimiters=true]
+ * @property {(value: string) => number} [stringLength]
+ */
+
+/**
+ * Create a table from a matrix of strings.
+ *
+ * @param {Array.<Array.<string|null|undefined>>} table
+ * @param {MarkdownTableOptions} [options]
+ * @returns {string}
+ */
+function markdownTable(table, options) {
+  const settings = options || {};
+  const align = (settings.align || []).concat();
+  const stringLength = settings.stringLength || defaultStringLength;
+  /** @type {number[]} Character codes as symbols for alignment per column. */
+  const alignments = [];
+  let rowIndex = -1;
+  /** @type {string[][]} Cells per row. */
+  const cellMatrix = [];
+  /** @type {number[][]} Sizes of each cell per row. */
+  const sizeMatrix = [];
+  /** @type {number[]} */
+  const longestCellByColumn = [];
+  let mostCellsPerRow = 0;
+  /** @type {number} */
+  let columnIndex;
+  /** @type {string[]} Cells of current row */
+  let row;
+  /** @type {number[]} Sizes of current row */
+  let sizes;
+  /** @type {number} Sizes of current cell */
+  let size;
+  /** @type {string} Current cell */
+  let cell;
+  /** @type {string[]} Chunks of current line. */
+  let line;
+  /** @type {string} */
+  let before;
+  /** @type {string} */
+  let after;
+  /** @type {number} */
+  let code;
+
+  // This is a superfluous loop if we don’t align delimiters, but otherwise we’d
+  // do superfluous work when aligning, so optimize for aligning.
+  while (++rowIndex < table.length) {
+    columnIndex = -1;
+    row = [];
+    sizes = [];
+
+    if (table[rowIndex].length > mostCellsPerRow) {
+      mostCellsPerRow = table[rowIndex].length;
+    }
+
+    while (++columnIndex < table[rowIndex].length) {
+      cell = serialize(table[rowIndex][columnIndex]);
+
+      if (settings.alignDelimiters !== false) {
+        size = stringLength(cell);
+        sizes[columnIndex] = size;
+
+        if (
+          longestCellByColumn[columnIndex] === undefined ||
+          size > longestCellByColumn[columnIndex]
+        ) {
+          longestCellByColumn[columnIndex] = size;
+        }
+      }
+
+      row.push(cell);
+    }
+
+    cellMatrix[rowIndex] = row;
+    sizeMatrix[rowIndex] = sizes;
+  }
+
+  // Figure out which alignments to use.
+  columnIndex = -1;
+
+  if (typeof align === 'object' && 'length' in align) {
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = toAlignment(align[columnIndex]);
+    }
+  } else {
+    code = toAlignment(align);
+
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = code;
+    }
+  }
+
+  // Inject the alignment row.
+  columnIndex = -1;
+  row = [];
+  sizes = [];
+
+  while (++columnIndex < mostCellsPerRow) {
+    code = alignments[columnIndex];
+    before = '';
+    after = '';
+
+    if (code === 99 /* `c` */) {
+      before = ':';
+      after = ':';
+    } else if (code === 108 /* `l` */) {
+      before = ':';
+    } else if (code === 114 /* `r` */) {
+      after = ':';
+    }
+
+    // There *must* be at least one hyphen-minus in each alignment cell.
+    size =
+      settings.alignDelimiters === false
+        ? 1
+        : Math.max(
+            1,
+            longestCellByColumn[columnIndex] - before.length - after.length
+          );
+
+    cell = before + '-'.repeat(size) + after;
+
+    if (settings.alignDelimiters !== false) {
+      size = before.length + size + after.length;
+
+      if (size > longestCellByColumn[columnIndex]) {
+        longestCellByColumn[columnIndex] = size;
+      }
+
+      sizes[columnIndex] = size;
+    }
+
+    row[columnIndex] = cell;
+  }
+
+  // Inject the alignment row.
+  cellMatrix.splice(1, 0, row);
+  sizeMatrix.splice(1, 0, sizes);
+
+  rowIndex = -1;
+  /** @type {string[]} */
+  const lines = [];
+
+  while (++rowIndex < cellMatrix.length) {
+    row = cellMatrix[rowIndex];
+    sizes = sizeMatrix[rowIndex];
+    columnIndex = -1;
+    line = [];
+
+    while (++columnIndex < mostCellsPerRow) {
+      cell = row[columnIndex] || '';
+      before = '';
+      after = '';
+
+      if (settings.alignDelimiters !== false) {
+        size = longestCellByColumn[columnIndex] - (sizes[columnIndex] || 0);
+        code = alignments[columnIndex];
+
+        if (code === 114 /* `r` */) {
+          before = ' '.repeat(size);
+        } else if (code === 99 /* `c` */) {
+          if (size % 2) {
+            before = ' '.repeat(size / 2 + 0.5);
+            after = ' '.repeat(size / 2 - 0.5);
+          } else {
+            before = ' '.repeat(size / 2);
+            after = before;
+          }
+        } else {
+          after = ' '.repeat(size);
+        }
+      }
+
+      if (settings.delimiterStart !== false && !columnIndex) {
+        line.push('|');
+      }
+
+      if (
+        settings.padding !== false &&
+        // Don’t add the opening space if we’re not aligning and the cell is
+        // empty: there will be a closing space.
+        !(settings.alignDelimiters === false && cell === '') &&
+        (settings.delimiterStart !== false || columnIndex)
+      ) {
+        line.push(' ');
+      }
+
+      if (settings.alignDelimiters !== false) {
+        line.push(before);
+      }
+
+      line.push(cell);
+
+      if (settings.alignDelimiters !== false) {
+        line.push(after);
+      }
+
+      if (settings.padding !== false) {
+        line.push(' ');
+      }
+
+      if (
+        settings.delimiterEnd !== false ||
+        columnIndex !== mostCellsPerRow - 1
+      ) {
+        line.push('|');
+      }
+    }
+
+    lines.push(
+      settings.delimiterEnd === false
+        ? line.join('').replace(/ +$/, '')
+        : line.join('')
+    );
+  }
+
+  return lines.join('\n')
+}
+
+/**
+ * @param {string|null|undefined} [value]
+ * @returns {string}
+ */
+function serialize(value) {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+/**
+ * @param {string} value
+ * @returns {number}
+ */
+function defaultStringLength(value) {
+  return value.length
+}
+
+/**
+ * @param {string|null|undefined} value
+ * @returns {number}
+ */
+function toAlignment(value) {
+  const code = typeof value === 'string' ? value.charCodeAt(0) : 0;
+
+  return code === 67 /* `C` */ || code === 99 /* `c` */
+    ? 99 /* `c` */
+    : code === 76 /* `L` */ || code === 108 /* `l` */
+    ? 108 /* `l` */
+    : code === 82 /* `R` */ || code === 114 /* `r` */
+    ? 114 /* `r` */
+    : 0
+}
+
+/**
+ * @typedef {import('mdast').AlignType} AlignType
+ * @typedef {import('mdast').Table} Table
+ * @typedef {import('mdast').TableRow} TableRow
+ * @typedef {import('mdast').TableCell} TableCell
+ * @typedef {import('mdast').InlineCode} InlineCode
+ * @typedef {import('markdown-table').MarkdownTableOptions} MarkdownTableOptions
+ * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
+ * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
+ * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
+ * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
+ * @typedef {import('mdast-util-to-markdown').Context} ToMarkdownContext
+ *
+ * @typedef Options
+ * @property {boolean} [tableCellPadding=true]
+ * @property {boolean} [tablePipeAlign=true]
+ * @property {MarkdownTableOptions['stringLength']} [stringLength]
+ */
+
+/** @type {FromMarkdownExtension} */
+const gfmTableFromMarkdown = {
+  enter: {
+    table: enterTable,
+    tableData: enterCell,
+    tableHeader: enterCell,
+    tableRow: enterRow
+  },
+  exit: {
+    codeText: exitCodeText,
+    table: exitTable,
+    tableData: exit,
+    tableHeader: exit,
+    tableRow: exit
+  }
+};
+
+/** @type {FromMarkdownHandle} */
+function enterTable(token) {
+  /** @type {AlignType[]} */
+  // @ts-expect-error: `align` is custom.
+  const align = token._align;
+  this.enter({type: 'table', align, children: []}, token);
+  this.setData('inTable', true);
+}
+
+/** @type {FromMarkdownHandle} */
+function exitTable(token) {
+  this.exit(token);
+  this.setData('inTable');
+}
+
+/** @type {FromMarkdownHandle} */
+function enterRow(token) {
+  this.enter({type: 'tableRow', children: []}, token);
+}
+
+/** @type {FromMarkdownHandle} */
+function exit(token) {
+  this.exit(token);
+}
+
+/** @type {FromMarkdownHandle} */
+function enterCell(token) {
+  this.enter({type: 'tableCell', children: []}, token);
+}
+
+// Overwrite the default code text data handler to unescape escaped pipes when
+// they are in tables.
+/** @type {FromMarkdownHandle} */
+function exitCodeText(token) {
+  let value = this.resume();
+
+  if (this.getData('inTable')) {
+    value = value.replace(/\\([\\|])/g, replace);
+  }
+
+  const node = /** @type {InlineCode} */ (this.stack[this.stack.length - 1]);
+  node.value = value;
+  this.exit(token);
+}
+
+/**
+ * @param {string} $0
+ * @param {string} $1
+ * @returns {string}
+ */
+function replace($0, $1) {
+  // Pipes work, backslashes don’t (but can’t escape pipes).
+  return $1 === '|' ? $1 : $0
+}
+
+/**
+ * @param {Options} [options]
+ * @returns {ToMarkdownExtension}
+ */
+function gfmTableToMarkdown(options) {
+  const settings = options || {};
+  const padding = settings.tableCellPadding;
+  const alignDelimiters = settings.tablePipeAlign;
+  const stringLength = settings.stringLength;
+  const around = padding ? ' ' : '|';
+
+  return {
+    unsafe: [
+      {character: '\r', inConstruct: 'tableCell'},
+      {character: '\n', inConstruct: 'tableCell'},
+      // A pipe, when followed by a tab or space (padding), or a dash or colon
+      // (unpadded delimiter row), could result in a table.
+      {atBreak: true, character: '|', after: '[\t :-]'},
+      // A pipe in a cell must be encoded.
+      {character: '|', inConstruct: 'tableCell'},
+      // A colon must be followed by a dash, in which case it could start a
+      // delimiter row.
+      {atBreak: true, character: ':', after: '-'},
+      // A delimiter row can also start with a dash, when followed by more
+      // dashes, a colon, or a pipe.
+      // This is a stricter version than the built in check for lists, thematic
+      // breaks, and setex heading underlines though:
+      // <https://github.com/syntax-tree/mdast-util-to-markdown/blob/51a2038/lib/unsafe.js#L57>
+      {atBreak: true, character: '-', after: '[:|-]'}
+    ],
+    handlers: {
+      table: handleTable,
+      tableRow: handleTableRow,
+      tableCell: handleTableCell,
+      inlineCode: inlineCodeWithTable
+    }
+  }
+
+  /**
+   * @type {ToMarkdownHandle}
+   * @param {Table} node
+   */
+  function handleTable(node, _, context) {
+    // @ts-expect-error: fixed in `markdown-table@3.0.1`.
+    return serializeData(handleTableAsData(node, context), node.align)
+  }
+
+  /**
+   * This function isn’t really used normally, because we handle rows at the
+   * table level.
+   * But, if someone passes in a table row, this ensures we make somewhat sense.
+   *
+   * @type {ToMarkdownHandle}
+   * @param {TableRow} node
+   */
+  function handleTableRow(node, _, context) {
+    const row = handleTableRowAsData(node, context);
+    // `markdown-table` will always add an align row
+    const value = serializeData([row]);
+    return value.slice(0, value.indexOf('\n'))
+  }
+
+  /**
+   * @type {ToMarkdownHandle}
+   * @param {TableCell} node
+   */
+  function handleTableCell(node, _, context) {
+    const exit = context.enter('tableCell');
+    const subexit = context.enter('phrasing');
+    const value = containerPhrasing(node, context, {
+      before: around,
+      after: around
+    });
+    subexit();
+    exit();
+    return value
+  }
+
+  /**
+   * @param {Array.<Array.<string>>} matrix
+   * @param {Array.<string>} [align]
+   */
+  function serializeData(matrix, align) {
+    return markdownTable(matrix, {
+      align,
+      alignDelimiters,
+      padding,
+      stringLength
+    })
+  }
+
+  /**
+   * @param {Table} node
+   * @param {ToMarkdownContext} context
+   */
+  function handleTableAsData(node, context) {
+    const children = node.children;
+    let index = -1;
+    /** @type {Array.<Array.<string>>} */
+    const result = [];
+    const subexit = context.enter('table');
+
+    while (++index < children.length) {
+      result[index] = handleTableRowAsData(children[index], context);
+    }
+
+    subexit();
+
+    return result
+  }
+
+  /**
+   * @param {TableRow} node
+   * @param {ToMarkdownContext} context
+   */
+  function handleTableRowAsData(node, context) {
+    const children = node.children;
+    let index = -1;
+    /** @type {Array.<string>} */
+    const result = [];
+    const subexit = context.enter('tableRow');
+
+    while (++index < children.length) {
+      result[index] = handleTableCell(children[index], node, context);
+    }
+
+    subexit();
+
+    return result
+  }
+
+  /**
+   * @type {ToMarkdownHandle}
+   * @param {InlineCode} node
+   */
+  function inlineCodeWithTable(node, parent, context) {
+    let value = inlineCode(node, parent, context);
+
+    if (context.stack.includes('tableCell')) {
+      value = value.replace(/\|/g, '\\$&');
+    }
+
+    return value
+  }
+}
+
+/**
+ * @typedef {import('mdast').ListItem} ListItem
+ * @typedef {import('mdast').Paragraph} Paragraph
+ * @typedef {import('mdast').BlockContent} BlockContent
+ * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
+ * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
+ * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
+ * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
+ */
+
+/** @type {FromMarkdownExtension} */
+const gfmTaskListItemFromMarkdown = {
+  exit: {
+    taskListCheckValueChecked: exitCheck,
+    taskListCheckValueUnchecked: exitCheck,
+    paragraph: exitParagraphWithTaskListItem
+  }
+};
+
+/** @type {ToMarkdownExtension} */
+const gfmTaskListItemToMarkdown = {
+  unsafe: [{atBreak: true, character: '-', after: '[:|-]'}],
+  handlers: {listItem: listItemWithTaskListItem}
+};
+
+/** @type {FromMarkdownHandle} */
+function exitCheck(token) {
+  // We’re always in a paragraph, in a list item.
+  this.stack[this.stack.length - 2].checked =
+    token.type === 'taskListCheckValueChecked';
+}
+
+/** @type {FromMarkdownHandle} */
+function exitParagraphWithTaskListItem(token) {
+  const parent = this.stack[this.stack.length - 2];
+  /** @type {Paragraph} */
+  // @ts-expect-error: must be true.
+  const node = this.stack[this.stack.length - 1];
+  /** @type {BlockContent[]} */
+  // @ts-expect-error: check whether `parent` is a `listItem` later.
+  const siblings = parent.children;
+  const head = node.children[0];
+  let index = -1;
+  /** @type {Paragraph|undefined} */
+  let firstParaghraph;
+
+  if (
+    parent &&
+    parent.type === 'listItem' &&
+    typeof parent.checked === 'boolean' &&
+    head &&
+    head.type === 'text'
+  ) {
+    while (++index < siblings.length) {
+      const sibling = siblings[index];
+      if (sibling.type === 'paragraph') {
+        firstParaghraph = sibling;
+        break
+      }
+    }
+
+    if (firstParaghraph === node) {
+      // Must start with a space or a tab.
+      head.value = head.value.slice(1);
+
+      if (head.value.length === 0) {
+        node.children.shift();
+      } else {
+        // @ts-expect-error: must be true.
+        head.position.start.column++;
+        // @ts-expect-error: must be true.
+        head.position.start.offset++;
+        // @ts-expect-error: must be true.
+        node.position.start = Object.assign({}, head.position.start);
+      }
+    }
+  }
+
+  this.exit(token);
+}
+
+/**
+ * @type {ToMarkdownHandle}
+ * @param {ListItem} node
+ */
+function listItemWithTaskListItem(node, parent, context) {
+  const head = node.children[0];
+  let value = listItem(node, parent, context);
+
+  if (typeof node.checked === 'boolean' && head && head.type === 'paragraph') {
+    value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
+  }
+
+  return value
+
+  /**
+   * @param {string} $0
+   * @returns {string}
+   */
+  function check($0) {
+    return $0 + '[' + (node.checked ? 'x' : ' ') + '] '
+  }
+}
+
+/**
+ * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
+ * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
+ *
+ * @typedef {import('mdast-util-gfm-table').Options} Options
+ */
+
+/**
+ * @type {Array.<FromMarkdownExtension>}
+ */
+const gfmFromMarkdown = [
+  gfmAutolinkLiteralFromMarkdown,
+  gfmStrikethroughFromMarkdown,
+  gfmTableFromMarkdown,
+  gfmTaskListItemFromMarkdown
+];
+
+/**
+ * @param {Options} [options]
+ * @returns {ToMarkdownExtension}
+ */
+function gfmToMarkdown(options) {
+  return {
+    extensions: [
+      gfmAutolinkLiteralToMarkdown,
+      gfmStrikethroughToMarkdown,
+      gfmTableToMarkdown(options),
+      gfmTaskListItemToMarkdown
+    ]
+  }
+}
+
+/**
+ * @typedef {import('mdast').Root} Root
+ * @typedef {import('micromark-extension-gfm').Options & import('mdast-util-gfm').Options} Options
+ */
+
+/**
+ * Plugin to support GitHub Flavored Markdown (GFM).
+ *
+ * @type {import('unified').Plugin<[Options?]|void[], Root>}
+ */
+function remarkGfm(options = {}) {
+  const data = this.data();
+
+  add('micromarkExtensions', gfm(options));
+  add('fromMarkdownExtensions', gfmFromMarkdown);
+  add('toMarkdownExtensions', gfmToMarkdown(options));
+
+  /**
+   * @param {string} field
+   * @param {unknown} value
+   */
+  function add(field, value) {
+    const list = /** @type {unknown[]} */ (
+      // Other extensions
+      /* c8 ignore next 2 */
+      data[field] ? data[field] : (data[field] = [])
+    );
+
+    list.push(value);
+  }
+}
+
+/**
+ * @typedef {import('unist').Point} Point
+ * @typedef {import('vfile').VFile} VFile
+ *
+ * @typedef {Pick<Point, 'line'|'column'>} PositionalPoint
+ * @typedef {Required<Point>} FullPoint
+ * @typedef {NonNullable<Point['offset']>} Offset
+ */
+
+/**
+ * Get transform functions for the given `document`.
+ *
+ * @param {string|Uint8Array|VFile} file
+ */
+function location(file) {
+  var value = String(file);
+  /** @type {Array.<number>} */
+  var indices = [];
+  var search = /\r?\n|\r/g;
+
+  while (search.test(value)) {
+    indices.push(search.lastIndex);
+  }
+
+  indices.push(value.length + 1);
+
+  return {toPoint, toOffset}
+
+  /**
+   * Get the line and column-based `point` for `offset` in the bound indices.
+   * Returns a point with `undefined` values when given invalid or out of bounds
+   * input.
+   *
+   * @param {Offset} offset
+   * @returns {FullPoint}
+   */
+  function toPoint(offset) {
+    var index = -1;
+
+    if (offset > -1 && offset < indices[indices.length - 1]) {
+      while (++index < indices.length) {
+        if (indices[index] > offset) {
+          return {
+            line: index + 1,
+            column: offset - (indices[index - 1] || 0) + 1,
+            offset
+          }
+        }
+      }
+    }
+
+    return {line: undefined, column: undefined, offset: undefined}
+  }
+
+  /**
+   * Get the `offset` for a line and column-based `point` in the bound indices.
+   * Returns `-1` when given invalid or out of bounds input.
+   *
+   * @param {PositionalPoint} point
+   * @returns {Offset}
+   */
+  function toOffset(point) {
+    var line = point && point.line;
+    var column = point && point.column;
+    /** @type {number} */
+    var offset;
+
+    if (
+      typeof line === 'number' &&
+      typeof column === 'number' &&
+      !Number.isNaN(line) &&
+      !Number.isNaN(column) &&
+      line - 1 in indices
+    ) {
+      offset = (indices[line - 2] || 0) + column - 1 || 0;
+    }
+
+    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
+  }
+}
+
+/**
  * @typedef {import('unist').Node} Node
  * @typedef {import('unist').Parent} Parent
  * @typedef {import('unist-util-is').Test} Test
@@ -14130,7 +17328,7 @@ const visit =
  * @property {boolean} state
  */
 
-const own$3 = {}.hasOwnProperty;
+const own$2 = {}.hasOwnProperty;
 
 /**
  * @type {import('unified').Plugin<[Options]>}
@@ -14340,7 +17538,7 @@ function messageControl(options) {
       // Toggle all known rules.
       if (!ruleId) {
         for (ruleId in scope) {
-          if (own$3.call(scope, ruleId)) {
+          if (own$2.call(scope, ruleId)) {
             toggle(point, state, ruleId);
           }
         }
@@ -14466,13 +17664,15 @@ function detectGaps(tree, file) {
 
 /**
  * @typedef {string|number|boolean} MarkerParameterValue
+ * @typedef {import('mdast').Root} Root
+ * @typedef {import('mdast').Content} Content
+ * @typedef {import('mdast').HTML} HTML
+ * @typedef {import('mdast-util-mdx-expression').MDXFlowExpression} MDXFlowExpression
+ * @typedef {import('mdast-util-mdx-expression').MDXTextExpression} MDXTextExpression
+ * @typedef {Root|Content} Node
  * @typedef {Object.<string, MarkerParameterValue>} MarkerParameters
  *
- * @typedef HtmlNode
- * @property {'html'} type
- * @property {string} value
- *
- * @typedef CommentNode
+ * @typedef Mdx1CommentNode
  * @property {'comment'} type
  * @property {string} value
  *
@@ -14480,53 +17680,58 @@ function detectGaps(tree, file) {
  * @property {string} name
  * @property {string} attributes
  * @property {MarkerParameters|null} parameters
- * @property {HtmlNode|CommentNode} node
+ * @property {HTML|Mdx1CommentNode|MDXFlowExpression|MDXTextExpression} node
  */
 
-var commentExpression = /\s*([a-zA-Z\d-]+)(\s+([\s\S]*))?\s*/;
-
-var markerExpression = new RegExp(
+const commentExpression = /\s*([a-zA-Z\d-]+)(\s+([\s\S]*))?\s*/;
+const esCommentExpression = new RegExp(
+  '(\\s*\\/\\*' + commentExpression.source + '\\*\\/\\s*)'
+);
+const markerExpression = new RegExp(
   '(\\s*<!--' + commentExpression.source + '-->\\s*)'
 );
 
 /**
  * Parse a comment marker.
- * @param {unknown} node
+ * @param {unknown} value
  * @returns {Marker|null}
  */
-function commentMarker(node) {
-  /** @type {RegExpMatchArray} */
-  var match;
-  /** @type {number} */
-  var offset;
-  /** @type {MarkerParameters} */
-  var parameters;
-
+function commentMarker(value) {
   if (
-    node &&
-    typeof node === 'object' &&
-    // @ts-ignore hush
-    (node.type === 'html' || node.type === 'comment')
+    isNode(value) &&
+    (value.type === 'html' ||
+      // @ts-expect-error: MDX@1
+      value.type === 'comment' ||
+      value.type === 'mdxFlowExpression' ||
+      value.type === 'mdxTextExpression')
   ) {
-    // @ts-ignore hush
-    match = node.value.match(
-      // @ts-ignore hush
-      node.type === 'comment' ? commentExpression : markerExpression
-    );
+    let offset = 2;
+    /** @type {RegExpMatchArray|null|undefined} */
+    let match;
 
-    // @ts-ignore hush
-    if (match && match[0].length === node.value.length) {
-      // @ts-ignore hush
-      offset = node.type === 'comment' ? 1 : 2;
-      parameters = parseParameters(match[offset + 1] || '');
+    // @ts-expect-error: MDX@1
+    if (value.type === 'comment') {
+      // @ts-expect-error: MDX@1
+      match = value.value.match(commentExpression);
+      offset = 1;
+    } else if (value.type === 'html') {
+      match = value.value.match(markerExpression);
+    } else if (
+      value.type === 'mdxFlowExpression' ||
+      value.type === 'mdxTextExpression'
+    ) {
+      match = value.value.match(esCommentExpression);
+    }
+
+    if (match && match[0].length === value.value.length) {
+      const parameters = parseParameters(match[offset + 1] || '');
 
       if (parameters) {
         return {
           name: match[offset],
-          attributes: match[offset + 2] || '',
+          attributes: (match[offset + 2] || '').trim(),
           parameters,
-          // @ts-ignore hush
-          node
+          node: value
         }
       }
     }
@@ -14543,7 +17748,7 @@ function commentMarker(node) {
  */
 function parseParameters(value) {
   /** @type {MarkerParameters} */
-  var parameters = {};
+  const parameters = {};
 
   return value
     .replace(
@@ -14564,7 +17769,7 @@ function parseParameters(value) {
   // eslint-disable-next-line max-params
   function replacer(_, $1, $2, $3, $4) {
     /** @type {MarkerParameterValue} */
-    var value = $2 || $3 || $4 || '';
+    let value = $2 || $3 || $4 || '';
 
     if (value === 'true' || value === '') {
       value = true;
@@ -14581,6 +17786,14 @@ function parseParameters(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is Node}
+ */
+function isNode(value) {
+  return Boolean(value && typeof value === 'object' && 'type' in value)
+}
+
+/**
  * @typedef {import('mdast').Root} Root
  * @typedef {import('vfile').VFile} VFile
  * @typedef {import('unified-message-control')} MessageControl
@@ -14589,7 +17802,9 @@ function parseParameters(value) {
 
 const test = [
   'html', // Comments are `html` nodes in mdast.
-  'comment' // In MDX, comments have their own node.
+  'comment', // In MDX@1, comments have their own node.
+  'mdxFlowExpression', // In MDX@2, comments exist in bracketed expressions.
+  'mdxTextExpression'
 ];
 
 /**
@@ -16730,7 +19945,7 @@ var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
  *   1:1-1:27: Found unused definition
  */
 
-const own$2 = {}.hasOwnProperty;
+const own$1 = {}.hasOwnProperty;
 
 const remarkLintNoUnusedDefinitions = lintRule(
   {
@@ -16769,7 +19984,7 @@ const remarkLintNoUnusedDefinitions = lintRule(
     let identifier;
 
     for (identifier in map) {
-      if (own$2.call(map, identifier)) {
+      if (own$1.call(map, identifier)) {
         const entry = map[identifier];
 
         if (!entry.used) {
@@ -18127,10 +21342,20 @@ const remarkLintMaximumLineLength = lintRule(
           node.type === 'code' ||
           node.type === 'definition' ||
           node.type === 'html' ||
-          // @ts-expect-error: JSX is from MDX: <https://github.com/mdx-js/specification>.
+          // @ts-expect-error: These are from MDX@1 and MDX@2: <https://github.com/mdx-js/specification>.
           node.type === 'jsx' ||
+          // @ts-expect-error: MDX
+          node.type === 'mdxFlowExpression' ||
+          // @ts-expect-error: MDX
+          node.type === 'mdxJsxFlowElement' ||
+          // @ts-expect-error: MDX
+          node.type === 'mdxJsxTextElement' ||
+          // @ts-expect-error: MDX
+          node.type === 'mdxTextExpression' ||
+          // @ts-expect-error: MDX
+          node.type === 'mdxjsEsm' ||
           node.type === 'yaml' ||
-          // @ts-expect-error: TOML is from frontmatter.
+          // @ts-expect-error: YAML and TOML are from frontmatter.
           node.type === 'toml') &&
         !generated(node)
       ) {
@@ -18252,6 +21477,8 @@ var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
  *   4:5: Remove 2 lines after node
  */
 
+const unknownContainerSize = new Set(['mdxJsxFlowElement', 'mdxJsxTextElement']);
+
 const remarkLintNoConsecutiveBlankLines = lintRule(
   {
     origin: 'remark-lint:no-consecutive-blank-lines',
@@ -18264,8 +21491,10 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
         const head = node.children[0];
 
         if (head && !generated(head)) {
-          // Compare parent and first child.
-          compare(pointStart(node), pointStart(head), 0);
+          if (!unknownContainerSize.has(node.type)) {
+            // Compare parent and first child.
+            compare(pointStart(node), pointStart(head), 0);
+          }
 
           // Compare between each child.
           let index = -1;
@@ -18282,7 +21511,11 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
           const tail = node.children[node.children.length - 1];
 
           // Compare parent and last child.
-          if (tail !== head && !generated(tail)) {
+          if (
+            tail !== head &&
+            !generated(tail) &&
+            !unknownContainerSize.has(node.type)
+          ) {
             compare(pointEnd(node), pointEnd(tail), 1);
           }
         }
@@ -24179,18 +27412,6 @@ const remarkLintNodejsYamlComments = lintRule(
   validateYAMLComments
 );
 
-function escapeStringRegexp(string) {
-	if (typeof string !== 'string') {
-		throw new TypeError('Expected a string');
-	}
-
-	// Escape characters with special meaning either inside or outside character sets.
-	// Use a simple backslash escape when it’s always valid, and a `\xnn` escape when the simpler form would be disallowed by Unicode patterns’ stricter grammar.
-	return string
-		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
-		.replace(/-/g, '\\x2d');
-}
-
 const remarkLintProhibitedStrings = lintRule('remark-lint:prohibited-strings', prohibitedStrings);
 
 function testProhibited (val, content) {
@@ -24656,10 +27877,19 @@ const remarkLintTableCellPadding = lintRule(
       /* c8 ignore next */
       const align = node.align || [];
       /** @type {number[]} */
-      const sizes = Array.from({length: align.length});
+      const sizes = [];
       /** @type {Entry[]} */
       const entries = [];
       let index = -1;
+
+      // Check align row.
+      // Because there’s zero to two `:`, and there must be one `-`.
+      while (++index < align.length) {
+        const alignment = align[index];
+        sizes[index] = alignment === 'center' ? 3 : alignment ? 2 : 1;
+      }
+
+      index = -1;
 
       // Check rows.
       while (++index < rows.length) {
@@ -24696,6 +27926,8 @@ const remarkLintTableCellPadding = lintRule(
 
             // Detect max space per column.
             sizes[column] = Math.max(
+              // More cells could exist than the align row for generated tables.
+              /* c8 ignore next */
               sizes[column] || 0,
               contentEnd - contentStart
             );
@@ -25006,9 +28238,15 @@ var remarkLintUnorderedListMarkerStyle$1 = remarkLintUnorderedListMarkerStyle;
 
 // @see https://github.com/nodejs/node/blob/HEAD/doc/guides/doc-style-guide.md
 
-// Add in rules alphabetically
+// Remove remark-lint-no-auto-link-without-protocol
+remarkPresetLintRecommended$1.plugins =
+  remarkPresetLintRecommended$1.plugins.filter(
+    (fn) => fn.name !== "remark-lint:no-auto-link-without-protocol"
+  );
+
+// Add in rules alphabetically after Gfm and PresetLintRecommended.
 const plugins = [
-  // Leave preset at the top so it can be overridden
+  remarkGfm,
   remarkPresetLintRecommended$1,
   [remarkLintBlockquoteIndentation$1, 2],
   [remarkLintCheckboxCharacterStyle$1, { checked: "x", unchecked: " " }],
@@ -25089,3191 +28327,6 @@ const settings = {
 };
 
 const remarkPresetLintNode = { plugins, settings };
-
-/**
- * @typedef {import('micromark-util-types').Extension} Extension
- * @typedef {import('micromark-util-types').ConstructRecord} ConstructRecord
- * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
- * @typedef {import('micromark-util-types').Previous} Previous
- * @typedef {import('micromark-util-types').State} State
- * @typedef {import('micromark-util-types').Event} Event
- * @typedef {import('micromark-util-types').Code} Code
- */
-const www = {
-  tokenize: tokenizeWww,
-  partial: true
-};
-const domain = {
-  tokenize: tokenizeDomain,
-  partial: true
-};
-const path = {
-  tokenize: tokenizePath,
-  partial: true
-};
-const punctuation = {
-  tokenize: tokenizePunctuation,
-  partial: true
-};
-const namedCharacterReference = {
-  tokenize: tokenizeNamedCharacterReference,
-  partial: true
-};
-const wwwAutolink = {
-  tokenize: tokenizeWwwAutolink,
-  previous: previousWww
-};
-const httpAutolink = {
-  tokenize: tokenizeHttpAutolink,
-  previous: previousHttp
-};
-const emailAutolink = {
-  tokenize: tokenizeEmailAutolink,
-  previous: previousEmail
-};
-/** @type {ConstructRecord} */
-
-const text = {};
-/** @type {Extension} */
-
-const gfmAutolinkLiteral = {
-  text
-};
-let code = 48; // Add alphanumerics.
-
-while (code < 123) {
-  text[code] = emailAutolink;
-  code++;
-  if (code === 58) code = 65;
-  else if (code === 91) code = 97;
-}
-
-text[43] = emailAutolink;
-text[45] = emailAutolink;
-text[46] = emailAutolink;
-text[95] = emailAutolink;
-text[72] = [emailAutolink, httpAutolink];
-text[104] = [emailAutolink, httpAutolink];
-text[87] = [emailAutolink, wwwAutolink];
-text[119] = [emailAutolink, wwwAutolink];
-/** @type {Tokenizer} */
-
-function tokenizeEmailAutolink(effects, ok, nok) {
-  const self = this;
-  /** @type {boolean} */
-
-  let hasDot;
-  /** @type {boolean|undefined} */
-
-  let hasDigitInLastSegment;
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    if (
-      !gfmAtext(code) ||
-      !previousEmail(self.previous) ||
-      previousUnbalanced(self.events)
-    ) {
-      return nok(code)
-    }
-
-    effects.enter('literalAutolink');
-    effects.enter('literalAutolinkEmail');
-    return atext(code)
-  }
-  /** @type {State} */
-
-  function atext(code) {
-    if (gfmAtext(code)) {
-      effects.consume(code);
-      return atext
-    }
-
-    if (code === 64) {
-      effects.consume(code);
-      return label
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function label(code) {
-    if (code === 46) {
-      return effects.check(punctuation, done, dotContinuation)(code)
-    }
-
-    if (code === 45 || code === 95) {
-      return effects.check(punctuation, nok, dashOrUnderscoreContinuation)(code)
-    }
-
-    if (asciiAlphanumeric(code)) {
-      if (!hasDigitInLastSegment && asciiDigit(code)) {
-        hasDigitInLastSegment = true;
-      }
-
-      effects.consume(code);
-      return label
-    }
-
-    return done(code)
-  }
-  /** @type {State} */
-
-  function dotContinuation(code) {
-    effects.consume(code);
-    hasDot = true;
-    hasDigitInLastSegment = undefined;
-    return label
-  }
-  /** @type {State} */
-
-  function dashOrUnderscoreContinuation(code) {
-    effects.consume(code);
-    return afterDashOrUnderscore
-  }
-  /** @type {State} */
-
-  function afterDashOrUnderscore(code) {
-    if (code === 46) {
-      return effects.check(punctuation, nok, dotContinuation)(code)
-    }
-
-    return label(code)
-  }
-  /** @type {State} */
-
-  function done(code) {
-    if (hasDot && !hasDigitInLastSegment) {
-      effects.exit('literalAutolinkEmail');
-      effects.exit('literalAutolink');
-      return ok(code)
-    }
-
-    return nok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeWwwAutolink(effects, ok, nok) {
-  const self = this;
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    if (
-      (code !== 87 && code !== 119) ||
-      !previousWww(self.previous) ||
-      previousUnbalanced(self.events)
-    ) {
-      return nok(code)
-    }
-
-    effects.enter('literalAutolink');
-    effects.enter('literalAutolinkWww'); // For `www.` we check instead of attempt, because when it matches, GH
-    // treats it as part of a domain (yes, it says a valid domain must come
-    // after `www.`, but that’s not how it’s implemented by them).
-
-    return effects.check(
-      www,
-      effects.attempt(domain, effects.attempt(path, done), nok),
-      nok
-    )(code)
-  }
-  /** @type {State} */
-
-  function done(code) {
-    effects.exit('literalAutolinkWww');
-    effects.exit('literalAutolink');
-    return ok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeHttpAutolink(effects, ok, nok) {
-  const self = this;
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    if (
-      (code !== 72 && code !== 104) ||
-      !previousHttp(self.previous) ||
-      previousUnbalanced(self.events)
-    ) {
-      return nok(code)
-    }
-
-    effects.enter('literalAutolink');
-    effects.enter('literalAutolinkHttp');
-    effects.consume(code);
-    return t1
-  }
-  /** @type {State} */
-
-  function t1(code) {
-    if (code === 84 || code === 116) {
-      effects.consume(code);
-      return t2
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function t2(code) {
-    if (code === 84 || code === 116) {
-      effects.consume(code);
-      return p
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function p(code) {
-    if (code === 80 || code === 112) {
-      effects.consume(code);
-      return s
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function s(code) {
-    if (code === 83 || code === 115) {
-      effects.consume(code);
-      return colon
-    }
-
-    return colon(code)
-  }
-  /** @type {State} */
-
-  function colon(code) {
-    if (code === 58) {
-      effects.consume(code);
-      return slash1
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function slash1(code) {
-    if (code === 47) {
-      effects.consume(code);
-      return slash2
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function slash2(code) {
-    if (code === 47) {
-      effects.consume(code);
-      return after
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function after(code) {
-    return code === null ||
-      asciiControl(code) ||
-      unicodeWhitespace(code) ||
-      unicodePunctuation(code)
-      ? nok(code)
-      : effects.attempt(domain, effects.attempt(path, done), nok)(code)
-  }
-  /** @type {State} */
-
-  function done(code) {
-    effects.exit('literalAutolinkHttp');
-    effects.exit('literalAutolink');
-    return ok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeWww(effects, ok, nok) {
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    effects.consume(code);
-    return w2
-  }
-  /** @type {State} */
-
-  function w2(code) {
-    if (code === 87 || code === 119) {
-      effects.consume(code);
-      return w3
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function w3(code) {
-    if (code === 87 || code === 119) {
-      effects.consume(code);
-      return dot
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function dot(code) {
-    if (code === 46) {
-      effects.consume(code);
-      return after
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function after(code) {
-    return code === null || markdownLineEnding(code) ? nok(code) : ok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeDomain(effects, ok, nok) {
-  /** @type {boolean|undefined} */
-  let hasUnderscoreInLastSegment;
-  /** @type {boolean|undefined} */
-
-  let hasUnderscoreInLastLastSegment;
-  return domain
-  /** @type {State} */
-
-  function domain(code) {
-    if (code === 38) {
-      return effects.check(
-        namedCharacterReference,
-        done,
-        punctuationContinuation
-      )(code)
-    }
-
-    if (code === 46 || code === 95) {
-      return effects.check(punctuation, done, punctuationContinuation)(code)
-    } // GH documents that only alphanumerics (other than `-`, `.`, and `_`) can
-    // occur, which sounds like ASCII only, but they also support `www.點看.com`,
-    // so that’s Unicode.
-    // Instead of some new production for Unicode alphanumerics, markdown
-    // already has that for Unicode punctuation and whitespace, so use those.
-
-    if (
-      code === null ||
-      asciiControl(code) ||
-      unicodeWhitespace(code) ||
-      (code !== 45 && unicodePunctuation(code))
-    ) {
-      return done(code)
-    }
-
-    effects.consume(code);
-    return domain
-  }
-  /** @type {State} */
-
-  function punctuationContinuation(code) {
-    if (code === 46) {
-      hasUnderscoreInLastLastSegment = hasUnderscoreInLastSegment;
-      hasUnderscoreInLastSegment = undefined;
-      effects.consume(code);
-      return domain
-    }
-
-    if (code === 95) hasUnderscoreInLastSegment = true;
-    effects.consume(code);
-    return domain
-  }
-  /** @type {State} */
-
-  function done(code) {
-    if (!hasUnderscoreInLastLastSegment && !hasUnderscoreInLastSegment) {
-      return ok(code)
-    }
-
-    return nok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizePath(effects, ok) {
-  let balance = 0;
-  return inPath
-  /** @type {State} */
-
-  function inPath(code) {
-    if (code === 38) {
-      return effects.check(
-        namedCharacterReference,
-        ok,
-        continuedPunctuation
-      )(code)
-    }
-
-    if (code === 40) {
-      balance++;
-    }
-
-    if (code === 41) {
-      return effects.check(
-        punctuation,
-        parenAtPathEnd,
-        continuedPunctuation
-      )(code)
-    }
-
-    if (pathEnd(code)) {
-      return ok(code)
-    }
-
-    if (trailingPunctuation(code)) {
-      return effects.check(punctuation, ok, continuedPunctuation)(code)
-    }
-
-    effects.consume(code);
-    return inPath
-  }
-  /** @type {State} */
-
-  function continuedPunctuation(code) {
-    effects.consume(code);
-    return inPath
-  }
-  /** @type {State} */
-
-  function parenAtPathEnd(code) {
-    balance--;
-    return balance < 0 ? ok(code) : continuedPunctuation(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeNamedCharacterReference(effects, ok, nok) {
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    effects.consume(code);
-    return inside
-  }
-  /** @type {State} */
-
-  function inside(code) {
-    if (asciiAlpha(code)) {
-      effects.consume(code);
-      return inside
-    }
-
-    if (code === 59) {
-      effects.consume(code);
-      return after
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function after(code) {
-    // If the named character reference is followed by the end of the path, it’s
-    // not continued punctuation.
-    return pathEnd(code) ? ok(code) : nok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizePunctuation(effects, ok, nok) {
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    effects.consume(code);
-    return after
-  }
-  /** @type {State} */
-
-  function after(code) {
-    // Check the next.
-    if (trailingPunctuation(code)) {
-      effects.consume(code);
-      return after
-    } // If the punctuation marker is followed by the end of the path, it’s not
-    // continued punctuation.
-
-    return pathEnd(code) ? ok(code) : nok(code)
-  }
-}
-/**
- * @param {Code} code
- * @returns {boolean}
- */
-
-function trailingPunctuation(code) {
-  return (
-    code === 33 ||
-    code === 34 ||
-    code === 39 ||
-    code === 41 ||
-    code === 42 ||
-    code === 44 ||
-    code === 46 ||
-    code === 58 ||
-    code === 59 ||
-    code === 60 ||
-    code === 63 ||
-    code === 95 ||
-    code === 126
-  )
-}
-/**
- * @param {Code} code
- * @returns {boolean}
- */
-
-function pathEnd(code) {
-  return code === null || code === 60 || markdownLineEndingOrSpace(code)
-}
-/**
- * @param {Code} code
- * @returns {boolean}
- */
-
-function gfmAtext(code) {
-  return (
-    code === 43 ||
-    code === 45 ||
-    code === 46 ||
-    code === 95 ||
-    asciiAlphanumeric(code)
-  )
-}
-/** @type {Previous} */
-
-function previousWww(code) {
-  return (
-    code === null ||
-    code === 40 ||
-    code === 42 ||
-    code === 95 ||
-    code === 126 ||
-    markdownLineEndingOrSpace(code)
-  )
-}
-/** @type {Previous} */
-
-function previousHttp(code) {
-  return code === null || !asciiAlpha(code)
-}
-/** @type {Previous} */
-
-function previousEmail(code) {
-  return code !== 47 && previousHttp(code)
-}
-/**
- * @param {Event[]} events
- * @returns {boolean}
- */
-
-function previousUnbalanced(events) {
-  let index = events.length;
-  let result = false;
-
-  while (index--) {
-    const token = events[index][1];
-
-    if (
-      (token.type === 'labelLink' || token.type === 'labelImage') &&
-      !token._balanced
-    ) {
-      result = true;
-      break
-    } // @ts-expect-error If we’ve seen this token, and it was marked as not
-    // having any unbalanced bracket before it, we can exit.
-
-    if (token._gfmAutolinkLiteralWalkedInto) {
-      result = false;
-      break
-    }
-  }
-
-  if (events.length > 0 && !result) {
-    // @ts-expect-error Mark the last token as “walked into” w/o finding
-    // anything.
-    events[events.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
-  }
-
-  return result
-}
-
-const characterReferences = {'"': 'quot', '&': 'amp', '<': 'lt', '>': 'gt'};
-
-/**
- * Encode only the dangerous HTML characters.
- *
- * This ensures that certain characters which have special meaning in HTML are
- * dealt with.
- * Technically, we can skip `>` and `"` in many cases, but CM includes them.
- *
- * @param {string} value
- * @returns {string}
- */
-function encode(value) {
-  return value.replace(/["&<>]/g, replace)
-
-  /**
-   * @param {string} value
-   * @returns {string}
-   */
-  function replace(value) {
-    // @ts-expect-error Hush, it’s fine.
-    return '&' + characterReferences[value] + ';'
-  }
-}
-
-/**
- * Make a value safe for injection as a URL.
- *
- * This encodes unsafe characters with percent-encoding and skips already
- * encoded sequences (see `normalizeUri` below).
- * Further unsafe characters are encoded as character references (see
- * `micromark-util-encode`).
- *
- * Then, a regex of allowed protocols can be given, in which case the URL is
- * sanitized.
- * For example, `/^(https?|ircs?|mailto|xmpp)$/i` can be used for `a[href]`,
- * or `/^https?$/i` for `img[src]`.
- * If the URL includes an unknown protocol (one not matched by `protocol`, such
- * as a dangerous example, `javascript:`), the value is ignored.
- *
- * @param {string|undefined} url
- * @param {RegExp} [protocol]
- * @returns {string}
- */
-function sanitizeUri(url, protocol) {
-  const value = encode(normalizeUri(url || ''));
-
-  if (!protocol) {
-    return value
-  }
-
-  const colon = value.indexOf(':');
-  const questionMark = value.indexOf('?');
-  const numberSign = value.indexOf('#');
-  const slash = value.indexOf('/');
-
-  if (
-    // If there is no protocol, it’s relative.
-    colon < 0 || // If the first colon is after a `?`, `#`, or `/`, it’s not a protocol.
-    (slash > -1 && colon > slash) ||
-    (questionMark > -1 && colon > questionMark) ||
-    (numberSign > -1 && colon > numberSign) || // It is a protocol, it should be allowed.
-    protocol.test(value.slice(0, colon))
-  ) {
-    return value
-  }
-
-  return ''
-}
-/**
- * Normalize a URL (such as used in definitions).
- *
- * Encode unsafe characters with percent-encoding, skipping already encoded
- * sequences.
- *
- * @param {string} value
- * @returns {string}
- */
-
-function normalizeUri(value) {
-  /** @type {string[]} */
-  const result = [];
-  let index = -1;
-  let start = 0;
-  let skip = 0;
-
-  while (++index < value.length) {
-    const code = value.charCodeAt(index);
-    /** @type {string} */
-
-    let replace = ''; // A correct percent encoded value.
-
-    if (
-      code === 37 &&
-      asciiAlphanumeric(value.charCodeAt(index + 1)) &&
-      asciiAlphanumeric(value.charCodeAt(index + 2))
-    ) {
-      skip = 2;
-    } // ASCII.
-    else if (code < 128) {
-      if (!/[!#$&-;=?-Z_a-z~]/.test(String.fromCharCode(code))) {
-        replace = String.fromCharCode(code);
-      }
-    } // Astral.
-    else if (code > 55295 && code < 57344) {
-      const next = value.charCodeAt(index + 1); // A correct surrogate pair.
-
-      if (code < 56320 && next > 56319 && next < 57344) {
-        replace = String.fromCharCode(code, next);
-        skip = 1;
-      } // Lone surrogate.
-      else {
-        replace = '\uFFFD';
-      }
-    } // Unicode.
-    else {
-      replace = String.fromCharCode(code);
-    }
-
-    if (replace) {
-      result.push(value.slice(start, index), encodeURIComponent(replace));
-      start = index + skip + 1;
-      replace = '';
-    }
-
-    if (skip) {
-      index += skip;
-      skip = 0;
-    }
-  }
-
-  return result.join('') + value.slice(start)
-}
-
-/**
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- * @typedef {import('micromark-util-types').Handle} Handle
- * @typedef {import('micromark-util-types').CompileContext} CompileContext
- * @typedef {import('micromark-util-types').Token} Token
- */
-/** @type {HtmlExtension} */
-
-const gfmAutolinkLiteralHtml = {
-  exit: {
-    literalAutolinkEmail,
-    literalAutolinkHttp,
-    literalAutolinkWww
-  }
-};
-/** @type {Handle} */
-
-function literalAutolinkWww(token) {
-  anchorFromToken.call(this, token, 'http://');
-}
-/** @type {Handle} */
-
-function literalAutolinkEmail(token) {
-  anchorFromToken.call(this, token, 'mailto:');
-}
-/** @type {Handle} */
-
-function literalAutolinkHttp(token) {
-  anchorFromToken.call(this, token);
-}
-/**
- * @this CompileContext
- * @param {Token} token
- * @param {string} [protocol]
- * @returns {void}
- */
-
-function anchorFromToken(token, protocol) {
-  const url = this.sliceSerialize(token);
-  this.tag('<a href="' + sanitizeUri((protocol || '') + url) + '">');
-  this.raw(this.encode(url));
-  this.tag('</a>');
-}
-
-/**
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- */
-
-/** @type {HtmlExtension} */
-const gfmStrikethroughHtml = {
-  enter: {
-    strikethrough() {
-      this.tag('<del>');
-    }
-  },
-  exit: {
-    strikethrough() {
-      this.tag('</del>');
-    }
-  }
-};
-
-/**
- * @typedef {import('micromark-util-types').Extension} Extension
- * @typedef {import('micromark-util-types').Resolver} Resolver
- * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
- * @typedef {import('micromark-util-types').State} State
- * @typedef {import('micromark-util-types').Token} Token
- * @typedef {import('micromark-util-types').Event} Event
- */
-
-/**
- * @param {Options} [options]
- * @returns {Extension}
- */
-function gfmStrikethrough(options = {}) {
-  let single = options.singleTilde;
-  const tokenizer = {
-    tokenize: tokenizeStrikethrough,
-    resolveAll: resolveAllStrikethrough
-  };
-
-  if (single === null || single === undefined) {
-    single = true;
-  }
-
-  return {
-    text: {
-      [126]: tokenizer
-    },
-    insideSpan: {
-      null: [tokenizer]
-    },
-    attentionMarkers: {
-      null: [126]
-    }
-  }
-  /**
-   * Take events and resolve strikethrough.
-   *
-   * @type {Resolver}
-   */
-
-  function resolveAllStrikethrough(events, context) {
-    let index = -1;
-    /** @type {Token} */
-
-    let strikethrough;
-    /** @type {Token} */
-
-    let text;
-    /** @type {number} */
-
-    let open;
-    /** @type {Event[]} */
-
-    let nextEvents; // Walk through all events.
-
-    while (++index < events.length) {
-      // Find a token that can close.
-      if (
-        events[index][0] === 'enter' &&
-        events[index][1].type === 'strikethroughSequenceTemporary' &&
-        events[index][1]._close
-      ) {
-        open = index; // Now walk back to find an opener.
-
-        while (open--) {
-          // Find a token that can open the closer.
-          if (
-            events[open][0] === 'exit' &&
-            events[open][1].type === 'strikethroughSequenceTemporary' &&
-            events[open][1]._open && // If the sizes are the same:
-            events[index][1].end.offset - events[index][1].start.offset ===
-              events[open][1].end.offset - events[open][1].start.offset
-          ) {
-            events[index][1].type = 'strikethroughSequence';
-            events[open][1].type = 'strikethroughSequence';
-            strikethrough = {
-              type: 'strikethrough',
-              start: Object.assign({}, events[open][1].start),
-              end: Object.assign({}, events[index][1].end)
-            };
-            text = {
-              type: 'strikethroughText',
-              start: Object.assign({}, events[open][1].end),
-              end: Object.assign({}, events[index][1].start)
-            }; // Opening.
-
-            nextEvents = [
-              ['enter', strikethrough, context],
-              ['enter', events[open][1], context],
-              ['exit', events[open][1], context],
-              ['enter', text, context]
-            ]; // Between.
-
-            splice(
-              nextEvents,
-              nextEvents.length,
-              0,
-              resolveAll(
-                context.parser.constructs.insideSpan.null,
-                events.slice(open + 1, index),
-                context
-              )
-            ); // Closing.
-
-            splice(nextEvents, nextEvents.length, 0, [
-              ['exit', text, context],
-              ['enter', events[index][1], context],
-              ['exit', events[index][1], context],
-              ['exit', strikethrough, context]
-            ]);
-            splice(events, open - 1, index - open + 3, nextEvents);
-            index = open + nextEvents.length - 2;
-            break
-          }
-        }
-      }
-    }
-
-    index = -1;
-
-    while (++index < events.length) {
-      if (events[index][1].type === 'strikethroughSequenceTemporary') {
-        events[index][1].type = 'data';
-      }
-    }
-
-    return events
-  }
-  /** @type {Tokenizer} */
-
-  function tokenizeStrikethrough(effects, ok, nok) {
-    const previous = this.previous;
-    const events = this.events;
-    let size = 0;
-    return start
-    /** @type {State} */
-
-    function start(code) {
-      if (
-        code !== 126 ||
-        (previous === 126 &&
-          events[events.length - 1][1].type !== 'characterEscape')
-      ) {
-        return nok(code)
-      }
-
-      effects.enter('strikethroughSequenceTemporary');
-      return more(code)
-    }
-    /** @type {State} */
-
-    function more(code) {
-      const before = classifyCharacter(previous);
-
-      if (code === 126) {
-        // If this is the third marker, exit.
-        if (size > 1) return nok(code)
-        effects.consume(code);
-        size++;
-        return more
-      }
-
-      if (size < 2 && !single) return nok(code)
-      const token = effects.exit('strikethroughSequenceTemporary');
-      const after = classifyCharacter(code);
-      token._open = !after || (after === 2 && Boolean(before));
-      token._close = !before || (before === 2 && Boolean(after));
-      return ok(code)
-    }
-  }
-}
-
-/**
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- */
-
-/**
- * @typedef {import('./syntax.js').Align} Align
- */
-const alignment = {
-  null: '',
-  left: ' align="left"',
-  right: ' align="right"',
-  center: ' align="center"'
-};
-/** @type {HtmlExtension} */
-
-const gfmTableHtml = {
-  enter: {
-    table(token) {
-      this.lineEndingIfNeeded();
-      this.tag('<table>'); // @ts-expect-error Custom.
-
-      this.setData('tableAlign', token._align);
-    },
-
-    tableBody() {
-      // Clear slurping line ending from the delimiter row.
-      this.setData('slurpOneLineEnding');
-      this.tag('<tbody>');
-    },
-
-    tableData() {
-      /** @type {string|undefined} */
-      const align = // @ts-expect-error Custom.
-        alignment[this.getData('tableAlign')[this.getData('tableColumn')]];
-
-      if (align === undefined) {
-        // Capture results to ignore them.
-        this.buffer();
-      } else {
-        this.lineEndingIfNeeded();
-        this.tag('<td' + align + '>');
-      }
-    },
-
-    tableHead() {
-      this.lineEndingIfNeeded();
-      this.tag('<thead>');
-    },
-
-    tableHeader() {
-      this.lineEndingIfNeeded();
-      this.tag(
-        '<th' + // @ts-expect-error Custom.
-          alignment[this.getData('tableAlign')[this.getData('tableColumn')]] +
-          '>'
-      );
-    },
-
-    tableRow() {
-      this.setData('tableColumn', 0);
-      this.lineEndingIfNeeded();
-      this.tag('<tr>');
-    }
-  },
-  exit: {
-    // Overwrite the default code text data handler to unescape escaped pipes when
-    // they are in tables.
-    codeTextData(token) {
-      let value = this.sliceSerialize(token);
-
-      if (this.getData('tableAlign')) {
-        value = value.replace(/\\([\\|])/g, replace$1);
-      }
-
-      this.raw(this.encode(value));
-    },
-
-    table() {
-      this.setData('tableAlign'); // If there was no table body, make sure the slurping from the delimiter row
-      // is cleared.
-
-      this.setData('slurpAllLineEndings');
-      this.lineEndingIfNeeded();
-      this.tag('</table>');
-    },
-
-    tableBody() {
-      this.lineEndingIfNeeded();
-      this.tag('</tbody>');
-    },
-
-    tableData() {
-      /** @type {number} */
-      // @ts-expect-error Custom.
-      const column = this.getData('tableColumn'); // @ts-expect-error Custom.
-
-      if (column in this.getData('tableAlign')) {
-        this.tag('</td>');
-        this.setData('tableColumn', column + 1);
-      } else {
-        // Stop capturing.
-        this.resume();
-      }
-    },
-
-    tableHead() {
-      this.lineEndingIfNeeded();
-      this.tag('</thead>');
-      this.setData('slurpOneLineEnding', true); // Slurp the line ending from the delimiter row.
-    },
-
-    tableHeader() {
-      this.tag('</th>'); // @ts-expect-error Custom.
-
-      this.setData('tableColumn', this.getData('tableColumn') + 1);
-    },
-
-    tableRow() {
-      /** @type {Align[]} */
-      // @ts-expect-error Custom.
-      const align = this.getData('tableAlign');
-      /** @type {number} */
-      // @ts-expect-error Custom.
-
-      let column = this.getData('tableColumn');
-
-      while (column < align.length) {
-        this.lineEndingIfNeeded(); // @ts-expect-error `null` is fine as an index.
-
-        this.tag('<td' + alignment[align[column]] + '></td>');
-        column++;
-      }
-
-      this.setData('tableColumn', column);
-      this.lineEndingIfNeeded();
-      this.tag('</tr>');
-    }
-  }
-};
-/**
- * @param {string} $0
- * @param {string} $1
- * @returns {string}
- */
-
-function replace$1($0, $1) {
-  // Pipes work, backslashes don’t (but can’t escape pipes).
-  return $1 === '|' ? $1 : $0
-}
-
-/**
- * @typedef {import('micromark-util-types').Extension} Extension
- * @typedef {import('micromark-util-types').Resolver} Resolver
- * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
- * @typedef {import('micromark-util-types').State} State
- * @typedef {import('micromark-util-types').Token} Token
- */
-
-/** @type {Extension} */
-const gfmTable = {
-  flow: {
-    null: {
-      tokenize: tokenizeTable,
-      resolve: resolveTable
-    }
-  }
-};
-const setextUnderlineMini = {
-  tokenize: tokenizeSetextUnderlineMini,
-  partial: true
-};
-const nextPrefixedOrBlank = {
-  tokenize: tokenizeNextPrefixedOrBlank,
-  partial: true
-};
-/** @type {Resolver} */
-
-function resolveTable(events, context) {
-  let index = -1;
-  /** @type {Token} */
-
-  let token;
-  /** @type {boolean|undefined} */
-
-  let inHead;
-  /** @type {boolean|undefined} */
-
-  let inDelimiterRow;
-  /** @type {boolean|undefined} */
-
-  let inRow;
-  /** @type {Token} */
-
-  let cell;
-  /** @type {Token} */
-
-  let content;
-  /** @type {Token} */
-
-  let text;
-  /** @type {number|undefined} */
-
-  let contentStart;
-  /** @type {number|undefined} */
-
-  let contentEnd;
-  /** @type {number|undefined} */
-
-  let cellStart;
-
-  while (++index < events.length) {
-    token = events[index][1];
-
-    if (inRow) {
-      if (token.type === 'temporaryTableCellContent') {
-        contentStart = contentStart || index;
-        contentEnd = index;
-      }
-
-      if (
-        // Combine separate content parts into one.
-        (token.type === 'tableCellDivider' || token.type === 'tableRow') &&
-        contentEnd
-      ) {
-        content = {
-          type: 'tableContent',
-          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-          start: events[contentStart][1].start,
-          end: events[contentEnd][1].end
-        };
-        text = {
-          type: 'chunkText',
-          start: content.start,
-          end: content.end,
-          // @ts-expect-error It’s fine.
-          contentType: 'text'
-        };
-        events.splice(
-          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-          contentStart, // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-          contentEnd - contentStart + 1,
-          ['enter', content, context],
-          ['enter', text, context],
-          ['exit', text, context],
-          ['exit', content, context]
-        ); // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-
-        index -= contentEnd - contentStart - 3;
-        contentStart = undefined;
-        contentEnd = undefined;
-      }
-    }
-
-    if (
-      events[index][0] === 'exit' &&
-      cellStart &&
-      cellStart + 1 < index &&
-      (token.type === 'tableCellDivider' ||
-        (token.type === 'tableRow' &&
-          (cellStart + 3 < index ||
-            events[cellStart][1].type !== 'whitespace')))
-    ) {
-      cell = {
-        type: inDelimiterRow
-          ? 'tableDelimiter'
-          : inHead
-          ? 'tableHeader'
-          : 'tableData',
-        start: events[cellStart][1].start,
-        end: events[index][1].end
-      };
-      events.splice(index + (token.type === 'tableCellDivider' ? 1 : 0), 0, [
-        'exit',
-        cell,
-        context
-      ]);
-      events.splice(cellStart, 0, ['enter', cell, context]);
-      index += 2;
-      cellStart = index + 1;
-    }
-
-    if (token.type === 'tableRow') {
-      inRow = events[index][0] === 'enter';
-
-      if (inRow) {
-        cellStart = index + 1;
-      }
-    }
-
-    if (token.type === 'tableDelimiterRow') {
-      inDelimiterRow = events[index][0] === 'enter';
-
-      if (inDelimiterRow) {
-        cellStart = index + 1;
-      }
-    }
-
-    if (token.type === 'tableHead') {
-      inHead = events[index][0] === 'enter';
-    }
-  }
-
-  return events
-}
-/** @type {Tokenizer} */
-
-function tokenizeTable(effects, ok, nok) {
-  const self = this;
-  /** @type {Align[]} */
-
-  const align = [];
-  let tableHeaderCount = 0;
-  /** @type {boolean|undefined} */
-
-  let seenDelimiter;
-  /** @type {boolean|undefined} */
-
-  let hasDash;
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    // @ts-expect-error Custom.
-    effects.enter('table')._align = align;
-    effects.enter('tableHead');
-    effects.enter('tableRow'); // If we start with a pipe, we open a cell marker.
-
-    if (code === 124) {
-      return cellDividerHead(code)
-    }
-
-    tableHeaderCount++;
-    effects.enter('temporaryTableCellContent'); // Can’t be space or eols at the start of a construct, so we’re in a cell.
-
-    return inCellContentHead(code)
-  }
-  /** @type {State} */
-
-  function cellDividerHead(code) {
-    effects.enter('tableCellDivider');
-    effects.consume(code);
-    effects.exit('tableCellDivider');
-    seenDelimiter = true;
-    return cellBreakHead
-  }
-  /** @type {State} */
-
-  function cellBreakHead(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return atRowEndHead(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceHead
-    }
-
-    if (seenDelimiter) {
-      seenDelimiter = undefined;
-      tableHeaderCount++;
-    }
-
-    if (code === 124) {
-      return cellDividerHead(code)
-    } // Anything else is cell content.
-
-    effects.enter('temporaryTableCellContent');
-    return inCellContentHead(code)
-  }
-  /** @type {State} */
-
-  function inWhitespaceHead(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceHead
-    }
-
-    effects.exit('whitespace');
-    return cellBreakHead(code)
-  }
-  /** @type {State} */
-
-  function inCellContentHead(code) {
-    // EOF, whitespace, pipe
-    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('temporaryTableCellContent');
-      return cellBreakHead(code)
-    }
-
-    effects.consume(code);
-    return code === 92 ? inCellContentEscapeHead : inCellContentHead
-  }
-  /** @type {State} */
-
-  function inCellContentEscapeHead(code) {
-    if (code === 92 || code === 124) {
-      effects.consume(code);
-      return inCellContentHead
-    } // Anything else.
-
-    return inCellContentHead(code)
-  }
-  /** @type {State} */
-
-  function atRowEndHead(code) {
-    if (code === null) {
-      return nok(code)
-    }
-
-    effects.exit('tableRow');
-    effects.exit('tableHead');
-    return effects.attempt(
-      {
-        tokenize: tokenizeRowEnd,
-        partial: true
-      },
-      atDelimiterLineStart,
-      nok
-    )(code)
-  }
-  /** @type {State} */
-
-  function atDelimiterLineStart(code) {
-    // To do: is the lazy setext thing still needed?
-    return effects.check(
-      setextUnderlineMini,
-      nok, // Support an indent before the delimiter row.
-      factorySpace(effects, rowStartDelimiter, 'linePrefix', 4)
-    )(code)
-  }
-  /** @type {State} */
-
-  function rowStartDelimiter(code) {
-    // If there’s another space, or we’re at the EOL/EOF, exit.
-    if (code === null || markdownLineEndingOrSpace(code)) {
-      return nok(code)
-    }
-
-    effects.enter('tableDelimiterRow');
-    return atDelimiterRowBreak(code)
-  }
-  /** @type {State} */
-
-  function atDelimiterRowBreak(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return rowEndDelimiter(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    }
-
-    if (code === 45) {
-      effects.enter('tableDelimiterFiller');
-      effects.consume(code);
-      hasDash = true;
-      align.push(null);
-      return inFillerDelimiter
-    }
-
-    if (code === 58) {
-      effects.enter('tableDelimiterAlignment');
-      effects.consume(code);
-      effects.exit('tableDelimiterAlignment');
-      align.push('left');
-      return afterLeftAlignment
-    } // If we start with a pipe, we open a cell marker.
-
-    if (code === 124) {
-      effects.enter('tableCellDivider');
-      effects.consume(code);
-      effects.exit('tableCellDivider');
-      return atDelimiterRowBreak
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function inWhitespaceDelimiter(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    }
-
-    effects.exit('whitespace');
-    return atDelimiterRowBreak(code)
-  }
-  /** @type {State} */
-
-  function inFillerDelimiter(code) {
-    if (code === 45) {
-      effects.consume(code);
-      return inFillerDelimiter
-    }
-
-    effects.exit('tableDelimiterFiller');
-
-    if (code === 58) {
-      effects.enter('tableDelimiterAlignment');
-      effects.consume(code);
-      effects.exit('tableDelimiterAlignment');
-      align[align.length - 1] =
-        align[align.length - 1] === 'left' ? 'center' : 'right';
-      return afterRightAlignment
-    }
-
-    return atDelimiterRowBreak(code)
-  }
-  /** @type {State} */
-
-  function afterLeftAlignment(code) {
-    if (code === 45) {
-      effects.enter('tableDelimiterFiller');
-      effects.consume(code);
-      hasDash = true;
-      return inFillerDelimiter
-    } // Anything else is not ok.
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function afterRightAlignment(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return rowEndDelimiter(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    } // `|`
-
-    if (code === 124) {
-      effects.enter('tableCellDivider');
-      effects.consume(code);
-      effects.exit('tableCellDivider');
-      return atDelimiterRowBreak
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function rowEndDelimiter(code) {
-    effects.exit('tableDelimiterRow'); // Exit if there was no dash at all, or if the header cell count is not the
-    // delimiter cell count.
-
-    if (!hasDash || tableHeaderCount !== align.length) {
-      return nok(code)
-    }
-
-    if (code === null) {
-      return tableClose(code)
-    }
-
-    return effects.check(
-      nextPrefixedOrBlank,
-      tableClose,
-      effects.attempt(
-        {
-          tokenize: tokenizeRowEnd,
-          partial: true
-        },
-        factorySpace(effects, bodyStart, 'linePrefix', 4),
-        tableClose
-      )
-    )(code)
-  }
-  /** @type {State} */
-
-  function tableClose(code) {
-    effects.exit('table');
-    return ok(code)
-  }
-  /** @type {State} */
-
-  function bodyStart(code) {
-    effects.enter('tableBody');
-    return rowStartBody(code)
-  }
-  /** @type {State} */
-
-  function rowStartBody(code) {
-    effects.enter('tableRow'); // If we start with a pipe, we open a cell marker.
-
-    if (code === 124) {
-      return cellDividerBody(code)
-    }
-
-    effects.enter('temporaryTableCellContent'); // Can’t be space or eols at the start of a construct, so we’re in a cell.
-
-    return inCellContentBody(code)
-  }
-  /** @type {State} */
-
-  function cellDividerBody(code) {
-    effects.enter('tableCellDivider');
-    effects.consume(code);
-    effects.exit('tableCellDivider');
-    return cellBreakBody
-  }
-  /** @type {State} */
-
-  function cellBreakBody(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return atRowEndBody(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceBody
-    } // `|`
-
-    if (code === 124) {
-      return cellDividerBody(code)
-    } // Anything else is cell content.
-
-    effects.enter('temporaryTableCellContent');
-    return inCellContentBody(code)
-  }
-  /** @type {State} */
-
-  function inWhitespaceBody(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceBody
-    }
-
-    effects.exit('whitespace');
-    return cellBreakBody(code)
-  }
-  /** @type {State} */
-
-  function inCellContentBody(code) {
-    // EOF, whitespace, pipe
-    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('temporaryTableCellContent');
-      return cellBreakBody(code)
-    }
-
-    effects.consume(code);
-    return code === 92 ? inCellContentEscapeBody : inCellContentBody
-  }
-  /** @type {State} */
-
-  function inCellContentEscapeBody(code) {
-    if (code === 92 || code === 124) {
-      effects.consume(code);
-      return inCellContentBody
-    } // Anything else.
-
-    return inCellContentBody(code)
-  }
-  /** @type {State} */
-
-  function atRowEndBody(code) {
-    effects.exit('tableRow');
-
-    if (code === null) {
-      return tableBodyClose(code)
-    }
-
-    return effects.check(
-      nextPrefixedOrBlank,
-      tableBodyClose,
-      effects.attempt(
-        {
-          tokenize: tokenizeRowEnd,
-          partial: true
-        },
-        factorySpace(effects, rowStartBody, 'linePrefix', 4),
-        tableBodyClose
-      )
-    )(code)
-  }
-  /** @type {State} */
-
-  function tableBodyClose(code) {
-    effects.exit('tableBody');
-    return tableClose(code)
-  }
-  /** @type {Tokenizer} */
-
-  function tokenizeRowEnd(effects, ok, nok) {
-    return start
-    /** @type {State} */
-
-    function start(code) {
-      effects.enter('lineEnding');
-      effects.consume(code);
-      effects.exit('lineEnding');
-      return lineStart
-    }
-    /** @type {State} */
-
-    function lineStart(code) {
-      return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
-    }
-  }
-} // Based on micromark, but that won’t work as we’re in a table, and that expects
-// content.
-// <https://github.com/micromark/micromark/blob/main/lib/tokenize/setext-underline.js>
-
-/** @type {Tokenizer} */
-
-function tokenizeSetextUnderlineMini(effects, ok, nok) {
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    if (code !== 45) {
-      return nok(code)
-    }
-
-    effects.enter('setextUnderline');
-    return sequence(code)
-  }
-  /** @type {State} */
-
-  function sequence(code) {
-    if (code === 45) {
-      effects.consume(code);
-      return sequence
-    }
-
-    return whitespace(code)
-  }
-  /** @type {State} */
-
-  function whitespace(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return ok(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return whitespace
-    }
-
-    return nok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function tokenizeNextPrefixedOrBlank(effects, ok, nok) {
-  let size = 0;
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    // This is a check, so we don’t care about tokens, but we open a bogus one
-    // so we’re valid.
-    effects.enter('check'); // EOL.
-
-    effects.consume(code);
-    return whitespace
-  }
-  /** @type {State} */
-
-  function whitespace(code) {
-    if (code === -1 || code === 32) {
-      effects.consume(code);
-      size++;
-      return size === 4 ? ok : whitespace
-    } // EOF or whitespace
-
-    if (code === null || markdownLineEndingOrSpace(code)) {
-      return ok(code)
-    } // Anything else.
-
-    return nok(code)
-  }
-}
-
-/**
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- * @typedef {import('micromark-util-types').Token} Token
- * @typedef {import('micromark-util-types').CompileContext} CompileContext
- */
-
-/**
- * An opening or closing tag, followed by a case-insensitive specific tag name,
- * followed by HTML whitespace, a greater than, or a slash.
- */
-const reFlow =
-  /<(\/?)(iframe|noembed|noframes|plaintext|script|style|title|textarea|xmp)(?=[\t\n\f\r />])/gi;
-
-/**
- * As HTML (text) parses tags separately (and v. strictly), we don’t need to be
- * global.
- */
-const reText = new RegExp('^' + reFlow.source, 'i');
-
-/** @type {HtmlExtension} */
-const gfmTagfilterHtml = {
-  exit: {
-    htmlFlowData(token) {
-      exitHtmlData.call(this, token, reFlow);
-    },
-    htmlTextData(token) {
-      exitHtmlData.call(this, token, reText);
-    }
-  }
-};
-
-/**
- * @this {CompileContext}
- * @param {Token} token
- * @param {RegExp} filter
- */
-function exitHtmlData(token, filter) {
-  let value = this.sliceSerialize(token);
-
-  if (this.options.allowDangerousHtml) {
-    value = value.replace(filter, '&lt;$1$2');
-  }
-
-  this.raw(this.encode(value));
-}
-
-/**
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- */
-
-/** @type {HtmlExtension} */
-const gfmTaskListItemHtml = {
-  enter: {
-    taskListCheck() {
-      this.tag('<input ');
-    }
-  },
-  exit: {
-    taskListCheck() {
-      this.tag('disabled="" type="checkbox">');
-    },
-
-    taskListCheckValueChecked() {
-      this.tag('checked="" ');
-    }
-  }
-};
-
-/**
- * @typedef {import('micromark-util-types').Extension} Extension
- * @typedef {import('micromark-util-types').ConstructRecord} ConstructRecord
- * @typedef {import('micromark-util-types').Tokenizer} Tokenizer
- * @typedef {import('micromark-util-types').Previous} Previous
- * @typedef {import('micromark-util-types').State} State
- * @typedef {import('micromark-util-types').Event} Event
- * @typedef {import('micromark-util-types').Code} Code
- */
-const tasklistCheck = {
-  tokenize: tokenizeTasklistCheck
-};
-const gfmTaskListItem = {
-  text: {
-    [91]: tasklistCheck
-  }
-};
-/** @type {Tokenizer} */
-
-function tokenizeTasklistCheck(effects, ok, nok) {
-  const self = this;
-  return open
-  /** @type {State} */
-
-  function open(code) {
-    if (
-      // Exit if there’s stuff before.
-      self.previous !== null || // Exit if not in the first content that is the first child of a list
-      // item.
-      !self._gfmTasklistFirstContentOfListItem
-    ) {
-      return nok(code)
-    }
-
-    effects.enter('taskListCheck');
-    effects.enter('taskListCheckMarker');
-    effects.consume(code);
-    effects.exit('taskListCheckMarker');
-    return inside
-  }
-  /** @type {State} */
-
-  function inside(code) {
-    if (markdownSpace(code)) {
-      effects.enter('taskListCheckValueUnchecked');
-      effects.consume(code);
-      effects.exit('taskListCheckValueUnchecked');
-      return close
-    }
-
-    if (code === 88 || code === 120) {
-      effects.enter('taskListCheckValueChecked');
-      effects.consume(code);
-      effects.exit('taskListCheckValueChecked');
-      return close
-    }
-
-    return nok(code)
-  }
-  /** @type {State} */
-
-  function close(code) {
-    if (code === 93) {
-      effects.enter('taskListCheckMarker');
-      effects.consume(code);
-      effects.exit('taskListCheckMarker');
-      effects.exit('taskListCheck');
-      return effects.check(
-        {
-          tokenize: spaceThenNonSpace
-        },
-        ok,
-        nok
-      )
-    }
-
-    return nok(code)
-  }
-}
-/** @type {Tokenizer} */
-
-function spaceThenNonSpace(effects, ok, nok) {
-  const self = this;
-  return factorySpace(effects, after, 'whitespace')
-  /** @type {State} */
-
-  function after(code) {
-    const tail = self.events[self.events.length - 1];
-    return tail &&
-      tail[1].type === 'whitespace' &&
-      code !== null &&
-      !markdownLineEndingOrSpace(code)
-      ? ok(code)
-      : nok(code)
-  }
-}
-
-/**
- * @typedef {import('micromark-util-types').Extension} Extension
- * @typedef {import('micromark-util-types').HtmlExtension} HtmlExtension
- * @typedef {import('micromark-extension-gfm-strikethrough').Options} Options
- */
-
-/**
- * Support GFM or markdown on github.com.
- *
- * @param {Options} [options]
- * @returns {Extension}
- */
-function gfm(options) {
-  return combineExtensions([
-    gfmAutolinkLiteral,
-    gfmStrikethrough(options),
-    gfmTable,
-    gfmTaskListItem
-  ])
-}
-
-/** @type {HtmlExtension} */
-combineHtmlExtensions([
-  gfmAutolinkLiteralHtml,
-  gfmStrikethroughHtml,
-  gfmTableHtml,
-  gfmTagfilterHtml,
-  gfmTaskListItemHtml
-]);
-
-/**
- * Get the total count of `character` in `value`.
- *
- * @param {any} value Content, coerced to string
- * @param {string} character Single character to look for
- * @return {number} Number of times `character` occurred in `value`.
- */
-function ccount(value, character) {
-  var source = String(value);
-  var count = 0;
-  var index;
-
-  if (typeof character !== 'string') {
-    throw new Error('Expected character')
-  }
-
-  index = source.indexOf(character);
-
-  while (index !== -1) {
-    count++;
-    index = source.indexOf(character, index + character.length);
-  }
-
-  return count
-}
-
-/**
- * @typedef Options Configuration.
- * @property {Test} [ignore] `unist-util-is` test used to assert parents
- *
- * @typedef {import('mdast').Root} Root
- * @typedef {import('mdast').Content} Content
- * @typedef {import('mdast').PhrasingContent} PhrasingContent
- * @typedef {import('mdast').Text} Text
- * @typedef {Content|Root} Node
- * @typedef {Extract<Node, import('mdast').Parent>} Parent
- *
- * @typedef {import('unist-util-visit-parents').Test} Test
- * @typedef {import('unist-util-visit-parents').VisitorResult} VisitorResult
- *
- * @typedef RegExpMatchObject
- * @property {number} index
- * @property {string} input
- *
- * @typedef {string|RegExp} Find
- * @typedef {string|ReplaceFunction} Replace
- *
- * @typedef {[Find, Replace]} FindAndReplaceTuple
- * @typedef {Object.<string, Replace>} FindAndReplaceSchema
- * @typedef {Array.<FindAndReplaceTuple>} FindAndReplaceList
- *
- * @typedef {[RegExp, ReplaceFunction]} Pair
- * @typedef {Array.<Pair>} Pairs
- */
-
-const own$1 = {}.hasOwnProperty;
-
-/**
- * @param tree mdast tree
- * @param find Value to find and remove. When `string`, escaped and made into a global `RegExp`
- * @param [replace] Value to insert.
- *   * When `string`, turned into a Text node.
- *   * When `Function`, called with the results of calling `RegExp.exec` as
- *     arguments, in which case it can return a single or a list of `Node`,
- *     a `string` (which is wrapped in a `Text` node), or `false` to not replace
- * @param [options] Configuration.
- */
-const findAndReplace =
-  /**
-   * @type {(
-   *   ((tree: Node, find: Find, replace?: Replace, options?: Options) => Node) &
-   *   ((tree: Node, schema: FindAndReplaceSchema|FindAndReplaceList, options?: Options) => Node)
-   * )}
-   **/
-  (
-    /**
-     * @param {Node} tree
-     * @param {Find|FindAndReplaceSchema|FindAndReplaceList} find
-     * @param {Replace|Options} [replace]
-     * @param {Options} [options]
-     */
-    function (tree, find, replace, options) {
-      /** @type {Options|undefined} */
-      let settings;
-      /** @type {FindAndReplaceSchema|FindAndReplaceList} */
-      let schema;
-
-      if (typeof find === 'string' || find instanceof RegExp) {
-        // @ts-expect-error don’t expect options twice.
-        schema = [[find, replace]];
-        settings = options;
-      } else {
-        schema = find;
-        // @ts-expect-error don’t expect replace twice.
-        settings = replace;
-      }
-
-      if (!settings) {
-        settings = {};
-      }
-
-      const ignored = convert(settings.ignore || []);
-      const pairs = toPairs(schema);
-      let pairIndex = -1;
-
-      while (++pairIndex < pairs.length) {
-        visitParents(tree, 'text', visitor);
-      }
-
-      return tree
-
-      /** @type {import('unist-util-visit-parents').Visitor<Text>} */
-      function visitor(node, parents) {
-        let index = -1;
-        /** @type {Parent|undefined} */
-        let grandparent;
-
-        while (++index < parents.length) {
-          const parent = /** @type {Parent} */ (parents[index]);
-
-          if (
-            ignored(
-              parent,
-              // @ts-expect-error mdast vs. unist parent.
-              grandparent ? grandparent.children.indexOf(parent) : undefined,
-              grandparent
-            )
-          ) {
-            return
-          }
-
-          grandparent = parent;
-        }
-
-        if (grandparent) {
-          return handler(node, grandparent)
-        }
-      }
-
-      /**
-       * @param {Text} node
-       * @param {Parent} parent
-       * @returns {VisitorResult}
-       */
-      function handler(node, parent) {
-        const find = pairs[pairIndex][0];
-        const replace = pairs[pairIndex][1];
-        let start = 0;
-        // @ts-expect-error: TS is wrong, some of these children can be text.
-        let index = parent.children.indexOf(node);
-        /** @type {Array.<PhrasingContent>} */
-        let nodes = [];
-        /** @type {number|undefined} */
-        let position;
-
-        find.lastIndex = 0;
-
-        let match = find.exec(node.value);
-
-        while (match) {
-          position = match.index;
-          // @ts-expect-error this is perfectly fine, typescript.
-          let value = replace(...match, {
-            index: match.index,
-            input: match.input
-          });
-
-          if (typeof value === 'string') {
-            value = value.length > 0 ? {type: 'text', value} : undefined;
-          }
-
-          if (value !== false) {
-            if (start !== position) {
-              nodes.push({
-                type: 'text',
-                value: node.value.slice(start, position)
-              });
-            }
-
-            if (Array.isArray(value)) {
-              nodes.push(...value);
-            } else if (value) {
-              nodes.push(value);
-            }
-
-            start = position + match[0].length;
-          }
-
-          if (!find.global) {
-            break
-          }
-
-          match = find.exec(node.value);
-        }
-
-        if (position === undefined) {
-          nodes = [node];
-          index--;
-        } else {
-          if (start < node.value.length) {
-            nodes.push({type: 'text', value: node.value.slice(start)});
-          }
-
-          parent.children.splice(index, 1, ...nodes);
-        }
-
-        return index + nodes.length + 1
-      }
-    }
-  );
-
-/**
- * @param {FindAndReplaceSchema|FindAndReplaceList} schema
- * @returns {Pairs}
- */
-function toPairs(schema) {
-  /** @type {Pairs} */
-  const result = [];
-
-  if (typeof schema !== 'object') {
-    throw new TypeError('Expected array or object as schema')
-  }
-
-  if (Array.isArray(schema)) {
-    let index = -1;
-
-    while (++index < schema.length) {
-      result.push([
-        toExpression(schema[index][0]),
-        toFunction(schema[index][1])
-      ]);
-    }
-  } else {
-    /** @type {string} */
-    let key;
-
-    for (key in schema) {
-      if (own$1.call(schema, key)) {
-        result.push([toExpression(key), toFunction(schema[key])]);
-      }
-    }
-  }
-
-  return result
-}
-
-/**
- * @param {Find} find
- * @returns {RegExp}
- */
-function toExpression(find) {
-  return typeof find === 'string' ? new RegExp(escapeStringRegexp(find), 'g') : find
-}
-
-/**
- * @param {Replace} replace
- * @returns {ReplaceFunction}
- */
-function toFunction(replace) {
-  return typeof replace === 'function' ? replace : () => replace
-}
-
-/**
- * @typedef {import('mdast').Link} Link
- * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
- * @typedef {import('mdast-util-from-markdown').Transform} FromMarkdownTransform
- * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
- * @typedef {import('mdast-util-to-markdown/lib/types.js').Options} ToMarkdownExtension
- * @typedef {import('mdast-util-find-and-replace').ReplaceFunction} ReplaceFunction
- * @typedef {import('mdast-util-find-and-replace').RegExpMatchObject} RegExpMatchObject
- * @typedef {import('mdast-util-find-and-replace').PhrasingContent} PhrasingContent
- */
-
-const inConstruct = 'phrasing';
-const notInConstruct = ['autolink', 'link', 'image', 'label'];
-
-/** @type {FromMarkdownExtension} */
-const gfmAutolinkLiteralFromMarkdown = {
-  transforms: [transformGfmAutolinkLiterals],
-  enter: {
-    literalAutolink: enterLiteralAutolink,
-    literalAutolinkEmail: enterLiteralAutolinkValue,
-    literalAutolinkHttp: enterLiteralAutolinkValue,
-    literalAutolinkWww: enterLiteralAutolinkValue
-  },
-  exit: {
-    literalAutolink: exitLiteralAutolink,
-    literalAutolinkEmail: exitLiteralAutolinkEmail,
-    literalAutolinkHttp: exitLiteralAutolinkHttp,
-    literalAutolinkWww: exitLiteralAutolinkWww
-  }
-};
-
-/** @type {ToMarkdownExtension} */
-const gfmAutolinkLiteralToMarkdown = {
-  unsafe: [
-    {
-      character: '@',
-      before: '[+\\-.\\w]',
-      after: '[\\-.\\w]',
-      inConstruct,
-      notInConstruct
-    },
-    {
-      character: '.',
-      before: '[Ww]',
-      after: '[\\-.\\w]',
-      inConstruct,
-      notInConstruct
-    },
-    {character: ':', before: '[ps]', after: '\\/', inConstruct, notInConstruct}
-  ]
-};
-
-/** @type {FromMarkdownHandle} */
-function enterLiteralAutolink(token) {
-  this.enter({type: 'link', title: null, url: '', children: []}, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function enterLiteralAutolinkValue(token) {
-  this.config.enter.autolinkProtocol.call(this, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitLiteralAutolinkHttp(token) {
-  this.config.exit.autolinkProtocol.call(this, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitLiteralAutolinkWww(token) {
-  this.config.exit.data.call(this, token);
-  const node = /** @type {Link} */ (this.stack[this.stack.length - 1]);
-  node.url = 'http://' + this.sliceSerialize(token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitLiteralAutolinkEmail(token) {
-  this.config.exit.autolinkEmail.call(this, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitLiteralAutolink(token) {
-  this.exit(token);
-}
-
-/** @type {FromMarkdownTransform} */
-function transformGfmAutolinkLiterals(tree) {
-  findAndReplace(
-    tree,
-    [
-      [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
-      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
-    ],
-    {ignore: ['link', 'linkReference']}
-  );
-}
-
-/**
- * @type {ReplaceFunction}
- * @param {string} _
- * @param {string} protocol
- * @param {string} domain
- * @param {string} path
- * @param {RegExpMatchObject} match
- */
-// eslint-disable-next-line max-params
-function findUrl(_, protocol, domain, path, match) {
-  let prefix = '';
-
-  // Not an expected previous character.
-  if (!previous(match)) {
-    return false
-  }
-
-  // Treat `www` as part of the domain.
-  if (/^w/i.test(protocol)) {
-    domain = protocol + domain;
-    protocol = '';
-    prefix = 'http://';
-  }
-
-  if (!isCorrectDomain(domain)) {
-    return false
-  }
-
-  const parts = splitUrl(domain + path);
-
-  if (!parts[0]) return false
-
-  /** @type {PhrasingContent} */
-  const result = {
-    type: 'link',
-    title: null,
-    url: prefix + protocol + parts[0],
-    children: [{type: 'text', value: protocol + parts[0]}]
-  };
-
-  if (parts[1]) {
-    return [result, {type: 'text', value: parts[1]}]
-  }
-
-  return result
-}
-
-/**
- * @type {ReplaceFunction}
- * @param {string} _
- * @param {string} atext
- * @param {string} label
- * @param {RegExpMatchObject} match
- */
-function findEmail(_, atext, label, match) {
-  if (
-    // Not an expected previous character.
-    !previous(match, true) ||
-    // Label ends in not allowed character.
-    /[_-\d]$/.test(label)
-  ) {
-    return false
-  }
-
-  return {
-    type: 'link',
-    title: null,
-    url: 'mailto:' + atext + '@' + label,
-    children: [{type: 'text', value: atext + '@' + label}]
-  }
-}
-
-/**
- * @param {string} domain
- * @returns {boolean}
- */
-function isCorrectDomain(domain) {
-  const parts = domain.split('.');
-
-  if (
-    parts.length < 2 ||
-    (parts[parts.length - 1] &&
-      (/_/.test(parts[parts.length - 1]) ||
-        !/[a-zA-Z\d]/.test(parts[parts.length - 1]))) ||
-    (parts[parts.length - 2] &&
-      (/_/.test(parts[parts.length - 2]) ||
-        !/[a-zA-Z\d]/.test(parts[parts.length - 2])))
-  ) {
-    return false
-  }
-
-  return true
-}
-
-/**
- * @param {string} url
- * @returns {[string, string|undefined]}
- */
-function splitUrl(url) {
-  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
-  /** @type {number} */
-  let closingParenIndex;
-  /** @type {number} */
-  let openingParens;
-  /** @type {number} */
-  let closingParens;
-  /** @type {string|undefined} */
-  let trail;
-
-  if (trailExec) {
-    url = url.slice(0, trailExec.index);
-    trail = trailExec[0];
-    closingParenIndex = trail.indexOf(')');
-    openingParens = ccount(url, '(');
-    closingParens = ccount(url, ')');
-
-    while (closingParenIndex !== -1 && openingParens > closingParens) {
-      url += trail.slice(0, closingParenIndex + 1);
-      trail = trail.slice(closingParenIndex + 1);
-      closingParenIndex = trail.indexOf(')');
-      closingParens++;
-    }
-  }
-
-  return [url, trail]
-}
-
-/**
- * @param {RegExpMatchObject} match
- * @param {boolean} [email=false]
- * @returns {boolean}
- */
-function previous(match, email) {
-  const code = match.input.charCodeAt(match.index - 1);
-
-  return (
-    (match.index === 0 ||
-      unicodeWhitespace(code) ||
-      unicodePunctuation(code)) &&
-    (!email || code !== 47)
-  )
-}
-
-/**
- * @typedef {import('mdast').Delete} Delete
- * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
- * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
- * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
- * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
- */
-
-/** @type {FromMarkdownExtension} */
-const gfmStrikethroughFromMarkdown = {
-  canContainEols: ['delete'],
-  enter: {strikethrough: enterStrikethrough},
-  exit: {strikethrough: exitStrikethrough}
-};
-
-/** @type {ToMarkdownExtension} */
-const gfmStrikethroughToMarkdown = {
-  unsafe: [{character: '~', inConstruct: 'phrasing'}],
-  handlers: {delete: handleDelete}
-};
-
-handleDelete.peek = peekDelete;
-
-/** @type {FromMarkdownHandle} */
-function enterStrikethrough(token) {
-  this.enter({type: 'delete', children: []}, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitStrikethrough(token) {
-  this.exit(token);
-}
-
-/**
- * @type {ToMarkdownHandle}
- * @param {Delete} node
- */
-function handleDelete(node, _, context) {
-  const exit = context.enter('emphasis');
-  const value = containerPhrasing(node, context, {before: '~', after: '~'});
-  exit();
-  return '~~' + value + '~~'
-}
-
-/** @type {ToMarkdownHandle} */
-function peekDelete() {
-  return '~'
-}
-
-/**
- * @typedef MarkdownTableOptions
- * @property {string|null|Array.<string|null|undefined>} [align]
- * @property {boolean} [padding=true]
- * @property {boolean} [delimiterStart=true]
- * @property {boolean} [delimiterStart=true]
- * @property {boolean} [delimiterEnd=true]
- * @property {boolean} [alignDelimiters=true]
- * @property {(value: string) => number} [stringLength]
- */
-
-/**
- * Create a table from a matrix of strings.
- *
- * @param {Array.<Array.<string|null|undefined>>} table
- * @param {MarkdownTableOptions} [options]
- * @returns {string}
- */
-function markdownTable(table, options) {
-  const settings = options || {};
-  const align = (settings.align || []).concat();
-  const stringLength = settings.stringLength || defaultStringLength;
-  /** @type {number[]} Character codes as symbols for alignment per column. */
-  const alignments = [];
-  let rowIndex = -1;
-  /** @type {string[][]} Cells per row. */
-  const cellMatrix = [];
-  /** @type {number[][]} Sizes of each cell per row. */
-  const sizeMatrix = [];
-  /** @type {number[]} */
-  const longestCellByColumn = [];
-  let mostCellsPerRow = 0;
-  /** @type {number} */
-  let columnIndex;
-  /** @type {string[]} Cells of current row */
-  let row;
-  /** @type {number[]} Sizes of current row */
-  let sizes;
-  /** @type {number} Sizes of current cell */
-  let size;
-  /** @type {string} Current cell */
-  let cell;
-  /** @type {string[]} Chunks of current line. */
-  let line;
-  /** @type {string} */
-  let before;
-  /** @type {string} */
-  let after;
-  /** @type {number} */
-  let code;
-
-  // This is a superfluous loop if we don’t align delimiters, but otherwise we’d
-  // do superfluous work when aligning, so optimize for aligning.
-  while (++rowIndex < table.length) {
-    columnIndex = -1;
-    row = [];
-    sizes = [];
-
-    if (table[rowIndex].length > mostCellsPerRow) {
-      mostCellsPerRow = table[rowIndex].length;
-    }
-
-    while (++columnIndex < table[rowIndex].length) {
-      cell = serialize(table[rowIndex][columnIndex]);
-
-      if (settings.alignDelimiters !== false) {
-        size = stringLength(cell);
-        sizes[columnIndex] = size;
-
-        if (
-          longestCellByColumn[columnIndex] === undefined ||
-          size > longestCellByColumn[columnIndex]
-        ) {
-          longestCellByColumn[columnIndex] = size;
-        }
-      }
-
-      row.push(cell);
-    }
-
-    cellMatrix[rowIndex] = row;
-    sizeMatrix[rowIndex] = sizes;
-  }
-
-  // Figure out which alignments to use.
-  columnIndex = -1;
-
-  if (typeof align === 'object' && 'length' in align) {
-    while (++columnIndex < mostCellsPerRow) {
-      alignments[columnIndex] = toAlignment(align[columnIndex]);
-    }
-  } else {
-    code = toAlignment(align);
-
-    while (++columnIndex < mostCellsPerRow) {
-      alignments[columnIndex] = code;
-    }
-  }
-
-  // Inject the alignment row.
-  columnIndex = -1;
-  row = [];
-  sizes = [];
-
-  while (++columnIndex < mostCellsPerRow) {
-    code = alignments[columnIndex];
-    before = '';
-    after = '';
-
-    if (code === 99 /* `c` */) {
-      before = ':';
-      after = ':';
-    } else if (code === 108 /* `l` */) {
-      before = ':';
-    } else if (code === 114 /* `r` */) {
-      after = ':';
-    }
-
-    // There *must* be at least one hyphen-minus in each alignment cell.
-    size =
-      settings.alignDelimiters === false
-        ? 1
-        : Math.max(
-            1,
-            longestCellByColumn[columnIndex] - before.length - after.length
-          );
-
-    cell = before + '-'.repeat(size) + after;
-
-    if (settings.alignDelimiters !== false) {
-      size = before.length + size + after.length;
-
-      if (size > longestCellByColumn[columnIndex]) {
-        longestCellByColumn[columnIndex] = size;
-      }
-
-      sizes[columnIndex] = size;
-    }
-
-    row[columnIndex] = cell;
-  }
-
-  // Inject the alignment row.
-  cellMatrix.splice(1, 0, row);
-  sizeMatrix.splice(1, 0, sizes);
-
-  rowIndex = -1;
-  /** @type {string[]} */
-  const lines = [];
-
-  while (++rowIndex < cellMatrix.length) {
-    row = cellMatrix[rowIndex];
-    sizes = sizeMatrix[rowIndex];
-    columnIndex = -1;
-    line = [];
-
-    while (++columnIndex < mostCellsPerRow) {
-      cell = row[columnIndex] || '';
-      before = '';
-      after = '';
-
-      if (settings.alignDelimiters !== false) {
-        size = longestCellByColumn[columnIndex] - (sizes[columnIndex] || 0);
-        code = alignments[columnIndex];
-
-        if (code === 114 /* `r` */) {
-          before = ' '.repeat(size);
-        } else if (code === 99 /* `c` */) {
-          if (size % 2) {
-            before = ' '.repeat(size / 2 + 0.5);
-            after = ' '.repeat(size / 2 - 0.5);
-          } else {
-            before = ' '.repeat(size / 2);
-            after = before;
-          }
-        } else {
-          after = ' '.repeat(size);
-        }
-      }
-
-      if (settings.delimiterStart !== false && !columnIndex) {
-        line.push('|');
-      }
-
-      if (
-        settings.padding !== false &&
-        // Don’t add the opening space if we’re not aligning and the cell is
-        // empty: there will be a closing space.
-        !(settings.alignDelimiters === false && cell === '') &&
-        (settings.delimiterStart !== false || columnIndex)
-      ) {
-        line.push(' ');
-      }
-
-      if (settings.alignDelimiters !== false) {
-        line.push(before);
-      }
-
-      line.push(cell);
-
-      if (settings.alignDelimiters !== false) {
-        line.push(after);
-      }
-
-      if (settings.padding !== false) {
-        line.push(' ');
-      }
-
-      if (
-        settings.delimiterEnd !== false ||
-        columnIndex !== mostCellsPerRow - 1
-      ) {
-        line.push('|');
-      }
-    }
-
-    lines.push(
-      settings.delimiterEnd === false
-        ? line.join('').replace(/ +$/, '')
-        : line.join('')
-    );
-  }
-
-  return lines.join('\n')
-}
-
-/**
- * @param {string|null|undefined} [value]
- * @returns {string}
- */
-function serialize(value) {
-  return value === null || value === undefined ? '' : String(value)
-}
-
-/**
- * @param {string} value
- * @returns {number}
- */
-function defaultStringLength(value) {
-  return value.length
-}
-
-/**
- * @param {string|null|undefined} value
- * @returns {number}
- */
-function toAlignment(value) {
-  const code = typeof value === 'string' ? value.charCodeAt(0) : 0;
-
-  return code === 67 /* `C` */ || code === 99 /* `c` */
-    ? 99 /* `c` */
-    : code === 76 /* `L` */ || code === 108 /* `l` */
-    ? 108 /* `l` */
-    : code === 82 /* `R` */ || code === 114 /* `r` */
-    ? 114 /* `r` */
-    : 0
-}
-
-/**
- * @typedef {import('mdast').AlignType} AlignType
- * @typedef {import('mdast').Table} Table
- * @typedef {import('mdast').TableRow} TableRow
- * @typedef {import('mdast').TableCell} TableCell
- * @typedef {import('mdast').InlineCode} InlineCode
- * @typedef {import('markdown-table').MarkdownTableOptions} MarkdownTableOptions
- * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
- * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
- * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
- * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
- * @typedef {import('mdast-util-to-markdown').Context} ToMarkdownContext
- *
- * @typedef Options
- * @property {boolean} [tableCellPadding=true]
- * @property {boolean} [tablePipeAlign=true]
- * @property {MarkdownTableOptions['stringLength']} [stringLength]
- */
-
-/** @type {FromMarkdownExtension} */
-const gfmTableFromMarkdown = {
-  enter: {
-    table: enterTable,
-    tableData: enterCell,
-    tableHeader: enterCell,
-    tableRow: enterRow
-  },
-  exit: {
-    codeText: exitCodeText,
-    table: exitTable,
-    tableData: exit,
-    tableHeader: exit,
-    tableRow: exit
-  }
-};
-
-/** @type {FromMarkdownHandle} */
-function enterTable(token) {
-  /** @type {AlignType[]} */
-  // @ts-expect-error: `align` is custom.
-  const align = token._align;
-  this.enter({type: 'table', align, children: []}, token);
-  this.setData('inTable', true);
-}
-
-/** @type {FromMarkdownHandle} */
-function exitTable(token) {
-  this.exit(token);
-  this.setData('inTable');
-}
-
-/** @type {FromMarkdownHandle} */
-function enterRow(token) {
-  this.enter({type: 'tableRow', children: []}, token);
-}
-
-/** @type {FromMarkdownHandle} */
-function exit(token) {
-  this.exit(token);
-}
-
-/** @type {FromMarkdownHandle} */
-function enterCell(token) {
-  this.enter({type: 'tableCell', children: []}, token);
-}
-
-// Overwrite the default code text data handler to unescape escaped pipes when
-// they are in tables.
-/** @type {FromMarkdownHandle} */
-function exitCodeText(token) {
-  let value = this.resume();
-
-  if (this.getData('inTable')) {
-    value = value.replace(/\\([\\|])/g, replace);
-  }
-
-  const node = /** @type {InlineCode} */ (this.stack[this.stack.length - 1]);
-  node.value = value;
-  this.exit(token);
-}
-
-/**
- * @param {string} $0
- * @param {string} $1
- * @returns {string}
- */
-function replace($0, $1) {
-  // Pipes work, backslashes don’t (but can’t escape pipes).
-  return $1 === '|' ? $1 : $0
-}
-
-/**
- * @param {Options} [options]
- * @returns {ToMarkdownExtension}
- */
-function gfmTableToMarkdown(options) {
-  const settings = options || {};
-  const padding = settings.tableCellPadding;
-  const alignDelimiters = settings.tablePipeAlign;
-  const stringLength = settings.stringLength;
-  const around = padding ? ' ' : '|';
-
-  return {
-    unsafe: [
-      {character: '\r', inConstruct: 'tableCell'},
-      {character: '\n', inConstruct: 'tableCell'},
-      // A pipe, when followed by a tab or space (padding), or a dash or colon
-      // (unpadded delimiter row), could result in a table.
-      {atBreak: true, character: '|', after: '[\t :-]'},
-      // A pipe in a cell must be encoded.
-      {character: '|', inConstruct: 'tableCell'},
-      // A colon must be followed by a dash, in which case it could start a
-      // delimiter row.
-      {atBreak: true, character: ':', after: '-'},
-      // A delimiter row can also start with a dash, when followed by more
-      // dashes, a colon, or a pipe.
-      // This is a stricter version than the built in check for lists, thematic
-      // breaks, and setex heading underlines though:
-      // <https://github.com/syntax-tree/mdast-util-to-markdown/blob/51a2038/lib/unsafe.js#L57>
-      {atBreak: true, character: '-', after: '[:|-]'}
-    ],
-    handlers: {
-      table: handleTable,
-      tableRow: handleTableRow,
-      tableCell: handleTableCell,
-      inlineCode: inlineCodeWithTable
-    }
-  }
-
-  /**
-   * @type {ToMarkdownHandle}
-   * @param {Table} node
-   */
-  function handleTable(node, _, context) {
-    // @ts-expect-error: fixed in `markdown-table@3.0.1`.
-    return serializeData(handleTableAsData(node, context), node.align)
-  }
-
-  /**
-   * This function isn’t really used normally, because we handle rows at the
-   * table level.
-   * But, if someone passes in a table row, this ensures we make somewhat sense.
-   *
-   * @type {ToMarkdownHandle}
-   * @param {TableRow} node
-   */
-  function handleTableRow(node, _, context) {
-    const row = handleTableRowAsData(node, context);
-    // `markdown-table` will always add an align row
-    const value = serializeData([row]);
-    return value.slice(0, value.indexOf('\n'))
-  }
-
-  /**
-   * @type {ToMarkdownHandle}
-   * @param {TableCell} node
-   */
-  function handleTableCell(node, _, context) {
-    const exit = context.enter('tableCell');
-    const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {
-      before: around,
-      after: around
-    });
-    subexit();
-    exit();
-    return value
-  }
-
-  /**
-   * @param {Array.<Array.<string>>} matrix
-   * @param {Array.<string>} [align]
-   */
-  function serializeData(matrix, align) {
-    return markdownTable(matrix, {
-      align,
-      alignDelimiters,
-      padding,
-      stringLength
-    })
-  }
-
-  /**
-   * @param {Table} node
-   * @param {ToMarkdownContext} context
-   */
-  function handleTableAsData(node, context) {
-    const children = node.children;
-    let index = -1;
-    /** @type {Array.<Array.<string>>} */
-    const result = [];
-    const subexit = context.enter('table');
-
-    while (++index < children.length) {
-      result[index] = handleTableRowAsData(children[index], context);
-    }
-
-    subexit();
-
-    return result
-  }
-
-  /**
-   * @param {TableRow} node
-   * @param {ToMarkdownContext} context
-   */
-  function handleTableRowAsData(node, context) {
-    const children = node.children;
-    let index = -1;
-    /** @type {Array.<string>} */
-    const result = [];
-    const subexit = context.enter('tableRow');
-
-    while (++index < children.length) {
-      result[index] = handleTableCell(children[index], node, context);
-    }
-
-    subexit();
-
-    return result
-  }
-
-  /**
-   * @type {ToMarkdownHandle}
-   * @param {InlineCode} node
-   */
-  function inlineCodeWithTable(node, parent, context) {
-    let value = inlineCode(node, parent, context);
-
-    if (context.stack.includes('tableCell')) {
-      value = value.replace(/\|/g, '\\$&');
-    }
-
-    return value
-  }
-}
-
-/**
- * @typedef {import('mdast').ListItem} ListItem
- * @typedef {import('mdast').Paragraph} Paragraph
- * @typedef {import('mdast').BlockContent} BlockContent
- * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
- * @typedef {import('mdast-util-from-markdown').Handle} FromMarkdownHandle
- * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
- * @typedef {import('mdast-util-to-markdown').Handle} ToMarkdownHandle
- */
-
-/** @type {FromMarkdownExtension} */
-const gfmTaskListItemFromMarkdown = {
-  exit: {
-    taskListCheckValueChecked: exitCheck,
-    taskListCheckValueUnchecked: exitCheck,
-    paragraph: exitParagraphWithTaskListItem
-  }
-};
-
-/** @type {ToMarkdownExtension} */
-const gfmTaskListItemToMarkdown = {
-  unsafe: [{atBreak: true, character: '-', after: '[:|-]'}],
-  handlers: {listItem: listItemWithTaskListItem}
-};
-
-/** @type {FromMarkdownHandle} */
-function exitCheck(token) {
-  // We’re always in a paragraph, in a list item.
-  this.stack[this.stack.length - 2].checked =
-    token.type === 'taskListCheckValueChecked';
-}
-
-/** @type {FromMarkdownHandle} */
-function exitParagraphWithTaskListItem(token) {
-  const parent = this.stack[this.stack.length - 2];
-  /** @type {Paragraph} */
-  // @ts-expect-error: must be true.
-  const node = this.stack[this.stack.length - 1];
-  /** @type {BlockContent[]} */
-  // @ts-expect-error: check whether `parent` is a `listItem` later.
-  const siblings = parent.children;
-  const head = node.children[0];
-  let index = -1;
-  /** @type {Paragraph|undefined} */
-  let firstParaghraph;
-
-  if (
-    parent &&
-    parent.type === 'listItem' &&
-    typeof parent.checked === 'boolean' &&
-    head &&
-    head.type === 'text'
-  ) {
-    while (++index < siblings.length) {
-      const sibling = siblings[index];
-      if (sibling.type === 'paragraph') {
-        firstParaghraph = sibling;
-        break
-      }
-    }
-
-    if (firstParaghraph === node) {
-      // Must start with a space or a tab.
-      head.value = head.value.slice(1);
-
-      if (head.value.length === 0) {
-        node.children.shift();
-      } else {
-        // @ts-expect-error: must be true.
-        head.position.start.column++;
-        // @ts-expect-error: must be true.
-        head.position.start.offset++;
-        // @ts-expect-error: must be true.
-        node.position.start = Object.assign({}, head.position.start);
-      }
-    }
-  }
-
-  this.exit(token);
-}
-
-/**
- * @type {ToMarkdownHandle}
- * @param {ListItem} node
- */
-function listItemWithTaskListItem(node, parent, context) {
-  const head = node.children[0];
-  let value = listItem(node, parent, context);
-
-  if (typeof node.checked === 'boolean' && head && head.type === 'paragraph') {
-    value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
-  }
-
-  return value
-
-  /**
-   * @param {string} $0
-   * @returns {string}
-   */
-  function check($0) {
-    return $0 + '[' + (node.checked ? 'x' : ' ') + '] '
-  }
-}
-
-/**
- * @typedef {import('mdast-util-from-markdown').Extension} FromMarkdownExtension
- * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
- *
- * @typedef {import('mdast-util-gfm-table').Options} Options
- */
-
-/**
- * @type {Array.<FromMarkdownExtension>}
- */
-const gfmFromMarkdown = [
-  gfmAutolinkLiteralFromMarkdown,
-  gfmStrikethroughFromMarkdown,
-  gfmTableFromMarkdown,
-  gfmTaskListItemFromMarkdown
-];
-
-/**
- * @param {Options} [options]
- * @returns {ToMarkdownExtension}
- */
-function gfmToMarkdown(options) {
-  return {
-    extensions: [
-      gfmAutolinkLiteralToMarkdown,
-      gfmStrikethroughToMarkdown,
-      gfmTableToMarkdown(options),
-      gfmTaskListItemToMarkdown
-    ]
-  }
-}
-
-/**
- * @typedef {import('mdast').Root} Root
- * @typedef {import('micromark-extension-gfm').Options & import('mdast-util-gfm').Options} Options
- */
-
-/**
- * Plugin to support GitHub Flavored Markdown (GFM).
- *
- * @type {import('unified').Plugin<[Options?]|void[], Root>}
- */
-function remarkGfm(options = {}) {
-  const data = this.data();
-
-  add('micromarkExtensions', gfm(options));
-  add('fromMarkdownExtensions', gfmFromMarkdown);
-  add('toMarkdownExtensions', gfmToMarkdown(options));
-
-  /**
-   * @param {string} field
-   * @param {unknown} value
-   */
-  function add(field, value) {
-    const list = /** @type {unknown[]} */ (
-      // Other extensions
-      /* c8 ignore next 2 */
-      data[field] ? data[field] : (data[field] = [])
-    );
-
-    list.push(value);
-  }
-}
 
 /**
  * @typedef {import('vfile').VFileValue} Value
@@ -29173,7 +29226,6 @@ if (paths[0] === '--format') {
 
 const linter = unified()
   .use(remarkParse)
-  .use(remarkGfm)
   .use(remarkPresetLintNode)
   .use(remarkStringify);
 

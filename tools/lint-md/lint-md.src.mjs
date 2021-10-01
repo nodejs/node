@@ -4,7 +4,6 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import presetLintNode from 'remark-preset-lint-node';
-import gfm from 'remark-gfm';
 import { read } from 'to-vfile';
 import { reporter } from 'vfile-reporter';
 
@@ -24,7 +23,6 @@ if (paths[0] === '--format') {
 
 const linter = unified()
   .use(remarkParse)
-  .use(gfm)
   .use(presetLintNode)
   .use(remarkStringify);
 
