@@ -1142,8 +1142,8 @@ The resolver can throw the following errors:
 >    1. Return **undefined**.
 > 1. If _pjson.name_ is equal to _packageName_, then
 >    1. Return the _resolved_ destructured value of the result of
->       **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_, _pjson.exports_,
->       _defaultConditions_).
+>       **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packageSubpath_,
+>       _pjson.exports_, _defaultConditions_).
 > 1. Otherwise, return **undefined**.
 
 **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
