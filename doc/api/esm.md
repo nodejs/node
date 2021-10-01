@@ -979,7 +979,7 @@ async function getPackageType(url) {
   // Compose a file path to a package.json in the same directory,
   // which may or may not exist
   const packagePath = resolvePath(dir, 'package.json');
-  // Try to read the possibly non-existant package.json
+  // Try to read the possibly nonexistent package.json
   const type = await readFile(packagePath, { encoding: 'utf8' })
     .then((filestring) => JSON.parse(filestring).type)
     .catch((err) => {
