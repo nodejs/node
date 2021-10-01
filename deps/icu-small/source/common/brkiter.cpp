@@ -234,7 +234,7 @@ class ICUBreakIteratorFactory : public ICUResourceBundleFactory {
 public:
     virtual ~ICUBreakIteratorFactory();
 protected:
-    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /*service*/, UErrorCode& status) const {
+    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /*service*/, UErrorCode& status) const override {
         return BreakIterator::makeInstance(loc, kind, status);
     }
 };
@@ -254,11 +254,11 @@ public:
 
     virtual ~ICUBreakIteratorService();
 
-    virtual UObject* cloneInstance(UObject* instance) const {
+    virtual UObject* cloneInstance(UObject* instance) const override {
         return ((BreakIterator*)instance)->clone();
     }
 
-    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const {
+    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /*actualID*/, UErrorCode& status) const override {
         LocaleKey& lkey = (LocaleKey&)key;
         int32_t kind = lkey.kind();
         Locale loc;
@@ -266,7 +266,7 @@ public:
         return BreakIterator::makeInstance(loc, kind, status);
     }
 
-    virtual UBool isDefault() const {
+    virtual UBool isDefault() const override {
         return countFactories() == 1;
     }
 };

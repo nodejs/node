@@ -36,7 +36,7 @@
 
 U_NAMESPACE_BEGIN
 
-// Note these constants and the struct are only used when dealing with the fallback path for RDP sesssions.
+// Note these constants and the struct are only used when dealing with the fallback path for RDP sessions.
 
 // This is the location of the time zones in the registry on Vista+ systems.
 // See: https://docs.microsoft.com/windows/win32/api/timezoneapi/ns-timezoneapi-dynamic_time_zone_information

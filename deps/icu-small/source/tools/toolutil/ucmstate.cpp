@@ -101,7 +101,7 @@ parseState(const char *s, int32_t state[256], uint32_t *pFlags) {
             end=start;
         }
 
-        /* determine the state entrys for this range */
+        /* determine the state entry for this range */
         if(*s!=':' && *s!='.') {
             /* the default is: final state with valid entries */
             entry=MBCS_ENTRY_FINAL(0, MBCS_STATE_VALID_16, 0);

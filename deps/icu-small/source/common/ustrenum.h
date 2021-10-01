@@ -47,9 +47,9 @@ public:
      * @param status the error code.
      * @return number of elements in the iterator.
      */
-    virtual int32_t count(UErrorCode& status) const;
+    virtual int32_t count(UErrorCode& status) const override;
 
-    virtual const char* next(int32_t *resultLength, UErrorCode& status);
+    virtual const char* next(int32_t *resultLength, UErrorCode& status) override;
 
     /**
      * Returns the next element a UnicodeString*.  If there are no
@@ -57,18 +57,18 @@ public:
      * @param status the error code.
      * @return a pointer to the string, or NULL.
      */
-    virtual const UnicodeString* snext(UErrorCode& status);
+    virtual const UnicodeString* snext(UErrorCode& status) override;
 
     /**
      * Resets the iterator.
      * @param status the error code.
      */
-    virtual void reset(UErrorCode& status);
+    virtual void reset(UErrorCode& status) override;
 
     /**
      * ICU4C "poor man's RTTI", returns a UClassID for the actual ICU class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU4C "poor man's RTTI", returns a UClassID for this ICU class.

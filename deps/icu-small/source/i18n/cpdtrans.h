@@ -98,7 +98,7 @@ public:
     /**
      * Transliterator API.
      */
-    virtual CompoundTransliterator* clone() const;
+    virtual CompoundTransliterator* clone() const override;
 
     /**
      * Returns the number of transliterators in this chain.
@@ -137,33 +137,33 @@ public:
      * U+000A, U+0020..U+007E.
      */
     virtual UnicodeString& toRules(UnicodeString& result,
-                                   UBool escapeUnprintable) const;
+                                   UBool escapeUnprintable) const override;
 
  protected:
     /**
      * Implement Transliterator framework
      */
-    virtual void handleGetSourceSet(UnicodeSet& result) const;
+    virtual void handleGetSourceSet(UnicodeSet& result) const override;
 
  public:
     /**
      * Override Transliterator framework
      */
-    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const;
+    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const override;
 
 protected:
     /**
      * Implements {@link Transliterator#handleTransliterate}.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& idx,
-                                     UBool incremental) const;
+                                     UBool incremental) const override;
 
 public:
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

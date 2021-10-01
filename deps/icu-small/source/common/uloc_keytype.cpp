@@ -168,11 +168,13 @@ initFromResourceBundle(UErrorCode& sts) {
         }
 
         // look up type map for the key, and walk through the mapping data
-        tmpSts = U_ZERO_ERROR;
-        LocalUResourceBundlePointer typeMapResByKey(ures_getByKey(typeMapRes.getAlias(), legacyKeyId, NULL, &tmpSts));
-        if (U_FAILURE(tmpSts)) {
-            // type map for each key must exist
-            UPRV_UNREACHABLE;
+        LocalUResourceBundlePointer typeMapResByKey(ures_getByKey(typeMapRes.getAlias(), legacyKeyId, NULL, &sts));
+        if (U_FAILURE(sts)) {
+            // We fail here if typeMap does not have an entry corresponding to every entry in keyMap (should
+            // not happen for valid keyTypeData), or if ures_getByKeyfails fails for some other reason
+            // (e.g. data file cannot be loaded, using stubdata, over-aggressive data filtering has removed
+            // something like timezoneTypes.res, etc.). Error code is already set. See ICU-21669.
+            UPRV_UNREACHABLE_ASSERT;
         } else {
             LocalUResourceBundlePointer typeMapEntry;
 

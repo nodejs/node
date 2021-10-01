@@ -285,7 +285,7 @@ NumberFormat::operator=(const NumberFormat& rhs)
 
 // -------------------------------------
 
-UBool
+bool
 NumberFormat::operator==(const Format& that) const
 {
     // Format::operator== guarantees this cast is safe
@@ -860,7 +860,7 @@ class ICUNumberFormatFactory : public ICUResourceBundleFactory {
 public:
     virtual ~ICUNumberFormatFactory();
 protected:
-    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /* service */, UErrorCode& status) const {
+    virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* /* service */, UErrorCode& status) const override {
         return NumberFormat::makeInstance(loc, (UNumberFormatStyle)kind, status);
     }
 };
@@ -884,7 +884,7 @@ public:
 
     virtual ~NFFactory();
 
-    virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const
+    virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const override
     {
         if (handlesKey(key, status)) {
             const LocaleKey& lkey = (const LocaleKey&)key;
@@ -907,7 +907,7 @@ protected:
      * otherwise).  This can be called often and might need to be
      * cached if it is expensive to create.
      */
-    virtual const Hashtable* getSupportedIDs(UErrorCode& status) const
+    virtual const Hashtable* getSupportedIDs(UErrorCode& status) const override
     {
         if (U_SUCCESS(status)) {
             if (!_ids) {
@@ -943,11 +943,11 @@ public:
 
     virtual ~ICUNumberFormatService();
 
-    virtual UObject* cloneInstance(UObject* instance) const {
+    virtual UObject* cloneInstance(UObject* instance) const override {
         return ((NumberFormat*)instance)->clone();
     }
 
-    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /* actualID */, UErrorCode& status) const {
+    virtual UObject* handleDefault(const ICUServiceKey& key, UnicodeString* /* actualID */, UErrorCode& status) const override {
         LocaleKey& lkey = (LocaleKey&)key;
         int32_t kind = lkey.kind();
         Locale loc;
@@ -955,7 +955,7 @@ public:
         return NumberFormat::makeInstance(loc, (UNumberFormatStyle)kind, status);
     }
 
-    virtual UBool isDefault() const {
+    virtual UBool isDefault() const override {
         return countFactories() == 1;
     }
 };

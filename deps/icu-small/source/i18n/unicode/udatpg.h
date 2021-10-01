@@ -341,7 +341,7 @@ udatpg_getBaseSkeleton(UDateTimePatternGenerator *unusedDtpg,
 /**
  * Adds a pattern to the generator. If the pattern has the same skeleton as
  * an existing pattern, and the override parameter is set, then the previous
- * value is overriden. Otherwise, the previous value is retained. In either
+ * value is overridden. Otherwise, the previous value is retained. In either
  * case, the conflicting status is set and previous vale is stored in
  * conflicting pattern.
  * <p>

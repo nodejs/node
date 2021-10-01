@@ -204,8 +204,8 @@ protected:
         // Handles node==NULL.
         static inline int32_t hashCode(const Node *node) { return node==NULL ? 0 : node->hashCode(); }
         // Base class operator==() compares the actual class types.
-        virtual UBool operator==(const Node &other) const;
-        inline UBool operator!=(const Node &other) const { return !operator==(other); }
+        virtual bool operator==(const Node &other) const;
+        inline bool operator!=(const Node &other) const { return !operator==(other); }
         /**
          * Traverses the Node graph and numbers branch edges, with rightmost edges first.
          * This is to avoid writing a duplicate node twice.
@@ -265,8 +265,8 @@ protected:
     class FinalValueNode : public Node {
     public:
         FinalValueNode(int32_t v) : Node(0x111111u*37u+v), value(v) {}
-        virtual UBool operator==(const Node &other) const;
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual void write(StringTrieBuilder &builder) override;
     protected:
         int32_t value;
     };
@@ -280,7 +280,7 @@ protected:
     class ValueNode : public Node {
     public:
         ValueNode(int32_t initialHash) : Node(initialHash), hasValue(false), value(0) {}
-        virtual UBool operator==(const Node &other) const;
+        virtual bool operator==(const Node &other) const override;
         void setValue(int32_t v) {
             hasValue=true;
             value=v;
@@ -299,9 +299,9 @@ protected:
     public:
         IntermediateValueNode(int32_t v, Node *nextNode)
                 : ValueNode(0x222222u*37u+hashCode(nextNode)), next(nextNode) { setValue(v); }
-        virtual UBool operator==(const Node &other) const;
-        virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual int32_t markRightEdgesFirst(int32_t edgeNumber) override;
+        virtual void write(StringTrieBuilder &builder) override;
     protected:
         Node *next;
     };
@@ -317,8 +317,8 @@ protected:
         LinearMatchNode(int32_t len, Node *nextNode)
                 : ValueNode((0x333333u*37u+len)*37u+hashCode(nextNode)),
                   length(len), next(nextNode) {}
-        virtual UBool operator==(const Node &other) const;
-        virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
+        virtual bool operator==(const Node &other) const override;
+        virtual int32_t markRightEdgesFirst(int32_t edgeNumber) override;
     protected:
         int32_t length;
         Node *next;
@@ -341,9 +341,9 @@ protected:
     class ListBranchNode : public BranchNode {
     public:
         ListBranchNode() : BranchNode(0x444444), length(0) {}
-        virtual UBool operator==(const Node &other) const;
-        virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual int32_t markRightEdgesFirst(int32_t edgeNumber) override;
+        virtual void write(StringTrieBuilder &builder) override;
         // Adds a unit with a final value.
         void add(int32_t c, int32_t value) {
             units[length]=(char16_t)c;
@@ -376,9 +376,9 @@ protected:
                 : BranchNode(((0x555555u*37u+middleUnit)*37u+
                               hashCode(lessThanNode))*37u+hashCode(greaterOrEqualNode)),
                   unit(middleUnit), lessThan(lessThanNode), greaterOrEqual(greaterOrEqualNode) {}
-        virtual UBool operator==(const Node &other) const;
-        virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual int32_t markRightEdgesFirst(int32_t edgeNumber) override;
+        virtual void write(StringTrieBuilder &builder) override;
     protected:
         char16_t unit;
         Node *lessThan;
@@ -392,9 +392,9 @@ protected:
         BranchHeadNode(int32_t len, Node *subNode)
                 : ValueNode((0x666666u*37u+len)*37u+hashCode(subNode)),
                   length(len), next(subNode) {}
-        virtual UBool operator==(const Node &other) const;
-        virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
-        virtual void write(StringTrieBuilder &builder);
+        virtual bool operator==(const Node &other) const override;
+        virtual int32_t markRightEdgesFirst(int32_t edgeNumber) override;
+        virtual void write(StringTrieBuilder &builder) override;
     protected:
         int32_t length;
         Node *next;  // A branch sub-node.

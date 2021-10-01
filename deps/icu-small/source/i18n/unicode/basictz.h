@@ -49,7 +49,7 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 3.8
      */
-    virtual BasicTimeZone* clone() const = 0;
+    virtual BasicTimeZone* clone() const override = 0;
 
     /**
      * Gets the first time zone transition after the base time.
@@ -84,7 +84,7 @@ public:
      *              changes will be ignored, except either of them is zero.
      *              For example, a transition from rawoffset 3:00/dstsavings 1:00
      *              to rawoffset 2:00/dstsavings 2:00 is excluded from the comparison,
-     *              but a transtion from rawoffset 2:00/dstsavings 1:00 to
+     *              but a transition from rawoffset 2:00/dstsavings 1:00 to
      *              rawoffset 3:00/dstsavings 0:00 is included.
      * @param ec    Output param to filled in with a success or an error.
      * @return      true if the other time zone has the equivalent transitions in the
@@ -226,8 +226,11 @@ protected:
     /**
      * Gets the set of TimeZoneRule instances applicable to the specified time and after.
      * @param start     The start date used for extracting time zone rules
-     * @param initial   Receives the InitialTimeZone, always not NULL
-     * @param transitionRules   Receives the transition rules, could be NULL
+     * @param initial   Output parameter, receives the InitialTimeZone.
+     *                  Always not nullptr (except in case of error)
+     * @param transitionRules   Output parameter, a UVector of transition rules.
+     *                  May be nullptr, if there are no transition rules.
+     *                  The caller owns the returned vector; the UVector owns the rules.
      * @param status    Receives error status code
      */
     void getTimeZoneRulesAfter(UDate start, InitialTimeZoneRule*& initial, UVector*& transitionRules,

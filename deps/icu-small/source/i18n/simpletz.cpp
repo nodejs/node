@@ -231,7 +231,7 @@ SimpleTimeZone::operator=(const SimpleTimeZone &right)
 
 // -------------------------------------
 
-UBool
+bool
 SimpleTimeZone::operator==(const TimeZone& that) const
 {
     return ((this == &that) ||
@@ -289,7 +289,7 @@ SimpleTimeZone::setStartYear(int32_t year)
  *       month, regardless of what day of the week it is (e.g., (-2, 0) is the
  *       next-to-last day of the month).
  *   <li>If dayOfWeek is negative and dayOfWeekInMonth is positive, they specify the
- *       first specified day of the week on or after the specfied day of the month.
+ *       first specified day of the week on or after the specified day of the month.
  *       (e.g., (15, -SUNDAY) is the first Sunday after the 15th of the month
  *       [or the 15th itself if the 15th is a Sunday].)
  *   <li>If dayOfWeek and DayOfWeekInMonth are both negative, they specify the
@@ -585,7 +585,7 @@ SimpleTimeZone::compareToRule(int8_t month, int8_t monthLen, int8_t prevMonthLen
         dayOfWeek = (int8_t)(1 + (dayOfWeek % 7)); // dayOfWeek is one-based
         if (dayOfMonth > monthLen) {
             dayOfMonth = 1;
-            /* When incrementing the month, it is desirible to overflow
+            /* When incrementing the month, it is desirable to overflow
              * from DECEMBER to DECEMBER+1, since we use the result to
              * compare against a real month. Wraparound of the value
              * leads to bug 4173604. */

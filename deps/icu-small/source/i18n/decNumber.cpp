@@ -3776,7 +3776,7 @@ static void decToString(const decNumber *dn, char *string, Flag eng) {
 
   /* Finally add the E-part, if needed.  It will never be 0, has a
      base maximum and minimum of +999999999 through -999999999, but
-     could range down to -1999999998 for anormal numbers */
+     could range down to -1999999998 for abnormal numbers */
   if (e!=0) {
     Flag had=0;               /* 1=had non-zero  */
     *c='E'; c++;
@@ -3831,7 +3831,7 @@ static void decToString(const decNumber *dn, char *string, Flag eng) {
 /*                                                                    */
 /* Addition, especially x=x+1, is speed-critical.                     */
 /* The static buffer is larger than might be expected to allow for    */
-/* calls from higher-level funtions (notable exp).                    */
+/* calls from higher-level functions (notable exp).                    */
 /* ------------------------------------------------------------------ */
 static decNumber * decAddOp(decNumber *res, const decNumber *lhs,
                             const decNumber *rhs, decContext *set,
@@ -4247,7 +4247,7 @@ static decNumber * decAddOp(decNumber *res, const decNumber *lhs,
 /* long subtractions.  These are acc and var1 respectively.           */
 /* var1 is a copy of the lhs coefficient, var2 is the rhs coefficient.*/
 /* The static buffers may be larger than might be expected to allow   */
-/* for calls from higher-level funtions (notable exp).                */
+/* for calls from higher-level functions (notable exp).                */
 /* ------------------------------------------------------------------ */
 static decNumber * decDivideOp(decNumber *res,
                                const decNumber *lhs, const decNumber *rhs,
@@ -5616,7 +5616,7 @@ static const uShort LNnn[90]={9016,  8652,  8316,  8008,  7724,  7456,  7208,
 /*    would certainly save at least one if it were made ten times     */
 /*    bigger, too (for truncated fractions 0.100 through 0.999).      */
 /*    However, for most practical evaluations, at least four or five  */
-/*    iterations will be neede -- so this would only speed up by      */
+/*    iterations will be needed -- so this would only speed up by      */
 /*    20-25% and that probably does not justify increasing the table  */
 /*    size.                                                           */
 /*                                                                    */

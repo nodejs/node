@@ -178,10 +178,10 @@ const UnicodeString & SearchIterator::getText(void) const
 
 // operator overloading ----------------------------------------------
 
-UBool SearchIterator::operator==(const SearchIterator &that) const
+bool SearchIterator::operator==(const SearchIterator &that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     return (m_breakiterator_            == that.m_breakiterator_ &&
             m_search_->isCanonicalMatch == that.m_search_->isCanonicalMatch &&

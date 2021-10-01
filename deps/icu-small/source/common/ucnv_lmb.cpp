@@ -149,7 +149,7 @@ Next, you will notice that the list of group bytes has some gaps.
 These are used in various ways.
 
 We reserve a few special single byte values for common control
-characters. These are in the same place as their ANSI eqivalents for speed.
+characters. These are in the same place as their ANSI equivalents for speed.
 */
 
 #define ULMBCS_HT    0x09   /* Fixed control char - Horizontal Tab */
@@ -192,7 +192,7 @@ LMBCS, was to use up the spaces of the form
  LOTUS added a new group 0x14 to hold Unicode values not otherwise
  represented in LMBCS: */
 #define ULMBCS_GRP_UNICODE    0x14
-/* The two bytes appearing after a 0x14 are intrepreted as UFT-16 BE
+/* The two bytes appearing after a 0x14 are interpreted as UFT-16 BE
 (Big-Endian) characters. The exception comes when the UTF16
 representation would have a zero as the second byte. In that case,
 'F6' is used in its place, and the bytes are swapped. (This prevents
@@ -878,7 +878,7 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
          A) The optimization group
          B) The locale group
          C) The last group that succeeded with this string.
-         D) every other group that's relevent (single or double)
+         D) every other group that's relevant (single or double)
          E) If its single-byte ambiguous, try the exceptions group
 
       4. And as a grand fallback: Unicode
@@ -1049,7 +1049,7 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
          }
       }
 
-      /* we have a translation. increment source and write as much as posible to target */
+      /* we have a translation. increment source and write as much as possible to target */
       args->source++;
       pLMBCS = LMBCS;
       while (args->target < args->targetLimit && bytes_written--)

@@ -94,7 +94,7 @@ public:
      * position.
      * @param text the text to be iterated
      * @param sym the symbol table, or null if there is none.  If sym is null,
-     * then variables will not be deferenced, even if the PARSE_VARIABLES
+     * then variables will not be dereferenced, even if the PARSE_VARIABLES
      * option is set.
      * @param pos upon input, the index of the next character to return.  If a
      * variable has been dereferenced, then pos will <em>not</em> increment as

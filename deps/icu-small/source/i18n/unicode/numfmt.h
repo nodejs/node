@@ -16,7 +16,7 @@
 *   04/17/97    aliu        Changed DigitCount to int per code review.
 *    07/20/98    stephen        JDK 1.2 sync up. Added scientific support.
 *                            Changed naming conventions to match C++ guidelines
-*                            Derecated Java style constants (eg, INTEGER_FIELD)
+*                            Deprecated Java style constants (eg, INTEGER_FIELD)
 ********************************************************************************
 */
 
@@ -266,7 +266,7 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 2.0
      */
-    virtual NumberFormat* clone() const = 0;
+    virtual NumberFormat* clone() const override = 0;
 
     /**
      * Return true if the given Format objects are semantically equal.
@@ -274,7 +274,7 @@ public:
      * @return    true if the given Format objects are semantically equal.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Format& other) const;
+    virtual bool operator==(const Format& other) const override;
 
 
     using Format::format;
@@ -297,7 +297,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 
     /**
      * Format an object to produce a string.  This method handles
@@ -318,7 +318,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 
     /**
      * Parse a string to produce an object.  This methods handles
@@ -350,7 +350,7 @@ public:
      */
     virtual void parseObject(const UnicodeString& source,
                              Formattable& result,
-                             ParsePosition& parse_pos) const;
+                             ParsePosition& parse_pos) const override;
 
     /**
      * Format a double number. These methods call the NumberFormat
@@ -685,7 +685,7 @@ public:
      * true, the string "1234." would be parsed as the integer value
      * 1234 and parsing would stop at the "." character.  Of course,
      * the exact format accepted by the parse operation is locale
-     * dependant and determined by sub-classes of NumberFormat.
+     * dependent and determined by sub-classes of NumberFormat.
      * @return    true if this format will parse numbers as integers
      *            only.
      * @stable ICU 2.0
@@ -1077,7 +1077,7 @@ public:
      * other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
 protected:
 
@@ -1238,12 +1238,12 @@ public:
     /**
      * @stable ICU 2.6
      */
-    virtual UBool visible(void) const;
+    virtual UBool visible(void) const override;
 
     /**
      * @stable ICU 2.6
      */
-    virtual const UnicodeString * getSupportedIDs(int32_t &count, UErrorCode& status) const;
+    virtual const UnicodeString * getSupportedIDs(int32_t &count, UErrorCode& status) const override;
 };
 #endif /* #if !UCONFIG_NO_SERVICE */
 

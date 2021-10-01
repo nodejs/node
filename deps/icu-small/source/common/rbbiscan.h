@@ -144,7 +144,7 @@ private:
 
     UnicodeSet                     fRuleSets[10];    // Unicode Sets that are needed during
                                                      //  the scanning of RBBI rules.  The
-                                                     //  indicies for these are assigned by the
+                                                     //  indices for these are assigned by the
                                                      //  perl script that builds the state tables.
                                                      //  See rbbirpt.h.
 

@@ -120,7 +120,7 @@ public:
       * @return         true if other is semantically equal to this.
       * @stable ICU 3.8
       */
-    UBool operator==(const DateTimePatternGenerator& other) const;
+    bool operator==(const DateTimePatternGenerator& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -129,7 +129,7 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 3.8
      */
-    UBool operator!=(const DateTimePatternGenerator& other) const;
+    bool operator!=(const DateTimePatternGenerator& other) const;
 
     /**
      * Utility to return a unique skeleton from a given pattern. For example,
@@ -202,7 +202,7 @@ public:
     /**
      * Adds a pattern to the generator. If the pattern has the same skeleton as
      * an existing pattern, and the override parameter is set, then the previous
-     * value is overriden. Otherwise, the previous value is retained. In either
+     * value is overridden. Otherwise, the previous value is retained. In either
      * case, the conflicting status is set and previous vale is stored in
      * conflicting pattern.
      * <p>
@@ -513,7 +513,7 @@ public:
      *
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

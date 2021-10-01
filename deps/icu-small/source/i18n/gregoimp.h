@@ -86,7 +86,7 @@ class ClockMath {
      * 0 <= remainder < divisor.
      *
      * Works around edge-case bugs.  Handles pathological input
-     * (divident >> divisor) reasonably.
+     * (dividend >> divisor) reasonably.
      *
      * Calling with a divisor <= 0 is disallowed.
      */
@@ -214,7 +214,7 @@ class Grego {
      * @param dom output parameter to receive day-of-month (1-based)
      * @param dow output parameter to receive day-of-week (1-based, 1==Sun)
      * @param doy output parameter to receive day-of-year (1-based)
-     * @param mid output parameter to recieve millis-in-day
+     * @param mid output parameter to receive millis-in-day
      */
     static void timeToFields(UDate time, int32_t& year, int32_t& month,
                             int32_t& dom, int32_t& dow, int32_t& doy, int32_t& mid);

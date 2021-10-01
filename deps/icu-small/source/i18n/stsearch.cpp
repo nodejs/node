@@ -205,17 +205,17 @@ StringSearch & StringSearch::operator=(const StringSearch &that)
     return *this;
 }
 
-UBool StringSearch::operator==(const SearchIterator &that) const
+bool StringSearch::operator==(const SearchIterator &that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (SearchIterator::operator ==(that)) {
         StringSearch &thatsrch = (StringSearch &)that;
         return (this->m_pattern_ == thatsrch.m_pattern_ &&
                 this->m_strsrch_->collator == thatsrch.m_strsrch_->collator);
     }
-    return FALSE;
+    return false;
 }
 
 // public get and set methods ----------------------------------------
@@ -335,7 +335,7 @@ int32_t StringSearch::handleNext(int32_t position, UErrorCode &status)
                 // the flipping direction issue has already been handled
                 // in next()
                 // for boundary check purposes. this will ensure that the
-                // next match will not preceed the current offset
+                // next match will not precede the current offset
                 // note search->matchedIndex will always be set to something
                 // in the code
                 m_search_->matchedIndex = position - 1;

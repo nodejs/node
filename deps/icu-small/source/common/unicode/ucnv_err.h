@@ -268,7 +268,7 @@ U_CAPI void U_EXPORT2 UCNV_TO_U_CALLBACK_STOP (
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
  * This From Unicode callback skips any ILLEGAL_SEQUENCE, or
- * skips only UNASSINGED_SEQUENCE depending on the context parameter
+ * skips only UNASSIGNED_SEQUENCE depending on the context parameter
  * simply ignoring those characters.
  *
  * @param context  The function currently recognizes the callback options:
@@ -330,31 +330,31 @@ U_CAPI void U_EXPORT2 UCNV_FROM_U_CALLBACK_SUBSTITUTE (
  *
  * @param context The function currently recognizes the callback options:
  *        <ul>
- *        <li>UCNV_ESCAPE_ICU: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
+ *        <li>UCNV_ESCAPE_ICU: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal
  *          representation in the format  %UXXXX, e.g. "%uFFFE%u00AC%uC8FE").
  *          In the Event the converter doesn't support the characters {%,U}[A-F][0-9],
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          %UD84D%UDC56</li>
- *        <li>UCNV_ESCAPE_JAVA: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
+ *        <li>UCNV_ESCAPE_JAVA: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal
  *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE").
  *          In the Event the converter doesn't support the characters {\,u}[A-F][0-9],
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          \\uD84D\\uDC56</li>
- *        <li>UCNV_ESCAPE_C: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
+ *        <li>UCNV_ESCAPE_C: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal
  *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE").
  *          In the Event the converter doesn't support the characters {\,u,U}[A-F][0-9],
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          \\U00023456</li>
- *        <li>UCNV_ESCAPE_XML_DEC: Substitues the  ILLEGAL SEQUENCE with the decimal
+ *        <li>UCNV_ESCAPE_XML_DEC: Substitutes the  ILLEGAL SEQUENCE with the decimal
  *          representation in the format \htmlonly&amp;#DDDDDDDD;, e.g. "&amp;#65534;&amp;#172;&amp;#51454;")\endhtmlonly.
  *          In the Event the converter doesn't support the characters {&amp;,#}[0-9],
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          &amp;#144470; and Zero padding is ignored.</li>
- *        <li>UCNV_ESCAPE_XML_HEX:Substitues the  ILLEGAL SEQUENCE with the decimal
+ *        <li>UCNV_ESCAPE_XML_HEX:Substitutes the  ILLEGAL SEQUENCE with the decimal
  *          representation in the format \htmlonly&amp;#xXXXX; e.g. "&amp;#xFFFE;&amp;#x00AC;&amp;#xC8FE;")\endhtmlonly.
  *          In the Event the converter doesn't support the characters {&,#,x}[0-9],
  *          it will  substitute  the illegal sequence with the substitution characters.
@@ -383,7 +383,7 @@ U_CAPI void U_EXPORT2 UCNV_FROM_U_CALLBACK_ESCAPE (
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
  * This To Unicode callback skips any ILLEGAL_SEQUENCE, or
- * skips only UNASSINGED_SEQUENCE depending on the context parameter
+ * skips only UNASSIGNED_SEQUENCE depending on the context parameter
  * simply ignoring those characters.
  *
  * @param context  The function currently recognizes the callback options:

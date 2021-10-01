@@ -21,7 +21,7 @@ U_NAMESPACE_BEGIN
 class CharsetMatch;
 
 /**
- *  class CharsetRecog_2022  part of the ICU charset detection imlementation.
+ *  class CharsetRecog_2022  part of the ICU charset detection implementation.
  *                           This is a superclass for the individual detectors for
  *                           each of the detectable members of the ISO 2022 family
  *                           of encodings.
@@ -62,9 +62,9 @@ class CharsetRecog_2022JP :public CharsetRecog_2022
 public:
     virtual ~CharsetRecog_2022JP();
 
-    const char *getName() const;
+    const char *getName() const override;
 
-    UBool match(InputText *textIn, CharsetMatch *results) const;
+    UBool match(InputText *textIn, CharsetMatch *results) const override;
 };
 
 #if !UCONFIG_ONLY_HTML_CONVERSION
@@ -72,9 +72,9 @@ class CharsetRecog_2022KR :public CharsetRecog_2022 {
 public:
     virtual ~CharsetRecog_2022KR();
 
-    const char *getName() const;
+    const char *getName() const override;
 
-    UBool match(InputText *textIn, CharsetMatch *results) const;
+    UBool match(InputText *textIn, CharsetMatch *results) const override;
 
 };
 
@@ -83,9 +83,9 @@ class CharsetRecog_2022CN :public CharsetRecog_2022
 public:
     virtual ~CharsetRecog_2022CN();
 
-    const char* getName() const;
+    const char* getName() const override;
 
-    UBool match(InputText *textIn, CharsetMatch *results) const;
+    UBool match(InputText *textIn, CharsetMatch *results) const override;
 };
 #endif
 

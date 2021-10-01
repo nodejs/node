@@ -229,37 +229,37 @@ DateIntervalFormat::clone() const {
 }
 
 
-UBool
+bool
 DateIntervalFormat::operator==(const Format& other) const {
-    if (typeid(*this) != typeid(other)) {return FALSE;}
+    if (typeid(*this) != typeid(other)) {return false;}
     const DateIntervalFormat* fmt = (DateIntervalFormat*)&other;
-    if (this == fmt) {return TRUE;}
-    if (!Format::operator==(other)) {return FALSE;}
-    if ((fInfo != fmt->fInfo) && (fInfo == nullptr || fmt->fInfo == nullptr)) {return FALSE;}
-    if (fInfo && fmt->fInfo && (*fInfo != *fmt->fInfo )) {return FALSE;}
+    if (this == fmt) {return true;}
+    if (!Format::operator==(other)) {return false;}
+    if ((fInfo != fmt->fInfo) && (fInfo == nullptr || fmt->fInfo == nullptr)) {return false;}
+    if (fInfo && fmt->fInfo && (*fInfo != *fmt->fInfo )) {return false;}
     {
         Mutex lock(&gFormatterMutex);
-        if (fDateFormat != fmt->fDateFormat && (fDateFormat == nullptr || fmt->fDateFormat == nullptr)) {return FALSE;}
-        if (fDateFormat && fmt->fDateFormat && (*fDateFormat != *fmt->fDateFormat)) {return FALSE;}
+        if (fDateFormat != fmt->fDateFormat && (fDateFormat == nullptr || fmt->fDateFormat == nullptr)) {return false;}
+        if (fDateFormat && fmt->fDateFormat && (*fDateFormat != *fmt->fDateFormat)) {return false;}
     }
     // note: fFromCalendar and fToCalendar hold no persistent state, and therefore do not participate in operator ==.
     //       fDateFormat has the primary calendar for the DateIntervalFormat.
-    if (fSkeleton != fmt->fSkeleton) {return FALSE;}
-    if (fDatePattern != fmt->fDatePattern && (fDatePattern == nullptr || fmt->fDatePattern == nullptr)) {return FALSE;}
-    if (fDatePattern && fmt->fDatePattern && (*fDatePattern != *fmt->fDatePattern)) {return FALSE;}
-    if (fTimePattern != fmt->fTimePattern && (fTimePattern == nullptr || fmt->fTimePattern == nullptr)) {return FALSE;}
-    if (fTimePattern && fmt->fTimePattern && (*fTimePattern != *fmt->fTimePattern)) {return FALSE;}
-    if (fDateTimeFormat != fmt->fDateTimeFormat && (fDateTimeFormat == nullptr || fmt->fDateTimeFormat == nullptr)) {return FALSE;}
-    if (fDateTimeFormat && fmt->fDateTimeFormat && (*fDateTimeFormat != *fmt->fDateTimeFormat)) {return FALSE;}
-    if (fLocale != fmt->fLocale) {return FALSE;}
+    if (fSkeleton != fmt->fSkeleton) {return false;}
+    if (fDatePattern != fmt->fDatePattern && (fDatePattern == nullptr || fmt->fDatePattern == nullptr)) {return false;}
+    if (fDatePattern && fmt->fDatePattern && (*fDatePattern != *fmt->fDatePattern)) {return false;}
+    if (fTimePattern != fmt->fTimePattern && (fTimePattern == nullptr || fmt->fTimePattern == nullptr)) {return false;}
+    if (fTimePattern && fmt->fTimePattern && (*fTimePattern != *fmt->fTimePattern)) {return false;}
+    if (fDateTimeFormat != fmt->fDateTimeFormat && (fDateTimeFormat == nullptr || fmt->fDateTimeFormat == nullptr)) {return false;}
+    if (fDateTimeFormat && fmt->fDateTimeFormat && (*fDateTimeFormat != *fmt->fDateTimeFormat)) {return false;}
+    if (fLocale != fmt->fLocale) {return false;}
 
     for (int32_t i = 0; i< DateIntervalInfo::kIPI_MAX_INDEX; ++i ) {
-        if (fIntervalPatterns[i].firstPart != fmt->fIntervalPatterns[i].firstPart) {return FALSE;}
-        if (fIntervalPatterns[i].secondPart != fmt->fIntervalPatterns[i].secondPart ) {return FALSE;}
-        if (fIntervalPatterns[i].laterDateFirst != fmt->fIntervalPatterns[i].laterDateFirst) {return FALSE;}
+        if (fIntervalPatterns[i].firstPart != fmt->fIntervalPatterns[i].firstPart) {return false;}
+        if (fIntervalPatterns[i].secondPart != fmt->fIntervalPatterns[i].secondPart ) {return false;}
+        if (fIntervalPatterns[i].laterDateFirst != fmt->fIntervalPatterns[i].laterDateFirst) {return false;}
     }
-    if (fCapitalizationContext != fmt->fCapitalizationContext) {return FALSE;}
-    return TRUE;
+    if (fCapitalizationContext != fmt->fCapitalizationContext) {return false;}
+    return true;
 }
 
 

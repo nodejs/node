@@ -128,7 +128,7 @@ typedef struct {
     MaskEnum currentMaskToUnicode;      /* mask for current state in toUnicode */
     MaskEnum defMaskToUnicode;          /* mask for default state in toUnicode */
     UBool isFirstBuffer;                /* boolean for fromUnicode to see if we need to announce the first script */
-    UBool resetToDefaultToUnicode;      /* boolean for reseting to default delta and mask when a newline is encountered*/
+    UBool resetToDefaultToUnicode;      /* boolean for resetting to default delta and mask when a newline is encountered*/
     char name[sizeof(ISCII_CNV_PREFIX) + 1];
     UChar32 prevToUnicodeStatus;        /* Hold the previous toUnicodeStatus. This is necessary because we may need to know the last two code points. */
 } UConverterDataISCII;
@@ -1105,7 +1105,7 @@ getTrail:
 }
 
 static const uint16_t lookupTable[][2]={
-    { ZERO,       ZERO     },     /*DEFALT*/
+    { ZERO,       ZERO     },     /*DEFAULT*/
     { ZERO,       ZERO     },     /*ROMAN*/
     { DEVANAGARI, DEV_MASK },
     { BENGALI,    BNG_MASK },
@@ -1164,15 +1164,15 @@ static const uint16_t lookupTable[][2]={
  *  Post context
  *  i)  ATR : Attribute code is used to declare the font and script switching.
  *      Currently we only switch scripts and font codes consumed without generating an error
- *  ii) EXT : Extention code is used to declare switching to Sanskrit and for obscure,
+ *  ii) EXT : Extension code is used to declare switching to Sanskrit and for obscure,
  *      obsolete characters
  *  Pre context
- *  i)  Halant: if preceeded by a halant then it is a explicit halant
+ *  i)  Halant: if preceded by a halant then it is a explicit halant
  *  ii) Nukta :
- *       a) if preceeded by a halant then it is a soft halant
- *       b) if preceeded by specific consonants and the ligatures have pre-composed
+ *       a) if preceded by a halant then it is a soft halant
+ *       b) if preceded by specific consonants and the ligatures have pre-composed
  *          characters in Unicode then convert to pre-composed characters
- *  iii) Danda: If Danda is preceeded by a Danda then convert to Double Danda
+ *  iii) Danda: If Danda is preceded by a Danda then convert to Double Danda
  *
  */
 
@@ -1208,7 +1208,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
         if (target < targetLimit) {
             sourceChar = (unsigned char)*(source)++;
 
-            /* look at the post-context preform special processing */
+            /* look at the post-context perform special processing */
             if (*contextCharToUnicode==ATR) {
 
                 /* If we have ATR in *contextCharToUnicode then we need to change our

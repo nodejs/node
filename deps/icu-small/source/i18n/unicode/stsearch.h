@@ -297,7 +297,7 @@ public:
      *         while looking for the same pattern.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const SearchIterator &that) const;
+    virtual bool operator==(const SearchIterator &that) const override;
 
     // public get and set methods ----------------------------------------
 
@@ -314,7 +314,7 @@ public:
      * @param status for errors if it occurs
      * @stable ICU 2.0
      */
-    virtual void setOffset(int32_t position, UErrorCode &status);
+    virtual void setOffset(int32_t position, UErrorCode &status) override;
 
     /**
      * Return the current index in the text being searched.
@@ -324,7 +324,7 @@ public:
      * @return current index in the text being searched.
      * @stable ICU 2.0
      */
-    virtual int32_t getOffset(void) const;
+    virtual int32_t getOffset(void) const override;
 
     /**
      * Set the target text to be searched.
@@ -337,7 +337,7 @@ public:
      *        U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
      */
-    virtual void setText(const UnicodeString &text, UErrorCode &status);
+    virtual void setText(const UnicodeString &text, UErrorCode &status) override;
 
     /**
      * Set the target text to be searched.
@@ -353,7 +353,7 @@ public:
      *        U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
      */
-    virtual void setText(CharacterIterator &text, UErrorCode &status);
+    virtual void setText(CharacterIterator &text, UErrorCode &status) override;
 
     /**
      * Gets the collator used for the language rules.
@@ -403,7 +403,7 @@ public:
      * search will begin at the end of the text string.
      * @stable ICU 2.0
      */
-    virtual void reset();
+    virtual void reset() override;
 
     /**
      * Returns a copy of StringSearch with the same behavior, and
@@ -413,14 +413,14 @@ public:
      * @return cloned object
      * @stable ICU 2.0
      */
-    virtual StringSearch * safeClone() const;
+    virtual StringSearch * safeClone() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -455,7 +455,7 @@ protected:
      *         USEARCH_DONE if no match was found.
      * @stable ICU 2.0
      */
-    virtual int32_t handleNext(int32_t position, UErrorCode &status);
+    virtual int32_t handleNext(int32_t position, UErrorCode &status) override;
 
     /**
      * Search backward for matching text, starting at a given location.
@@ -479,7 +479,7 @@ protected:
      *         USEARCH_DONE if no match was found.
      * @stable ICU 2.0
      */
-    virtual int32_t handlePrev(int32_t position, UErrorCode &status);
+    virtual int32_t handlePrev(int32_t position, UErrorCode &status) override;
 
 private :
     StringSearch(); // default constructor not implemented

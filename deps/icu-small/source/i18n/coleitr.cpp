@@ -99,7 +99,7 @@ int32_t CollationElementIterator::getOffset() const
 /**
 * Get the ordering priority of the next character in the string.
 * @return the next character's ordering. Returns NULLORDER if an error has
-*         occured or if the end of string has been reached
+*         occurred or if the end of string has been reached
 */
 int32_t CollationElementIterator::next(UErrorCode& status)
 {
@@ -137,17 +137,17 @@ int32_t CollationElementIterator::next(UErrorCode& status)
     return firstHalf;
 }
 
-UBool CollationElementIterator::operator!=(
+bool CollationElementIterator::operator!=(
                                   const CollationElementIterator& other) const
 {
     return !(*this == other);
 }
 
-UBool CollationElementIterator::operator==(
+bool CollationElementIterator::operator==(
                                     const CollationElementIterator& that) const
 {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
 
     return
@@ -162,7 +162,7 @@ UBool CollationElementIterator::operator==(
 * Get the ordering priority of the previous collation element in the string.
 * @param status the error code status.
 * @return the previous element's ordering. Returns NULLORDER if an error has
-*         occured or if the start of string has been reached.
+*         occurred or if the start of string has been reached.
 */
 int32_t CollationElementIterator::previous(UErrorCode& status)
 {
@@ -398,8 +398,8 @@ class MaxExpSink : public ContractionsAndExpansions::CESink {
 public:
     MaxExpSink(UHashtable *h, UErrorCode &ec) : maxExpansions(h), errorCode(ec) {}
     virtual ~MaxExpSink();
-    virtual void handleCE(int64_t /*ce*/) {}
-    virtual void handleExpansion(const int64_t ces[], int32_t length) {
+    virtual void handleCE(int64_t /*ce*/) override {}
+    virtual void handleExpansion(const int64_t ces[], int32_t length) override {
         if (length <= 1) {
             // We do not need to add single CEs into the map.
             return;

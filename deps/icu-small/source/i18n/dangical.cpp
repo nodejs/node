@@ -52,7 +52,7 @@ U_NAMESPACE_BEGIN
 //-------------------------------------------------------------------------
 
 DangiCalendar::DangiCalendar(const Locale& aLocale, UErrorCode& success)
-:   ChineseCalendar(aLocale, DANGI_EPOCH_YEAR, getDangiCalZoneAstroCalc(), success)
+:   ChineseCalendar(aLocale, DANGI_EPOCH_YEAR, getDangiCalZoneAstroCalc(success), success)
 {
 }
 
@@ -103,32 +103,41 @@ const char *DangiCalendar::getType() const {
  * 1898-1911: GMT+8
  * 1912-    : GMT+9
  */
-static void U_CALLCONV initDangiCalZoneAstroCalc(void) {
-    U_ASSERT(gDangiCalendarZoneAstroCalc == NULL);
+static void U_CALLCONV initDangiCalZoneAstroCalc(UErrorCode &status) {
+    U_ASSERT(gDangiCalendarZoneAstroCalc == nullptr);
     const UDate millis1897[] = { (UDate)((1897 - 1970) * 365 * kOneDay) }; // some days of error is not a problem here
     const UDate millis1898[] = { (UDate)((1898 - 1970) * 365 * kOneDay) }; // some days of error is not a problem here
     const UDate millis1912[] = { (UDate)((1912 - 1970) * 365 * kOneDay) }; // this doesn't create an issue for 1911/12/20
-    InitialTimeZoneRule* initialTimeZone = new InitialTimeZoneRule(UNICODE_STRING_SIMPLE("GMT+8"), 8*kOneHour, 0);
-    TimeZoneRule* rule1897 = new TimeArrayTimeZoneRule(UNICODE_STRING_SIMPLE("Korean 1897"), 7*kOneHour, 0, millis1897, 1, DateTimeRule::STANDARD_TIME);
-    TimeZoneRule* rule1898to1911 = new TimeArrayTimeZoneRule(UNICODE_STRING_SIMPLE("Korean 1898-1911"), 8*kOneHour, 0, millis1898, 1, DateTimeRule::STANDARD_TIME);
-    TimeZoneRule* ruleFrom1912 = new TimeArrayTimeZoneRule(UNICODE_STRING_SIMPLE("Korean 1912-"), 9*kOneHour, 0, millis1912, 1, DateTimeRule::STANDARD_TIME);
-    UErrorCode status = U_ZERO_ERROR;
-    RuleBasedTimeZone* dangiCalZoneAstroCalc = new RuleBasedTimeZone(UNICODE_STRING_SIMPLE("KOREA_ZONE"), initialTimeZone); // adopts initialTimeZone
-    dangiCalZoneAstroCalc->addTransitionRule(rule1897, status); // adopts rule1897
-    dangiCalZoneAstroCalc->addTransitionRule(rule1898to1911, status);
-    dangiCalZoneAstroCalc->addTransitionRule(ruleFrom1912, status);
+    LocalPointer<InitialTimeZoneRule> initialTimeZone(new InitialTimeZoneRule(
+        UnicodeString(u"GMT+8"), 8*kOneHour, 0), status);
+
+    LocalPointer<TimeZoneRule> rule1897(new TimeArrayTimeZoneRule(
+        UnicodeString(u"Korean 1897"), 7*kOneHour, 0, millis1897, 1, DateTimeRule::STANDARD_TIME), status);
+
+    LocalPointer<TimeZoneRule> rule1898to1911(new TimeArrayTimeZoneRule(
+        UnicodeString(u"Korean 1898-1911"), 8*kOneHour, 0, millis1898, 1, DateTimeRule::STANDARD_TIME), status);
+
+    LocalPointer<TimeZoneRule> ruleFrom1912(new TimeArrayTimeZoneRule(
+        UnicodeString(u"Korean 1912-"), 9*kOneHour, 0, millis1912, 1, DateTimeRule::STANDARD_TIME), status);
+
+    LocalPointer<RuleBasedTimeZone> dangiCalZoneAstroCalc(new RuleBasedTimeZone(
+        UnicodeString(u"KOREA_ZONE"), initialTimeZone.orphan()), status); // adopts initialTimeZone
+
+    if (U_FAILURE(status)) {
+        return;
+    }
+    dangiCalZoneAstroCalc->addTransitionRule(rule1897.orphan(), status); // adopts rule1897
+    dangiCalZoneAstroCalc->addTransitionRule(rule1898to1911.orphan(), status);
+    dangiCalZoneAstroCalc->addTransitionRule(ruleFrom1912.orphan(), status);
     dangiCalZoneAstroCalc->complete(status);
     if (U_SUCCESS(status)) {
-        gDangiCalendarZoneAstroCalc = dangiCalZoneAstroCalc;
-    } else {
-        delete dangiCalZoneAstroCalc;
-        gDangiCalendarZoneAstroCalc = NULL;
+        gDangiCalendarZoneAstroCalc = dangiCalZoneAstroCalc.orphan();
     }
     ucln_i18n_registerCleanup(UCLN_I18N_DANGI_CALENDAR, calendar_dangi_cleanup);
 }
 
-const TimeZone* DangiCalendar::getDangiCalZoneAstroCalc(void) const {
-    umtx_initOnce(gDangiCalendarInitOnce, &initDangiCalZoneAstroCalc);
+const TimeZone* DangiCalendar::getDangiCalZoneAstroCalc(UErrorCode &status) const {
+    umtx_initOnce(gDangiCalendarInitOnce, &initDangiCalZoneAstroCalc, status);
     return gDangiCalendarZoneAstroCalc;
 }
 

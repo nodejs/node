@@ -57,7 +57,7 @@ struct UOption {
     void *context;          /* parameter for the function */
     char shortName;         /* 'f' for -f */
     char hasArg;            /* enum value: option takes no/requires/may have argument */
-    char doesOccur;         /* boolean for "this one occured" */
+    char doesOccur;         /* boolean for "this one occurred" */
 };
 
 /* macro for an entry in a declaration of UOption[] */

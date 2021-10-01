@@ -64,7 +64,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
             }
 
             if ((int32_t)uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
-                /* Allocate more space for buffer if it didnot read the entrire line */
+                /* Allocate more space for buffer if it did not read the entire line */
                 allocateMoreSpace = TRUE;
                 T_FileStream_rewind(f);
                 break;

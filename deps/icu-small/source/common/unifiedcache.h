@@ -54,11 +54,6 @@ class U_COMMON_API CacheKeyBase : public UObject {
    virtual CacheKeyBase *clone() const = 0;
 
    /**
-    * Equality operator.
-    */
-   virtual UBool operator == (const CacheKeyBase &other) const = 0;
-
-   /**
     * Create a new object for this key. Called by cache on cache miss.
     * createObject must add a reference to the object it returns. Note
     * that getting an object from the cache and returning it without calling
@@ -80,12 +75,19 @@ class U_COMMON_API CacheKeyBase : public UObject {
     */
    virtual char *writeDescription(char *buffer, int32_t bufSize) const = 0;
 
-   /**
-    * Inequality operator.
-    */
-   UBool operator != (const CacheKeyBase &other) const {
-       return !(*this == other);
+   friend inline bool operator==(const CacheKeyBase& lhs,
+                                 const CacheKeyBase& rhs) {
+       return lhs.equals(rhs);
    }
+
+   friend inline bool operator!=(const CacheKeyBase& lhs,
+                                 const CacheKeyBase& rhs) {
+       return !lhs.equals(rhs);
+   }
+
+ protected:
+   virtual bool equals(const CacheKeyBase& other) const = 0;
+
  private:
    mutable UErrorCode fCreationStatus;
    mutable UBool fIsPrimary;
@@ -105,7 +107,7 @@ class CacheKey : public CacheKeyBase {
    /**
     * The template parameter, T, determines the hash code returned.
     */
-   virtual int32_t hashCode() const {
+   virtual int32_t hashCode() const override {
        const char *s = typeid(T).name();
        return ustr_hashCharsN(s, static_cast<int32_t>(uprv_strlen(s)));
    }
@@ -113,18 +115,19 @@ class CacheKey : public CacheKeyBase {
    /**
     * Use the value type, T,  as the description.
     */
-   virtual char *writeDescription(char *buffer, int32_t bufLen) const {
+   virtual char *writeDescription(char *buffer, int32_t bufLen) const override {
        const char *s = typeid(T).name();
        uprv_strncpy(buffer, s, bufLen);
        buffer[bufLen - 1] = 0;
        return buffer;
    }
 
+ protected:
    /**
     * Two objects are equal if they are of the same type.
     */
-   virtual UBool operator == (const CacheKeyBase &other) const {
-       return typeid(*this) == typeid(other);
+   virtual bool equals(const CacheKeyBase &other) const override {
+       return this == &other || typeid(*this) == typeid(other);
    }
 };
 
@@ -136,37 +139,34 @@ template<typename T>
 class LocaleCacheKey : public CacheKey<T> {
  protected:
    Locale   fLoc;
+   virtual bool equals(const CacheKeyBase &other) const override {
+       if (!CacheKey<T>::equals(other)) {
+           return false;
+       }
+       // We know this and other are of same class because equals() on
+       // CacheKey returned true.
+       return operator==(static_cast<const LocaleCacheKey<T> &>(other));
+   }
  public:
    LocaleCacheKey(const Locale &loc) : fLoc(loc) {}
    LocaleCacheKey(const LocaleCacheKey<T> &other)
            : CacheKey<T>(other), fLoc(other.fLoc) { }
    virtual ~LocaleCacheKey() { }
-   virtual int32_t hashCode() const {
+   virtual int32_t hashCode() const override {
        return (int32_t)(37u * (uint32_t)CacheKey<T>::hashCode() + (uint32_t)fLoc.hashCode());
    }
-   virtual UBool operator == (const CacheKeyBase &other) const {
-       // reflexive
-       if (this == &other) {
-           return true;
-       }
-       if (!CacheKey<T>::operator == (other)) {
-           return false;
-       }
-       // We know this and other are of same class because operator== on
-       // CacheKey returned true.
-       const LocaleCacheKey<T> *fOther =
-               static_cast<const LocaleCacheKey<T> *>(&other);
-       return fLoc == fOther->fLoc;
+   inline bool operator == (const LocaleCacheKey<T> &other) const {
+       return fLoc == other.fLoc;
    }
-   virtual CacheKeyBase *clone() const {
+   virtual CacheKeyBase *clone() const override {
        return new LocaleCacheKey<T>(*this);
    }
    virtual const T *createObject(
-           const void *creationContext, UErrorCode &status) const;
+           const void *creationContext, UErrorCode &status) const override;
    /**
     * Use the locale id as the description.
     */
-   virtual char *writeDescription(char *buffer, int32_t bufLen) const {
+   virtual char *writeDescription(char *buffer, int32_t bufLen) const override {
        const char *s = fLoc.getName();
        uprv_strncpy(buffer, s, bufLen);
        buffer[bufLen - 1] = 0;
@@ -293,8 +293,8 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    void flush() const;
 
    /**
-    * Configures at what point evcition of unused entries will begin.
-    * Eviction is triggered whenever the number of evictable keys exeeds
+    * Configures at what point eviction of unused entries will begin.
+    * Eviction is triggered whenever the number of evictable keys exceeds
     * BOTH count AND (number of in-use items) * (percentageOfInUseItems / 100).
     * Once the number of unused entries drops below one of these,
     * eviction ceases. Because eviction happens incrementally,
@@ -315,7 +315,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     * settings.
     *
     * If a client already holds references to many different unique values
-    * in the cache such that the number of those unique values far exeeds
+    * in the cache such that the number of those unique values far exceeds
     * "count" then the cache may not be able to maintain this maximum.
     * However, if this happens, the cache still guarantees that the number of
     * unused entries will remain only a small percentage of the total cache
@@ -341,7 +341,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     */
    int32_t unusedCount() const;
 
-   virtual void handleUnreferencedObject() const;
+   virtual void handleUnreferencedObject() const override;
    virtual ~UnifiedCache();
 
  private:
@@ -465,7 +465,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    /**
     * Register a primary cache entry. A primary key is the first key to create
     * a given  SharedObject value. Subsequent keys whose create function
-    * produce referneces to an already existing SharedObject are not primary -
+    * produce references to an already existing SharedObject are not primary -
     * they can be evicted and subsequently recreated.
     *
     * On entry, gCacheMutex must be held.

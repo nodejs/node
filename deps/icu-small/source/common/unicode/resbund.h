@@ -66,7 +66,7 @@ U_NAMESPACE_BEGIN
 
 /**
  * A class representing a collection of resource information pertaining to a given
- * locale. A resource bundle provides a way of accessing locale- specfic information in
+ * locale. A resource bundle provides a way of accessing locale- specific information in
  * a data file. You create a resource bundle that manages the resources for a given
  * locale and then ask it for individual resources.
  * <P>
@@ -474,7 +474,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

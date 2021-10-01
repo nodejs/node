@@ -54,8 +54,8 @@ public:
     NFRule(const RuleBasedNumberFormat* rbnf, const UnicodeString &ruleText, UErrorCode &status);
     ~NFRule();
 
-    UBool operator==(const NFRule& rhs) const;
-    UBool operator!=(const NFRule& rhs) const { return !operator==(rhs); }
+    bool operator==(const NFRule& rhs) const;
+    bool operator!=(const NFRule& rhs) const { return !operator==(rhs); }
 
     ERuleType getType() const { return (ERuleType)(baseValue <= kNoBase ? (ERuleType)baseValue : kOtherRule); }
     void setType(ERuleType ruleType) { baseValue = (int32_t)ruleType; }

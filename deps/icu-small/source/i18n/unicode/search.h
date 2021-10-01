@@ -59,7 +59,7 @@ U_NAMESPACE_BEGIN
  * <p>
  * <tt>SearchIterator</tt> provides an API that is similar to that of
  * other text iteration classes such as <tt>BreakIterator</tt>. Using
- * this class, it is easy to scan through text looking for all occurances of
+ * this class, it is easy to scan through text looking for all occurrences of
  * a given pattern. The following example uses a <tt>StringSearch</tt>
  * object to find all instances of "fox" in the target string. Any other
  * subclass of <tt>SearchIterator</tt> can be used in an identical
@@ -272,7 +272,7 @@ public:
      *         attributes. false otherwise.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const SearchIterator &that) const;
+    virtual bool operator==(const SearchIterator &that) const;
 
     /**
      * Not-equal operator.
@@ -280,7 +280,7 @@ public:
      * @return false if operator== returns true, and vice versa.
      * @stable ICU 2.0
      */
-    UBool operator!=(const SearchIterator &that) const;
+    bool operator!=(const SearchIterator &that) const;
 
     // public methods ----------------------------------------------------
 
@@ -566,7 +566,7 @@ protected:
     void setMatchNotFound();
 };
 
-inline UBool SearchIterator::operator!=(const SearchIterator &that) const
+inline bool SearchIterator::operator!=(const SearchIterator &that) const
 {
    return !operator==(that);
 }

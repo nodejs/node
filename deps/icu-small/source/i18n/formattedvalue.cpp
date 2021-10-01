@@ -49,7 +49,7 @@ UBool ConstrainedFieldPosition::matchesField(int32_t category, int32_t field) co
     case UCFPOS_CONSTRAINT_FIELD:
         return fCategory == category && fField == field;
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 }
 

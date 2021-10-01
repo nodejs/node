@@ -197,6 +197,11 @@ uset_isEmpty(const USet* set) {
 }
 
 U_CAPI UBool U_EXPORT2
+uset_hasStrings(const USet* set) {
+    return ((const UnicodeSet*) set)->UnicodeSet::hasStrings();
+}
+
+U_CAPI UBool U_EXPORT2
 uset_contains(const USet* set, UChar32 c) {
     return ((const UnicodeSet*) set)->UnicodeSet::contains(c);
 }
@@ -297,6 +302,11 @@ private:
 U_NAMESPACE_END
 
 U_CAPI int32_t U_EXPORT2
+uset_getRangeCount(const USet *set) {
+    return ((const UnicodeSet *)set)->UnicodeSet::getRangeCount();
+}
+
+U_CAPI int32_t U_EXPORT2
 uset_getItemCount(const USet* uset) {
     const UnicodeSet& set = *(const UnicodeSet*)uset;
     return set.getRangeCount() + USetAccess::getStringCount(set);
@@ -330,11 +340,6 @@ uset_getItem(const USet* uset, int32_t itemIndex,
     }
 }
 
-//U_CAPI int32_t U_EXPORT2
-//uset_getRangeCount(const USet* set) {
-//    return ((const UnicodeSet*) set)->getRangeCount();
-//}
-//
 //U_CAPI UBool U_EXPORT2
 //uset_getRange(const USet* set, int32_t rangeIndex,
 //              UChar32* pStart, UChar32* pEnd) {
@@ -355,7 +360,7 @@ uset_getItem(const USet* uset, int32_t itemIndex,
  * therefore all BMP code points precede all supplementary code points.
  *
  * Store each supplementary code point in 2 16-bit units,
- * simply with higher-then-lower 16-bit halfs.
+ * simply with higher-then-lower 16-bit halves.
  *
  * Precede the entire list with the length.
  * If there are supplementary code points, then set bit 15 in the length

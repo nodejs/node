@@ -199,15 +199,28 @@ public:
         const int32_t* rawOffset,
         UErrorCode& ec);
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * Returns an enumeration over all recognized time zone IDs. (i.e.,
      * all strings that createTimeZone() accepts)
      *
      * @return an enumeration object, owned by the caller.
-     * @stable ICU 2.4
+     * @deprecated ICU 70 Use createEnumeration(UErrorCode&) instead.
      */
     static StringEnumeration* U_EXPORT2 createEnumeration();
+#endif  // U_HIDE_DEPRECATED_API
 
+    /**
+     * Returns an enumeration over all recognized time zone IDs. (i.e.,
+     * all strings that createTimeZone() accepts)
+     *
+     * @param status Receives the status.
+     * @return an enumeration object, owned by the caller.
+     * @stable ICU 70
+     */
+    static StringEnumeration* U_EXPORT2 createEnumeration(UErrorCode& status);
+
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * Returns an enumeration over time zone IDs with a given raw
      * offset from GMT.  There may be several times zones with the
@@ -223,21 +236,57 @@ public:
      * @param rawOffset an offset from GMT in milliseconds, ignoring
      * the effect of daylight savings time, if any
      * @return an enumeration object, owned by the caller
-     * @stable ICU 2.4
+     * @deprecated ICU 70 Use createEnumerationForRawOffset(int32_t,UErrorCode&) instead.
      */
     static StringEnumeration* U_EXPORT2 createEnumeration(int32_t rawOffset);
+#endif  // U_HIDE_DEPRECATED_API
+
+    /**
+     * Returns an enumeration over time zone IDs with a given raw
+     * offset from GMT.  There may be several times zones with the
+     * same GMT offset that differ in the way they handle daylight
+     * savings time.  For example, the state of Arizona doesn't
+     * observe daylight savings time.  If you ask for the time zone
+     * IDs corresponding to GMT-7:00, you'll get back an enumeration
+     * over two time zone IDs: "America/Denver," which corresponds to
+     * Mountain Standard Time in the winter and Mountain Daylight Time
+     * in the summer, and "America/Phoenix", which corresponds to
+     * Mountain Standard Time year-round, even in the summer.
+     *
+     * @param rawOffset an offset from GMT in milliseconds, ignoring
+     * the effect of daylight savings time, if any
+     * @param status Receives the status.
+     * @return an enumeration object, owned by the caller
+     * @stable ICU 70
+     */
+    static StringEnumeration* U_EXPORT2 createEnumerationForRawOffset(int32_t rawOffset, UErrorCode& status);
+
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * Returns an enumeration over time zone IDs associated with the
+     * given region.  Some zones are affiliated with no region
+     * (e.g., "UTC"); these may also be retrieved, as a group.
+     *
+     * @param region The ISO 3166 two-letter country code, or NULL to
+     * retrieve zones not affiliated with any region.
+     * @return an enumeration object, owned by the caller
+     * @deprecated ICU 70 Use createEnumerationForRegion(const char*,UErrorCode&) instead.
+     */
+    static StringEnumeration* U_EXPORT2 createEnumeration(const char* region);
+#endif  // U_HIDE_DEPRECATED_API
 
     /**
      * Returns an enumeration over time zone IDs associated with the
-     * given country.  Some zones are affiliated with no country
+     * given region.  Some zones are affiliated with no region
      * (e.g., "UTC"); these may also be retrieved, as a group.
      *
-     * @param country The ISO 3166 two-letter country code, or NULL to
-     * retrieve zones not affiliated with any country.
+     * @param region The ISO 3166 two-letter country code, or NULL to
+     * retrieve zones not affiliated with any region.
+     * @param status Receives the status.
      * @return an enumeration object, owned by the caller
-     * @stable ICU 2.4
+     * @stable ICU 70
      */
-    static StringEnumeration* U_EXPORT2 createEnumeration(const char* country);
+    static StringEnumeration* U_EXPORT2 createEnumerationForRegion(const char* region, UErrorCode& status);
 
     /**
      * Returns the number of IDs in the equivalency group that
@@ -454,22 +503,22 @@ public:
      * IDs, but subclasses are expected to also compare the fields they add.)
      *
      * @param that  The TimeZone object to be compared with.
-     * @return      True if the given TimeZone is equal to this TimeZone; false
+     * @return      true if the given TimeZone is equal to this TimeZone; false
      *              otherwise.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const TimeZone& that) const;
+    virtual bool operator==(const TimeZone& that) const;
 
     /**
      * Returns true if the two TimeZones are NOT equal; that is, if operator==() returns
      * false.
      *
      * @param that  The TimeZone object to be compared with.
-     * @return      True if the given TimeZone is not equal to this TimeZone; false
+     * @return      true if the given TimeZone is not equal to this TimeZone; false
      *              otherwise.
      * @stable ICU 2.0
      */
-    UBool operator!=(const TimeZone& that) const {return !operator==(that);}
+    bool operator!=(const TimeZone& that) const {return !operator==(that);}
 
     /**
      * Returns the TimeZone's adjusted GMT offset (i.e., the number of milliseconds to add
@@ -790,7 +839,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
     /**
      * Returns the amount of time to be added to local standard time
@@ -923,7 +972,7 @@ private:
      * Parses the given custom time zone identifier
      * @param id id A string of the form GMT[+-]hh:mm, GMT[+-]hhmm, or
      * GMT[+-]hh.
-     * @param sign Receves parsed sign, 1 for positive, -1 for negative.
+     * @param sign Receives parsed sign, 1 for positive, -1 for negative.
      * @param hour Receives parsed hour field
      * @param minute Receives parsed minute field
      * @param second Receives parsed second field
@@ -951,7 +1000,7 @@ private:
      * @param min offset minutes
      * @param sec offset seconds
      * @param negative sign of the offset, true for negative offset.
-     * @param id Receves the format result (normalized custom ID)
+     * @param id Receives the format result (normalized custom ID)
      * @return The reference to id
      */
     static UnicodeString& formatCustomID(int32_t hour, int32_t min, int32_t sec,

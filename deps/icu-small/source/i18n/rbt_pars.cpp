@@ -148,12 +148,12 @@ public:
 
     virtual ~ParseData();
 
-    virtual const UnicodeString* lookup(const UnicodeString& s) const;
+    virtual const UnicodeString* lookup(const UnicodeString& s) const override;
 
-    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const;
+    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const override;
 
     virtual UnicodeString parseReference(const UnicodeString& text,
-                                         ParsePosition& pos, int32_t limit) const;
+                                         ParsePosition& pos, int32_t limit) const override;
     /**
      * Return true if the given character is a matcher standin or a plain
      * character (non standin).
@@ -975,10 +975,14 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
 
             if (!parsingIDs) {
                 if (curData != NULL) {
+                    U_ASSERT(!dataVector.hasDeleter());
                     if (direction == UTRANS_FORWARD)
                         dataVector.addElement(curData, status);
                     else
                         dataVector.insertElementAt(curData, 0, status);
+                    if (U_FAILURE(status)) {
+                        delete curData;
+                    }
                     curData = NULL;
                 }
                 parsingIDs = TRUE;
@@ -1031,10 +1035,14 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
                     status = U_MEMORY_ALLOCATION_ERROR;
                     return;
                 }
+                U_ASSERT(idBlockVector.hasDeleter());
                 if (direction == UTRANS_FORWARD)
-                    idBlockVector.addElement(tempstr, status);
+                    idBlockVector.adoptElement(tempstr, status);
                 else
                     idBlockVector.insertElementAt(tempstr, 0, status);
+                if (U_FAILURE(status)) {
+                    return;
+                }
                 idBlockResult.remove();
                 parsingIDs = FALSE;
                 curData = new TransliterationRuleData(status);
@@ -1069,19 +1077,29 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         tempstr = new UnicodeString(idBlockResult);
         // NULL pointer check
         if (tempstr == NULL) {
+            // TODO: Testing, forcing this path, shows many memory leaks. ICU-21701
+            //       intltest translit/TransliteratorTest/TestInstantiation
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
         if (direction == UTRANS_FORWARD)
-            idBlockVector.addElement(tempstr, status);
+            idBlockVector.adoptElement(tempstr, status);
         else
             idBlockVector.insertElementAt(tempstr, 0, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
     }
     else if (!parsingIDs && curData != NULL) {
-        if (direction == UTRANS_FORWARD)
+        if (direction == UTRANS_FORWARD) {
             dataVector.addElement(curData, status);
-        else
+        } else {
             dataVector.insertElementAt(curData, 0, status);
+        }
+        if (U_FAILURE(status)) {
+            delete curData;
+            curData = nullptr;
+        }
     }
 
     if (U_SUCCESS(status)) {
@@ -1538,6 +1556,10 @@ UChar TransliteratorParser::generateStandInFor(UnicodeFunctor* adopted, UErrorCo
         return 0;
     }
     variablesVector.addElement(adopted, status);
+    if (U_FAILURE(status)) {
+        delete adopted;
+        return 0;
+    }
     return variableNext++;
 }
 
@@ -1577,13 +1599,17 @@ void TransliteratorParser::setSegmentObject(int32_t seg, StringMatcher* adopted,
     if (segmentObjects.size() < seg) {
         segmentObjects.setSize(seg, status);
     }
+    if (U_FAILURE(status)) {
+        return;
+    }
     int32_t index = getSegmentStandin(seg, status) - curData->variablesBase;
     if (segmentObjects.elementAt(seg-1) != NULL ||
         variablesVector.elementAt(index) != NULL) {
         // should never happen
-        status = U_INTERNAL_TRANSLITERATOR_ERROR;
+        if (U_SUCCESS(status)) {status = U_INTERNAL_TRANSLITERATOR_ERROR;}
         return;
     }
+    // Note: neither segmentObjects or variablesVector has an object deleter function.
     segmentObjects.setElementAt(adopted, seg-1);
     variablesVector.setElementAt(adopted, index);
 }

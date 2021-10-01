@@ -164,7 +164,7 @@ typedef const char * (*UConverterGetName) (const UConverter *cnv);
  * If this function is not set, then ucnv_cbFromUWriteSub() writes
  * the substitution character from UConverter.
  * For stateful converters, it is typically necessary to handle this
- * specificially for the converter in order to properly maintain the state.
+ * specifically for the converter in order to properly maintain the state.
  */
 typedef void (*UConverterWriteSub) (UConverterFromUnicodeArgs *pArgs, int32_t offsetIndex, UErrorCode *pErrorCode);
 

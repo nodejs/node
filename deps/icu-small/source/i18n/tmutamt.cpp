@@ -45,7 +45,7 @@ TimeUnitAmount::operator=(const TimeUnitAmount& other) {
 }
 
 
-UBool
+bool
 TimeUnitAmount::operator==(const UObject& other) const {
     return Measure::operator==(other);
 }

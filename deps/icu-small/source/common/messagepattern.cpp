@@ -309,10 +309,10 @@ MessagePattern::clear() {
     numericValuesLength=0;
 }
 
-UBool
+bool
 MessagePattern::operator==(const MessagePattern &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         aposMode==other.aposMode &&
@@ -387,10 +387,10 @@ MessagePattern::getPluralOffset(int32_t pluralStart) const {
 
 // MessagePattern::Part ---------------------------------------------------- ***
 
-UBool
+bool
 MessagePattern::Part::operator==(const Part &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         type==other.type &&

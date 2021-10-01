@@ -208,7 +208,7 @@ int32_t IndianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month, UB
    //month is 0 based; converting it to 1-based
    int32_t imonth;
 
-    // If the month is out of range, adjust it into range, and adjust the extended eyar accordingly
+    // If the month is out of range, adjust it into range, and adjust the extended year accordingly
    if (month < 0 || month > 11) {
       eyear += (int32_t)ClockMath::floorDivide(month, 12, month);
    }

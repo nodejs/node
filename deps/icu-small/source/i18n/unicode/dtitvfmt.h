@@ -434,7 +434,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 4.0
      */
-    virtual DateIntervalFormat* clone() const;
+    virtual DateIntervalFormat* clone() const override;
 
     /**
      * Return true if the given Format objects are semantically equal. Objects
@@ -443,7 +443,7 @@ public:
      * @return         true if the given Format objects are semantically equal.
      * @stable ICU 4.0
      */
-    virtual UBool operator==(const Format& other) const;
+    virtual bool operator==(const Format& other) const override;
 
     /**
      * Return true if the given Format objects are not semantically equal.
@@ -452,7 +452,7 @@ public:
      * @return      true if the given Format objects are not semantically equal.
      * @stable ICU 4.0
      */
-    UBool operator!=(const Format& other) const;
+    bool operator!=(const Format& other) const;
 
 
     using Format::format;
@@ -479,7 +479,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPosition& fieldPosition,
-                                  UErrorCode& status) const ;
+                                  UErrorCode& status) const override;
 
 
 
@@ -595,7 +595,7 @@ public:
      */
     virtual void parseObject(const UnicodeString& source,
                              Formattable& result,
-                             ParsePosition& parse_pos) const;
+                             ParsePosition& parse_pos) const override;
 
 
     /**
@@ -652,7 +652,6 @@ public:
      */
     virtual void setTimeZone(const TimeZone& zone);
 
-#ifndef U_FORCE_HIDE_DRAFT_API
     /**
      * Set a particular UDisplayContext value in the formatter, such as
      * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. This causes the formatted
@@ -663,7 +662,7 @@ public:
      * @param status Input/output status. If at entry this indicates a failure
      *               status, the function will do nothing; otherwise this will be
      *               updated with any new status from the function.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     virtual void setContext(UDisplayContext value, UErrorCode& status);
 
@@ -675,10 +674,9 @@ public:
      *               status, the function will do nothing; otherwise this will be
      *               updated with any new status from the function.
      * @return The UDisplayContextValue for the specified type.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
-#endif  // U_FORCE_HIDE_DRAFT_API
 
     /**
      * Return the class ID for this class. This is useful only for comparing to
@@ -704,7 +702,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 4.0
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
 protected:
 
@@ -742,7 +740,7 @@ private:
          * Whether the first date in interval pattern is later date or not.
          * Fallback format set the default ordering.
          * And for a particular interval pattern, the order can be
-         * overriden by prefixing the interval pattern with "latestFirst:" or
+         * overridden by prefixing the interval pattern with "latestFirst:" or
          * "earliestFirst:"
          * For example, given 2 date, Jan 10, 2007 to Feb 10, 2007.
          * if the fallback format is "{0} - {1}",
@@ -1199,7 +1197,7 @@ private:
     UDisplayContext fCapitalizationContext;
 };
 
-inline UBool
+inline bool
 DateIntervalFormat::operator!=(const Format& other) const  {
     return !operator==(other);
 }

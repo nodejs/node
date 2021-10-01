@@ -461,7 +461,7 @@ Convertibility U_I18N_API extractConvertibility(const MeasureUnitImpl &source,
 
     if (source.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED ||
         target.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED) {
-        status = U_INTERNAL_PROGRAM_ERROR;
+        status = U_ARGUMENT_TYPE_MISMATCH;
         return UNCONVERTIBLE;
     }
 
@@ -514,7 +514,7 @@ void UnitsConverter::init(const ConversionRates &ratesInfo, UErrorCode &status) 
 
     if (this->conversionRate_.source.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED ||
         this->conversionRate_.target.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED) {
-        status = U_INTERNAL_PROGRAM_ERROR;
+        status = U_ARGUMENT_TYPE_MISMATCH;
         return;
     }
 
@@ -522,7 +522,7 @@ void UnitsConverter::init(const ConversionRates &ratesInfo, UErrorCode &status) 
                                                       this->conversionRate_.target, ratesInfo, status);
     if (U_FAILURE(status)) return;
     if (unitsState == Convertibility::UNCONVERTIBLE) {
-        status = U_INTERNAL_PROGRAM_ERROR;
+        status = U_ARGUMENT_TYPE_MISMATCH;
         return;
     }
 
@@ -540,7 +540,7 @@ int32_t UnitsConverter::compareTwoUnits(const MeasureUnitImpl &firstUnit,
 
     if (firstUnit.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED ||
         secondUnit.complexity == UMeasureUnitComplexity::UMEASURE_UNIT_MIXED) {
-        status = U_INTERNAL_PROGRAM_ERROR;
+        status = U_ARGUMENT_TYPE_MISMATCH;
         return 0;
     }
 
@@ -550,7 +550,7 @@ int32_t UnitsConverter::compareTwoUnits(const MeasureUnitImpl &firstUnit,
     }
 
     if (unitsState == Convertibility::UNCONVERTIBLE || unitsState == Convertibility::RECIPROCAL) {
-        status = U_INTERNAL_PROGRAM_ERROR;
+        status = U_ARGUMENT_TYPE_MISMATCH;
         return 0;
     }
 

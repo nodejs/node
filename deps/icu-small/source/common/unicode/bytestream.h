@@ -206,7 +206,7 @@ public:
    * @param n the number of bytes; must be non-negative
    * @stable ICU 4.2
    */
-  virtual void Append(const char* bytes, int32_t n);
+  virtual void Append(const char* bytes, int32_t n) override;
   /**
    * Returns a writable buffer for appending and writes the buffer's capacity to
    * *result_capacity. For details see the base class documentation.
@@ -224,7 +224,7 @@ public:
   virtual char* GetAppendBuffer(int32_t min_capacity,
                                 int32_t desired_capacity_hint,
                                 char* scratch, int32_t scratch_capacity,
-                                int32_t* result_capacity);
+                                int32_t* result_capacity) override;
   /**
    * Returns the number of bytes actually written to the sink.
    * @return number of bytes written to the buffer
@@ -291,7 +291,7 @@ class StringByteSink : public ByteSink {
    * @param n the number of bytes; must be non-negative
    * @stable ICU 4.2
    */
-  virtual void Append(const char* data, int32_t n) { dest_->append(data, n); }
+  virtual void Append(const char* data, int32_t n) override { dest_->append(data, n); }
  private:
   StringClass* dest_;
 

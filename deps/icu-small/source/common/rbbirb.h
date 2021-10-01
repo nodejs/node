@@ -73,10 +73,10 @@ private:
 
 public:
     //  API inherited from class SymbolTable
-    virtual const UnicodeString*  lookup(const UnicodeString& s) const;
-    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const;
+    virtual const UnicodeString*  lookup(const UnicodeString& s) const override;
+    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const override;
     virtual UnicodeString parseReference(const UnicodeString& text,
-                                         ParsePosition& pos, int32_t limit) const;
+                                         ParsePosition& pos, int32_t limit) const override;
 
     //  Additional Functions
     RBBISymbolTable(RBBIRuleScanner *, const UnicodeString &fRules, UErrorCode &status);

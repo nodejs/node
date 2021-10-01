@@ -351,7 +351,7 @@ strcmpMax(const UChar *s, int32_t length, const UChar *t, int32_t max) {
     if(max==0 || *t==0) {
         return 0; /* equal to length of both strings */
     } else {
-        return -max; /* return lengh difference */
+        return -max; /* return length difference */
     }
 }
 

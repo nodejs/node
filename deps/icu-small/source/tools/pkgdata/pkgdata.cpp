@@ -916,7 +916,7 @@ static int32_t initializePkgDataFlags(UPKGOptions *o) {
 
 
 /*
- * Given the base libName and version numbers, generate the libary file names and store it in libFileNames.
+ * Given the base libName and version numbers, generate the library file names and store it in libFileNames.
  * Depending on the configuration, the library name may either end with version number or shared object suffix.
  */
 static void createFileNames(UPKGOptions *o, const char mode, const char *version_major, const char *version, const char *libName, UBool reverseExt, UBool noVersion) {
@@ -1651,7 +1651,7 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
         const char *name;
 
         if (i == 0) {
-            /* The first iteration calls the gencmn function and initailizes the buffer. */
+            /* The first iteration calls the gencmn function and initializes the buffer. */
             createCommonDataFile(o->tmpDir, o->shortName, o->entryName, NULL, o->srcDir, o->comment, o->fileListFiles->str, 0, TRUE, o->verbose, gencmnFile);
             buffer[0] = 0;
 #ifdef USE_SINGLE_CCODE_FILE

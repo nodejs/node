@@ -393,7 +393,7 @@ typedef void* UMessageFormat;
  * @param patternLength Length of the pattern to use
  * @param locale        The locale for which the messages are formatted.
  * @param parseError    A pointer to UParseError struct to receive any errors
- *                      occured during parsing. Can be NULL.
+ *                      occurred during parsing. Can be NULL.
  * @param status        A pointer to an UErrorCode to receive any errors.
  * @return              A pointer to a UMessageFormat to use for formatting
  *                      messages, or 0 if an error occurred.

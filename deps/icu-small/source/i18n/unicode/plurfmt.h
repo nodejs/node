@@ -434,7 +434,7 @@ public:
       * @return         true if other is semantically equal to this.
       * @stable ICU 4.0
       */
-    virtual UBool operator==(const Format& other) const;
+    virtual bool operator==(const Format& other) const override;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -443,14 +443,14 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 4.0
      */
-    virtual UBool operator!=(const Format& other) const;
+    virtual bool operator!=(const Format& other) const;
 
     /**
      * Clones this Format object polymorphically.  The caller owns the
      * result and should delete it when done.
      * @stable ICU 4.0
      */
-    virtual PluralFormat* clone() const;
+    virtual PluralFormat* clone() const override;
 
    /**
     * Formats a plural message for a number taken from a Formattable object.
@@ -469,7 +469,7 @@ public:
    UnicodeString& format(const Formattable& obj,
                          UnicodeString& appendTo,
                          FieldPosition& pos,
-                         UErrorCode& status) const;
+                         UErrorCode& status) const override;
 
    /**
     * Returns the pattern from applyPattern() or constructor().
@@ -505,7 +505,7 @@ public:
     */
    virtual void parseObject(const UnicodeString& source,
                             Formattable& result,
-                            ParsePosition& parse_pos) const;
+                            ParsePosition& parse_pos) const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -520,7 +520,7 @@ public:
      *
      * @stable ICU 4.0
      */
-     virtual UClassID getDynamicClassID() const;
+     virtual UClassID getDynamicClassID() const override;
 
 private:
      /**
@@ -548,7 +548,7 @@ private:
 
         virtual ~PluralSelectorAdapter();
 
-        virtual UnicodeString select(void *context, double number, UErrorCode& /*ec*/) const;
+        virtual UnicodeString select(void *context, double number, UErrorCode& /*ec*/) const override;
 
         void reset();
 

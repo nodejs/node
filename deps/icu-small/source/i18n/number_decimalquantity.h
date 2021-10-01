@@ -136,7 +136,7 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      * this method with delta=-3 will change the value to "1.23456".
      *
      * @param delta The number of magnitudes of ten to change by.
-     * @return true if integer overflow occured; false otherwise.
+     * @return true if integer overflow occurred; false otherwise.
      */
     bool adjustMagnitude(int32_t delta);
 
@@ -165,6 +165,11 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
      *             The value to adjust the exponent by.
      */
     void adjustExponent(int32_t delta);
+
+    /**
+     * Resets the DecimalQuantity to the value before adjustMagnitude and adjustExponent.
+     */
+    void resetExponent();
 
     /**
      * @return Whether the value represented by this {@link DecimalQuantity} is
@@ -428,7 +433,9 @@ class U_I18N_API DecimalQuantity : public IFixedDecimal, public UMemory {
 
     /**
      * Sets the digit in the BCD list. This method only sets the digit; it is the caller's
-     * responsibility to call {@link #compact} after setting the digit.
+     * responsibility to call {@link #compact} after setting the digit, and to ensure
+     * that the precision field is updated to reflect the correct number of digits if a
+     * nonzero digit is added to the decimal.
      *
      * @param position The position of the digit to pop, counted in BCD units from the least
      *     significant digit. If outside the range supported by the implementation, an AssertionError

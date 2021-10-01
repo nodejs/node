@@ -270,7 +270,7 @@ GMTOffsetField::isValid(FieldType type, int32_t width) {
     case SECOND:
         return (width == 2);
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
     return (width > 0);
 }
@@ -482,11 +482,11 @@ TimeZoneFormat::operator=(const TimeZoneFormat& other) {
 }
 
 
-UBool
+bool
 TimeZoneFormat::operator==(const Format& other) const {
     TimeZoneFormat* tzfmt = (TimeZoneFormat*)&other;
 
-    UBool isEqual =
+    bool isEqual =
             fLocale == tzfmt->fLocale
             && fGMTPattern == tzfmt->fGMTPattern
             && fGMTZeroFormat == tzfmt->fGMTZeroFormat
@@ -595,7 +595,7 @@ TimeZoneFormat::setGMTOffsetPattern(UTimeZoneFormatGMTOffsetPatternType type, co
         required = FIELDS_HMS;
         break;
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 
     UVector* patternItems = parseOffsetPattern(pattern, required, status);
@@ -1033,7 +1033,7 @@ TimeZoneFormat::parse(UTimeZoneFormatStyle style, const UnicodeString& text, Par
                 break;
 
             default:
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
             }
 
             int32_t len = 0;
@@ -2459,7 +2459,7 @@ TimeZoneFormat::parseOffsetPattern(const UnicodeString& pattern, OffsetFields re
                 if (itemType != GMTOffsetField::TEXT) {
                     if (GMTOffsetField::isValid(itemType, itemLength)) {
                         GMTOffsetField* fld = GMTOffsetField::createTimeField(itemType, static_cast<uint8_t>(itemLength), status);
-                        result->addElement(fld, status);
+                        result->addElementX(fld, status);
                         if (U_FAILURE(status)) {
                             break;
                         }
@@ -2485,7 +2485,7 @@ TimeZoneFormat::parseOffsetPattern(const UnicodeString& pattern, OffsetFields re
                         if (itemType == GMTOffsetField::TEXT) {
                             if (text.length() > 0) {
                                 GMTOffsetField* textfld = GMTOffsetField::createText(text, status);
-                                result->addElement(textfld, status);
+                                result->addElementX(textfld, status);
                                 if (U_FAILURE(status)) {
                                     break;
                                 }
@@ -2494,7 +2494,7 @@ TimeZoneFormat::parseOffsetPattern(const UnicodeString& pattern, OffsetFields re
                         } else {
                             if (GMTOffsetField::isValid(itemType, itemLength)) {
                                 GMTOffsetField* fld = GMTOffsetField::createTimeField(itemType, static_cast<uint8_t>(itemLength), status);
-                                result->addElement(fld, status);
+                                result->addElementX(fld, status);
                                 if (U_FAILURE(status)) {
                                     break;
                                 }
@@ -2512,7 +2512,7 @@ TimeZoneFormat::parseOffsetPattern(const UnicodeString& pattern, OffsetFields re
                     if (itemType != GMTOffsetField::TEXT) {
                         if (GMTOffsetField::isValid(itemType, itemLength)) {
                             GMTOffsetField* fld = GMTOffsetField::createTimeField(itemType, static_cast<uint8_t>(itemLength), status);
-                            result->addElement(fld, status);
+                            result->addElementX(fld, status);
                             if (U_FAILURE(status)) {
                                 break;
                             }
@@ -2532,12 +2532,12 @@ TimeZoneFormat::parseOffsetPattern(const UnicodeString& pattern, OffsetFields re
         if (itemType == GMTOffsetField::TEXT) {
             if (text.length() > 0) {
                 GMTOffsetField* tfld = GMTOffsetField::createText(text, status);
-                result->addElement(tfld, status);
+                result->addElementX(tfld, status);
             }
         } else {
             if (GMTOffsetField::isValid(itemType, itemLength)) {
                 GMTOffsetField* fld = GMTOffsetField::createTimeField(itemType, static_cast<uint8_t>(itemLength), status);
-                result->addElement(fld, status);
+                result->addElementX(fld, status);
             } else {
                 status = U_ILLEGAL_ARGUMENT_ERROR;
             }
@@ -2729,7 +2729,7 @@ public:
     ZoneIdMatchHandler();
     virtual ~ZoneIdMatchHandler();
 
-    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status);
+    UBool handleMatch(int32_t matchLength, const CharacterNode *node, UErrorCode &status) override;
     const UChar* getID();
     int32_t getMatchLen();
 private:
@@ -2780,15 +2780,17 @@ static void U_CALLCONV initZoneIdTrie(UErrorCode &status) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    StringEnumeration *tzenum = TimeZone::createEnumeration();
-    const UnicodeString *id;
-    while ((id = tzenum->snext(status)) != NULL) {
-        const UChar* uid = ZoneMeta::findTimeZoneID(*id);
-        if (uid) {
-            gZoneIdTrie->put(uid, const_cast<UChar *>(uid), status);
+    StringEnumeration *tzenum = TimeZone::createEnumeration(status);
+    if (U_SUCCESS(status)) {
+        const UnicodeString *id;
+        while ((id = tzenum->snext(status)) != NULL) {
+            const UChar* uid = ZoneMeta::findTimeZoneID(*id);
+            if (uid) {
+                gZoneIdTrie->put(uid, const_cast<UChar *>(uid), status);
+            }
         }
+        delete tzenum;
     }
-    delete tzenum;
 }
 
 

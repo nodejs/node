@@ -169,8 +169,14 @@ public:
          * @stable ICU 54
          */
         kExponentMultiplicationSymbol,
+#ifndef U_HIDE_INTERNAL_API
+        /** Approximately sign.
+         * @internal
+         */
+        kApproximatelySignSymbol,
+#endif  /* U_HIDE_INTERNAL_API */
         /** count symbol constants */
-        kFormatSymbolCount = kNineDigitSymbol + 2
+        kFormatSymbolCount = kExponentMultiplicationSymbol + 2
     };
 
     /**
@@ -255,7 +261,7 @@ public:
      * @return         true if another object is semantically equal to this one.
      * @stable ICU 2.0
      */
-    UBool operator==(const DecimalFormatSymbols& other) const;
+    bool operator==(const DecimalFormatSymbols& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -264,7 +270,7 @@ public:
      * @return         true if another object is semantically unequal to this one.
      * @stable ICU 2.0
      */
-    UBool operator!=(const DecimalFormatSymbols& other) const { return !operator==(other); }
+    bool operator!=(const DecimalFormatSymbols& other) const { return !operator==(other); }
 
     /**
      * Get one of the format symbols by its enum constant.
@@ -284,12 +290,12 @@ public:
      *
      * @param symbol    Constant to indicate a number format symbol.
      * @param value     value of the format symbol
-     * @param propogateDigits If false, setting the zero digit will not automatically set 1-9.
+     * @param propagateDigits If false, setting the zero digit will not automatically set 1-9.
      *     The default behavior is to automatically set 1-9 if zero is being set and the value
      *     it is being set to corresponds to a known Unicode zero digit.
      * @stable ICU 2.0
      */
-    void setSymbol(ENumberFormatSymbol symbol, const UnicodeString &value, const UBool propogateDigits);
+    void setSymbol(ENumberFormatSymbol symbol, const UnicodeString &value, const UBool propagateDigits);
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -353,7 +359,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

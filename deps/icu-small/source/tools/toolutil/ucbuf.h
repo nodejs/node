@@ -124,7 +124,7 @@ ucbuf_rewind(UCHARBUF* buf,UErrorCode* err);
 /**
  * Returns a pointer to the internal converted buffer
  * @param buf Pointer to UCHARBUF structure
- * @param len Pointer to int32_t to receive the lenth of buffer
+ * @param len Pointer to int32_t to receive the length of buffer
  * @param err is a pointer to a valid <code>UErrorCode</code> value. If this value
  *        indicates a failure on entry, the function will immediately return.
  *        On exit the value will indicate the success of the operation.

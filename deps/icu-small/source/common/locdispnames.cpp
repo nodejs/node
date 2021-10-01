@@ -316,8 +316,9 @@ _getStringOrCopyKey(const char *path, const char *locale,
             /* see comment about closing rb near "return item;" in _res_getTableStringWithFallback() */
         }
     } else {
+        bool isLanguageCode = (uprv_strncmp(tableKey, _kLanguages, 9) == 0);
         /* Language code should not be a number. If it is, set the error code. */
-        if (!uprv_strncmp(tableKey, "Languages", 9) && uprv_strtol(itemKey, NULL, 10)) {
+        if (isLanguageCode && uprv_strtol(itemKey, NULL, 10)) {
             *pErrorCode = U_MISSING_RESOURCE_ERROR;
         } else {
             /* second-level item, use special fallback */
@@ -327,6 +328,17 @@ _getStringOrCopyKey(const char *path, const char *locale,
                                                itemKey,
                                                &length,
                                                pErrorCode);
+            if (U_FAILURE(*pErrorCode) && isLanguageCode && itemKey != nullptr) {
+                // convert itemKey locale code to canonical form and try again, ICU-20870
+                *pErrorCode = U_ZERO_ERROR;
+                Locale canonKey = Locale::createCanonical(itemKey);
+                s=uloc_getTableStringWithFallback(path, locale,
+                                                    tableKey,
+                                                    subTableKey,
+                                                    canonKey.getName(),
+                                                    &length,
+                                                    pErrorCode);
+            }
         }
     }
 

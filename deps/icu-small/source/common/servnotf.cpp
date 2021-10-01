@@ -59,7 +59,7 @@ ICUNotifier::addListener(const EventListener* l, UErrorCode& status)
                 }
             }
 
-            listeners->addElement((void*)l, status); // cast away const
+            listeners->addElementX((void*)l, status); // cast away const
         }
 #ifdef NOTIFIER_DEBUG
         else {

@@ -144,7 +144,7 @@ public:
      * Implement Transliterator API.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    virtual RuleBasedTransliterator* clone() const;
+    virtual RuleBasedTransliterator* clone() const override;
 
 protected:
     /**
@@ -152,7 +152,7 @@ protected:
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offsets,
-                                     UBool isIncremental) const;
+                                     UBool isIncremental) const override;
 
 public:
     /**
@@ -168,19 +168,19 @@ public:
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
     virtual UnicodeString& toRules(UnicodeString& result,
-                                   UBool escapeUnprintable) const;
+                                   UBool escapeUnprintable) const override;
 
 protected:
     /**
      * Implement Transliterator framework
      */
-    virtual void handleGetSourceSet(UnicodeSet& result) const;
+    virtual void handleGetSourceSet(UnicodeSet& result) const override;
 
 public:
     /**
      * Override Transliterator framework
      */
-    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const;
+    virtual UnicodeSet& getTargetSet(UnicodeSet& result) const override;
 
     /**
      * Return the class ID for this class.  This is useful only for
@@ -205,7 +205,7 @@ public:
      * class have the same class ID.  Objects of other classes have
      * different class IDs.
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
 private:
 

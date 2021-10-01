@@ -135,7 +135,7 @@ int32_t ICU_Utility::parsePattern(const UnicodeString& rule, int32_t pos, int32_
  * position.  Return the identifier, or an empty string if there
  * is no identifier.
  * @param str the string to parse
- * @param pos INPUT-OUPUT parameter.  On INPUT, pos is the
+ * @param pos INPUT-OUTPUT parameter.  On INPUT, pos is the
  * first character to examine.  It must be less than str.length(),
  * and it must not point to a whitespace character.  That is, must
  * have pos < str.length().  On

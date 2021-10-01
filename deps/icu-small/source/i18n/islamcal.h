@@ -230,7 +230,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual IslamicCalendar* clone() const;
+  virtual IslamicCalendar* clone() const override;
 
  private:
   /**
@@ -292,7 +292,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   /**
    * @internal
    */
-  virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+  virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
   /**
    * Return the length (in days) of the given month.
@@ -301,13 +301,13 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @param year  The hijri month, 0-based
    * @internal
    */
-  virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const;
+  virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
 
   /**
    * Return the number of days in the given Islamic year
    * @internal
    */
-  virtual int32_t handleGetYearLength(int32_t extendedYear) const;
+  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
 
   //-------------------------------------------------------------------------
   // Functions for converting from field values to milliseconds....
@@ -317,7 +317,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   /**
    * @internal
    */
-  virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth) const;
+  virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth) const override;
 
   //-------------------------------------------------------------------------
   // Functions for converting from milliseconds to field values
@@ -326,7 +326,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   /**
    * @internal
    */
-  virtual int32_t handleGetExtendedYear();
+  virtual int32_t handleGetExtendedYear() override;
 
   /**
    * Override Calendar to compute several fields specific to the Islamic
@@ -344,7 +344,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * calendar equivalents for the given Julian day.
    * @internal
    */
-  virtual void handleComputeFields(int32_t julianDay, UErrorCode &status);
+  virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
 
   // UObject stuff
  public:
@@ -353,7 +353,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    *           same class ID. Objects of other classes have different class IDs.
    * @internal
    */
-  virtual UClassID getDynamicClassID(void) const;
+  virtual UClassID getDynamicClassID(void) const override;
 
   /**
    * Return the class ID for this class. This is useful only for comparing to a return
@@ -374,7 +374,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @return calendar type
    * @internal
    */
-  virtual const char * getType() const;
+  virtual const char * getType() const override;
 
  private:
   IslamicCalendar(); // default constructor not implemented
@@ -391,27 +391,27 @@ class U_I18N_API IslamicCalendar : public Calendar {
    *           false, otherwise.
    * @internal
    */
-  virtual UBool inDaylightTime(UErrorCode& status) const;
+  virtual UBool inDaylightTime(UErrorCode& status) const override;
 
 
   /**
    * Returns true because the Islamic Calendar does have a default century
    * @internal
    */
-  virtual UBool haveDefaultCentury() const;
+  virtual UBool haveDefaultCentury() const override;
 
   /**
    * Returns the date of the start of the default century
    * @return start of century - in milliseconds since epoch, 1970
    * @internal
    */
-  virtual UDate defaultCenturyStart() const;
+  virtual UDate defaultCenturyStart() const override;
 
   /**
    * Returns the year in which the default century begins
    * @internal
    */
-  virtual int32_t defaultCenturyStartYear() const;
+  virtual int32_t defaultCenturyStartYear() const override;
 
  private:
   /**

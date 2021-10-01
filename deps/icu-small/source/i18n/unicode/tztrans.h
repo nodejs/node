@@ -86,7 +86,7 @@ public:
      * @return  true if the given TimeZoneTransition objects are semantically equal.
      * @stable ICU 3.8
      */
-    UBool operator==(const TimeZoneTransition& that) const;
+    bool operator==(const TimeZoneTransition& that) const;
 
     /**
      * Return true if the given TimeZoneTransition objects are semantically unequal. Objects
@@ -95,7 +95,7 @@ public:
      * @return  true if the given TimeZoneTransition objects are semantically unequal.
      * @stable ICU 3.8
      */
-    UBool operator!=(const TimeZoneTransition& that) const;
+    bool operator!=(const TimeZoneTransition& that) const;
 
     /**
      * Returns the time of transition in milliseconds.
@@ -187,7 +187,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 U_NAMESPACE_END

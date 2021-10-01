@@ -135,7 +135,7 @@ U_NAMESPACE_BEGIN
  * so forth, until the chain is exhausted or the tag is found.
  *
  * Thread-safety is implemented around caches, both the cache that
- * stores all the resouce data, and the cache that stores flags
+ * stores all the resource data, and the cache that stores flags
  * indicating whether or not a file has been visited.  These caches
  * delete their storage at static cleanup time, when the process
  * quits.

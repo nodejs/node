@@ -4444,7 +4444,7 @@ getTrail:
                  * For EUC encodings that use only either 0x8e or 0x8f as the first
                  * byte of their longest byte sequences, the first two bytes in
                  * this third stage indicate with their 7th bits whether these bytes
-                 * are to be written directly or actually need to be preceeded by
+                 * are to be written directly or actually need to be preceded by
                  * one of the two Single-Shift codes. With this, the third stage
                  * stores one byte fewer per character than the actual maximum length of
                  * EUC byte sequences.

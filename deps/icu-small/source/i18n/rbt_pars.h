@@ -156,7 +156,7 @@ public:
      * call returns.
      * @param rules      rules, separated by ';'
      * @param direction  either FORWARD or REVERSE.
-     * @param pe         Struct to recieve information on position
+     * @param pe         Struct to receive information on position
      *                   of error if an error is encountered
      * @param ec         Output param set to success/failure code.
      */

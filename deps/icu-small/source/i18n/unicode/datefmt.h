@@ -229,13 +229,13 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 2.0
      */
-    virtual DateFormat* clone() const = 0;
+    virtual DateFormat* clone() const override = 0;
 
     /**
      * Equality operator.  Returns true if the two formats have the same behavior.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Format&) const;
+    virtual bool operator==(const Format&) const override;
 
 
     using Format::format;
@@ -257,7 +257,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 
     /**
      * Format an object to produce a string. This method handles Formattable
@@ -277,7 +277,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
     /**
      * Formats a date into a date/time string. This is an abstract method which
      * concrete subclasses must implement.
@@ -291,12 +291,12 @@ public:
      * statfieldPositionus.getEndIndex will be set to 0 and 4, respectively.
      * <P> Notice
      * that if the same time field appears more than once in a pattern, the status will
-     * be set for the first occurence of that time field. For instance,
+     * be set for the first occurrence of that time field. For instance,
      * formatting a UDate to the time string "1 PM PDT (Pacific Daylight Time)"
      * using the pattern "h a z (zzzz)" and the alignment field
      * DateFormat::TIMEZONE_FIELD, the offsets fieldPosition.beginIndex and
      * fieldPosition.getEndIndex will be set to 5 and 8, respectively, for the first
-     * occurence of the timezone pattern character 'z'.
+     * occurrence of the timezone pattern character 'z'.
      *
      * @param cal           Calendar set to the date and time to be formatted
      *                      into a date/time string.  When the calendar type is
@@ -349,12 +349,12 @@ public:
      * statfieldPositionus.getEndIndex will be set to 0 and 4, respectively.
      * <P> Notice
      * that if the same time field appears more than once in a pattern, the status will
-     * be set for the first occurence of that time field. For instance,
+     * be set for the first occurrence of that time field. For instance,
      * formatting a UDate to the time string "1 PM PDT (Pacific Daylight Time)"
      * using the pattern "h a z (zzzz)" and the alignment field
      * DateFormat::TIMEZONE_FIELD, the offsets fieldPosition.beginIndex and
      * fieldPosition.getEndIndex will be set to 5 and 8, respectively, for the first
-     * occurence of the timezone pattern character 'z'.
+     * occurrence of the timezone pattern character 'z'.
      *
      * @param date          UDate to be formatted into a date/time string.
      * @param appendTo      Output parameter to receive result.
@@ -523,7 +523,7 @@ public:
      */
     virtual void parseObject(const UnicodeString& source,
                              Formattable& result,
-                             ParsePosition& parse_pos) const;
+                             ParsePosition& parse_pos) const override;
 
     /**
      * Create a default date/time formatter that uses the SHORT style for both

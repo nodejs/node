@@ -87,7 +87,7 @@ class U_I18N_API Measure: public UObject {
      * to the given object.
      * @stable ICU 3.0
      */
-    UBool operator==(const UObject& other) const;
+    bool operator==(const UObject& other) const;
 
     /**
      * Return a reference to the numeric value of this object.  The
@@ -127,7 +127,7 @@ class U_I18N_API Measure: public UObject {
      *                  other classes have different class IDs.
      * @stable ICU 53
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
  protected:
     /**

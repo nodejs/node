@@ -65,38 +65,52 @@ UnicodeString& ICU_Utility::appendNumber(UnicodeString& result, int32_t n,
     return result;
 }
 
-/**
- * Return true if the character is NOT printable ASCII.
- */
 UBool ICU_Utility::isUnprintable(UChar32 c) {
     return !(c >= 0x20 && c <= 0x7E);
 }
 
-/**
- * Escape unprintable characters using \uxxxx notation for U+0000 to
- * U+FFFF and \Uxxxxxxxx for U+10000 and above.  If the character is
- * printable ASCII, then do nothing and return FALSE.  Otherwise,
- * append the escaped notation and return TRUE.
- */
+UBool ICU_Utility::shouldAlwaysBeEscaped(UChar32 c) {
+    if (c < 0x20) {
+        return true;  // C0 control codes
+    } else if (c <= 0x7e) {
+        return false;  // printable ASCII
+    } else if (c <= 0x9f) {
+        return true;  // C1 control codes
+    } else if (c < 0xd800) {
+        return false;  // most of the BMP
+    } else if (c <= 0xdfff || (0xfdd0 <= c && c <= 0xfdef) || (c & 0xfffe) == 0xfffe) {
+        return true;  // surrogate or noncharacter code points
+    } else if (c <= 0x10ffff) {
+        return false;  // all else
+    } else {
+        return true;  // not a code point
+    }
+}
+
 UBool ICU_Utility::escapeUnprintable(UnicodeString& result, UChar32 c) {
     if (isUnprintable(c)) {
-        result.append(BACKSLASH);
-        if (c & ~0xFFFF) {
-            result.append(UPPER_U);
-            result.append(DIGITS[0xF&(c>>28)]);
-            result.append(DIGITS[0xF&(c>>24)]);
-            result.append(DIGITS[0xF&(c>>20)]);
-            result.append(DIGITS[0xF&(c>>16)]);
-        } else {
-            result.append(LOWER_U);
-        }
-        result.append(DIGITS[0xF&(c>>12)]);
-        result.append(DIGITS[0xF&(c>>8)]);
-        result.append(DIGITS[0xF&(c>>4)]);
-        result.append(DIGITS[0xF&c]);
-        return TRUE;
+        escape(result, c);
+        return true;
     }
-    return FALSE;
+    return false;
+}
+
+UnicodeString &ICU_Utility::escape(UnicodeString& result, UChar32 c) {
+    result.append(BACKSLASH);
+    if (c & ~0xFFFF) {
+        result.append(UPPER_U);
+        result.append(DIGITS[0xF&(c>>28)]);
+        result.append(DIGITS[0xF&(c>>24)]);
+        result.append(DIGITS[0xF&(c>>20)]);
+        result.append(DIGITS[0xF&(c>>16)]);
+    } else {
+        result.append(LOWER_U);
+    }
+    result.append(DIGITS[0xF&(c>>12)]);
+    result.append(DIGITS[0xF&(c>>8)]);
+    result.append(DIGITS[0xF&(c>>4)]);
+    result.append(DIGITS[0xF&c]);
+    return result;
 }
 
 /**

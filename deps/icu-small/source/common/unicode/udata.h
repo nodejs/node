@@ -362,7 +362,7 @@ udata_setCommonData(const void *data, UErrorCode *err);
  *
  *
  * Warning:  setAppData will set a U_USING_DEFAULT_WARNING code if
- *           data with the specifed path that has already been opened, or
+ *           data with the specified path that has already been opened, or
  *           if setAppData with the same path has already been called.
  *           Any such calls to setAppData will have no effect.
  *

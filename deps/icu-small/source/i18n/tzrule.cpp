@@ -53,7 +53,7 @@ TimeZoneRule::operator=(const TimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 TimeZoneRule::operator==(const TimeZoneRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
@@ -62,7 +62,7 @@ TimeZoneRule::operator==(const TimeZoneRule& that) const {
             fDSTSavings == that.fDSTSavings));
 }
 
-UBool
+bool
 TimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -120,14 +120,14 @@ InitialTimeZoneRule::operator=(const InitialTimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 InitialTimeZoneRule::operator==(const TimeZoneRule& that) const {
     return ((this == &that) ||
             (typeid(*this) == typeid(that) &&
             TimeZoneRule::operator==(that)));
 }
 
-UBool
+bool
 InitialTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -226,13 +226,13 @@ AnnualTimeZoneRule::operator=(const AnnualTimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 AnnualTimeZoneRule::operator==(const TimeZoneRule& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(that)) {
-        return FALSE;
+        return false;
     }
     AnnualTimeZoneRule *atzr = (AnnualTimeZoneRule*)&that;
     return (*fDateTimeRule == *(atzr->fDateTimeRule) &&
@@ -240,7 +240,7 @@ AnnualTimeZoneRule::operator==(const TimeZoneRule& that) const {
             fEndYear == atzr->fEndYear);
 }
 
-UBool
+bool
 AnnualTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }
@@ -445,31 +445,31 @@ TimeArrayTimeZoneRule::operator=(const TimeArrayTimeZoneRule& right) {
     return *this;
 }
 
-UBool
+bool
 TimeArrayTimeZoneRule::operator==(const TimeZoneRule& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(that) || TimeZoneRule::operator==(that) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(that) || !TimeZoneRule::operator==(that)) {
+        return false;
     }
     TimeArrayTimeZoneRule *tatzr = (TimeArrayTimeZoneRule*)&that;
     if (fTimeRuleType != tatzr->fTimeRuleType ||
         fNumStartTimes != tatzr->fNumStartTimes) {
-        return FALSE;
+        return false;
     }
     // Compare start times
-    UBool res = TRUE;
+    bool res = true;
     for (int32_t i = 0; i < fNumStartTimes; i++) {
         if (fStartTimes[i] != tatzr->fStartTimes[i]) {
-            res = FALSE;
+            res = false;
             break;
         }
     }
     return res;
 }
 
-UBool
+bool
 TimeArrayTimeZoneRule::operator!=(const TimeZoneRule& that) const {
     return !operator==(that);
 }

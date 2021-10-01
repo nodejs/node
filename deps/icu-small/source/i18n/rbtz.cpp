@@ -25,11 +25,18 @@ U_NAMESPACE_BEGIN
 /**
  * A struct representing a time zone transition
  */
-struct Transition {
+struct Transition : public UMemory {
     UDate time;
     TimeZoneRule* from;
     TimeZoneRule* to;
 };
+
+U_CDECL_BEGIN
+static void U_CALLCONV
+deleteTransition(void* obj) {
+    delete static_cast<Transition *>(obj);
+}
+U_CDECL_END
 
 static UBool compareRules(UVector* rules1, UVector* rules2) {
     if (rules1 == NULL && rules2 == NULL) {
@@ -88,59 +95,61 @@ RuleBasedTimeZone::operator=(const RuleBasedTimeZone& right) {
     return *this;
 }
 
-UBool
+bool
 RuleBasedTimeZone::operator==(const TimeZone& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
-    if (typeid(*this) != typeid(that)
-        || BasicTimeZone::operator==(that) == FALSE) {
-        return FALSE;
+    if (typeid(*this) != typeid(that) || !BasicTimeZone::operator==(that)) {
+        return false;
     }
     RuleBasedTimeZone *rbtz = (RuleBasedTimeZone*)&that;
     if (*fInitialRule != *(rbtz->fInitialRule)) {
-        return FALSE;
+        return false;
     }
     if (compareRules(fHistoricRules, rbtz->fHistoricRules)
         && compareRules(fFinalRules, rbtz->fFinalRules)) {
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
-UBool
+bool
 RuleBasedTimeZone::operator!=(const TimeZone& that) const {
     return !operator==(that);
 }
 
 void
 RuleBasedTimeZone::addTransitionRule(TimeZoneRule* rule, UErrorCode& status) {
+    LocalPointer<TimeZoneRule>lpRule(rule);
     if (U_FAILURE(status)) {
         return;
     }
     AnnualTimeZoneRule* atzrule = dynamic_cast<AnnualTimeZoneRule*>(rule);
-    if (atzrule != NULL && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR) {
+    if (atzrule != nullptr && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR) {
         // A final rule
-        if (fFinalRules == NULL) {
-            fFinalRules = new UVector(status);
+        if (fFinalRules == nullptr) {
+            LocalPointer<UVector> lpFinalRules(new UVector(uprv_deleteUObject, nullptr, status), status);
             if (U_FAILURE(status)) {
                 return;
             }
+            fFinalRules = lpFinalRules.orphan();
         } else if (fFinalRules->size() >= 2) {
             // Cannot handle more than two final rules
             status = U_INVALID_STATE_ERROR;
             return;
         }
-        fFinalRules->addElement((void*)rule, status);
+        fFinalRules->adoptElement(lpRule.orphan(), status);
     } else {
         // Non-final rule
-        if (fHistoricRules == NULL) {
-            fHistoricRules = new UVector(status);
+        if (fHistoricRules == nullptr) {
+            LocalPointer<UVector> lpHistoricRules(new UVector(uprv_deleteUObject, nullptr, status), status);
             if (U_FAILURE(status)) {
                 return;
             }
+            fHistoricRules = lpHistoricRules.orphan();
         }
-        fHistoricRules->addElement((void*)rule, status);
+        fHistoricRules->adoptElement(lpRule.orphan(), status);
     }
     // Mark dirty, so transitions are recalculated at next complete() call
     fUpToDate = FALSE;
@@ -176,7 +185,6 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
         return;
     }
 
-    UBool *done = NULL;
     // Create a TimezoneTransition and add to the list
     if (fHistoricRules != NULL || fFinalRules != NULL) {
         TimeZoneRule *curRule = fInitialRule;
@@ -187,13 +195,13 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
         if (fHistoricRules != NULL && fHistoricRules->size() > 0) {
             int32_t i;
             int32_t historicCount = fHistoricRules->size();
-            done = (UBool*)uprv_malloc(sizeof(UBool) * historicCount);
+            LocalMemory<bool> done((bool *)uprv_malloc(sizeof(bool) * historicCount));
             if (done == NULL) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 goto cleanup;
             }
             for (i = 0; i < historicCount; i++) {
-                done[i] = FALSE;
+                done[i] = false;
             }
             while (TRUE) {
                 int32_t curStdOffset = curRule->getRawOffset();
@@ -214,7 +222,7 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
                     avail = r->getNextStart(lastTransitionTime, curStdOffset, curDstSavings, false, tt);
                     if (!avail) {
                         // No more transitions from this rule - skip this rule next time
-                        done[i] = TRUE;
+                        done[i] = true;
                     } else {
                         r->getName(name);
                         if (*r == *curRule ||
@@ -267,20 +275,21 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
                 }
 
                 if (fHistoricTransitions == NULL) {
-                    fHistoricTransitions = new UVector(status);
+                    LocalPointer<UVector> lpHistoricTransitions(
+                        new UVector(deleteTransition, nullptr, status), status);
                     if (U_FAILURE(status)) {
                         goto cleanup;
                     }
+                    fHistoricTransitions = lpHistoricTransitions.orphan();
                 }
-                Transition *trst = (Transition*)uprv_malloc(sizeof(Transition));
-                if (trst == NULL) {
-                    status = U_MEMORY_ALLOCATION_ERROR;
+                LocalPointer<Transition> trst(new Transition, status);
+                if (U_FAILURE(status)) {
                     goto cleanup;
                 }
                 trst->time = nextTransitionTime;
                 trst->from = curRule;
                 trst->to = nextRule;
-                fHistoricTransitions->addElement(trst, status);
+                fHistoricTransitions->adoptElement(trst.orphan(), status);
                 if (U_FAILURE(status)) {
                     goto cleanup;
                 }
@@ -290,10 +299,12 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
         }
         if (fFinalRules != NULL) {
             if (fHistoricTransitions == NULL) {
-                fHistoricTransitions = new UVector(status);
+                LocalPointer<UVector> lpHistoricTransitions(
+                    new UVector(deleteTransition, nullptr, status), status);
                 if (U_FAILURE(status)) {
                     goto cleanup;
                 }
+                fHistoricTransitions = lpHistoricTransitions.orphan();
             }
             // Append the first transition for each
             TimeZoneRule *rule0 = (TimeZoneRule*)fFinalRules->elementAt(0);
@@ -306,16 +317,10 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
                 status = U_INVALID_STATE_ERROR;
                 goto cleanup;
             }
-            Transition *final0 = (Transition*)uprv_malloc(sizeof(Transition));
-            if (final0 == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                goto cleanup;
-            }
-            Transition *final1 = (Transition*)uprv_malloc(sizeof(Transition));
-            if (final1 == NULL) {
-                uprv_free(final0);
-                status = U_MEMORY_ALLOCATION_ERROR;
-                goto cleanup;
+            LocalPointer<Transition> final0(new Transition, status);
+            LocalPointer<Transition> final1(new Transition, status);
+            if (U_FAILURE(status)) {
+               goto cleanup;
             }
             if (tt0 < tt1) {
                 final0->time = tt0;
@@ -332,27 +337,18 @@ RuleBasedTimeZone::complete(UErrorCode& status) {
                 final1->from = rule1;
                 final1->to = rule0;
             }
-            fHistoricTransitions->addElement(final0, status);
-            if (U_FAILURE(status)) {
-                goto cleanup;
-            }
-            fHistoricTransitions->addElement(final1, status);
+            fHistoricTransitions->adoptElement(final0.orphan(), status);
+            fHistoricTransitions->adoptElement(final1.orphan(), status);
             if (U_FAILURE(status)) {
                 goto cleanup;
             }
         }
     }
     fUpToDate = TRUE;
-    if (done != NULL) {
-        uprv_free(done);
-    }
     return;
 
 cleanup:
     deleteTransitions();
-    if (done != NULL) {
-        uprv_free(done);
-    }
     fUpToDate = FALSE;
 }
 
@@ -629,16 +625,10 @@ RuleBasedTimeZone::deleteRules(void) {
     delete fInitialRule;
     fInitialRule = NULL;
     if (fHistoricRules != NULL) {
-        while (!fHistoricRules->isEmpty()) {
-            delete (TimeZoneRule*)(fHistoricRules->orphanElementAt(0));
-        }
         delete fHistoricRules;
         fHistoricRules = NULL;
     }
     if (fFinalRules != NULL) {
-        while (!fFinalRules->isEmpty()) {
-            delete (AnnualTimeZoneRule*)(fFinalRules->orphanElementAt(0));
-        }
         delete fFinalRules;
         fFinalRules = NULL;
     }
@@ -647,10 +637,6 @@ RuleBasedTimeZone::deleteRules(void) {
 void
 RuleBasedTimeZone::deleteTransitions(void) {
     if (fHistoricTransitions != NULL) {
-        while (!fHistoricTransitions->isEmpty()) {
-            Transition *trs = (Transition*)fHistoricTransitions->orphanElementAt(0);
-            uprv_free(trs);
-        }
         delete fHistoricTransitions;
     }
     fHistoricTransitions = NULL;
@@ -658,32 +644,24 @@ RuleBasedTimeZone::deleteTransitions(void) {
 
 UVector*
 RuleBasedTimeZone::copyRules(UVector* source) {
-    if (source == NULL) {
-        return NULL;
+    if (source == nullptr) {
+        return nullptr;
     }
     UErrorCode ec = U_ZERO_ERROR;
     int32_t size = source->size();
-    UVector *rules = new UVector(size, ec);
+    LocalPointer<UVector> rules(new UVector(uprv_deleteUObject, nullptr, size, ec), ec);
     if (U_FAILURE(ec)) {
-        return NULL;
+        return nullptr;
     }
     int32_t i;
     for (i = 0; i < size; i++) {
-        rules->addElement(((TimeZoneRule*)source->elementAt(i))->clone(), ec);
+        LocalPointer<TimeZoneRule> rule(((TimeZoneRule*)source->elementAt(i))->clone(), ec);
+        rules->adoptElement(rule.orphan(), ec);
         if (U_FAILURE(ec)) {
-            break;
+            return nullptr;
         }
     }
-    if (U_FAILURE(ec)) {
-        // In case of error, clean up
-        for (i = 0; i < rules->size(); i++) {
-            TimeZoneRule *rule = (TimeZoneRule*)rules->orphanElementAt(i);
-            delete rule;
-        }
-        delete rules;
-        return NULL;
-    }
-    return rules;
+    return rules.orphan();
 }
 
 TimeZoneRule*

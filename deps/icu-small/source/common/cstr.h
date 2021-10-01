@@ -28,7 +28,7 @@
  * default code page conversion, which will do the best job possible,
  * but may be lossy, depending on the platform.
  *
- * If no other conversion is available, use invariant conversion and substitue
+ * If no other conversion is available, use invariant conversion and substitute
  * '?' for non-invariant characters.
  *
  * Example Usage:

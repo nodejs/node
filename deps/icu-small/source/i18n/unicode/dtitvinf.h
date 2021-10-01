@@ -45,7 +45,7 @@ U_NAMESPACE_BEGIN
  * <P>
  * For power users, who want to create their own date interval patterns,
  * or want to re-set date interval patterns, they could do so by
- * directly creating DateIntervalInfo and manupulating it.
+ * directly creating DateIntervalInfo and manipulating it.
  *
  * <P>
  * Logically, the interval patterns are mappings
@@ -114,7 +114,7 @@ U_NAMESPACE_BEGIN
  * the first date in the interval pattern for this locale is earlier date.
  * If the fallback format is &quot;{1} - {0}&quot;, it means the first date is the
  * later date.
- * For a particular interval pattern, the default order can be overriden
+ * For a particular interval pattern, the default order can be overridden
  * by prefixing &quot;latestFirst:&quot; or &quot;earliestFirst:&quot; to the interval pattern.
  * For example, if the fallback format is &quot;{0}-{1}&quot;,
  * but for skeleton &quot;yMMMd&quot;, the interval pattern when day is different is
@@ -214,7 +214,7 @@ public:
      * @return         true if other is semantically equal to this.
      * @stable ICU 4.0
      */
-    virtual UBool operator==(const DateIntervalInfo& other) const;
+    virtual bool operator==(const DateIntervalInfo& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -223,7 +223,7 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 4.0
      */
-    UBool operator!=(const DateIntervalInfo& other) const;
+    bool operator!=(const DateIntervalInfo& other) const;
 
 
 
@@ -319,7 +319,7 @@ public:
      *
      * @stable ICU 4.0
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -406,7 +406,7 @@ private:
      * and the best match skeleton.
      *
      * TODO (xji): set field weight or
-     *             isolate the funtionality in DateTimePatternGenerator
+     *             isolate the functionality in DateTimePatternGenerator
      * @param  skeleton               input skeleton
      * @param  bestMatchDistanceInfo  the difference between input skeleton
      *                                and best match skeleton.
@@ -508,7 +508,7 @@ private:
 };// end class DateIntervalInfo
 
 
-inline UBool
+inline bool
 DateIntervalInfo::operator!=(const DateIntervalInfo& other) const {
     return !operator==(other);
 }

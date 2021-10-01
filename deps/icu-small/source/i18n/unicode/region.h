@@ -81,13 +81,13 @@ public:
      * Returns true if the two regions are equal.
      * @stable ICU 51
      */
-    UBool operator==(const Region &that) const;
+    bool operator==(const Region &that) const;
 
     /**
      * Returns true if the two regions are NOT equal; that is, if operator ==() returns false.
      * @stable ICU 51
      */
-    UBool operator!=(const Region &that) const;
+    bool operator!=(const Region &that) const;
 
     /**
      * Returns a pointer to a Region using the given region code.  The region code can be either 2-letter ISO code,

@@ -71,7 +71,7 @@ class RBBINode : public UMemory {
         int           fLastPos;             //  Last position in the rule source string
                                             //    of any text associated with this node.
                                             //    If there's a right child, this will be the same
-                                            //    as that child's last postion.
+                                            //    as that child's last position.
 
         UBool         fNullable;            // See Aho.
         int32_t       fVal;                 // For leafChar nodes, the value.
@@ -108,7 +108,7 @@ class RBBINode : public UMemory {
 
     private:
         RBBINode &operator = (const RBBINode &other); // No defs.
-        UBool operator == (const RBBINode &other);    // Private, so these functions won't accidently be used.
+        bool operator == (const RBBINode &other);     // Private, so these functions won't accidentally be used.
 
 #ifdef RBBI_DEBUG
     public:

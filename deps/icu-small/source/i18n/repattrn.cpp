@@ -291,13 +291,13 @@ RegexPattern  *RegexPattern::clone() const {
 //                                 characters can still be considered different.
 //
 //--------------------------------------------------------------------------
-UBool   RegexPattern::operator ==(const RegexPattern &other) const {
+bool    RegexPattern::operator ==(const RegexPattern &other) const {
     if (this->fFlags == other.fFlags && this->fDeferredStatus == other.fDeferredStatus) {
         if (this->fPatternString != NULL && other.fPatternString != NULL) {
             return *(this->fPatternString) == *(other.fPatternString);
         } else if (this->fPattern == NULL) {
             if (other.fPattern == NULL) {
-                return TRUE;
+                return true;
             }
         } else if (other.fPattern != NULL) {
             UTEXT_SETNATIVEINDEX(this->fPattern, 0);
@@ -305,7 +305,7 @@ UBool   RegexPattern::operator ==(const RegexPattern &other) const {
             return utext_equals(this->fPattern, other.fPattern);
         }
     }
-    return FALSE;
+    return false;
 }
 
 //---------------------------------------------------------------------

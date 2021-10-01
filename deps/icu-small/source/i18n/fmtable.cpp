@@ -177,7 +177,7 @@ Formattable::Formattable(const UnicodeString& stringToCopy)
 
 // -------------------------------------
 // Creates a formattable object with a UnicodeString* value.
-// (adopting symantics)
+// (adopting semantics)
 
 Formattable::Formattable(UnicodeString* stringToAdopt)
 {
@@ -275,18 +275,18 @@ Formattable::operator=(const Formattable& source)
 
 // -------------------------------------
 
-UBool
+bool
 Formattable::operator==(const Formattable& that) const
 {
     int32_t i;
 
-    if (this == &that) return TRUE;
+    if (this == &that) return true;
 
-    // Returns FALSE if the data types are different.
-    if (fType != that.fType) return FALSE;
+    // Returns false if the data types are different.
+    if (fType != that.fType) return false;
 
     // Compares the actual data values.
-    UBool equal = TRUE;
+    bool equal = true;
     switch (fType) {
     case kDate:
         equal = (fValue.fDate == that.fValue.fDate);
@@ -303,20 +303,20 @@ Formattable::operator==(const Formattable& that) const
         break;
     case kArray:
         if (fValue.fArrayAndCount.fCount != that.fValue.fArrayAndCount.fCount) {
-            equal = FALSE;
+            equal = false;
             break;
         }
         // Checks each element for equality.
         for (i=0; i<fValue.fArrayAndCount.fCount; ++i) {
             if (fValue.fArrayAndCount.fArray[i] != that.fValue.fArrayAndCount.fArray[i]) {
-                equal = FALSE;
+                equal = false;
                 break;
             }
         }
         break;
     case kObject:
         if (fValue.fObject == NULL || that.fValue.fObject == NULL) {
-            equal = FALSE;
+            equal = false;
         } else {
             equal = objectEquals(fValue.fObject, that.fValue.fObject);
         }

@@ -689,7 +689,7 @@ utext_close(UText *ut) {
     }
 
     // Zero out function table of the closed UText.  This is a defensive move,
-    //   inteded to cause applications that inadvertantly use a closed
+    //   intended to cause applications that inadvertently use a closed
     //   utext to crash with null pointer errors.
     ut->pFuncs        = NULL;
 
@@ -1046,7 +1046,7 @@ utf8TextAccess(UText *ut, int64_t index, UBool forward) {
 
     //
     // Dispatch to the appropriate action for a
-    //   Backwards Diretion iteration request.
+    //   Backwards Direction iteration request.
     //
     if (ix==ut->chunkNativeStart) {
         // Check for normal sequential iteration cases first.
@@ -1359,7 +1359,7 @@ fillReverse:
                 int32_t  sIx      = srcIx;  // ix of last byte of multi-byte u8 char
 
                 // Get the full character from the UTF8 string.
-                //   use code derived from tbe macros in utf8.h
+                //   use code derived from the macros in utf8.h
                 //   Leaves srcIx pointing at the first byte of the UTF-8 char.
                 //
                 c=utf8_prevCharSafeBody(s8, 0, &srcIx, c, -3);
@@ -1570,7 +1570,7 @@ utf8TextClone(UText *dest, const UText *src, UBool deep, UErrorCode *status)
     // For deep clones, make a copy of the string.
     //  The copied storage is owned by the newly created clone.
     //
-    // TODO:  There is an isssue with using utext_nativeLength().
+    // TODO:  There is an issue with using utext_nativeLength().
     //        That function is non-const in cases where the input was NUL terminated
     //          and the length has not yet been determined.
     //        This function (clone()) is const.
@@ -2394,9 +2394,9 @@ ucstrTextClose(UText *ut) {
 static int64_t U_CALLCONV
 ucstrTextLength(UText *ut) {
     if (ut->a < 0) {
-        // null terminated, we don't yet know the length.  Scan for it.
+        // null terminated, we don't yet know the length. Scan for it.
         //    Access is not convenient for doing this
-        //    because the current interation postion can't be changed.
+        //    because the current iteration position can't be changed.
         const UChar  *str = (const UChar *)ut->context;
         for (;;) {
             if (str[ut->chunkNativeLimit] == 0) {

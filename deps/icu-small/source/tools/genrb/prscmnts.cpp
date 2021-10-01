@@ -71,7 +71,7 @@ U_CFUNC int32_t
 trim(UChar *src, int32_t srcLen, UErrorCode *status){
      srcLen = removeText(src, srcLen, UnicodeString("^[ \\r\\n]+ "), 0, UnicodeString(), status); // remove leading new lines
      srcLen = removeText(src, srcLen, UnicodeString("^\\s+"), 0, UnicodeString(), status); // remove leading spaces
-     srcLen = removeText(src, srcLen, UnicodeString("\\s+$"), 0, UnicodeString(), status); // remvoe trailing spcaes
+     srcLen = removeText(src, srcLen, UnicodeString("\\s+$"), 0, UnicodeString(), status); // remove trailing spcaes
      return srcLen;
 }
 

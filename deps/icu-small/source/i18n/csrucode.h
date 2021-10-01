@@ -33,12 +33,12 @@ public:
     /* (non-Javadoc)
      * @see com.ibm.icu.text.CharsetRecognizer#getName()
      */
-    const char* getName() const = 0;
+    const char* getName() const override = 0;
 
     /* (non-Javadoc)
      * @see com.ibm.icu.text.CharsetRecognizer#match(com.ibm.icu.text.CharsetDetector)
      */
-    UBool match(InputText* textIn, CharsetMatch *results) const = 0;
+    UBool match(InputText* textIn, CharsetMatch *results) const override = 0;
 };
 
 
@@ -48,9 +48,9 @@ public:
 
     virtual ~CharsetRecog_UTF_16_BE();
 
-    const char *getName() const;
+    const char *getName() const override;
 
-    UBool match(InputText* textIn, CharsetMatch *results) const;
+    UBool match(InputText* textIn, CharsetMatch *results) const override;
 };
 
 class CharsetRecog_UTF_16_LE : public CharsetRecog_Unicode
@@ -59,9 +59,9 @@ public:
 
     virtual ~CharsetRecog_UTF_16_LE();
 
-    const char *getName() const;
+    const char *getName() const override;
 
-    UBool match(InputText* textIn, CharsetMatch *results) const;
+    UBool match(InputText* textIn, CharsetMatch *results) const override;
 };
 
 class CharsetRecog_UTF_32 : public CharsetRecog_Unicode
@@ -72,34 +72,34 @@ public:
 
     virtual ~CharsetRecog_UTF_32();
 
-    const char* getName() const = 0;
+    const char* getName() const override = 0;
 
-    UBool match(InputText* textIn, CharsetMatch *results) const;
+    UBool match(InputText* textIn, CharsetMatch *results) const override;
 };
 
 
 class CharsetRecog_UTF_32_BE : public CharsetRecog_UTF_32
 {
 protected:
-    int32_t getChar(const uint8_t *input, int32_t index) const;
+    int32_t getChar(const uint8_t *input, int32_t index) const override;
 
 public:
 
     virtual ~CharsetRecog_UTF_32_BE();
 
-    const char *getName() const;
+    const char *getName() const override;
 };
 
 
 class CharsetRecog_UTF_32_LE : public CharsetRecog_UTF_32
 {
 protected:
-    int32_t getChar(const uint8_t *input, int32_t index) const;
+    int32_t getChar(const uint8_t *input, int32_t index) const override;
 
 public:
     virtual ~CharsetRecog_UTF_32_LE();
 
-    const char* getName() const;
+    const char* getName() const override;
 };
 
 U_NAMESPACE_END

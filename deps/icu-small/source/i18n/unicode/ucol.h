@@ -418,7 +418,7 @@ ucol_open(const char *loc, UErrorCode *status);
  *             UCOL_DEFAULT (set the mode according to the rules)
  * @param strength The default collation strength; one of UCOL_PRIMARY, UCOL_SECONDARY,
  * UCOL_TERTIARY, UCOL_IDENTICAL,UCOL_DEFAULT_STRENGTH - can be also set in the rules.
- * @param parseError  A pointer to UParseError to recieve information about errors
+ * @param parseError  A pointer to UParseError to receive information about errors
  *                    occurred during parsing. This argument can currently be set
  *                    to NULL, but at users own risk. Please provide a real structure.
  * @param status A pointer to a UErrorCode to receive any errors
@@ -443,7 +443,7 @@ ucol_openRules( const UChar        *rules,
  * The structure and the syntax of the string is defined in the "Naming collators"
  * section of the users guide:
  * https://unicode-org.github.io/icu/userguide/collation/concepts#collator-naming-scheme
- * Attributes are overriden by the subsequent attributes. So, for "S2_S3", final
+ * Attributes are overridden by the subsequent attributes. So, for "S2_S3", final
  * strength will be 3. 3066bis locale overrides individual locale parts.
  * The call to this function is equivalent to a call to ucol_open, followed by a
  * series of calls to ucol_setAttribute and ucol_setVariableTop.
@@ -462,7 +462,7 @@ ucol_openRules( const UChar        *rules,
  *                   instantiating collators (like out of memory or similar), this
  *                   API will return an error if an invalid attribute or attribute/value
  *                   combination is specified.
- * @return           A pointer to a UCollator or 0 if an error occured (including an
+ * @return           A pointer to a UCollator or 0 if an error occurred (including an
  *                   invalid attribute).
  * @see ucol_open
  * @see ucol_setAttribute
@@ -653,7 +653,7 @@ ucol_equal(const UCollator *coll,
            const UChar     *target, int32_t targetLength);
 
 /**
- * Compare two UTF-8 encoded trings.
+ * Compare two UTF-8 encoded strings.
  * The strings will be compared using the options already specified.
  * @param coll The UCollator containing the comparison rules.
  * @param sIter The source string iterator.

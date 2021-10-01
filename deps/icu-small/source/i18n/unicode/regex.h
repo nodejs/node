@@ -119,7 +119,7 @@ public:
      * @return true if the objects are equivalent.
      * @stable ICU 2.4
      */
-    UBool           operator==(const RegexPattern& that) const;
+    bool            operator==(const RegexPattern& that) const;
 
     /**
      * Comparison operator.  Two RegexPattern objects are considered equal if they
@@ -129,7 +129,7 @@ public:
      * @return true if the objects are different.
      * @stable ICU 2.4
      */
-    inline UBool    operator!=(const RegexPattern& that) const {return ! operator ==(that);}
+    inline bool     operator!=(const RegexPattern& that) const {return ! operator ==(that);}
 
     /**
      * Assignment operator.  After assignment, this RegexPattern will behave identically
@@ -569,7 +569,7 @@ public:
      *
      * @stable ICU 2.4
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -1746,7 +1746,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
     // Constructors and other object boilerplate are private.

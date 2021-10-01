@@ -115,7 +115,7 @@ NFRule::makeRules(UnicodeString& description,
     // we know we're making at least one rule, so go ahead and
     // new it up and initialize its basevalue and divisor
     // (this also strips the rule descriptor, if any, off the
-    // descripton string)
+    // description string)
     NFRule* rule1 = new NFRule(rbnf, description, status);
     /* test for NULL */
     if (rule1 == 0) {
@@ -193,7 +193,7 @@ NFRule::makeRules(UnicodeString& description,
             rule2->radix = rule1->radix;
             rule2->exponent = rule1->exponent;
 
-            // rule2's rule text omits the stuff in brackets: initalize
+            // rule2's rule text omits the stuff in brackets: initialize
             // its rule text and substitutions accordingly
             sbuf.append(description, 0, brack1);
             if (brack2 + 1 < description.length()) {
@@ -631,7 +631,7 @@ util_equalSubstitutions(const NFSubstitution* sub1, const NFSubstitution* sub2)
 * @param that The rule to compare this one against
 * @return True is the two rules are functionally equivalent
 */
-UBool
+bool
 NFRule::operator==(const NFRule& rhs) const
 {
     return baseValue == rhs.baseValue
@@ -1533,7 +1533,7 @@ NFRule::findTextLenient(const UnicodeString& str,
     // in JDK 1.2, CollationElementIterator provides us with an
     // API to map between character offsets and collation elements
     // and we can do this by marching through the string comparing
-    // collation elements.  We can't do that in JDK 1.1.  Insted,
+    // collation elements.  We can't do that in JDK 1.1.  Instead,
     // we have to go through this horrible slow mess:
     int32_t p = startingAt;
     int32_t keyLen = 0;

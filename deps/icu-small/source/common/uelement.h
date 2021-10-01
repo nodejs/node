@@ -54,9 +54,12 @@ typedef UBool U_CALLCONV UElementsAreEqual(const UElement e1, const UElement e2)
  * An element sorting (three-way) comparison function.
  * @param e1 An element (object or integer)
  * @param e2 An element (object or integer)
- * @return 0 if the two elements are equal, -1 if e1 is < e2, or +1 if e1 is > e2.
+ * @return 32-bit signed integer comparison result:
+ *               ==0 if the two elements are equal,
+ *                <0 if e1 is < e2, or
+ *                >0 if e1 is > e2.
  */
-typedef int8_t U_CALLCONV UElementComparator(UElement e1, UElement e2);
+typedef int32_t U_CALLCONV UElementComparator(UElement e1, UElement e2);
 
 /**
  * An element assignment function.  It may copy an integer, copy

@@ -44,7 +44,7 @@ public:
     int32_t     fInputLen;          // Length of the byte data in fInputBytes.
     // byte frequency statistics for the input text.
     //   Value is percent, not absolute.
-    //   Value is rounded up, so zero really means zero occurences.
+    //   Value is rounded up, so zero really means zero occurrences.
     int16_t  *fByteStats;
     UBool     fC1Bytes;          // True if any bytes in the range 0x80 - 0x9F are in the input;false by default
     char     *fDeclaredEncoding;

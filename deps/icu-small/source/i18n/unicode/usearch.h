@@ -35,8 +35,9 @@
  * See the <a href="http://source.icu-project.org/repos/icu/icuhtml/trunk/design/collation/ICU_collation_design.htm">
  * "ICU Collation Design Document"</a> for more information.
  * <p>
- * The implementation may use a linear search or a modified form of the Boyer-Moore
- * search; for more information on the latter see
+ * As of ICU4C 4.0 / ICU4J 53, the implementation uses a linear search. In previous versions,
+ * a modified form of the Boyer-Moore searching algorithm was used. For more information
+ * on the modified Boyer-Moore algorithm see
  * <a href="http://icu-project.org/docs/papers/efficient_text_searching_in_java.html">
  * "Efficient Text Searching in Java"</a>, published in <i>Java Report</i>
  * in February, 1999.
@@ -595,8 +596,8 @@ U_CAPI UCollator * U_EXPORT2 usearch_getCollator(
 /**
 * Sets the collator used for the language rules. User retains the ownership
 * of this collator, thus the responsibility of deletion lies with the user.
-* This method causes internal data such as Boyer-Moore shift tables to
-* be recalculated, but the iterator's position is unchanged.
+* This method causes internal data such as the pattern collation elements
+* and shift tables to be recalculated, but the iterator's position is unchanged.
 * @param strsrch search iterator data struct
 * @param collator to be used
 * @param status for errors if it occurs
@@ -608,7 +609,7 @@ U_CAPI void U_EXPORT2 usearch_setCollator(      UStringSearch *strsrch,
 
 /**
 * Sets the pattern used for matching.
-* Internal data like the Boyer Moore table will be recalculated, but the
+* Internal data like the pattern collation elements will be recalculated, but the
 * iterator's position is unchanged.
 *
 * The UStringSearch retains a pointer to the pattern string. The caller must not

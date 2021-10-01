@@ -208,10 +208,10 @@ void CanonicalIterator::setSource(const UnicodeString &newSource, UErrorCode &st
         goto CleanPartialInitialization;
     }
 
-    // i should initialy be the number of code units at the
+    // i should initially be the number of code units at the
     // start of the string
     i = U16_LENGTH(source.char32At(0));
-    //int32_t i = 1;
+    // int32_t i = 1;
     // find the segments
     // This code iterates through the source string and
     // extracts segments that end up on a codepoint that
@@ -494,7 +494,7 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const UCh
 
 /**
  * See if the decomposition of cp2 is at segment starting at segmentPos
- * (with canonical rearrangment!)
+ * (with canonical rearrangement!)
  * If so, take the remainder, and return the equivalents
  */
 Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, const UChar *segment, int32_t segLen, int32_t segmentPos, UErrorCode &status) {

@@ -260,7 +260,7 @@ checkAlias(const char *itemName,
     }
 
     // convert the Unicode string to char *
-    char localeID[32];
+    char localeID[48];
     if(length>=(int32_t)sizeof(localeID)) {
         fprintf(stderr, "icupkg/ures_enumDependencies(%s res=%08x) alias locale ID length %ld too long\n",
                         itemName, res, (long)length);

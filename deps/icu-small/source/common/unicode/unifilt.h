@@ -77,7 +77,7 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 2.4
      */
-    virtual UnicodeFilter* clone() const = 0;
+    virtual UnicodeFilter* clone() const override = 0;
 
     /**
      * Returns <tt>true</tt> for characters that are in the selected
@@ -93,7 +93,7 @@ public:
      * and return the pointer.
      * @stable ICU 2.4
      */
-    virtual UnicodeMatcher* toMatcher() const;
+    virtual UnicodeMatcher* toMatcher() const override;
 
     /**
      * Implement UnicodeMatcher API.
@@ -102,13 +102,13 @@ public:
     virtual UMatchDegree matches(const Replaceable& text,
                                  int32_t& offset,
                                  int32_t limit,
-                                 UBool incremental);
+                                 UBool incremental) override;
 
     /**
      * UnicodeFunctor API.  Nothing to do.
      * @stable ICU 2.4
      */
-    virtual void setData(const TransliterationRuleData*);
+    virtual void setData(const TransliterationRuleData*) override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

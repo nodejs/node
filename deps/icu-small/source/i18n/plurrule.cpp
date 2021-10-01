@@ -379,6 +379,14 @@ static double scaleForInt(double d) {
     return scale;
 }
 
+static const double powers10[7] = {1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0}; // powers of 10 for 0..6
+static double applyExponent(double source, int32_t exponent) {
+    if (exponent >= 0 && exponent <= 6) {
+        return source * powers10[exponent];
+    }
+    return source * pow(10.0, exponent);
+}
+
 /**
  * Helper method for the overrides of getSamples() for double and FixedDecimal
  * return value types.  Provide only one of an allocated array of doubles or
@@ -416,7 +424,7 @@ getSamplesFromString(const UnicodeString &samples, double *destDbl,
             if (isDouble) {
                 double sampleValue = fixed.source;
                 if (fixed.visibleDecimalDigitCount == 0 || sampleValue != floor(sampleValue)) {
-                    destDbl[sampleCount++] = sampleValue;
+                    destDbl[sampleCount++] = applyExponent(sampleValue, fixed.exponent);
                 }
             } else {
                 destFd[sampleCount++] = fixed;
@@ -547,40 +555,40 @@ PluralRules::getKeywordOther() const {
     return UnicodeString(TRUE, PLURAL_KEYWORD_OTHER, 5);
 }
 
-UBool
+bool
 PluralRules::operator==(const PluralRules& other) const  {
     const UnicodeString *ptrKeyword;
     UErrorCode status= U_ZERO_ERROR;
 
     if ( this == &other ) {
-        return TRUE;
+        return true;
     }
     LocalPointer<StringEnumeration> myKeywordList(getKeywords(status));
     LocalPointer<StringEnumeration> otherKeywordList(other.getKeywords(status));
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
 
     if (myKeywordList->count(status)!=otherKeywordList->count(status)) {
-        return FALSE;
+        return false;
     }
     myKeywordList->reset(status);
     while ((ptrKeyword=myKeywordList->snext(status))!=nullptr) {
         if (!other.isKeyword(*ptrKeyword)) {
-            return FALSE;
+            return false;
         }
     }
     otherKeywordList->reset(status);
     while ((ptrKeyword=otherKeywordList->snext(status))!=nullptr) {
         if (!this->isKeyword(*ptrKeyword)) {
-            return FALSE;
+            return false;
         }
     }
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1545,7 +1553,7 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        fKeywordNames.addElement(newElem, status);
+        fKeywordNames.addElementX(newElem, status);
         if (U_FAILURE(status)) {
             delete newElem;
             return;
@@ -1562,7 +1570,7 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        fKeywordNames.addElement(newElem, status);
+        fKeywordNames.addElementX(newElem, status);
         if (U_FAILURE(status)) {
             delete newElem;
             return;
@@ -1608,7 +1616,7 @@ PluralOperand tokenTypeToPluralOperand(tokenType tt) {
     case tVariableC:
         return PLURAL_OPERAND_E;
     default:
-        UPRV_UNREACHABLE;  // unexpected.
+        UPRV_UNREACHABLE_EXIT;  // unexpected.
     }
 }
 
@@ -1873,15 +1881,15 @@ void FixedDecimal::adjustForMinFractionDigits(int32_t minFractionDigits) {
 
 double FixedDecimal::getPluralOperand(PluralOperand operand) const {
     switch(operand) {
-        case PLURAL_OPERAND_N: return source;
-        case PLURAL_OPERAND_I: return static_cast<double>(intValue);
+        case PLURAL_OPERAND_N: return (exponent == 0 ? source : source * pow(10, exponent));
+        case PLURAL_OPERAND_I: return (double) longValue();
         case PLURAL_OPERAND_F: return static_cast<double>(decimalDigits);
         case PLURAL_OPERAND_T: return static_cast<double>(decimalDigitsWithoutTrailingZeros);
         case PLURAL_OPERAND_V: return visibleDecimalDigitCount;
         case PLURAL_OPERAND_E: return exponent;
         case PLURAL_OPERAND_C: return exponent;
         default:
-             UPRV_UNREACHABLE;  // unexpected.
+             UPRV_UNREACHABLE_EXIT;  // unexpected.
     }
 }
 
@@ -1921,6 +1929,18 @@ UnicodeString FixedDecimal::toString() const {
         snprintf(buffer, sizeof(buffer), pattern, source);
     }
     return UnicodeString(buffer, -1, US_INV);
+}
+
+double FixedDecimal::doubleValue() const {
+    return (isNegative ? -source : source) * pow(10, exponent);
+}
+
+int64_t FixedDecimal::longValue() const {
+    if (exponent == 0) {
+        return intValue;
+    } else {
+        return (long) (pow(10, exponent) * intValue);
+    }
 }
 
 

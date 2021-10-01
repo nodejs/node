@@ -167,7 +167,7 @@ ucol_next(UCollationElements *elems, UErrorCode *status);
  * A single character may contain more than one collation element.
  * Note that internally a stack is used to store buffered collation elements.
  * @param elems The UCollationElements containing the text.
- * @param status A pointer to a UErrorCode to receive any errors. Noteably
+ * @param status A pointer to a UErrorCode to receive any errors. Notably
  *               a U_BUFFER_OVERFLOW_ERROR is returned if the internal stack
  *               buffer has been exhausted.
  * @return The previous collation elements ordering, otherwise returns

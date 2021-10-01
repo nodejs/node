@@ -120,12 +120,12 @@ StringEnumeration::setChars(const char *s, int32_t length, UErrorCode &status) {
 
     return NULL;
 }
-UBool
+bool
 StringEnumeration::operator==(const StringEnumeration& that)const {
     return typeid(*this) == typeid(that);
 }
 
-UBool
+bool
 StringEnumeration::operator!=(const StringEnumeration& that)const {
     return !operator==(that);
 }

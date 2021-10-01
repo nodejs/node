@@ -311,7 +311,7 @@ OlsonTimeZone::~OlsonTimeZone() {
 /**
  * Returns true if the two TimeZone objects are equal.
  */
-UBool OlsonTimeZone::operator==(const TimeZone& other) const {
+bool OlsonTimeZone::operator==(const TimeZone& other) const {
     return ((this == &other) ||
             (typeid(*this) == typeid(other) &&
             TimeZone::operator==(other) &&
@@ -806,7 +806,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
         }
     }
     if (finalZone != NULL) {
-        // Get the first occurence of final rule starts
+        // Get the first occurrence of final rule starts
         UDate startTime = (UDate)finalStartMillis;
         TimeZoneRule *firstFinalRule = NULL;
 

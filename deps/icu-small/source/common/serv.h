@@ -191,7 +191,7 @@ public:
   /**
    * UObject RTTI boilerplate.
    */
-  virtual UClassID getDynamicClassID() const;
+  virtual UClassID getDynamicClassID() const override;
 
 #ifdef SERVICE_DEBUG
  public:
@@ -315,7 +315,7 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
    * @param status the error code status.
    * @return the service object, or NULL if the factory does not support the key.
    */
-  virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const;
+  virtual UObject* create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const override;
 
   /**
    * <p>This implementation adds a mapping from ID -> this to result if visible is true,
@@ -324,7 +324,7 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
    * @param result the mapping table to update.
    * @param status the error code status.
    */
-  virtual void updateVisibleIDs(Hashtable& result, UErrorCode& status) const;
+  virtual void updateVisibleIDs(Hashtable& result, UErrorCode& status) const override;
 
   /**
    * <p>This implementation returns the factory ID if it equals id and visible is true,
@@ -336,7 +336,7 @@ class U_COMMON_API SimpleFactory : public ICUServiceFactory {
    * @param result output parameter to hold the display name.
    * @return result.
    */
-  virtual UnicodeString& getDisplayName(const UnicodeString& id, const Locale& locale, UnicodeString& result) const;
+  virtual UnicodeString& getDisplayName(const UnicodeString& id, const Locale& locale, UnicodeString& result) const override;
 
 public:
  /**
@@ -347,7 +347,7 @@ public:
  /**
   * UObject RTTI boilerplate.
   */
-  virtual UClassID getDynamicClassID() const;
+  virtual UClassID getDynamicClassID() const override;
 
 #ifdef SERVICE_DEBUG
  public:
@@ -363,7 +363,7 @@ public:
 
 /**
  * <p>ServiceListener is the listener that ICUService provides by default.
- * ICUService will notifiy this listener when factories are added to
+ * ICUService will notify this listener when factories are added to
  * or removed from the service.  Subclasses can provide
  * different listener interfaces that extend EventListener, and modify
  * acceptsListener and notifyListener as appropriate.</p>
@@ -390,7 +390,7 @@ public:
     /**
      * UObject RTTI boilerplate.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 };
 
@@ -930,7 +930,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      * @param l the listener to test.
      * @return true if the service accepts the listener.
      */
-    virtual UBool acceptsListener(const EventListener& l) const;
+    virtual UBool acceptsListener(const EventListener& l) const override;
 
     /**
      * <p>Notify the listener of a service change.</p>
@@ -941,7 +941,7 @@ class U_COMMON_API ICUService : public ICUNotifier {
      *
      * @param l the listener to notify.
      */
-    virtual void notifyListener(EventListener& l) const;
+    virtual void notifyListener(EventListener& l) const override;
 
     /************************************************************************
      * Utilities for subclasses.

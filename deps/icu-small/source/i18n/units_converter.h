@@ -75,7 +75,7 @@ struct U_I18N_API Factor {
     // Apply SI or binary prefix to the Factor.
     void applyPrefix(UMeasurePrefix unitPrefix);
 
-    // Does an in-place substition of the "symbolic constants" based on
+    // Does an in-place substitution of the "symbolic constants" based on
     // constantExponents (resetting the exponents).
     //
     // In ICU4J, see UnitConverter.Factor.getConversionRate().

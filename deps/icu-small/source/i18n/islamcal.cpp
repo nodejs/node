@@ -222,7 +222,7 @@ const char *IslamicCalendar::getType() const {
         sType = "islamic-umalqura";
         break;
     default:
-        UPRV_UNREACHABLE; // out of range
+        UPRV_UNREACHABLE_EXIT; // out of range
     }
     return sType;
 }
@@ -675,7 +675,7 @@ void IslamicCalendar::handleComputeFields(int32_t julianDay, UErrorCode &status)
                 month = m;
             }
     } else { // invalid 'civil'
-      UPRV_UNREACHABLE; // should not get here, out of range
+      UPRV_UNREACHABLE_EXIT; // should not get here, out of range
     }
 
     dayOfMonth = (days - monthStart(year, month)) + 1;

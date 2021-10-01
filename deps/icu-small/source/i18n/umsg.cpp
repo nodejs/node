@@ -68,7 +68,7 @@ u_formatMessage(const char  *locale,
 {
     va_list    ap;
     int32_t actLen;
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     // start vararg processing
     va_start(ap, status);
 
@@ -89,7 +89,7 @@ u_vformatMessage(   const char  *locale,
                     UErrorCode  *status)
 
 {
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     UMessageFormat *fmt = umsg_open(pattern,patternLength,locale,NULL,status);
     int32_t retVal = umsg_vformat(fmt,result,resultLength,ap,status);
     umsg_close(fmt);
@@ -108,7 +108,7 @@ u_formatMessageWithError(const char *locale,
 {
     va_list    ap;
     int32_t actLen;
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     // start vararg processing
     va_start(ap, status);
 
@@ -130,7 +130,7 @@ u_vformatMessageWithError(  const char  *locale,
                             UErrorCode  *status)
 
 {
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     UMessageFormat *fmt = umsg_open(pattern,patternLength,locale,parseError,status);
     int32_t retVal = umsg_vformat(fmt,result,resultLength,ap,status);
     umsg_close(fmt);
@@ -152,7 +152,7 @@ u_parseMessage( const char   *locale,
                 ...)
 {
     va_list    ap;
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
 
     // start vararg processing
     va_start(ap, status);
@@ -171,7 +171,7 @@ u_vparseMessage(const char  *locale,
                 va_list     ap,
                 UErrorCode  *status)
 {
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     UMessageFormat *fmt = umsg_open(pattern,patternLength,locale,NULL,status);
     int32_t count = 0;
     umsg_vparse(fmt,source,sourceLength,&count,ap,status);
@@ -190,7 +190,7 @@ u_parseMessageWithError(const char  *locale,
 {
     va_list    ap;
 
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
 
     // start vararg processing
     va_start(ap, status);
@@ -209,7 +209,7 @@ u_vparseMessageWithError(const char  *locale,
                          UParseError *error,
                          UErrorCode* status)
 {
-    //argument checking defered to subsequent method calls
+    //argument checking deferred to subsequent method calls
     UMessageFormat *fmt = umsg_open(pattern,patternLength,locale,error,status);
     int32_t count = 0;
     umsg_vparse(fmt,source,sourceLength,&count,ap,status);
@@ -369,8 +369,8 @@ umsg_format(    const UMessageFormat *fmt,
 {
     va_list    ap;
     int32_t actLen;
-    //argument checking defered to last method call umsg_vformat which
-    //saves time when arguments are valid and we dont care when arguments are not
+    //argument checking deferred to last method call umsg_vformat which
+    //saves time when arguments are valid and we don't care when arguments are not
     //since we return an error anyway
 
 
@@ -463,7 +463,7 @@ umsg_vformat(   const UMessageFormat *fmt,
 
         default:
             // Unknown/unsupported argument type.
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
         }
     }
     UnicodeString resultStr;
@@ -490,8 +490,8 @@ umsg_parse( const UMessageFormat *fmt,
             ...)
 {
     va_list    ap;
-    //argument checking defered to last method call umsg_vparse which
-    //saves time when arguments are valid and we dont care when arguments are not
+    //argument checking deferred to last method call umsg_vparse which
+    //saves time when arguments are valid and we don't care when arguments are not
     //since we return an error anyway
 
     // start vararg processing
@@ -590,11 +590,11 @@ umsg_vparse(const UMessageFormat *fmt,
             // support kObject.  When MessageFormat is changed to
             // understand MeasureFormats, modify this code to do the
             // right thing. [alan]
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
 
         // better not happen!
         case Formattable::kArray:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
         }
     }
 

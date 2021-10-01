@@ -54,7 +54,7 @@ public:
      * Transliterator API.
      * @return    A copy of the object.
      */
-    virtual BreakTransliterator* clone() const;
+    virtual BreakTransliterator* clone() const override;
 
     virtual const UnicodeString &getInsertion() const;
 
@@ -63,7 +63,7 @@ public:
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -82,7 +82,7 @@ public:
      *                      pos.contextLimit. Otherwise, assume the text is complete.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offset,
-                                     UBool isIncremental) const;
+                                     UBool isIncremental) const override;
 
  private:
      LocalPointer<BreakIterator> cachedBI;

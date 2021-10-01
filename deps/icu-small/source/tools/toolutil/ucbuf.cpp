@@ -437,7 +437,7 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
         /* unescaping failed so we just return
          * c1 and not consume the buffer
          * this is useful for rules with escapes
-         * in resouce bundles
+         * in resource bundles
          * eg: \' \\ \"
          */
         return c1;
@@ -664,7 +664,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
         target[0] = '\0';
         /*
          * append the input dir to openFileName if the first char in
-         * filename is not file seperation char and the last char input directory is  not '.'.
+         * filename is not file separation char and the last char input directory is  not '.'.
          * This is to support :
          * genrb -s. /home/icu/data
          * genrb -s. icu/data
@@ -696,7 +696,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
  * Unicode TR 13 says any of the below chars is
  * a new line char in a readline function in addition
  * to CR+LF combination which needs to be
- * handled seperately
+ * handled separately
  */
 static UBool ucbuf_isCharNewLine(UChar c){
     switch(c){

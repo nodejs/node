@@ -385,7 +385,7 @@ enumNext(UEnumeration *en, int32_t *resultLength, UErrorCode * /*status*/) {
             // ucsdet_getDetectableCharsets
             UBool *enabledArray = ((Context *)en->context)->enabledRecognizers;
             if (enabledArray != NULL) {
-                // custome set
+                // custom set
                 while (currName == NULL && ((Context *)en->context)->currIndex < fCSRecognizers_size) {
                     if (enabledArray[((Context *)en->context)->currIndex]) {
                         currName = fCSRecognizers[((Context *)en->context)->currIndex]->recognizer->getName();
