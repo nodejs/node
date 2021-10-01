@@ -6,7 +6,6 @@
     "build": "rollup -f es -p '@rollup/plugin-node-resolve={exportConditions: [\"node\"]}'  -p @rollup/plugin-commonjs lint-md.src.mjs --file lint-md.mjs"
   },
   "dependencies": {
-    "remark-gfm": "^2.0.0",
     "remark-parse": "^10.0.0",
     "remark-preset-lint-node": "^3.0.1",
     "remark-stringify": "^10.0.0",
