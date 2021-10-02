@@ -292,8 +292,8 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; i < raw_assertions->Length(); i += 3) {
       assertions
           ->Set(env->context(),
-                Local<String>::Cast(raw_assertions->Get(env->context(), i)),
-                Local<Value>::Cast(raw_assertions->Get(env->context(), i + 1)))
+                raw_assertions->Get(env->context(), i).As<String>(),
+                raw_assertions->Get(env->context(), i + 1).As<Value>())
           .ToChecked();
     }
 

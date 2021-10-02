@@ -74,8 +74,8 @@ class ContextifyContext {
   }
 
   inline v8::Local<v8::Object> sandbox() const {
-    return v8::Local<v8::Object>::Cast(
-        context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject));
+    return context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject)
+        .As<v8::Object>();
   }
 
   inline std::shared_ptr<v8::MicrotaskQueue> microtask_queue() const {
