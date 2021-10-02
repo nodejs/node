@@ -4,24 +4,33 @@ on:
     # Run once a week at 00:05 AM UTC on Sunday.
     - cron: '5 0 * * 0'
 
-  workflow_dispatch:
+  workflow_dispatch: null
 
 jobs:
   authors_update:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
         with:
-          fetch-depth: '0'  # This is required to actually get all the authors
-      - run: "tools/update-authors.js"  # Run the AUTHORS tool
-      - uses: gr2m/create-or-update-pull-request-action@v1  # Create a PR or update the Action's existing PR
+          fetch-depth: '0' # This is required to actually get all the authors
+      - run: "tools/update-authors.js" # Run the AUTHORS tool
+      - uses: gr2m/create-or-update-pull-request-action@8d7ac74bf44a6dafeb5a5d8deeadb771b707685b # pin v1.4.1
+        # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: "If this PR exists, there's presumably new additions to the AUTHORS file. This is an automatically generated PR by the `authors.yml` GitHub Action, which runs `tools/update-authors.js` and submits a new PR or updates an existing PR.\n\nPlease note that there might be duplicate entries. If there are, please remove them and add the duplicate emails to .mailmap directly to this PR."
-          branch: "actions/authors-update"  # Custom branch *just* for this Action.
+          body: "If this PR exists, there's presumably new additions to the AUTHORS file.
+            This is an automatically generated PR by the `authors.yml` GitHub
+            Action, which runs `tools/update-authors.js` and submits a new PR or
+            updates an existing PR.
+
+
+            Please note that there might be duplicate entries. If
+            there are, please remove them and add the duplicate emails to
+            .mailmap directly to this PR."
+          branch: "actions/authors-update" # Custom branch *just* for this Action.
           commit-message: "meta: update AUTHORS"
           labels: meta
           title: "meta: update AUTHORS"

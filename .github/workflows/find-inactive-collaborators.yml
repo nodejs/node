@@ -5,7 +5,7 @@ on:
     # Run on the 15th day of the month at 4:05 AM UTC.
     - cron: '5 4 15 * *'
 
-  workflow_dispatch:
+  workflow_dispatch: null
 
 env:
   NODE_VERSION: 16.x
@@ -17,12 +17,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
         with:
           fetch-depth: ${{ env.NUM_COMMITS }}
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@270253e841af726300e85d718a5f606959b2903c # pin@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -30,7 +30,7 @@ jobs:
         run: tools/find-inactive-collaborators.mjs ${{ env.NUM_COMMITS }}
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@d4c446af7f110d666d2a341a7fbb0a7f906a8dfc # pin@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:

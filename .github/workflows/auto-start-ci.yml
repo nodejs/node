@@ -16,11 +16,11 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
 
       # Install dependencies
       - name: Install Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@270253e841af726300e85d718a5f606959b2903c # pin@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install node-core-utils
@@ -33,7 +33,7 @@ jobs:
 
       # Get Pull Requests
       - name: Get Pull Requests
-        uses: octokit/graphql-action@v2.x
+        uses: octokit/graphql-action@7ffe46b60e9d2552d8f96c34d2de07588714a9fe # pin@v2.x
         id: get_prs_for_ci
         with:
           query: |
@@ -60,4 +60,6 @@ jobs:
           ncu-config set repo ${{ env.REPOSITORY }}
 
       - name: Start CI
-        run: ./tools/actions/start-ci.sh ${{ secrets.GITHUB_TOKEN }} ${{ env.OWNER }} ${{ env.REPOSITORY }} $(echo '${{ steps.get_prs_for_ci.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+        run: ./tools/actions/start-ci.sh ${{ secrets.GITHUB_TOKEN }} ${{ env.OWNER }}
+          ${{ env.REPOSITORY }} $(echo '${{ steps.get_prs_for_ci.outputs.data
+          }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')

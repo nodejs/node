@@ -1,6 +1,6 @@
 name: "Commit messages adheres to guidelines at https://goo.gl/p2fr5Q"
 
-on: [pull_request]
+on: [ pull_request ]
 
 env:
   NODE_VERSION: lts/*
@@ -9,12 +9,12 @@ jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
         with:
           # Last 100 commits should be enough for a PR
           fetch-depth: 100
       - name: Install Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@270253e841af726300e85d718a5f606959b2903c # pin@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Validate commit messages
