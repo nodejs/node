@@ -175,7 +175,7 @@ inline static napi_status ConcludeDeferred(napi_env env,
   v8::Local<v8::Value> v8_deferred =
       v8::Local<v8::Value>::New(env->isolate, *deferred_ref);
 
-  auto v8_resolver = v8::Local<v8::Promise::Resolver>::Cast(v8_deferred);
+  auto v8_resolver = v8_deferred.As<v8::Promise::Resolver>();
 
   v8::Maybe<bool> success = is_resolved ?
       v8_resolver->Resolve(context, v8impl::V8LocalValueFromJsValue(result)) :
@@ -293,7 +293,7 @@ class CallbackWrapperBase : public CallbackWrapper {
                         nullptr),
         _cbinfo(cbinfo) {
     _bundle = reinterpret_cast<CallbackBundle*>(
-        v8::Local<v8::External>::Cast(cbinfo.Data())->Value());
+        cbinfo.Data().As<v8::External>()->Value());
     _data = _bundle->cb_data;
   }
 
@@ -3131,8 +3131,7 @@ napi_status napi_run_script(napi_env env,
 
   v8::Local<v8::Context> context = env->context();
 
-  auto maybe_script = v8::Script::Compile(context,
-      v8::Local<v8::String>::Cast(v8_script));
+  auto maybe_script = v8::Script::Compile(context, v8_script.As<v8::String>());
   CHECK_MAYBE_EMPTY(env, maybe_script, napi_generic_failure);
 
   auto script_result =
