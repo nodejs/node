@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/cross-thread-persistent.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -303,7 +304,7 @@ TEST_F(SweeperTest, LazySweepingDuringAllocation) {
       Heap::Config::MarkingType::kAtomic,
       Heap::Config::SweepingType::kIncrementalAndConcurrent};
   Heap::From(GetHeap())->CollectGarbage(config);
-  // Incremetal sweeping is active and the space should have two pages with
+  // Incremental sweeping is active and the space should have two pages with
   // no room for an additional GCedObject. Allocating a new GCedObject should
   // trigger sweeping. All objects other than the 2nd object on each page are
   // marked. Lazy sweeping on allocation should reclaim the object on one of
@@ -398,6 +399,95 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
   EXPECT_GT(end, start);
   EXPECT_EQ(page->discarded_memory(), end - start);
   USE(holder);
+}
+
+namespace {
+
+class Holder final : public GarbageCollected<Holder> {
+ public:
+  static size_t destructor_callcount;
+
+  void Trace(Visitor*) const {}
+
+  ~Holder() {
+    EXPECT_FALSE(ref);
+    EXPECT_FALSE(weak_ref);
+    destructor_callcount++;
+  }
+
+  cppgc::subtle::CrossThreadPersistent<GCed<1>> ref;
+  cppgc::subtle::WeakCrossThreadPersistent<GCed<1>> weak_ref;
+};
+
+// static
+size_t Holder::destructor_callcount;
+
+}  // namespace
+
+TEST_F(SweeperTest, CrossThreadPersistentCanBeClearedFromOtherThread) {
+  Holder::destructor_callcount = 0;
+  auto* holder = MakeGarbageCollected<Holder>(GetAllocationHandle());
+
+  auto remote_heap = cppgc::Heap::Create(GetPlatformHandle());
+  // The case below must be able to clear both, the CTP and WCTP.
+  holder->ref =
+      MakeGarbageCollected<GCed<1>>(remote_heap->GetAllocationHandle());
+  holder->weak_ref =
+      MakeGarbageCollected<GCed<1>>(remote_heap->GetAllocationHandle());
+
+  testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
+      GetPlatformHandle().get());
+  Heap::From(GetHeap())->CollectGarbage(
+      {Heap::Config::CollectionType::kMajor,
+       Heap::Config::StackState::kNoHeapPointers,
+       Heap::Config::MarkingType::kAtomic,
+       Heap::Config::SweepingType::kIncrementalAndConcurrent});
+  // `holder` is unreachable (as the stack is not scanned) and will be
+  // reclaimed. Its payload memory is generally poisoned at this point. The
+  // CrossThreadPersistent slot should be unpoisoned.
+
+  // Terminate the remote heap which should also clear `holder->ref`. The slot
+  // for `ref` should have been unpoisoned by the GC.
+  Heap::From(remote_heap.get())->Terminate();
+
+  // Finish the sweeper which will find the CrossThreadPersistent in cleared
+  // state.
+  Heap::From(GetHeap())->sweeper().FinishIfRunning();
+  EXPECT_EQ(1u, Holder::destructor_callcount);
+}
+
+TEST_F(SweeperTest, WeakCrossThreadPersistentCanBeClearedFromOtherThread) {
+  Holder::destructor_callcount = 0;
+  auto* holder = MakeGarbageCollected<Holder>(GetAllocationHandle());
+
+  auto remote_heap = cppgc::Heap::Create(GetPlatformHandle());
+  holder->weak_ref =
+      MakeGarbageCollected<GCed<1>>(remote_heap->GetAllocationHandle());
+
+  testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
+      GetPlatformHandle().get());
+  static constexpr Heap::Config config = {
+      Heap::Config::CollectionType::kMajor,
+      Heap::Config::StackState::kNoHeapPointers,
+      Heap::Config::MarkingType::kAtomic,
+      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+  // `holder` is unreachable (as the stack is not scanned) and will be
+  // reclaimed. Its payload memory is generally poisoned at this point. The
+  // WeakCrossThreadPersistent slot should be unpoisoned during clearing.
+
+  // GC in the remote heap should also clear `holder->weak_ref`. The slot for
+  // `weak_ref` should be unpoisoned by the GC.
+  Heap::From(remote_heap.get())
+      ->CollectGarbage({Heap::Config::CollectionType::kMajor,
+                        Heap::Config::StackState::kNoHeapPointers,
+                        Heap::Config::MarkingType::kAtomic,
+                        Heap::Config::SweepingType::kAtomic});
+
+  // Finish the sweeper which will find the CrossThreadPersistent in cleared
+  // state.
+  Heap::From(GetHeap())->sweeper().FinishIfRunning();
+  EXPECT_EQ(1u, Holder::destructor_callcount);
 }
 
 }  // namespace internal

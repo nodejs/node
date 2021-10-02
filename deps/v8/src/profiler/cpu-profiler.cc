@@ -74,7 +74,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   size_t profiler_count = isolate_->num_cpu_profilers();
   profiler_count++;
   isolate_->set_num_cpu_profilers(profiler_count);
-  isolate_->set_is_profiling(true);
+  isolate_->SetIsProfiling(true);
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -99,15 +99,16 @@ ProfilingScope::~ProfilingScope() {
   DCHECK_GT(profiler_count, 0);
   profiler_count--;
   isolate_->set_num_cpu_profilers(profiler_count);
-  if (profiler_count == 0) isolate_->set_is_profiling(false);
+  if (profiler_count == 0) isolate_->SetIsProfiling(false);
 }
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(
     Isolate* isolate, Symbolizer* symbolizer,
-    ProfilerCodeObserver* code_observer)
+    ProfilerCodeObserver* code_observer, CpuProfilesCollection* profiles)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       symbolizer_(symbolizer),
       code_observer_(code_observer),
+      profiles_(profiles),
       last_code_event_id_(0),
       last_processed_code_event_id_(0),
       isolate_(isolate) {
@@ -119,9 +120,8 @@ SamplingEventsProcessor::SamplingEventsProcessor(
     Isolate* isolate, Symbolizer* symbolizer,
     ProfilerCodeObserver* code_observer, CpuProfilesCollection* profiles,
     base::TimeDelta period, bool use_precise_sampling)
-    : ProfilerEventsProcessor(isolate, symbolizer, code_observer),
+    : ProfilerEventsProcessor(isolate, symbolizer, code_observer, profiles),
       sampler_(new CpuSampler(isolate, this)),
-      profiles_(profiles),
       period_(period),
       use_precise_sampling_(use_precise_sampling) {
   sampler_->Start();
@@ -188,7 +188,14 @@ void ProfilerEventsProcessor::StopSynchronously() {
 bool ProfilerEventsProcessor::ProcessCodeEvent() {
   CodeEventsContainer record;
   if (events_buffer_.Dequeue(&record)) {
-    code_observer_->CodeEventHandlerInternal(record);
+    if (record.generic.type == CodeEventRecord::NATIVE_CONTEXT_MOVE) {
+      NativeContextMoveEventRecord& nc_record =
+          record.NativeContextMoveEventRecord_;
+      profiles_->UpdateNativeContextAddressForCurrentProfiles(
+          nc_record.from_address, nc_record.to_address);
+    } else {
+      code_observer_->CodeEventHandlerInternal(record);
+    }
     last_processed_code_event_id_ = record.generic.order;
     return true;
   }
@@ -202,6 +209,7 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
     case CodeEventRecord::CODE_DELETE:
+    case CodeEventRecord::NATIVE_CONTEXT_MOVE:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {
@@ -224,7 +232,8 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
       symbolizer_->SymbolizeTickSample(record->sample);
   profiles_->AddPathToCurrentProfiles(
       record->sample.timestamp, symbolized.stack_trace, symbolized.src_line,
-      record->sample.update_stats, record->sample.sampling_interval);
+      record->sample.update_stats, record->sample.sampling_interval,
+      reinterpret_cast<Address>(record->sample.context));
 }
 
 ProfilerEventsProcessor::SampleProcessingResult

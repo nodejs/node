@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --expose-gc --noincremental-marking
-// Flags: --no-stress-flush-bytecode
+// Flags: --no-stress-flush-code
 
 let cleanup0_call_count = 0;
 let cleanup0_holdings_count = 0;

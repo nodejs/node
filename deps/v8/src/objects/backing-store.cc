@@ -267,6 +267,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
 
   auto result = new BackingStore(buffer_start,                  // start
                                  byte_length,                   // length
+                                 byte_length,                   // max length
                                  byte_length,                   // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
@@ -305,8 +306,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
   maximum_pages = std::min(engine_max_pages, maximum_pages);
 
   auto result = TryAllocateAndPartiallyCommitMemory(
-      isolate, initial_pages * wasm::kWasmPageSize, wasm::kWasmPageSize,
-      initial_pages, maximum_pages, true, shared);
+      isolate, initial_pages * wasm::kWasmPageSize,
+      maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
+      maximum_pages, true, shared);
   // Shared Wasm memories need an anchor for the memory object list.
   if (result && shared == SharedFlag::kShared) {
     result->type_specific_data_.shared_wasm_memory_data =
@@ -336,9 +338,9 @@ void BackingStore::ReleaseReservation(uint64_t num_bytes) {
 }
 
 std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
-    Isolate* isolate, size_t byte_length, size_t page_size,
-    size_t initial_pages, size_t maximum_pages, bool is_wasm_memory,
-    SharedFlag shared) {
+    Isolate* isolate, size_t byte_length, size_t max_byte_length,
+    size_t page_size, size_t initial_pages, size_t maximum_pages,
+    bool is_wasm_memory, SharedFlag shared) {
   // Enforce engine limitation on the maximum number of pages.
   if (maximum_pages > std::numeric_limits<size_t>::max() / page_size) {
     return nullptr;
@@ -445,16 +447,17 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
 
-  auto result = new BackingStore(buffer_start,    // start
-                                 byte_length,     // length
-                                 byte_capacity,   // capacity
-                                 shared,          // shared
-                                 resizable,       // resizable
-                                 is_wasm_memory,  // is_wasm_memory
-                                 true,            // free_on_destruct
-                                 guards,          // has_guard_regions
-                                 false,           // custom_deleter
-                                 false);          // empty_deleter
+  auto result = new BackingStore(buffer_start,     // start
+                                 byte_length,      // length
+                                 max_byte_length,  // max_byte_length
+                                 byte_capacity,    // capacity
+                                 shared,           // shared
+                                 resizable,        // resizable
+                                 is_wasm_memory,   // is_wasm_memory
+                                 true,             // free_on_destruct
+                                 guards,           // has_guard_regions
+                                 false,            // custom_deleter
+                                 false);           // empty_deleter
 
   TRACE_BS(
       "BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
@@ -707,6 +710,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     SharedFlag shared, bool free_on_destruct) {
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length
+                                 allocation_length,             // max length
                                  allocation_length,             // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
@@ -728,6 +732,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
   bool is_empty_deleter = (deleter == v8::BackingStore::EmptyDeleter);
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length
+                                 allocation_length,             // max length
                                  allocation_length,             // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
@@ -746,6 +751,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
     SharedFlag shared) {
   auto result = new BackingStore(nullptr,                       // start
                                  0,                             // length
+                                 0,                             // max length
                                  0,                             // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
@@ -807,17 +813,8 @@ inline GlobalBackingStoreRegistryImpl* impl() {
 void GlobalBackingStoreRegistry::Register(
     std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store || !backing_store->buffer_start()) return;
-
-  if (!backing_store->free_on_destruct()) {
-    // If the backing store buffer is managed by the embedder,
-    // then we don't have to guarantee that there is single unique
-    // BackingStore per buffer_start() because the destructor of
-    // of the BackingStore will be a no-op in that case.
-
-    // All Wasm memory has to be registered.
-    CHECK(!backing_store->is_wasm_memory());
-    return;
-  }
+  // Only wasm memory backing stores need to be registered globally.
+  CHECK(backing_store->is_wasm_memory());
 
   base::MutexGuard scope_lock(&impl()->mutex_);
   if (backing_store->globally_registered_) return;
@@ -833,6 +830,8 @@ void GlobalBackingStoreRegistry::Register(
 void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
   if (!backing_store->globally_registered_) return;
 
+  CHECK(backing_store->is_wasm_memory());
+
   DCHECK_NOT_NULL(backing_store->buffer_start());
 
   base::MutexGuard scope_lock(&impl()->mutex_);
@@ -842,26 +841,6 @@ void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
     impl()->map_.erase(result);
   }
   backing_store->globally_registered_ = false;
-}
-
-std::shared_ptr<BackingStore> GlobalBackingStoreRegistry::Lookup(
-    void* buffer_start, size_t length) {
-  base::MutexGuard scope_lock(&impl()->mutex_);
-  TRACE_BS("BS:lookup   mem=%p (%zu bytes)\n", buffer_start, length);
-  const auto& result = impl()->map_.find(buffer_start);
-  if (result == impl()->map_.end()) {
-    return std::shared_ptr<BackingStore>();
-  }
-  auto backing_store = result->second.lock();
-  CHECK_EQ(buffer_start, backing_store->buffer_start());
-  if (backing_store->is_wasm_memory()) {
-    // Grow calls to shared WebAssembly threads can be triggered from different
-    // workers, length equality cannot be guaranteed here.
-    CHECK_LE(length, backing_store->byte_length());
-  } else {
-    CHECK_EQ(length, backing_store->byte_length());
-  }
-  return backing_store;
 }
 
 void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
@@ -877,7 +856,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
     auto backing_store = entry.second.lock();
     prevent_destruction_under_lock.emplace_back(backing_store);
     if (!backing_store) continue;  // skip entries where weak ptr is null
-    if (!backing_store->is_wasm_memory()) continue;  // skip non-wasm memory
+    CHECK(backing_store->is_wasm_memory());
     if (!backing_store->is_shared()) continue;       // skip non-shared memory
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();

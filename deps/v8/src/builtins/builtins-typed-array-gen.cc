@@ -154,13 +154,16 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was detached.
-  TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(CAST(receiver));
-  TNode<UintPtrT> byte_offset = Select<UintPtrT>(
-      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-      [=] { return LoadJSArrayBufferViewByteOffset(CAST(receiver)); });
-  Return(ChangeUintPtrToTagged(byte_offset));
+  // Default to zero if the {receiver}s buffer was detached / out of bounds.
+  Label detached_or_oob(this), not_detached_or_oob(this);
+  IsTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
+                                    &not_detached_or_oob);
+  BIND(&detached_or_oob);
+  Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
+
+  BIND(&not_detached_or_oob);
+  Return(
+      ChangeUintPtrToTagged(LoadJSArrayBufferViewByteOffset(CAST(receiver))));
 }
 
 // ES6 #sec-get-%typedarray%.prototype.length
@@ -261,6 +264,17 @@ void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<RawPtrT> dest_ptr,
                                                TNode<UintPtrT> byte_length) {
   TNode<ExternalReference> memmove =
       ExternalConstant(ExternalReference::libc_memmove_function());
+  CallCFunction(memmove, MachineType::AnyTagged(),
+                std::make_pair(MachineType::Pointer(), dest_ptr),
+                std::make_pair(MachineType::Pointer(), src_ptr),
+                std::make_pair(MachineType::UintPtr(), byte_length));
+}
+
+void TypedArrayBuiltinsAssembler::CallCRelaxedMemmove(
+    TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+    TNode<UintPtrT> byte_length) {
+  TNode<ExternalReference> memmove =
+      ExternalConstant(ExternalReference::relaxed_memmove_function());
   CallCFunction(memmove, MachineType::AnyTagged(),
                 std::make_pair(MachineType::Pointer(), dest_ptr),
                 std::make_pair(MachineType::Pointer(), src_ptr),

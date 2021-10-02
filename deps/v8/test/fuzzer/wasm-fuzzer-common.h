@@ -48,7 +48,8 @@ class WasmExecutionFuzzer {
  protected:
   virtual bool GenerateModule(Isolate* isolate, Zone* zone,
                               base::Vector<const uint8_t> data,
-                              ZoneBuffer* buffer) = 0;
+                              ZoneBuffer* buffer,
+                              bool liftoff_as_reference) = 0;
 };
 
 }  // namespace fuzzer

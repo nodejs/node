@@ -74,6 +74,23 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   return AddOrDisposeString(str.begin(), len);
 }
 
+const char* StringsStorage::GetSymbol(Symbol sym) {
+  if (!sym.description().IsString()) {
+    return "<symbol>";
+  }
+  String description = String::cast(sym.description());
+  int length = std::min(FLAG_heap_snapshot_string_limit, description.length());
+  auto data = description.ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0,
+                                    length, &length);
+  if (sym.is_private_name()) {
+    return AddOrDisposeString(data.release(), length);
+  }
+  auto str_length = 8 + length + 1 + 1;
+  auto str_result = NewArray<char>(str_length);
+  snprintf(str_result, str_length, "<symbol %s>", data.get());
+  return AddOrDisposeString(str_result, str_length - 1);
+}
+
 const char* StringsStorage::GetName(Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
@@ -83,7 +100,7 @@ const char* StringsStorage::GetName(Name name) {
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
   } else if (name.IsSymbol()) {
-    return "<symbol>";
+    return GetSymbol(Symbol::cast(name));
   }
   return "";
 }
@@ -106,7 +123,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
 
     return AddOrDisposeString(cons_result, cons_length - 1);
   } else if (name.IsSymbol()) {
-    return "<symbol>";
+    return GetSymbol(Symbol::cast(name));
   }
   return "";
 }

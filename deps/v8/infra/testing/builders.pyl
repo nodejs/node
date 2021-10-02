@@ -1517,8 +1517,8 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'd8testing', 'shards': 2},
-      {'name': 'd8testing', 'variant': 'extra', 'shards': 2},
+      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
   'V8 Mac - arm64 - sim - debug': {

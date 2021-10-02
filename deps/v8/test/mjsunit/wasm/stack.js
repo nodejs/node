@@ -23,7 +23,7 @@ function verifyStack(frames, expected) {
     assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
     var toString;
     if (exp[0]) {
-      toString = "<anonymous>:wasm-function[" + exp[6] + "]:" + exp[5];
+      toString = exp[4] + ":wasm-function[" + exp[6] + "]:" + exp[5];
       if (exp[1] !== null) toString = exp[1] + " (" + toString + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
@@ -68,10 +68,10 @@ var module = builder.instantiate({mod: {func: STACK}});
 (function testSimpleStack() {
   var expected_string = 'Error\n' +
       // The line numbers below will change as this test gains / loses lines..
-      '    at STACK (stack.js:38:11)\n' +                   // --
-      '    at main (<anonymous>:wasm-function[1]:0x72)\n' + // --
-      '    at testSimpleStack (stack.js:76:18)\n' +         // --
-      '    at stack.js:78:3';                               // --
+      '    at STACK (stack.js:38:11)\n' +                            // --
+      '    at main (wasm://wasm/862e1cf6:wasm-function[1]:0x72)\n' + // --
+      '    at testSimpleStack (stack.js:76:18)\n' +                  // --
+      '    at stack.js:78:3';                                        // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));

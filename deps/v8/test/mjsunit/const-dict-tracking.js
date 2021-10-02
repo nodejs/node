@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --no-stress-flush-bytecode
-// Flags: --block-concurrent-recompilation
-// Flags: --no-turbo-concurrent-get-property-access-info
+// Flags: --no-stress-flush-code --concurrent-recompilation
 //
 // Tests tracking of constness of properties stored in dictionary
 // mode prototypes.
@@ -714,14 +712,17 @@ function testbench(o, proto, update_proto, check_constness) {
 
   %PrepareFunctionForOptimization(read_length);
   assertEquals(1, read_length(o));
+  %DisableOptimizationFinalization();
   %OptimizeFunctionOnNextCall(read_length, "concurrent");
   assertEquals(1, read_length(o));
   assertUnoptimized(read_length, "no sync");
 
+  %WaitForBackgroundOptimization();
   var other_proto1 = [];
   Object.setPrototypeOf(proto2, other_proto1);
-  %UnblockConcurrentRecompilation();
-  assertUnoptimized(read_length, "sync");
+  %FinalizeOptimization();
+
+  assertUnoptimized(read_length);
   assertEquals(0, read_length(o));
 
   if (%IsDictPropertyConstTrackingEnabled()) {

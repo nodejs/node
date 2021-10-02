@@ -11,7 +11,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function testExternRefNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();

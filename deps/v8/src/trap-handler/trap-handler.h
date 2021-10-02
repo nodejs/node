@@ -17,16 +17,19 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-#if V8_TARGET_ARCH_X64 && V8_OS_LINUX && !V8_OS_ANDROID
+// X64 on Linux, Windows, MacOS, FreeBSD.
+#if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
+    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_MACOSX || \
+     V8_OS_FREEBSD)
 #define V8_TRAP_HANDLER_SUPPORTED true
-#elif V8_TARGET_ARCH_X64 && V8_OS_WIN
+// Arm64 (non-simulator) on Mac.
+#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && V8_OS_MACOSX
 #define V8_TRAP_HANDLER_SUPPORTED true
-#elif V8_TARGET_ARCH_X64 && V8_OS_MACOSX
+// Arm64 simulator on x64 on Linux or Mac.
+#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && (V8_OS_LINUX || V8_OS_MACOSX)
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
-#elif V8_TARGET_ARCH_X64 && V8_OS_FREEBSD
-#define V8_TRAP_HANDLER_SUPPORTED true
-#elif V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX
-#define V8_TRAP_HANDLER_SUPPORTED true
+// Everything else is unsupported.
 #else
 #define V8_TRAP_HANDLER_SUPPORTED false
 #endif
@@ -150,7 +153,7 @@ inline void ClearThreadInWasm() {
 bool RegisterDefaultTrapHandler();
 TH_EXPORT_PRIVATE void RemoveTrapHandler();
 
-size_t GetRecoveredTrapCount();
+TH_EXPORT_PRIVATE size_t GetRecoveredTrapCount();
 
 }  // namespace trap_handler
 }  // namespace internal

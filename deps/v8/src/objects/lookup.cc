@@ -1473,34 +1473,9 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
 
     JSPrimitiveWrapper js_value = JSPrimitiveWrapper::cast(holder);
     String wrapped_string = String::cast(js_value.value());
-
-    // The access guard below protects string accesses related to internalized
-    // strings.
-    // TODO(jgruber): Support other string kinds.
-    Map wrapped_string_map = wrapped_string.map(isolate, kAcquireLoad);
-    InstanceType wrapped_type = wrapped_string_map.instance_type();
-    if (!(InstanceTypeChecker::IsInternalizedString(wrapped_type)) ||
-        InstanceTypeChecker::IsThinString(wrapped_type)) {
-      return kGaveUp;
-    }
-
-    const uint32_t length = static_cast<uint32_t>(wrapped_string.length());
-    if (index >= length) return kGaveUp;
-
-    uint16_t charcode;
-    {
-      SharedStringAccessGuardIfNeeded access_guard(local_isolate);
-      charcode = wrapped_string.Get(static_cast<int>(index));
-    }
-
-    if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
-
-    Object value = isolate->factory()->single_character_string_cache()->get(
-        charcode, kRelaxedLoad);
-    if (value == ReadOnlyRoots(isolate).undefined_value()) return kGaveUp;
-
-    *result_out = value;
-    return kPresent;
+    return ConcurrentLookupIterator::TryGetOwnChar(
+        static_cast<String*>(result_out), isolate, local_isolate,
+        wrapped_string, index);
   } else {
     DCHECK(!IsFrozenElementsKind(elements_kind));
     DCHECK(!IsDictionaryElementsKind(elements_kind));
@@ -1512,14 +1487,48 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
 }
 
 // static
+ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
+    String* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+    String string, size_t index) {
+  DisallowGarbageCollection no_gc;
+  // The access guard below protects string accesses related to internalized
+  // strings.
+  // TODO(jgruber): Support other string kinds.
+  Map string_map = string.map(isolate, kAcquireLoad);
+  InstanceType type = string_map.instance_type();
+  if (!(InstanceTypeChecker::IsInternalizedString(type)) ||
+      InstanceTypeChecker::IsThinString(type)) {
+    return kGaveUp;
+  }
+
+  const uint32_t length = static_cast<uint32_t>(string.length());
+  if (index >= length) return kGaveUp;
+
+  uint16_t charcode;
+  {
+    SharedStringAccessGuardIfNeeded access_guard(local_isolate);
+    charcode = string.Get(static_cast<int>(index));
+  }
+
+  if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
+
+  Object value = isolate->factory()->single_character_string_cache()->get(
+      charcode, kRelaxedLoad);
+  if (value == ReadOnlyRoots(isolate).undefined_value()) return kGaveUp;
+
+  *result_out = String::cast(value);
+  return kPresent;
+}
+
+// static
 base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
     Isolate* isolate, LocalIsolate* local_isolate,
     Handle<JSGlobalObject> holder, Handle<Name> name) {
   DisallowGarbageCollection no_gc;
 
   Map holder_map = holder->map();
-  if (holder_map.is_access_check_needed()) return {};
-  if (holder_map.has_named_interceptor()) return {};
+  CHECK(!holder_map.is_access_check_needed());
+  CHECK(!holder_map.has_named_interceptor());
 
   GlobalDictionary dict = holder->global_dictionary(kAcquireLoad);
   base::Optional<PropertyCell> cell =
@@ -1534,7 +1543,7 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
     base::Optional<Name> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
             isolate, AccessorPair::cast(maybe_accessor_pair)
-                         .getter(isolate, kRelaxedLoad));
+                         .getter(isolate, kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 
     cell = dict.TryFindPropertyCellForConcurrentLookupIterator(

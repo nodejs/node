@@ -297,6 +297,12 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
 
   code->CopyRelocInfoToByteArray(reloc_info, code_desc_);
 
+  if (code_desc_.origin->OnHeapGCCount() != heap->gc_count()) {
+    // If a GC happens between Code object allocation and now, we might have
+    // invalid embedded object references.
+    code_desc_.origin->FixOnHeapReferences();
+  }
+
 #ifdef VERIFY_HEAP
   code->VerifyRelocInfo(isolate_, reloc_info);
 #endif
@@ -1466,9 +1472,9 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
-                                              Handle<Map> opt_parent,
-                                              int instance_size_bytes) {
+Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
+    Address type_address, Handle<Map> opt_parent, int instance_size_bytes,
+    Handle<WasmInstanceObject> instance) {
   // We pretenure WasmTypeInfo objects because they are refererenced by Maps,
   // which are assumed to be long-lived. The supertypes list is constant
   // after initialization, so we pretenure that too.
@@ -1493,6 +1499,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   result.set_supertypes(*supertypes, SKIP_WRITE_BARRIER);
   result.set_subtypes(*subtypes);
   result.set_instance_size(instance_size_bytes);
+  result.set_instance(*instance);
   return handle(result, isolate());
 }
 
@@ -1805,8 +1812,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   bool is_clonable_js_type =
       instance_type == JS_REG_EXP_TYPE || instance_type == JS_OBJECT_TYPE ||
       instance_type == JS_ERROR_TYPE || instance_type == JS_ARRAY_TYPE ||
-      instance_type == JS_API_OBJECT_TYPE ||
-      instance_type == JS_SPECIAL_API_OBJECT_TYPE;
+      instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
+      InstanceTypeChecker::IsJSApiObject(instance_type);
   bool is_clonable_wasm_type = false;
 #if V8_ENABLE_WEBASSEMBLY
   is_clonable_wasm_type = instance_type == WASM_GLOBAL_OBJECT_TYPE ||
@@ -2121,6 +2128,7 @@ DEFINE_ERROR(TypeError, type_error)
 DEFINE_ERROR(WasmCompileError, wasm_compile_error)
 DEFINE_ERROR(WasmLinkError, wasm_link_error)
 DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
+DEFINE_ERROR(WasmExceptionError, wasm_exception_error)
 #undef DEFINE_ERROR
 
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
@@ -2647,7 +2655,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module.set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module.set_module_namespace(roots.undefined_value(), SKIP_WRITE_BARRIER);
   module.set_requested_modules(*requested_modules);
-  module.set_status(Module::kUninstantiated);
+  module.set_status(Module::kUnlinked);
   module.set_exception(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module.set_top_level_capability(roots.undefined_value(), SKIP_WRITE_BARRIER);
   module.set_import_meta(roots.the_hole_value(), kReleaseStore,
@@ -2678,7 +2686,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   DisallowGarbageCollection no_gc;
   module.set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module.set_module_namespace(roots.undefined_value(), SKIP_WRITE_BARRIER);
-  module.set_status(Module::kUninstantiated);
+  module.set_status(Module::kUnlinked);
   module.set_exception(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module.set_top_level_capability(roots.undefined_value(), SKIP_WRITE_BARRIER);
   module.set_name(*module_name);
@@ -2720,19 +2728,10 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  Handle<Map> map;
-  if (backing_store->is_resizable()) {
-    DCHECK(FLAG_harmony_rab_gsab);
-    map = Handle<Map>(isolate()
-                          ->native_context()
-                          ->growable_shared_array_buffer_fun()
-                          .initial_map(),
-                      isolate());
-  } else {
-    map = Handle<Map>(
-        isolate()->native_context()->shared_array_buffer_fun().initial_map(),
-        isolate());
-  }
+  DCHECK_IMPLIES(backing_store->is_resizable(), FLAG_harmony_rab_gsab);
+  Handle<Map> map(
+      isolate()->native_context()->shared_array_buffer_fun().initial_map(),
+      isolate());
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
   ResizableFlag resizable = backing_store->is_resizable()
@@ -3323,41 +3322,27 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
 
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
                                                int number_of_properties) {
-  if (number_of_properties == 0) {
-    // Reuse the initial map of the Object function if the literal has no
-    // predeclared properties.
-    return handle(context->object_function().initial_map(), isolate());
-  }
-
   // Use initial slow object proto map for too many properties.
-  const int kMapCacheSize = 128;
-  if (number_of_properties > kMapCacheSize) {
+  if (number_of_properties >= JSObject::kMapCacheSize) {
     return handle(context->slow_object_with_object_prototype_map(), isolate());
   }
 
-  int cache_index = number_of_properties - 1;
-  Handle<Object> maybe_cache(context->map_cache(), isolate());
-  if (maybe_cache->IsUndefined(isolate())) {
-    // Allocate the new map cache for the native context.
-    maybe_cache = NewWeakFixedArray(kMapCacheSize, AllocationType::kOld);
-    context->set_map_cache(*maybe_cache);
-  } else {
-    // Check to see whether there is a matching element in the cache.
-    Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
-    MaybeObject result = cache->Get(cache_index);
-    HeapObject heap_object;
-    if (result->GetHeapObjectIfWeak(&heap_object)) {
-      Map map = Map::cast(heap_object);
-      DCHECK(!map.is_dictionary_map());
-      return handle(map, isolate());
-    }
+  Handle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
+                               isolate());
+
+  // Check to see whether there is a matching element in the cache.
+  MaybeObject result = cache->Get(number_of_properties);
+  HeapObject heap_object;
+  if (result->GetHeapObjectIfWeak(&heap_object)) {
+    Map map = Map::cast(heap_object);
+    DCHECK(!map.is_dictionary_map());
+    return handle(map, isolate());
   }
 
   // Create a new map and add it to the cache.
-  Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
   Handle<Map> map = Map::Create(isolate(), number_of_properties);
   DCHECK(!map->is_dictionary_map());
-  cache->Set(cache_index, HeapObjectReference::Weak(*map));
+  cache->Set(number_of_properties, HeapObjectReference::Weak(*map));
   return map;
 }
 

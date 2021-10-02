@@ -873,7 +873,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
               DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
-                              cont->reason(), cont->feedback(),
+                              cont->reason(), cont->node_id(), cont->feedback(),
                               FrameState{cont->frame_state()});
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
@@ -906,13 +906,13 @@ Instruction* InstructionSelector::EmitWithContinuation(
 
 void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeKind kind,
-    DeoptimizeReason reason, FeedbackSource const& feedback,
+    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback,
     FrameState frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   DCHECK_NE(DeoptimizeKind::kLazy, kind);
-  int const state_id =
-      sequence()->AddDeoptimizationEntry(descriptor, kind, reason, feedback);
+  int const state_id = sequence()->AddDeoptimizationEntry(
+      descriptor, kind, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -1112,7 +1112,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
     int const state_id = sequence()->AddDeoptimizationEntry(
         buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, FeedbackSource());
+        DeoptimizeReason::kUnknown, call->id(), FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -1362,7 +1362,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       FrameState value{input->InputAt(0)};
-      VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
+      VisitDeoptimize(p.kind(), p.reason(), input->id(), p.feedback(), value);
       break;
     }
     case BasicBlock::kThrow:
@@ -3119,11 +3119,13 @@ void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   if (NeedsPoisoning(p.is_safety_check())) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
-        kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+        kNotEqual, p.kind(), p.reason(), node->id(), p.feedback(),
+        node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
   } else {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-        kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+        kNotEqual, p.kind(), p.reason(), node->id(), p.feedback(),
+        node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
   }
 }
@@ -3132,11 +3134,13 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   if (NeedsPoisoning(p.is_safety_check())) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
-        kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+        kEqual, p.kind(), p.reason(), node->id(), p.feedback(),
+        node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
   } else {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-        kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+        kEqual, p.kind(), p.reason(), node->id(), p.feedback(),
+        node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
   }
 }
@@ -3184,12 +3188,12 @@ void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
 
   if (NeedsPoisoning(IsSafetyCheck::kCriticalSafetyCheck)) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
-        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        kEqual, p.kind(), p.reason(), node->id(), p.feedback(), n.frame_state(),
         dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
     VisitWordCompareZero(node, n.condition(), &cont);
   } else {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        kEqual, p.kind(), p.reason(), node->id(), p.feedback(), n.frame_state(),
         dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
     VisitWordCompareZero(node, n.condition(), &cont);
   }
@@ -3214,10 +3218,12 @@ void InstructionSelector::EmitIdentity(Node* node) {
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
+                                          NodeId node_id,
                                           FeedbackSource const& feedback,
                                           FrameState frame_state) {
   InstructionOperandVector args(instruction_zone());
-  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
+  AppendDeoptimizeArguments(&args, kind, reason, node_id, feedback,
+                            frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 

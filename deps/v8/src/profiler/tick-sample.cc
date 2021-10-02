@@ -177,6 +177,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   pc = regs.pc;
   frames_count = static_cast<unsigned>(info.frames_count);
   has_external_callback = info.external_callback_entry != nullptr;
+  context = info.context;
   if (has_external_callback) {
     external_callback_entry = info.external_callback_entry;
   } else if (frames_count) {
@@ -209,6 +210,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
+  sample_info->context = nullptr;
   if (sample_info->vm_state == GC) return true;
 
   i::Address js_entry_sp = isolate->js_entry_sp();
@@ -277,6 +279,13 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                reinterpret_cast<i::Address>(regs->sp),
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
+
+  Context top_context = isolate->context();
+  if (top_context.ptr() != i::Context::kNoContext &&
+      top_context.ptr() != i::Context::kInvalidContext) {
+    NativeContext top_native_context = top_context.native_context();
+    sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
+  }
 
   if (it.done()) return true;
 

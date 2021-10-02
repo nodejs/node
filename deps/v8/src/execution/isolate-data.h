@@ -30,7 +30,7 @@ class Isolate;
 class IsolateData final {
  public:
   IsolateData(Isolate* isolate, Address cage_base)
-      : stack_guard_(isolate), cage_base_(cage_base) {}
+      : cage_base_(cage_base), stack_guard_(isolate) {}
 
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
@@ -160,9 +160,10 @@ class IsolateData final {
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
   V(kFastApiCallTargetOffset, kSystemPointerSize)                             \
+  V(kCageBaseOffset, kSystemPointerSize)                                      \
+  V(kLongTaskStatsCounterOffset, kSizetSize)                                  \
   V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
-  V(kCageBaseOffset, kSystemPointerSize)                                      \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
   V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize)    \
@@ -199,13 +200,17 @@ class IsolateData final {
   Address fast_c_call_caller_pc_ = kNullAddress;
   Address fast_api_call_target_ = kNullAddress;
 
+  Address cage_base_ = kNullAddress;
+
+  // Used for implementation of LongTaskStats. Counts the number of potential
+  // long tasks.
+  size_t long_task_stats_counter_ = 0;
+
   // Fields related to the system and JS stack. In particular, this contains
   // the stack limit used by stack checks in generated code.
   StackGuard stack_guard_;
 
   RootsTable roots_;
-
-  Address cage_base_ = kNullAddress;
 
   ExternalReferenceTable external_reference_table_;
 
@@ -267,6 +272,8 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(offsetof(IsolateData, fast_api_call_target_) ==
                 kFastApiCallTargetOffset);
   STATIC_ASSERT(offsetof(IsolateData, cage_base_) == kCageBaseOffset);
+  STATIC_ASSERT(offsetof(IsolateData, long_task_stats_counter_) ==
+                kLongTaskStatsCounterOffset);
   STATIC_ASSERT(offsetof(IsolateData, stack_guard_) == kStackGuardOffset);
 #ifdef V8_HEAP_SANDBOX
   STATIC_ASSERT(offsetof(IsolateData, external_pointer_table_) ==

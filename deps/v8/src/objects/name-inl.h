@@ -10,6 +10,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -95,6 +96,14 @@ uint32_t Name::EnsureHash() {
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(*this).ComputeAndSetHash();
+}
+
+uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
+  // Fast case: has hash code already been computed?
+  uint32_t field = raw_hash_field();
+  if (IsHashFieldComputed(field)) return field >> kHashShift;
+  // Slow case: compute hash code and set it. Has to be a string.
+  return String::cast(*this).ComputeAndSetHash(access_guard);
 }
 
 uint32_t Name::hash() const {

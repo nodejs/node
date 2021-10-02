@@ -9,9 +9,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kIterationsCountForICProgression = 20;
 
-// TODO(ishell): remove once leaked maps could keep NativeModule alive.
-let instances = [];
-
 function createSimpleStruct(field_type, value1, value2) {
   const builder = new WasmModuleBuilder();
 
@@ -52,7 +49,6 @@ function createSimpleStruct(field_type, value1, value2) {
     .exportAs("set_field");
 
   let instance = builder.instantiate();
-  instances.push(instance);
   let new_struct = instance.exports.new_struct;
   let get_field = instance.exports.get_field;
   let set_field = instance.exports.set_field;

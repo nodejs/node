@@ -48,13 +48,13 @@ bool Heap::InSpace(Address, AllocationSpace) { return false; }
 bool Heap::InOldSpace(Address) { return false; }
 
 // static
-bool Heap::InCodeSpace(Address) { return false; }
-
-// static
 bool Heap::InReadOnlySpace(Address) { return false; }
 
 // static
 bool Heap::IsValidHeapObject(HeapObject) { return false; }
+
+// static
+bool Heap::IsValidCodeObject(HeapObject) { return false; }
 
 bool Heap::CollectGarbage() { return false; }
 

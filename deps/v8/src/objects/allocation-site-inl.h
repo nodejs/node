@@ -30,7 +30,8 @@ ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
 RELEASE_ACQUIRE_ACCESSORS(AllocationSite, transition_info_or_boilerplate,
                           Object, kTransitionInfoOrBoilerplateOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-RELAXED_INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
+IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(AllocationSite, pretenure_data,
+                                     kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)

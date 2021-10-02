@@ -2158,8 +2158,6 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<Int8T> osr_level = LoadOsrNestingLevel();
   TNode<Context> context = GetContext();
 
-  PerformStackCheck(context);
-
   // Check if OSR points at the given {loop_depth} are armed by comparing it to
   // the current {osr_level} loaded from the header of the BytecodeArray.
   Label ok(this), osr_armed(this, Label::kDeferred);
@@ -2167,6 +2165,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Branch(condition, &ok, &osr_armed);
 
   BIND(&ok);
+  // The backward jump can trigger a budget interrupt, which can handle stack
+  // interrupts, so we don't need to explicitly handle them here.
   JumpBackward(relative_jump);
 
   BIND(&osr_armed);
@@ -2608,7 +2608,7 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 // previous pending message in the accumulator.
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
   TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message_obj(isolate()));
+      ExternalReference::address_of_pending_message(isolate()));
   TNode<HeapObject> previous_message =
       UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
   TNode<Object> new_message = GetAccumulator();

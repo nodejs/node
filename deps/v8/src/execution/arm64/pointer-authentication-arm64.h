@@ -5,10 +5,10 @@
 #ifndef V8_EXECUTION_ARM64_POINTER_AUTHENTICATION_ARM64_H_
 #define V8_EXECUTION_ARM64_POINTER_AUTHENTICATION_ARM64_H_
 
-#include "src/execution/pointer-authentication.h"
-
 #include "src/common/globals.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arm64/simulator-arm64.h"
+#include "src/execution/pointer-authentication.h"
 
 namespace v8 {
 namespace internal {

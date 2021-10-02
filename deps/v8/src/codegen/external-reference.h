@@ -49,7 +49,7 @@ class StatsCounter;
   V(handle_scope_next_address, "HandleScope::next")                            \
   V(handle_scope_limit_address, "HandleScope::limit")                          \
   V(scheduled_exception_address, "Isolate::scheduled_exception")               \
-  V(address_of_pending_message_obj, "address_of_pending_message_obj")          \
+  V(address_of_pending_message, "address_of_pending_message")                  \
   V(promise_hook_flags_address, "Isolate::promise_hook_flags_address()")       \
   V(promise_hook_address, "Isolate::promise_hook_address()")                   \
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
@@ -104,8 +104,6 @@ class StatsCounter;
     "address_of_enable_experimental_regexp_engine")                            \
   V(address_of_float_abs_constant, "float_absolute_constant")                  \
   V(address_of_float_neg_constant, "float_negate_constant")                    \
-  V(address_of_harmony_regexp_match_indices_flag,                              \
-    "FLAG_harmony_regexp_match_indices")                                       \
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
   V(address_of_mock_arraybuffer_allocator_flag,                                \
     "FLAG_mock_arraybuffer_allocator")                                         \
@@ -177,6 +175,7 @@ class StatsCounter;
   V(libc_memmove_function, "libc_memmove")                                     \
   V(libc_memset_function, "libc_memset")                                       \
   V(relaxed_memcpy_function, "relaxed_memcpy")                                 \
+  V(relaxed_memmove_function, "relaxed_memmove")                               \
   V(mod_two_doubles_operation, "mod_two_doubles")                              \
   V(mutable_big_int_absolute_add_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteAddAndCanonicalize")                                \
@@ -359,6 +358,9 @@ class ExternalReference {
   static constexpr int kExternalReferenceCountIsolateDependent =
       EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(COUNT_EXTERNAL_REFERENCE);
 #undef COUNT_EXTERNAL_REFERENCE
+
+  static V8_EXPORT_PRIVATE ExternalReference
+  address_of_pending_message(LocalIsolate* local_isolate);
 
   ExternalReference() : address_(kNullAddress) {}
   static ExternalReference Create(const SCTableReference& table_ref);

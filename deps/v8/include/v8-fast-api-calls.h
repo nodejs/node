@@ -225,8 +225,9 @@
 #include <tuple>
 #include <type_traits>
 
-#include "v8.h"        // NOLINT(build/include_directory)
-#include "v8config.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"  // NOLINT(build/include_directory)
+#include "v8.h"           // NOLINT(build/include_directory)
+#include "v8config.h"     // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -298,10 +299,36 @@ class CTypeInfo {
   Flags flags_;
 };
 
+struct FastApiTypedArrayBase {
+ public:
+  // Returns the length in number of elements.
+  size_t V8_EXPORT length() const { return length_; }
+  // Checks whether the given index is within the bounds of the collection.
+  void V8_EXPORT ValidateIndex(size_t index) const;
+
+ protected:
+  size_t length_ = 0;
+};
+
 template <typename T>
-struct FastApiTypedArray {
-  T* data;        // should include the typed array offset applied
-  size_t length;  // length in number of elements
+struct FastApiTypedArray : public FastApiTypedArrayBase {
+ public:
+  V8_INLINE T get(size_t index) const {
+#ifdef DEBUG
+    ValidateIndex(index);
+#endif  // DEBUG
+    T tmp;
+    memcpy(&tmp, reinterpret_cast<T*>(data_) + index, sizeof(T));
+    return tmp;
+  }
+
+ private:
+  // This pointer should include the typed array offset applied.
+  // It's not guaranteed that it's aligned to sizeof(T), it's only
+  // guaranteed that it's 4-byte aligned, so for 8-byte types we need to
+  // provide a special implementation for reading from it, which hides
+  // the possibly unaligned read in the `get` method.
+  void* data_;
 };
 
 // Any TypedArray. It uses kTypedArrayBit with base type void
@@ -437,7 +464,7 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct ApiObject {
+struct V8_DEPRECATE_SOON("Use v8::Local<v8::Value> instead.") ApiObject {
   uintptr_t address;
 };
 
@@ -578,7 +605,7 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 
 #define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
   template <>                                                                 \
-  struct TypeInfoHelper<FastApiTypedArray<T>> {                               \
+  struct TypeInfoHelper<const FastApiTypedArray<T>&> {                        \
     static constexpr CTypeInfo::Flags Flags() {                               \
       return CTypeInfo::Flags::kNone;                                         \
     }                                                                         \
@@ -770,6 +797,10 @@ CFunction CFunction::ArgUnwrap<R (*)(Args...)>::Make(R (*func)(Args...)) {
 
 using CFunctionBuilder = internal::CFunctionBuilder;
 
+static constexpr CTypeInfo kTypeInfoInt32 = CTypeInfo(CTypeInfo::Type::kInt32);
+static constexpr CTypeInfo kTypeInfoFloat64 =
+    CTypeInfo(CTypeInfo::Type::kFloat64);
+
 /**
  * Copies the contents of this JavaScript array to a C++ buffer with
  * a given max_length. A CTypeInfo is passed as an argument,
@@ -783,8 +814,22 @@ using CFunctionBuilder = internal::CFunctionBuilder;
  * returns true on success. `type_info` will be used for conversions.
  */
 template <const CTypeInfo* type_info, typename T>
-bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
-                                    uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT TryCopyAndConvertArrayToCppBuffer(
+    Local<Array> src, T* dst, uint32_t max_length);
+
+template <>
+inline bool V8_WARN_UNUSED_RESULT
+TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
+    Local<Array> src, int32_t* dst, uint32_t max_length) {
+  return CopyAndConvertArrayToCppBufferInt32(src, dst, max_length);
+}
+
+template <>
+inline bool V8_WARN_UNUSED_RESULT
+TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
+    Local<Array> src, double* dst, uint32_t max_length) {
+  return CopyAndConvertArrayToCppBufferFloat64(src, dst, max_length);
+}
 
 }  // namespace v8
 

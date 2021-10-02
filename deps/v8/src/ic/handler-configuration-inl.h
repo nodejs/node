@@ -216,8 +216,12 @@ Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
 }
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
+  return handle(StoreProxy(), isolate);
+}
+
+Smi StoreHandler::StoreProxy() {
   int config = KindBits::encode(kProxy);
-  return handle(Smi::FromInt(config), isolate);
+  return Smi::FromInt(config);
 }
 
 Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,

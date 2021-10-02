@@ -59,6 +59,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
                              Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override {}
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;

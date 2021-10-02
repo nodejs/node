@@ -6,6 +6,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_OS_WIN
+#include <windows.h>
+#endif
+
 namespace v8 {
 namespace base {
 

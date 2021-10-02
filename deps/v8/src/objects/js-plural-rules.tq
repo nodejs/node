@@ -9,7 +9,6 @@ bitfield struct JSPluralRulesFlags extends uint31 {
   Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
 }
 
-@generateCppClass
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: SmiTagged<JSPluralRulesFlags>;

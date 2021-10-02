@@ -8,7 +8,6 @@ bitfield struct JSSegmentsFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }
 
-@generateCppClass
 extern class JSSegments extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
   unicode_string: Foreign;      // Managed<icu::UnicodeString>

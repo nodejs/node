@@ -128,6 +128,7 @@ template<typename T> class PropertyCallbackInfo;
 template<typename T> class ReturnValue;
 
 namespace internal {
+class BackgroundDeserializeTask;
 class BasicTracedReferenceExtractor;
 class ExternalString;
 class FunctionCallbackArguments;
@@ -1440,9 +1441,7 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
-  V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
-#endif
+  V8_DEPRECATED("Use constructor with primitive C++ types")
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -1453,9 +1452,7 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
-  V8_DEPRECATE_SOON("Use constructor that takes an isolate")
-#endif
+  V8_DEPRECATED("Use constructor that takes an isolate")
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
@@ -1474,11 +1471,11 @@ class ScriptOrigin {
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
 
   V8_INLINE Local<Value> ResourceName() const;
-  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
+  V8_DEPRECATED("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceLineOffset() const;
-  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
+  V8_DEPRECATED("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
-  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
+  V8_DEPRECATED("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ScriptID() const;
   V8_INLINE int LineOffset() const;
   V8_INLINE int ColumnOffset() const;
@@ -1508,7 +1505,7 @@ class V8_EXPORT UnboundScript {
    */
   Local<Script> BindToCurrentContext();
 
-  int GetId();
+  int GetId() const;
   Local<Value> GetScriptName();
 
   /**
@@ -1630,14 +1627,14 @@ class V8_EXPORT Module : public Data {
   /**
    * Returns the number of modules requested by this module.
    */
-  V8_DEPRECATE_SOON("Use Module::GetModuleRequests() and FixedArray::Length().")
+  V8_DEPRECATED("Use Module::GetModuleRequests() and FixedArray::Length().")
   int GetModuleRequestsLength() const;
 
   /**
    * Returns the ith module specifier in this module.
    * i must be < GetModuleRequestsLength() and >= 0.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
   Local<String> GetModuleRequest(int i) const;
 
@@ -1645,7 +1642,7 @@ class V8_EXPORT Module : public Data {
    * Returns the source location (line number and column number) of the ith
    * module specifier's first occurrence in this module.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
       "Module::SourceOffsetToLocation().")
   Location GetModuleRequestLocation(int i) const;
@@ -1666,7 +1663,7 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback =
+  using ResolveCallback V8_DEPRECATED("Use ResolveModuleCallback") =
       MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
                              Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
@@ -1680,7 +1677,7 @@ class V8_EXPORT Module : public Data {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use the version of InstantiateModule that takes a ResolveModuleCallback "
       "parameter")
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
@@ -1720,7 +1717,7 @@ class V8_EXPORT Module : public Data {
    *
    * The module must be a SourceTextModule and must not have a kErrored status.
    */
-  int ScriptId();
+  int ScriptId() const;
 
   /**
    * Returns whether this module or any of its requested modules is async,
@@ -1771,13 +1768,6 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
-  V8_DEPRECATED(
-      "Use the preceding SetSyntheticModuleExport with an Isolate parameter, "
-      "instead of the one that follows.  The former will throw a runtime "
-      "error if called for an export that doesn't exist (as per spec); "
-      "the latter will crash with a failed CHECK().")
-  void SetSyntheticModuleExport(Local<String> export_name,
-                                Local<Value> export_value);
 
   V8_INLINE static Module* Cast(Data* data);
 
@@ -1818,6 +1808,8 @@ enum class ScriptType { kClassic, kModule };
  */
 class V8_EXPORT ScriptCompiler {
  public:
+  class ConsumeCodeCacheTask;
+
   /**
    * Compilation data that the embedder can cache and pass back to speed up
    * future compilations. The data is produced if the CompilerOptions passed to
@@ -1861,12 +1853,15 @@ class V8_EXPORT ScriptCompiler {
    */
   class Source {
    public:
-    // Source takes ownership of CachedData.
+    // Source takes ownership of both CachedData and CodeCacheConsumeTask.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
-                     CachedData* cached_data = nullptr);
-    V8_INLINE explicit Source(Local<String> source_string,
-                              CachedData* cached_data = nullptr);
-    V8_INLINE ~Source();
+                     CachedData* cached_data = nullptr,
+                     ConsumeCodeCacheTask* consume_cache_task = nullptr);
+    // Source takes ownership of both CachedData and CodeCacheConsumeTask.
+    V8_INLINE explicit Source(
+        Local<String> source_string, CachedData* cached_data = nullptr,
+        ConsumeCodeCacheTask* consume_cache_task = nullptr);
+    V8_INLINE ~Source() = default;
 
     // Ownership of the CachedData or its buffers is *not* transferred to the
     // caller. The CachedData object is alive as long as the Source object is
@@ -1874,10 +1869,6 @@ class V8_EXPORT ScriptCompiler {
     V8_INLINE const CachedData* GetCachedData() const;
 
     V8_INLINE const ScriptOriginOptions& GetResourceOptions() const;
-
-    // Prevent copying.
-    Source(const Source&) = delete;
-    Source& operator=(const Source&) = delete;
 
    private:
     friend class ScriptCompiler;
@@ -1895,7 +1886,8 @@ class V8_EXPORT ScriptCompiler {
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
     // set when calling a compile method.
-    CachedData* cached_data;
+    std::unique_ptr<CachedData> cached_data;
+    std::unique_ptr<ConsumeCodeCacheTask> consume_cache_task;
   };
 
   /**
@@ -1957,12 +1949,6 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
-    V8_DEPRECATED(
-        "This class takes ownership of source_stream, so use the constructor "
-        "taking a unique_ptr to make these semantics clearer")
-#endif
-    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
     ~StreamedSource();
@@ -1992,6 +1978,26 @@ class V8_EXPORT ScriptCompiler {
         : data_(data) {}
 
     internal::ScriptStreamingData* data_;
+  };
+
+  /**
+   * A task which the embedder must run on a background thread to
+   * consume a V8 code cache. Returned by
+   * ScriptCompiler::StarConsumingCodeCache.
+   */
+  class V8_EXPORT ConsumeCodeCacheTask final {
+   public:
+    ~ConsumeCodeCacheTask();
+
+    void Run();
+
+   private:
+    friend class ScriptCompiler;
+
+    explicit ConsumeCodeCacheTask(
+        std::unique_ptr<internal::BackgroundDeserializeTask> impl);
+
+    std::unique_ptr<internal::BackgroundDeserializeTask> impl_;
   };
 
   enum CompileOptions {
@@ -2067,13 +2073,12 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
-  V8_DEPRECATED("Use ScriptCompiler::StartStreaming instead.")
-  static ScriptStreamingTask* StartStreamingScript(
-      Isolate* isolate, StreamedSource* source,
-      CompileOptions options = kNoCompileOptions);
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic);
+
+  static ConsumeCodeCacheTask* StartConsumingCodeCache(
+      Isolate* isolate, std::unique_ptr<CachedData> source);
 
   /**
    * Compiles a streamed script (bound to current context).
@@ -2445,7 +2450,7 @@ struct SampleInfo {
   StateTag vm_state;              // Current VM state.
   void* external_callback_entry;  // External callback address if VM is
                                   // executing an external callback.
-  void* top_context;              // Incumbent native context address.
+  void* context;                  // Incumbent native context address.
 };
 
 struct MemoryRange {
@@ -3562,12 +3567,12 @@ class V8_EXPORT String : public Name {
   /**
    * Returns true if this string can be made external.
    */
-  bool CanMakeExternal();
+  bool CanMakeExternal() const;
 
   /**
    * Returns true if the strings values are equal. Same as JS ==/===.
    */
-  bool StringEquals(Local<String> str);
+  bool StringEquals(Local<String> str) const;
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -3647,11 +3652,9 @@ class V8_EXPORT Symbol : public Name {
   /**
    * Returns the description string of the symbol, or undefined if none.
    */
+  V8_DEPRECATE_SOON("Use Symbol::Description(isolate)")
   Local<Value> Description() const;
   Local<Value> Description(Isolate* isolate) const;
-
-  V8_DEPRECATED("Use Symbol::Description()")
-  Local<Value> Name() const { return Description(); }
 
   /**
    * Create a symbol. If description is not empty, it will be used as the
@@ -4177,7 +4180,7 @@ class V8_EXPORT Object : public Value {
   Maybe<bool> SetIntegrityLevel(Local<Context> context, IntegrityLevel level);
 
   /** Gets the number of internal fields for this Object. */
-  int InternalFieldCount();
+  int InternalFieldCount() const;
 
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
@@ -4287,10 +4290,10 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> key);
 
   /** Tests for a named lookup interceptor.*/
-  bool HasNamedLookupInterceptor();
+  bool HasNamedLookupInterceptor() const;
 
   /** Tests for an index lookup interceptor.*/
-  bool HasIndexedLookupInterceptor();
+  bool HasIndexedLookupInterceptor() const;
 
   /**
    * Returns the identity hash for this object. The current implementation
@@ -4311,11 +4314,13 @@ class V8_EXPORT Object : public Value {
   /**
    * Returns the context in which the object was created.
    */
+  // TODO(chromium:1166077): Mark as deprecate once users are updated.
   V8_DEPRECATE_SOON("Use MaybeLocal<Context> GetCreationContext()")
   Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
   /** Same as above, but works for Persistents */
+  // TODO(chromium:1166077): Mark as deprecate once users are updated.
   V8_DEPRECATE_SOON(
       "Use MaybeLocal<Context> GetCreationContext(const "
       "PersistentBase<Object>& object)")
@@ -4330,12 +4335,12 @@ class V8_EXPORT Object : public Value {
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * When an Object is callable this method returns true.
    */
-  bool IsCallable();
+  bool IsCallable() const;
 
   /**
    * True if this object is a constructor.
    */
-  bool IsConstructor();
+  bool IsConstructor() const;
 
   /**
    * True if this object can carry information relevant to the embedder in its
@@ -4344,14 +4349,14 @@ class V8_EXPORT Object : public Value {
    * V8 automatically adds internal fields at compile time, such as e.g.
    * v8::ArrayBuffer.
    */
-  bool IsApiWrapper();
+  bool IsApiWrapper() const;
 
   /**
    * True if this object was created from an object template which was marked
    * as undetectable. See v8::ObjectTemplate::MarkAsUndetectable for more
    * information.
    */
-  bool IsUndetectable();
+  bool IsUndetectable() const;
 
   /**
    * Call an Object as a function if a callback is set by the
@@ -4410,7 +4415,7 @@ class V8_EXPORT Object : public Value {
    *
    * See also: v8::ObjectTemplate::SetCodeLike
    */
-  bool IsCodeLike(Isolate* isolate);
+  bool IsCodeLike(Isolate* isolate) const;
 
  private:
   Object();
@@ -4793,17 +4798,6 @@ class V8_EXPORT Function : public Object {
   Local<Value> GetDebugName() const;
 
   /**
-   * User-defined name assigned to the "displayName" property of this function.
-   * Used to facilitate debugging and profiling of JavaScript code.
-   */
-  V8_DEPRECATED(
-      "Use v8::Object::Get() instead to look up \"displayName\". "
-      "V8 and DevTools no longer use \"displayName\" in stack "
-      "traces, but the standard \"name\" property. "
-      "See http://crbug.com/1177685.")
-  Local<Value> GetDisplayName() const;
-
-  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
@@ -4909,7 +4903,7 @@ class V8_EXPORT Promise : public Object {
    * Returns true if the promise has at least one derived promise, and
    * therefore resolve/reject handlers (including default handler).
    */
-  bool HasHandler();
+  bool HasHandler() const;
 
   /**
    * Returns the content of the [[PromiseResult]] field. The Promise must not
@@ -5023,7 +5017,7 @@ class V8_EXPORT Proxy : public Object {
  public:
   Local<Value> GetTarget();
   Local<Value> GetHandler();
-  bool IsRevoked();
+  bool IsRevoked() const;
   void Revoke();
 
   /**
@@ -5439,57 +5433,6 @@ class V8_EXPORT ArrayBuffer : public Object {
   };
 
   /**
-   * The contents of an |ArrayBuffer|. Externalization of |ArrayBuffer|
-   * returns an instance of this class, populated, with a pointer to data
-   * and byte length.
-   *
-   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
-   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
-   * was allocated with ArraryBuffer::Allocator::Allocate.
-   */
-  class V8_EXPORT Contents { // NOLINT
-   public:
-    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
-
-    Contents()
-        : data_(nullptr),
-          byte_length_(0),
-          allocation_base_(nullptr),
-          allocation_length_(0),
-          allocation_mode_(Allocator::AllocationMode::kNormal),
-          deleter_(nullptr),
-          deleter_data_(nullptr) {}
-
-    void* AllocationBase() const { return allocation_base_; }
-    size_t AllocationLength() const { return allocation_length_; }
-    Allocator::AllocationMode AllocationMode() const {
-      return allocation_mode_;
-    }
-
-    void* Data() const { return data_; }
-    size_t ByteLength() const { return byte_length_; }
-    DeleterCallback Deleter() const { return deleter_; }
-    void* DeleterData() const { return deleter_data_; }
-
-   private:
-    Contents(void* data, size_t byte_length, void* allocation_base,
-             size_t allocation_length,
-             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
-             void* deleter_data);
-
-    void* data_;
-    size_t byte_length_;
-    void* allocation_base_;
-    size_t allocation_length_;
-    Allocator::AllocationMode allocation_mode_;
-    DeleterCallback deleter_;
-    void* deleter_data_;
-
-    friend class ArrayBuffer;
-  };
-
-
-  /**
    * Data length in bytes.
    */
   size_t ByteLength() const;
@@ -5501,22 +5444,6 @@ class V8_EXPORT ArrayBuffer : public Object {
    * unless the object is externalized.
    */
   static Local<ArrayBuffer> New(Isolate* isolate, size_t byte_length);
-
-  /**
-   * Create a new ArrayBuffer over an existing memory block.
-   * The created array buffer is by default immediately in externalized state.
-   * In externalized state, the memory block will not be reclaimed when a
-   * created ArrayBuffer is garbage-collected.
-   * In internalized state, the memory block will be released using
-   * |Allocator::Free| once all ArrayBuffers referencing it are collected by
-   * the garbage collector.
-   */
-  V8_DEPRECATED(
-      "Use the version that takes a BackingStore. "
-      "See http://crbug.com/v8/9908.")
-  static Local<ArrayBuffer> New(
-      Isolate* isolate, void* data, size_t byte_length,
-      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Create a new ArrayBuffer with an existing backing store.
@@ -5557,15 +5484,6 @@ class V8_EXPORT ArrayBuffer : public Object {
       void* deleter_data);
 
   /**
-   * Returns true if ArrayBuffer is externalized, that is, does not
-   * own its memory block.
-   */
-  V8_DEPRECATED(
-      "With v8::BackingStore externalized ArrayBuffers are "
-      "the same as ordinary ArrayBuffers. See http://crbug.com/v8/9908.")
-  bool IsExternal() const;
-
-  /**
    * Returns true if this ArrayBuffer may be detached.
    */
   bool IsDetachable() const;
@@ -5579,46 +5497,10 @@ class V8_EXPORT ArrayBuffer : public Object {
   void Detach();
 
   /**
-   * Make this ArrayBuffer external. The pointer to underlying memory block
-   * and byte length are returned as |Contents| structure. After ArrayBuffer
-   * had been externalized, it does no longer own the memory block. The caller
-   * should take steps to free memory when it is no longer needed.
-   *
-   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
-   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
-   * was allocated with ArrayBuffer::Allocator::Allocate.
-   */
-  V8_DEPRECATED("Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
-  Contents Externalize();
-
-  /**
-   * Marks this ArrayBuffer external given a witness that the embedder
-   * has fetched the backing store using the new GetBackingStore() function.
-   *
-   * With the new lifetime management of backing stores there is no need for
-   * externalizing, so this function exists only to make the transition easier.
-   */
-  V8_DEPRECATED("This will be removed together with IsExternal.")
-  void Externalize(const std::shared_ptr<BackingStore>& backing_store);
-
-  /**
-   * Get a pointer to the ArrayBuffer's underlying memory block without
-   * externalizing it. If the ArrayBuffer is not externalized, this pointer
-   * will become invalid as soon as the ArrayBuffer gets garbage collected.
-   *
-   * The embedder should make sure to hold a strong reference to the
-   * ArrayBuffer while accessing this pointer.
-   */
-  V8_DEPRECATED("Use GetBackingStore. See http://crbug.com/v8/9908.")
-  Contents GetContents();
-
-  /**
    * Get a shared pointer to the backing store of this array buffer. This
    * pointer coordinates the lifetime management of the internal storage
    * with any live ArrayBuffers on the heap, even across isolates. The embedder
    * should not attempt to manage lifetime of the storage through other means.
-   *
-   * This function replaces both Externalize() and GetContents().
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
@@ -5630,7 +5512,6 @@ class V8_EXPORT ArrayBuffer : public Object {
  private:
   ArrayBuffer();
   static void CheckCast(Value* obj);
-  Contents GetContents(bool externalize);
 };
 
 
@@ -5924,57 +5805,6 @@ class V8_EXPORT DataView : public ArrayBufferView {
 class V8_EXPORT SharedArrayBuffer : public Object {
  public:
   /**
-   * The contents of an |SharedArrayBuffer|. Externalization of
-   * |SharedArrayBuffer| returns an instance of this class, populated, with a
-   * pointer to data and byte length.
-   *
-   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
-   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
-   * was allocated with ArraryBuffer::Allocator::Allocate.
-   */
-  class V8_EXPORT Contents {  // NOLINT
-   public:
-    using Allocator = v8::ArrayBuffer::Allocator;
-    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
-
-    Contents()
-        : data_(nullptr),
-          byte_length_(0),
-          allocation_base_(nullptr),
-          allocation_length_(0),
-          allocation_mode_(Allocator::AllocationMode::kNormal),
-          deleter_(nullptr),
-          deleter_data_(nullptr) {}
-
-    void* AllocationBase() const { return allocation_base_; }
-    size_t AllocationLength() const { return allocation_length_; }
-    Allocator::AllocationMode AllocationMode() const {
-      return allocation_mode_;
-    }
-
-    void* Data() const { return data_; }
-    size_t ByteLength() const { return byte_length_; }
-    DeleterCallback Deleter() const { return deleter_; }
-    void* DeleterData() const { return deleter_data_; }
-
-   private:
-    Contents(void* data, size_t byte_length, void* allocation_base,
-             size_t allocation_length,
-             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
-             void* deleter_data);
-
-    void* data_;
-    size_t byte_length_;
-    void* allocation_base_;
-    size_t allocation_length_;
-    Allocator::AllocationMode allocation_mode_;
-    DeleterCallback deleter_;
-    void* deleter_data_;
-
-    friend class SharedArrayBuffer;
-  };
-
-  /**
    * Data length in bytes.
    */
   size_t ByteLength() const;
@@ -5986,19 +5816,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * unless the object is externalized.
    */
   static Local<SharedArrayBuffer> New(Isolate* isolate, size_t byte_length);
-
-  /**
-   * Create a new SharedArrayBuffer over an existing memory block.  The created
-   * array buffer is immediately in externalized state unless otherwise
-   * specified. The memory block will not be reclaimed when a created
-   * SharedArrayBuffer is garbage-collected.
-   */
-  V8_DEPRECATED(
-      "Use the version that takes a BackingStore. "
-      "See http://crbug.com/v8/9908.")
-  static Local<SharedArrayBuffer> New(
-      Isolate* isolate, void* data, size_t byte_length,
-      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Create a new SharedArrayBuffer with an existing backing store.
@@ -6039,72 +5856,10 @@ class V8_EXPORT SharedArrayBuffer : public Object {
       void* deleter_data);
 
   /**
-   * Create a new SharedArrayBuffer over an existing memory block. Propagate
-   * flags to indicate whether the underlying buffer can be grown.
-   */
-  V8_DEPRECATED(
-      "Use the version that takes a BackingStore. "
-      "See http://crbug.com/v8/9908.")
-  static Local<SharedArrayBuffer> New(
-      Isolate* isolate, const SharedArrayBuffer::Contents&,
-      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
-
-  /**
-   * Returns true if SharedArrayBuffer is externalized, that is, does not
-   * own its memory block.
-   */
-  V8_DEPRECATED(
-      "With v8::BackingStore externalized SharedArrayBuffers are the same "
-      "as ordinary SharedArrayBuffers. See http://crbug.com/v8/9908.")
-  bool IsExternal() const;
-
-  /**
-   * Make this SharedArrayBuffer external. The pointer to underlying memory
-   * block and byte length are returned as |Contents| structure. After
-   * SharedArrayBuffer had been externalized, it does no longer own the memory
-   * block. The caller should take steps to free memory when it is no longer
-   * needed.
-   *
-   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
-   * by the allocator specified in
-   * v8::Isolate::CreateParams::array_buffer_allocator.
-   *
-   */
-  V8_DEPRECATED("Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
-  Contents Externalize();
-
-  /**
-   * Marks this SharedArrayBuffer external given a witness that the embedder
-   * has fetched the backing store using the new GetBackingStore() function.
-   *
-   * With the new lifetime management of backing stores there is no need for
-   * externalizing, so this function exists only to make the transition easier.
-   */
-  V8_DEPRECATED("This will be removed together with IsExternal.")
-  void Externalize(const std::shared_ptr<BackingStore>& backing_store);
-
-  /**
-   * Get a pointer to the ArrayBuffer's underlying memory block without
-   * externalizing it. If the ArrayBuffer is not externalized, this pointer
-   * will become invalid as soon as the ArrayBuffer became garbage collected.
-   *
-   * The embedder should make sure to hold a strong reference to the
-   * ArrayBuffer while accessing this pointer.
-   *
-   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
-   * by the allocator specified in
-   * v8::Isolate::CreateParams::array_buffer_allocator.
-   */
-  V8_DEPRECATED("Use GetBackingStore. See http://crbug.com/v8/9908.")
-  Contents GetContents();
-
-  /**
    * Get a shared pointer to the backing store of this array buffer. This
    * pointer coordinates the lifetime management of the internal storage
    * with any live ArrayBuffers on the heap, even across isolates. The embedder
    * should not attempt to manage lifetime of the storage through other means.
-   *
-   * This function replaces both Externalize() and GetContents().
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
@@ -6115,7 +5870,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
  private:
   SharedArrayBuffer();
   static void CheckCast(Value* obj);
-  Contents GetContents(bool externalize);
 };
 
 
@@ -6346,7 +6100,8 @@ class V8_EXPORT Template : public Data {
            PropertyAttribute attributes = None);
   void SetPrivate(Local<Private> name, Local<Data> value,
                   PropertyAttribute attributes = None);
-  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
+                     PropertyAttribute attributes = None);
 
   void SetAccessorProperty(
      Local<Name> name,
@@ -6776,7 +6531,9 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr);
+      const CFunction* c_function = nullptr, uint16_t instance_type = 0,
+      uint16_t allowed_receiver_instance_type_range_start = 0,
+      uint16_t allowed_receiver_instance_type_range_end = 0);
 
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
@@ -6816,17 +6573,6 @@ class V8_EXPORT FunctionTemplate : public Template {
    * API call, see the comment above the class declaration.
    */
   void SetCallHandler(
-      FunctionCallback callback, Local<Value> data = Local<Value>(),
-      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr);
-
-  /**
-   * Set the call-handler callback for a FunctionTemplate.  This
-   * callback is called whenever the function created from this
-   * FunctionTemplate is called. The 'c_function' represents a fast
-   * API call, see the comment above the class declaration.
-   */
-  void SetCallHandlerV8_92(
       FunctionCallback callback, Local<Value> data = Local<Value>(),
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
       const MemorySpan<const CFunction>& c_function_overloads = {});
@@ -7244,7 +6990,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * Gets the number of internal fields for objects generated from
    * this template.
    */
-  int InternalFieldCount();
+  int InternalFieldCount() const;
 
   /**
    * Sets the number of internal fields for objects generated from
@@ -7255,7 +7001,7 @@ class V8_EXPORT ObjectTemplate : public Template {
   /**
    * Returns true if the object will be an immutable prototype exotic object.
    */
-  bool IsImmutableProto();
+  bool IsImmutableProto() const;
 
   /**
    * Makes the ObjectTemplate for an immutable prototype exotic object, with an
@@ -7273,7 +7019,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * Reference: https://github.com/tc39/proposal-dynamic-code-brand-checks
    */
   void SetCodeLike();
-  bool IsCodeLike();
+  bool IsCodeLike() const;
 
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 
@@ -7507,7 +7253,9 @@ using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
-using LogEventCallback = void (*)(const char* name, int event);
+enum LogEventStatus : int { kStart = 0, kEnd = 1, kStamp = 2 };
+using LogEventCallback = void (*)(const char* name,
+                                  int /* LogEventStatus */ status);
 
 /**
  * Create new error objects by calling the corresponding error object
@@ -7583,7 +7331,8 @@ using CallCompletedCallback = void (*)(Isolate*);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback =
+using HostImportModuleDynamicallyCallback V8_DEPRECATED(
+    "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier);
@@ -8630,11 +8379,6 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
-
-    V8_DEPRECATED(
-        "Setting this has no effect. Embedders should ignore import assertions "
-        "that they do not use.")
-    std::vector<std::string> supported_import_assertions;
   };
 
   /**
@@ -8973,7 +8717,7 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use the version of SetHostImportModuleDynamicallyCallback that takes a "
       "HostImportModuleDynamicallyWithImportAssertionsCallback instead")
   void SetHostImportModuleDynamicallyCallback(
@@ -9145,10 +8889,6 @@ class V8_EXPORT Isolate {
   bool MeasureMemory(
       std::unique_ptr<MeasureMemoryDelegate> delegate,
       MeasureMemoryExecution execution = MeasureMemoryExecution::kDefault);
-
-  V8_DEPRECATED("Use the version with a delegate")
-  MaybeLocal<Promise> MeasureMemory(Local<Context> context,
-                                    MeasureMemoryMode mode);
 
   /**
    * Get a call stack sample from the isolate.
@@ -9827,13 +9567,6 @@ class V8_EXPORT Isolate {
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */
-  V8_DEPRECATED(
-      "Use Isolate::SetModifyCodeGenerationFromStringsCallback with "
-      "ModifyCodeGenerationFromStringsCallback2 instead. See "
-      "http://crbug.com/1096017 and TC39 Dynamic Code Brand Checks proposal "
-      "at https://github.com/tc39/proposal-dynamic-code-brand-checks.")
-  void SetModifyCodeGenerationFromStringsCallback(
-      ModifyCodeGenerationFromStringsCallback callback);
   void SetModifyCodeGenerationFromStringsCallback(
       ModifyCodeGenerationFromStringsCallback2 callback);
 
@@ -10181,30 +9914,6 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_POSIX
-  /**
-   * Give the V8 signal handler a chance to handle a fault.
-   *
-   * This function determines whether a memory access violation can be recovered
-   * by V8. If so, it will return true and modify context to return to a code
-   * fragment that can recover from the fault. Otherwise, TryHandleSignal will
-   * return false.
-   *
-   * The parameters to this function correspond to those passed to a Linux
-   * signal handler.
-   *
-   * \param signal_number The signal number.
-   *
-   * \param info A pointer to the siginfo_t structure provided to the signal
-   * handler.
-   *
-   * \param context The third argument passed to the Linux signal handler, which
-   * points to a ucontext_t structure.
-   */
-  V8_DEPRECATED("Use TryHandleWebAssemblyTrapPosix")
-  static bool TryHandleSignal(int signal_number, void* info, void* context);
-#endif  // V8_OS_POSIX
-
   /**
    * Activate trap-based bounds checking for WebAssembly.
    *
@@ -10231,15 +9940,6 @@ class V8_EXPORT V8 {
    * Get statistics about the shared memory usage.
    */
   static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
-
-  /**
-   * Notifies V8 that the process is cross-origin-isolated, which enables
-   * defining the SharedArrayBuffer function on the global object of Contexts.
-   */
-  V8_DEPRECATED(
-      "Use the command line argument --enable-sharedarraybuffer-per-context "
-      "together with SetSharedArrayBufferConstructorEnabledCallback")
-  static void SetIsCrossOriginIsolated();
 
  private:
   V8();
@@ -10913,7 +10613,7 @@ class V8_EXPORT Context : public Data {
    * Returns true if code generation from strings is allowed for the context.
    * For more details see AllowCodeGenerationFromStrings(bool) documentation.
    */
-  bool IsCodeGenerationFromStringsAllowed();
+  bool IsCodeGenerationFromStringsAllowed() const;
 
   /**
    * Sets the error description for the exception that is thrown when
@@ -11851,7 +11551,8 @@ int ScriptOrigin::ScriptId() const { return script_id_; }
 Local<Value> ScriptOrigin::SourceMapUrl() const { return source_map_url_; }
 
 ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
-                               CachedData* data)
+                               CachedData* data,
+                               ConsumeCodeCacheTask* consume_cache_task)
     : source_string(string),
       resource_name(origin.ResourceName()),
       resource_line_offset(origin.LineOffset()),
@@ -11859,21 +11560,18 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
       host_defined_options(origin.HostDefinedOptions()),
-      cached_data(data) {}
+      cached_data(data),
+      consume_cache_task(consume_cache_task) {}
 
-ScriptCompiler::Source::Source(Local<String> string,
-                               CachedData* data)
-    : source_string(string), cached_data(data) {}
-
-
-ScriptCompiler::Source::~Source() {
-  delete cached_data;
-}
-
+ScriptCompiler::Source::Source(Local<String> string, CachedData* data,
+                               ConsumeCodeCacheTask* consume_cache_task)
+    : source_string(string),
+      cached_data(data),
+      consume_cache_task(consume_cache_task) {}
 
 const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
     const {
-  return cached_data;
+  return cached_data.get();
 }
 
 const ScriptOriginOptions& ScriptCompiler::Source::GetResourceOptions() const {
@@ -11884,10 +11582,11 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
-void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
+void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+                   PropertyAttribute attributes) {
   Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
-      value);
+      value, attributes);
 }
 
 FunctionTemplate* FunctionTemplate::Cast(Data* data) {
@@ -11925,10 +11624,8 @@ Local<Value> Object::GetInternalField(int index) {
   A obj = *reinterpret_cast<A*>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
-  auto instance_type = I::GetInstanceType(obj);
-  if (instance_type == I::kJSObjectType ||
-      instance_type == I::kJSApiObjectType ||
-      instance_type == I::kJSSpecialApiObjectType) {
+  int instance_type = I::GetInstanceType(obj);
+  if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
@@ -11954,9 +11651,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
-  if (V8_LIKELY(instance_type == I::kJSObjectType ||
-                instance_type == I::kJSApiObjectType ||
-                instance_type == I::kJSSpecialApiObjectType)) {
+  if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_HEAP_SANDBOX
     offset += I::kEmbedderDataSlotRawPayloadOffset;

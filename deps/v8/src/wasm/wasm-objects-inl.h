@@ -35,7 +35,7 @@ namespace internal {
 
 #include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTagObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
@@ -193,6 +193,14 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
                     kStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, real_stack_limit_address, Address,
                     kRealStackLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_limit_address, Address*,
+                    kNewAllocationLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_top_address, Address*,
+                    kNewAllocationTopAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_limit_address, Address*,
+                    kOldAllocationLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
+                    kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,
@@ -241,8 +249,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
                    kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
-                   kExceptionsTableOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_external_functions, FixedArray,
                    kWasmExternalFunctionsOffset)
 ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
@@ -290,7 +297,7 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 }
 
 // WasmExceptionPackage
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSReceiver)
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)
 CAST_ACCESSOR(WasmExceptionPackage)
 
 // WasmExportedFunction

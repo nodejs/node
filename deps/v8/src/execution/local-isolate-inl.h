@@ -22,6 +22,11 @@ Object LocalIsolate::root(RootIndex index) const {
   return isolate_->root(index);
 }
 
+Handle<Object> LocalIsolate::root_handle(RootIndex index) const {
+  DCHECK(RootsTable::IsImmortalImmovable(index));
+  return isolate_->root_handle(index);
+}
+
 }  // namespace internal
 }  // namespace v8
 

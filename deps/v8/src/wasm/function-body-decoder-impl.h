@@ -33,7 +33,7 @@ namespace internal {
 namespace wasm {
 
 struct WasmGlobal;
-struct WasmException;
+struct WasmTag;
 
 #define TRACE(...)                                    \
   do {                                                \
@@ -486,11 +486,11 @@ struct IndexImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct ExceptionIndexImmediate : public IndexImmediate<validate> {
-  const WasmException* exception = nullptr;
+struct TagIndexImmediate : public IndexImmediate<validate> {
+  const WasmTag* tag = nullptr;
 
-  ExceptionIndexImmediate(Decoder* decoder, const byte* pc)
-      : IndexImmediate<validate>(decoder, pc, "exception index") {}
+  TagIndexImmediate(Decoder* decoder, const byte* pc)
+      : IndexImmediate<validate>(decoder, pc, "tag index") {}
 };
 
 template <Decoder::ValidateFlag validate>
@@ -1020,11 +1020,11 @@ struct ControlBase : public PcForErrors<validate> {
   F(S128Const, const Simd128Immediate<validate>& imm, Value* result)          \
   F(Simd8x16ShuffleOp, const Simd128Immediate<validate>& imm,                 \
     const Value& input0, const Value& input1, Value* result)                  \
-  F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
+  F(Throw, const TagIndexImmediate<validate>& imm,                            \
     const base::Vector<Value>& args)                                          \
   F(Rethrow, Control* block)                                                  \
-  F(CatchException, const ExceptionIndexImmediate<validate>& imm,             \
-    Control* block, base::Vector<Value> caught_values)                        \
+  F(CatchException, const TagIndexImmediate<validate>& imm, Control* block,   \
+    base::Vector<Value> caught_values)                                        \
   F(Delegate, uint32_t depth, Control* block)                                 \
   F(CatchAll, Control* block)                                                 \
   F(AtomicOp, WasmOpcode opcode, base::Vector<Value> args,                    \
@@ -1266,12 +1266,12 @@ class WasmDecoder : public Decoder {
     return VALIDATE(decoder->ok()) ? assigned : nullptr;
   }
 
-  bool Validate(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
-    if (!VALIDATE(imm.index < module_->exceptions.size())) {
-      DecodeError(pc, "Invalid exception index: %u", imm.index);
+  bool Validate(const byte* pc, TagIndexImmediate<validate>& imm) {
+    if (!VALIDATE(imm.index < module_->tags.size())) {
+      DecodeError(pc, "Invalid tag index: %u", imm.index);
       return false;
     }
-    imm.exception = &module_->exceptions[imm.index];
+    imm.tag = &module_->tags[imm.index];
     return true;
   }
 
@@ -1635,7 +1635,7 @@ class WasmDecoder : public Decoder {
       }
       case kExprThrow:
       case kExprCatch: {
-        ExceptionIndexImmediate<validate> imm(decoder, pc + 1);
+        TagIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
       case kExprLet: {
@@ -1991,10 +1991,10 @@ class WasmDecoder : public Decoder {
                 imm.sig->return_count()};
       }
       case kExprThrow: {
-        ExceptionIndexImmediate<validate> imm(this, pc + 1);
+        TagIndexImmediate<validate> imm(this, pc + 1);
         CHECK(Validate(pc + 1, imm));
-        DCHECK_EQ(0, imm.exception->sig->return_count());
-        return {imm.exception->sig->parameter_count(), 0};
+        DCHECK_EQ(0, imm.tag->sig->return_count());
+        return {imm.tag->sig->parameter_count(), 0};
       }
       case kExprBr:
       case kExprBlock:
@@ -2565,11 +2565,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(Throw) {
     CHECK_PROTOTYPE_OPCODE(eh);
-    ExceptionIndexImmediate<validate> imm(this, this->pc_ + 1);
+    TagIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.exception->ToFunctionSig());
+    ArgVector args = PeekArgs(imm.tag->ToFunctionSig());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, base::VectorOf(args));
-    DropArgs(imm.exception->ToFunctionSig());
+    DropArgs(imm.tag->ToFunctionSig());
     EndControl();
     return 1 + imm.length;
   }
@@ -2592,7 +2592,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(Catch) {
     CHECK_PROTOTYPE_OPCODE(eh);
-    ExceptionIndexImmediate<validate> imm(this, this->pc_ + 1);
+    TagIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     DCHECK(!control_.empty());
     Control* c = &control_.back();
@@ -2611,7 +2611,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
-    const WasmExceptionSig* sig = imm.exception->sig;
+    const WasmTagSig* sig = imm.tag->sig;
     EnsureStackSpace(static_cast<int>(sig->parameter_count()));
     for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
       Push(CreateValue(sig->GetParam(i)));
@@ -3582,27 +3582,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
       return Value{pc, imm.out_type(i)};
     });
-    InitMerge(&c->start_merge, imm.in_arity(),
-#ifdef DEBUG
-              [this, pc, &imm, args](uint32_t i) {
-#else
-              [pc, &imm, args](uint32_t i) {
-#endif
-                // The merge needs to be instantiated with Values of the correct
-                // type even in the presence of bottom values (i.e. in
-                // unreachable code). Since bottom Values will never be used for
-                // code generation, we can safely instantiate new ones in that
-                // case.
-                DCHECK_IMPLIES(current_code_reachable_and_ok_,
-                               args[i].type != kWasmBottom);
-                // Warning: Do not use a ternary operator here, as gcc bugs out
-                // (as of version 10.2.1).
-                if (args[i].type != kWasmBottom) {
-                  return args[i];
-                } else {
-                  return Value{pc, imm.in_type(i)};
-                }
-              });
+    InitMerge(&c->start_merge, imm.in_arity(), [&imm, args](uint32_t i) {
+      // The merge needs to be instantiated with Values of the correct
+      // type, even if the actual Value is bottom/unreachable or has
+      // a subtype of the static type.
+      // So we copy-construct a new Value, and update its type.
+      Value value = args[i];
+      value.type = imm.in_type(i);
+      return value;
+    });
   }
 
   // In reachable code, check if there are at least {count} values on the stack.

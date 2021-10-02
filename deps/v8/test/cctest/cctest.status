@@ -117,9 +117,6 @@
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
-  # pthread_rwlock_t combined with signals is broken on Mac (https://crbug.com/v8/11399).
-  'signals-and-mutexes/SignalsPlusSharedMutexes': [PASS, ['system == macos', SKIP]],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
   'test-api/FastApiCalls': [PASS, HEAVY],
@@ -614,7 +611,6 @@
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
-  'serializer-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
@@ -689,17 +685,6 @@
 ##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
-  'serializer-tester/SerializeCallAnyReceiver': [SKIP],
-  'serializer-tester/SerializeCallArguments': [SKIP],
-  'serializer-tester/SerializeCallProperty': [SKIP],
-  'serializer-tester/SerializeCallProperty2': [SKIP],
-  'serializer-tester/SerializeCallUndefinedReceiver': [SKIP],
-  'serializer-tester/SerializeCallUndefinedReceiver2': [SKIP],
-  'serializer-tester/SerializeCallWithSpread': [SKIP],
-  'serializer-tester/SerializeConstruct': [SKIP],
-  'serializer-tester/SerializeConstructWithSpread': [SKIP],
-  'serializer-tester/SerializeInlinedClosure': [SKIP],
-  'serializer-tester/SerializeInlinedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
@@ -745,8 +730,6 @@
   # Turboprop doesn't use call feedback and hence doesn't inline even if
   # the inlining flag is explicitly set.
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
-  'serializer-tester/BoundFunctionArguments': [SKIP],
-  'serializer-tester/BoundFunctionTarget': [SKIP],
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
 }],  # variant == turboprop or variant == turboprop_as_toptier
@@ -822,28 +805,7 @@
   'test-invalidated-slots/InvalidatedSlotsNoInvalidatedRanges': [SKIP],
   'test-invalidated-slots/InvalidatedSlotsResetObjectRegression': [SKIP],
   'test-invalidated-slots/InvalidatedSlotsSomeInvalidatedRanges': [SKIP],
-  # Requires --concurrent_inlining / --finalize_streaming_on_background:
-  'serializer-tester/ArrowFunctionInlined': [SKIP],
-  'serializer-tester/BoundFunctionArguments': [SKIP],
-  'serializer-tester/BoundFunctionResult': [SKIP],
-  'serializer-tester/BoundFunctionTarget': [SKIP],
-  'serializer-tester/MergeJumpTargetEnvironment': [SKIP],
-  'serializer-tester/MultipleFunctionCalls': [SKIP],
-  'serializer-tester/SerializeCallAnyReceiver': [SKIP],
-  'serializer-tester/SerializeCallArguments': [SKIP],
-  'serializer-tester/SerializeCallProperty': [SKIP],
-  'serializer-tester/SerializeCallProperty2': [SKIP],
-  'serializer-tester/SerializeCallUndefinedReceiver': [SKIP],
-  'serializer-tester/SerializeCallUndefinedReceiver2': [SKIP],
-  'serializer-tester/SerializeCallWithSpread': [SKIP],
-  'serializer-tester/SerializeConditionalJump': [SKIP],
-  'serializer-tester/SerializeConstruct': [SKIP],
-  'serializer-tester/SerializeConstructSuper': [SKIP],
-  'serializer-tester/SerializeConstructWithSpread': [SKIP],
-  'serializer-tester/SerializeEmptyFunction': [SKIP],
-  'serializer-tester/SerializeInlinedClosure': [SKIP],
-  'serializer-tester/SerializeInlinedFunction': [SKIP],
-  'serializer-tester/SerializeUnconditionalJump': [SKIP],
+  # Requires --finalize_streaming_on_background:
   'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadIsParked': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadRunsWithSafepoints': [SKIP],

@@ -123,8 +123,10 @@ class FunctionTemplateInfo
   // safely read concurrently.
   DECL_BOOLEAN_ACCESSORS(published)
 
-  DECL_INT_ACCESSORS(allowed_receiver_range_start)
-  DECL_INT_ACCESSORS(allowed_receiver_range_end)
+  // This specifies the permissable range of instance type of objects that can
+  // be allowed to be used as receivers with the given template.
+  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_start)
+  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_end)
   // End flag bits ---------------------
 
   // Dispatched behavior.
@@ -157,6 +159,7 @@ class FunctionTemplateInfo
   inline bool instantiated();
 
   bool BreakAtEntry();
+  bool HasInstanceType();
 
   // Helper function for cached accessors.
   static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,
@@ -174,6 +177,7 @@ class FunctionTemplateInfo
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
 
  private:
+  static constexpr int kNoJSApiObjectType = 0;
   static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 

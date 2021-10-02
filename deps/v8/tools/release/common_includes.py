@@ -689,7 +689,7 @@ class UploadStep(Step):
 
     self.GitUpload(reviewer, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
+                   tbr_reviewer=tbr_reviewer)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,

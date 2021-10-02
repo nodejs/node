@@ -281,7 +281,12 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     //                                  value, true, Unordered).
     //    iii. Set srcByteIndex to srcByteIndex + 1.
     //     iv. Set targetByteIndex to targetByteIndex + 1.
-    CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    if (IsSharedArrayBuffer(target.buffer)) {
+      // SABs need a relaxed memmove to preserve atomicity.
+      CallCRelaxedMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    } else {
+      CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    }
   } label IfSlow deferred {
     // 22. If target.[[ContentType]] is not equal to
     //   typedArray.[[ContentType]], throw a TypeError exception.

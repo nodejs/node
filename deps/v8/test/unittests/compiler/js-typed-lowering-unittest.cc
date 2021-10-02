@@ -6,6 +6,7 @@
 
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -39,7 +40,8 @@ Type const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
 
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
-  JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
+  JSTypedLoweringTest()
+      : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {}
   ~JSTypedLoweringTest() override = default;
 
  protected:
@@ -59,6 +61,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  private:
   JSOperatorBuilder javascript_;
+  CompilationDependencies deps_;
 };
 
 
@@ -397,7 +400,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
 
 
 TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
-  Handle<Name> name = factory()->length_string();
+  NameRef name = MakeRef(broker(), factory()->length_string());
   Node* const receiver = Parameter(Type::String(), 0);
   Node* const feedback = UndefinedConstant();
   Node* const context = UndefinedConstant();

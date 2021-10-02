@@ -43,5 +43,6 @@ for (let i = 0; i < 1000; ++i) {
   u1();
   u2();
 }
+%FinalizeOptimization();
 assertUnoptimized(u1);
 assertOptimized(u2);

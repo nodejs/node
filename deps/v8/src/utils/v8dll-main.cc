@@ -13,7 +13,7 @@
 extern "C" {
 BOOL WINAPI DllMain(HANDLE hinstDLL, DWORD dwReason, LPVOID lpvReserved) {
   // Do nothing.
-  return TRUE;
+  return 1;
 }
 }
 #endif  // V8_OS_WIN

@@ -850,20 +850,22 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   }
 
 #ifdef V8_TARGET_ARCH_32_BIT
-  if (shared == SharedFlag::kNotShared) {
-    // On 32-bit platforms we need a heuristic here to balance overall memory
-    // and address space consumption. If a maximum memory size is defined, then
-    // we reserve that maximum size up to 1GB. If no maximum memory size is
-    // defined, we just allocate the initial size and grow with a realloc.
-    constexpr int kGBPages = 1024 * 1024 * 1024 / wasm::kWasmPageSize;
-    if (initial > kGBPages || !has_maximum) {
-      // We allocate at least the initial size. If no maximum is specified we
-      // also start with the initial size.
-      heuristic_maximum = initial;
-    } else {
-      // We reserve the maximum size, but at most 1GB.
-      heuristic_maximum = std::min(maximum, kGBPages);
-    }
+  // On 32-bit platforms we need an heuristic here to balance overall memory
+  // and address space consumption.
+  constexpr int kGBPages = 1024 * 1024 * 1024 / wasm::kWasmPageSize;
+  if (initial > kGBPages) {
+    // We always allocate at least the initial size.
+    heuristic_maximum = initial;
+  } else if (has_maximum) {
+    // We try to reserve the maximum, but at most 1GB to avoid OOMs.
+    heuristic_maximum = std::min(maximum, kGBPages);
+  } else if (shared == SharedFlag::kShared) {
+    // If shared memory has no maximum, we use an implicit maximum of 1GB.
+    heuristic_maximum = kGBPages;
+  } else {
+    // If non-shared memory has no maximum, we only allocate the initial size
+    // and then grow with realloc.
+    heuristic_maximum = initial;
   }
 #endif
 
@@ -1295,6 +1297,14 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->stack_guard()->address_of_jslimit());
   instance->set_real_stack_limit_address(
       isolate->stack_guard()->address_of_real_jslimit());
+  instance->set_new_allocation_limit_address(
+      isolate->heap()->NewSpaceAllocationLimitAddress());
+  instance->set_new_allocation_top_address(
+      isolate->heap()->NewSpaceAllocationTopAddress());
+  instance->set_old_allocation_limit_address(
+      isolate->heap()->OldSpaceAllocationLimitAddress());
+  instance->set_old_allocation_top_address(
+      isolate->heap()->OldSpaceAllocationTopAddress());
   instance->set_globals_start(nullptr);
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_refs(
@@ -1469,7 +1479,9 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
   const WasmModule* module = module_object->module();
   const WasmFunction& function = module->functions[function_index];
   int wrapper_index =
-      GetExportWrapperIndex(module, function.sig, function.imported);
+      GetExportWrapperIndex(module, function.sig_index, function.imported);
+  DCHECK_EQ(wrapper_index,
+            GetExportWrapperIndex(module, function.sig, function.imported));
 
   Handle<Object> entry =
       FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);
@@ -1694,11 +1706,11 @@ Address WasmArray::ElementAddress(uint32_t index) {
 }
 
 // static
-Handle<WasmExceptionObject> WasmExceptionObject::New(
-    Isolate* isolate, const wasm::FunctionSig* sig,
-    Handle<HeapObject> exception_tag) {
-  Handle<JSFunction> exception_cons(
-      isolate->native_context()->wasm_exception_constructor(), isolate);
+Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         Handle<HeapObject> tag) {
+  Handle<JSFunction> tag_cons(isolate->native_context()->wasm_tag_constructor(),
+                              isolate);
 
   // Serialize the signature.
   DCHECK_EQ(0, sig->return_count());
@@ -1711,18 +1723,17 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
     serialized_sig->set(index++, param);
   }
 
-  Handle<JSObject> exception_object =
-      isolate->factory()->NewJSObject(exception_cons, AllocationType::kOld);
-  Handle<WasmExceptionObject> exception =
-      Handle<WasmExceptionObject>::cast(exception_object);
-  exception->set_serialized_signature(*serialized_sig);
-  exception->set_exception_tag(*exception_tag);
+  Handle<JSObject> tag_object =
+      isolate->factory()->NewJSObject(tag_cons, AllocationType::kOld);
+  Handle<WasmTagObject> tag_wrapper = Handle<WasmTagObject>::cast(tag_object);
+  tag_wrapper->set_serialized_signature(*serialized_sig);
+  tag_wrapper->set_tag(*tag);
 
-  return exception;
+  return tag_wrapper;
 }
 
 // TODO(9495): Update this if function type variance is introduced.
-bool WasmExceptionObject::MatchesSignature(const wasm::FunctionSig* sig) {
+bool WasmTagObject::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
   int sig_size = static_cast<int>(sig->parameter_count());
@@ -1760,14 +1771,20 @@ bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
 // static
 Handle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, Handle<WasmExceptionTag> exception_tag, int size) {
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
+  return New(isolate, exception_tag, values);
+}
+
+Handle<WasmExceptionPackage> WasmExceptionPackage::New(
+    Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
+    Handle<FixedArray> values) {
+  Handle<JSObject> exception = isolate->factory()->NewWasmExceptionError(
       MessageTemplate::kWasmExceptionError);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
                              exception_tag, StoreOrigin::kMaybeKeyed,
                              Just(ShouldThrow::kThrowOnError))
              .is_null());
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_values_symbol(),
                              values, StoreOrigin::kMaybeKeyed,
@@ -1802,6 +1819,35 @@ Handle<Object> WasmExceptionPackage::GetExceptionValues(
   return ReadOnlyRoots(isolate).undefined_value_handle();
 }
 
+void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint32_t value) {
+  encoded_values->set((*encoded_index)++, Smi::FromInt(value >> 16));
+  encoded_values->set((*encoded_index)++, Smi::FromInt(value & 0xffff));
+}
+
+void EncodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint64_t value) {
+  EncodeI32ExceptionValue(encoded_values, encoded_index,
+                          static_cast<uint32_t>(value >> 32));
+  EncodeI32ExceptionValue(encoded_values, encoded_index,
+                          static_cast<uint32_t>(value));
+}
+
+void DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint32_t* value) {
+  uint32_t msb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+  uint32_t lsb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+  *value = (msb << 16) | (lsb & 0xffff);
+}
+
+void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint64_t* value) {
+  uint32_t lsb = 0, msb = 0;
+  DecodeI32ExceptionValue(encoded_values, encoded_index, &msb);
+  DecodeI32ExceptionValue(encoded_values, encoded_index, &lsb);
+  *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
+}
+
 #ifdef DEBUG
 
 namespace {
@@ -1820,9 +1866,8 @@ size_t ComputeEncodedElementSize(wasm::ValueType type) {
 #endif  // DEBUG
 
 // static
-uint32_t WasmExceptionPackage::GetEncodedSize(
-    const wasm::WasmException* exception) {
-  const wasm::WasmExceptionSig* sig = exception->sig;
+uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTag* tag) {
+  const wasm::WasmTagSig* sig = tag->sig;
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     switch (sig->GetParam(i).kind()) {

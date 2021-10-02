@@ -387,9 +387,11 @@ void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
     if (old->more) {
       *more = *old->more;
     } else {
-      (*more)[old->key_value.key()] = old->key_value.value();
+      more->erase(old->key_value.key());
+      more->emplace(old->key_value.key(), old->key_value.value());
     }
-    (*more)[key] = value;
+    more->erase(key);
+    more->emplace(key, value);
   }
   size_t size = sizeof(FocusedTree) +
                 std::max(0, length - 1) * sizeof(const FocusedTree*);

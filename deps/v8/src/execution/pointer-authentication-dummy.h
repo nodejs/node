@@ -5,11 +5,9 @@
 #ifndef V8_EXECUTION_POINTER_AUTHENTICATION_DUMMY_H_
 #define V8_EXECUTION_POINTER_AUTHENTICATION_DUMMY_H_
 
-#include "src/execution/pointer-authentication.h"
-
-#include "include/v8.h"
+#include "include/v8-internal.h"
 #include "src/base/macros.h"
-#include "src/common/globals.h"
+#include "src/execution/pointer-authentication.h"
 
 namespace v8 {
 namespace internal {

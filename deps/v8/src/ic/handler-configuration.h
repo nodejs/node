@@ -354,6 +354,7 @@ class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property on a proxy.
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
+  static inline Smi StoreProxy();
 
   // Decodes the KeyedAccessStoreMode from a {handler}.
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);

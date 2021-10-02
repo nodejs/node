@@ -115,7 +115,7 @@ def process(filename, lint, should_format):
       print(filename + ' requires formatting', file=sys.stderr)
 
     if should_format:
-      output_file = open(filename, 'w')
+      output_file = open(filename, 'wb')
       output_file.write(output);
       output_file.close()
 

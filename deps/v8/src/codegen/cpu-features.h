@@ -52,13 +52,11 @@ enum CpuFeature {
   MIPS_SIMD,  // MSA instructions
 
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-  FPU,
-  FPR_GPR_MOV,
-  LWSYNC,
-  ISELECT,
-  VSX,
-  MODULO,
-  SIMD,
+  PPC_6_PLUS,
+  PPC_7_PLUS,
+  PPC_8_PLUS,
+  PPC_9_PLUS,
+  PPC_10_PLUS,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,

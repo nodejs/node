@@ -34,6 +34,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -1489,10 +1490,10 @@ TEST(CompilationCacheCachingBehavior) {
   // The script should be in the cache now.
   {
     v8::HandleScope scope(CcTest::isolate());
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
-        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
-                                        v8::ScriptOriginOptions(true, false),
-                                        language_mode);
+        compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(!cached_script.is_null());
   }
 
@@ -1500,10 +1501,10 @@ TEST(CompilationCacheCachingBehavior) {
   {
     CcTest::CollectAllGarbage();
     v8::HandleScope scope(CcTest::isolate());
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
-        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
-                                        v8::ScriptOriginOptions(true, false),
-                                        language_mode);
+        compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(!cached_script.is_null());
 
     // Progress code age until it's old and ready for GC.
@@ -1520,10 +1521,10 @@ TEST(CompilationCacheCachingBehavior) {
   {
     v8::HandleScope scope(CcTest::isolate());
     // Ensure code aging cleared the entry from the cache.
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
-        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
-                                        v8::ScriptOriginOptions(true, false),
-                                        language_mode);
+        compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(cached_script.is_null());
   }
 }
@@ -5317,7 +5318,7 @@ TEST(OldSpaceAllocationCounter) {
 static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = CcTest::i_isolate();
   Object message(
-      *reinterpret_cast<Address*>(isolate->pending_message_obj_address()));
+      *reinterpret_cast<Address*>(isolate->pending_message_address()));
   CHECK(message.IsTheHole(isolate));
 }
 
@@ -7294,6 +7295,18 @@ TEST(Regress10900) {
   CcTest::CollectAllAvailableGarbage();
 }
 
+namespace {
+void GenerateGarbage() {
+  const char* source =
+      "let roots = [];"
+      "for (let i = 0; i < 100; i++) roots.push(new Array(1000).fill(0));"
+      "roots.push(new Array(1000000).fill(0));"
+      "roots;";
+  CompileRun(source);
+}
+
+}  // anonymous namespace
+
 TEST(Regress11181) {
   FLAG_always_compact = true;
   CcTest::InitializeVM();
@@ -7301,14 +7314,69 @@ TEST(Regress11181) {
       v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
       std::memory_order_relaxed);
   v8::HandleScope scope(CcTest::isolate());
-  const char* source =
-      "let roots = [];"
-      "for (let i = 0; i < 100; i++) roots.push(new Array(1000).fill(0));"
-      "roots.push(new Array(1000000).fill(0));"
-      "roots;";
-  CompileRun(source);
+  GenerateGarbage();
   CcTest::CollectAllAvailableGarbage();
   TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
+}
+
+TEST(LongTaskStatsFullAtomic) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(CcTest::isolate());
+  GenerateGarbage();
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_atomic_wall_clock_duration_us);
+  for (int i = 0; i < 10; ++i) {
+    CcTest::CollectAllAvailableGarbage();
+  }
+  CHECK_LT(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_atomic_wall_clock_duration_us);
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_atomic_wall_clock_duration_us);
+}
+
+TEST(LongTaskStatsFullIncremental) {
+  if (!FLAG_incremental_marking) return;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(CcTest::isolate());
+  GenerateGarbage();
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_incremental_wall_clock_duration_us);
+  for (int i = 0; i < 10; ++i) {
+    heap::SimulateIncrementalMarking(CcTest::heap());
+    CcTest::CollectAllAvailableGarbage();
+  }
+  CHECK_LT(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_incremental_wall_clock_duration_us);
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
+                   .gc_full_incremental_wall_clock_duration_us);
+}
+
+TEST(LongTaskStatsYoung) {
+  if (FLAG_single_generation) return;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(CcTest::isolate());
+  GenerateGarbage();
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(
+      0u,
+      v8::metrics::LongTaskStats::Get(isolate).gc_young_wall_clock_duration_us);
+  for (int i = 0; i < 10; ++i) {
+    CcTest::CollectGarbage(NEW_SPACE);
+  }
+  CHECK_LT(
+      0u,
+      v8::metrics::LongTaskStats::Get(isolate).gc_young_wall_clock_duration_us);
+  v8::metrics::LongTaskStats::Reset(isolate);
+  CHECK_EQ(
+      0u,
+      v8::metrics::LongTaskStats::Get(isolate).gc_young_wall_clock_duration_us);
 }
 
 }  // namespace heap

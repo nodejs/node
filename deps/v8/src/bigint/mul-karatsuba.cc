@@ -201,5 +201,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   USE(overflow);
 }
 
+#undef MAYBE_TERMINATE
+
 }  // namespace bigint
 }  // namespace v8

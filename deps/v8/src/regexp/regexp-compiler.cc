@@ -240,12 +240,13 @@ class RecursionCheck {
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                               bool one_byte)
+                               JSRegExp::Flags flags, bool one_byte)
     : next_register_(JSRegExp::RegistersForCaptureCount(capture_count)),
       unicode_lookaround_stack_register_(kNoRegister),
       unicode_lookaround_position_register_(kNoRegister),
       work_list_(nullptr),
       recursion_depth_(0),
+      flags_(flags),
       one_byte_(one_byte),
       reg_exp_too_big_(false),
       limiting_recursion_(false),
@@ -279,6 +280,9 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     if (!node->label()->is_bound()) node->Emit(this, &new_trace);
   }
   if (reg_exp_too_big_) {
+    if (FLAG_correctness_fuzzer_suppressions) {
+      FATAL("Aborting on excess zone allocation");
+    }
     macro_assembler_->AbortedCodeGeneration();
     return CompilationResult::RegExpTooBig();
   }
@@ -1585,7 +1589,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
         base::uc16 c = quarks[i];
-        if (elm.atom()->ignore_case()) {
+        if (IgnoreCase(compiler->flags())) {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(
               isolate, c, compiler->one_byte(), chars, 4);
@@ -1815,16 +1819,16 @@ class IterationDecrementer {
   LoopChoiceNode* node_;
 };
 
-RegExpNode* SeqRegExpNode::FilterOneByte(int depth) {
+RegExpNode* SeqRegExpNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   DCHECK(!info()->visited);
   VisitMarker marker(info());
-  return FilterSuccessor(depth - 1);
+  return FilterSuccessor(depth - 1, flags);
 }
 
-RegExpNode* SeqRegExpNode::FilterSuccessor(int depth) {
-  RegExpNode* next = on_success_->FilterOneByte(depth - 1);
+RegExpNode* SeqRegExpNode::FilterSuccessor(int depth, JSRegExp::Flags flags) {
+  RegExpNode* next = on_success_->FilterOneByte(depth - 1, flags);
   if (next == nullptr) return set_replacement(nullptr);
   on_success_ = next;
   return set_replacement(this);
@@ -1845,7 +1849,7 @@ static bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
   return false;
 }
 
-RegExpNode* TextNode::FilterOneByte(int depth) {
+RegExpNode* TextNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   DCHECK(!info()->visited);
@@ -1857,7 +1861,7 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
       base::Vector<const base::uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
         base::uc16 c = quarks[j];
-        if (elm.atom()->ignore_case()) {
+        if (IgnoreCase(flags)) {
           c = unibrow::Latin1::TryConvertToLatin1(c);
         }
         if (c > unibrow::Latin1::kMaxChar) return set_replacement(nullptr);
@@ -1876,8 +1880,7 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
         if (range_count != 0 && ranges->at(0).from() == 0 &&
             ranges->at(0).to() >= String::kMaxOneByteCharCode) {
           // This will be handled in a later filter.
-          if (IgnoreCase(cc->flags()) &&
-              RangesContainLatin1Equivalents(ranges)) {
+          if (IgnoreCase(flags) && RangesContainLatin1Equivalents(ranges)) {
             continue;
           }
           return set_replacement(nullptr);
@@ -1886,8 +1889,7 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
         if (range_count == 0 ||
             ranges->at(0).from() > String::kMaxOneByteCharCode) {
           // This will be handled in a later filter.
-          if (IgnoreCase(cc->flags()) &&
-              RangesContainLatin1Equivalents(ranges)) {
+          if (IgnoreCase(flags) && RangesContainLatin1Equivalents(ranges)) {
             continue;
           }
           return set_replacement(nullptr);
@@ -1895,26 +1897,27 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
       }
     }
   }
-  return FilterSuccessor(depth - 1);
+  return FilterSuccessor(depth - 1, flags);
 }
 
-RegExpNode* LoopChoiceNode::FilterOneByte(int depth) {
+RegExpNode* LoopChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
   {
     VisitMarker marker(info());
 
-    RegExpNode* continue_replacement = continue_node_->FilterOneByte(depth - 1);
+    RegExpNode* continue_replacement =
+        continue_node_->FilterOneByte(depth - 1, flags);
     // If we can't continue after the loop then there is no sense in doing the
     // loop.
     if (continue_replacement == nullptr) return set_replacement(nullptr);
   }
 
-  return ChoiceNode::FilterOneByte(depth - 1);
+  return ChoiceNode::FilterOneByte(depth - 1, flags);
 }
 
-RegExpNode* ChoiceNode::FilterOneByte(int depth) {
+RegExpNode* ChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -1934,7 +1937,8 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth) {
   RegExpNode* survivor = nullptr;
   for (int i = 0; i < choice_count; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
-    RegExpNode* replacement = alternative.node()->FilterOneByte(depth - 1);
+    RegExpNode* replacement =
+        alternative.node()->FilterOneByte(depth - 1, flags);
     DCHECK(replacement != this);  // No missing EMPTY_MATCH_CHECK.
     if (replacement != nullptr) {
       alternatives_->at(i).set_node(replacement);
@@ -1954,7 +1958,7 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth) {
       zone()->New<ZoneList<GuardedAlternative>>(surviving, zone());
   for (int i = 0; i < choice_count; i++) {
     RegExpNode* replacement =
-        alternatives_->at(i).node()->FilterOneByte(depth - 1);
+        alternatives_->at(i).node()->FilterOneByte(depth - 1, flags);
     if (replacement != nullptr) {
       alternatives_->at(i).set_node(replacement);
       new_alternatives->Add(alternatives_->at(i), zone());
@@ -1964,7 +1968,8 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth) {
   return this;
 }
 
-RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth) {
+RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth,
+                                                        JSRegExp::Flags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -1972,12 +1977,12 @@ RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth) {
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
   RegExpNode* node = continue_node();
-  RegExpNode* replacement = node->FilterOneByte(depth - 1);
+  RegExpNode* replacement = node->FilterOneByte(depth - 1, flags);
   if (replacement == nullptr) return set_replacement(nullptr);
   alternatives_->at(kContinueIndex).set_node(replacement);
 
   RegExpNode* neg_node = lookaround_node();
-  RegExpNode* neg_replacement = neg_node->FilterOneByte(depth - 1);
+  RegExpNode* neg_replacement = neg_node->FilterOneByte(depth - 1, flags);
   // If the negative lookahead is always going to fail then
   // we don't need to check it.
   if (neg_replacement == nullptr) return set_replacement(replacement);
@@ -2316,13 +2321,13 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
     TextElement elm = elements()->at(i);
     int cp_offset = trace->cp_offset() + elm.cp_offset() + backward_offset;
     if (elm.text_type() == TextElement::ATOM) {
-      if (SkipPass(pass, elm.atom()->ignore_case())) continue;
+      if (SkipPass(pass, IgnoreCase(compiler->flags()))) continue;
       base::Vector<const base::uc16> quarks = elm.atom()->data();
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
         if (first_element_checked && i == 0 && j == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset() + j)) continue;
         base::uc16 quark = quarks[j];
-        if (elm.atom()->ignore_case()) {
+        if (IgnoreCase(compiler->flags())) {
           // Everywhere else we assume that a non-Latin-1 character cannot match
           // a Latin-1 character. Avoid the cases where this is assumption is
           // invalid by using the Latin1 equivalent instead.
@@ -2391,29 +2396,27 @@ bool TextNode::SkipPass(TextEmitPassType pass, bool ignore_case) {
 TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              ZoneList<CharacterRange>* ranges,
                                              bool read_backward,
-                                             RegExpNode* on_success,
-                                             JSRegExp::Flags flags) {
+                                             RegExpNode* on_success) {
   DCHECK_NOT_NULL(ranges);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(1, zone);
-  elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, ranges, flags)),
-            zone);
+  elms->Add(
+      TextElement::CharClass(zone->New<RegExpCharacterClass>(zone, ranges)),
+      zone);
   return zone->New<TextNode>(elms, read_backward, on_success);
 }
 
 TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
                                            CharacterRange trail,
                                            bool read_backward,
-                                           RegExpNode* on_success,
-                                           JSRegExp::Flags flags) {
+                                           RegExpNode* on_success) {
   ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
   elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, lead_ranges, flags)),
+                zone->New<RegExpCharacterClass>(zone, lead_ranges)),
             zone);
   elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, trail_ranges, flags)),
+                zone->New<RegExpCharacterClass>(zone, trail_ranges)),
             zone);
   return zone->New<TextNode>(elms, read_backward, on_success);
 }
@@ -2487,26 +2490,23 @@ void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
   bound_checked_up_to_ = std::max(0, bound_checked_up_to_ - by);
 }
 
-void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte) {
+void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
+                                   JSRegExp::Flags flags) {
+  if (!IgnoreCase(flags)) return;
+#ifdef V8_INTL_SUPPORT
+  if (NeedsUnicodeCaseEquivalents(flags)) return;
+#endif
+
   int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
     if (elm.text_type() == TextElement::CHAR_CLASS) {
       RegExpCharacterClass* cc = elm.char_class();
-#ifdef V8_INTL_SUPPORT
-      bool case_equivalents_already_added =
-          NeedsUnicodeCaseEquivalents(cc->flags());
-#else
-      bool case_equivalents_already_added = false;
-#endif
-      if (IgnoreCase(cc->flags()) && !case_equivalents_already_added) {
-        // None of the standard character classes is different in the case
-        // independent case and it slows us down if we don't know that.
-        if (cc->is_standard(zone())) continue;
-        ZoneList<CharacterRange>* ranges = cc->ranges(zone());
-        CharacterRange::AddCaseEquivalents(isolate, zone(), ranges,
-                                           is_one_byte);
-      }
+      // None of the standard character classes is different in the case
+      // independent case and it slows us down if we don't know that.
+      if (cc->is_standard(zone())) continue;
+      ZoneList<CharacterRange>* ranges = cc->ranges(zone());
+      CharacterRange::AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
     }
   }
 }
@@ -3634,9 +3634,10 @@ class EatsAtLeastPropagator : public AllStatic {
 template <typename... Propagators>
 class Analysis : public NodeVisitor {
  public:
-  Analysis(Isolate* isolate, bool is_one_byte)
+  Analysis(Isolate* isolate, bool is_one_byte, JSRegExp::Flags flags)
       : isolate_(isolate),
         is_one_byte_(is_one_byte),
+        flags_(flags),
         error_(RegExpError::kNone) {}
 
   void EnsureAnalyzed(RegExpNode* that) {
@@ -3677,7 +3678,7 @@ class Analysis : public NodeVisitor {
   } while (false)
 
   void VisitText(TextNode* that) override {
-    that->MakeCaseIndependent(isolate(), is_one_byte_);
+    that->MakeCaseIndependent(isolate(), is_one_byte_, flags_);
     EnsureAnalyzed(that->on_success());
     if (has_failed()) return;
     that->CalculateOffsets();
@@ -3744,16 +3745,17 @@ class Analysis : public NodeVisitor {
 
  private:
   Isolate* isolate_;
-  bool is_one_byte_;
+  const bool is_one_byte_;
+  const JSRegExp::Flags flags_;
   RegExpError error_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
 RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
-                          RegExpNode* node) {
-  Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(isolate,
-                                                                is_one_byte);
+                          JSRegExp::Flags flags, RegExpNode* node) {
+  Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(
+      isolate, is_one_byte, flags);
   DCHECK_EQ(node->info()->been_analyzed, false);
   analysis.EnsureAnalyzed(node);
   DCHECK_IMPLIES(analysis.has_failed(), analysis.error() != RegExpError::kNone);
@@ -3807,7 +3809,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
           return;
         }
         base::uc16 character = atom->data()[j];
-        if (IgnoreCase(atom->flags())) {
+        if (IgnoreCase(bm->compiler()->flags())) {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(
               isolate, character, bm->max_char() == String::kMaxOneByteCharCode,
@@ -3846,7 +3848,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
 }
 
 RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
-    RegExpNode* on_success, JSRegExp::Flags flags) {
+    RegExpNode* on_success) {
   DCHECK(!read_backward());
   ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
       zone(), CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
@@ -3858,11 +3860,11 @@ RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
   int stack_register = UnicodeLookaroundStackRegister();
   int position_register = UnicodeLookaroundPositionRegister();
   RegExpNode* step_back = TextNode::CreateForCharacterRanges(
-      zone(), lead_surrogates, true, on_success, flags);
+      zone(), lead_surrogates, true, on_success);
   RegExpLookaround::Builder builder(true, step_back, stack_register,
                                     position_register);
   RegExpNode* match_trail = TextNode::CreateForCharacterRanges(
-      zone(), trail_surrogates, false, builder.on_match_success(), flags);
+      zone(), trail_surrogates, false, builder.on_match_success());
 
   optional_step_back->AddAlternative(
       GuardedAlternative(builder.ForMatch(match_trail)));
@@ -3881,11 +3883,9 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   if (!data->tree->IsAnchoredAtStart() && !IsSticky(flags)) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
-    JSRegExp::Flags default_flags = JSRegExp::Flags();
     RegExpNode* loop_node = RegExpQuantifier::ToNode(
-        0, RegExpTree::kInfinity, false,
-        zone()->New<RegExpCharacterClass>('*', default_flags), this,
-        captured_body, data->contains_anchor);
+        0, RegExpTree::kInfinity, false, zone()->New<RegExpCharacterClass>('*'),
+        this, captured_body, data->contains_anchor);
 
     if (data->contains_anchor) {
       // Unroll loop once, to take care of the case that might start
@@ -3893,22 +3893,21 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
-          zone()->New<RegExpCharacterClass>('*', default_flags), false,
-          loop_node)));
+          zone()->New<RegExpCharacterClass>('*'), false, loop_node)));
       node = first_step_node;
     } else {
       node = loop_node;
     }
   }
   if (is_one_byte) {
-    node = node->FilterOneByte(RegExpCompiler::kMaxRecursion);
+    node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, flags);
     // Do it again to propagate the new nodes to places where they were not
     // put because they had not been calculated yet.
     if (node != nullptr) {
-      node = node->FilterOneByte(RegExpCompiler::kMaxRecursion);
+      node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, flags);
     }
   } else if (IsUnicode(flags) && (IsGlobal(flags) || IsSticky(flags))) {
-    node = OptionallyStepBackToLeadSurrogate(node, flags);
+    node = OptionallyStepBackToLeadSurrogate(node);
   }
 
   if (node == nullptr) node = zone()->New<EndNode>(EndNode::BACKTRACK, zone());

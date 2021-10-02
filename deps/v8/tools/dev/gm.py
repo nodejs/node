@@ -156,6 +156,7 @@ v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
+dcheck_always_on = false
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\

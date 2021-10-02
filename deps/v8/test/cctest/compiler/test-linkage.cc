@@ -6,6 +6,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/script-details.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -34,8 +35,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source_code, Compiler::ScriptDetails(),
-          v8::ScriptOriginOptions(), nullptr, nullptr,
+          isolate, source_code, ScriptDetails(), nullptr, nullptr,
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();

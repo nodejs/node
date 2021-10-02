@@ -21,6 +21,7 @@
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
@@ -46,7 +47,7 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
     if (is_int32(delta)) {
       movq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -62,7 +63,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 }
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta =
         RootRegisterOffsetForExternalReference(isolate(), destination);
     if (is_int32(delta)) {
@@ -103,7 +104,7 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
     if (is_int32(delta)) {
       leaq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -123,7 +124,7 @@ void TurboAssembler::LoadAddress(Register destination,
 
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     int64_t delta =
         RootRegisterOffsetForExternalReference(isolate(), reference);
     if (is_int32(delta)) {
@@ -155,26 +156,29 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   Push(kScratchRegister);
 }
 
+Operand TurboAssembler::RootAsOperand(RootIndex index) {
+  DCHECK(root_array_available());
+  return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   DCHECK(root_array_available_);
-  movq(destination,
-       Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  movq(destination, RootAsOperand(index));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(root_array_available_);
-  Push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  Push(RootAsOperand(index));
 }
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(root_array_available_);
   if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                       RootIndex::kLastStrongOrReadOnlyRoot)) {
-    cmp_tagged(with,
-               Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmp_tagged(with, RootAsOperand(index));
   } else {
     // Some smi roots contain system pointer size values like stack limits.
-    cmpq(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmpq(with, RootAsOperand(index));
   }
 }
 
@@ -1192,7 +1196,7 @@ Register TurboAssembler::GetSmiConstant(Smi source) {
   return kScratchRegister;
 }
 
-void MacroAssembler::Cmp(Register dst, int32_t src) {
+void TurboAssembler::Cmp(Register dst, int32_t src) {
   if (src == 0) {
     testl(dst, dst);
   } else {
@@ -1200,7 +1204,7 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
-void MacroAssembler::SmiTag(Register reg) {
+void TurboAssembler::SmiTag(Register reg) {
   STATIC_ASSERT(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
@@ -1210,7 +1214,7 @@ void MacroAssembler::SmiTag(Register reg) {
   }
 }
 
-void MacroAssembler::SmiTag(Register dst, Register src) {
+void TurboAssembler::SmiTag(Register dst, Register src) {
   DCHECK(dst != src);
   if (COMPRESS_POINTERS_BOOL) {
     movl(dst, src);
@@ -1261,18 +1265,18 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
   }
 }
 
-void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
+void TurboAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);
   cmp_tagged(smi1, smi2);
 }
 
-void MacroAssembler::SmiCompare(Register dst, Smi src) {
+void TurboAssembler::SmiCompare(Register dst, Smi src) {
   AssertSmi(dst);
   Cmp(dst, src);
 }
 
-void MacroAssembler::Cmp(Register dst, Smi src) {
+void TurboAssembler::Cmp(Register dst, Smi src) {
   if (src.value() == 0) {
     test_tagged(dst, dst);
   } else {
@@ -1282,19 +1286,19 @@ void MacroAssembler::Cmp(Register dst, Smi src) {
   }
 }
 
-void MacroAssembler::SmiCompare(Register dst, Operand src) {
+void TurboAssembler::SmiCompare(Register dst, Operand src) {
   AssertSmi(dst);
   AssertSmi(src);
   cmp_tagged(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Register src) {
+void TurboAssembler::SmiCompare(Operand dst, Register src) {
   AssertSmi(dst);
   AssertSmi(src);
   cmp_tagged(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Smi src) {
+void TurboAssembler::SmiCompare(Operand dst, Smi src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
     cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src.value()));
@@ -1304,7 +1308,7 @@ void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   }
 }
 
-void MacroAssembler::Cmp(Operand dst, Smi src) {
+void TurboAssembler::Cmp(Operand dst, Smi src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
@@ -1329,19 +1333,19 @@ void TurboAssembler::JumpIfSmi(Register src, Label* on_smi,
   j(smi, on_smi, near_jump);
 }
 
-void MacroAssembler::JumpIfNotSmi(Register src, Label* on_not_smi,
+void TurboAssembler::JumpIfNotSmi(Register src, Label* on_not_smi,
                                   Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
+void TurboAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
                                   Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
+void TurboAssembler::SmiAddConstant(Operand dst, Smi constant) {
   if (constant.value() != 0) {
     if (SmiValuesAre32Bits()) {
       addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant.value()));
@@ -1361,7 +1365,7 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
   }
 }
 
-SmiIndex MacroAssembler::SmiToIndex(Register dst, Register src, int shift) {
+SmiIndex TurboAssembler::SmiToIndex(Register dst, Register src, int shift) {
   if (SmiValuesAre32Bits()) {
     DCHECK(is_uint6(shift));
     // There is a possible optimization if shift is in the range 60-63, but that
@@ -1664,6 +1668,65 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
 
   PopReturnAddressTo(scratch);
   Drop(stack_elements);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  int receiver_bytes =
+      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
+  switch (type) {
+    case kCountIsInteger: {
+      leaq(rsp, Operand(rsp, count, times_system_pointer_size, receiver_bytes));
+      break;
+    }
+    case kCountIsSmi: {
+      SmiIndex index = SmiToIndex(count, count, kSystemPointerSizeLog2);
+      leaq(rsp, Operand(rsp, index.reg, index.scale, receiver_bytes));
+      break;
+    }
+    case kCountIsBytes: {
+      if (receiver_bytes == 0) {
+        addq(rsp, count);
+      } else {
+        leaq(rsp, Operand(rsp, count, times_1, receiver_bytes));
+      }
+      break;
+    }
+  }
+}
+
+void TurboAssembler::DropArguments(Register count, Register scratch,
+                                   ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(count, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(count, type, mode);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, receiver, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Operand receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, scratch));
+  DCHECK(!receiver.AddressUsesRegister(scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
   PushReturnAddressFrom(scratch);
 }
 
@@ -2694,21 +2757,21 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   cmpl(kScratchRegister, Immediate(higher_limit - lower_limit));
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);
   Check(NegateCondition(is_smi), AbortReason::kOperandIsASmi);
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);
   Check(is_smi, AbortReason::kOperandIsNotASmi);
 }
 
-void MacroAssembler::AssertSmi(Operand object) {
+void TurboAssembler::AssertSmi(Operand object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);
@@ -2859,55 +2922,6 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the destination address where we will put the return address
-  // after we drop current frame.
-  Register new_sp_reg = scratch0;
-  subq(caller_args_count, callee_args_count);
-  leaq(new_sp_reg, Operand(rbp, caller_args_count, times_system_pointer_size,
-                           StandardFrameConstants::kCallerPCOffset));
-
-  if (FLAG_debug_code) {
-    cmpq(rsp, new_sp_reg);
-    Check(below, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Copy return address from caller's frame to current frame's return address
-  // to avoid its trashing and let the following loop copy it to the right
-  // place.
-  Register tmp_reg = scratch1;
-  movq(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
-  movq(Operand(rsp, 0), tmp_reg);
-
-  // Restore caller's frame pointer now as it could be overwritten by
-  // the copying loop.
-  movq(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-
-  // +2 here is to copy both receiver and return address.
-  Register count_reg = caller_args_count;
-  leaq(count_reg, Operand(callee_args_count, 2));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-  Label loop, entry;
-  jmp(&entry, Label::kNear);
-  bind(&loop);
-  decq(count_reg);
-  movq(tmp_reg, Operand(rsp, count_reg, times_system_pointer_size, 0));
-  movq(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
-  bind(&entry);
-  cmpq(count_reg, Immediate(0));
-  j(not_equal, &loop, Label::kNear);
-
-  // Leave current frame.
-  movq(rsp, new_sp_reg);
-}
-
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {
@@ -3000,23 +3014,22 @@ Operand MacroAssembler::StackLimitAsOperand(StackLimitKind kind) {
 }
 
 void MacroAssembler::StackOverflowCheck(
-    Register num_args, Register scratch, Label* stack_overflow,
+    Register num_args, Label* stack_overflow,
     Label::Distance stack_overflow_distance) {
   ASM_CODE_COMMENT(this);
-  DCHECK_NE(num_args, scratch);
+  DCHECK_NE(num_args, kScratchRegister);
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  movq(kScratchRegister, StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-  movq(scratch, rsp);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  subq(scratch, kScratchRegister);
+  movq(kScratchRegister, rsp);
+  // Make kScratchRegister the space we have left. The stack might already be
+  // overflowed here which will cause kScratchRegister to become negative.
+  subq(kScratchRegister, StackLimitAsOperand(StackLimitKind::kRealStackLimit));
   // TODO(victorgomes): Use ia32 approach with leaq, since it requires less
   // instructions.
-  sarq(scratch, Immediate(kSystemPointerSizeLog2));
+  sarq(kScratchRegister, Immediate(kSystemPointerSizeLog2));
   // Check if the arguments will overflow the stack.
-  cmpq(scratch, num_args);
+  cmpq(kScratchRegister, num_args);
   // Signed comparison.
   // TODO(victorgomes):  Save some bytes in the builtins that use stack checks
   // by jumping to a builtin that throws the exception.
@@ -3043,7 +3056,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     j(less_equal, &regular_invoke, Label::kFar);
 
     Label stack_overflow;
-    StackOverflowCheck(expected_parameter_count, rcx, &stack_overflow);
+    StackOverflowCheck(expected_parameter_count, &stack_overflow);
 
     // Underapplication. Move the arguments already in the stack, including the
     // receiver and the return address.
@@ -3147,6 +3160,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   if (!StackFrame::IsJavaScript(type)) {
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {

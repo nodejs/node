@@ -75,10 +75,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
 #ifndef DEBUG
   static constexpr size_t kV8ActivationThreshold = 8 * MB;
-  static constexpr size_t kGlobalActivationThreshold = 16 * MB;
+  static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
 #else
   static constexpr size_t kV8ActivationThreshold = 0;
-  static constexpr size_t kGlobalActivationThreshold = 0;
+  static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
 
 #ifdef V8_ATOMIC_MARKING_STATE

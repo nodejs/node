@@ -5,13 +5,13 @@
 // JSReceiver corresponds to objects in the JS sense.
 @abstract
 @highestInstanceTypeWithinParentClassRange
+@doNotGenerateCppClass
 extern class JSReceiver extends HeapObject {
   properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
 }
 
 type Constructor extends JSReceiver;
 
-@generateCppClass
 @apiExposedInstanceTypeValue(0x421)
 @highestInstanceTypeWithinParentClassRange
 extern class JSObject extends JSReceiver {
@@ -42,13 +42,11 @@ macro NewJSObject(implicit context: Context)(): JSObject {
 }
 
 @abstract
-@generateCppClass
 @lowestInstanceTypeWithinParentClassRange
 extern class JSCustomElementsObject extends JSObject {
 }
 
 @abstract
-@generateCppClass
 @lowestInstanceTypeWithinParentClassRange
 extern class JSSpecialObject extends JSCustomElementsObject {
 }
@@ -93,23 +91,21 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
       SlackTrackingMode::kWithSlackTracking);
 }
 
-@generateCppClass
 extern class JSGlobalProxy extends JSSpecialObject {
   // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
   native_context: Object;
 }
 
+@doNotGenerateCppClass
 extern class JSGlobalObject extends JSSpecialObject {
   native_context: NativeContext;
   global_proxy: JSGlobalProxy;
 }
 
-@generateCppClass
-extern class JSPrimitiveWrapper extends JSCustomElementsObject {
-  value: JSAny;
-}
+extern class JSPrimitiveWrapper extends JSCustomElementsObject { value: JSAny; }
 
+@doNotGenerateCppClass
 extern class JSMessageObject extends JSObject {
   // Tagged fields.
   message_type: Smi;
@@ -126,7 +122,6 @@ extern class JSMessageObject extends JSObject {
   error_level: Smi;
 }
 
-@generateCppClass
 extern class JSDate extends JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
 
@@ -147,7 +142,6 @@ extern class JSDate extends JSObject {
   cache_stamp: Undefined|Smi|NaN;
 }
 
-@generateCppClass
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
   // The "next" method is loaded during GetIterator, and is not reloaded for
@@ -155,7 +149,6 @@ extern class JSAsyncFromSyncIterator extends JSObject {
   next: Object;
 }
 
-@generateCppClass
 extern class JSStringIterator extends JSObject {
   // The [[IteratedString]] slot.
   string: String;

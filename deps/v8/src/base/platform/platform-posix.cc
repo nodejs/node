@@ -153,7 +153,7 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
-#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT)
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
   if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
     flags |= MAP_JIT;
   }

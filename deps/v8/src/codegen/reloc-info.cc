@@ -157,7 +157,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteShortData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
-               RelocInfo::IsDeoptPosition(rmode)) {
+               RelocInfo::IsDeoptPosition(rmode) ||
+               RelocInfo::IsDeoptNodeId(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -244,7 +245,8 @@ void RelocIterator::next() {
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
-                   RelocInfo::IsDeoptPosition(rmode)) {
+                   RelocInfo::IsDeoptPosition(rmode) ||
+                   RelocInfo::IsDeoptNodeId(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -422,6 +424,10 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "deopt reason";
     case DEOPT_ID:
       return "deopt index";
+    case LITERAL_CONSTANT:
+      return "literal constant";
+    case DEOPT_NODE_ID:
+      return "deopt node id";
     case CONST_POOL:
       return "constant pool";
     case VENEER_POOL:
@@ -525,6 +531,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_INLINING_ID:
     case DEOPT_REASON:
     case DEOPT_ID:
+    case LITERAL_CONSTANT:
+    case DEOPT_NODE_ID:
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CALL:

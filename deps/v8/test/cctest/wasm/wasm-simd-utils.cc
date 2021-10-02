@@ -401,15 +401,6 @@ bool IsExtreme(float x) {
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
 
-bool IsSameNan(float expected, float actual) {
-  // Sign is non-deterministic.
-  uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
-  uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
-  // Some implementations convert signaling NaNs to quiet NaNs.
-  return (expected_bits == actual_bits) ||
-         ((expected_bits | 0x00400000) == actual_bits);
-}
-
 bool IsCanonical(float actual) {
   uint32_t actual_bits = bit_cast<uint32_t>(actual);
   // Canonical NaN has quiet bit and no payload.
@@ -572,15 +563,6 @@ bool IsExtreme(double x) {
   const double kLargeFloatThreshold = 1.0e298;
   return abs_x != 0.0f &&  // 0 or -0 are fine.
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
-}
-
-bool IsSameNan(double expected, double actual) {
-  // Sign is non-deterministic.
-  uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
-  uint64_t actual_bits = bit_cast<uint64_t>(actual) & ~0x8000000000000000;
-  // Some implementations convert signaling NaNs to quiet NaNs.
-  return (expected_bits == actual_bits) ||
-         ((expected_bits | 0x0008000000000000) == actual_bits);
 }
 
 bool IsCanonical(double actual) {

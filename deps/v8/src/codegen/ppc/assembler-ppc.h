@@ -196,6 +196,15 @@ class Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  // This function is called when on-heap-compilation invariants are
+  // invalidated. For instance, when the assembler buffer grows or a GC happens
+  // between Code object allocation and Code object finalization.
+  void FixOnHeapReferences(bool update_embedded_objects = true);
+
+  // This function is called when we fallback from on-heap to off-heap
+  // compilation and patch on-heap references to handles.
+  void FixOnHeapReferencesToHandles();
+
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
   inline void CheckTrampolinePoolQuick(int extra_space = 0) {
@@ -454,25 +463,37 @@ class Assembler : public AssemblerBase {
   PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
 #undef DECLARE_PPC_XX2_INSTRUCTIONS
 
-#define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)    \
-  inline void name(const Simd128Register rt, const Simd128Register ra, \
-                   const Simd128Register rb) {                         \
-    xx3_form(instr_name, rt, ra, rb);                                  \
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register ra,     \
+                   const Simd128Register rb) {                             \
+    xx3_form(instr_name, rt, ra, rb);                                      \
+  }
+#define DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const DoubleRegister rt, const DoubleRegister ra,       \
+                   const DoubleRegister rb) {                              \
+    xx3_form(instr_name, rt, ra, rb);                                      \
   }
 
-  inline void xx3_form(Instr instr, Simd128Register t, Simd128Register a,
-                       Simd128Register b) {
-    // Using VR (high VSR) registers.
-    int AX = 1;
-    int BX = 1;
-    int TX = 1;
+  template <typename T>
+  inline void xx3_form(Instr instr, T t, T a, T b) {
+    static_assert(std::is_same<T, Simd128Register>::value ||
+                      std::is_same<T, DoubleRegister>::value,
+                  "VSX only uses FP or Vector registers.");
+    // Using FP (low VSR) registers.
+    int AX = 0, BX = 0, TX = 0;
+    // Using VR (high VSR) registers when Simd registers are used.
+    if (std::is_same<T, Simd128Register>::value) {
+      AX = BX = TX = 1;
+    }
 
     emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
   }
 
-  PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
-#undef DECLARE_PPC_XX3_INSTRUCTIONS
+  PPC_XX3_OPCODE_VECTOR_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS)
+  PPC_XX3_OPCODE_SCALAR_LIST(DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS)
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register rb,    \
@@ -492,6 +513,15 @@ class Assembler : public AssemblerBase {
   inline void name(const Simd128Register rt, const Operand& imm) {        \
     vx_form(instr_name, rt, imm);                                         \
   }
+#define DECLARE_PPC_VX_INSTRUCTIONS_F_FORM(name, instr_name, instr_value) \
+  inline void name(const Register rt, const Simd128Register rb) {         \
+    vx_form(instr_name, rt, rb);                                          \
+  }
+#define DECLARE_PPC_VX_INSTRUCTIONS_G_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Register rb,           \
+                   const Operand& imm) {                                  \
+    vx_form(instr_name, rt, rb, imm);                                     \
+  }
 
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
                       const Operand& imm) {
@@ -509,6 +539,14 @@ class Assembler : public AssemblerBase {
   inline void vx_form(Instr instr, Simd128Register rt, const Operand& imm) {
     emit(instr | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0x1F) * B16);
   }
+  inline void vx_form(Instr instr, Register rt, Simd128Register rb) {
+    emit(instr | (rt.code() & 0x1F) * B21 | (rb.code() & 0x1F) * B11);
+  }
+  inline void vx_form(Instr instr, Simd128Register rt, Register rb,
+                      const Operand& imm) {
+    emit(instr | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0x1F) * B16 |
+         (rb.code() & 0x1F) * B11);
+  }
 
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
   PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
@@ -517,10 +555,14 @@ class Assembler : public AssemblerBase {
       DECLARE_PPC_VX_INSTRUCTIONS_C_FORM) /* OPCODE_D_FORM can use
                                              INSTRUCTIONS_C_FORM */
   PPC_VX_OPCODE_E_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_E_FORM)
+  PPC_VX_OPCODE_F_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_F_FORM)
+  PPC_VX_OPCODE_G_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_G_FORM)
 #undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_C_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_E_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_F_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_G_FORM
 
 #define DECLARE_PPC_VA_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register ra,    \
@@ -565,6 +607,7 @@ class Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Branch instructions
   void bclr(BOfield bo, int condition_bit, LKBit lk);
@@ -826,6 +869,7 @@ class Assembler : public AssemblerBase {
 
   void mulhw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulhwu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulli(Register dst, Register src, const Operand& imm);
 
   void divw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
@@ -1039,6 +1083,8 @@ class Assembler : public AssemblerBase {
   void fmsub(const DoubleRegister frt, const DoubleRegister fra,
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
+  void fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
+              const DoubleRegister frc, RCBit rc = LeaveRC);
 
   // Vector instructions
   void mfvsrd(const Register ra, const Simd128Register r);
@@ -1143,8 +1189,8 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.

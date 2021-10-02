@@ -3,17 +3,14 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class Microtask extends Struct {
 }
 
-@generateCppClass
 extern class CallbackTask extends Microtask {
   callback: Foreign;
   data: Foreign;
 }
 
-@generateCppClass
 extern class CallableTask extends Microtask {
   callable: JSReceiver;
   context: Context;

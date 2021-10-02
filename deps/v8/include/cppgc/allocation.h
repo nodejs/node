@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <new>
 #include <type_traits>
+#include <utility>
 
 #include "cppgc/custom-space.h"
 #include "cppgc/internal/api-constants.h"

@@ -129,7 +129,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   void reportExecutionContextCreated(InspectedContext*);
   void reportExecutionContextDestroyed(InspectedContext*);
   void inspect(std::unique_ptr<protocol::Runtime::RemoteObject> objectToInspect,
-               std::unique_ptr<protocol::DictionaryValue> hints);
+               std::unique_ptr<protocol::DictionaryValue> hints,
+               int executionContextId);
   void messageAdded(V8ConsoleMessage*);
   bool enabled() const { return m_enabled; }
 

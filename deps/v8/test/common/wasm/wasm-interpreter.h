@@ -40,7 +40,7 @@ struct ControlTransferEntry {
 };
 
 struct CatchControlTransferEntry : public ControlTransferEntry {
-  int exception_index;
+  int tag_index;
   int target_control_index;
 };
 

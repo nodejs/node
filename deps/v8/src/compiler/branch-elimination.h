@@ -10,6 +10,7 @@
 #include "src/compiler/functional-list.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/persistent-map.h"
 
 namespace v8 {
 namespace internal {
@@ -38,6 +39,9 @@ class V8_EXPORT_PRIVATE BranchElimination final
   // Represents a condition along with its value in the current control path.
   // Also stores the node that branched on this condition.
   struct BranchCondition {
+    BranchCondition() : condition(nullptr), branch(nullptr), is_true(false) {}
+    BranchCondition(Node* condition, Node* branch, bool is_true)
+        : condition(condition), branch(branch), is_true(is_true) {}
     Node* condition;
     Node* branch;
     bool is_true;
@@ -47,15 +51,17 @@ class V8_EXPORT_PRIVATE BranchElimination final
              is_true == other.is_true;
     }
     bool operator!=(BranchCondition other) const { return !(*this == other); }
+
+    bool IsSet() const { return branch != nullptr; }
   };
 
   // Class for tracking information about branch conditions. It is represented
   // as a linked list of condition blocks, each of which corresponds to a block
   // of code bewteen an IfTrue/IfFalse and a Merge. Each block is in turn
   // represented as a linked list of {BranchCondition}s.
-  class ControlPathConditions
-      : public FunctionalList<FunctionalList<BranchCondition>> {
+  class ControlPathConditions {
    public:
+    explicit ControlPathConditions(Zone* zone) : conditions_(zone) {}
     // Checks if {condition} is present in this {ControlPathConditions}.
     bool LookupCondition(Node* condition) const;
     // Checks if {condition} is present in this {ControlPathConditions} and
@@ -68,9 +74,29 @@ class V8_EXPORT_PRIVATE BranchElimination final
     // Adds a condition in a new block.
     void AddConditionInNewBlock(Zone* zone, Node* condition, Node* branch,
                                 bool is_true);
+    // Reset this {ControlPathConditions} to the longest prefix that is common
+    // with {other}.
+    void ResetToCommonAncestor(ControlPathConditions other);
+
+    bool operator==(const ControlPathConditions& other) const {
+      return blocks_ == other.blocks_;
+    }
+    bool operator!=(const ControlPathConditions& other) const {
+      return blocks_ != other.blocks_;
+    }
+
+    friend class BranchElimination;
 
    private:
-    using FunctionalList<FunctionalList<BranchCondition>>::PushFront;
+    FunctionalList<FunctionalList<BranchCondition>> blocks_;
+    // This is an auxilliary data structure that provides fast lookups in the
+    // set of conditions. It should hold at any point that the contents of
+    // {blocks_} and {conditions_} is the same, which is implemented in
+    // {BlocksAndConditionsInvariant}.
+    PersistentMap<Node*, BranchCondition> conditions_;
+#if DEBUG
+    bool BlocksAndConditionsInvariant();
+#endif
   };
 
   Reduction ReduceBranch(Node* node);
@@ -101,7 +127,9 @@ class V8_EXPORT_PRIVATE BranchElimination final
   // Maps each control node to the condition information known about the node.
   // If the information is nullptr, then we have not calculated the information
   // yet.
-  NodeAuxData<ControlPathConditions> node_conditions_;
+
+  NodeAuxData<ControlPathConditions, ZoneConstruct<ControlPathConditions>>
+      node_conditions_;
   NodeAuxData<bool> reduced_;
   Zone* zone_;
   Node* dead_;

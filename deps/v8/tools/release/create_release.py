@@ -137,7 +137,7 @@ class CommitBranch(Step):
 
   def RunStep(self):
     self["commit_title"] = "Version %s" % self["version"]
-    text = "%s\n\nTBR=%s" % (self["commit_title"], self._options.reviewer)
+    text = "%s" % (self["commit_title"])
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
@@ -153,7 +153,10 @@ class LandBranch(Step):
       self.GitUpload(force=True,
                      bypass_hooks=True,
                      no_autocc=True,
+                     set_bot_commit=True,
                      message_file=self.Config("COMMITMSG_FILE"))
+    # TODO(crbug.com/1176141): This might need to go through CQ.
+    # We'd need to wait for it to land and then tag it.
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print("Dry run. Command:\ngit %s" % cmd)

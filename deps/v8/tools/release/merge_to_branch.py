@@ -224,8 +224,6 @@ class MergeToBranch(ScriptsBase):
         print("You must specify a merge comment if no patches are specified")
         return False
     options.bypass_upload_hooks = True
-    # CC ulan to make sure that fixes are merged to Google3.
-    options.cc = "ulan@chromium.org"
 
     if len(options.branch.split('.')) > 2:
       print ("This script does not support merging to roll branches. "

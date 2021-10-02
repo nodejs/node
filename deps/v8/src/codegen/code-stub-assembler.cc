@@ -1891,7 +1891,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
   // See Map::GetInObjectPropertiesStartInWords() for details.
   CSA_ASSERT(this, IsJSObjectMap(map));
   return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
+      map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
@@ -1899,7 +1899,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
   // See Map::GetConstructorFunctionIndex() for details.
   CSA_ASSERT(this, IsPrimitiveInstanceType(LoadMapInstanceType(map)));
   return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
+      map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<Object> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {
@@ -6195,6 +6195,13 @@ TNode<BoolT> CodeStubAssembler::IsArraySpeciesProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
+TNode<BoolT> CodeStubAssembler::IsIsConcatSpreadableProtectorCellInvalid() {
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
+  TNode<PropertyCell> cell = IsConcatSpreadableProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return TaggedEqual(cell_value, invalid);
+}
+
 TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = TypedArraySpeciesProtectorConstant();
@@ -9689,7 +9696,7 @@ void CodeStubAssembler::TryLookupElement(
   // TODO(verwaest): Support other elements kinds as well.
   Label if_isobjectorsmi(this), if_isdouble(this), if_isdictionary(this),
       if_isfaststringwrapper(this), if_isslowstringwrapper(this), if_oob(this),
-      if_typedarray(this);
+      if_typedarray(this), if_rab_gsab_typedarray(this);
   // clang-format off
   int32_t values[] = {
       // Handled by {if_isobjectorsmi}.
@@ -9719,8 +9726,18 @@ void CodeStubAssembler::TryLookupElement(
       UINT8_CLAMPED_ELEMENTS,
       BIGUINT64_ELEMENTS,
       BIGINT64_ELEMENTS,
+      RAB_GSAB_UINT8_ELEMENTS,
+      RAB_GSAB_INT8_ELEMENTS,
+      RAB_GSAB_UINT16_ELEMENTS,
+      RAB_GSAB_INT16_ELEMENTS,
+      RAB_GSAB_UINT32_ELEMENTS,
+      RAB_GSAB_INT32_ELEMENTS,
+      RAB_GSAB_FLOAT32_ELEMENTS,
+      RAB_GSAB_FLOAT64_ELEMENTS,
+      RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+      RAB_GSAB_BIGUINT64_ELEMENTS,
+      RAB_GSAB_BIGINT64_ELEMENTS,
   };
-  // TODO(v8:11111): Support RAB / GSAB.
   Label* labels[] = {
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
@@ -9742,6 +9759,17 @@ void CodeStubAssembler::TryLookupElement(
       &if_typedarray,
       &if_typedarray,
       &if_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
   };
   // clang-format on
   STATIC_ASSERT(arraysize(values) == arraysize(labels));
@@ -9806,6 +9834,13 @@ void CodeStubAssembler::TryLookupElement(
     GotoIf(IsDetachedBuffer(buffer), if_absent);
 
     TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
+    Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
+  }
+  BIND(&if_rab_gsab_typedarray);
+  {
+    TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
+    TNode<UintPtrT> length =
+        LoadVariableLengthJSTypedArrayLength(CAST(object), buffer, if_absent);
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
@@ -13891,6 +13926,45 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   return result.value();
 }
 
+void CodeStubAssembler::IsTypedArrayDetachedOrOutOfBounds(
+    TNode<JSTypedArray> array, Label* detached_or_oob,
+    Label* not_detached_nor_oob) {
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
+
+  GotoIf(IsDetachedBuffer(buffer), detached_or_oob);
+  GotoIfNot(IsVariableLengthTypedArray(array), not_detached_nor_oob);
+  GotoIf(IsSharedArrayBuffer(buffer), not_detached_nor_oob);
+
+  {
+    TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
+    TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
+
+    Label length_tracking(this), not_length_tracking(this);
+    Branch(IsLengthTrackingTypedArray(array), &length_tracking,
+           &not_length_tracking);
+
+    BIND(&length_tracking);
+    {
+      // The backing RAB might have been shrunk so that the start of the
+      // TypedArray is already out of bounds.
+      Branch(UintPtrLessThanOrEqual(array_byte_offset, buffer_byte_length),
+             not_detached_nor_oob, detached_or_oob);
+    }
+
+    BIND(&not_length_tracking);
+    {
+      // Check if the backing RAB has shrunk so that the buffer is out of
+      // bounds.
+      TNode<UintPtrT> array_byte_length =
+          LoadJSArrayBufferViewByteLength(array);
+      Branch(UintPtrGreaterThanOrEqual(
+                 buffer_byte_length,
+                 UintPtrAdd(array_byte_offset, array_byte_length)),
+             not_detached_nor_oob, detached_or_oob);
+    }
+  }
+}
+
 // ES #sec-integerindexedobjectbytelength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
     TNode<Context> context, TNode<JSTypedArray> array,
@@ -14376,7 +14450,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, ToCodeT(code));
+  StoreObjectField(fun, JSFunction::kCodeOffset, ToCodeT(code));
   return CAST(fun);
 }
 

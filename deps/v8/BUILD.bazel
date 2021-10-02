@@ -6,6 +6,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load(
     "@v8//:bazel/defs.bzl",
     "v8_binary",
+    "v8_build_config",
     "v8_config",
     "v8_custom_config",
     "v8_raw_flag",
@@ -358,6 +359,7 @@ filegroup(
     srcs = [
         "include/cppgc/allocation.h",
         "include/cppgc/common.h",
+        "include/cppgc/cross-thread-persistent.h",
         "include/cppgc/custom-space.h",
         "include/cppgc/default-platform.h",
         "include/cppgc/ephemeron-pair.h",
@@ -610,11 +612,14 @@ filegroup(
     srcs = [
         "src/builtins/aggregate-error.tq",
         "src/builtins/array-at.tq",
+        "src/builtins/array-concat.tq",
         "src/builtins/array-copywithin.tq",
         "src/builtins/array-every.tq",
         "src/builtins/array-filter.tq",
         "src/builtins/array-find.tq",
         "src/builtins/array-findindex.tq",
+        "src/builtins/array-findlast.tq",
+        "src/builtins/array-findlastindex.tq",
         "src/builtins/array-foreach.tq",
         "src/builtins/array-from.tq",
         "src/builtins/array-isarray.tq",
@@ -716,6 +721,8 @@ filegroup(
         "src/builtins/typed-array-filter.tq",
         "src/builtins/typed-array-find.tq",
         "src/builtins/typed-array-findindex.tq",
+        "src/builtins/typed-array-findlast.tq",
+        "src/builtins/typed-array-findlastindex.tq",
         "src/builtins/typed-array-foreach.tq",
         "src/builtins/typed-array-from.tq",
         "src/builtins/typed-array-keys.tq",
@@ -1018,6 +1025,7 @@ filegroup(
         "src/codegen/reloc-info.h",
         "src/codegen/safepoint-table.cc",
         "src/codegen/safepoint-table.h",
+        "src/codegen/script-details.h",
         "src/codegen/signature.h",
         "src/codegen/source-position-table.cc",
         "src/codegen/source-position-table.h",
@@ -1041,8 +1049,8 @@ filegroup(
         "src/common/message-template.h",
         "src/common/ptr-compr-inl.h",
         "src/common/ptr-compr.h",
-        "src/compiler-dispatcher/compiler-dispatcher.cc",
-        "src/compiler-dispatcher/compiler-dispatcher.h",
+        "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
+        "src/compiler-dispatcher/lazy-compile-dispatcher.h",
         "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
         "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
         "src/date/date.cc",
@@ -1253,6 +1261,7 @@ filegroup(
         "src/heap/invalidated-slots.h",
         "src/heap/large-spaces.cc",
         "src/heap/large-spaces.h",
+        "src/heap/linear-allocation-area.h",
         "src/heap/list.h",
         "src/heap/local-allocator-inl.h",
         "src/heap/local-allocator.h",
@@ -1403,6 +1412,7 @@ filegroup(
         "src/logging/counters-definitions.h",
         "src/logging/counters.cc",
         "src/logging/counters.h",
+        "src/logging/counters-scopes.h",
         "src/logging/local-logger.cc",
         "src/logging/local-logger.h",
         "src/logging/log-inl.h",
@@ -1591,6 +1601,7 @@ filegroup(
         "src/objects/prototype-info.h",
         "src/objects/prototype.h",
         "src/objects/prototype-inl.h",
+        "src/objects/regexp-match-info-inl.h",
         "src/objects/regexp-match-info.h",
         "src/objects/scope-info-inl.h",
         "src/objects/scope-info.cc",
@@ -2433,9 +2444,6 @@ filegroup(
         "src/compiler/scheduler.h",
         "src/compiler/select-lowering.cc",
         "src/compiler/select-lowering.h",
-        "src/compiler/serializer-for-background-compilation.cc",
-        "src/compiler/serializer-for-background-compilation.h",
-        "src/compiler/serializer-hints.h",
         "src/compiler/simplified-lowering.cc",
         "src/compiler/simplified-lowering.h",
         "src/compiler/simplified-operator.cc",
@@ -2672,10 +2680,12 @@ filegroup(
         "src/bigint/bigint-internal.h",
         "src/bigint/bigint.h",
         "src/bigint/digit-arithmetic.h",
+        "src/bigint/div-barrett.cc",
         "src/bigint/div-burnikel.cc",
         "src/bigint/div-helpers.cc",
         "src/bigint/div-helpers.h",
         "src/bigint/div-schoolbook.cc",
+        "src/bigint/fromstring.cc",
         "src/bigint/mul-fft.cc",
         "src/bigint/mul-karatsuba.cc",
         "src/bigint/mul-schoolbook.cc",
@@ -3049,4 +3059,43 @@ v8_binary(
         "src/d8/d8-test.cc",
     ],
     deps = [ ":v8" ],
+)
+
+# =================================================
+# Tests
+# =================================================
+
+v8_build_config(
+    name = "v8_build_config",
+)
+
+# Runs mjunit with d8.
+py_test(
+    name = "mjsunit",
+    size = "medium",
+    srcs = [
+        "test/mjsunit/testcfg.py",
+        "tools/predictable_wrapper.py",
+        "tools/run-tests.py",
+    ] + glob(["tools/testrunner/**/*.py"]),
+    args = [
+        "--no-sorting",
+        "--nopresubmit",
+        # TODO(victorgomes): Create a flag to pass the variant in the cmdline.
+        "--variant=default",
+        "--outdir bazel-bin",
+        "mjsunit",
+    ],
+    data = [
+        ":v8_build_config",
+        ":d8",
+        "test",
+    ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
+    main = "tools/run-tests.py",
+    # TODO(victorgomes): Move this to PY3.
+    python_version = "PY2",
+    tags = [
+        # Disable sanitizers, as they don't work in general in V8.
+        "nosan",
+    ],
 )

@@ -11,7 +11,6 @@ bitfield struct JSListFormatFlags extends uint31 {
   Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
 }
 
-@generateCppClass
 extern class JSListFormat extends JSObject {
   locale: String;
   icu_formatter: Foreign;  // Managed<icu::ListFormatter>
