@@ -394,7 +394,9 @@ int Code::MetadataSize() const {
 int Code::SizeIncludingMetadata() const {
   int size = CodeSize();
   size += relocation_info().Size();
-  size += deoptimization_data().Size();
+  if (kind() != CodeKind::BASELINE) {
+    size += deoptimization_data().Size();
+  }
   return size;
 }
 
