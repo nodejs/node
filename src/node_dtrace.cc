@@ -87,8 +87,8 @@ using v8::Value;
     return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
         "expected object for " #obj " to contain object member " #member); \
   }                                                                        \
-  *valp = Local<Object>::Cast(obj->Get(env->context(),                     \
-      OneByteString(env->isolate(), #member)).ToLocalChecked());
+  *valp = obj->Get(env->context(),                                         \
+      OneByteString(env->isolate(), #member)).ToLocalChecked().As<Object>();
 
 #define SLURP_CONNECTION(arg, conn)                                        \
   if (!(arg)->IsObject()) {                                                \
@@ -96,7 +96,7 @@ using v8::Value;
         "expected argument " #arg " to be a connection object");           \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
-  Local<Object> _##conn = Local<Object>::Cast(arg);                        \
+  Local<Object> _##conn = arg.As<Object>();                                \
   Local<Value> _handle =                                                   \
       (_##conn)->Get(env->context(),                                       \
                      FIXED_ONE_BYTE_STRING(env->isolate(), "_handle"))     \
@@ -116,7 +116,7 @@ using v8::Value;
         "expected argument " #arg " to be a connection object");           \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
-  Local<Object> _##conn = Local<Object>::Cast(arg);                        \
+  Local<Object> _##conn = arg.As<Object>();                                \
   SLURP_INT(_##conn, fd, &conn.fd);                                        \
   SLURP_STRING(_##conn, host, &conn.remote);                               \
   SLURP_INT(_##conn, port, &conn.port);                                    \
@@ -132,10 +132,10 @@ using v8::Value;
         "expected argument " #arg1 " to be a connection object");          \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
-  Local<Object> _##conn = Local<Object>::Cast(arg0);                       \
+  Local<Object> _##conn = arg0.As<Object>();                               \
   SLURP_INT(_##conn, fd, &conn.fd);                                        \
   SLURP_INT(_##conn, bufferSize, &conn.buffered);                          \
-  _##conn = Local<Object>::Cast(arg1);                                     \
+  _##conn = arg1.As<Object>();                                             \
   SLURP_STRING(_##conn, host, &conn.remote);                               \
   SLURP_INT(_##conn, port, &conn.port);
 
@@ -165,7 +165,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
 
   Environment* env = Environment::GetCurrent(args);
   HandleScope scope(env->isolate());
-  Local<Object> arg0 = Local<Object>::Cast(args[0]);
+  Local<Object> arg0 = args[0].As<Object>();
   Local<Object> headers;
 
   memset(&req, 0, sizeof(req));
@@ -217,7 +217,7 @@ void DTRACE_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
    * caller here to retain their method and URL until the time at which
    * DTRACE_HTTP_CLIENT_REQUEST can be called.
    */
-  Local<Object> arg0 = Local<Object>::Cast(args[0]);
+  Local<Object> arg0 = args[0].As<Object>();
   SLURP_STRING(arg0, _header, &header);
 
   req.method = header;
