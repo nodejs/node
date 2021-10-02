@@ -3065,11 +3065,6 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_pc_)),
            Internals::kIsolateFastCCallCallerPcOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.cage_base_)),
-           Internals::kIsolateCageBaseOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.long_task_stats_counter_)),
-           Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),
@@ -5023,18 +5018,6 @@ MaybeLocal<v8::Context> Isolate::GetContextFromRecorderContextId(
   if (result == recorder_context_id_map_.end() || result->second.IsEmpty())
     return MaybeLocal<v8::Context>();
   return result->second.Get(reinterpret_cast<v8::Isolate*>(this));
-}
-
-void Isolate::UpdateLongTaskStats() {
-  if (last_long_task_stats_counter_ != isolate_data_.long_task_stats_counter_) {
-    last_long_task_stats_counter_ = isolate_data_.long_task_stats_counter_;
-    long_task_stats_ = v8::metrics::LongTaskStats{};
-  }
-}
-
-v8::metrics::LongTaskStats* Isolate::GetCurrentLongTaskStats() {
-  UpdateLongTaskStats();
-  return &long_task_stats_;
 }
 
 void Isolate::RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data) {

@@ -19,7 +19,6 @@
 #include "src/objects/debug-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/pending-compilation-error-handler.h"
-#include "src/snapshot/code-serializer.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
@@ -27,7 +26,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class AlignedCachedData;
 class AstRawString;
 class BackgroundCompileTask;
 class IsCompiledScope;
@@ -37,6 +35,7 @@ class OptimizedCompilationJob;
 class ParseInfo;
 class Parser;
 class RuntimeCallStats;
+class ScriptData;
 class TimedHistogram;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
@@ -137,7 +136,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
       Handle<String> source, Handle<FixedArray> arguments,
       Handle<Context> context, const ScriptDetails& script_details,
-      AlignedCachedData* cached_data,
+      ScriptData* cached_data,
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);
 
@@ -162,8 +161,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, v8::Extension* extension,
-      AlignedCachedData* cached_data,
-      ScriptCompiler::CompileOptions compile_options,
+      ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code);
 
@@ -558,23 +556,6 @@ struct ScriptStreamingData {
 
   // Task that performs background parsing and compilation.
   std::unique_ptr<BackgroundCompileTask> task;
-};
-
-class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
- public:
-  BackgroundDeserializeTask(Isolate* isolate,
-                            std::unique_ptr<ScriptCompiler::CachedData> data);
-
-  void Run();
-
-  MaybeHandle<SharedFunctionInfo> Finish(Isolate* isolate,
-                                         Handle<String> source,
-                                         ScriptOriginOptions origin_options);
-
- private:
-  Isolate* isolate_for_local_isolate_;
-  AlignedCachedData cached_data_;
-  CodeSerializer::OffThreadDeserializeData off_thread_data_;
 };
 
 }  // namespace internal

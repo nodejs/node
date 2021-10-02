@@ -1006,9 +1006,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     }
     UNREACHABLE();
   }
-  if (InstanceTypeChecker::IsJSApiObject(type)) {
-    return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3, p4);
-  }
 
   switch (type) {
     case EMBEDDER_DATA_ARRAY_TYPE:

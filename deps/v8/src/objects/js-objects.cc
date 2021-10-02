@@ -2340,11 +2340,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmTagObject::kHeaderSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default: {
-      // Special type check for API Objects because they are in a large variable
-      // instance type range.
-      if (InstanceTypeChecker::IsJSApiObject(type)) {
-        return JSObject::kHeaderSize;
-      }
       std::stringstream ss;
       ss << type;
       FATAL("unexpected instance type: %s\n", ss.str().c_str());
@@ -5152,18 +5147,18 @@ bool JSObject::IsApiWrapper() {
   // *_API_* types are generated through templates which can have embedder
   // fields. The other types have their embedder fields added at compile time.
   auto instance_type = map().instance_type();
-  return instance_type == JS_ARRAY_BUFFER_TYPE ||
+  return instance_type == JS_API_OBJECT_TYPE ||
+         instance_type == JS_ARRAY_BUFFER_TYPE ||
          instance_type == JS_DATA_VIEW_TYPE ||
          instance_type == JS_GLOBAL_OBJECT_TYPE ||
          instance_type == JS_GLOBAL_PROXY_TYPE ||
          instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-         instance_type == JS_TYPED_ARRAY_TYPE ||
-         InstanceTypeChecker::IsJSApiObject(instance_type);
+         instance_type == JS_TYPED_ARRAY_TYPE;
 }
 
 bool JSObject::IsDroppableApiWrapper() {
   auto instance_type = map().instance_type();
-  return InstanceTypeChecker::IsJSApiObject(instance_type) ||
+  return instance_type == JS_API_OBJECT_TYPE ||
          instance_type == JS_SPECIAL_API_OBJECT_TYPE;
 }
 

@@ -112,10 +112,6 @@ VisitorId Map::GetVisitorId(Map map) {
     UNREACHABLE();
   }
 
-  if (InstanceTypeChecker::IsJSApiObject(map.instance_type())) {
-    return kVisitJSApiObject;
-  }
-
   switch (instance_type) {
     case BYTE_ARRAY_TYPE:
       return kVisitByteArray;

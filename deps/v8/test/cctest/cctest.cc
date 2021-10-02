@@ -414,9 +414,7 @@ int RegisterThreadedTest::count_ = 0;
 bool IsValidUnwrapObject(v8::Object* object) {
   i::Address addr = *reinterpret_cast<i::Address*>(object);
   auto instance_type = i::Internals::GetInstanceType(addr);
-  return (v8::base::IsInRange(instance_type,
-                              i::Internals::kFirstJSApiObjectType,
-                              i::Internals::kLastJSApiObjectType) ||
-          instance_type == i::Internals::kJSObjectType ||
+  return (instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSApiObjectType ||
           instance_type == i::Internals::kJSSpecialApiObjectType);
 }

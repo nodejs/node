@@ -302,8 +302,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       JSFunction::cast(*this).JSFunctionVerify(isolate);
       break;
-    case JS_LAST_DUMMY_API_OBJECT_TYPE:
-      UNREACHABLE();
   }
 }
 

@@ -1681,37 +1681,6 @@ Handle<Script> BackgroundCompileTask::GetScript(Isolate* isolate) {
   return handle(*script_, isolate);
 }
 
-BackgroundDeserializeTask::BackgroundDeserializeTask(
-    Isolate* isolate, std::unique_ptr<ScriptCompiler::CachedData> cached_data)
-    : isolate_for_local_isolate_(isolate),
-      cached_data_(cached_data->data, cached_data->length) {
-  // If the passed in cached data has ownership of the buffer, move it to the
-  // task.
-  if (cached_data->buffer_policy == ScriptCompiler::CachedData::BufferOwned &&
-      !cached_data_.HasDataOwnership()) {
-    cached_data->buffer_policy = ScriptCompiler::CachedData::BufferNotOwned;
-    cached_data_.AcquireDataOwnership();
-  }
-}
-
-void BackgroundDeserializeTask::Run() {
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-  UnparkedScope unparked_scope(&isolate);
-  LocalHandleScope handle_scope(&isolate);
-
-  Handle<SharedFunctionInfo> inner_result;
-  off_thread_data_ =
-      CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
-}
-
-MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
-    Isolate* isolate, Handle<String> source,
-    ScriptOriginOptions origin_options) {
-  return CodeSerializer::FinishOffThreadDeserialize(
-      isolate, std::move(off_thread_data_), &cached_data_, source,
-      origin_options);
-}
-
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
@@ -2836,8 +2805,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
-    AlignedCachedData* cached_data,
-    ScriptCompiler::CompileOptions compile_options,
+    ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
@@ -2941,8 +2909,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, Handle<FixedArray> arguments,
     Handle<Context> context, const ScriptDetails& script_details,
-    AlignedCachedData* cached_data,
-    v8::ScriptCompiler::CompileOptions compile_options,
+    ScriptData* cached_data, v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);

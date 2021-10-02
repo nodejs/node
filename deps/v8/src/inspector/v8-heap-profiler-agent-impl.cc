@@ -270,7 +270,7 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshot(
     progress.reset(new HeapSnapshotProgress(&m_frontend));
 
   GlobalObjectNameResolver resolver(m_session);
-  const v8::HeapSnapshot* snapshot = profiler->TakeHeapSnapshot(
+  const v8::HeapSnapshot* snapshot = profiler->TakeHeapSnapshotV8_92(
       progress.get(), &resolver, treatGlobalObjectsAsRoots.fromMaybe(true),
       captureNumericValue.fromMaybe(false));
   if (!snapshot) return Response::ServerError("Failed to take heap snapshot");

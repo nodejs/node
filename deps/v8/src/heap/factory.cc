@@ -1812,8 +1812,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   bool is_clonable_js_type =
       instance_type == JS_REG_EXP_TYPE || instance_type == JS_OBJECT_TYPE ||
       instance_type == JS_ERROR_TYPE || instance_type == JS_ARRAY_TYPE ||
-      instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-      InstanceTypeChecker::IsJSApiObject(instance_type);
+      instance_type == JS_API_OBJECT_TYPE ||
+      instance_type == JS_SPECIAL_API_OBJECT_TYPE;
   bool is_clonable_wasm_type = false;
 #if V8_ENABLE_WEBASSEMBLY
   is_clonable_wasm_type = instance_type == WASM_GLOBAL_OBJECT_TYPE ||

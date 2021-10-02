@@ -2842,12 +2842,11 @@ Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_template);
   os_template->Set(isolate, "name",
-                   v8::String::NewFromUtf8Literal(isolate, V8_TARGET_OS_STRING),
-                   PropertyAttribute::ReadOnly);
+                   v8::String::NewFromUtf8Literal(isolate,
+                                                  V8_TARGET_OS_STRING));
   os_template->Set(
       isolate, "d8Path",
-      v8::String::NewFromUtf8(isolate, options.d8_path).ToLocalChecked(),
-      PropertyAttribute::ReadOnly);
+      v8::String::NewFromUtf8(isolate, options.d8_path).ToLocalChecked());
   return os_template;
 }
 

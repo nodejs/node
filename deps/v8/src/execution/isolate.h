@@ -1775,9 +1775,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
 
-  void UpdateLongTaskStats();
-  v8::metrics::LongTaskStats* GetCurrentLongTaskStats();
-
   LocalIsolate* main_thread_local_isolate() {
     return main_thread_local_isolate_.get();
   }
@@ -2159,9 +2156,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       uintptr_t,
       Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
       recorder_context_id_map_;
-
-  size_t last_long_task_stats_counter_ = 0;
-  v8::metrics::LongTaskStats long_task_stats_;
 
   std::vector<Object> startup_object_cache_;
 

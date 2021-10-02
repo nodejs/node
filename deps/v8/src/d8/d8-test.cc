@@ -467,8 +467,7 @@ class FastCApiObject {
   static bool IsValidApiObject(Local<Object> object) {
     i::Address addr = *reinterpret_cast<i::Address*>(*object);
     auto instance_type = i::Internals::GetInstanceType(addr);
-    return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
-                            i::Internals::kLastJSApiObjectType) ||
+    return (instance_type == i::Internals::kJSApiObjectType ||
             instance_type == i::Internals::kJSSpecialApiObjectType);
   }
   static FastCApiObject* UnwrapObject(Local<Object> object) {

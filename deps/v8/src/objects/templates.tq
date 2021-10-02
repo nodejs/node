@@ -35,8 +35,8 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   // Allowed receiver ranges are used for instance type checking to check
   // whether the receiver calling the associated JSFunction is a compatible
   // receiver.
-  allowed_receiver_instance_type_range_start: int16: 12 bit;
-  allowed_receiver_instance_type_range_end: int16: 12 bit;
+  allowed_receiver_range_start: int32: 12 bit;
+  allowed_receiver_range_end: int32: 12 bit;
 }
 
 extern class FunctionTemplateInfo extends TemplateInfo {
