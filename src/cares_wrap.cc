@@ -1701,7 +1701,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsArray());
 
-  Local<Array> arr = Local<Array>::Cast(args[0]);
+  Local<Array> arr = args[0].As<Array>();
 
   uint32_t len = arr->Length();
 
@@ -1718,8 +1718,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   for (uint32_t i = 0; i < len; i++) {
     CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
 
-    Local<Array> elm =
-        Local<Array>::Cast(arr->Get(env->context(), i).ToLocalChecked());
+    Local<Array> elm = arr->Get(env->context(), i).ToLocalChecked().As<Array>();
 
     CHECK(elm->Get(env->context(),
                    0).ToLocalChecked()->Int32Value(env->context()).FromJust());

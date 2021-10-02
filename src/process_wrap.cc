@@ -186,7 +186,7 @@ class ProcessWrap : public HandleWrap {
     Local<Value> argv_v =
         js_options->Get(context, env->args_string()).ToLocalChecked();
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
-      Local<Array> js_argv = Local<Array>::Cast(argv_v);
+      Local<Array> js_argv = argv_v.As<Array>();
       int argc = js_argv->Length();
       CHECK_GT(argc + 1, 0);  // Check for overflow.
 
@@ -214,7 +214,7 @@ class ProcessWrap : public HandleWrap {
     Local<Value> env_v =
         js_options->Get(context, env->env_pairs_string()).ToLocalChecked();
     if (!env_v.IsEmpty() && env_v->IsArray()) {
-      Local<Array> env_opt = Local<Array>::Cast(env_v);
+      Local<Array> env_opt = env_v.As<Array>();
       int envc = env_opt->Length();
       CHECK_GT(envc + 1, 0);  // Check for overflow.
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
