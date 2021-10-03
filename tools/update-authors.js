@@ -11,6 +11,7 @@ class CaseIndifferentMap {
   _map = new Map();
 
   get(key) { return this._map.get(key.toLowerCase()); }
+  has(key) { return this._map.has(key.toLowerCase()); }
   set(key, value) { return this._map.set(key.toLowerCase(), value); }
 }
 
@@ -64,6 +65,30 @@ const mailmap = new CaseIndifferentMap();
   }
 }
 
+const previousAuthors = new CaseIndifferentMap();
+{
+  const lines = fs.readFileSync(path.resolve(__dirname, '../', 'AUTHORS'),
+                                { encoding: 'utf8' }).split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (line.startsWith('#') || line === '') continue;
+
+    let match;
+    if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
+      const name = match[1];
+      const email = match[2];
+      if (previousAuthors.has(name)) {
+        const emails = previousAuthors.get(name);
+        emails.push(email);
+      } else {
+        previousAuthors.set(name, [email]);
+      }
+    } else {
+      console.warn('Unknown AUTHORS format:', line);
+    }
+  }
+}
+
 const seen = new Set();
 
 // Support regular git author metadata, as well as `Author:` and
@@ -93,6 +118,11 @@ rl.on('line', (line) => {
 
   seen.add(email);
   output.write(`${author} ${email}\n`);
+  const duplicate = previousAuthors.get(author);
+  if (duplicate && !duplicate.includes(email)) {
+    console.warn('Author name already in AUTHORS file. Possible duplicate:');
+    console.warn(`  ${author} <${email}>`);
+  }
 });
 
 rl.on('close', () => {
