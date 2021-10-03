@@ -561,7 +561,7 @@ For information about the governance of the Node.js project, see
 * [orangemocha](https://github.com/orangemocha) -
   **Alexis Campailla** \<orangemocha@nodejs.org>
 * [othiym23](https://github.com/othiym23) -
-  **Forrest L Norvell** \<ogd@aoaioxxysz.net> (he/him)
+  **Forrest L Norvell** \<ogd@aoaioxxysz.net> (they/them/themself)
 * [petkaantonov](https://github.com/petkaantonov) -
   **Petka Antonov** \<petka_antonov@hotmail.com>
 * [phillipj](https://github.com/phillipj) -
