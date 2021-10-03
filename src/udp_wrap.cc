@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
-#include "allocated_buffer-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_sockaddr-inl.h"
@@ -725,6 +724,7 @@ void UDPWrap::OnRecv(ssize_t nread,
   } else if (nread == 0) {
     bs = ArrayBuffer::NewBackingStore(isolate, 0);
   } else {
+    CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
     bs = BackingStore::Reallocate(isolate, std::move(bs), nread);
   }
 
