@@ -5,7 +5,25 @@ const http = require('http');
 const net = require('net');
 const stream = require('stream');
 
-const main = async () => {
+const runPipeline1 = () => {
+  const s1 = new stream.PassThrough();
+  const s2 = new stream.PassThrough();
+
+  s1.end('test');
+
+  const promise = new Promise((resolve, reject) => {
+    stream.pipeline(s1, s2, s1, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+
+    setTimeout(() => reject(new Error('Pipeline timed out')), 1e3);
+  });
+
+  return promise;
+};
+
+const runPipeline2 = () => {
   const server = http.createServer();
 
   const promise = new Promise((resolve, reject) => {
@@ -41,12 +59,13 @@ const main = async () => {
     });
   });
 
-  await promise;
-
-  process.exit();
+  return promise;
 };
 
-main().catch((err) => {
+Promise.all([
+  runPipeline1(),
+  runPipeline2(),
+]).catch((err) => {
   console.error(err);
-  process.exit(1);
-});
+  return 1;
+}).then(process.exit);
