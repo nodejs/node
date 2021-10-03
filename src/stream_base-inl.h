@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "node.h"
@@ -270,9 +269,9 @@ ShutdownWrap* ShutdownWrap::FromObject(
   return FromObject(base_obj->object());
 }
 
-void WriteWrap::SetAllocatedStorage(AllocatedBuffer&& storage) {
-  CHECK_NULL(storage_.data());
-  storage_ = std::move(storage);
+void WriteWrap::SetBackingStore(std::unique_ptr<v8::BackingStore> bs) {
+  CHECK(!backing_store_);
+  backing_store_ = std::move(bs);
 }
 
 void StreamReq::Done(int status, const char* error_str) {

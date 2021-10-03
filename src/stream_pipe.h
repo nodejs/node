@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "stream_base.h"
-#include "allocated_buffer.h"
 
 namespace node {
 
@@ -43,7 +42,7 @@ class StreamPipe : public AsyncWrap {
   // `OnStreamWantsWrite()` support.
   size_t wanted_data_ = 0;
 
-  void ProcessData(size_t nread, AllocatedBuffer&& buf);
+  void ProcessData(size_t nread, std::unique_ptr<v8::BackingStore> bs);
 
   class ReadableListener : public StreamListener {
    public:

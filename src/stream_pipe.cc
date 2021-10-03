@@ -1,11 +1,11 @@
 #include "stream_pipe.h"
-#include "allocated_buffer-inl.h"
 #include "stream_base-inl.h"
 #include "node_buffer.h"
 #include "util-inl.h"
 
 namespace node {
 
+using v8::BackingStore;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -118,13 +118,13 @@ uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   size_t size = std::min(suggested_size, pipe->wanted_data_);
   CHECK_GT(size, 0);
-  return AllocatedBuffer::AllocateManaged(pipe->env(), size).release();
+  return pipe->env()->allocate_managed_buffer(size);
 }
 
 void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
                                                 const uv_buf_t& buf_) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
-  AllocatedBuffer buf(pipe->env(), buf_);
+  std::unique_ptr<BackingStore> bs = pipe->env()->release_managed_buffer(buf_);
   if (nread < 0) {
     // EOF or error; stop reading and pass the error to the previous listener
     // (which might end up in JS).
@@ -144,19 +144,20 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
     return;
   }
 
-  pipe->ProcessData(nread, std::move(buf));
+  pipe->ProcessData(nread, std::move(bs));
 }
 
-void StreamPipe::ProcessData(size_t nread, AllocatedBuffer&& buf) {
+void StreamPipe::ProcessData(size_t nread,
+                             std::unique_ptr<BackingStore> bs) {
   CHECK(uses_wants_write_ || pending_writes_ == 0);
-  uv_buf_t buffer = uv_buf_init(buf.data(), nread);
+  uv_buf_t buffer = uv_buf_init(static_cast<char*>(bs->Data()), nread);
   StreamWriteResult res = sink()->Write(&buffer, 1);
   pending_writes_++;
   if (!res.async) {
     writable_listener_.OnStreamAfterWrite(nullptr, res.err);
   } else {
     is_reading_ = false;
-    res.wrap->SetAllocatedStorage(std::move(buf));
+    res.wrap->SetBackingStore(std::move(bs));
     if (source() != nullptr)
       source()->ReadStop();
   }
