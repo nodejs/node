@@ -31,10 +31,11 @@ The `benchmark` module is used by tests to run benchmarks.
 
 ### `runBenchmark(name, args, env)`
 
-* `name` [\<string>][] Name of benchmark suite to be run.
-* `args` [\<Array>][] Array of environment variable key/value pairs (ex:
+* `name` [\<string>][<string>] Name of benchmark suite to be run.
+* `args` [\<Array>][<Array>] Array of environment variable key/value pairs (ex:
   `n=1`) to be applied via `--set`.
-* `env` [\<Object>][] Environment variables to be applied during the run.
+* `env` [\<Object>][<Object>] Environment variables to be applied during the
+  run.
 
 ## Common Module API
 
@@ -43,14 +44,14 @@ tasks.
 
 ### `allowGlobals(...allowlist)`
 
-* `allowlist` [\<Array>][] Array of Globals
-* return [\<Array>][]
+* `allowlist` [\<Array>][<Array>] Array of Globals
+* return [\<Array>][<Array>]
 
 Takes `allowlist` and concats that with predefined `knownGlobals`.
 
 ### `canCreateSymLink()`
 
-* return [\<boolean>][]
+* return [\<boolean>][<boolean>]
 
 Checks whether the current running process can create symlinks. On Windows, this
 returns `false` if the process running doesn't have privileges to create
@@ -64,17 +65,17 @@ Creates a 10 MB file of all null characters.
 
 ### `enoughTestMem`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates if there is more than 1gb of total memory.
 
 ### `expectsError(validator[, exact])`
 
-* `validator` [\<Object>][] | [\<RegExp>][] | [\<Function>][] |
-  [\<Error>][] The validator behaves identical to
-  `assert.throws(fn, validator)`.
-* `exact` [\<number>][] default = 1
-* return [\<Function>][] A callback function that expects an error.
+* `validator` [\<Object>][<Object>] | [\<RegExp>][<RegExp>] |
+  [\<Function>][<Function>] | [\<Error>][<Error>] The validator behaves
+  identical to `assert.throws(fn, validator)`.
+* `exact` [\<number>][<number>] default = 1
+* return [\<Function>][<Function>] A callback function that expects an error.
 
 A function suitable as callback to validate callback based errors. The error is
 validated using `assert.throws(() => { throw error; }, validator)`. If the
@@ -83,9 +84,9 @@ test is complete, then the test will fail.
 
 ### `expectWarning(name[, expected[, code]])`
 
-* `name` [\<string>][] | [\<Object>][]
-* `expected` [\<string>][] | [\<Array>][] | [\<Object>][]
-* `code` [\<string>][]
+* `name` [\<string>][<string>] | [\<Object>][<Object>]
+* `expected` [\<string>][<string>] | [\<Array>][<Array>] | [\<Object>][<Object>]
+* `code` [\<string>][<string>]
 
 Tests whether `name`, `expected`, and `code` are part of a raised warning.
 
@@ -130,23 +131,23 @@ expectWarning({
 
 ### `getArrayBufferViews(buf)`
 
-* `buf` [\<Buffer>][]
-* return [\<ArrayBufferView>][]\[]
+* `buf` [\<Buffer>][<Buffer>]
+* return [\<ArrayBufferView>][<ArrayBufferView>]\[]
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
 ### `getBufferSources(buf)`
 
-* `buf` [\<Buffer>][]
-* return [\<BufferSource>][]\[]
+* `buf` [\<Buffer>][<Buffer>]
+* return [\<BufferSource>][<BufferSource>]\[]
 
 Returns an instance of all possible `BufferSource`s of the provided Buffer,
 consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
 ### `getCallSite(func)`
 
-* `func` [\<Function>][]
-* return [\<string>][]
+* `func` [\<Function>][<Function>]
+* return [\<string>][<string>]
 
 Returns the file name and line number for the provided Function.
 
@@ -158,13 +159,13 @@ The TTY file descriptor is assumed to be capable of being writable.
 
 ### `hasCrypto`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates whether OpenSSL is available.
 
 ### `hasFipsCrypto`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates that Node.js has been linked with a FIPS compatible OpenSSL library,
 and that FIPS as been enabled using `--enable-fips`.
@@ -175,104 +176,104 @@ used to determine that situation.
 
 ### `hasIntl`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates if [internationalization][] is supported.
 
 ### `hasIPv6`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates whether `IPv6` is supported on this platform.
 
 ### `hasMultiLocalhost`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates if there are multiple localhosts available.
 
 ### `inFreeBSDJail`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Checks whether free BSD Jail is true or false.
 
 ### `isAIX`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
 
 ### `isAlive(pid)`
 
-* `pid` [\<number>][]
-* return [\<boolean>][]
+* `pid` [\<number>][<number>]
+* return [\<boolean>][<boolean>]
 
 Attempts to 'kill' `pid`
 
 ### `isDumbTerminal`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 ### `isFreeBSD`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for Free BSD.
 
 ### `isIBMi`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for IBMi.
 
 ### `isLinux`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for Linux.
 
 ### `isLinuxPPCBE`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for Linux on PowerPC.
 
 ### `isOSX`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for macOS.
 
 ### `isSunOS`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for SunOS.
 
 ### `isWindows`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Platform check for Windows.
 
 ### `localhostIPv4`
 
-* [\<string>][]
+* [\<string>][<string>]
 
 IP of `localhost`.
 
 ### `localIPv6Hosts`
 
-* [\<Array>][]
+* [\<Array>][<Array>]
 
 Array of IPV6 representations for `localhost`.
 
 ### `mustCall([fn][, exact])`
 
-* `fn` [\<Function>][] default = () => {}
-* `exact` [\<number>][] default = 1
-* return [\<Function>][]
+* `fn` [\<Function>][<Function>] default = () => {}
+* `exact` [\<number>][<number>] default = 1
+* return [\<Function>][<Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
 exactly `exact` number of times when the test is complete, then the test will
@@ -282,9 +283,9 @@ If `fn` is not provided, an empty function will be used.
 
 ### `mustCallAtLeast([fn][, minimum])`
 
-* `fn` [\<Function>][] default = () => {}
-* `minimum` [\<number>][] default = 1
-* return [\<Function>][]
+* `fn` [\<Function>][<Function>] default = () => {}
+* `minimum` [\<number>][<number>] default = 1
+* return [\<Function>][<Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
 at least `minimum` number of times when the test is complete, then the test will
@@ -294,16 +295,16 @@ If `fn` is not provided, an empty function will be used.
 
 ### `mustNotCall([msg])`
 
-* `msg` [\<string>][] default = 'function should not have been called'
-* return [\<Function>][]
+* `msg` [\<string>][<string>] default = 'function should not have been called'
+* return [\<Function>][<Function>]
 
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
 ### `mustSucceed([fn])`
 
-* `fn` [\<Function>][] default = () => {}
-* return [\<Function>][]
+* `fn` [\<Function>][<Function>] default = () => {}
+* return [\<Function>][<Function>]
 
 Returns a function that accepts arguments `(err, ...args)`. If `err` is not
 `undefined` or `null`, it triggers an `AssertionError`. Otherwise, it calls
@@ -311,9 +312,9 @@ Returns a function that accepts arguments `(err, ...args)`. If `err` is not
 
 ### `nodeProcessAborted(exitCode, signal)`
 
-* `exitCode` [\<number>][]
-* `signal` [\<string>][]
-* return [\<boolean>][]
+* `exitCode` [\<number>][<number>]
+* `signal` [\<string>][<string>]
+* return [\<boolean>][<boolean>]
 
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
@@ -321,14 +322,14 @@ otherwise.
 
 ### `opensslCli`
 
-* [\<boolean>][]
+* [\<boolean>][<boolean>]
 
 Indicates whether 'opensslCli' is supported.
 
 ### `platformTimeout(ms)`
 
-* `ms` [\<number>][] | [\<bigint>][]
-* return [\<number>][] | [\<bigint>][]
+* `ms` [\<number>][<number>] | [\<bigint>][<bigint>]
+* return [\<number>][<number>] | [\<bigint>][<bigint>]
 
 Returns a timeout value based on detected conditions. For example, a debug build
 may need extra time so the returned value will be larger than on a release
@@ -336,25 +337,25 @@ build.
 
 ### `PIPE`
 
-* [\<string>][]
+* [\<string>][<string>]
 
 Path to the test socket.
 
 ### `PORT`
 
-* [\<number>][]
+* [\<number>][<number>]
 
 A port number for tests to use if one is needed.
 
 ### `printSkipMessage(msg)`
 
-* `msg` [\<string>][]
+* `msg` [\<string>][<string>]
 
 Logs '1..0 # Skipped: ' + `msg`
 
 ### `pwdCommand`
 
-* [\<array>][] First two argument for the `spawn`/`exec` functions.
+* [\<array>][<array>] First two argument for the `spawn`/`exec` functions.
 
 Platform normalized `pwd` command options. Usage example:
 
@@ -367,14 +368,14 @@ spawn(...common.pwdCommand, { stdio: ['pipe'] });
 
 ### `requireNoPackageJSONAbove([dir])`
 
-* `dir` [\<string>][] default = \_\_dirname
+* `dir` [\<string>][<string>] default = \_\_dirname
 
 Throws an `AssertionError` if a `package.json` file exists in any ancestor
 directory above `dir`. Such files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 
-* `func` [\<Function>][]
+* `func` [\<Function>][<Function>]
 
 Runs `func` with an invalid file descriptor that is an unsigned integer and
 can be used to trigger `EBADF` as the first argument. If no such file
@@ -383,7 +384,7 @@ will not be run.
 
 ### `skip(msg)`
 
-* `msg` [\<string>][]
+* `msg` [\<string>][<string>]
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
@@ -476,7 +477,7 @@ Environment variables used in profiled processes.
 ### `getCpuProfiles(dir)`
 
 * `dir` {string} The directory containing the CPU profile files.
-* return [\<string>][]
+* return [\<string>][<string>]
 
 Returns an array of all `.cpuprofile` files found in `dir`.
 
@@ -484,7 +485,7 @@ Returns an array of all `.cpuprofile` files found in `dir`.
 
 * `file` {string} Path to a `.cpuprofile` file.
 * `suffix` {string} Suffix of the URL of call frames to retrieve.
-* returns { frames: [\<Object>][], nodes: [\<Object>][] }
+* returns { frames: [\<Object>][<Object>], nodes: [\<Object>][<Object>] }
 
 Returns an object containing an array of the relevant call frames and an array
 of all the profile nodes.
@@ -508,10 +509,10 @@ Provides common functionality for tests for `node inspect`.
 
 ### `startCLI(args[[, flags], spawnOpts])`
 
-* `args` [\<string>][]
-* `flags` [\<string>][] default = \[]
-* `showOpts` [\<Object>][] default = {}
-* return [\<Object>][]
+* `args` [\<string>][<string>]
+* `flags` [\<string>][<string>] default = \[]
+* `showOpts` [\<Object>][<Object>] default = {}
+* return [\<Object>][<Object>]
 
 Returns a null-prototype object with properties that are functions and getters
 used to interact with the `node inspect` CLI. These functions are:
@@ -536,9 +537,9 @@ The `DNS` module provides utilities related to the `dns` built-in module.
 
 ### `errorLookupMock(code, syscall)`
 
-* `code` [\<string>][] Defaults to `dns.mockedErrorCode`.
-* `syscall` [\<string>][] Defaults to `dns.mockedSysCall`.
-* return [\<Function>][]
+* `code` [\<string>][<string>] Defaults to `dns.mockedErrorCode`.
+* `syscall` [\<string>][<string>] Defaults to `dns.mockedSysCall`.
+* return [\<Function>][<Function>]
 
 A mock for the `lookup` option of `net.connect()` that would result in an error
 with the `code` and the `syscall` specified. Returns a function that has the
@@ -554,39 +555,39 @@ The default `syscall` of errors generated by `errorLookupMock`.
 
 ### `readDomainFromPacket(buffer, offset)`
 
-* `buffer` [\<Buffer>][]
-* `offset` [\<number>][]
-* return [\<Object>][]
+* `buffer` [\<Buffer>][<Buffer>]
+* `offset` [\<number>][<number>]
+* return [\<Object>][<Object>]
 
 Reads the domain string from a packet and returns an object containing the
 number of bytes read and the domain.
 
 ### `parseDNSPacket(buffer)`
 
-* `buffer` [\<Buffer>][]
-* return [\<Object>][]
+* `buffer` [\<Buffer>][<Buffer>]
+* return [\<Object>][<Object>]
 
 Parses a DNS packet. Returns an object with the values of the various flags of
 the packet depending on the type of packet.
 
 ### `writeIPv6(ip)`
 
-* `ip` [\<string>][]
-* return [\<Buffer>][]
+* `ip` [\<string>][<string>]
+* return [\<Buffer>][<Buffer>]
 
 Reads an IPv6 String and returns a Buffer containing the parts.
 
 ### `writeDomainName(domain)`
 
-* `domain` [\<string>][]
-* return [\<Buffer>][]
+* `domain` [\<string>][<string>]
+* return [\<Buffer>][<Buffer>]
 
 Reads a Domain String and returns a Buffer containing the domain.
 
 ### `writeDNSPacket(parsed)`
 
-* `parsed` [\<Object>][]
-* return [\<Buffer>][]
+* `parsed` [\<Object>][<Object>]
+* return [\<Buffer>][<Buffer>]
 
 Takes in a parsed Object and writes its fields to a DNS packet as a Buffer
 object.
@@ -630,26 +631,26 @@ files in the `test/fixtures` directory.
 
 ### `fixtures.fixturesDir`
 
-* [\<string>][]
+* [\<string>][<string>]
 
 The absolute path to the `test/fixtures/` directory.
 
 ### `fixtures.path(...args)`
 
-* `...args` [\<string>][]
+* `...args` [\<string>][<string>]
 
 Returns the result of `path.join(fixtures.fixturesDir, ...args)`.
 
 ### `fixtures.readSync(args[, enc])`
 
-* `args` [\<string>][] | [\<Array>][]
+* `args` [\<string>][<string>] | [\<Array>][<Array>]
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, ...args), 'enc')`.
 
 ### `fixtures.readKey(arg[, enc])`
 
-* `arg` [\<string>][]
+* `arg` [\<string>][<string>]
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
@@ -668,12 +669,13 @@ one listed below. (`heap.validateSnapshotNodes(...)` is a shortcut for
 
 ### `heap.validateSnapshotNodes(name, expected, options)`
 
-* `name` [\<string>][] Look for this string as the name of heap dump nodes.
-* `expected` [\<Array>][] A list of objects, possibly with an `children`
+* `name` [\<string>][<string>] Look for this string as the name of heap dump
+  nodes.
+* `expected` [\<Array>][<Array>] A list of objects, possibly with an `children`
   property that points to expected other adjacent nodes.
-* `options` [\<Array>][]
-  * `loose` [\<boolean>][] Do not expect an exact listing of occurrences
-    of nodes with name `name` in `expected`.
+* `options` [\<Array>][<Array>]
+  * `loose` [\<boolean>][<boolean>] Do not expect an exact listing of
+    occurrences of nodes with name `name` in `expected`.
 
 Create a heap dump and an embedder graph copy and validate occurrences.
 
@@ -711,7 +713,7 @@ console.log('this is sent to the hijacked listener');
 
 ### `hijackStderr(listener)`
 
-* `listener` [\<Function>][]: a listener with a single parameter
+* `listener` [\<Function>][<Function>]: a listener with a single parameter
   called `data`.
 
 Eavesdrop to `process.stderr.write()` calls. Once `process.stderr.write()` is
@@ -721,7 +723,7 @@ the number of calls.
 
 ### `hijackStdout(listener)`
 
-* `listener` [\<Function>][]: a listener with a single parameter
+* `listener` [\<Function>][<Function>]: a listener with a single parameter
   called `data`.
 
 Eavesdrop to `process.stdout.write()` calls. Once `process.stdout.write()` is
@@ -865,27 +867,27 @@ internet-related tests.
 
 ### `internet.addresses`
 
-* [\<Object>][]
-  * `INET_HOST` [\<string>][] A generic host that has registered common
+* [\<Object>][<Object>]
+  * `INET_HOST` [\<string>][<string>] A generic host that has registered common
     DNS records, supports both IPv4 and IPv6, and provides basic HTTP/HTTPS
     services
-  * `INET4_HOST` [\<string>][] A host that provides IPv4 services
-  * `INET6_HOST` [\<string>][] A host that provides IPv6 services
-  * `INET4_IP` [\<string>][] An accessible IPv4 IP, defaults to the
+  * `INET4_HOST` [\<string>][<string>] A host that provides IPv4 services
+  * `INET6_HOST` [\<string>][<string>] A host that provides IPv6 services
+  * `INET4_IP` [\<string>][<string>] An accessible IPv4 IP, defaults to the
     Google Public DNS IPv4 address
-  * `INET6_IP` [\<string>][] An accessible IPv6 IP, defaults to the
+  * `INET6_IP` [\<string>][<string>] An accessible IPv6 IP, defaults to the
     Google Public DNS IPv6 address
-  * `INVALID_HOST` [\<string>][] An invalid host that cannot be resolved
-  * `MX_HOST` [\<string>][] A host with MX records registered
-  * `SRV_HOST` [\<string>][] A host with SRV records registered
-  * `PTR_HOST` [\<string>][] A host with PTR records registered
-  * `NAPTR_HOST` [\<string>][] A host with NAPTR records registered
-  * `SOA_HOST` [\<string>][] A host with SOA records registered
-  * `CNAME_HOST` [\<string>][] A host with CNAME records registered
-  * `NS_HOST` [\<string>][] A host with NS records registered
-  * `TXT_HOST` [\<string>][] A host with TXT records registered
-  * `DNS4_SERVER` [\<string>][] An accessible IPv4 DNS server
-  * `DNS6_SERVER` [\<string>][] An accessible IPv6 DNS server
+  * `INVALID_HOST` [\<string>][<string>] An invalid host that cannot be resolved
+  * `MX_HOST` [\<string>][<string>] A host with MX records registered
+  * `SRV_HOST` [\<string>][<string>] A host with SRV records registered
+  * `PTR_HOST` [\<string>][<string>] A host with PTR records registered
+  * `NAPTR_HOST` [\<string>][<string>] A host with NAPTR records registered
+  * `SOA_HOST` [\<string>][<string>] A host with SOA records registered
+  * `CNAME_HOST` [\<string>][<string>] A host with CNAME records registered
+  * `NS_HOST` [\<string>][<string>] A host with NS records registered
+  * `TXT_HOST` [\<string>][<string>] A host with TXT records registered
+  * `DNS4_SERVER` [\<string>][<string>] An accessible IPv4 DNS server
+  * `DNS6_SERVER` [\<string>][<string>] An accessible IPv6 DNS server
 
 A set of addresses for internet-related tests. All properties are configurable
 via `NODE_TEST_*` environment variables. For example, to configure
@@ -906,9 +908,9 @@ onGC({}, { ongc() { console.log('collected'); } });
 
 ### `onGC(target, listener)`
 
-* `target` [\<Object>][]
-* `listener` [\<Object>][]
-  * `ongc` [\<Function>][]
+* `target` [\<Object>][<Object>]
+* `listener` [\<Object>][<Object>]
+  * `ongc` [\<Function>][<Function>]
 
 Installs a GC listener for the collection of `target`.
 
@@ -927,24 +929,25 @@ functionality.
 
 ### `findReports(pid, dir)`
 
-* `pid` [\<number>][] Process ID to retrieve diagnostic report files for.
-* `dir` [\<string>][] Directory to search for diagnostic report files.
-* return [\<Array>][]
+* `pid` [\<number>][<number>] Process ID to retrieve diagnostic report files
+  for.
+* `dir` [\<string>][<string>] Directory to search for diagnostic report files.
+* return [\<Array>][<Array>]
 
 Returns an array of diagnostic report file names found in `dir`. The files
 should have been generated by a process whose PID matches `pid`.
 
 ### `validate(filepath)`
 
-* `filepath` [\<string>][] Diagnostic report filepath to validate.
+* `filepath` [\<string>][<string>] Diagnostic report filepath to validate.
 
 Validates the schema of a diagnostic report file whose path is specified in
 `filepath`. If the report fails validation, an exception is thrown.
 
 ### `validateContent(report)`
 
-* `report` [\<Object>][] | [\<string>][] JSON contents of a diagnostic
-  report file, the parsed Object thereof, or the result of
+* `report` [\<Object>][<Object>] | [\<string>][<string>] JSON contents of a
+  diagnostic report file, the parsed Object thereof, or the result of
   `process.report.getReport()`.
 
 Validates the schema of a diagnostic report whose content is specified in
@@ -957,8 +960,8 @@ after a given number of event loop "ticks".
 
 ### `tick(x, cb)`
 
-* `x` [\<number>][] Number of event loop "ticks".
-* `cb` [\<Function>][] A callback function.
+* `x` [\<number>][<number>] Number of event loop "ticks".
+* `cb` [\<Function>][<Function>] A callback function.
 
 ## tmpdir Module
 
@@ -966,7 +969,7 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 ### `path`
 
-* [\<string>][]
+* [\<string>][<string>]
 
 The realpath of the testing temporary directory.
 
@@ -1015,18 +1018,18 @@ A driver class for running WPT with the WPT harness in a worker thread.
 
 See [the WPT tests README][] for details.
 
-[\<Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
-[\<ArrayBufferView>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
-[\<Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
-[\<BufferSource>]: https://developer.mozilla.org/en-US/docs/Web/API/BufferSource
-[\<Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
-[\<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
-[\<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
-[\<RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
-[\<bigint>]: https://github.com/tc39/proposal-bigint
-[\<boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
-[\<number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
-[\<string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[<Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+[<ArrayBufferView>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
+[<Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
+[<BufferSource>]: https://developer.mozilla.org/en-US/docs/Web/API/BufferSource
+[<Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+[<Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
+[<Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[<RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[<bigint>]: https://github.com/tc39/proposal-bigint
+[<boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
+[<number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[<string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
