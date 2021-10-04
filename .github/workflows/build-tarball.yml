@@ -16,7 +16,7 @@ env:
 jobs:
   build-tarball:
     env:
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: '3.10'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,7 +41,7 @@ jobs:
           path: tarballs
   test-tarball-linux:
     env:
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: '3.10'
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
