@@ -116,8 +116,8 @@ This is a security release.
 
 * **CVE-2021-3672/CVE-2021-22931**: Improper handling of untypical characters in domain names (High)
   * Node.js was vulnerable to Remote Code Execution, XSS, application crashes due to missing input validation of hostnames returned by Domain Name Servers in the Node.js DNS library which can lead to the output of wrong hostnames (leading to Domain Hijacking) and injection vulnerabilities in applications using the library. You can read more about it at https://nvd.nist.gov/vuln/detail/CVE-2021-22931.
-* **CVE-2021-22930**: Use after free on close http2 on stream canceling (High)
-  * Node.js was vulnerable to a use after free attack where an attacker might be able to exploit memory corruption to change process behavior. This release includes a follow-up fix for CVE-2021-22930 as the issue was not completely resolved by the previous fix. You can read more about it at https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22930.
+* **CVE-2021-22940**: Use after free on close http2 on stream canceling (High)
+  * Node.js was vulnerable to a use after free attack where an attacker might be able to exploit memory corruption to change process behavior. This release includes a follow-up fix for CVE-2021-22930 as the issue was not completely resolved by the previous fix. You can read more about it at https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22940.
 * **CVE-2021-22939**: Incomplete validation of rejectUnauthorized parameter (Low)
   * If the Node.js HTTPS API was used incorrectly and "undefined" was in passed for the "rejectUnauthorized" parameter, no error was returned and connections to servers with an expired certificate would have been accepted. You can read more about it at https://nvd.nist.gov/vuln/detail/CVE-2021-22939.
 
