@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -10,6 +11,9 @@ const {
   generateKeyPairSync,
   webcrypto: { subtle }
 } = require('crypto');
+
+const { internalBinding } = require('internal/test/binding');
+const { DOMException } = internalBinding('messaging');
 
 async function generateKey(namedCurve) {
   return subtle.generateKey(
@@ -427,5 +431,55 @@ assert.rejects(
           message: /Invalid algorithm name/
         }).then(common.mustCall());
     }
+  }
+}
+
+{
+  // See: https://github.com/nodejs/node/pull/40300
+  for (const namedCurve of ['NODE-ED25519', 'NODE-ED448']) {
+    assert.rejects(
+      (async () => {
+        const { privateKey } = await generateKey(namedCurve);
+        return subtle.sign(
+          {
+            name: namedCurve,
+            hash: 'SHA-256'
+          },
+          privateKey,
+          Buffer.from('abc')
+        );
+      })(),
+      (err) => {
+        assert.strictEqual(err.message, `Hash is not permitted for ${namedCurve}`);
+        assert(err instanceof DOMException);
+        return true;
+      }).then(common.mustCall());
+
+    assert.rejects(
+      (async () => {
+        const { publicKey, privateKey } = await generateKey(namedCurve);
+        const signature = await subtle.sign(
+          {
+            name: namedCurve,
+          },
+          privateKey,
+          Buffer.from('abc')
+        ).catch(common.mustNotCall());
+
+        return subtle.verify(
+          {
+            name: namedCurve,
+            hash: 'SHA-256',
+          },
+          publicKey,
+          signature,
+          Buffer.from('abc')
+        );
+      })(),
+      (err) => {
+        assert.strictEqual(err.message, `Hash is not permitted for ${namedCurve}`);
+        assert(err instanceof DOMException);
+        return true;
+      }).then(common.mustCall());
   }
 }
