@@ -1,4 +1,4 @@
-# Technical values and priorities
+# Technical values and their priorities
 
 The project uses these technical values to establish priorities and guide
 collaboration.
