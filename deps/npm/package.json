@@ -1,5 +1,5 @@
 {
-  "version": "7.24.0",
+  "version": "7.24.2",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -53,7 +53,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.8.3",
+    "@isaacs/string-locale-compare": "^1.1.0",
+    "@npmcli/arborist": "^2.9.0",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^2.3.0",
     "@npmcli/map-workspaces": "^1.0.4",
@@ -70,7 +71,7 @@
     "cli-table3": "^0.6.0",
     "columnify": "~1.5.4",
     "fastest-levenshtein": "^1.0.12",
-    "glob": "^7.1.7",
+    "glob": "^7.2.0",
     "graceful-fs": "^4.2.8",
     "hosted-git-info": "^4.0.2",
     "ini": "^2.0.0",
@@ -124,6 +125,7 @@
     "write-file-atomic": "^3.0.3"
   },
   "bundleDependencies": [
+    "@isaacs/string-locale-compare",
     "@npmcli/arborist",
     "@npmcli/ci-detect",
     "@npmcli/config",

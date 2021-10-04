@@ -9,6 +9,7 @@
 // We cannot bump to v3 until npm v6 is out of common usage, and
 // definitely not before npm v8.
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const lockfileVersion = 2
 
 // for comparing nodes to yarn.lock entries
@@ -911,7 +912,7 @@ class Shrinkwrap {
       /* istanbul ignore next - sort calling order is indeterminate */
       return aloc.length > bloc.length ? 1
         : bloc.length > aloc.length ? -1
-        : aloc[aloc.length - 1].localeCompare(bloc[bloc.length - 1], 'en')
+        : localeCompare(aloc[aloc.length - 1], bloc[bloc.length - 1])
     })[0]
 
     const res = consistentResolve(node.resolved, this.path, this.path, true)

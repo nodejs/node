@@ -28,13 +28,14 @@
 // is an impenetrable 10kloc of webpack flow output, which is overkill
 // for something relatively simple and tailored to Arborist's use case.
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const consistentResolve = require('./consistent-resolve.js')
 const {dirname} = require('path')
 const {breadth} = require('treeverse')
 
 // sort a key/value object into a string of JSON stringified keys and vals
 const sortKV = obj => Object.keys(obj)
-  .sort((a, b) => a.localeCompare(b, 'en'))
+  .sort(localeCompare)
   .map(k => `    ${JSON.stringify(k)} ${JSON.stringify(obj[k])}`)
   .join('\n')
 
@@ -170,7 +171,7 @@ class YarnLock {
   toString () {
     return prefix + [...new Set([...this.entries.values()])]
       .map(e => e.toString())
-      .sort((a, b) => a.localeCompare(b, 'en')).join('\n\n') + '\n'
+      .sort(localeCompare).join('\n\n') + '\n'
   }
 
   fromTree (tree) {
@@ -180,7 +181,7 @@ class YarnLock {
       tree,
       visit: node => this.addEntryFromNode(node),
       getChildren: node => [...node.children.values(), ...node.fsChildren]
-        .sort((a, b) => a.depth - b.depth || a.name.localeCompare(b.name, 'en')),
+        .sort((a, b) => a.depth - b.depth || localeCompare(a.name, b.name)),
     })
     return this
   }
@@ -188,7 +189,7 @@ class YarnLock {
   addEntryFromNode (node) {
     const specs = [...node.edgesIn]
       .map(e => `${node.name}@${e.spec}`)
-      .sort((a, b) => a.localeCompare(b, 'en'))
+      .sort(localeCompare)
 
     // Note:
     // yarn will do excessive duplication in a case like this:
@@ -321,7 +322,7 @@ class YarnLockEntry {
   toString () {
     // sort objects to the bottom, then alphabetical
     return ([...this[_specs]]
-      .sort((a, b) => a.localeCompare(b, 'en'))
+      .sort(localeCompare)
       .map(JSON.stringify).join(', ') +
       ':\n' +
       Object.getOwnPropertyNames(this)
@@ -330,7 +331,7 @@ class YarnLockEntry {
           (a, b) =>
           /* istanbul ignore next - sort call order is unpredictable */
             (typeof this[a] === 'object') === (typeof this[b] === 'object')
-              ? a.localeCompare(b, 'en')
+              ? localeCompare(a, b)
               : typeof this[a] === 'object' ? 1 : -1)
         .map(prop =>
           typeof this[prop] !== 'object'

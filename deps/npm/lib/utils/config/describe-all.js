@@ -1,4 +1,5 @@
 const definitions = require('./definitions.js')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const describeAll = () => {
   // sort not-deprecated ones to the top
   /* istanbul ignore next - typically already sorted in the definitions file,
@@ -7,7 +8,7 @@ const describeAll = () => {
   const sort = ([keya, {deprecated: depa}], [keyb, {deprecated: depb}]) => {
     return depa && !depb ? 1
       : !depa && depb ? -1
-      : keya.localeCompare(keyb, 'en')
+      : localeCompare(keya, keyb)
   }
   return Object.entries(definitions).sort(sort)
     .map(([key, def]) => def.describe())
