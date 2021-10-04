@@ -1107,6 +1107,8 @@ The resolver can throw the following errors:
 >    1. Throw an _Invalid Module Specifier_ error.
 > 1. Let _packageSubpath_ be _"."_ concatenated with the substring of
 >    _packageSpecifier_ from the position at the length of _packageName_.
+> 1. If _packageSubpath_ ends in _"/"_, then
+>    1. Throw an _Invalid Module Specifier_ error.
 > 1. Let _selfUrl_ be the result of
 >    **PACKAGE_SELF_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
 > 1. If _selfUrl_ is not **undefined**, return _selfUrl_.
@@ -1118,18 +1120,15 @@ The resolver can throw the following errors:
 >       concatenated with _packageSpecifier_, relative to _parentURL_.
 >    1. Set _parentURL_ to the parent folder URL of _parentURL_.
 >    1. If the folder at _packageURL_ does not exist, then
->       1. Set _parentURL_ to the parent URL path of _parentURL_.
 >       1. Continue the next loop iteration.
 >    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
 >    1. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
 >       **undefined**, then
->       1. Let _exports_ be _pjson.exports_.
 >       1. Return the result of **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
 >          _packageSubpath_, _pjson.exports_, _defaultConditions_).
 >    1. Otherwise, if _packageSubpath_ is equal to _"."_, then
->       1. Return the result of applying the legacy **LOAD_AS_DIRECTORY**
->          CommonJS resolver to _packageURL_, throwing a _Module Not Found_
->          error for no resolution.
+>       1. If _pjson.main_ is a string, then
+>          1. Return the URL resolution of _main_ in _packageURL_.
 >    1. Otherwise,
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
@@ -1150,8 +1149,6 @@ The resolver can throw the following errors:
 
 **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
 
-> 1. If _subpath_ ends in _"/"_, then
->    1. Throw an _Invalid Module Specifier_ error.
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an _Invalid Package Configuration_ error.
 > 1. If _subpath_ is equal to _"."_, then
@@ -1177,8 +1174,7 @@ The resolver can throw the following errors:
 **PACKAGE_IMPORTS_RESOLVE**(_specifier_, _parentURL_, _conditions_)
 
 > 1. Assert: _specifier_ begins with _"#"_.
-> 1. If _specifier_ is exactly equal to _"#"_, starts with _"#/"_, or ends in
->    _"/"_, then
+> 1. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
 > 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
 > 1. If _packageURL_ is not **null**, then
@@ -1192,7 +1188,6 @@ The resolver can throw the following errors:
 **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
 _isImports_, _conditions_)
 
-> 1. Assert: _matchKey_ does not end in _"/"_.
 > 1. If _matchKey_ is a key of _matchObj_ and does not contain _"*"_, then
 >    1. Let _target_ be the value of _matchObj_\[_matchKey_\].
 >    1. Return the result of **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
