@@ -235,7 +235,7 @@ The Node.js project supports Python >= 3 for building and testing.
 
 * `gcc` and `g++` >= 8.3 or newer, or
 * GNU Make 3.81 or newer
-* Python 3.6, 3.7, 3.8, or 3.9 (see note above)
+* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
 
 Installation via Linux package manager can be achieved with:
 
@@ -250,7 +250,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 11 for macOS
-* Python 3.6, 3.7, 3.8, or 3.9 (see note above)
+* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
