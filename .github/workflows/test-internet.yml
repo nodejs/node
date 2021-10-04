@@ -20,7 +20,7 @@ on:
       - test/internet/**
 
 env:
-  PYTHON_VERSION: 3.9
+  PYTHON_VERSION: '3.10'
   FLAKY_TESTS: dontcare
 
 jobs:
