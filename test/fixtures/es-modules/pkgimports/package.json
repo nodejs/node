@@ -26,6 +26,7 @@
     "#": "./test.js",
     "#/initialslash": "./test.js",
     "#notfound": "./notfound.js",
-    "#percent": "./..%2F/x.js"
+    "#encodedslash": "./..%2F/x.js",
+    "#encodedbackslash": "./..%5C/x.js"
   }
 }

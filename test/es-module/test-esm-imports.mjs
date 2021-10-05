@@ -53,13 +53,15 @@ const { requireImport, importImport } = importer;
     // Backtracking below the package base
     ['#subpath/sub/../../../belowbase', 'request is not a valid subpath'],
     // Percent-encoded slash errors
-    ['#external/subpath/x%2Fy', 'must not include encoded "/"'],
+    ['#external/subpath/x%2Fy', 'must not include encoded "/" or "\\"'],
+    ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],
     // Target must have a name
     ['#', '#'],
     // Initial slash target must have a leading name
     ['#/initialslash', '#/initialslash'],
     // Percent-encoded target paths
-    ['#percent', 'must not include encoded "/"'],
+    ['#encodedslash', 'must not include encoded "/" or "\\"'],
+    ['#encodedbackslash', 'must not include encoded "/" or "\\"'],
   ]);
 
   for (const [specifier, expected] of invalidImportSpecifiers) {
