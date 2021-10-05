@@ -31,26 +31,26 @@ throughout the rest of the code.
 The rest of the files are structured by their function, as detailed in the
 following table:
 
-| File (\*.h/\*.cc)    | Description |
-| -------------------- | ----------- |
-| `crypto_aes`         | AES Cipher support. |
-| `crypto_cipher`      | General Encryption/Decryption utilities. |
+| File (\*.h/\*.cc)    | Description                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| `crypto_aes`         | AES Cipher support.                                                        |
+| `crypto_cipher`      | General Encryption/Decryption utilities.                                   |
 | `crypto_clienthello` | TLS/SSL client hello parser implementation. Used during SSL/TLS handshake. |
-| `crypto_context`     | Implementation of the `SecureContext` object. |
-| `crypto_dh`          | Diffie-Hellman Key Agreement implementation. |
-| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions. |
-| `crypto_ec`          | Elliptic-curve cryptography implementation. |
-| `crypto_hash`        | Basic hash (e.g. SHA-256) functions. |
-| `crypto_hkdf`        | HKDF (Key derivation) implementation. |
-| `crypto_hmac`        | HMAC implementations. |
-| `crypto_keys`        | Utilities for using and generating secret, private, and public keys. |
-| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation. |
-| `crypto_rsa`         | RSA Key Generation functions. |
-| `crypto_scrypt`      | Scrypt key / bit generation implementation. |
-| `crypto_sig`         | General digital signature and verification utilities. |
-| `crypto_spkac`       | Netscape SPKAC certificate utilities. |
-| `crypto_ssl`         | Implementation of the `SSLWrap` object. |
-| `crypto_timing`      | Implementation of the TimingSafeEqual. |
+| `crypto_context`     | Implementation of the `SecureContext` object.                              |
+| `crypto_dh`          | Diffie-Hellman Key Agreement implementation.                               |
+| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions.                          |
+| `crypto_ec`          | Elliptic-curve cryptography implementation.                                |
+| `crypto_hash`        | Basic hash (e.g. SHA-256) functions.                                       |
+| `crypto_hkdf`        | HKDF (Key derivation) implementation.                                      |
+| `crypto_hmac`        | HMAC implementations.                                                      |
+| `crypto_keys`        | Utilities for using and generating secret, private, and public keys.       |
+| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation.                                |
+| `crypto_rsa`         | RSA Key Generation functions.                                              |
+| `crypto_scrypt`      | Scrypt key / bit generation implementation.                                |
+| `crypto_sig`         | General digital signature and verification utilities.                      |
+| `crypto_spkac`       | Netscape SPKAC certificate utilities.                                      |
+| `crypto_ssl`         | Implementation of the `SSLWrap` object.                                    |
+| `crypto_timing`      | Implementation of the TimingSafeEqual.                                     |
 
 When new crypto protocols are added, they will be added into their own
 `crypto_` `*.h` and `*.cc` files.
