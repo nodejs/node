@@ -2827,6 +2827,28 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
 for package `"exports"` and `"imports"` pattern resolutions.
 
+### DEP0XXX: `.aborted` property and `'abort'`, `'aborted'` event in `http`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36670
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Move to {Stream} API instead, as the [`http.ClientRequest`][],
+[`http.ServerResponse`][], and [`http.IncomingMessage`][] are all stream-based.
+Check `stream.destroyed` instead of the `.aborted` property, and listen for
+`'close'` instead of `'abort'`, `'aborted'` event.
+
+The `.aborted` property and `'abort'` event are only useful for detecting
+`.abort()` calls. For closing a request early, use the Stream
+`.destroy([error])` then check the `.destroyed` property and `'close'` event
+should have the same effect. The receiving end should also check the
+[`readable.readableEnded`][] value on [`http.IncomingMessage`][] to get whether
+it was an aborted or graceful destroy.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2884,6 +2906,9 @@ for package `"exports"` and `"imports"` pattern resolutions.
 [`fs.read()`]: fs.md#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.md#fs_fs_readsync_fd_buffer_offset_length_position
 [`fs.stat()`]: fs.md#fs_fs_stat_path_options_callback
+[`http.ClientRequest`]: #http_class_http_clientrequest
+[`http.IncomingMessage`]: #http_class_http_incomingmessage
+[`http.ServerResponse`]: #http_class_http_serverresponse
 [`http.get()`]: http.md#http_http_get_options_callback
 [`http.request()`]: http.md#http_http_request_options_callback
 [`https.get()`]: https.md#https_https_get_options_callback
@@ -2896,6 +2921,7 @@ for package `"exports"` and `"imports"` pattern resolutions.
 [`process.env`]: process.md#process_process_env
 [`process.mainModule`]: process.md#process_process_mainmodule
 [`punycode`]: punycode.md
+[`readable.readableEnded`]: stream.md#stream_readable_readableended
 [`request.abort()`]: http.md#http_request_abort
 [`request.connection`]: http.md#http_request_connection
 [`request.destroy()`]: http.md#http_request_destroy_error
