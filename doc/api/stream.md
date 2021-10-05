@@ -2090,7 +2090,7 @@ added: REPLACEME
 * `options` {Object}
   * `encoding` {string}
   * `highWaterMark` {number}
-  * `objectModel` {boolean}
+  * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * Returns: {stream.Readable}
 
