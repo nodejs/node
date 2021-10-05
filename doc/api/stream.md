@@ -2078,6 +2078,21 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+### `stream.Readable.fromWeb(readableStream[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `readableStream` {ReadableStream}
+* `options` {Object}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Readable}
+
 ### `stream.Readable.isDisturbed(stream)`
 <!-- YAML
 added: v16.8.0
