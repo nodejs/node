@@ -2840,7 +2840,7 @@ Type: Runtime
 The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
 for package `"exports"` and `"imports"` pattern resolutions.
 
-### DEP0XXX: `.aborted` property and `'abort'`, `'aborted'` event in `http`
+### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
 <!-- YAML
 changes:
   - version: REPLACEME
