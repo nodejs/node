@@ -2081,7 +2081,7 @@ for performance reasons.
 
 ### `stream.Readable.fromWeb(readableStream[, options])`
 <!-- YAML
-added: REPLACEME
+added: v16.11.0
 -->
 
 > Stability: 1 - Experimental
