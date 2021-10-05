@@ -99,29 +99,29 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                        | Support Type | Notes                             |
-| ---------------- | ---------------- | ------------------------------- | ------------ | --------------------------------- |
-| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, Debian 9, EL 7 <sup>[2](#fn2)</sup> |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental | e.g. Alpine 3.8                   |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental | Downgraded as of Node.js 10       |
-| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1       | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup> |
-| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1       | e.g. Ubuntu 18.04, Debian 9       |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental | Downgraded as of Node.js 12       |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, EL 7  <sup>[2](#fn2)</sup> |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2       | e.g. EL 7 <sup>[2](#fn2)</sup>    |
-| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
-| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
-| Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental |                                   |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |    |
-| macOS            | x64              | >= 10.13                        | Tier 1       | For notes about compilation see <sup>[7](#fn7)</sup>              |
-| macOS            | arm64            | >= 11                           | Tier 1       |                                   |
-| SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
-| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
-| FreeBSD          | x64              | >= 12.2                         | Experimental |                                   |
+| Operating System | Architectures    | Versions                        | Support Type                                                     | Notes                                                                       |
+| ---------------- | ---------------- | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                                           | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, Debian 9, EL 7 <sup>[2](#fn2)</sup> |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                                     | e.g. Alpine 3.8                                                             |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                                     | Downgraded as of Node.js 10                                                 |
+| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                                           | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup>                      |
+| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                                           | e.g. Ubuntu 18.04, Debian 9                                                 |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                                     | Downgraded as of Node.js 12                                                 |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                                           | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, EL 7  <sup>[2](#fn2)</sup>          |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                                           | e.g. EL 7 <sup>[2](#fn2)</sup>                                              |
+| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1                                                           | <sup>[4](#fn4),[5](#fn5)</sup>                                              |
+| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> |                                                                             |
+| Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental                                                     |                                                                             |
+| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)                      |                                                                             |
+| macOS            | x64              | >= 10.13                        | Tier 1                                                           | For notes about compilation see <sup>[7](#fn7)</sup>                        |
+| macOS            | arm64            | >= 11                           | Tier 1                                                           |                                                                             |
+| SmartOS          | x64              | >= 18                           | Tier 2                                                           |                                                                             |
+| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2                                                           |                                                                             |
+| FreeBSD          | x64              | >= 12.2                         | Experimental                                                     |                                                                             |
 
 <em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
 need the
-[Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
+[Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series\_filter=xenial)
 or similar to source a newer compiler.
 
 <em id="fn2">2</em>: GCC 8 is not provided on the base platform. Users will
@@ -170,7 +170,7 @@ Depending on the host platform, the selection of toolchains may vary.
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
 | Binary package          | Platform and Toolchain                                                                                        |
-| ---------------------   | ------------------------------------------------------------------------------------------------------------- |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
 | darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
 | darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.13                                 |
@@ -272,7 +272,7 @@ $ make -j4
 
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html\_node/Parallel.html).
 
 The above requires that `python` resolves to a supported version of
 Python. See [Prerequisites](#prerequisites).
