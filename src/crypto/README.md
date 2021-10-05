@@ -39,7 +39,7 @@ following table:
 | `crypto_context`     | Implementation of the `SecureContext` object. |
 | `crypto_dh`          | Diffie-Hellman Key Agreement implementation. |
 | `crypto_dsa`         | DSA (Digital Signature) Key Generation functions. |
-| `crypto_ecdh`        | Elliptic-Curve Diffie-Hellman Key Agreement implementation. |
+| `crypto_ec`          | Elliptic-curve cryptography implementation. |
 | `crypto_hash`        | Basic hash (e.g. SHA-256) functions. |
 | `crypto_hkdf`        | HKDF (Key derivation) implementation. |
 | `crypto_hmac`        | HMAC implementations. |
