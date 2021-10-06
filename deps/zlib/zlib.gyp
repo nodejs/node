@@ -51,6 +51,7 @@
               '.',
             ],
           },
+          'cflags': [ '-Wno-implicit-fallthrough' ],
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
