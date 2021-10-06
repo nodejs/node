@@ -96,7 +96,7 @@ manage their overall risk level.
 
 ## Better multithreaded support
 
-Today servers support multiple threads of concurrent execution.
+Today's servers support multiple threads of concurrent execution.
 It is important that Node.js deployments be able to make full and efficient
 use of the available resources. The right answer is often to use
 technologies like containers to run multiple single threaded Node.js
