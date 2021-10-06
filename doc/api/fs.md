@@ -378,7 +378,7 @@ added:
   * `offset` {integer} The location in the buffer at which to start filling.
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
-    `buffer.byteLength`
+    `buffer.length` (`.byteLength` for TypedArray|DataView types)
   * `position` {integer} The location where to begin reading data from the
     file. If `null`, data will be read from the current file position, and
     the position will be updated. If `position` is an integer, the current
@@ -568,7 +568,7 @@ changes:
 * `offset` {integer} The start position from within `buffer` where the data
   to write begins. **Default:** `0`
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
-  `buffer.byteLength`
+  `buffer.length` (`.byteLength` for TypedArray|DataView types; ignored for string|Object types)
 * `position` {integer} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
@@ -3022,7 +3022,7 @@ changes:
 * `options` {Object}
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.length` (`.byteLength` for TypedArray|DataView types)
   * `position` {integer|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
@@ -4134,7 +4134,7 @@ the current position. See pwrite(2).
 The callback will receive the arguments `(err, written, string)` where `written`
 specifies how many _bytes_ the passed string required to be written. Bytes
 written is not necessarily the same as string characters written. See
-[`Buffer.byteLength`][].
+[`Buffer.byteLength()`][].
 
 It is unsafe to use `fs.write()` multiple times on the same file without waiting
 for the callback. For this scenario, [`fs.createWriteStream()`][] is
@@ -5025,7 +5025,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.length` (`.byteLength` for TypedArray|DataView types)
   * `position` {integer|bigint} **Default:** `null`
 * Returns: {number}
 
