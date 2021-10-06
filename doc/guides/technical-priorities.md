@@ -27,9 +27,9 @@ implementations of different versions concurrently.
 ## Suitable types for end-users
 
 Using typings with JavaScript can allow a richer experience when using Visual
-Studio Code (or any other IDEs) environments, more complete documentation of APIs and
-the ability to identify and resolve errors earlier in the development process.
-These benefits are important to a large number of Node.js
+Studio Code (or any other IDEs) environments, more complete documentation
+of APIs and the ability to identify and resolve errors earlier in the development
+process. These benefits are important to a large number of Node.js
 developers (maybe 50%).  Further typing support may be important
 to enterprises that are considering expanding their preferred platforms to
 include Node.js. It is, therefore, important that the Node.js project work
