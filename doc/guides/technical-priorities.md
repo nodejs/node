@@ -45,7 +45,7 @@ that is suitable for beginners in order to continue the rapid growth in use.
 This documentation should include more concrete examples and a learning
 path for newcomers.
 
-## Web Assembly
+## WebAssembly
 
 The use of WebAssembly has been growing over the last few years.
 In order to ensure Node.js continues to be part of solutions where a
