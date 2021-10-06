@@ -21,7 +21,7 @@ and built-in support was part of what made Node.js a success in the first
 10 years. The current implementation is hard to support and a common
 source of vulnerabilities. It is important that we work towards an
 implementation which is easier to support and makes it easier to integrate
-the new http versions (HTTP3, quick) and to support efficient
+the new http versions (HTTP3, QUIC) and to support efficient
 implementations of different versions concurrently.
 
 ## Suitable types for end-users
