@@ -1194,7 +1194,7 @@ digest, the salt should be 256-bits of random data).
 added: v15.0.0
 -->
 
-#### 'hmacImportParams.hash`
+#### `hmacImportParams.hash`
 <!-- YAML
 added: v15.0.0
 -->
