@@ -843,6 +843,14 @@ static std::atomic_bool init_called{false};
 int InitializeNodeWithArgs(std::vector<std::string>* argv,
                            std::vector<std::string>* exec_argv,
                            std::vector<std::string>* errors) {
+  return InitializeNodeWithArgs(argv, exec_argv, errors,
+                                ProcessFlags::kNoFlags);
+}
+
+int InitializeNodeWithArgs(std::vector<std::string>* argv,
+                           std::vector<std::string>* exec_argv,
+                           std::vector<std::string>* errors,
+                           ProcessFlags::Flags flags) {
   // Make sure InitializeNodeWithArgs() is called only once.
   CHECK(!init_called.exchange(true));
 
@@ -853,7 +861,8 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   binding::RegisterBuiltinModules();
 
   // Make inherited handles noninheritable.
-  uv_disable_stdio_inheritance();
+  if (!(flags & ProcessFlags::kEnableStdioInheritance))
+    uv_disable_stdio_inheritance();
 
   // Cache the original command line to be
   // used in diagnostic reports.
@@ -869,67 +878,73 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  std::string node_options;
+  if (!(flags & ProcessFlags::kDisableNodeOptionsEnv)) {
+    std::string node_options;
 
-  if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
-    std::vector<std::string> env_argv =
-        ParseNodeOptionsEnvVar(node_options, errors);
+    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
+      std::vector<std::string> env_argv =
+          ParseNodeOptionsEnvVar(node_options, errors);
 
-    if (!errors->empty()) return 9;
+      if (!errors->empty()) return 9;
 
-    // [0] is expected to be the program name, fill it in from the real argv.
-    env_argv.insert(env_argv.begin(), argv->at(0));
+      // [0] is expected to be the program name, fill it in from the real argv.
+      env_argv.insert(env_argv.begin(), argv->at(0));
 
-    const int exit_code = ProcessGlobalArgs(&env_argv,
-                                            nullptr,
-                                            errors,
-                                            kAllowedInEnvironment);
-    if (exit_code != 0) return exit_code;
+      const int exit_code = ProcessGlobalArgs(&env_argv,
+                                              nullptr,
+                                              errors,
+                                              kAllowedInEnvironment);
+      if (exit_code != 0) return exit_code;
+    }
   }
 #endif
 
-  const int exit_code = ProcessGlobalArgs(argv,
-                                          exec_argv,
-                                          errors,
-                                          kDisallowedInEnvironment);
-  if (exit_code != 0) return exit_code;
+  if (!(flags & ProcessFlags::kDisableCLIOptions)) {
+    const int exit_code = ProcessGlobalArgs(argv,
+                                            exec_argv,
+                                            errors,
+                                            kDisallowedInEnvironment);
+    if (exit_code != 0) return exit_code;
+  }
 
   // Set the process.title immediately after processing argv if --title is set.
   if (!per_process::cli_options->title.empty())
     uv_set_process_title(per_process::cli_options->title.c_str());
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  // If the parameter isn't given, use the env variable.
-  if (per_process::cli_options->icu_data_dir.empty())
-    credentials::SafeGetenv("NODE_ICU_DATA",
-                            &per_process::cli_options->icu_data_dir);
+  if (!(flags & ProcessFlags::kNoICU)) {
+    // If the parameter isn't given, use the env variable.
+    if (per_process::cli_options->icu_data_dir.empty())
+      credentials::SafeGetenv("NODE_ICU_DATA",
+                              &per_process::cli_options->icu_data_dir);
 
 #ifdef NODE_ICU_DEFAULT_DATA_DIR
-  // If neither the CLI option nor the environment variable was specified,
-  // fall back to the configured default
-  if (per_process::cli_options->icu_data_dir.empty()) {
-    // Check whether the NODE_ICU_DEFAULT_DATA_DIR contains the right data
-    // file and can be read.
-    static const char full_path[] =
-        NODE_ICU_DEFAULT_DATA_DIR "/" U_ICUDATA_NAME ".dat";
+    // If neither the CLI option nor the environment variable was specified,
+    // fall back to the configured default
+    if (per_process::cli_options->icu_data_dir.empty()) {
+      // Check whether the NODE_ICU_DEFAULT_DATA_DIR contains the right data
+      // file and can be read.
+      static const char full_path[] =
+          NODE_ICU_DEFAULT_DATA_DIR "/" U_ICUDATA_NAME ".dat";
 
-    FILE* f = fopen(full_path, "rb");
+      FILE* f = fopen(full_path, "rb");
 
-    if (f != nullptr) {
-      fclose(f);
-      per_process::cli_options->icu_data_dir = NODE_ICU_DEFAULT_DATA_DIR;
+      if (f != nullptr) {
+        fclose(f);
+        per_process::cli_options->icu_data_dir = NODE_ICU_DEFAULT_DATA_DIR;
+      }
     }
-  }
 #endif  // NODE_ICU_DEFAULT_DATA_DIR
 
-  // Initialize ICU.
-  // If icu_data_dir is empty here, it will load the 'minimal' data.
-  if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
-    errors->push_back("could not initialize ICU "
-                      "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
-    return 9;
+    // Initialize ICU.
+    // If icu_data_dir is empty here, it will load the 'minimal' data.
+    if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
+      errors->push_back("could not initialize ICU "
+                        "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
+      return 9;
+    }
+    per_process::metadata.versions.InitializeIntlVersions();
   }
-  per_process::metadata.versions.InitializeIntlVersions();
 
 # ifndef __POSIX__
   std::string tz;
@@ -956,7 +971,8 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
 InitializationResult InitializeOncePerProcess(
   int argc,
   char** argv,
-  InitializationSettingsFlags flags) {
+  InitializationSettingsFlags flags,
+  ProcessFlags::Flags process_flags) {
   uint64_t init_flags = flags;
   if (init_flags & kDefaultInitialization) {
     init_flags = init_flags | kInitializeV8 | kInitOpenSSL | kRunPlatformInit;
@@ -982,8 +998,8 @@ InitializationResult InitializeOncePerProcess(
 
   // This needs to run *before* V8::Initialize().
   {
-    result.exit_code =
-        InitializeNodeWithArgs(&(result.args), &(result.exec_args), &errors);
+    result.exit_code = InitializeNodeWithArgs(
+        &(result.args), &(result.exec_args), &errors, process_flags);
     for (const std::string& error : errors)
       fprintf(stderr, "%s: %s\n", result.args.at(0).c_str(), error.c_str());
     if (result.exit_code != 0) {
