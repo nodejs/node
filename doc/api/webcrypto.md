@@ -1511,7 +1511,7 @@ added: v15.0.0
 
 * Type: {string} Must be `'NODE-DH'`.
 
-#### Class: NodeDhKeyGenParams`
+#### Class: `NodeDhKeyGenParams`
 <!-- YAML
 added: v15.0.0
 -->
