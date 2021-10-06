@@ -324,7 +324,8 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv);
 InitializationResult InitializeOncePerProcess(
   int argc,
   char** argv,
-  InitializationSettingsFlags flags);
+  InitializationSettingsFlags flags,
+  ProcessFlags::Flags process_flags = ProcessFlags::kNoFlags);
 void TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
