@@ -113,7 +113,7 @@ in order to ensure the continued growth and success of Node.js.
 ## Single Executable Applications
 
 Node.js often loses out to other runtimes/languages in cases where
-being able package up a single execuatble application simplifies
+being able to package a single, executable application simplifies
 distribution and management of what needs to be delivered. While there are
 components/approaches for doing this, they need to be better
 documented and evangelized so that this is not seen as a barrier
