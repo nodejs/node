@@ -103,9 +103,9 @@ function startCLI(args, flags = [], spawnOpts = {}) {
       return this.waitFor(/>\s+$/);
     },
 
-    waitForInitialBreak() {
+    async waitForInitialBreak() {
       return this.waitFor(/break (?:on start )?in/i)
-        .then(() => {
+        .then(async () => {
           if (isPreBreak(this.output)) {
             return this.command('next', false)
               .then(() => this.waitFor(/break in/));
