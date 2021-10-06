@@ -51,7 +51,7 @@ The use of Web Assembly has been growing over the last few years.
 In order to ensure Node.js continues to be part of solutions where a
 subset of the solution needs the performance that Web Assembly can
 deliver it is important that Node.js provide good support for running
-Web Assembly components along with the JavaScript that makes up the rest
+WebAssembly components along with the JavaScript that makes up the rest
 of the solution. This includes implementations of “host” APIs like WASI.
 
 ## ESM
