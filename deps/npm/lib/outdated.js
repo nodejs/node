@@ -6,6 +6,7 @@ const color = require('chalk')
 const styles = require('ansistyles')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const Arborist = require('@npmcli/arborist')
 
@@ -85,7 +86,10 @@ class Outdated extends ArboristWorkspaceCmd {
     }))
 
     // sorts list alphabetically
-    const outdated = this.list.sort((a, b) => a.name.localeCompare(b.name, 'en'))
+    const outdated = this.list.sort((a, b) => localeCompare(a.name, b.name))
+
+    if (outdated.length > 0)
+      process.exitCode = 1
 
     // return if no outdated packages
     if (outdated.length === 0 && !this.npm.config.get('json'))

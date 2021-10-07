@@ -1,5 +1,6 @@
 const { dirname } = require('path')
 const { cmdList } = require('./cmd-list')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 module.exports = (npm) => {
   const usesBrowser = npm.config.get('viewer') === 'browser'
@@ -62,7 +63,7 @@ const usages = (npm) => {
     maxLen = Math.max(maxLen, c.length)
     return set
   }, [])
-    .sort((a, b) => a[0].localeCompare(b[0], 'en'))
+    .sort(([a], [b]) => localeCompare(a, b))
     .map(([c, usage]) => `\n    ${c}${' '.repeat(maxLen - c.length + 1)}${
       (usage.split('\n').join('\n' + ' '.repeat(maxLen + 5)))}`)
     .join('\n')

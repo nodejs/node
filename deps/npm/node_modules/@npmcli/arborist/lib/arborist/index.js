@@ -58,6 +58,7 @@ class Arborist extends Base {
       cache: options.cache || `${homedir()}/.npm/_cacache`,
       packumentCache: options.packumentCache || new Map(),
       log: options.log || procLog,
+      workspacesEnabled: options.workspacesEnabled !== false,
     }
     if (options.saveType && !saveTypeMap.get(options.saveType)) {
       throw new Error(`Invalid saveType ${options.saveType}`)
@@ -73,8 +74,15 @@ class Arborist extends Base {
   }
 
   // returns a set of workspace nodes and all their deps
-  workspaceDependencySet (tree, workspaces) {
+  workspaceDependencySet (tree, workspaces, includeWorkspaceRoot) {
     const wsNodes = this.workspaceNodes(tree, workspaces)
+    if (includeWorkspaceRoot) {
+      for (const edge of tree.edgesOut.values()) {
+        if (edge.type !== 'workspace' && edge.to) {
+          wsNodes.push(edge.to)
+        }
+      }
+    }
     const set = new Set(wsNodes)
     const extraneous = new Set()
     for (const node of set) {
@@ -96,6 +104,25 @@ class Arborist extends Base {
     for (const extra of extraneous) {
       set.add(extra)
     }
+
+    return set
+  }
+
+  excludeWorkspacesDependencySet (tree) {
+    const set = new Set()
+    for (const edge of tree.edgesOut.values()) {
+      if (edge.type !== 'workspace' && edge.to) {
+        set.add(edge.to)
+      }
+    }
+    for (const node of set) {
+      for (const edge of node.edgesOut.values()) {
+        if (edge.to) {
+          set.add(edge.to)
+        }
+      }
+    }
+
     return set
   }
 }

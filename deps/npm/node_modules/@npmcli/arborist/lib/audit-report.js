@@ -1,6 +1,7 @@
 // an object representing the set of vulnerabilities in a tree
 /* eslint camelcase: "off" */
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 
@@ -79,7 +80,7 @@ class AuditReport extends Map {
     }
 
     obj.vulnerabilities = vulnerabilities
-      .sort(([a], [b]) => a.localeCompare(b, 'en'))
+      .sort(([a], [b]) => localeCompare(a, b))
       .reduce((set, [name, vuln]) => {
         set[name] = vuln
         return set

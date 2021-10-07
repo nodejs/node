@@ -3,6 +3,7 @@ const path = require('path')
 const openUrl = require('./utils/open-url.js')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const BaseCommand = require('./base-command.js')
 
@@ -82,7 +83,7 @@ class Help extends BaseCommand {
       if (aManNumber !== bManNumber)
         return aManNumber - bManNumber
 
-      return a.localeCompare(b, 'en')
+      return localeCompare(a, b)
     })
     const man = mans[0]
 

@@ -16,13 +16,8 @@ test('find python', function (t) {
     t.strictEqual(err, null)
     var proc = execFile(found, ['-V'], function (err, stdout, stderr) {
       t.strictEqual(err, null)
-      if (/Python 2/.test(stderr)) {
-        t.strictEqual(stdout, '')
-        t.ok(/Python 2/.test(stderr))
-      } else {
-        t.ok(/Python 3/.test(stdout))
-        t.strictEqual(stderr, '')
-      }
+      t.ok(/Python 3/.test(stdout))
+      t.strictEqual(stderr, '')
     })
     proc.stdout.setEncoding('utf-8')
     proc.stderr.setEncoding('utf-8')
@@ -66,7 +61,7 @@ test('find python - python', function (t) {
       poison(f, 'execFile')
       t.strictEqual(program, '/path/python')
       t.ok(/sys\.version_info/.test(args[1]))
-      cb(null, '2.7.15')
+      cb(null, '3.9.1')
     }
     t.strictEqual(program,
       process.platform === 'win32' ? '"python"' : 'python')
@@ -146,13 +141,14 @@ test('find python - no python2, no python, unix', function (t) {
 })
 
 test('find python - no python, use python launcher', function (t) {
-  t.plan(3)
+  t.plan(4)
 
   var f = new TestPythonFinder(null, done)
   f.win = true
 
   f.execFile = function (program, args, opts, cb) {
     if (program === 'py.exe') {
+      t.notEqual(args.indexOf('-3'), -1)
       t.notEqual(args.indexOf('-c'), -1)
       return cb(null, 'Z:\\snake.exe')
     }
@@ -162,7 +158,7 @@ test('find python - no python, use python launcher', function (t) {
       cb(new Error('not found'))
     } else if (/sys\.version_info/.test(args[args.length - 1])) {
       if (program === 'Z:\\snake.exe') {
-        cb(null, '2.7.14')
+        cb(null, '3.9.0')
       } else {
         t.fail()
       }
@@ -181,9 +177,9 @@ test('find python - no python, use python launcher', function (t) {
 test('find python - no python, no python launcher, good guess', function (t) {
   t.plan(2)
 
-  var re = /C:[\\/]Python37[\\/]python[.]exe/
   var f = new TestPythonFinder(null, done)
   f.win = true
+  const expectedProgram = f.winDefaultLocations[0]
 
   f.execFile = function (program, args, opts, cb) {
     if (program === 'py.exe') {
@@ -191,7 +187,7 @@ test('find python - no python, no python launcher, good guess', function (t) {
     }
     if (/sys\.executable/.test(args[args.length - 1])) {
       cb(new Error('not found'))
-    } else if (re.test(program) &&
+    } else if (program === expectedProgram &&
                /sys\.version_info/.test(args[args.length - 1])) {
       cb(null, '3.7.3')
     } else {
@@ -202,7 +198,7 @@ test('find python - no python, no python launcher, good guess', function (t) {
 
   function done (err, python) {
     t.strictEqual(err, null)
-    t.ok(re.test(python))
+    t.ok(python === expectedProgram)
   }
 })
 
