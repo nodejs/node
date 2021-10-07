@@ -461,7 +461,7 @@ class OptionsParser {
   template <typename OtherOptions>
   friend class OptionsParser;
 
-  friend void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetCLIOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
 };
 
