@@ -14,9 +14,9 @@ Node.js codebase not related to stylistic issues.
   * [Align function arguments vertically](#align-function-arguments-vertically)
   * [Initialization lists](#initialization-lists)
   * [CamelCase for methods, functions, and classes](#camelcase-for-methods-functions-and-classes)
-  * [`snake_case` for local variables and parameters](#snake_case-for-local-variables-and-parameters)
-  * [`snake_case_` for private class fields](#snake_case_-for-private-class-fields)
-  * [`snake_case` for C-like structs](#snake_case-for-c-like-structs)
+  * [`snake_case` for local variables and parameters](#snake\_case-for-local-variables-and-parameters)
+  * [`snake_case_` for private class fields](#snake\_case\_-for-private-class-fields)
+  * [`snake_case` for C-like structs](#snake\_case-for-c-like-structs)
   * [Space after `template`](#space-after-template)
 * [Memory management](#memory-management)
   * [Memory allocation](#memory-allocation)
@@ -174,7 +174,7 @@ class Foo {
 
 ### `snake_case` for C-like structs
 
-For plain C-like structs snake_case can be used.
+For plain C-like structs snake\_case can be used.
 
 ```cpp
 struct foo_bar {
@@ -267,7 +267,8 @@ class ExampleClass {
 
 When working with typed arrays that involve direct data modification
 from C++, use an `AliasedBuffer` when possible. The API abstraction and
-the usage scope of `AliasedBuffer` are documented in [aliased_buffer.h][].
+the usage scope of `AliasedBuffer` are documented in
+[aliased\_buffer.h][aliased_buffer.h].
 
 ```cpp
 // Create an AliasedBuffer.

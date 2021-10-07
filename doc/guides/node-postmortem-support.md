@@ -67,6 +67,6 @@ sure all Node.js postmortem metadata are calculated correctly.
 ## Tools and references
 
 * [llnode](https://github.com/nodejs/llnode): LLDB plugin
-* [`mdb_v8`](https://github.com/joyent/mdb_v8): mdb plugin
+* [`mdb_v8`](https://github.com/joyent/mdb\_v8): mdb plugin
 * [nodejs/post-mortem](https://github.com/nodejs/post-mortem): Node.js
-post-mortem working group
+  post-mortem working group

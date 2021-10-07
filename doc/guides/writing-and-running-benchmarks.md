@@ -279,9 +279,9 @@ The `compare.js` tool will then produce a csv file with the benchmark results.
 $ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
-*Tips: there are some useful options of `benchmark/compare.js`. For example,
+_Tips: there are some useful options of `benchmark/compare.js`. For example,
 if you want to compare the benchmark of a single script instead of a whole
-module, you can use the `--filter` option:*
+module, you can use the `--filter` option:_
 
 ```console
   --new      ./new-node-binary  new node binary (required)
@@ -347,7 +347,7 @@ $ cat compare-pr-5134.csv | sed '1p;/encoding='"'"ascii"'"'/!d' | Rscript benchm
 ...
 ```
 
-![compare tool boxplot](doc_img/compare-boxplot.png)
+![compare tool boxplot](doc\_img/compare-boxplot.png)
 
 ### Comparing parameters
 
@@ -427,7 +427,7 @@ chunkLen     encoding      rate confidence.interval
     1024         utf8 2025551.2            81770.69
 ```
 
-![compare tool boxplot](doc_img/scatter-plot.png)
+![compare tool boxplot](doc\_img/scatter-plot.png)
 
 ### Running benchmarks on the CI
 

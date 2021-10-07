@@ -36,7 +36,8 @@ this guide.
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
 * For code blocks:
-  * Use [language][]-aware fences. (<code>```js</code>)
+  * Use [language][]-aware fences. (<code>\`\`\`js</code>)
+
   * For the [info string][], use one of the following.
 
     | Meaning       | Info string  |
@@ -69,14 +70,14 @@ this guide.
 * Instances should use camelCase.
 * Denote methods with parentheses: `socket.end()` instead of `socket.end`.
 * Function arguments or object properties should use the following format:
-  * ```* `name` {type|type2} Optional description. **Default:** `value`.```
+  * ``* `name` {type|type2} Optional description. **Default:** `value`.``
   <!--lint disable maximum-line-length remark-lint-->
-  * For example: <code>* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.</code>
+  * For example: <code>\* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.</code>
   <!--lint enable maximum-line-length remark-lint-->
   * The `type` should refer to a Node.js type or a [JavaScript type][].
 * Function returns should use the following format:
-  * <code>* Returns: {type|type2} Optional description.</code>
-  * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>
+  * <code>\* Returns: {type|type2} Optional description.</code>
+  * E.g. <code>\* Returns: {AsyncHook} A reference to `asyncHook`.</code>
 * Use official styling for capitalization in products and projects.
   * OK: JavaScript, Google's V8
   <!--lint disable prohibited-strings remark-lint-->
@@ -85,7 +86,9 @@ this guide.
   <!-- lint enable prohibited-strings remark-lint-->
   * When referring to the executable, _`node`_ is acceptable.
 * [Be direct][].
+
 <!-- lint disable prohibited-strings remark-lint-->
+
 * When referring to a version of Node.js in prose, use _Node.js_ and the version
   number. Do not prefix the version number with _v_ in prose. This is to avoid
   confusion about whether _v8_ refers to Node.js 8.x or the V8 JavaScript
