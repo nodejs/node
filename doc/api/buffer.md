@@ -2307,7 +2307,7 @@ added: v0.1.90
 
 * {integer}
 
-Returns the number of bytes in `buf`. 
+Returns the number of bytes in `buf`.
 An alias of the inherited [`buf.byteLength`][].
 
 ```mjs
