@@ -2,7 +2,7 @@
 
 > Stability: 1 - Experimental
 
-*tl;dr: You can land pull requests by adding the `commit-queue` label to it.*
+_tl;dr: You can land pull requests by adding the `commit-queue` label to it._
 
 Commit Queue is an experimental feature for the project which simplifies the
 landing process by automating it via GitHub Actions. With it, collaborators can
@@ -58,7 +58,7 @@ events every five minutes. Five minutes is the smallest number accepted by
 the scheduler. The scheduler is not guaranteed to run every five minutes, it
 might take longer between runs.
 
-Using the scheduler is preferable over using pull_request_target for two
+Using the scheduler is preferable over using pull\_request\_target for two
 reasons:
 
 1. if two Commit Queue Actions execution overlap, there's a high-risk that
@@ -66,9 +66,9 @@ reasons:
    sync with the remote after the first Action pushes. `issue_comment` event
    has the same limitation.
 2. `pull_request_target` will only run if the Action exists on the base commit
-    of a pull request, and it will run the Action version present on that
-    commit, meaning we wouldn't be able to use it for already opened PRs
-    without rebasing them first.
+   of a pull request, and it will run the Action version present on that
+   commit, meaning we wouldn't be able to use it for already opened PRs
+   without rebasing them first.
 
 `node-core-utils` is configured with a personal token and
 a Jenkins token from
@@ -79,16 +79,16 @@ that into a list of PR ids we can pass as arguments to
 [`commit-queue.sh`](../../tools/actions/commit-queue.sh).
 
 > The personal token only needs permission for public repositories and to read
-> profiles, we can use the GITHUB_TOKEN for write operations. Jenkins token is
+> profiles, we can use the GITHUB\_TOKEN for write operations. Jenkins token is
 > required to check CI status.
 
 `commit-queue.sh` receives the following positional arguments:
 
 1. The repository owner
 2. The repository name
-3. The Action GITHUB_TOKEN
+3. The Action GITHUB\_TOKEN
 4. Every positional argument starting at this one will be a pull request ID of
-    a pull request with commit-queue set.
+   a pull request with commit-queue set.
 
 The script will iterate over the pull requests. `ncu-ci` is used to check if
 the last CI is still pending, and calls to the GitHub API are used to check if

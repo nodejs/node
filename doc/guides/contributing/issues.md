@@ -30,7 +30,7 @@ test case we can use to recreate the problem on our own. If we cannot recreate
 the issue, it becomes impossible for us to fix.
 
 In order to rule out the possibility of bugs introduced by userland code, test
-cases should be limited, as much as possible, to using *only* Node.js APIs.
+cases should be limited, as much as possible, to using _only_ Node.js APIs.
 If the bug occurs only when you're using a specific userland module, there is
 a very good chance that either (a) the module has a bug or (b) something in
 Node.js changed that broke the module.
@@ -53,7 +53,7 @@ project's GitHub organization plus a few contributions to the project
 (commenting on issues or PRs) can apply for and become a triager. Open a PR
 on the README.md of this project with: i) a request to be added as a triager,
 ii) the motivation for becoming a triager, and iii) agreement on reading,
-understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md).
+understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE\_OF\_CONDUCT.md).
 
 The triage role enables the ability to carry out the most common triage
 activities, such as applying labels and closing/reopening/assigning issues.

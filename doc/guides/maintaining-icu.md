@@ -96,7 +96,7 @@ Node.js is built.
 ## How to upgrade ICU
 
 * Make sure your Node.js workspace is clean (`git status`
-should be sufficient).
+  should be sufficient).
 * Configure Node.js with the specific [ICU version](http://site.icu-project.org/download)
   you want to upgrade to, for example:
 
@@ -113,7 +113,7 @@ make
 * If there are ICU version-specific changes needed, you may need to make changes
   in `tools/icu/icu-generic.gyp` or add patch files to `tools/icu/patches`.
   * Specifically, look for the lists in `sources!` in the `tools/icu/icu-generic.gyp` for
-  files to exclude.
+    files to exclude.
 
 * Verify the Node.js build works:
 
@@ -174,8 +174,8 @@ tools/license-builder.sh
 ```
 
 * Update the URL and hash for the full ICU file in `tools/icu/current_ver.dep`.
-It should match the ICU URL used in the first step.  When this is done, the
-following should build with small ICU.
+  It should match the ICU URL used in the first step.  When this is done, the
+  following should build with small ICU.
 
 ```bash
 # clean up
@@ -187,11 +187,11 @@ make test-ci
 
 * commit the change to `tools/icu/current_ver.dep` and `LICENSE` files.
 
-  * Note: To simplify review, I often will “pre-land” this patch, meaning that
-  I run the patch through `curl -L https://github.com/nodejs/node/pull/xxx.patch
-  | git am -3 --whitespace=fix` per the collaborator’s guide… and then push that
-  patched branch into my PR's branch. This reduces the whitespace changes that
-  show up in the PR, since the final land will eliminate those anyway.
+  * To simplify review, I often will “pre-land” this patch, meaning that I run
+    `curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix`
+    per the collaborator’s guide… and then push that patched branch into my
+    PR's branch. This reduces the whitespace changes that show up in the PR,
+    since the final land will eliminate those anyway.
 
 ## Floating patches to ICU
 
@@ -248,17 +248,17 @@ patch to ICU is required.  Though it seems expedient to simply change a file in
 `deps/icu-small`, this is not the right approach for the following reasons:
 
 1. **Repeatability.** Given the complexity of merging in a new ICU version,
-following the steps above in the prior section of this document ought to be
-repeatable without concern for overriding a patch.
+   following the steps above in the prior section of this document ought to be
+   repeatable without concern for overriding a patch.
 
 2. **Verifiability.** Given the number of files modified in an ICU PR,
-a floating patch could easily be missed or dropped altogether next time
-something is landed.
+   a floating patch could easily be missed or dropped altogether next time
+   something is landed.
 
 3. **Compatibility.** There are a number of ways that ICU can be loaded into
-Node.js (see the top level README.md). Only modifying `icu-small` would cause
-the patch not to be landed in case the user specifies the ICU source code
-another way.
+   Node.js (see the top level README.md). Only modifying `icu-small` would cause
+   the patch not to be landed in case the user specifies the ICU source code
+   another way.
 
 [CLDR]: http://cldr.unicode.org/
 [Ecma402]: https://github.com/tc39/ecma402

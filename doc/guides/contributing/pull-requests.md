@@ -34,7 +34,7 @@
 
 ## Dependencies
 
-Node.js has several bundled dependencies in the *deps/* and the *tools/*
+Node.js has several bundled dependencies in the _deps/_ and the _tools/_
 directories that are not part of the project proper. Changes to files in those
 directories should be sent to their respective projects. Do not send a patch to
 Node.js. We cannot accept such patches.
@@ -161,19 +161,22 @@ notes about [commit squashing](#commit-squashing).
 A good commit message should describe what changed and why.
 
 1. The first line should:
+
    * contain a short description of the change (preferably 50 characters or
      less, and no more than 72 characters)
    * be entirely in lowercase with the exception of proper nouns, acronyms, and
-   the words that refer to code, like function/variable names
+     the words that refer to code, like function/variable names
    * be prefixed with the name of the changed [subsystem](#appendix-subsystems)
-   and start with an imperative verb. Check the output of `git log --oneline
-   files/you/changed` to find out what subsystems your changes touch.
+     and start with an imperative verb. Check the output of `git log --oneline
+     files/you/changed` to find out what subsystems your changes touch.
 
    Examples:
+
    * `net: add localAddress and localPort to Socket`
    * `src: fix typos in async_wrap.h`
 
 2. Keep the second line blank.
+
 3. Wrap all other lines at 72 columns (except for long URLs).
 
 4. If your patch fixes an open issue, you can add a reference to it at the end
@@ -181,13 +184,14 @@ A good commit message should describe what changed and why.
    references use `Refs:`.
 
    Examples:
+
    * `Fixes: https://github.com/nodejs/node/issues/1337`
    * `Refs: https://eslint.org/docs/rules/space-in-parens.html`
    * `Refs: https://github.com/nodejs/node/pull/3615`
 
 5. If your commit introduces a breaking change (`semver-major`), it should
-contain an explanation about the reason of the breaking change, which
-situation would trigger the breaking change and what is the exact change.
+   contain an explanation about the reason of the breaking change, which
+   situation would trigger the breaking change and what is the exact change.
 
 Sample complete commit message:
 
@@ -322,7 +326,7 @@ reviews a pull request they may find specific details that they would like to
 see changed or fixed. These may be as simple as fixing a typo, or may involve
 substantive changes to the code you have written. While such requests are
 intended to be helpful, they may come across as abrupt or unhelpful, especially
-requests to change things that do not include concrete suggestions on *how* to
+requests to change things that do not include concrete suggestions on _how_ to
 change them.
 
 Try not to be discouraged. If you feel that a particular review is unfair,
@@ -384,7 +388,7 @@ Focus first on the most significant aspects of the change:
 4. Is the commit message readable and correct? If it contains a breaking change
    is it clear enough?
 
-When changes are necessary, *request* them, do not *demand* them, and do not
+When changes are necessary, _request_ them, do not _demand_ them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
 
 Specific performance optimization techniques, coding styles and conventions
@@ -404,7 +408,7 @@ with the appropriate reason to keep the conversation flow concise and relevant.
 
 ### Be aware of the person behind the code
 
-Be aware that *how* you communicate requests and reviews in your feedback can
+Be aware that _how_ you communicate requests and reviews in your feedback can
 have a significant impact on the success of the pull request. Yes, we may land
 a particular change that makes Node.js better, but the individual might just
 not want to have anything to do with Node.js ever again. The goal is not just
@@ -446,7 +450,7 @@ or by leaving an `LGTM` ("Looks Good To Me") comment.
 When explicitly using the "Changes requested" component of the GitHub Approval
 Workflow, show empathy. That is, do not be rude or abrupt with your feedback
 and offer concrete suggestions for improvement, if possible. If you're not
-sure *how* a particular change can be improved, say so.
+sure _how_ a particular change can be improved, say so.
 
 Most importantly, after leaving such requests, it is courteous to make yourself
 available later to check whether your comments have been addressed.
@@ -494,7 +498,7 @@ changing working functional code just for the sake of changing.
 
 If a particular pull request introduces a performance or functional
 regression, rather than simply rejecting the pull request, take the time to
-work *with* the contributor on improving the change. Offer feedback and
+work _with_ the contributor on improving the change. Offer feedback and
 advice on what would make the pull request acceptable, and do not assume that
 the contributor should already know how to do that. Be explicit in your
 feedback.

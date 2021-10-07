@@ -6,6 +6,7 @@ performance improvements not currently available in standard zlib.
 ## Updating zlib
 
 Update zlib:
+
 ```bash
 git clone https://chromium.googlesource.com/chromium/src/third_party/zlib
 cp deps/zlib/zlib.gyp deps/zlib/win32/zlib.def deps
@@ -27,6 +28,7 @@ occurred upstream.
 Add zlib: `git add --all deps/zlib`
 
 Commit the changes with a message like
+
 ```text
 deps: update zlib to upstream d7f3ca9
 
