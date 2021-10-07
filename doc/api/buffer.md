@@ -2307,7 +2307,8 @@ added: v0.1.90
 
 * {integer}
 
-Returns the number of bytes in `buf`.
+Returns the number of bytes in `buf`. 
+An alias of the inherited [`buf.byteLength`][].
 
 ```mjs
 import { Buffer } from 'buffer';
@@ -5240,6 +5241,7 @@ introducing security vulnerabilities into an application.
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`buf.buffer`]: #bufbuffer
+[`buf.byteLength`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/byteLength
 [`buf.compare()`]: #bufcomparetarget-targetstart-targetend-sourcestart-sourceend
 [`buf.entries()`]: #bufentries
 [`buf.fill()`]: #buffillvalue-offset-end-encoding
