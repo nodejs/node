@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -11,7 +11,7 @@ const net = require('net');
   ];
   invalidKeys.forEach((invalidKey) => {
     const option = {
-      ...common.localhostIPv4,
+      port: 8080,
       [invalidKey]: true
     };
     const message = `The property 'options.${invalidKey}' is not supported. Received true`;
