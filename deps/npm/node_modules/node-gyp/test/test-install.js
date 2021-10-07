@@ -1,38 +1,46 @@
 'use strict'
 
-const test = require('tap').test
-const install = require('../lib/install').test.install
+const { test } = require('tap')
+const { test: { install } } = require('../lib/install')
+const log = require('npmlog')
 
-require('npmlog').level = 'error' // we expect a warning
+log.level = 'error' // we expect a warning
 
-test('EACCES retry once', function (t) {
+test('EACCES retry once', async (t) => {
   t.plan(3)
 
-  var fs = {}
-  fs.stat = function (path, cb) {
-    var err = new Error()
-    err.code = 'EACCES'
-    cb(err)
-    t.ok(true)
+  const fs = {
+    promises: {
+      stat (_) {
+        const err = new Error()
+        err.code = 'EACCES'
+        t.ok(true)
+        throw err
+      }
+    }
   }
 
-  var gyp = {}
-  gyp.devDir = __dirname
-  gyp.opts = {}
-  gyp.opts.ensure = true
-  gyp.commands = {}
-  gyp.commands.install = function (argv, cb) {
-    install(fs, gyp, argv, cb)
-  }
-  gyp.commands.remove = function (argv, cb) {
-    cb()
+  const Gyp = {
+    devDir: __dirname,
+    opts: {
+      ensure: true
+    },
+    commands: {
+      install (argv, cb) {
+        install(fs, Gyp, argv).then(cb, cb)
+      },
+      remove (_, cb) {
+        cb()
+      }
+    }
   }
 
-  gyp.commands.install([], function (err) {
+  try {
+    await install(fs, Gyp, [])
+  } catch (err) {
     t.ok(true)
     if (/"pre" versions of node cannot be installed/.test(err.message)) {
       t.ok(true)
-      t.ok(true)
     }
-  })
+  }
 })
