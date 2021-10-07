@@ -7025,7 +7025,7 @@ the file contents.
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 [`AHAFS`]: https://developer.ibm.com/articles/au-aix_event_infrastructure/
-[`Buffer.byteLength`]: buffer.md#static-method-bufferbytelengthstring-encoding
+[`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
