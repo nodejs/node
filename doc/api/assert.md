@@ -692,7 +692,7 @@ are recursively evaluated also by the following rules.
 import assert from 'assert/strict';
 
 // This fails because 1 !== '1'.
-deepStrictEqual({ a: 1 }, { a: '1' });
+assert.deepStrictEqual({ a: 1 }, { a: '1' });
 // AssertionError: Expected inputs to be strictly deep-equal:
 // + actual - expected
 //
