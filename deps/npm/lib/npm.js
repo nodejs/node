@@ -355,6 +355,3 @@ const npm = module.exports = new class extends EventEmitter {
     this.log.showProgress()
   }
 }()
-
-if (require.main === module)
-  require('./cli.js')(process)

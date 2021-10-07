@@ -1,8 +1,28 @@
-import test from 'ava';
-import chalk from 'chalk';
-import stripAnsi from 'strip-ansi';
-import columns from './index';
+'use strict';
 
+const assert = require('assert');
+const chalk = require('chalk');
+const stripAnsi = require('strip-ansi');
+const columns = require('./index.js');
+const tests = [];
+
+function test(msg, fn) {
+	tests.push([msg, fn]);
+}
+
+process.nextTick(async function run() {
+	for (const [msg, fn] of tests) {
+		try {
+			await fn(assert);
+			console.log(`pass - ${msg}`);
+		} catch (error) {
+			console.error(`fail - ${msg}`, error);
+			process.exit(1);
+		}
+	}
+});
+
+// prettier-ignore
 test('should print one column list', t => {
 	const cols = columns(['foo', ['bar', 'baz'], ['bar', 'qux']], {
 		width: 1
@@ -15,9 +35,10 @@ test('should print one column list', t => {
 		'foo\n' +
 		'qux';
 
-	t.is(cols, expected);
+	t.equal(cols, expected);
 });
 
+// prettier-ignore
 test('should print three column list', t => {
 	const cols = columns(['foo', ['bar', 'baz'], ['bat', 'qux']], {
 		width: 16
@@ -27,9 +48,10 @@ test('should print three column list', t => {
 		'bar  baz  qux  \n' +
 		'bat  foo  ';
 
-	t.is(cols, expected);
+	t.equal(cols, expected);
 });
 
+// prettier-ignore
 test('should print complex list', t => {
 	const cols = columns(
 		[
@@ -50,9 +72,10 @@ test('should print complex list', t => {
 		'apricot           baz               foo               嶜憃撊 噾噿嚁     \n' +
 		'banana pineapple  blueberry         pomegranate       ';
 
-	t.is(stripAnsi(cols), expected);
+	t.equal(stripAnsi(cols), expected);
 });
 
+// prettier-ignore
 test('should optionally not sort', t => {
 	const cols = columns(
 		[
@@ -74,5 +97,5 @@ test('should optionally not sort', t => {
 		'bar               blueberry         durian            banana pineapple  \n' +
 		'baz               apple             star fruit        ';
 
-	t.is(stripAnsi(cols), expected);
+	t.equal(stripAnsi(cols), expected);
 });

@@ -10,6 +10,7 @@ const writeFile = promisify(fs.writeFile)
 const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 // take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
 // { key: value, k2: v2, k3: v3 }
@@ -209,7 +210,7 @@ class Config extends BaseCommand {
 ; Configs like \`//<hostname>/:_authToken\` are auth that is restricted
 ; to the registry host specified.
 
-${data.split('\n').sort((a, b) => a.localeCompare(b, 'en')).join('\n').trim()}
+${data.split('\n').sort(localeCompare).join('\n').trim()}
 
 ;;;;
 ; all available options shown below with default values
@@ -238,7 +239,7 @@ ${defData}
       if (where === 'default' && !long)
         continue
 
-      const keys = Object.keys(data).sort((a, b) => a.localeCompare(b, 'en'))
+      const keys = Object.keys(data).sort(localeCompare)
       if (!keys.length)
         continue
 

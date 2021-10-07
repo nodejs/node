@@ -264,6 +264,16 @@ configured workspaces. e.g:</p>
 <pre><code>npm run test --workspaces
 </code></pre>
 <p>Will run the <code>test</code> script in both <code>./packages/a</code> and <code>./packages/b</code>.</p>
+<p>Commands will be run in each workspace in the order they appear in your <code>package.json</code></p>
+<pre><code>{
+  "workspaces": [ "packages/a", "packages/b" ]
+}
+</code></pre>
+<p>Order of run is different with:</p>
+<pre><code>{
+  "workspaces": [ "packages/b", "packages/a" ]
+}
+</code></pre>
 <h3 id="ignoring-missing-scripts">Ignoring missing scripts</h3>
 <p>It is not required for all of the workspaces to implement scripts run with the <code>npm run</code> command.</p>
 <p>By running the command with the <code>--if-present</code> flag, npm will ignore workspaces missing target script.</p>

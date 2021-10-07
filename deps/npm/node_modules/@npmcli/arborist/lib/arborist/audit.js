@@ -5,6 +5,7 @@ const AuditReport = require('../audit-report.js')
 // shared with reify
 const _global = Symbol.for('global')
 const _workspaces = Symbol.for('workspaces')
+const _includeWorkspaceRoot = Symbol.for('includeWorkspaceRoot')
 
 module.exports = cls => class Auditor extends cls {
   async audit (options = {}) {
@@ -23,7 +24,15 @@ module.exports = cls => class Auditor extends cls {
     process.emit('time', 'audit')
     const tree = await this.loadVirtual()
     if (this[_workspaces] && this[_workspaces].length) {
-      options.filterSet = this.workspaceDependencySet(tree, this[_workspaces])
+      options.filterSet = this.workspaceDependencySet(
+        tree,
+        this[_workspaces],
+        this[_includeWorkspaceRoot]
+      )
+    }
+    if (!options.workspacesEnabled) {
+      options.filterSet =
+        this.excludeWorkspacesDependencySet(tree)
     }
     this.auditReport = await AuditReport.load(tree, options)
     const ret = options.fix ? this.reify(options) : this.auditReport

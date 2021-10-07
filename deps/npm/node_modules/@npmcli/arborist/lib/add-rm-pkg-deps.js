@@ -1,5 +1,7 @@
 // add and remove dependency specs to/from pkg manifest
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
+
 const add = ({pkg, add, saveBundle, saveType, log}) => {
   for (const spec of add) {
     addSingle({pkg, spec, saveBundle, saveType, log})
@@ -79,7 +81,7 @@ const addSingle = ({pkg, spec, saveBundle, saveType, log}) => {
     // keep it sorted, keep it unique
     const bd = new Set(pkg.bundleDependencies || [])
     bd.add(spec.name)
-    pkg.bundleDependencies = [...bd].sort((a, b) => a.localeCompare(b, 'en'))
+    pkg.bundleDependencies = [...bd].sort(localeCompare)
   }
 }
 

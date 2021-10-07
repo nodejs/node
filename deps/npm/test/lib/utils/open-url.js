@@ -47,11 +47,10 @@ t.test('returns error for non-https and non-file url', async (t) => {
     openerOpts = null
     OUTPUT.length = 0
   })
-  t.rejects(openUrl(npm, 'ftp://www.npmjs.com', 'npm home'), /Invalid URL/, 'got the correct error')
+  await t.rejects(openUrl(npm, 'ftp://www.npmjs.com', 'npm home'), /Invalid URL/, 'got the correct error')
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
-  t.end()
 })
 
 t.test('returns error for non-parseable url', async (t) => {
@@ -60,11 +59,22 @@ t.test('returns error for non-parseable url', async (t) => {
     openerOpts = null
     OUTPUT.length = 0
   })
-  t.rejects(openUrl(npm, 'git+ssh://user@host:repo.git', 'npm home'), /Invalid URL/, 'got the correct error')
+  await t.rejects(openUrl(npm, 'git+ssh://user@host:repo.git', 'npm home'), /Invalid URL/, 'got the correct error')
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
-  t.end()
+})
+
+t.test('encodes non-URL-safe characters in url provided', async (t) => {
+  t.teardown(() => {
+    openerUrl = null
+    openerOpts = null
+    OUTPUT.length = 0
+  })
+  await openUrl(npm, 'https://www.npmjs.com/|cat', 'npm home')
+  t.equal(openerUrl, 'https://www.npmjs.com/%7Ccat', 'opened the encoded url')
+  t.same(openerOpts, { command: null }, 'passed command as null (the default)')
+  t.same(OUTPUT, [], 'printed no output')
 })
 
 t.test('opens a url with the given browser', async (t) => {
@@ -79,7 +89,6 @@ t.test('opens a url with the given browser', async (t) => {
   t.equal(openerUrl, 'https://www.npmjs.com', 'opened the given url')
   t.same(openerOpts, { command: 'chrome' }, 'passed the given browser as command')
   t.same(OUTPUT, [], 'printed no output')
-  t.end()
 })
 
 t.test('prints where to go when browser is disabled', async (t) => {
@@ -96,7 +105,6 @@ t.test('prints where to go when browser is disabled', async (t) => {
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.end()
 })
 
 t.test('prints where to go when browser is disabled and json is enabled', async (t) => {
@@ -115,7 +123,6 @@ t.test('prints where to go when browser is disabled and json is enabled', async 
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.end()
 })
 
 t.test('prints where to go when given browser does not exist', async (t) => {
@@ -133,7 +140,6 @@ t.test('prints where to go when given browser does not exist', async (t) => {
   t.equal(OUTPUT.length, 1, 'got one logged message')
   t.equal(OUTPUT[0].length, 1, 'logged message had one value')
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
-  t.end()
 })
 
 t.test('handles unknown opener error', async (t) => {
@@ -146,5 +152,4 @@ t.test('handles unknown opener error', async (t) => {
     npm.config.set('browser', true)
   })
   t.rejects(openUrl(npm, 'https://www.npmjs.com', 'npm home'), 'failed', 'got the correct error')
-  t.end()
 })
