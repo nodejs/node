@@ -769,6 +769,7 @@ dynamically linking with OpenSSL 3.0.0 by using the configuration flag
 `--openssl-is-fips`.
 
 ### FIPS support when statically linking OpenSSL
+
 FIPS can be supported by specifying the configuration flag `--openssl-is-fips`:
 ```console
 $ ./configure --openssl-is-fips
@@ -781,7 +782,7 @@ the FIPS configuration file (fipsmodule.cnf), copying and updating openssl.cnf
 to include the correct path to fipsmodule.cnf and finally uncomment the fips
 section.
 
-We can then run node specifying --enable-fips:
+We can then run node specifying `--enable-fips`:
 ```console
 $ ./node --enable-fips  -p 'crypto.getFips()'
 1
