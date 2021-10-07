@@ -83,6 +83,7 @@ const _validateNodeModules = Symbol('validateNodeModules')
 const _nmValidated = Symbol('nmValidated')
 const _validatePath = Symbol('validatePath')
 const _reifyPackages = Symbol.for('reifyPackages')
+const _includeWorkspaceRoot = Symbol.for('includeWorkspaceRoot')
 
 const _omitDev = Symbol('omitDev')
 const _omitOptional = Symbol('omitOptional')
@@ -338,6 +339,15 @@ module.exports = cls => class Reifier extends cls {
         const actual = this.actualTree.children.get(ws)
         if (actual) {
           filterNodes.push(actual)
+        }
+      }
+      if (this[_includeWorkspaceRoot] && (this[_workspaces].length > 0)) {
+        for (const tree of [this.idealTree, this.actualTree]) {
+          for (const {type, to} of tree.edgesOut.values()) {
+            if (type !== 'workspace' && to) {
+              filterNodes.push(to)
+            }
+          }
         }
       }
     }
@@ -901,7 +911,11 @@ module.exports = cls => class Reifier extends cls {
 
     // if we're operating on a workspace, only audit the workspace deps
     if (this[_workspaces] && this[_workspaces].length) {
-      options.filterSet = this.workspaceDependencySet(tree, this[_workspaces])
+      options.filterSet = this.workspaceDependencySet(
+        tree,
+        this[_workspaces],
+        this[_includeWorkspaceRoot]
+      )
     }
 
     this.auditReport = AuditReport.load(tree, options)

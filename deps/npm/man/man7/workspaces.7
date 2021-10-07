@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "September 2021" "" ""
+.TH "WORKSPACES" "7" "October 2021" "" ""
 .SH "NAME"
 \fBworkspaces\fR \- Working with workspaces
 .SS Description
@@ -189,6 +189,26 @@ npm run test \-\-workspaces
 .RE
 .P
 Will run the \fBtest\fP script in both \fB\|\./packages/a\fP and \fB\|\./packages/b\fP\|\.
+.P
+Commands will be run in each workspace in the order they appear in your \fBpackage\.json\fP
+.P
+.RS 2
+.nf
+{
+  "workspaces": [ "packages/a", "packages/b" ]
+}
+.fi
+.RE
+.P
+Order of run is different with:
+.P
+.RS 2
+.nf
+{
+  "workspaces": [ "packages/b", "packages/a" ]
+}
+.fi
+.RE
 .SS Ignoring missing scripts
 .P
 It is not required for all of the workspaces to implement scripts run with the \fBnpm run\fP command\.

@@ -9,7 +9,7 @@ const defaults = {
 	newline: '\n',
 	padding: 2,
 	sort: true,
-	width: 0
+	width: 0,
 };
 
 function byPlainText(a, b) {
@@ -56,16 +56,15 @@ function columns(values, options) {
 	values = concat.apply([], values);
 	options = Object.assign({}, defaults, options);
 
-	let cells = values
-		.filter(Boolean)
-		.map(String);
+	let cells = values.filter(Boolean).map(String);
 
 	if (options.sort !== false) {
 		cells = cells.sort(byPlainText);
 	}
 
 	const termWidth = options.width || process.stdout.columns;
-	const cellWidth = Math.max.apply(null, cells.map(stringWidth)) + options.padding;
+	const cellWidth =
+		Math.max.apply(null, cells.map(stringWidth)) + options.padding;
 	const columnCount = Math.floor(termWidth / cellWidth) || 1;
 	const rowCount = Math.ceil(cells.length / columnCount) || 1;
 

@@ -60,7 +60,7 @@
     "diff": "^5.0.0",
     "minimatch": "^3.0.4",
     "npm-package-arg": "^8.1.4",
-    "pacote": "^11.3.4",
+    "pacote": "^12.0.0",
     "tar": "^6.1.0"
   }
 }

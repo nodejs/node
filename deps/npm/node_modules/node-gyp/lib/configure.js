@@ -76,7 +76,9 @@ function configure (gyp, argv, callback) {
       if (err) {
         return callback(err)
       }
-      log.verbose('build dir', '"build" dir needed to be created?', isNew)
+      log.verbose(
+        'build dir', '"build" dir needed to be created?', isNew ? 'Yes' : 'No'
+      )
       if (win) {
         findVisualStudio(release.semver, gyp.opts.msvs_version,
           createConfigFile)
@@ -96,7 +98,7 @@ function configure (gyp, argv, callback) {
 
     log.verbose('build/' + configFilename, 'creating config file')
 
-    var config = process.config || {}
+    var config = process.config ? JSON.parse(JSON.stringify(process.config)) : {}
     var defaults = config.target_defaults
     var variables = config.variables
 

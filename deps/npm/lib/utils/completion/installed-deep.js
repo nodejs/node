@@ -1,5 +1,6 @@
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const installedDeep = async (npm) => {
   const {
@@ -15,8 +16,7 @@ const installedDeep = async (npm) => {
         return i
       })
       .filter(i => (i.depth - 1) <= depth)
-      .sort((a, b) => a.depth - b.depth)
-      .sort((a, b) => a.depth === b.depth ? a.name.localeCompare(b.name, 'en') : 0)
+      .sort((a, b) => (a.depth - b.depth) || localeCompare(a.name, b.name))
 
   const res = new Set()
   const gArb = new Arborist({ global: true, path: resolve(npm.globalDir, '..') })

@@ -8,6 +8,7 @@ const semver = require('semver')
 const BaseCommand = require('./base-command.js')
 const npa = require('npm-package-arg')
 const jsonParse = require('json-parse-even-better-errors')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const searchCachePackage = async (path, spec, cacheKeys) => {
   const parsed = npa(spec)
@@ -212,10 +213,10 @@ class Cache extends BaseCommand {
         for (const key of keySet)
           results.add(key)
       }
-      [...results].sort((a, b) => a.localeCompare(b, 'en')).forEach(key => this.npm.output(key))
+      [...results].sort(localeCompare).forEach(key => this.npm.output(key))
       return
     }
-    cacheKeys.sort((a, b) => a.localeCompare(b, 'en')).forEach(key => this.npm.output(key))
+    cacheKeys.sort(localeCompare).forEach(key => this.npm.output(key))
   }
 }
 

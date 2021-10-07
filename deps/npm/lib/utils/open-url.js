@@ -4,6 +4,7 @@ const { URL } = require('url')
 
 // attempt to open URL in web-browser, print address otherwise:
 const open = async (npm, url, errMsg) => {
+  url = encodeURI(url)
   const browser = npm.config.get('browser')
 
   function printAlternateMsg () {

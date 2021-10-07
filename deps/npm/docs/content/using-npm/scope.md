@@ -98,7 +98,8 @@ desired, with `npm access` or on the npmjs.com website.
 
 Scopes can be associated with a separate registry. This allows you to
 seamlessly use a mix of packages from the primary npm registry and one or more
-private registries, such as npm Enterprise.
+private registries, such as [GitHub Packages](https://github.com/features/packages) or the open source [Verdaccio](https://verdaccio.org)
+project.
 
 You can associate a scope with a registry at login, e.g.
 

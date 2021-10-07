@@ -36,10 +36,7 @@ def _deepcopy_atomic(x):
     return x
 
 
-try:
-    types = bool, float, int, str, type, type(None), long, unicode
-except NameError:  # Python 3
-    types = bool, float, int, str, type, type(None)
+types = bool, float, int, str, type, type(None)
 
 for x in types:
     d[x] = _deepcopy_atomic

@@ -399,7 +399,7 @@ VisualStudioFinder.prototype = {
     })
   },
 
-  // After finding a usable version of Visual Stuido:
+  // After finding a usable version of Visual Studio:
   // - add it to validVersions to be displayed at the end if a specific
   //   version was requested and not found;
   // - check if this is the version that was requested.

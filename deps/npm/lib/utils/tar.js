@@ -3,6 +3,10 @@ const ssri = require('ssri')
 const npmlog = require('npmlog')
 const formatBytes = require('./format-bytes.js')
 const columnify = require('columnify')
+const localeCompare = require('@isaacs/string-locale-compare')('en', {
+  sensitivity: 'case',
+  numeric: true,
+})
 
 const logTar = (tarball, opts = {}) => {
   const { unicode = false, log = npmlog } = opts
@@ -75,12 +79,7 @@ const getContents = async (manifest, tarball) => {
     algorithms: ['sha1', 'sha512'],
   })
 
-  const comparator = (a, b) => {
-    return a.path.localeCompare(b.path, 'en', {
-      sensitivity: 'case',
-      numeric: true,
-    })
-  }
+  const comparator = ({ path: a }, { path: b }) => localeCompare(a, b)
 
   const isUpper = (str) => {
     const ch = str.charAt(0)

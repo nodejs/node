@@ -163,6 +163,12 @@ of which there is a public mirror at <a href="https://skimdb.npmjs.com/registry"
 <a href="../using-npm/scope.html"><code>scope</code></a>. If no scope is specified, the default registry is used, which is
 supplied by the <code>registry</code> config parameter.  See <a href="../commands/npm-config.html"><code>npm config</code></a>,
 <a href="../configuring-npm/npmrc.html"><code>npmrc</code></a>, and <a href="../using-npm/config.html"><code>config</code></a> for more on managing npm’s configuration.</p>
+<p>When the default registry is used in a package-lock or shrinkwrap is has the
+special meaning of “the currently configured registry”. If you create a lock
+file while using the default registry you can switch to another registry and
+npm will install packages from the new registry, but if you create a lock
+file while using a custom registry packages will be installed from that
+registry even after you change to another registry.</p>
 <h3 id="does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</h3>
 <p>Yes.</p>
 <p>When making requests of the registry npm adds two headers with information

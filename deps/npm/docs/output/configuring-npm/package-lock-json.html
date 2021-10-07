@@ -262,7 +262,8 @@ packages are listed with their relative paths from the root project folder.</p>
 the case of packages fetched from the registry, this will be a url to a
 tarball.  In the case of git dependencies, this will be the full git url
 with commit sha.  In the case of link dependencies, this will be the
-location of the link target.</p>
+location of the link target. <code>registry.npmjs.org</code> is a magic value meaning
+“the currently configured registry”.</p>
 </li>
 <li>
 <p>integrity: A <code>sha512</code> or <code>sha1</code> <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Standard Subresource
@@ -334,7 +335,8 @@ dependencies, this is the commit sha.</p>
 <li>
 <p>resolved: For registry sources this is path of the tarball relative to
 the registry URL.  If the tarball URL isn’t on the same server as the
-registry URL then this is a complete URL.</p>
+registry URL then this is a complete URL. <code>registry.npmjs.org</code> is a magic
+value meaning “the currently configured registry”.</p>
 </li>
 <li>
 <p>bundled:  If true, this is the bundled dependency and will be installed

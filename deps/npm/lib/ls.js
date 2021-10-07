@@ -22,6 +22,7 @@ const _problems = Symbol('problems')
 const _required = Symbol('required')
 const _type = Symbol('type')
 const ArboristWorkspaceCmd = require('./workspaces/arborist-cmd.js')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 class LS extends ArboristWorkspaceCmd {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -503,8 +504,7 @@ const augmentNodesWithMetadata = ({
   return node
 }
 
-const sortAlphabetically = (a, b) =>
-  a.pkgid.localeCompare(b.pkgid, 'en')
+const sortAlphabetically = ({ pkgid: a }, { pkgid: b }) => localeCompare(a, b)
 
 const humanOutput = ({ color, result, seenItems, unicode }) => {
   // we need to traverse the entire tree in order to determine which items

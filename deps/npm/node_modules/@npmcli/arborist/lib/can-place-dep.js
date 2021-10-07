@@ -35,6 +35,7 @@
 // then we will return REPLACE rather than CONFLICT, and Arborist will queue
 // the replaced node for resolution elsewhere.
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const semver = require('semver')
 const debug = require('./debug.js')
 const peerEntrySets = require('./peer-entry-sets.js')
@@ -79,7 +80,7 @@ class CanPlaceDep {
       this._treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
         .map(([loc, {packageName, version, resolved}]) => {
           return [loc, packageName, version, resolved]
-        }).sort(([a], [b]) => a.localeCompare(b, 'en')))
+        }).sort(([a], [b]) => localeCompare(a, b)))
     })
 
     // the result of whether we can place it or not
@@ -119,7 +120,7 @@ class CanPlaceDep {
       const treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
         .map(([loc, {packageName, version, resolved}]) => {
           return [loc, packageName, version, resolved]
-        }).sort(([a], [b]) => a.localeCompare(b, 'en')))
+        }).sort(([a], [b]) => localeCompare(a, b)))
       /* istanbul ignore if */
       if (this._treeSnapshot !== treeSnapshot) {
         throw Object.assign(new Error('tree changed in CanPlaceDep'), {

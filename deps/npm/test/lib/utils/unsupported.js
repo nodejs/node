@@ -27,10 +27,15 @@ const versions = [
   ['v7.2.3', false, true],
   ['v8.4.0', false, true],
   ['v9.3.0', false, true],
-  ['v10.0.0-0', false, false],
-  ['v11.0.0-0', false, false],
-  ['v12.0.0-0', false, false],
-  ['v13.0.0-0', false, false],
+  ['v10.0.0-0', false, true],
+  ['v11.0.0-0', false, true],
+  ['v12.0.0-0', false, true],
+  ['v12.13.0-0', false, false],
+  ['v13.0.0-0', false, true],
+  ['v14.0.0-0', false, true],
+  ['v14.15.0-0', false, false],
+  ['v15.0.0-0', false, true],
+  ['v16.0.0-0', false, false],
 ]
 
 t.test('versions', function (t) {

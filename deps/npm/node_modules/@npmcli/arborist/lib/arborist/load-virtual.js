@@ -1,4 +1,5 @@
 // mixin providing the loadVirtual method
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const {resolve} = require('path')
 
@@ -167,12 +168,12 @@ module.exports = cls => class VirtualLoader extends cls {
       ...depsToEdges('peerOptional', peerOptional),
       ...lockWS,
     ].sort(([atype, aname], [btype, bname]) =>
-      atype.localeCompare(btype, 'en') || aname.localeCompare(bname, 'en'))
+      localeCompare(atype, btype) || localeCompare(aname, bname))
 
     const rootEdges = [...root.edgesOut.values()]
       .map(e => [e.type, e.name, e.spec])
       .sort(([atype, aname], [btype, bname]) =>
-        atype.localeCompare(btype, 'en') || aname.localeCompare(bname, 'en'))
+        localeCompare(atype, btype) || localeCompare(aname, bname))
 
     if (rootEdges.length !== lockEdges.length) {
       // something added or removed

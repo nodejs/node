@@ -39,12 +39,12 @@ def _Replacement_writexml(self, writer, indent="", addindent="", newl=""):
         writer.write(">%s" % newl)
         for node in self.childNodes:
             node.writexml(writer, indent + addindent, addindent, newl)
-        writer.write("%s</%s>%s" % (indent, self.tagName, newl))
+        writer.write(f"{indent}</{self.tagName}>{newl}")
     else:
         writer.write("/>%s" % newl)
 
 
-class XmlFix(object):
+class XmlFix:
     """Object to manage temporary patching of xml.dom.minidom."""
 
     def __init__(self):

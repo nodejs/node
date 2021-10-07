@@ -1,6 +1,7 @@
 // helper function to output a clearer visualization
 // of the current node and its descendents
 
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 const util = require('util')
 const relpath = require('./relpath.js')
 
@@ -67,14 +68,14 @@ class ArboristNode {
     // edgesOut sorted by name
     if (tree.edgesOut.size) {
       this.edgesOut = new Map([...tree.edgesOut.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, 'en'))
+        .sort(([a], [b]) => localeCompare(a, b))
         .map(([name, edge]) => [name, new EdgeOut(edge)]))
     }
 
     // edgesIn sorted by location
     if (tree.edgesIn.size) {
       this.edgesIn = new Set([...tree.edgesIn]
-        .sort((a, b) => a.from.location.localeCompare(b.from.location, 'en'))
+        .sort((a, b) => localeCompare(a.from.location, b.from.location))
         .map(edge => new EdgeIn(edge)))
     }
 
@@ -86,14 +87,14 @@ class ArboristNode {
     // fsChildren sorted by path
     if (tree.fsChildren.size) {
       this.fsChildren = new Set([...tree.fsChildren]
-        .sort(({path: a}, {path: b}) => a.localeCompare(b, 'en'))
+        .sort(({path: a}, {path: b}) => localeCompare(a, b))
         .map(tree => printableTree(tree, path)))
     }
 
     // children sorted by name
     if (tree.children.size) {
       this.children = new Map([...tree.children.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, 'en'))
+        .sort(([a], [b]) => localeCompare(a, b))
         .map(([name, tree]) => [name, printableTree(tree, path)]))
     }
   }
