@@ -9,13 +9,13 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 
 * [Who can make a release?](#who-can-make-a-release)
   * [1. Jenkins release access](#1-jenkins-release-access)
-  * [2. <nodejs.org> access](#2-nodejsorg-access)
+  * [2. \<nodejs.org> access](#2-nodejsorg-access)
   * [3. A publicly listed GPG key](#3-a-publicly-listed-gpg-key)
 * [How to create a release](#how-to-create-a-release)
   * [0. Pre-release steps](#0-pre-release-steps)
   * [1. Update the staging branch](#1-update-the-staging-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
-  * [3. Update `src/node_version.h`](#3-update-srcnode_versionh)
+  * [3. Update `src/node_version.h`](#3-update-srcnode\_versionh)
   * [4. Update the changelog](#4-update-the-changelog)
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
@@ -48,11 +48,11 @@ There are three relevant Jenkins jobs that should be used for a release flow:
 
 **a.** **Test runs:**
 **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)**
-is used for a final full-test run to ensure that the current *HEAD* is stable.
+is used for a final full-test run to ensure that the current _HEAD_ is stable.
 
 **b.** **Nightly builds:** (optional)
 **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** can be used
-to create a nightly release for the current *HEAD* if public test releases are
+to create a nightly release for the current _HEAD_ if public test releases are
 required. Builds triggered with this job are published straight to
 <https://nodejs.org/download/nightly/> and are available for public download.
 
@@ -64,7 +64,7 @@ a manual step once they are ready (see below).
 The [Node.js build team](https://github.com/nodejs/build) is able to provide
 this access to individuals authorized by the TSC.
 
-### 2. <nodejs.org> access
+### 2. \<nodejs.org> access
 
 The _dist_ user on nodejs.org controls the assets available in
 <https://nodejs.org/download/>. <https://nodejs.org/dist/> is an alias for
@@ -158,7 +158,7 @@ For each PR:
 * Check approvals (you can approve yourself).
 * Check that the commit metadata was not changed from the `master` commit.
 * If there are merge conflicts, ask the PR author to rebase.
-Simple conflicts can be resolved when landing.
+  Simple conflicts can be resolved when landing.
 
 When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
 backport PR with `Landed in ...`. Update the label on the original PR from
@@ -185,10 +185,10 @@ Carefully review the list of commits:
 
 * Checking for errors (incorrect `PR-URL`)
 * Checking semver status - Commits labeled as `semver-minor` or `semver-major`
-should only be cherry-picked when appropriate for the type of release being
-made.
+  should only be cherry-picked when appropriate for the type of release being
+  made.
 * If you think it's risky and the change should wait for a while, add the
-`baking-for-lts` tag.
+  `baking-for-lts` tag.
 
 When you are ready to cherry-pick commits, you can automate with the following
 command. (For semver-minor releases, make sure to remove the `semver-minor` tag
@@ -202,7 +202,7 @@ When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
- Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
+Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
 
 If commits were cherry-picked in this step, check that the test still pass.
 
@@ -264,7 +264,7 @@ $ changelog-maker --group --filter-release --start-ref v1.2.2
 
 `--filter-release` will remove the release commit from the previous release.
 
-#### Step 2: Update the appropriate doc/changelogs/CHANGELOG_*.md file
+#### Step 2: Update the appropriate doc/changelogs/CHANGELOG\_\*.md file
 
 There is a separate `CHANGELOG_Vx.md` file for each major Node.js release line.
 These are located in the `doc/changelogs/` directory. Once the formatted list of
@@ -272,7 +272,7 @@ changes is collected, it must be added to the top of the relevant changelog file
 in the release branch (e.g. a release for Node.js v4 would be added to the
 `/doc/changelogs/CHANGELOG_V4.md`).
 
-**Please do *not* add the changelog entries to the root `CHANGELOG.md` file.**
+**Please do _not_ add the changelog entries to the root `CHANGELOG.md` file.**
 
 The new entry should take the following form:
 
@@ -307,7 +307,7 @@ all.
 
 At the top of the root `CHANGELOG.md` file, there is a table indexing all
 releases in each major release line. A link to the new release needs to be added
-to it. Follow the existing examples and be sure to add the release to the *top*
+to it. Follow the existing examples and be sure to add the release to the _top_
 of the list. The most recent release for each release line is shown in **bold**
 in the index. When updating the index, please make sure to update the display
 accordingly by removing the bold styling from the previous release.
@@ -318,10 +318,13 @@ If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
 `REPLACEME` tags as per the example in the
 [docs README](../../tools/doc/README.md). Check for these tags with
+
 ```console
 grep REPLACEME doc/api/*.md
 ```
+
 and substitute this node version with
+
 ```console
 sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md
 ```
@@ -459,13 +462,18 @@ the build before moving forward.
 Once you have produced builds that you're happy with, create a new tag. By
 waiting until this stage to create tags, you can discard a proposed release if
 something goes wrong or additional commits are required. Once you have created a
-tag and pushed it to GitHub, you ***must not*** delete and re-tag. If you make
+tag and pushed it to GitHub, you _**must not**_ delete and re-tag. If you make
 a mistake after tagging then you'll have to version-bump and start again and
 count that tag/version as lost.
 
-Tag summaries have a predictable format, look at a recent tag to see, `git tag
--v v6.0.0`. The message should look something like `2016-04-26 Node.js v6.0.0
-(Current) Release`.
+Tag summaries have a predictable format. Look at a recent tag to see:
+
+```console
+git tag -v v6.0.0
+```
+
+The message should look something like
+`2016-04-26 Node.js v6.0.0 (Current) Release`.
 
 Install `git-secure-tag` npm module:
 
@@ -480,7 +488,7 @@ $ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-
 ```
 
 `release-type` is either "Current" or "LTS". For LTS releases, you should also
- include the release code name.
+include the release code name.
 
 ```text
 2019-10-22 Node.js v10.17.0 'Dubnium' (LTS) Release
@@ -559,7 +567,7 @@ Push the tag using the following command:
 $ git push <remote> <vx.y.z>
 ```
 
-*Note*: Please do not push the tag unless you are ready to complete the
+_Note_: Please do not push the tag unless you are ready to complete the
 remainder of the release steps.
 
 ### 15. Promote and sign the release builds
@@ -616,8 +624,7 @@ however.
 **d.** Use `scp` to download `SHASUMS256.txt` to a temporary directory on your
 computer.
 
-**e.** Sign the `SHASUMS256.txt` file using a command similar to: `gpg
---default-key YOURKEY --digest-algo SHA256 --clearsign /path/to/SHASUMS256.txt`.
+**e.** Sign the `SHASUMS256.txt` file using a command similar to: `gpg --default-key YOURKEY --digest-algo SHA256 --clearsign /path/to/SHASUMS256.txt`.
 You will be prompted by GPG for your password. The signed file will be named
 SHASUMS256.txt.asc.
 
@@ -628,6 +635,7 @@ SHASUMS256.txt.sig.
 
 **g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
+
 </details>
 
 **It is possible to only sign a release by running `./tools/release.sh -s
@@ -655,13 +663,16 @@ This script will use the promoted builds and changelog to generate the post. Run
 
 * You can add a short blurb just under the main heading if you want to say
   something important, otherwise the text should be publication ready.
+
 * The links to the download files won't be complete unless you waited for the
   ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to
   them. It's your responsibility to manually update these later when you have
   the outstanding builds.
+
 * The `SHASUMS256.txt.asc` content is at the bottom of the post. When you update
   the list of tarballs you'll need to copy/paste the new contents of this file
   to reflect those changes.
+
 * Always use pull-requests on the [nodejs.org repository][]. Be respectful
   of the website team, but you do not have to wait for PR sign-off. Please
   use the following commit message format:
@@ -691,7 +702,7 @@ Close your release proposal PR and delete the proposal branch.
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on Twitter through the official @nodejs account, email
-[pr@nodejs.org](mailto:pr@nodejs.org) with a message such as:
+<pr@nodejs.org> with a message such as:
 
 > v5.8.0 of @nodejs is out: <https://nodejs.org/en/blog/release/v5.8.0/>
 > …
@@ -719,7 +730,7 @@ To mark a release line as LTS, the following changes must be made to
 * The `NODE_PATCH_VERSION` macro must be set to `0`
 * The `NODE_VERSION_IS_LTS` macro must be set to `1`
 * The `NODE_VERSION_LTS_CODENAME` macro must be set to the code name selected
-for the LTS release.
+  for the LTS release.
 
 For example:
 

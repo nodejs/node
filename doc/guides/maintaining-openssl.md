@@ -28,6 +28,7 @@ Branches are used per OpenSSL version (for instance,
 <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic)>.
 
 ## Requirements
+
 * Linux environment.
 * `perl` Only Perl version 5 is tested.
 * `nasm` (<https://www.nasm.us/>) Version 2.11 or higher is needed.
@@ -71,6 +72,7 @@ release).
 
 The commit message can be written as (with the openssl version set
 to the relevant value):
+
 ```text
 deps: upgrade openssl sources to OpenSSL_1_1_1j
 
@@ -90,6 +92,7 @@ This updates all sources in deps/openssl/openssl by:
 
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
+
 ```console
 # On non-Linux machines
 % make gen-openssl
@@ -103,13 +106,14 @@ Use `make` to regenerate all platform dependent files in
 Check diffs to ensure updates are right. Even if there are no updates in openssl
 sources, `buildinf.h` files will be updated because they have timestamp
 data in them.
+
 ```console
 % git diff -- deps/openssl
 ```
 
-*Note*: On Windows, OpenSSL Configure generates a `makefile` that can be
+_Note_: On Windows, OpenSSL Configure generates a `makefile` that can be
 used for the `nmake` command. The `make` command in step 2 (above) uses
- `Makefile_VC-WIN64A` and `Makefile_VC-WIN32` that are manually
+`Makefile_VC-WIN64A` and `Makefile_VC-WIN32` that are manually
 created. When source files or build options are updated in Windows,
 it needs to change these two Makefiles by hand. If you are not sure,
 please ask @shigeki for details.
@@ -118,6 +122,7 @@ please ask @shigeki for details.
 
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
+
 ```console
 % git add deps/openssl/config/archs
 % git add deps/openssl/openssl/include/crypto/bn_conf.h
@@ -128,6 +133,7 @@ files if they are changed before committing:
 
 The commit message can be written as (with the openssl version set
 to the relevant value):
+
 ```text
  deps: update archs files for OpenSSL-1.1.1
 
