@@ -3029,7 +3029,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(semver__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _config_json__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../config.json */ "./config.json");
 /* harmony import */ var _folderUtils__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./folderUtils */ "./sources/folderUtils.ts");
-/* harmony import */ var _pmmUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./pmmUtils */ "./sources/pmmUtils.ts");
+/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
 /* harmony import */ var _semverUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./semverUtils */ "./sources/semverUtils.ts");
 /* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./types */ "./sources/types.ts");
 
@@ -3119,7 +3119,7 @@ class Engine {
         const range = ranges.find(range => _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(locator.reference, range));
         if (typeof range === `undefined`)
             throw new Error(`Assertion failed: Specified resolution (${locator.reference}) isn't supported by any of ${ranges.join(`, `)}`);
-        const installedLocation = await _pmmUtils__WEBPACK_IMPORTED_MODULE_5__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_4__.getInstallFolder(), locator, {
+        const installedLocation = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_4__.getInstallFolder(), locator, {
             spec: definition.ranges[range],
         });
         return {
@@ -3138,7 +3138,7 @@ class Engine {
             // We only resolve tags from the latest registry entry
             const ranges = Object.keys(definition.ranges);
             const tagRange = ranges[ranges.length - 1];
-            const tags = await _pmmUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableTags(definition.ranges[tagRange].registry);
+            const tags = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableTags(definition.ranges[tagRange].registry);
             if (!Object.prototype.hasOwnProperty.call(tags, descriptor.range))
                 throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Tag not found (${descriptor.range})`);
             finalDescriptor = {
@@ -3148,14 +3148,14 @@ class Engine {
         }
         // If a compatible version is already installed, no need to query one
         // from the remote listings
-        const cachedVersion = await _pmmUtils__WEBPACK_IMPORTED_MODULE_5__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_4__.getInstallFolder(), finalDescriptor);
+        const cachedVersion = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_4__.getInstallFolder(), finalDescriptor);
         if (cachedVersion !== null && useCache)
             return { name: finalDescriptor.name, reference: cachedVersion };
         const candidateRangeDefinitions = Object.keys(definition.ranges).filter(range => {
             return _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(finalDescriptor.range, range);
         });
         const tagResolutions = await Promise.all(candidateRangeDefinitions.map(async (range) => {
-            return [range, await _pmmUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableVersions(definition.ranges[range].registry)];
+            return [range, await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableVersions(definition.ranges[range].registry)];
         }));
         // If a version is available under multiple strategies (for example if
         // Yarn is published to both the v1 package and git), we only care
@@ -3607,180 +3607,10 @@ PrepareCommand.usage = clipanion__WEBPACK_IMPORTED_MODULE_3__.Command.Usage({
 
 /***/ }),
 
-/***/ "./sources/debugUtils.ts":
-/*!*******************************!*\
-  !*** ./sources/debugUtils.ts ***!
-  \*******************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "log": () => (/* binding */ log)
-/* harmony export */ });
-/* harmony import */ var debug__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! debug */ "./.yarn/__virtual__/debug-virtual-d208043b83/0/cache/debug-npm-4.1.1-540248b3aa-1e681f5cce.zip/node_modules/debug/src/index.js");
-/* harmony import */ var debug__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(debug__WEBPACK_IMPORTED_MODULE_0__);
-
-const log = debug__WEBPACK_IMPORTED_MODULE_0___default()(`corepack`);
-
-
-/***/ }),
-
-/***/ "./sources/folderUtils.ts":
-/*!********************************!*\
-  !*** ./sources/folderUtils.ts ***!
-  \********************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "getInstallFolder": () => (/* binding */ getInstallFolder),
-/* harmony export */   "getTemporaryFolder": () => (/* binding */ getTemporaryFolder)
-/* harmony export */ });
-/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! fs */ "fs");
-/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! os */ "os");
-/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(os__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! path */ "path");
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_2__);
-
-
-
-function getInstallFolder() {
-    var _a;
-    return (_a = process.env.COREPACK_HOME) !== null && _a !== void 0 ? _a : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node/corepack`);
-}
-function getTemporaryFolder(target = (0,os__WEBPACK_IMPORTED_MODULE_1__.tmpdir)()) {
-    (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(target, { recursive: true });
-    while (true) {
-        const rnd = Math.random() * 0x100000000;
-        const hex = rnd.toString(16).padStart(8, `0`);
-        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${process.pid}-${hex}`);
-        try {
-            (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(path);
-            return path;
-        }
-        catch (error) {
-            if (error.code === `EEXIST`) {
-                continue;
-            }
-            else {
-                throw error;
-            }
-        }
-    }
-}
-
-
-/***/ }),
-
-/***/ "./sources/fsUtils.ts":
-/*!****************************!*\
-  !*** ./sources/fsUtils.ts ***!
-  \****************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "mutex": () => (/* binding */ mutex)
-/* harmony export */ });
-async function mutex(p, cb) {
-    return await cb();
-}
-
-
-/***/ }),
-
-/***/ "./sources/httpUtils.ts":
-/*!******************************!*\
-  !*** ./sources/httpUtils.ts ***!
-  \******************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "fetchUrlStream": () => (/* binding */ fetchUrlStream),
-/* harmony export */   "fetchAsBuffer": () => (/* binding */ fetchAsBuffer),
-/* harmony export */   "fetchAsJson": () => (/* binding */ fetchAsJson)
-/* harmony export */ });
-/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-119dc92083/0/cache/clipanion-npm-3.0.1-901533eeed-3a4b0c1e7d.zip/node_modules/clipanion/lib/advanced/index.js");
-
-async function fetchUrlStream(url, options = {}) {
-    if (process.env.COREPACK_ENABLE_NETWORK === `0`)
-        throw new clipanion__WEBPACK_IMPORTED_MODULE_0__.UsageError(`Network access disabled by the environment; can't reach ${url}`);
-    const { default: https } = await Promise.resolve(/*! import() */).then(__webpack_require__.t.bind(__webpack_require__, /*! https */ "https", 23));
-    return new Promise((resolve, reject) => {
-        const request = https.get(url, options, response => {
-            var _a;
-            const statusCode = (_a = response.statusCode) !== null && _a !== void 0 ? _a : 500;
-            if (!(statusCode >= 200 && statusCode < 300))
-                return reject(new Error(`Server answered with HTTP ${statusCode}`));
-            return resolve(response);
-        });
-        request.on(`error`, err => {
-            reject(new Error(`Error when performing the request`));
-        });
-    });
-}
-async function fetchAsBuffer(url, options) {
-    const response = await fetchUrlStream(url, options);
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        response.on(`data`, chunk => {
-            chunks.push(chunk);
-        });
-        response.on(`error`, error => {
-            reject(error);
-        });
-        response.on(`end`, () => {
-            resolve(Buffer.concat(chunks));
-        });
-    });
-}
-async function fetchAsJson(url, options) {
-    const buffer = await fetchAsBuffer(url, options);
-    const asText = buffer.toString();
-    try {
-        return JSON.parse(asText);
-    }
-    catch (error) {
-        const truncated = asText.length > 30
-            ? `${asText.slice(0, 30)}...`
-            : asText;
-        throw new Error(`Couldn't parse JSON data: ${JSON.stringify(truncated)}`);
-    }
-}
-
-
-/***/ }),
-
-/***/ "./sources/miscUtils.ts":
-/*!******************************!*\
-  !*** ./sources/miscUtils.ts ***!
-  \******************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "Cancellation": () => (/* binding */ Cancellation)
-/* harmony export */ });
-class Cancellation extends Error {
-    constructor() {
-        super(`Cancelled operation`);
-    }
-}
-
-
-/***/ }),
-
-/***/ "./sources/pmmUtils.ts":
-/*!*****************************!*\
-  !*** ./sources/pmmUtils.ts ***!
-  \*****************************/
+/***/ "./sources/corepackUtils.ts":
+/*!**********************************!*\
+  !*** ./sources/corepackUtils.ts ***!
+  \**********************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -3984,6 +3814,176 @@ function sigintHandler() {
 function sigtermHandler() {
     for (const child of activeChildren) {
         child.kill();
+    }
+}
+
+
+/***/ }),
+
+/***/ "./sources/debugUtils.ts":
+/*!*******************************!*\
+  !*** ./sources/debugUtils.ts ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "log": () => (/* binding */ log)
+/* harmony export */ });
+/* harmony import */ var debug__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! debug */ "./.yarn/__virtual__/debug-virtual-d208043b83/0/cache/debug-npm-4.1.1-540248b3aa-1e681f5cce.zip/node_modules/debug/src/index.js");
+/* harmony import */ var debug__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(debug__WEBPACK_IMPORTED_MODULE_0__);
+
+const log = debug__WEBPACK_IMPORTED_MODULE_0___default()(`corepack`);
+
+
+/***/ }),
+
+/***/ "./sources/folderUtils.ts":
+/*!********************************!*\
+  !*** ./sources/folderUtils.ts ***!
+  \********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "getInstallFolder": () => (/* binding */ getInstallFolder),
+/* harmony export */   "getTemporaryFolder": () => (/* binding */ getTemporaryFolder)
+/* harmony export */ });
+/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! fs */ "fs");
+/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! os */ "os");
+/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(os__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! path */ "path");
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_2__);
+
+
+
+function getInstallFolder() {
+    var _a;
+    return (_a = process.env.COREPACK_HOME) !== null && _a !== void 0 ? _a : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node/corepack`);
+}
+function getTemporaryFolder(target = (0,os__WEBPACK_IMPORTED_MODULE_1__.tmpdir)()) {
+    (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(target, { recursive: true });
+    while (true) {
+        const rnd = Math.random() * 0x100000000;
+        const hex = rnd.toString(16).padStart(8, `0`);
+        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${process.pid}-${hex}`);
+        try {
+            (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(path);
+            return path;
+        }
+        catch (error) {
+            if (error.code === `EEXIST`) {
+                continue;
+            }
+            else {
+                throw error;
+            }
+        }
+    }
+}
+
+
+/***/ }),
+
+/***/ "./sources/fsUtils.ts":
+/*!****************************!*\
+  !*** ./sources/fsUtils.ts ***!
+  \****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "mutex": () => (/* binding */ mutex)
+/* harmony export */ });
+async function mutex(p, cb) {
+    return await cb();
+}
+
+
+/***/ }),
+
+/***/ "./sources/httpUtils.ts":
+/*!******************************!*\
+  !*** ./sources/httpUtils.ts ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "fetchUrlStream": () => (/* binding */ fetchUrlStream),
+/* harmony export */   "fetchAsBuffer": () => (/* binding */ fetchAsBuffer),
+/* harmony export */   "fetchAsJson": () => (/* binding */ fetchAsJson)
+/* harmony export */ });
+/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-119dc92083/0/cache/clipanion-npm-3.0.1-901533eeed-3a4b0c1e7d.zip/node_modules/clipanion/lib/advanced/index.js");
+
+async function fetchUrlStream(url, options = {}) {
+    if (process.env.COREPACK_ENABLE_NETWORK === `0`)
+        throw new clipanion__WEBPACK_IMPORTED_MODULE_0__.UsageError(`Network access disabled by the environment; can't reach ${url}`);
+    const { default: https } = await Promise.resolve(/*! import() */).then(__webpack_require__.t.bind(__webpack_require__, /*! https */ "https", 23));
+    return new Promise((resolve, reject) => {
+        const request = https.get(url, options, response => {
+            var _a;
+            const statusCode = (_a = response.statusCode) !== null && _a !== void 0 ? _a : 500;
+            if (!(statusCode >= 200 && statusCode < 300))
+                return reject(new Error(`Server answered with HTTP ${statusCode}`));
+            return resolve(response);
+        });
+        request.on(`error`, err => {
+            reject(new Error(`Error when performing the request`));
+        });
+    });
+}
+async function fetchAsBuffer(url, options) {
+    const response = await fetchUrlStream(url, options);
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        response.on(`data`, chunk => {
+            chunks.push(chunk);
+        });
+        response.on(`error`, error => {
+            reject(error);
+        });
+        response.on(`end`, () => {
+            resolve(Buffer.concat(chunks));
+        });
+    });
+}
+async function fetchAsJson(url, options) {
+    const buffer = await fetchAsBuffer(url, options);
+    const asText = buffer.toString();
+    try {
+        return JSON.parse(asText);
+    }
+    catch (error) {
+        const truncated = asText.length > 30
+            ? `${asText.slice(0, 30)}...`
+            : asText;
+        throw new Error(`Couldn't parse JSON data: ${JSON.stringify(truncated)}`);
+    }
+}
+
+
+/***/ }),
+
+/***/ "./sources/miscUtils.ts":
+/*!******************************!*\
+  !*** ./sources/miscUtils.ts ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Cancellation": () => (/* binding */ Cancellation)
+/* harmony export */ });
+class Cancellation extends Error {
+    constructor() {
+        super(`Cancelled operation`);
     }
 }
 
@@ -14447,7 +14447,7 @@ try {
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"definitions":{"npm":{"default":"7.20.1","transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"6.11.0","transparent":{"commands":[["pnpm","init"],["pnpx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.11","transparent":{"default":"3.0.0","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
+module.exports = JSON.parse('{"definitions":{"npm":{"default":"7.20.1","transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"6.11.0","transparent":{"commands":[["pnpm","init"],["pnpx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.15","transparent":{"default":"3.0.0","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
 
 /***/ }),
 
@@ -14458,7 +14458,7 @@ module.exports = JSON.parse('{"definitions":{"npm":{"default":"7.20.1","transpar
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"corepack","version":"0.9.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"packageManager":"yarn@3.0.0","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-proposal-class-properties":"^7.13.0","@babel/plugin-proposal-decorators":"^7.14.2","@babel/plugin-proposal-nullish-coalescing-operator":"^7.10.4","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^26.0.23","@types/node":"^13.9.2","@types/semver":"^7.1.0","@types/tar":"^4.0.3","@types/which":"^1.3.2","@typescript-eslint/eslint-plugin":"^2.0.0","@typescript-eslint/parser":"^4.2.0","@yarnpkg/eslint-config":"^0.1.0","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^7.10.0","eslint-plugin-arca":"^0.9.5","jest":"^26.0.0","nock":"^13.0.4","semver":"^7.1.3","supports-color":"^7.1.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^8.0.2","ts-node":"^8.10.2","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^3.3.11","which":"^2.0.2"},"scripts":{"build":"rm -rf dist && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/main.ts","prepack":"node ./.yarn/releases/*.*js build","postpack":"rm -rf dist shims","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]}}');
+module.exports = JSON.parse('{"name":"corepack","version":"0.10.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"packageManager":"yarn@3.0.0","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-proposal-class-properties":"^7.13.0","@babel/plugin-proposal-decorators":"^7.14.2","@babel/plugin-proposal-nullish-coalescing-operator":"^7.10.4","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^26.0.23","@types/node":"^13.9.2","@types/semver":"^7.1.0","@types/tar":"^4.0.3","@types/which":"^1.3.2","@typescript-eslint/eslint-plugin":"^2.0.0","@typescript-eslint/parser":"^4.2.0","@yarnpkg/eslint-config":"^0.1.0","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^7.10.0","eslint-plugin-arca":"^0.9.5","jest":"^26.0.0","nock":"^13.0.4","semver":"^7.1.3","supports-color":"^7.1.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^8.0.2","ts-node":"^8.10.2","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^3.3.11","which":"^2.0.2"},"scripts":{"build":"rm -rf dist && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/main.ts","prepack":"node ./.yarn/releases/*.*js build","postpack":"rm -rf dist shims","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]}}');
 
 /***/ }),
 
@@ -14733,7 +14733,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _commands_Hydrate__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./commands/Hydrate */ "./sources/commands/Hydrate.ts");
 /* harmony import */ var _commands_Prepare__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./commands/Prepare */ "./sources/commands/Prepare.ts");
 /* harmony import */ var _miscUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./miscUtils */ "./sources/miscUtils.ts");
-/* harmony import */ var _pmmUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./pmmUtils */ "./sources/pmmUtils.ts");
+/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
 /* harmony import */ var _specUtils__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./specUtils */ "./sources/specUtils.ts");
 
 
@@ -14799,7 +14799,7 @@ async function executePackageManagerRequest({ packageManager, binaryName, binary
     if (resolved === null)
         throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Failed to successfully resolve '${descriptor.range}' to a valid ${descriptor.name} release`);
     const installSpec = await context.engine.ensurePackageManager(resolved);
-    const exitCode = await _pmmUtils__WEBPACK_IMPORTED_MODULE_6__.runVersion(installSpec, resolved, binaryName, args, context);
+    const exitCode = await _corepackUtils__WEBPACK_IMPORTED_MODULE_6__.runVersion(installSpec, resolved, binaryName, args, context);
     return exitCode;
 }
 async function main(argv, context) {
