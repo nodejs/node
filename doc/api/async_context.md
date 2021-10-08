@@ -223,8 +223,9 @@ added:
 * `...args` {any}
 
 Runs a function synchronously within a context and returns its
-return value. The store is not accessible outside of the callback function or
-the asynchronous operations created within the callback.
+return value. The store is not accessible outside of the callback function.
+The store is accessible to any asynchronous operations created within the
+callback.
 
 The optional `args` are passed to the callback function.
 
@@ -238,6 +239,9 @@ const store = { id: 2 };
 try {
   asyncLocalStorage.run(store, () => {
     asyncLocalStorage.getStore(); // Returns the store object
+    setTimeout(() => {
+      asyncLocalStorage.getStore(); // Returns the store object
+    }, 200);
     throw new Error();
   });
 } catch (e) {
