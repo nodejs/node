@@ -2821,6 +2821,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a typed array.
 
+Any of the out parameters may be `NULL` if that property is unneeded.
+
 *Warning*: Use caution while using this API since the underlying data buffer
 is managed by the VM.
 
@@ -2850,6 +2852,8 @@ napi_status napi_get_dataview_info(napi_env env,
   to start projecting the `DataView`.
 
 Returns `napi_ok` if the API succeeded.
+
+Any of the out parameters may be `NULL` if that property is unneeded.
 
 This API returns various properties of a `DataView`.
 
