@@ -115,7 +115,7 @@ const theData = 'hello';
   // Like the ReadableStream test above, this sets up a pipeline
   // through which the data flows...
   //
-  // We start with WritableStream W1, which is transfered to port1.
+  // We start with WritableStream W1, which is transferred to port1.
   // Doing so creates an internal ReadableStream R1 and WritableStream W2,
   // which are coupled together with MessagePorts P1 and P2.
   // The port1.onmessage callback receives WritableStream W2 and
@@ -169,25 +169,25 @@ const theData = 'hello';
   // We start with TransformStream T1, which creates ReadableStream R1,
   // and WritableStream W1.
   //
-  // When T1 is transfered to port1.onmessage, R1 and W1 are individually
-  // transfered.
+  // When T1 is transferred to port1.onmessage, R1 and W1 are individually
+  // transferred.
   //
-  // When R1 is transfered, it creates internal WritableStream W2, and
+  // When R1 is transferred, it creates internal WritableStream W2, and
   // new ReadableStream R2, coupled together via MessagePorts P1 and P2.
   //
-  // When W1 is transfered, it creates internal ReadableStream R3 and
+  // When W1 is transferred, it creates internal ReadableStream R3 and
   // new WritableStream W3, coupled together via MessagePorts P3 and P4.
   //
   // A new TransformStream T2 is created that owns ReadableStream R2 and
   // WritableStream W3. The port1.onmessage callback immediately transfers
   // that to port2.onmessage.
   //
-  // When T2 is transfered, R2 and W3 are individually transfered.
+  // When T2 is transferred, R2 and W3 are individually transferred.
   //
-  // When R2 is transfered, it creates internal WritableStream W4, and
+  // When R2 is transferred, it creates internal WritableStream W4, and
   // ReadableStream R4, coupled together via MessagePorts P5 and P6.
   //
-  // When W3 is transfered, it creates internal ReadableStream R5, and
+  // When W3 is transferred, it creates internal ReadableStream R5, and
   // WritableStream W5, coupled together via MessagePorts P7 and P8.
   //
   // A new TransformStream T3 is created that owns ReadableStream R4 and
