@@ -714,24 +714,19 @@ void FromNamespacedPath(std::string* path) {
 void AfterMkdirp(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
-
-  MaybeLocal<Value> path;
-  Local<Value> error;
-
   if (after.Proceed()) {
-    if (!req_wrap->continuation_data()->first_path().empty()) {
-      std::string first_path(req_wrap->continuation_data()->first_path());
-      FromNamespacedPath(&first_path);
-      path = StringBytes::Encode(req_wrap->env()->isolate(), first_path.c_str(),
-                                 req_wrap->encoding(),
-                                 &error);
-      if (path.IsEmpty())
-        req_wrap->Reject(error);
-      else
-        req_wrap->Resolve(path.ToLocalChecked());
-    } else {
-      req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
+    std::string first_path(req_wrap->continuation_data()->first_path());
+    if (first_path.empty())
+      return req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
+    FromNamespacedPath(&first_path);
+    Local<Value> path;
+    Local<Value> error;
+    if (!StringBytes::Encode(req_wrap->env()->isolate(), first_path.c_str(),
+                             req_wrap->encoding(),
+                             &error).ToLocal(&path)) {
+      return req_wrap->Reject(error);
     }
+    return req_wrap->Resolve(path);
   }
 }
 
