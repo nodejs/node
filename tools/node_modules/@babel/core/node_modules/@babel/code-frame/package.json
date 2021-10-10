@@ -1,6 +1,6 @@
 {
   "name": "@babel/code-frame",
-  "version": "7.14.5",
+  "version": "7.15.8",
   "description": "Generate errors that contain a code frame that point to source locations.",
   "author": "The Babel Team (https://babel.dev/team)",
   "homepage": "https://babel.dev/docs/en/next/babel-code-frame",
