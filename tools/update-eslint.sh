@@ -5,6 +5,8 @@
 # This script must be in the tools directory when it runs because it uses the
 # script source file path to determine directories to work in.
 
+set -e
+
 cd "$( dirname "$0" )" || exit
 rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
 (
@@ -14,7 +16,7 @@ rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
     ROOT="$PWD/../.."
     [ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
     [ -x "$NODE" ] || NODE=`command -v node`
-    NPM="$ROOT/deps/npm"
+    NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
     "$NODE" "$NPM" init --yes
 
