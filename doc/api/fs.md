@@ -568,7 +568,7 @@ changes:
 * `offset` {integer} The start position from within `buffer` where the data
   to write begins. **Default:** `0`
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
-  `buffer.length` (`.byteLength` for TypedArray|DataView types; 
+  `buffer.length` (`.byteLength` for TypedArray|DataView types;
   ignored for string|Object types)
 * `position` {integer} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
